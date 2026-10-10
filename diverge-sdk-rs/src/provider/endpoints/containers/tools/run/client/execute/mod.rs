@@ -3,16 +3,13 @@
 //! [`execute`] runs a tool container and hands back its id and an
 //! [`ExecuteHandle`]: the scope held for the container's life, every
 //! channel a caller may open into it — the five MCP exchanges above
-//! all — the connectors coming and going on its main stream, as a
-//! [`ConnectionsStream`] of [`Connection`]s, and the end of the run. The channels the provider opens back
+//! all — and the end of the run. The channels the provider opens back
 //! are answered as they come, through the caller's
 //! [`Answerers`](crate::provider::client::Answerers).
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
-mod connection;
-mod connections_stream;
 mod execute;
 mod execute_handle;
 mod filetree;
@@ -20,8 +17,6 @@ mod read;
 mod transfer;
 mod write_path;
 
-pub use connection::*;
-pub use connections_stream::*;
 pub use execute::*;
 pub use execute_handle::*;
 pub use filetree::*;

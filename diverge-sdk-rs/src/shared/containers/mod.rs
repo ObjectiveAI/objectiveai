@@ -1,24 +1,22 @@
 //! What a container scope is made of, whichever kind it is.
 //!
 //! [`containers`](crate::provider::endpoints::containers) has two families and
-//! three scopes — an agent container's run, a tool container's run
-//! and connect — and the three differ in one exchange apiece.
-//! Everything else — asking for a container, reading and writing its
-//! files, watching its tree, the connections and asks the container
-//! makes back toward the caller — is the same wire in all three, so
-//! it is defined once here and each scope's frames wrap or alias it.
+//! two scopes — an agent container's run and a tool container's run —
+//! and the two differ in one exchange apiece. Everything else — asking
+//! for a container, reading and writing its files, watching its tree,
+//! the connections and asks the container makes back toward the
+//! caller — is the same wire in both, so it is defined once here and
+//! each scope's frames wrap or alias it.
 //!
 //! [`request`] is the part of asking for a container that does not
 //! vary between the kinds: the image, the limits, the mounts, the
-//! arguments; and the other way to get one, by id. What a run answers with is
-//! [`response`]: that id. The rest is what happens once a container
+//! arguments. What a run answers with is [`response`]: its id. The rest is what happens once a container
 //! exists, split by who asks.
 //!
 //! The CALLER asks the container: [`read`] one file out,
 //! [`write_path`] one file in — its content on a channel the provider
 //! opens, [`write_bytes`] — [`transfer`] one file into another
-//! container it is running or connected to, and [`filetree`] for its
-//! filesystem.
+//! container it is running, and [`filetree`] for its filesystem.
 //!
 //! The CONTAINER asks the caller, through the provider: [`postgres`]
 //! carries each database connection it opens, [`daemon`] a frame of the program's daemon connection — the two verbs against its queue —
@@ -32,7 +30,6 @@
 //! something that is not a container scope — the proxy inside the
 //! container, whose own channels carry both.
 
-pub mod authorize;
 pub mod daemon;
 pub mod dequeue;
 pub mod enqueue;

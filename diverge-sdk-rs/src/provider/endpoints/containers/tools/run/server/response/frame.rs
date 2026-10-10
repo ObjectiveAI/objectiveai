@@ -4,27 +4,22 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use super::Connector;
 use crate::shared::containers::response::{Id, VolumeHeld, VolumeMode};
 use crate::shared::error::Error;
 
-/// A run's answer: the container's id, and then, for as long as the
-/// scope lives, every connector attached to the container and every
-/// one leaving it — or the volume that refused it, or a failure.
+/// A run's answer: the container's id — or the volume that refused
+/// it, or a failure.
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Id`](Self::Id), `1` for [`VolumeHeld`](Self::VolumeHeld),
 /// `2` for [`VolumeMode`](Self::VolumeMode), `3` for
-/// [`Error`](Self::Error), `4` for [`Connected`](Self::Connected),
-/// `5` for [`Disconnected`](Self::Disconnected) — and the rest is
-/// that variant's own JSON.
+/// [`Error`](Self::Error) — and the rest is that variant's own JSON.
 ///
 /// # Silence is the good case
 ///
 /// | the scope | means |
 /// |-----------|-------|
-/// | an id, then nothing, and stays open | the container is running, and nobody is connected to it |
-/// | an id, then a connected, a disconnected, as they come | the container is running, and this is who is on it |
+/// | an id, then nothing, and stays open | the container is running |
 /// | a volume held, then a finish | it never started: that volume is under a stat, an edit or a delete, or, persistent, has its one user |
 /// | a volume mode, then a finish | it never started: that volume is not in the mode its mount names |
 /// | an error, then a finish | it never came up, or it is gone |
@@ -82,18 +77,6 @@ pub enum Frame {
     /// [`shared::error::Error`](crate::shared::error::Error) for why
     /// it says so little.
     Error(Error),
-    /// A connector is attached to the container. Tag `4`.
-    ///
-    /// After the id, one per connect scope the provider admitted,
-    /// sent once the connector is attached and before any of its
-    /// channels is served. See [`Connector`].
-    Connected(Connector),
-    /// A connector's scope on the container has ended. Tag `5`.
-    ///
-    /// One per `Connected`, however the connect scope ended: the
-    /// connector's disconnect, its connection going, or the run's
-    /// own end — in which case the finish follows them all.
-    Disconnected(Connector),
 }
 
 /// Tag for [`Frame::Id`].
@@ -107,12 +90,6 @@ const VOLUME_MODE: u8 = 2;
 
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 3;
-
-/// Tag for [`Frame::Connected`].
-const CONNECTED: u8 = 4;
-
-/// Tag for [`Frame::Disconnected`].
-const DISCONNECTED: u8 = 5;
 
 impl Encode for Frame {
     /// One failure per variant, and all are JSON's.
@@ -141,14 +118,6 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out).map_err(FrameEncodeError::Error)
             }
-            Frame::Connected(connector) => {
-                out.extend_from_slice(&[CONNECTED]);
-                serde_json::to_writer(out, connector).map_err(FrameEncodeError::Connector)
-            }
-            Frame::Disconnected(connector) => {
-                out.extend_from_slice(&[DISCONNECTED]);
-                serde_json::to_writer(out, connector).map_err(FrameEncodeError::Connector)
-            }
         }
     }
 }
@@ -164,8 +133,6 @@ pub enum FrameEncodeError {
     VolumeMode(serde_json::Error),
     /// The error did not serialize.
     Error(serde_json::Error),
-    /// A connector did not serialize.
-    Connector(serde_json::Error),
 }
 
 impl fmt::Display for FrameEncodeError {
@@ -183,9 +150,6 @@ impl fmt::Display for FrameEncodeError {
             FrameEncodeError::Error(error) => {
                 write!(f, "tools run error did not serialize: {error}")
             }
-            FrameEncodeError::Connector(error) => {
-                write!(f, "connector did not serialize: {error}")
-            }
         }
     }
 }
@@ -197,13 +161,12 @@ impl std::error::Error for FrameEncodeError {
             FrameEncodeError::VolumeHeld(error) => Some(error),
             FrameEncodeError::VolumeMode(error) => Some(error),
             FrameEncodeError::Error(error) => Some(error),
-            FrameEncodeError::Connector(error) => Some(error),
         }
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Seven ways to fail, and each names which variant failed.
+    /// Five ways to fail, and each names which variant failed.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
@@ -222,12 +185,6 @@ impl Decode<'_> for Frame {
             ERROR => Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameError::Error),
-            CONNECTED => serde_json::from_slice(rest)
-                .map(Frame::Connected)
-                .map_err(FrameError::Connector),
-            DISCONNECTED => serde_json::from_slice(rest)
-                .map(Frame::Disconnected)
-                .map_err(FrameError::Connector),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -238,7 +195,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's six.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The id did not parse.
     Id(serde_json::Error),
@@ -248,8 +205,6 @@ pub enum FrameError {
     VolumeMode(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
-    /// A connector did not parse.
-    Connector(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -273,9 +228,6 @@ impl fmt::Display for FrameError {
             FrameError::Error(error) => {
                 write!(f, "tools run error did not parse: {error}")
             }
-            FrameError::Connector(error) => {
-                write!(f, "connector did not parse: {error}")
-            }
         }
     }
 }
@@ -287,7 +239,6 @@ impl std::error::Error for FrameError {
             FrameError::VolumeHeld(error) => Some(error),
             FrameError::VolumeMode(error) => Some(error),
             FrameError::Error(error) => Some(error),
-            FrameError::Connector(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

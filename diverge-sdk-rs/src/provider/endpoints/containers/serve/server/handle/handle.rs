@@ -22,8 +22,8 @@ use crate::shared::error::Error;
 /// In order:
 ///
 /// 1. The container, found in the [`Directory`] by its id and
-///    checked to be the caller's own — the runner, not a connector —
-///    or not, which is the scope's one `Error`, `{"kind":"missing"}`
+///    checked to be the caller's own — the runner — or not, which is
+///    the scope's one `Error`, `{"kind":"missing"}`
 ///    either way, then the finish.
 /// 2. A [`filesystem::serve`](crate::container_proxy::outside::endpoints::filesystem::serve)
 ///    scope opened on the container's proxy, carrying the path. The

@@ -6,8 +6,8 @@
 //! — and a provider opens channels back into it for the things it
 //! cannot reach itself, which the caller answers through the traits
 //! here. Every endpoint has its executor: eleven of the `volumes`,
-//! `images::check` and `version` collapse into a call; the three
-//! `containers` scopes hand back a handle that holds the container's
+//! `images::check` and `version` collapse into a call; the two
+//! `containers` runs hand back a handle that holds the container's
 //! life.
 //!
 //! # Answering what the far end asks
@@ -19,7 +19,6 @@
 //! | trait | answers |
 //! |-------|---------|
 //! | [`OciStore`] | whether the caller holds an image, and its manifest and blobs |
-//! | [`ConnectionAuthorizer`] | whether a connector may attach |
 //! | [`DependencyDeployer`] | the dependencies the container declared, each a tool container, run |
 //! | [`PostgresDialer`] | the container's database connections |
 //! | [`Daemon`] | the frames of the container's daemon connection, answered by the daemon's session for it |
@@ -36,13 +35,11 @@
 //! an error type of its own. The executors under
 //! [`containers`](crate::provider::endpoints::containers) read every
 //! ask off the scope, decode it, and answer it on a task of its own
-//! through these; the connect scope, which is asked for nothing but
-//! the content of its own writes, takes none of them.
+//! through these.
 
 mod acceptor;
 mod answerers;
 mod daemon;
-mod connection_authorizer;
 mod dependency_deployer;
 mod fuse_server;
 mod mcp_server;
@@ -53,7 +50,6 @@ mod vault;
 pub use acceptor::*;
 pub use answerers::*;
 pub use daemon::*;
-pub use connection_authorizer::*;
 pub use dependency_deployer::*;
 pub use fuse_server::*;
 pub use mcp_server::*;

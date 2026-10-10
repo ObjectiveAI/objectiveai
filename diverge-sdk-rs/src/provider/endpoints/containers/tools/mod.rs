@@ -11,7 +11,6 @@
 //! watch its tree, and it asks the same things of the caller — a
 //! database, its daemon connection, its vault, tools of its own.
 //!
-//! [`run`] owns the container; [`connect`] joins one.
+//! [`run`] owns the container.
 
-pub mod connect;
 pub mod run;

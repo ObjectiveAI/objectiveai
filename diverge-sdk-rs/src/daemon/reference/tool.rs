@@ -15,7 +15,7 @@ use super::Agent;
 pub enum Tool {
     /// By name: `{"name":…}`.
     Name {
-        /// The tool's name, as its create or its connect gave it. A
+        /// The tool's name, as its create or its register gave it. A
         /// tool given none is not reached this way.
         name: String,
     },
@@ -27,9 +27,9 @@ pub enum Tool {
         /// from that template, as its list item carries it.
         index: u64,
     },
-    /// By what it joined: `{"daemon":…,"tool":…}`. A connected tool
-    /// only, which has no template; the pair names it once and for
-    /// all, as the connect named it.
+    /// By what it is registered from: `{"daemon":…,"tool":…}`. A
+    /// connected tool only, which has no template; the pair names it
+    /// once and for all, as the register named it.
     Connected {
         /// The daemon the tool is on, by the name of its record.
         daemon: String,

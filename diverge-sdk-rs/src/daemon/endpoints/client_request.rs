@@ -63,8 +63,8 @@ pub enum ClientRequest<'a> {
     ToolsGet(tools::get::client::request::Frame),
     /// Tag `17`. Change a tool.
     ToolsEdit(tools::edit::client::request::Frame),
-    /// Tag `18`. Hold somebody else's tool container under a name.
-    ToolsConnect(tools::connect::client::request::Frame),
+    /// Tag `18`. Register a tool another daemon holds, under a name.
+    ToolsRegister(tools::register::client::request::Frame),
     /// Tag `19`. Attach a tool to an agent.
     ToolsAttach(tools::attach::client::request::Frame),
     /// Tag `20`. Detach a tool from an agent.
@@ -189,8 +189,8 @@ pub enum ClientRequest<'a> {
     PostgresGet(postgres::get::client::request::Frame),
     /// Tag `80`. List the container connections open through the database.
     PostgresList(postgres::list::client::request::Frame),
-    /// Tag `81`. Expose a tool to another daemon's connect.
-    ToolsExpose(tools::expose::client::request::Frame),
+    /// Tag `81`. Serve a tool to another daemon.
+    ToolsConnect(tools::connect::client::request::Frame),
     /// Tag `82`. Add a daemon to connect to.
     ProvidersDaemonsAdd(providers::daemons::add::client::request::Frame),
     /// Tag `83`. Get one daemon.
@@ -243,7 +243,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ToolsCreate(frame) => frame.encode(out),
             ClientRequest::ToolsGet(frame) => frame.encode(out),
             ClientRequest::ToolsEdit(frame) => frame.encode(out),
-            ClientRequest::ToolsConnect(frame) => frame.encode(out),
+            ClientRequest::ToolsRegister(frame) => frame.encode(out),
             ClientRequest::ToolsAttach(frame) => frame.encode(out),
             ClientRequest::ToolsDetach(frame) => frame.encode(out),
             ClientRequest::ToolsDelete(frame) => frame.encode(out),
@@ -306,7 +306,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesFiletree(frame) => frame.encode(out),
             ClientRequest::PostgresGet(frame) => frame.encode(out),
             ClientRequest::PostgresList(frame) => frame.encode(out),
-            ClientRequest::ToolsExpose(frame) => frame.encode(out),
+            ClientRequest::ToolsConnect(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsAdd(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsGet(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsList(frame) => frame.encode(out),
@@ -392,8 +392,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             17 => tools::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsEdit)
                 .ok(),
-            18 => tools::connect::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsConnect)
+            18 => tools::register::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsRegister)
                 .ok(),
             19 => tools::attach::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsAttach)
@@ -581,8 +581,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             80 => postgres::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::PostgresList)
                 .ok(),
-            81 => tools::expose::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsExpose)
+            81 => tools::connect::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsConnect)
                 .ok(),
             82 => providers::daemons::add::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersDaemonsAdd)
@@ -632,7 +632,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ToolsCreate(_) => f.write_str("tools create"),
             ClientRequest::ToolsGet(_) => f.write_str("tools get"),
             ClientRequest::ToolsEdit(_) => f.write_str("tools edit"),
-            ClientRequest::ToolsConnect(_) => f.write_str("tools connect"),
+            ClientRequest::ToolsRegister(_) => f.write_str("tools register"),
             ClientRequest::ToolsAttach(_) => f.write_str("tools attach"),
             ClientRequest::ToolsDetach(_) => f.write_str("tools detach"),
             ClientRequest::ToolsDelete(_) => f.write_str("tools delete"),
@@ -695,7 +695,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::VolumesFiletree(_) => f.write_str("volumes filetree"),
             ClientRequest::PostgresGet(_) => f.write_str("postgres get"),
             ClientRequest::PostgresList(_) => f.write_str("postgres list"),
-            ClientRequest::ToolsExpose(_) => f.write_str("tools expose"),
+            ClientRequest::ToolsConnect(_) => f.write_str("tools connect"),
             ClientRequest::ProvidersDaemonsAdd(_) => f.write_str("providers daemons add"),
             ClientRequest::ProvidersDaemonsGet(_) => f.write_str("providers daemons get"),
             ClientRequest::ProvidersDaemonsList(_) => f.write_str("providers daemons list"),

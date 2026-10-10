@@ -26,12 +26,12 @@
 //! Ten of the [`volumes`](crate::provider::endpoints::volumes),
 //! [`images::check`](crate::provider::endpoints::images::check) and
 //! [`version`](crate::provider::endpoints::version) answer and finish, which is
-//! the whole of what those endpoints do. The three
-//! [`containers`](crate::provider::endpoints::containers) scopes serve for as
-//! long as their containers run: a run brings its container up,
+//! the whole of what those endpoints do. The two
+//! [`containers`](crate::provider::endpoints::containers) runs serve for as
+//! long as their containers run: each brings its container up,
 //! answers its id, and then carries the container's asks out and the
-//! caller's channels in until it ends; a connect joins a running
-//! container on its runner's say-so. Every endpoint is handled.
+//! caller's channels in until it ends; a serve reaches into a running
+//! one for its runner. Every endpoint is handled.
 //!
 //! # And what a provider supplies
 //!
@@ -105,9 +105,9 @@
 //! asked on the scope, and where the registry serves it.
 //!
 //! [`directory`] is the type: every container the provider is running,
-//! by id, shared across connections — because a connector names a
+//! by id, shared across connections — because a serve names a
 //! container its runner may have started on another socket, and has
-//! to find its run scope to be authorized on, and its address to dial.
+//! to find the connection to its proxy.
 //! [`acceptors`] is its twin for daemons: every daemon accepting
 //! connections through the provider, by identity, which a
 //! `daemons::connect` on any connection finds.
@@ -121,7 +121,7 @@
 //! — for the volumes a request mounts, locked for the run — the
 //! [`volume_manager`] again by the two run handlers of
 //! [`containers`](crate::provider::endpoints::containers)
-//! — the scopes that put a container somewhere. A connect handler
+//! — the scopes that put a container somewhere. A serve handler
 //! consumes none of those, because it deploys nothing — the container
 //! it serves already exists, and is stopped by whoever ran it — and
 //! reads the [`directory`] the run handlers write.

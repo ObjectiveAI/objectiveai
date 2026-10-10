@@ -160,17 +160,7 @@ where
     };
 
     let id = Directory::mint();
-    directory
-        .insert(
-            id.clone(),
-            Arc::clone(scope),
-            Arc::clone(client_identity),
-            proxy.clone(),
-            begun.begin.tools(),
-            ignore.clone(),
-            Arc::clone(&watched),
-        )
-        .await;
+    directory.insert(id.clone(), Arc::clone(client_identity), proxy.clone()).await;
 
     let (deployed, mounts) = future::join(R::deploy(scope, &id, &begun.dependencies), mounts(&proxy, request)).await;
     let mounts = match (deployed, mounts) {

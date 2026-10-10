@@ -57,11 +57,6 @@ pub enum Frame {
     /// to wait to find out. This is unambiguous and immediate: a
     /// caller that says so is not gone, it is finished.
     ///
-    /// # What it does to everyone else
-    ///
-    /// Ends them. Connectors hold scopes on a container that no longer
-    /// exists, so those scopes finish too — a connection cannot
-    /// outlive the thing it joined.
     Stop,
     /// The container's filesystem, watched. Tag `1`.
     ///
@@ -87,7 +82,7 @@ pub enum Frame {
     /// One file, copied into another container. Tag `4`.
     ///
     /// The other container by its id, and the caller must be running
-    /// or connected to it. The provider reads the file out of this
+    /// it. The provider reads the file out of this
     /// container and writes it into that one on its own connections
     /// to the two proxies, and nothing of the file comes back here —
     /// one answer does. See

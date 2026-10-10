@@ -4,7 +4,6 @@ use bytes::Bytes;
 use rmcp::model::{CallToolRequestParams, PaginatedRequestParams, ReadResourceRequestParams};
 
 use crate::provider::endpoints::containers::{agents, tools};
-use crate::shared::containers::authorize;
 use crate::shared::containers::fuse::Attrs;
 use crate::shared::containers::dependencies::Template;
 
@@ -12,9 +11,8 @@ use crate::shared::containers::dependencies::Template;
 /// borrowed: what the serving loop hands to a task.
 ///
 /// The two families' `server::channel_request::Frame`s carry the same
-/// asks in the same order with the same payloads — the tools family
-/// two more, the authorizations, and one fewer, the tools an agent
-/// alone declares — and
+/// asks in the same order with the same payloads — the agents family
+/// one more, the dependencies an agent alone declares — and
 /// borrow from the frame they were decoded from; this is the one
 /// owned form both convert into, so the answer to each is written
 /// once. Which family it came from does not matter to the answer: the
@@ -28,8 +26,6 @@ pub enum Ask {
     OciBlob(String),
     /// Whether the caller holds an image: its name, its digest.
     OciHas(String, String),
-    /// Whether a connector may attach.
-    AuthorizeConnect(authorize::request::AuthorizeConnect),
     /// The dependencies the container declared, to deploy, with the
     /// run's id.
     Dependencies {
@@ -153,7 +149,6 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
-            Frame::AuthorizeConnect(request) => Ask::AuthorizeConnect(request),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
             Frame::Daemon(request) => Ask::Daemon(request.connection_id),

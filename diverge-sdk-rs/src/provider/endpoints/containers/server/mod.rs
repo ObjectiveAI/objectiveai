@@ -1,8 +1,7 @@
 //! What the container scopes' handlers share.
 //!
-//! A run and a connect differ in how they get a container — one
-//! deploys, one is handed a running one — and are alike in
-//! everything after: the container's proxy is spoken to over one
+//! The two runs deploy a container and are alike in everything after:
+//! the container's proxy is spoken to over one
 //! WebSocket in the frames of
 //! [`container_proxy_endpoints`](crate::container_proxy::outside),
 //! with this end as that wire's client; every channel the proxy opens
@@ -47,7 +46,7 @@
 //!   pairs in flight, and the signals that the container is gone and
 //!   that the run is ending.
 //! - `Family` and `Runs`, what a scope supplies to all of that: its
-//!   frame types, since the three scopes' frames are byte-identical
+//!   frame types, since the two scopes' frames are byte-identical
 //!   and distinct types, and how its container begins.
 
 pub(crate) mod begin;

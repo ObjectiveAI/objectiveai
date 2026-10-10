@@ -42,17 +42,14 @@ use crate::shared::mcp;
 /// | `24` | [`FuseTruncate`](Self::FuseTruncate) |
 /// | `25` | [`FuseSetattr`](Self::FuseSetattr) |
 ///
-/// Twenty-six: the tools family's twenty-eight less the two
-/// authorizations it carries at `3` and `4`, which an agent container —
-/// taking no connector, and listed to nobody — is never asked, so every
-/// tag after them is two less here. The first five are the provider's
-/// own asks — whether the caller holds an image, its manifest and
-/// blobs, the dependencies the container declared, a write's content — and the
+/// Twenty-five: the tools family's twenty-four and the `dependencies`
+/// at `3`, which only an agent container is asked, so every tag after
+/// `2` is one more here. The first five are the provider's own asks —
+/// whether the caller holds an image, its manifest and blobs, the
+/// dependencies the container declared, a write's content — and the
 /// rest are the CONTAINER's, relayed: its database connections, its
 /// daemon connection, its vault, its tool calls outward to the caller's
-/// MCP servers, and the files the caller mounted live. A connector's
-/// scope has none of these but [`Write`](Self::Write); the container's
-/// asks go to whoever runs it.
+/// MCP servers, and the files the caller mounted live.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// A manifest of an image the caller holds, by digest. Tag `0`.
@@ -77,7 +74,7 @@ pub enum Frame<'a> {
     /// Deploy the dependencies the container declared. Tag `3`.
     ///
     /// Opened once, after the proxy's `Begun` carried a non-empty
-    /// list and before the id; never on a connect. See
+    /// list and before the id. See
     /// [`dependencies`](crate::shared::containers::dependencies).
     Dependencies(dependencies::request::Request<'a>),
     /// Send the content for a write. Tag `4`.
@@ -502,7 +499,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's twenty-six.
+    /// A tag that is none of this frame's twenty-five.
     UnknownTag(u8),
     /// An image ask did not parse.
     Oci(serde_json::Error),

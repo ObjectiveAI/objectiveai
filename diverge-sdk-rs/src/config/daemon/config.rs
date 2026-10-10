@@ -34,7 +34,7 @@ pub struct Config {
     /// the provider protocol's `daemons::accept` on every provider
     /// connection it holds, and judges each daemon that connects as it
     /// judges any client, by the credential presented. When `false`,
-    /// it opens none, and no daemon reaches it or the tools it exposes.
+    /// it opens none, and no daemon reaches it or the tools it serves.
     /// Absent means `true`.
     pub accept_daemons: bool,
 }

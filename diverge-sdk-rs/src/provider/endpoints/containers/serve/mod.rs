@@ -45,9 +45,8 @@
 //!
 //! # Its runner only
 //!
-//! Only the identity running the container may serve it: a connector
-//! attached to a tool container may not, and nobody may serve an
-//! agent container but the identity that opened its run. An id under
+//! Only the identity running the container may serve it: nobody may
+//! serve a container but the identity that opened its run. An id under
 //! which nothing runs, and an id whose runner the caller is not, are
 //! refused alike, and indistinguishably: whether an id exists is not
 //! told to a caller that may not reach it.

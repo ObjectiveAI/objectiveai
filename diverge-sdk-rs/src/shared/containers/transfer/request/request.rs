@@ -8,8 +8,8 @@ use crate::wire::encode::{Encode, Writer};
 /// Copy one file out of this container into another.
 ///
 /// Opened on the scope of the container the file is IN. The other
-/// container is named by its id, and the client must be running or
-/// connected to it — see [`transfer`](super::super) for the rule.
+/// container is named by its id, and the client must be running it
+/// — see [`transfer`](super::super) for the rule.
 ///
 /// No `write_id`, unlike a [`write`](crate::shared::containers::write_path):
 /// nothing is asked of the client, so there is nothing to correlate.
@@ -23,9 +23,7 @@ pub struct Request {
     /// [`filetree`](crate::shared::filetree) stream uses.
     pub path: Vec<String>,
     /// The container the file is written into, by the id its run
-    /// answered — the [`Id`](crate::shared::containers::response::Id)
-    /// a [`connect`](crate::shared::containers::request::Connect)
-    /// names a container by.
+    /// answered: the [`Id`](crate::shared::containers::response::Id).
     pub id: String,
     /// The destination, as path components from THAT container's
     /// root, replaced whole, as a

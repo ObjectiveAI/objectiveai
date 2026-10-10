@@ -6,7 +6,7 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`containers`] | run an agent or a tool server in a container; join a tool server; serve a subtree of a container live |
+//! | [`containers`] | run an agent or a tool server in a container; serve a subtree of a container live |
 //! | [`images`] | ask whether an image can be supplied |
 //! | [`volumes`] | list what a provider offers, and keep the listing; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
 //! | [`daemons`] | accept connections from other daemons; connect to another daemon |
@@ -23,28 +23,26 @@
 //! |-----|---------|
 //! | `0` | [`containers::agents::run`] |
 //! | `1` | [`containers::tools::run`] |
-//! | `2` | [`containers::tools::connect`] |
-//! | `3` | [`containers::serve`] |
-//! | `4` | [`volumes::list`] |
-//! | `5` | [`volumes::stat`] |
-//! | `6` | [`volumes::read`] |
-//! | `7` | [`volumes::write`] |
-//! | `8` | [`volumes::filetree`] |
-//! | `9` | [`volumes::serve`] |
-//! | `10` | [`volumes::create_capacity`] |
-//! | `11` | [`volumes::create`] |
-//! | `12` | [`volumes::edit_capacity`] |
-//! | `13` | [`volumes::edit`] |
-//! | `14` | [`volumes::delete`] |
-//! | `15` | [`images::check`] |
-//! | `16` | [`version`] |
-//! | `17` | [`daemons::accept`] |
-//! | `18` | [`daemons::connect`] |
+//! | `2` | [`containers::serve`] |
+//! | `3` | [`volumes::list`] |
+//! | `4` | [`volumes::stat`] |
+//! | `5` | [`volumes::read`] |
+//! | `6` | [`volumes::write`] |
+//! | `7` | [`volumes::filetree`] |
+//! | `8` | [`volumes::serve`] |
+//! | `9` | [`volumes::create_capacity`] |
+//! | `10` | [`volumes::create`] |
+//! | `11` | [`volumes::edit_capacity`] |
+//! | `12` | [`volumes::edit`] |
+//! | `13` | [`volumes::delete`] |
+//! | `14` | [`images::check`] |
+//! | `15` | [`version`] |
+//! | `16` | [`daemons::accept`] |
+//! | `17` | [`daemons::connect`] |
 //!
-//! Nineteen, grouped by endpoint and ordered within it. The four
-//! container scopes lead: the agents' run, the tools' run, the connect
-//! that joins one, and the serve that answers a running container's
-//! files live. The eleven volume
+//! Eighteen, grouped by endpoint and ordered within it. The three
+//! container scopes lead: the agents' run, the tools' run, and the
+//! serve that answers a running container's files live. The eleven volume
 //! scopes follow in the
 //! order a caller uses them: find one, examine it, read a file out of
 //! it, write one in, see its tree, serve its files live, ask how large
@@ -60,9 +58,10 @@
 //! highest tag, because tags are handed out in the order scopes were
 //! defined and nothing reads them in order. The grouping is for
 //! whoever reads the table, and a new scope takes the value where it
-//! belongs conceptually, the scopes after it moving up one — which
-//! is how the container serve took `4` and the volumes moved to `5`
-//! through `15`.
+//! belongs conceptually, the scopes after it moving up one, and a
+//! scope removed takes its value with it, the scopes after it moving
+//! down — which is how the container serve sits at `2` and the
+//! volumes at `3` through `13`.
 //!
 //! This table is the whole allocation. Each request states its own
 //! value and points here, because a value chosen in one module has to
@@ -79,7 +78,7 @@
 //! told apart by what a caller says into the container: a message
 //! for an agent, or MCP. Everything else a container scope carries —
 //! the arguments a container is made with and the schema that says
-//! what they may be among it — is the same wire in all three, defined
+//! what they may be among it — is the same wire in both, defined
 //! once in [`shared::containers`](crate::shared::containers). A
 //! [`containers::serve`] reaches into either family's container the
 //! same way, and carries the volume serve's own asks.

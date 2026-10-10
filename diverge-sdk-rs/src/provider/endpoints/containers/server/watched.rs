@@ -39,9 +39,8 @@ impl fmt::Debug for Watched {
 /// away.
 ///
 /// Boxed on purpose: a [`Run`](super::run::Run) is shared by every
-/// task of a run and is not generic over the provider, and a
-/// connector's run is built from what the directory holds, which is
-/// not generic either. A watch is opened once per filetree channel,
+/// task of a run and is not generic over the provider. A watch is
+/// opened once per filetree channel,
 /// so one dynamic call and one boxed stream per open cost nothing
 /// that matters.
 pub(crate) trait Watcher: Send + Sync {

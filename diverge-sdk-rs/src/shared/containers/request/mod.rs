@@ -6,22 +6,18 @@
 //! arguments the image is handed once. Every run in
 //! [`containers`](crate::provider::endpoints::containers) sends one of these
 //! and nothing more; what differs between the kinds is said later,
-//! on a channel, not here. [`Connect`] is the other way to get a
-//! container: naming one somebody else runs, with whatever its
-//! runner needs to say yes.
+//! on a channel, not here.
 //!
 //! They live here rather than in either family because
 //! [`ContainerDeployer`](crate::provider::server::container_deployer::ContainerDeployer)
 //! serves both, and a generic deployer naming one family's type would
 //! be the thing this crate spends its exceptions avoiding.
 
-mod connect;
 mod container;
 mod fuse_mount;
 mod image;
 mod volume_mount;
 
-pub use connect::*;
 pub use container::*;
 pub use fuse_mount::*;
 pub use image::*;

@@ -19,8 +19,7 @@ use crate::wire::server::scope_handle::ScopeHandle;
 /// connection to its proxy, and everything the tasks serving it
 /// share.
 ///
-/// A run handler makes one after the id is out; a connect handler
-/// makes one from what the directory holds. Every task the machinery
+/// A run handler makes one after the id is out. Every task the machinery
 /// spawns takes an [`Arc`] of it, and [`shutdown`](Self::shutdown) is
 /// how they all end.
 pub(crate) struct Run {
@@ -52,8 +51,7 @@ pub(crate) struct Run {
     /// a registry per kind is what makes that so rather than hoped.
     pub daemons: Pairs,
     pub pairs: Pairs,
-    /// The container is gone: the proxy's asks ended, or the run a
-    /// connector joined is over.
+    /// The container is gone: the proxy's asks ended.
     pub over: Notify,
     /// Every tree scope open on the proxy for this run, by its scope
     /// number: the one kind of scope this end opens that does not end
@@ -102,8 +100,8 @@ impl Run {
     /// would otherwise hold the finish hostage. The trees are stopped
     /// here, on the way out, rather than by the tasks on a signal: a
     /// task woken and then aborted before it runs would never have
-    /// sent the stop, and a connector that leaves would leave its
-    /// trees watching a container that goes on.
+    /// sent the stop, and would leave its trees watching a container
+    /// that goes on.
     pub(crate) async fn shutdown(&self) {
         for (_, handle) in self.trees.lock().await.drain() {
             let _ = handle.stop().await;

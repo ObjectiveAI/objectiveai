@@ -7,7 +7,7 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
-//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold another daemon's under a name; attach one to an agent; detach one; delete one; list them, narrowed; tag one and untag one; expose one to another daemon's connect; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent; detach one; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a credential of providers that dial in, get one, list them, take one out, replace one; add a daemon to connect to, get one, list them, forget one, replace its mode or its links, tag one and untag one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
@@ -41,7 +41,7 @@
 //! | `15` | [`tools::create`] |
 //! | `16` | [`tools::get`] |
 //! | `17` | [`tools::edit`] |
-//! | `18` | [`tools::connect`] |
+//! | `18` | [`tools::register`] |
 //! | `19` | [`tools::attach`] |
 //! | `20` | [`tools::detach`] |
 //! | `21` | [`tools::delete`] |
@@ -104,7 +104,7 @@
 //! | `78` | [`volumes::filetree`] |
 //! | `79` | [`postgres::get`] |
 //! | `80` | [`postgres::list`] |
-//! | `81` | [`tools::expose`] |
+//! | `81` | [`tools::connect`] |
 //! | `82` | [`providers::daemons::add`] |
 //! | `83` | [`providers::daemons::get`] |
 //! | `84` | [`providers::daemons::list`] |

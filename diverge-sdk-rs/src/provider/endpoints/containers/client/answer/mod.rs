@@ -7,7 +7,6 @@
 //! the provider reads the channel's end for what it is. Nothing
 //! retries.
 
-mod authorize;
 mod daemon;
 mod dependencies;
 mod fuse;
@@ -20,29 +19,23 @@ mod write;
 
 use std::sync::Arc;
 
-/// The write answer alone, for the connect scope: the one ask a
-/// provider makes of a connector.
-pub(crate) use write::write as write_content;
-
 use super::{Ask, Encoders, Writes};
 use crate::wire::client::handle::Handle;
 use crate::provider::client::{
-    Answerers, Daemon, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer,
-    Vault,
+    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer, Vault,
 };
 
 /// Answer `ask` on `channel` of `scope`.
-pub(crate) async fn answer<O, A, T, P, D, V, M, F>(
+pub(crate) async fn answer<O, T, P, D, V, M, F>(
     handle: Handle,
     scope: u32,
     channel: u32,
     ask: Ask,
     writes: Arc<Writes>,
-    answerers: Answerers<O, A, T, P, D, V, M, F>,
+    answerers: Answerers<O, T, P, D, V, M, F>,
     encoders: Encoders,
 ) where
     O: OciStore + 'static,
-    A: ConnectionAuthorizer + 'static,
     T: DependencyDeployer + 'static,
     P: PostgresDialer + 'static,
     D: Daemon + 'static,
@@ -54,9 +47,6 @@ pub(crate) async fn answer<O, A, T, P, D, V, M, F>(
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciHas(name, digest) => oci::has(&handle, scope, channel, name, digest, answerers.oci).await,
-        Ask::AuthorizeConnect(request) => {
-            authorize::authorize_connect(&handle, scope, channel, request, answerers.authorizer).await
-        }
         Ask::Dependencies { id, dependencies: declared } => {
             dependencies::dependencies(&handle, scope, channel, id, declared, answerers.dependencies).await
         }

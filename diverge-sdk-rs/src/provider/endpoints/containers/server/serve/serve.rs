@@ -16,7 +16,7 @@ use crate::wire::frame::client::ClientFrame;
 pub(crate) enum End {
     /// The caller said stop, or leave.
     Stopped,
-    /// The container is gone, or the run a connector joined is over.
+    /// The container is gone.
     Over,
     /// The caller went away: the connection ended.
     Gone,

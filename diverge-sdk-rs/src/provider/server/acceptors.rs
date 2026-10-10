@@ -15,8 +15,8 @@ use crate::wire::server::scope_handle::ScopeHandle;
 ///
 /// One per provider, shared across every connection's
 /// [`handle`](super::handle::handle), as the [`Directory`](super::directory::Directory)
-/// is: a connector names a daemon that holds its accept scope on
-/// another socket entirely. One accept scope per identity: a second
+/// is: a daemon connector names a daemon that holds its accept scope
+/// on another socket entirely. One accept scope per identity: a second
 /// under an identity that holds one is refused.
 pub struct Acceptors {
     accepting: Mutex<HashMap<Arc<str>, Arc<Accepting>>>,

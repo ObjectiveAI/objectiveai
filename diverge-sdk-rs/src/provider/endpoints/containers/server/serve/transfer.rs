@@ -19,14 +19,14 @@ use crate::shared::error::Error;
 ///
 /// # The rule, enforced here
 ///
-/// The caller must be running, or connected to, both containers. For
-/// this run's container that holds by construction: the caller has
-/// this scope, so it is the runner or a connector the runner admitted.
-/// For the other, the [`Directory`](crate::provider::server::directory::Directory)
-/// is asked whether the caller's identity is its runner or among its
-/// connectors. A caller that is neither, and an id under which nothing
-/// runs, are answered alike, with `{"kind":"denied"}`: saying
-/// `missing` for the one would tell a stranger which ids exist.
+/// The caller must be running both containers. For this run's
+/// container that holds by construction: the caller has this scope,
+/// so it is the runner. For the other, the
+/// [`Directory`](crate::provider::server::directory::Directory) is
+/// asked whether the caller's identity is its runner. A caller that is
+/// not, and an id under which nothing runs, are answered alike, with
+/// `{"kind":"denied"}`: saying `missing` for the one would tell a
+/// stranger which ids exist.
 ///
 /// # The pipe
 ///
@@ -48,7 +48,7 @@ pub(crate) async fn transfer<F: Family>(run: Arc<Run>, channel: u32, path: Vec<S
 
 /// The transfer, to its one answer.
 async fn copy<F: Family>(run: &Run, path: Vec<String>, id: &str, destination: Vec<String>) -> Option<Vec<u8>> {
-    if !run.directory.may(id, &run.identity).await {
+    if !run.directory.runs(id, &run.identity).await {
         return F::transfer_error(&denied());
     }
     let Some(target) = run.directory.lookup(id).await else {
@@ -69,8 +69,8 @@ async fn copy<F: Family>(run: &Run, path: Vec<String>, id: &str, destination: Ve
     }
 }
 
-/// The caller is neither running nor connected to the container it
-/// named, or nothing runs under the id: one answer for both.
+/// The caller is not running the container it named, or nothing runs
+/// under the id: one answer for both.
 fn denied() -> Error {
     Error(serde_json::json!({ "kind": "denied" }))
 }

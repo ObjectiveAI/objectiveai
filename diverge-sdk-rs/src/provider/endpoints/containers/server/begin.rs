@@ -71,8 +71,7 @@ impl Begin {
         }
     }
 
-    /// The tools family's handle, which a connector's exchanges
-    /// ride; [`None`] for an agent container.
+    /// The tools family's handle; [`None`] for an agent container.
     pub(crate) fn tools(&self) -> Option<ToolsBegin> {
         match self {
             Begin::Tools(begin) => Some(begin.clone()),

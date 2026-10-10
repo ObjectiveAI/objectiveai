@@ -14,9 +14,10 @@ pub struct Id {
     ///
     /// Opaque, and the provider's to mint. A caller that wants to name
     /// this container anywhere else — a
-    /// [`Connect`](crate::shared::containers::request::Connect) — has
-    /// this and nothing else to name it with. It is a capability:
-    /// holding it is what lets a connector ask, so it has to be
+    /// [`transfer`](crate::shared::containers::transfer) into it, a
+    /// [`serve`](crate::provider::endpoints::containers::serve) of it —
+    /// has this and nothing else to name it with. It is a capability:
+    /// holding it is what lets its runner name it, so it has to be
     /// unguessable, and nothing a caller could choose would be.
     ///
     /// Nothing here constrains its shape. It means nothing to anyone

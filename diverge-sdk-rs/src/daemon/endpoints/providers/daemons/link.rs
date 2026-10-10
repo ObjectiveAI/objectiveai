@@ -10,9 +10,7 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 /// is known by at that provider — what the provider protocol's
 /// `daemons::connect` names an acceptor by there. A daemon's links are
 /// every provider it is reachable through; a connection to it is opened
-/// through any one whose provider this daemon is connected to, and a
-/// tool it exposes is joined through the one whose `identity` the
-/// expose answers.
+/// through any one whose provider this daemon is connected to.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Link {
     /// The provider, as this daemon names one: see [`Identity`]. One of
@@ -20,7 +18,6 @@ pub struct Link {
     pub provider: Identity,
     /// The remote daemon's identity at that provider: what its
     /// connection there is authorized under, which the provider answers
-    /// it when it accepts daemon connections and it reports in an
-    /// expose.
+    /// it when it accepts daemon connections.
     pub identity: String,
 }

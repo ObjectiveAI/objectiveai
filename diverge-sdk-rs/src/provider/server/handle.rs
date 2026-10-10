@@ -39,18 +39,17 @@ use crate::shared::error::Error;
 /// and with what — see the handshake below, which is where the
 /// `client_identity` every handler receives now comes from. `address`
 /// is the peer the socket came from: it is handed to the
-/// [`UnbrokeredAuthorizer`] beside the credential, and it rides a
-/// connector's
-/// [`AuthorizeConnect`](crate::shared::containers::authorize::request::AuthorizeConnect).
-/// It is a signal rather than an identity.
+/// [`UnbrokeredAuthorizer`] beside the credential, and it rides the
+/// announcement of a daemon connection to its acceptor. It is a signal
+/// rather than an identity.
 ///
 /// The rest are the provider's capabilities, shared because scopes run
 /// concurrently and the traits — returning `impl Future` — cannot be
 /// boxed behind one pointer; the [`Directory`], one per provider,
-/// through which a connect on this connection finds a run on any
-/// other; and the [`Acceptors`], one per provider likewise, through
-/// which a daemon connecting on this connection finds one accepting
-/// on any other.
+/// through which a serve or a transfer on this connection finds a run
+/// on any other of the same caller's; and the [`Acceptors`], one per
+/// provider likewise, through which a daemon connecting on this
+/// connection finds one accepting on any other.
 ///
 /// # The handshake comes first
 ///
@@ -91,7 +90,7 @@ use crate::shared::error::Error;
 /// [`ClientRequest::decode`] cannot fail; what it cannot read it
 /// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
 /// one is a finish with nothing in front. There is no other honest
-/// answer — nineteen endpoints have nineteen error vocabularies, and an
+/// answer — eighteen endpoints have eighteen error vocabularies, and an
 /// invalid request names none of them — and a bare finish is already
 /// what the wire means by a request that could not be served. Every
 /// executor reads it as its own "unanswered".
@@ -230,16 +229,6 @@ where
                 scopes.spawn(async move {
                     endpoints::containers::tools::run::server::handle::handle(
                         scope, frame, &identity, &*deployer, &*registry, &*manager, directory,
-                    )
-                    .await;
-                });
-            }
-            ClientRequest::ContainersToolsConnect(frame) => {
-                let identity = Arc::clone(&client_identity);
-                let directory = Arc::clone(&directory);
-                scopes.spawn(async move {
-                    endpoints::containers::tools::connect::server::handle::handle(
-                        scope, frame, &identity, address, directory,
                     )
                     .await;
                 });

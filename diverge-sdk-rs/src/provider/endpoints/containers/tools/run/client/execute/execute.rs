@@ -7,8 +7,7 @@ use super::super::{channel_request, channel_response, request};
 use super::execute_handle::ExecuteHandle;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::provider::client::{
-    Answerers, Daemon, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer,
-    Vault,
+    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer, Vault,
 };
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
@@ -34,13 +33,12 @@ use crate::shared::error::Error;
 ///
 /// # What comes back, and what does not
 ///
-/// The id names the container to anything outside — a connector, which joins it by that id, or a
-/// later request — and the handle is the scope: for as long as it is
-/// held the container runs, and every channel a caller may open into
-/// the container is a method on it. The main stream carries, after
-/// the id, every connector attached to the container and every one
-/// leaving, which [`ExecuteHandle::connections`] hands out until the
-/// run ends — the end [`ExecuteHandle::wait`] reports.
+/// The id names the container to anything outside — a later request
+/// of the runner's — and the handle is the scope: for as long as it
+/// is held the container runs, and every channel a caller may open
+/// into the container is a method on it. The main stream carries
+/// nothing after the id but the end, which [`ExecuteHandle::wait`]
+/// reports.
 ///
 /// # Dropping the handle ends nothing
 ///
@@ -51,14 +49,13 @@ use crate::shared::error::Error;
 /// the serving task goes on answering the provider's asks until the
 /// scope's request stream ends, which the router closes with the
 /// scope.
-pub async fn execute<O, A, T, P, D, V, M, F>(
+pub async fn execute<O, T, P, D, V, M, F>(
     handle: &Handle,
     request: &request::Frame,
-    answerers: Answerers<O, A, T, P, D, V, M, F>,
+    answerers: Answerers<O, T, P, D, V, M, F>,
 ) -> Result<(Id, ExecuteHandle), ExecuteError>
 where
     O: OciStore + 'static,
-    A: ConnectionAuthorizer + 'static,
     T: DependencyDeployer + 'static,
     P: PostgresDialer + 'static,
     D: Daemon + 'static,
@@ -94,12 +91,6 @@ where
             return Err(ExecuteError::VolumeMode(refused));
         }
         server::response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
-        // Nobody is connected before the id; either first is a
-        // provider out of order, which is a frame this end cannot
-        // place.
-        server::response::Frame::Connected(_) | server::response::Frame::Disconnected(_) => {
-            return Err(ExecuteError::Misrouted);
-        }
     };
 
     let writes = Arc::new(Writes::new());

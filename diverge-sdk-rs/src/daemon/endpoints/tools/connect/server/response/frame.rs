@@ -2,37 +2,34 @@
 
 use std::fmt;
 
-use crate::shared::error::Error;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
+use crate::shared::error::Error;
 
-/// A connect's answer: the tool is held under the name, the name is
-/// in use, or a failure.
+/// A connect's answer: the tool is connected, no tool is the one
+/// named, forbidden, or a failure.
 ///
-/// A connect is one question and one reply, so there is exactly one of
-/// these per scope, before the finish that ends it. A payload leads
-/// with one byte saying which — `0` for [`Connected`](Self::Connected),
-/// `1` for [`InUse`](Self::InUse), `2` for
-/// [`Forbidden`](Self::Forbidden), `3` for [`Error`](Self::Error) — and
-/// only the error carries anything after it.
+/// A connect is a scope held open. Exactly one response leads it,
+/// [`Connected`](Self::Connected), and nothing follows it on the main
+/// stream for as long as the scope lives: the finish is the client's
+/// disconnect, the tool's run ending, however it ends, or the client's
+/// connection ending. Or the scope is exactly one
+/// [`NotFound`](Self::NotFound), [`Forbidden`](Self::Forbidden) or
+/// [`Error`](Self::Error), then the finish. A payload leads with one
+/// byte saying which — `0` for `Connected`, `1` for `NotFound`, `2`
+/// for `Forbidden`, `3` for `Error` — and only the error carries
+/// anything after it.
 ///
-/// # The name in use is not a failure
+/// # A finish with nothing is an answer
 ///
-/// [`InUse`](Self::InUse) is an ANSWER: a tool of the caller's exists
-/// under that name already, and the daemon recorded nothing — the
-/// caller uses the tool it has, or chooses another name, and nothing
-/// is retried. An [`Error`](Self::Error) is the absence of an answer:
-/// the tool could not be recorded, for whatever reason the daemon
-/// knows, and the name is as it was.
-///
-/// # Connected carries nothing, and joins nothing
-///
-/// The name is the caller's handle from now on, and the caller chose
-/// it. Nothing was joined: whether the daemon named is reachable and
-/// exposes the tool to this caller is learned when an attached agent
-/// is active, as the tool's `active` in a list and as the agent's tool
-/// calls.
-///
+/// The request was not served: a scope that finishes with no response
+/// before it is that, not a failure. [`NotFound`](Self::NotFound) is an
+/// ANSWER: the daemon looked, and no tool of the caller's is the one
+/// named, and nothing is retried. An [`Error`](Self::Error) is a
+/// failure: the daemon could not serve the tool, for whatever reason
+/// it knows — a dependency tool, which is its agent's; a connected
+/// tool, which is another daemon's and is served there; a container
+/// that would not start.///
 /// # Forbidden
 ///
 /// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
@@ -44,28 +41,28 @@ use crate::wire::encode::{Encode, Writer};
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The tool is held under the name. Tag `0`.
+    /// The tool is connected: its container runs, and its channels
+    /// answer. Tag `0`, once, first.
     Connected,
-    /// A tool of the caller's exists under that name already;
-    /// nothing was recorded. Tag `1`.
-    InUse,
+    /// No tool of the caller's is the one named; nothing changed. Tag
+    /// `1`.
+    NotFound,
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `2`.
     Forbidden,
     /// A failure. Tag `3`.
     ///
-    /// The tool is not held and will not be, and the name is
-    /// unchanged. See
-    /// [`shared::error::Error`](crate::shared::error::Error)
-    /// for why it says so little.
+    /// Nothing is connected. See
+    /// [`shared::error::Error`](crate::shared::error::Error) for why it
+    /// says so little.
     Error(Error),
 }
 
 /// Tag for [`Frame::Connected`].
 const CONNECTED: u8 = 0;
 
-/// Tag for [`Frame::InUse`].
-const IN_USE: u8 = 1;
+/// Tag for [`Frame::NotFound`].
+const NOT_FOUND: u8 = 1;
 
 /// Tag for [`Frame::Forbidden`].
 const FORBIDDEN: u8 = 2;
@@ -86,8 +83,8 @@ impl Encode for Frame {
                 out.extend_from_slice(&[CONNECTED]);
                 Ok(())
             }
-            Frame::InUse => {
-                out.extend_from_slice(&[IN_USE]);
+            Frame::NotFound => {
+                out.extend_from_slice(&[NOT_FOUND]);
                 Ok(())
             }
             Frame::Forbidden => {
@@ -111,7 +108,7 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             CONNECTED => Ok(Frame::Connected),
-            IN_USE => Ok(Frame::InUse),
+            NOT_FOUND => Ok(Frame::NotFound),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),

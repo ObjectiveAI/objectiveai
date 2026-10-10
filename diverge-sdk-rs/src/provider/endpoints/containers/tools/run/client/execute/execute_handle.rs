@@ -12,7 +12,7 @@ use rmcp::model::{
 use serde_json::Value;
 
 use super::super::channel_request;
-use super::{ConnectionsStream, Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
+use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::client::answered::{
@@ -34,9 +34,7 @@ pub type McpNotificationsStream = ChannelStream<McpNotifications>;
 /// runs, and the stop. Each
 /// opens its own channel, so several may be in flight at once. Clones
 /// share the scope, and [`wait`](Self::wait) on any of them reports
-/// the same end. The main stream after the id — every connector
-/// attached and every one leaving — is [`connections`](Self::connections),
-/// taken once.
+/// the same end.
 ///
 /// # Dropping it does nothing
 ///
@@ -66,45 +64,23 @@ impl ExecuteHandle {
     /// stop, or the container's own end — and the provider's error
     /// when it ended that way. Resolves once and answers the same way
     /// again after.
-    ///
-    /// # It reads past the connectors
-    ///
-    /// The main stream after the id carries every connector coming
-    /// and going, which [`connections`](Self::connections) hands out.
-    /// A caller that takes the connections reads the end from that
-    /// stream; a caller that does not reads the main stream here and
-    /// throws the connectors away, which is what a caller that counts
-    /// nothing wants.
     pub async fn wait(&self) -> Result<(), WaitError<server::response::FrameError>> {
         self.0
             .wait(|payload| {
                 Ok(match server::response::Frame::decode(payload)? {
-                    // The first three are sent only as the first
-                    // response, before the id; after it, none is a
-                    // fact of the run, and the wire forbids them. The
-                    // connectors are facts a caller that only waits
-                    // does not count.
+                    // The three are sent only as the first response,
+                    // before the id; after it, none is a fact of the
+                    // run, and the wire forbids them.
                     server::response::Frame::Id(_)
                     | server::response::Frame::VolumeHeld(_)
-                    | server::response::Frame::VolumeMode(_)
-                    | server::response::Frame::Connected(_)
-                    | server::response::Frame::Disconnected(_) => Decoded::Skip,
+                    | server::response::Frame::VolumeMode(_) => Decoded::Skip,
                     server::response::Frame::Error(error) => Decoded::Error(error),
                 })
             })
             .await
     }
 
-    /// The main stream after the id: every connector attached to the
-    /// container and every one leaving, as they come, until the run
-    /// ends. Taken once per run: a second stream and [`wait`](Self::wait)
-    /// read the same frames, and each frame goes to whichever reads
-    /// it first.
-    pub fn connections(&self) -> ConnectionsStream {
-        ConnectionsStream::new(Arc::clone(&self.0))
-    }
-
-    /// Stop the container, and with it every connector's scope on it.
+    /// Stop the container.
     /// Nothing answers on the channel this opens; what answers is the
     /// scope's own finish, on [`wait`](Self::wait).
     pub async fn stop(&self) -> Result<(), OpenError> {
@@ -149,8 +125,7 @@ impl ExecuteHandle {
     /// Copy one file out of this container into the container under
     /// `id`, at `destination`, without the bytes passing through here;
     /// resolves when it is at the destination. The caller must be
-    /// running, or connected to, both containers, or the provider
-    /// refuses.
+    /// running both containers, or the provider refuses.
     pub async fn transfer(&self, path: Vec<String>, id: String, destination: Vec<String>) -> Result<(), UnaryError<Transfer>> {
         let payload = payload(&channel_request::Frame::Transfer(transfer::request::Request { path, id, destination }))
             .map_err(UnaryError::Request)?;

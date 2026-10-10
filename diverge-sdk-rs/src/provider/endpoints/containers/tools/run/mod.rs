@@ -13,8 +13,8 @@
 //! # Channels go both ways here
 //!
 //! The provider opens them for what it needs from the caller — an image
-//! the caller serves, content it does not hold, a connector's
-//! authorization — and for everything the container asks of the caller:
+//! the caller serves, content it does not hold — and for everything the
+//! container asks of the caller:
 //! its database connections, its daemon connection, its vault, its tool
 //! calls outward. The caller opens them to reach into the container.
 //! Same scope, opposite directions, and neither side's channel numbers

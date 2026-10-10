@@ -1,4 +1,4 @@
-//! What the three container scopes' executors share — and what the
+//! What the two container runs' executors share — and what the
 //! provider's server borrows of it to speak the proxy's wire.
 //!
 //! The family-agnostic part — [`Answered`] and its readers, and the
@@ -10,11 +10,11 @@
 //!
 //! Every server-opened ask's request and answer is a `shared` type,
 //! and every client-opened channel's answer is either shared or one
-//! of three byte-identical envelopes, so the machinery that reads and
+//! of two byte-identical envelopes, so the machinery that reads and
 //! answers them is written once here and each scope's `execute`
 //! wraps it:
 //!
-//! - [`Ask`], the twenty-five asks a run scope's provider makes, owned,
+//! - [`Ask`], the twenty-four asks a run scope's provider makes, owned,
 //!   and the answer to each through the caller's
 //!   [`Answerers`](crate::provider::client::Answerers) on a task of its own,
 //!   read off the scope by one serving loop.

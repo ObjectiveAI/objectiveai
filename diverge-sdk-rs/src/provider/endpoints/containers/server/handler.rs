@@ -36,8 +36,7 @@ use crate::shared::error::Error;
 ///    [`setup::prepare`](super::setup::prepare): registry,
 ///    deploy, the proxy dialled, the family's begin, the id minted
 ///    and the container entered in the directory — with its proxy
-///    connection and its begin scope, for connectors and serves —
-///    then the dependencies the container declared asked of the
+///    connection, for serves and transfers — then the dependencies the container declared asked of the
 ///    caller, the id told, beside every mount. A failure is the run's
 ///    error, and the scope finishes on it.
 /// 2. The id is sent. From here the container is running for the
@@ -112,7 +111,6 @@ pub(crate) async fn run<R, D, G, V>(
 
     let id = prepared.id.clone();
     send(&scope, R::id(&Id { id: id.clone() })).await;
-    directory.announce(&id).await;
 
     // The dependencies were asked of the caller in the setup; the
     // list is not needed again.

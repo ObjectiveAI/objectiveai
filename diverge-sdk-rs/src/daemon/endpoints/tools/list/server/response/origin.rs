@@ -11,7 +11,7 @@ use crate::shared::containers::dependencies::Template;
 /// The three ways a tool comes to be, and what the daemon knows of
 /// each: a [`create`](crate::daemon::endpoints::tools::create) made it
 /// from an image, a
-/// [`connect`](crate::daemon::endpoints::tools::connect) named a
+/// [`register`](crate::daemon::endpoints::tools::register) named a
 /// tool another daemon holds, or an agent's program declared it
 /// as a dependency and the daemon deployed it when the agent's
 /// container started. JSON-tagged by `kind`, `created`, `connected`
@@ -41,23 +41,20 @@ pub enum Origin {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         provider: Option<Provider>,
         /// The container's id while it runs, as the provider's run
-        /// answered it: what an
-        /// [`expose`](crate::daemon::endpoints::tools::expose) hands,
-        /// with the provider and an authorization, to the daemon it
-        /// lets connect. Absent while the container does not run.
+        /// answered it. Absent while the container does not run.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         id: Option<String>,
     },
-    /// Another daemon's tool, joined by this caller's connect: the
-    /// daemon holds that daemon's expose and a connect scope on the
-    /// container while an attached agent is active, and never starts
-    /// or stops it itself.
+    /// Another daemon's tool, registered by this caller: the daemon
+    /// holds that daemon's connect scope on it while an attached agent
+    /// uses it and for `idle_seconds` after, and never starts or stops
+    /// it itself.
     Connected {
         /// The daemon the tool is on, by the name of its record, as
-        /// the connect named it.
+        /// the register named it.
         daemon: String,
-        /// The tool, as that daemon names it and as the connect named
-        /// it: see [`reference::Tool`].
+        /// The tool, as that daemon names it and as the register
+        /// named it: see [`reference::Tool`].
         tool: reference::Tool,
         /// Its number among all tools of the caller's ever joined to
         /// that daemon's tool, deleted ones included.

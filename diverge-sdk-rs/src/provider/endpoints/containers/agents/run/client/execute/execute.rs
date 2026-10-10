@@ -8,8 +8,7 @@ use super::execute_handle::ExecuteHandle;
 use super::ExecuteStream;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::provider::client::{
-    Answerers, Daemon, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer,
-    Vault,
+    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer, Vault,
 };
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
@@ -35,8 +34,8 @@ use crate::shared::error::Error;
 ///
 /// # What comes back, and what does not
 ///
-/// The id names the container to anything outside — a connector, a
-/// later request — and the handle is the scope: for as long as it is
+/// The id names the container to anything outside — a later request
+/// of the runner's — and the handle is the scope: for as long as it is
 /// held the container runs, and every channel a caller may open into
 /// the container is a method on it. The main stream carries the
 /// agent's conversation after the id, which the [`ExecuteStream`] hands out
@@ -52,14 +51,13 @@ use crate::shared::error::Error;
 /// the serving task goes on answering the provider's asks until the
 /// scope's request stream ends, which the router closes with the
 /// scope.
-pub async fn execute<O, A, T, P, D, V, M, F>(
+pub async fn execute<O, T, P, D, V, M, F>(
     handle: &Handle,
     request: &request::Frame,
-    answerers: Answerers<O, A, T, P, D, V, M, F>,
+    answerers: Answerers<O, T, P, D, V, M, F>,
 ) -> Result<(Id, ExecuteHandle, ExecuteStream), ExecuteError>
 where
     O: OciStore + 'static,
-    A: ConnectionAuthorizer + 'static,
     T: DependencyDeployer + 'static,
     P: PostgresDialer + 'static,
     D: Daemon + 'static,

@@ -20,13 +20,13 @@ pub enum Origin {
         /// The template, by id.
         template: String,
     },
-    /// Joined by a connect, to another daemon's tool.
+    /// Registered, from another daemon's tool.
     Connected {
         /// The daemon the tool is on, by the name of its record, as
-        /// the connect named it.
+        /// the register named it.
         daemon: String,
-        /// The tool, as that daemon names it and as the connect named
-        /// it: see [`reference::Tool`].
+        /// The tool, as that daemon names it and as the register
+        /// named it: see [`reference::Tool`].
         tool: Box<reference::Tool>,
     },
 }

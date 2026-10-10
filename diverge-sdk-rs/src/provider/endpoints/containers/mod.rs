@@ -22,28 +22,24 @@
 //! request that makes a container carries its arguments — a JSON value
 //! the image defines, fixed for the container's life — and a `schema`
 //! channel says what they may be; each family has a `run` that owns the
-//! container's life, and the tools family also has a `connect` that
-//! joins one by id and authorization — an agent container is its
-//! runner's alone; every scope reads and writes files, watches the
+//! container's life; every scope reads and writes files, watches the
 //! tree, and relays what the container asks of the caller — its
 //! database connections, its daemon connection, its vault, its tool
 //! calls outward. All of that is defined once, in
 //! [`shared::containers`](crate::shared::containers), and each scope's
-//! frames wrap or alias it. The three container scopes' channel tags
-//! are laid out so the shared part comes first and identically, and the
-//! family's own exchange takes the tags after it.
+//! frames wrap or alias it. The two runs' channel tags are laid out so
+//! the shared part comes first and identically, and the family's own
+//! exchange takes the tags after it.
 //!
 //! # The main stream is the id, and then the agent
 //!
 //! A run answers with the container's
 //! [`Id`](crate::shared::containers::response::Id). An agent
 //! container's stream then carries the agent's chunks for as long as
-//! the container runs; a tool container's carries nothing more, and a
-//! connect answers with nothing at all. An error ends the scope.
-//! Everything else a caller reads — a filetree, a file — is a channel
-//! the caller opens, so a caller that wants none of it pays for none
-//! of it, and two callers on one tool container can each subscribe
-//! to what they want.
+//! the container runs; a tool container's carries nothing more. An
+//! error ends the scope. Everything else a caller reads — a filetree,
+//! a file — is a channel the caller opens, so a caller that wants none
+//! of it pays for none of it.
 //!
 //! # Why one family is not enough
 //!
@@ -64,7 +60,7 @@
 //! [`Answerers`](crate::provider::client::Answerers), and get back the
 //! container's id and a handle that holds the scope for the container's
 //! life, opens every channel the caller may open, and answers every
-//! channel the provider opens. What the three share is [`client`],
+//! channel the provider opens. What the two share is [`client`],
 //! written once.
 //!
 //! # And a way to serve them
@@ -73,9 +69,7 @@
 //! container up in order — content, registry, deploy, the proxy dialled
 //! and begun, every mount made — sends the id, and then relays
 //! everything the container asks and serves everything the caller opens
-//! until the run ends; a connect asks the runner and, on a yes, serves
-//! the connector the same way. What the three share is [`server`],
-//! written once.
+//! until the run ends. What the two share is [`server`], written once.
 
 pub mod agents;
 pub mod serve;

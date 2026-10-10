@@ -6,61 +6,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 
-/// Ask the daemon to hold, under a name, a tool another daemon holds.
-///
-/// Two things name the tool — the daemon it is on, by a record of
-/// [`providers::daemons`](crate::daemon::endpoints::providers::daemons),
-/// and the tool as that daemon names it — and the name it is held
-/// under here from then on. Nothing here is what the container is made
-/// from: its image, its limits, its mounts and its arguments are the
-/// other daemon's, stated in its own
-/// [`create`](crate::daemon::endpoints::tools::create), and a connected
-/// tool is not [`edit`](crate::daemon::endpoints::tools::edit)ed.
-///
-/// # Nothing is joined now
-///
-/// The daemon records the tool and answers. While an agent the tool is
-/// attached to is active, it connects to the daemon named — through a
-/// provider both are connected to, as the record's links say — opens
-/// that daemon's [`expose`](crate::daemon::endpoints::tools::expose)
-/// naming the tool, and joins the container the expose answers with:
-/// the provider protocol's `containers::tools::connect` on the provider
-/// the expose names, which has to be one the record links the daemon
-/// through, with the id and the authorization the expose answered; and
-/// lets the join and the expose go when no attached agent is. It never
-/// starts or stops the container itself: the expose does. A daemon
-/// that cannot be reached, a tool it does not have or does not allow,
-/// or a provider the record has no link to it by, is not this
-/// request's error: it is the tool inactive in a
-/// [`list`](crate::daemon::endpoints::tools::list), and the agent's
-/// tool calls failing.
-///
-/// # The name
-///
-/// Optional. A string of the caller's choosing, unique among the
-/// caller's tools, created and connected alike: the daemon refuses a
-/// request whose name is a tool's already, and says so with a variant
-/// of its own, because a caller acts on it differently from a failure —
-/// use the tool it has, or choose another name. A request with no name
-/// is never refused for one: the tool is reached by the daemon and
-/// tool it joined, which it always has. Nothing here constrains the
-/// string's form; the daemon compares it and does not read it.
+/// Ask the daemon to serve a tool: start its container if it does not
+/// run, hold it, and answer the tool's MCP exchanges on this scope.
+/// The tool is named by its name, or by its template and its index,
+/// as [`reference`](crate::daemon::reference) states.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The daemon the tool is on, by the name of its record: see
-    /// [`providers::daemons`](crate::daemon::endpoints::providers::daemons).
-    /// A name no record of the caller's has is the connect's error.
-    pub daemon: String,
-    /// The tool, as that daemon names it: by its name there, or by its
-    /// template and its index there. See [`reference::Tool`]. Compared
-    /// by this daemon, and read by that one.
+    /// The tool: by its name, as its create gave it, or by its template
+    /// and its index, which name a created tool once and for all. A
+    /// connected tool is another daemon's and is served there, and a
+    /// dependency tool is its agent's: naming either is a failure. See
+    /// [`reference::Tool`].
     pub tool: reference::Tool,
-    /// The name, if any: a string of the caller's choosing, unique
-    /// among the caller's tools, by which the tool is reached
-    /// afterwards beside the daemon and tool it joined. Absent, the
-    /// tool has none, and is reached by that pair only.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -75,7 +32,7 @@ pub struct Frame {
 /// whole allocation. The values are chosen across modules that do not
 /// know about each other, so the table is the only place they can be
 /// seen at once.
-const TAG: u8 = 18;
+const TAG: u8 = 81;
 
 /// JSON, as every request of the daemon's is.
 impl Encode for Frame {
