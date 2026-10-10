@@ -105,9 +105,11 @@ byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `daemons::accept`, `17` `daemons::connect`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
-a container request by a repository path and a manifest digest, as
-the Specification defines them. The request names no source; where
-the Provider obtains the image is the Provider's own.
+a container request by a manifest digest and by zero or more
+references, each a registry host and a repository path, as the
+Specification defines them. The digest identifies the image and a
+reference locates it; where the Provider obtains the image is the
+Provider's own.
 
 1.11 **"Container"** means one running instance of a Container Image,
 created by the Provider in performance of a `containers::agents::run`
@@ -424,9 +426,9 @@ string, and shall not send an error on this Endpoint.
 The Provider shall answer every `images::check` request with exactly
 one Response and the Response Finish: the byte `0` followed by exactly
 `{"type":"available"}` when, at the time of the answer, the Provider
-could obtain the named image without the Client's help — from what it
-holds, or from a source of its own — for a container request naming
-it; the byte `0` followed by exactly `{"type":"unavailable"}` when
+could obtain the image the digest names without the Client's help —
+from what it holds, from a referenced registry its policy lists, or
+from a source of its own — for a container request naming it; the byte `0` followed by exactly `{"type":"unavailable"}` when
 it would not; or the byte `1` followed by an error when it did not
 determine the answer. An available answer reserves nothing.
 
@@ -682,15 +684,20 @@ the request, fetching nothing, deploying nothing, and changing no
 Volume's mode.
 
 (b) **Obtain the image.** The Provider shall obtain the image the
-digest names, from a source of its own choosing; the Specification
-does not prescribe the source. Where the Provider would obtain the
-image from the Client, it may ask the Client, on the `oci-has`
-Channel, whether the Client holds the image, and, on the
-`oci-manifest` and `oci-blob` Channels, for each manifest and blob it
-requires; a Client that finishes an `oci-has` Channel with no frame,
-or with the byte `0`, holds nothing under the digest, and a Client
-that finishes an `oci-manifest` or `oci-blob` Channel with no frame
-does not hold that digest. The Provider shall run only the image the
+digest names, from what it holds, from a referenced registry its
+policy lists, or from the Client, as it chooses; the Specification
+does not prescribe which, and a reference naming a registry the
+Provider's policy does not list binds the Provider to nothing. Where
+the Provider would obtain the image from the Client, it may ask the
+Client, on the `oci-has` Channel, whether the Client holds the image,
+and, on the `oci-manifest` and `oci-blob` Channels, for each manifest
+and blob it requires; a Client that finishes an `oci-has` Channel
+with no frame, or with the byte `0`, holds nothing under the digest;
+a Client that answers the byte `1` followed by a repository path
+holds the image under that path, from which the Provider may fetch
+it through its own registry; and a Client that finishes an
+`oci-manifest` or `oci-blob` Channel with no frame does not hold that
+digest. The Provider shall run only the image the
 digest names: bytes that are not those the digest names, and an image
 the Provider obtains from no source, are the run's error. How the
 Provider holds, verifies or streams what it obtains is not

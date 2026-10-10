@@ -43,11 +43,14 @@ about the client, which may open any channel at any time.
    fetches nothing and deploys nothing for it. A request may name one
    volume more than once, at different paths.
 2. **The server obtains the image.** The server obtains the image the
-   digest names, from wherever it obtains images; this specification
-   does not prescribe the source. Where it would obtain the image
-   from the client, the server may ask the client whether it holds
-   the image on an [oci-has](/endpoints/containers-tools-run/server/oci-has/) channel, and
-   for a manifest or a blob it requires on an
+   digest names: from what it holds, from a referenced registry its
+   policy lists, or from the client; this specification does not
+   prescribe which. Where it would obtain the image from the client,
+   the server asks the client whether it holds the image on an
+   [oci-has](/endpoints/containers-tools-run/server/oci-has/) channel, and a
+   client that holds it answers the repository path the server
+   fetches it under; a manifest or a blob the server requires it asks
+   for on an
    [oci-manifest](/endpoints/containers-tools-run/server/oci-manifest/) or
    [oci-blob](/endpoints/containers-tools-run/server/oci-blob/) channel. The server runs
    only the image the digest names: bytes that are not those the

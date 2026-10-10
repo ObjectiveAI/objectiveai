@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 14 followed by a JSON object that names the image by repository path and manifest digest and names no registry.'
+summary: 'The payload is the tag byte 14 followed by a JSON object that names the image by manifest digest and by zero or more references, each a registry host and a repository path.'
 order: 1
 draft: false
 ---
@@ -12,14 +12,20 @@ JSON, running to the end of the payload:
 [14][request JSON …]
 ```
 
-- **`name`.** The repository path of the image, without a registry
-  host: `library/nginx`, `myorg/myimage`.
 - **`digest`.** The manifest digest of the image, of the form
   `<algorithm>:<hex>`. The digest identifies the image.
-- **No registry.** The request names no registry. Every registry
-  that serves the bytes the digest names serves the same image, and
-  the source from which the server obtains the image is not the
-  client's to state.
+- **`references`.** An array of objects, each of two fields:
+  `registry`, a registry host with no scheme and no path, `docker.io`,
+  `registry.example.com:5000`; and `name`, a repository path at that
+  registry with no host and no tag, `library/nginx`. A server fetches
+  a referenced image as `<registry>/<name>@<digest>`. Absent when
+  there are none.
+- **The references locate.** A reference does not identify the
+  image: every registry that serves the bytes the digest names serves
+  the same image. The server asks a referenced registry only where
+  its own policy lists that registry, and ignores a reference naming
+  one it does not. A reference whose `name` is not a repository path
+  is answered with the error.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is not `14`, and a payload whose bytes after the tag do not parse as
   the request are malformed. [Endpoints](/endpoints/) states how a

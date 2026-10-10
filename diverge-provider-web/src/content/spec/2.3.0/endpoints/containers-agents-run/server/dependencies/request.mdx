@@ -17,8 +17,8 @@ draft: false
   answered while the channel is open.
 - **`dependencies`.** An array of dependency tool templates, in the
   order the program declared them. Each is an object of five members,
-  and three that may be absent: `image`, an object of `name` and
-  `digest` as the [request](/endpoints/containers-tools-run/request/)
+  and three that may be absent: `image`, an object of `digest` and
+  `references` as the [request](/endpoints/containers-tools-run/request/)
   of a tools run names one; `memory` and `disk`, limits in bytes as
   that request states them; `arguments`, any JSON value, the
   `arguments` of that request; `database`, the string
@@ -40,9 +40,10 @@ draft: false
   them. The server relays every member and reads none.
 - **The id.** A template has no name. The client names a dependency
   by the template's id: the lowercase hexadecimal SHA-256 of the
-  template as compact JSON with absent members omitted and the keys
-  of every object sorted bytewise at every depth, the `arguments` and
-  every object inside them included. Two templates with one id are
+  template as compact JSON with absent members omitted, the image's
+  `references` absent too, and the keys of every object sorted
+  bytewise at every depth, the `arguments` and every object inside
+  them included. One image under different names is one template. Two templates with one id are
   one dependency, and an array that holds one id twice is refused by
   the client as its error. The container calls the tool's tools by
   whatever names the client's merged list shows.

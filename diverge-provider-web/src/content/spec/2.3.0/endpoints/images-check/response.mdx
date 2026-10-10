@@ -21,9 +21,9 @@ finish follows the response, and no frame follows the finish.
   answer as JSON after that byte. The answer is exactly one of two
   objects: `{"type":"available"}` or `{"type":"unavailable"}`. The
   available answer states that the server could obtain the image
-  without the client's help — from what it holds, or from a source
-  of its own — for a container request naming the requested name and
-  digest, at the time of the answer. It reserves nothing, and a later
+  without the client's help — from what it holds, from a referenced
+  registry its policy lists, or from a source of its own — for a container request naming the requested digest,
+  at the time of the answer. It reserves nothing, and a later
   container request naming the image may fail. The unavailable
   answer states that the server could not; a container request
   naming the image may still succeed where the client holds the

@@ -12,11 +12,15 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 [0][container JSON …]
 ```
 
-- **`image`.** An object of two fields: `{"name":…,"digest":…}`.
-  `name` is a repository path without a host; `digest` is
-  `<algorithm>:<hex>`, the manifest digest, which identifies the
-  image. The request names no source: where the server obtains the
-  image is the server's own.
+- **`image`.** An object of two fields: `{"digest":…,"references":…}`.
+  `digest` is `<algorithm>:<hex>`, the manifest digest, which
+  identifies the image; `references` is an array of objects of
+  `registry` and `name`, each a registry host and a repository path
+  under which the bytes may be fetched, absent when empty, as
+  [images::check](/endpoints/images-check/request/) states them. The
+  request names no source beyond them: the server looks in what it
+  holds first, asks the referenced registries its policy lists, and
+  may take the image from the client.
 - **`memory`, `disk`.** Limits in bytes: the memory the container may
   use, and the bytes the container may write to its own filesystem.
   Neither governs a mount.

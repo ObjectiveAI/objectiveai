@@ -1,25 +1,28 @@
 ---
 title: 'images::check'
-summary: 'Tag 14: a client names an image by repository and digest; the server sends exactly one response stating whether it could obtain that image without the client’s help, and the scope finishes.'
+summary: 'Tag 14: a client names an image by digest and references; the server sends exactly one response stating whether it could obtain that image without the client’s help, and the scope finishes.'
 order: 14
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`14` followed by the image's name and digest. The server sends exactly
+`14` followed by the image's digest and references. The server sends exactly
 one response, which is either the answer or an error. The response
 finish follows the response, and no frame follows the finish.
 
-- **The request.** The request names a repository path and a
-  manifest digest. It names no registry: the digest identifies the
-  image, and the source from which the server obtains the image is
-  the server's own. [Request](/endpoints/images-check/request/)
-  states its form.
+- **The request.** The request names a manifest digest and zero or
+  more references, each a registry host and a repository path. The
+  digest identifies the image; a reference states where the client
+  knows the bytes to be. The server looks in what it holds first, by
+  digest; it may ask any referenced registry its policy lists, and
+  ignores a reference naming one it does not; the source from which
+  it obtains the image is the server's own.
+  [Request](/endpoints/images-check/request/) states its form.
 - **The answer.** The answer is exactly `{"type":"available"}` or
   exactly `{"type":"unavailable"}`. The available answer states
   that the server could obtain the image without the client's help —
   from what it holds, or from a source of its own — for a container
-  request naming that name and digest, at the time of the answer.
+  request naming that digest, at the time of the answer.
   The unavailable answer states that it could not; a container
   request naming the image may still succeed where the client holds
   the image and the server obtains it from the client. Neither
