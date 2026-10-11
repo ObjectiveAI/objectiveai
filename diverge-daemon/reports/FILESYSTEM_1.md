@@ -132,6 +132,9 @@ provider:
       - {path: /srv/volumes, capacity: 1099511627776}
     fixed:                          # must be existing directories; names unique
       - {name: datasets, path: /srv/datasets, bytes: 0, mode: read_only, authorize_hook: "<name>"}
+  images:                           # absent = no client image store
+    path: provider/images           # relative → <root>/provider/images; root/ and meta/ inside
+    capacity: 274877906944          # 256 GiB over every client image; 0 refused
 ```
 
 What the provider checks at its start, in `serve::Provider::start`:
