@@ -24,9 +24,11 @@
 //! connection is a provider's whole loop.
 //!
 //! Ten of the [`volumes`](diverge_sdk::provider::endpoints::volumes),
-//! [`images::check`](diverge_sdk::provider::endpoints::images::check) and
+//! [`images::check`](diverge_sdk::provider::endpoints::images::check),
+//! the image store's stat and delete and
 //! [`version`](diverge_sdk::provider::endpoints::version) answer and finish, which is
-//! the whole of what those endpoints do. The two
+//! the whole of what those endpoints do; the two listings stay open
+//! until the caller stops, and a build until the build ends. The two
 //! [`containers`](diverge_sdk::provider::endpoints::containers) runs serve for as
 //! long as their containers run: each brings its container up,
 //! answers its id, and then carries the container's asks out and the
@@ -35,7 +37,7 @@
 //!
 //! # And what a provider supplies
 //!
-//! Six traits and one type, which are what this half asks FOR
+//! Seven traits and three types, which are what this half asks FOR
 //! rather than provides. They mirror the ones [`client`](diverge_sdk::wire::client)
 //! supplies: something a provider implements, so that the parts this
 //! crate cannot know are somebody else's.
@@ -106,19 +108,35 @@
 //! beside the image: whether the caller holds it, asked on the
 //! scope, under what path, and where the registry serves it.
 //!
-//! [`directory`] is the type: every container the provider is running,
+//! [`image_manager`] is the sixth: the images a caller BUILDS on the
+//! provider, from a Containerfile, under names of its own — listed,
+//! examined, built and destroyed by the four store endpoints of
+//! [`images`](diverge_sdk::provider::endpoints::images). It is the
+//! [`volume_manager`]'s twin for a thing that is never acted on in
+//! place, so it has no second trait: a [`context`] is a volume
+//! directory a build reads from, with the identity attached as a
+//! [`mount`] has it, and a [`progress`] is one thing a build says.
+//! An image an identity built is one the provider holds for that
+//! identity and for nobody else, which the checker and the deployer
+//! a provider supplies beside this are bound to.
+//!
+//! [`directory`] is a type: every container the provider is running,
 //! by id, shared across connections — because a serve names a
 //! container its runner may have started on another socket, and has
 //! to find the connection to its proxy.
 //! [`acceptors`] is its twin for daemons: every daemon accepting
 //! connections through the provider, by identity, which a
-//! `daemons::connect` on any connection finds.
+//! `daemons::connect` on any connection finds. [`changes`] is the
+//! third, twice over: the word that a caller's volume, or image,
+//! changed, which the listings open on any connection hear.
 //!
 //! Nothing implements any of them, and all are consumed:
 //! [`volume_manager`] and [`volume`] by the eleven
 //! [`volumes`](diverge_sdk::provider::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
-//! [`images::check`](diverge_sdk::provider::endpoints::images::check)'s, and
+//! [`images::check`](diverge_sdk::provider::endpoints::images::check)'s,
+//! [`image_manager`] by the four store endpoints' — the build's
+//! taking the [`volume_manager`] too, for the volume it reads — and
 //! [`container_deployer`], [`image_registry`] and
 //! — for the volumes a request mounts, locked for the run — the
 //! [`volume_manager`] again by the two run handlers of
@@ -150,19 +168,22 @@
 
 pub mod acceptors;
 pub mod caller;
+pub mod changes;
 pub mod container;
 pub mod container_deployer;
+pub mod context;
 pub mod deployment;
 pub mod directory;
 pub mod endpoints;
 pub mod handle;
 pub mod holders;
 pub mod image_checker;
+pub mod image_manager;
 pub mod image_registry;
 pub mod image_source;
 pub mod mount;
+pub mod progress;
 pub mod proxy;
 pub mod served;
 pub mod volume;
-pub mod volume_changes;
 pub mod volume_manager;

@@ -4,7 +4,7 @@
 //! request, and serves every endpoint; what it cannot supply is what a
 //! provider IS — a place to run containers, a store of volumes, a
 //! registry, and a judgment about who may connect — and this module
-//! supplies those, as the protocol's six provider-side traits:
+//! supplies those, as the protocol's seven provider-side traits:
 //!
 //! | trait | supplies |
 //! |-------|----------|
@@ -13,6 +13,7 @@
 //! | `VolumeManager` | the volumes of every identity |
 //! | `ImageRegistry` | the registry a runtime pulls from, for an image taken from the caller |
 //! | `ImageChecker` | whether an image can be had without the caller |
+//! | `ImageManager` | the images every identity built on this provider — not yet: every request is refused |
 //! | `UnbrokeredAuthorizer` | the identity a credential establishes |
 //!
 //! This is ONE provider, not the only one. The specification binds any
@@ -21,9 +22,9 @@
 //! and supply its own.
 //!
 //! Here is where the implementation goes; [`container_deployer`], [`volume_manager`],
-//! [`image_checker`], [`image_registry`] and
-//! [`unbrokered_authorizer`] supply the six, every method of each
-//! written. [`tools`] is every program the provider runs — podman,
+//! [`image_checker`], [`image_manager`], [`image_registry`] and
+//! [`unbrokered_authorizer`] supply the seven, every method of each
+//! written — the image manager's as refusals, until the store exists. [`tools`] is every program the provider runs — podman,
 //! and e2fsprogs, `mount` and `ssh` through it or beside it — and
 //! the one way it runs them. [`watch`] is a directory of this host
 //! walked and watched, the filetree of a fixed volume, one module
@@ -43,6 +44,7 @@ pub use limit::*;
 pub mod container_deployer;
 pub mod hook;
 pub mod image_checker;
+pub mod image_manager;
 pub mod image_registry;
 pub mod serve;
 pub mod tools;

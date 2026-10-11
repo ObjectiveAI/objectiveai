@@ -8,7 +8,7 @@ use tokio::sync::broadcast;
 
 use diverge_sdk::provider::endpoints::volumes::list::server::response;
 use diverge_sdk::provider::endpoints::volumes::list::client::channel_request;
-use crate::protocol::volume_changes::VolumeChanges;
+use crate::protocol::changes::Changes;
 use crate::protocol::volume_manager::VolumeManager;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::wire::decode::Decode as _;
@@ -52,7 +52,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///
 /// Is the one failure with nowhere to go, and is not sent; the
 /// listing goes on without it.
-pub async fn handle<M>(scope: ScopeHandle, client_identity: &str, manager: &M, changes: Arc<VolumeChanges>)
+pub async fn handle<M>(scope: ScopeHandle, client_identity: &str, manager: &M, changes: Arc<Changes>)
 where
     M: VolumeManager,
     M::Error: Into<Error>,

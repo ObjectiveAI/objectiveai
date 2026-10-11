@@ -11,7 +11,7 @@ use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::server::authorization::Authorization;
 use crate::protocol::acceptors::Acceptors;
 use crate::protocol::directory::Directory;
-use crate::protocol::volume_changes::VolumeChanges;
+use crate::protocol::changes::Changes;
 use crate::protocol::handle::handle;
 use diverge_sdk::wire::server::session::Session;
 
@@ -22,6 +22,7 @@ use diverge_sdk::config::provider::volumes::Volumes;
 use super::{Error, Peers};
 use crate::host::container_deployer::ContainerDeployer;
 use crate::host::image_checker::ImageChecker;
+use crate::host::image_manager::ImageManager;
 use crate::host::image_registry::ImageRegistry;
 use crate::host::tools::podman;
 use crate::host::unbrokered_authorizer::{Slot, UnbrokeredAuthorizer};
@@ -47,6 +48,8 @@ pub struct Provider {
     volumes: Arc<VolumeManager>,
     /// The image checker.
     checker: Arc<ImageChecker>,
+    /// The image store, which refuses everything until it exists.
+    images: Arc<ImageManager>,
     /// The registry, held to the end so its server lives as long.
     registry: Arc<ImageRegistry>,
     /// The running containers, one map for the provider.
@@ -57,7 +60,9 @@ pub struct Provider {
     /// The peers connected now, one per identity and per credential.
     peers: Arc<Peers>,
     /// Every change to any caller's volumes, for the listings open.
-    volume_changes: Arc<VolumeChanges>,
+    volume_changes: Arc<Changes>,
+    /// Every change to any caller's images, for the listings open.
+    image_changes: Arc<Changes>,
 }
 
 impl Provider {
@@ -94,11 +99,13 @@ impl Provider {
             deployer: Arc::new(deployer),
             volumes,
             checker,
+            images: Arc::new(ImageManager),
             registry,
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
             peers: Arc::new(Peers::default()),
-            volume_changes: Arc::new(VolumeChanges::new()),
+            volume_changes: Arc::new(Changes::new()),
+            image_changes: Arc::new(Changes::new()),
         })
     }
 
@@ -134,9 +141,11 @@ impl Provider {
             Arc::clone(&self.deployer),
             Arc::clone(&self.volumes),
             Arc::clone(&self.checker),
+            Arc::clone(&self.images),
             Arc::clone(&self.registry),
             Arc::clone(&self.directory),
             Arc::clone(&self.volume_changes),
+            Arc::clone(&self.image_changes),
             Arc::clone(&self.acceptors),
         )
         .await;

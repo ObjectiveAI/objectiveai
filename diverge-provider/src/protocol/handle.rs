@@ -10,8 +10,9 @@ use diverge_sdk::wire::server::authorization::{self, Authorization};
 use super::acceptors::Acceptors;
 use super::container_deployer::ContainerDeployer;
 use super::directory::Directory;
-use super::volume_changes::VolumeChanges;
+use super::changes::Changes;
 use super::image_checker::ImageChecker;
+use super::image_manager::ImageManager;
 use super::image_registry::ImageRegistry;
 use diverge_sdk::wire::server::received::Received;
 use diverge_sdk::wire::server::session::Session;
@@ -47,9 +48,11 @@ use diverge_sdk::shared::error::Error;
 /// concurrently and the traits — returning `impl Future` — cannot be
 /// boxed behind one pointer; the [`Directory`], one per provider,
 /// through which a serve or a transfer on this connection finds a run
-/// on any other of the same caller's; and the [`Acceptors`], one per
-/// provider likewise, through which a daemon connecting on this
-/// connection finds one accepting on any other.
+/// on any other of the same caller's; the two [`Changes`], one for
+/// volumes and one for images, through which a listing on this
+/// connection hears of a change made on any other; and the
+/// [`Acceptors`], one per provider likewise, through which a daemon
+/// connecting on this connection finds one accepting on any other.
 ///
 /// # The handshake comes first
 ///
@@ -90,7 +93,7 @@ use diverge_sdk::shared::error::Error;
 /// [`ClientRequest::decode`] cannot fail; what it cannot read it
 /// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
 /// one is a finish with nothing in front. There is no other honest
-/// answer — eighteen endpoints have eighteen error vocabularies, and an
+/// answer — twenty-two endpoints have twenty-two error vocabularies, and an
 /// invalid request names none of them — and a bare finish is already
 /// what the wire means by a request that could not be served. Every
 /// executor reads it as its own "unanswered".
@@ -107,16 +110,18 @@ use diverge_sdk::shared::error::Error;
 /// every one of those teardowns — and it would end runs a caller had
 /// already paid for, which is the wrong way round: the work was real,
 /// and a caller that leaves does not un-spend it.
-pub async fn handle<D, V, I, U, R>(
+pub async fn handle<D, V, I, M, U, R>(
     mut session: Session,
     authorization: Authorization<U>,
     address: IpAddr,
     deployer: Arc<D>,
     volume_manager: Arc<V>,
     image_checker: Arc<I>,
+    image_manager: Arc<M>,
     image_registry: Arc<R>,
     directory: Arc<Directory>,
-    volume_changes: Arc<VolumeChanges>,
+    volume_changes: Arc<Changes>,
+    image_changes: Arc<Changes>,
     acceptors: Arc<Acceptors>,
 ) -> Result<(), HandleError<U::Error>>
 where
@@ -126,6 +131,8 @@ where
     V::Error: Into<Error>,
     I: ImageChecker + 'static,
     I::Error: Into<Error>,
+    M: ImageManager + 'static,
+    M::Error: Into<Error>,
     U: UnbrokeredAuthorizer,
     R: ImageRegistry + 'static,
     R::Error: Into<Error>,
@@ -365,6 +372,38 @@ where
                         scope, frame, &identity, &*checker,
                     )
                     .await;
+                });
+            }
+            ClientRequest::ImagesList(_) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&image_manager);
+                let changes = Arc::clone(&image_changes);
+                scopes.spawn(async move {
+                    endpoints::images::list::handle(scope, &identity, &*manager, changes).await;
+                });
+            }
+            ClientRequest::ImagesStat(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&image_manager);
+                scopes.spawn(async move {
+                    endpoints::images::stat::handle(scope, frame, &identity, &*manager).await;
+                });
+            }
+            ClientRequest::ImagesBuild(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&image_manager);
+                let volumes = Arc::clone(&volume_manager);
+                let changes = Arc::clone(&image_changes);
+                scopes.spawn(async move {
+                    endpoints::images::build::handle(scope, frame, &identity, &*manager, &*volumes, changes).await;
+                });
+            }
+            ClientRequest::ImagesDelete(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&image_manager);
+                let changes = Arc::clone(&image_changes);
+                scopes.spawn(async move {
+                    endpoints::images::delete::handle(scope, frame, &identity, &*manager, changes).await;
                 });
             }
             ClientRequest::Version(_) => {

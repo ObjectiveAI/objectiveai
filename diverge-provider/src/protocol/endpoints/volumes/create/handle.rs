@@ -7,7 +7,7 @@ use diverge_sdk::provider::endpoints::volumes::create::server::response;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::provider::endpoints::volumes::create::client::request;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
-use crate::protocol::volume_changes::VolumeChanges;
+use crate::protocol::changes::Changes;
 use crate::protocol::volume_manager::VolumeManager;
 use diverge_sdk::shared::error::Error;
 
@@ -46,7 +46,7 @@ pub async fn handle<M>(
     request: request::Frame,
     client_identity: &str,
     manager: &M,
-    changes: Arc<VolumeChanges>,
+    changes: Arc<Changes>,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
