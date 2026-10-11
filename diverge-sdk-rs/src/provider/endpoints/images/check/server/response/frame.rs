@@ -11,13 +11,21 @@ use crate::shared::error::Error;
 /// on channel `0` of an image check.
 ///
 /// A check is one question and one reply, so there is exactly one of
-/// these per scope, before the finish that ends it. There are two
-/// things that reply can be: an answer, or the news that the question
-/// could not be answered.
+/// these per scope, before the finish that ends it. There are three
+/// things that reply can be: an answer, the news that the question
+/// could not be answered, or the word that the question named no
+/// source to look in.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Response`](Self::Response), `1` for [`Error`](Self::Error) — and
-/// the rest is that variant's own JSON.
+/// [`Response`](Self::Response), `1` for [`Error`](Self::Error), `2`
+/// for [`NoSource`](Self::NoSource) — and the rest is that variant's
+/// own JSON; `NoSource` carries nothing.
+///
+/// | the scope ends with | means |
+/// |----------------------|-------|
+/// | a [`Response`](Self::Response), then a finish | the provider looked where it was asked to, and this is what it found |
+/// | an [`Error`](Self::Error), then a finish | the provider could not look, and nothing is determined |
+/// | [`NoSource`](Self::NoSource), then a finish | the request asked the provider to look nowhere, and nothing is determined |
 ///
 /// # The frame type is still not a wire shape
 ///
@@ -59,6 +67,13 @@ pub enum Frame {
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
     Error(Error),
+    /// The request asked for no source, and nothing was looked at.
+    /// Tag `2`.
+    ///
+    /// Neither an answer nor a failure: the question was empty. A
+    /// caller that wanted an answer asks again with at least one of
+    /// the three sources set.
+    NoSource,
 }
 
 /// Tag for [`Frame::Response`].
@@ -66,6 +81,9 @@ const RESPONSE: u8 = 0;
 
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 1;
+
+/// Tag for [`Frame::NoSource`].
+const NO_SOURCE: u8 = 2;
 
 /// A tag, then the variant's own JSON. The newtype around an answer
 /// still leaves no trace, and neither does the untagged enum inside
@@ -90,6 +108,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
             }
+            Frame::NoSource => {
+                out.extend_from_slice(&[NO_SOURCE]);
+                Ok(())
+            }
         }
     }
 }
@@ -108,6 +130,7 @@ impl Decode<'_> for Frame {
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
+            NO_SOURCE => Ok(Frame::NoSource),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -118,7 +141,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The answer did not parse.
     ///

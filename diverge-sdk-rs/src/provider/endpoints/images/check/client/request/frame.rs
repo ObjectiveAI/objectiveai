@@ -2,40 +2,49 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::Sources;
 use crate::shared::containers::request::Image;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// Ask a provider whether it can supply a particular image: the
 /// [`Image`] — its digest, and the references under which its bytes
-/// may be fetched — and nothing else.
+/// may be fetched — and where to look for it, the [`Sources`].
 ///
 /// The digest is the image's identity and a reference is only a
 /// locator — any registry serving these bytes serves the same image,
 /// because a client recomputes the hash on pull and rejects a
-/// mismatch. So WHERE a provider gets it is the provider's business:
-/// what it already holds, by digest, first; then any referenced
-/// registry its own policy lists, ignoring a reference naming one it
-/// does not; a mirror or a private registry of its own besides. The
-/// references are where the client knows the bytes to be, and a
-/// client that knows of none sends none.
+/// mismatch. The references are where the client knows the bytes to
+/// be, and a client that knows of none sends none; a provider asks a
+/// referenced registry only where its own policy lists it.
 ///
-/// That is also what makes proprietary images answerable. A provider
-/// with access to an image no referenced registry serves can still
-/// say yes, and a client naming a registry the provider cannot reach
-/// has asserted nothing the provider is bound by.
+/// # Where to look
+///
+/// Three places, each asked for or not, in any combination: the
+/// client's own images, built on this provider; the provider's own,
+/// which no client built; and the referenced registries. At least
+/// one is asked for, or the provider answers
+/// [`NoSource`](crate::provider::endpoints::images::check::server::response::Frame::NoSource)
+/// and determines nothing. Available means at least one source asked
+/// has the image; the provider looks in what it holds before it asks
+/// a registry. See [`Sources`].
 ///
 /// # An image the client built is one the provider holds, for it
 ///
 /// A digest the client [built](crate::provider::endpoints::images::build)
-/// on this provider is available to that client, from the store; to
-/// any other client it is not there, unless that client built it too.
-/// A provider never answers one identity's store to another.
+/// on this provider is available to that client, from the store,
+/// when the `client` source is asked; to any other client it is not
+/// there, unless that client built it too. A provider never answers
+/// one identity's store to another.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Frame(
+pub struct Frame {
     /// The image asked about.
-    pub Image,
-);
+    pub image: Image,
+    /// Where to look: three booleans, flat in the JSON beside
+    /// `image`.
+    #[serde(flatten)]
+    pub sources: Sources,
+}
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -57,7 +66,7 @@ impl Encode for Frame {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
-        serde_json::to_writer(out, &self.0)
+        serde_json::to_writer(out, self)
     }
 }
 
@@ -70,7 +79,7 @@ impl Decode<'_> for Frame {
         if *tag != TAG {
             return Err(FrameError::UnexpectedTag(*tag));
         }
-        serde_json::from_slice(rest).map(Frame).map_err(FrameError::Body)
+        serde_json::from_slice(rest).map_err(FrameError::Body)
     }
 }
 
