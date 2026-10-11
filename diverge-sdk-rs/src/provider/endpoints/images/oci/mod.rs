@@ -5,10 +5,11 @@
 //! image, for a manifest, for a blob — to take the run's image from
 //! it. Here the caller asks the provider the same three things, as
 //! channels on a scope it opens and keeps: whether the provider holds
-//! an image FOR THE CALLER — one the caller built on it, or one the
-//! provider holds on its own account, and never another identity's —
-//! and under what name; a manifest by digest; a blob by digest, in
-//! pieces. The asks are byte for byte the run's, the same tags and
+//! an image FOR THE CALLER — one the caller built on it, held byte
+//! for byte as the provider fixed it at the build, and never another
+//! identity's nor one the provider merely pulled, whose bytes it
+//! cannot re-serve under the digest — and under what name; a manifest
+//! by digest; a blob by digest, in pieces. The asks are byte for byte the run's, the same tags and
 //! the same frames of [`oci`](crate::shared::containers::oci); only
 //! who asks has changed.
 //!

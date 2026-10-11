@@ -43,8 +43,9 @@
 //! round: a caller opens a scope on the provider and asks, on
 //! channels, whether the provider holds an image for it, for a
 //! manifest, for a blob — what the provider holds for the caller
-//! being the caller's own images and the provider's own, never
-//! another identity's. It is how a caller with images on one
+//! being the caller's own images, fixed byte for byte when the
+//! provider built them, and never another identity's nor one the
+//! provider merely pulled. It is how a caller with images on one
 //! provider supplies them to a run on another.
 //!
 //! [`refusal`] is what the handlers answer on their own: a name the
