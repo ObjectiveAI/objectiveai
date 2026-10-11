@@ -8,7 +8,7 @@
 //!
 //! # The caller's own images
 //!
-//! The other four are a store: images a caller BUILDS on the
+//! Four of the other five are a store: images a caller BUILDS on the
 //! provider, from a Containerfile the request carries, each under a
 //! name the caller chose, listed, examined and deleted as volumes
 //! are. [`list`] is the listing, kept open; [`stat`] examines one;
@@ -37,6 +37,16 @@
 //! it is its own. The store is a source for its builder and for
 //! nobody else.
 //!
+//! # Pulling what the provider holds
+//!
+//! The sixth, [`oci`], is the run's three OCI asks the other way
+//! round: a caller opens a scope on the provider and asks, on
+//! channels, whether the provider holds an image for it, for a
+//! manifest, for a blob — what the provider holds for the caller
+//! being the caller's own images and the provider's own, never
+//! another identity's. It is how a caller with images on one
+//! provider supplies them to a run on another.
+//!
 //! [`refusal`] is what the handlers answer on their own: a name the
 //! caller has no image by, and a build that ended without a result.
 
@@ -44,6 +54,7 @@ pub mod build;
 pub mod check;
 pub mod delete;
 pub mod list;
+pub mod oci;
 pub mod stat;
 
 pub mod refusal;

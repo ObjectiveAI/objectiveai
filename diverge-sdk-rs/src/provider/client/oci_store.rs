@@ -30,6 +30,10 @@ pub struct Manifest {
 /// what it holds answers as if it did not. A caller that holds no
 /// image at all answers `None` to everything, and a
 /// provider that can get the image elsewhere runs it all the same.
+/// A caller need not hold the bytes itself: one with images on other
+/// providers answers from them, through
+/// [`images::oci`](crate::provider::endpoints::images::oci), and the
+/// provider asking never learns the difference.
 pub trait OciStore: Send + Sync {
     /// Whether the image is held — its manifest under `digest` — and
     /// the repository path it is held under, which the provider's

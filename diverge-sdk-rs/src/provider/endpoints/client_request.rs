@@ -69,11 +69,13 @@ pub enum ClientRequest<'a> {
     ImagesBuild(images::build::client::request::Frame),
     /// Tag `18`. Destroy one.
     ImagesDelete(images::delete::client::request::Frame),
-    /// Tag `19`. Ask what the provider is.
+    /// Tag `19`. Pull what the provider holds for the caller.
+    ImagesOci(images::oci::client::request::Frame),
+    /// Tag `20`. Ask what the provider is.
     Version(version::client::request::Frame),
-    /// Tag `20`. Accept connections from other daemons.
+    /// Tag `21`. Accept connections from other daemons.
     DaemonsAccept(daemons::accept::client::request::Frame),
-    /// Tag `21`. Connect to another daemon.
+    /// Tag `22`. Connect to another daemon.
     DaemonsConnect(daemons::connect::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -85,7 +87,7 @@ pub enum ClientRequest<'a> {
     /// # It is answered, not dropped
     ///
     /// A server finishes the scope over it, with nothing in front:
-    /// twenty-two endpoints have twenty-two error vocabularies, and an invalid
+    /// twenty-three endpoints have twenty-three error vocabularies, and an invalid
     /// request names none of them — where a finish with nothing before
     /// it is already what the wire means by a request that could not
     /// be served, and every executor reads it as its own "unanswered".
@@ -98,15 +100,15 @@ pub enum ClientRequest<'a> {
     /// A server that wants one has the bytes and can ask the specific
     /// request to decode them, which answers precisely: an unknown
     /// tag, a body that would not parse, or nothing at all. Storing a
-    /// reason here would mean this type choosing which of twenty-two
-    /// error vocabularies to speak, and choosing wrong for twenty-one of
+    /// reason here would mean this type choosing which of twenty-three
+    /// error vocabularies to speak, and choosing wrong for twenty-two of
     /// them.
     Invalid(&'a [u8]),
 }
 
 impl Encode for ClientRequest<'_> {
-    /// Two ways to fail, because twenty-two requests use two encodings
-    /// between them — and five of the twenty-two use neither, having
+    /// Two ways to fail, because twenty-three requests use two encodings
+    /// between them — and six of the twenty-three use neither, having
     /// nothing to encode.
     type Error = ClientRequestEncodeError;
 
@@ -177,6 +179,11 @@ impl Encode for ClientRequest<'_> {
             }
             ClientRequest::ImagesDelete(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
+            }
+            ClientRequest::ImagesOci(frame) => {
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                frame.encode(out).map_err(|error| match error {})
             }
             ClientRequest::Version(frame) => {
                 // Its error is `Infallible`, and an empty match on one
@@ -268,13 +275,16 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             18 => images::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesDelete)
                 .ok(),
-            19 => version::client::request::Frame::decode(bytes)
+            19 => images::oci::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesOci)
+                .ok(),
+            20 => version::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Version)
                 .ok(),
-            20 => daemons::accept::client::request::Frame::decode(bytes)
+            21 => daemons::accept::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DaemonsAccept)
                 .ok(),
-            21 => daemons::connect::client::request::Frame::decode(bytes)
+            22 => daemons::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DaemonsConnect)
                 .ok(),
             _ => None,
@@ -288,7 +298,7 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
 /// Named for the encoding rather than for the request, because
 /// seventeen requests share two of them and a variant per request
 /// would be seventeen names that mean the same failure — seventeen,
-/// because the other five have nothing to encode.
+/// because the other six have nothing to encode.
 #[derive(Debug)]
 pub enum ClientRequestEncodeError {
     /// A JSON request did not serialize.
