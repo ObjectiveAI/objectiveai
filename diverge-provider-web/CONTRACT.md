@@ -63,7 +63,7 @@ Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
 the WebSocket transport, the nine-byte frame header and seven frame
-types, the authorization handshake, the eighteen endpoints and their
+types, the authorization handshake, the twenty-two endpoints and their
 channels, and the payload forms the Specification states for each.
 
 1.4 **"Server"** means the party that, on one WebSocket connection,
@@ -94,15 +94,16 @@ Specification's Frames layer gives them. **"Bare Finish"** means a
 Response Finish that no Response precedes, or a Channel Response
 Finish that no Channel Response precedes.
 
-1.9 **"Endpoint"** means one of the eighteen scope-opening requests
+1.9 **"Endpoint"** means one of the twenty-two scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `containers::serve`, `3` `volumes::list`, `4` `volumes::stat`, `5`
 `volumes::read`, `6` `volumes::write`, `7` `volumes::filetree`, `8`
 `volumes::serve`, `9` `volumes::create_capacity`, `10`
 `volumes::create`, `11` `volumes::edit_capacity`, `12` `volumes::edit`,
-`13` `volumes::delete`, `14` `images::check`, `15` `version`, `16`
-`daemons::accept`, `17` `daemons::connect`.
+`13` `volumes::delete`, `14` `images::check`, `15` `images::list`,
+`16` `images::stat`, `17` `images::build`, `18` `images::delete`,
+`19` `version`, `20` `daemons::accept`, `21` `daemons::connect`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
 a container request by a manifest digest and by zero or more
@@ -164,12 +165,20 @@ discarded afterwards, or refused — and who may hold it at once: a
 `persistent` Volume one running Container or one serve at a time, an
 `ephemeral` or a `read_only` Volume any number of each.
 
-1.16 **"Volume Mount"** and **"FUSE Mount"** mean, respectively, an
+1.16 **"Client Image"** means an image the Provider holds under a name
+for one Identity, built by the Provider from a Containerfile that
+Identity's `images::build` request carried, as the Specification's
+image endpoints define: listed by `images::list`, examined by
+`images::stat`, and ended only by `images::delete`. A Client Image is
+a Container Image the Provider holds for the Identity that built it
+and for no other Identity.
+
+1.17 **"Volume Mount"** and **"FUSE Mount"** mean, respectively, an
 entry of `volume_mounts`, and of `fuse_file_mounts` or
 `fuse_directory_mounts` of a container request, as the Specification
 defines them.
 
-1.17 **"Client Content"** means every byte a Client, a Container of a
+1.18 **"Client Content"** means every byte a Client, a Container of a
 Client, or a Daemon Connector transmits to the Provider under the
 Protocol,
 including image manifests and blobs, the bytes of writes, reads and
@@ -178,7 +187,7 @@ their items, vault keys and values, FUSE asks and their answers on a
 mount and on a `volumes::serve`, MCP exchanges, prompts, arguments,
 dependency declarations, and loop chunks.
 
-1.18 **"Relayed Exchange"** means any exchange the Specification
+1.19 **"Relayed Exchange"** means any exchange the Specification
 requires the Provider to carry between a Container and a Client, or
 between a Client and a Container, without reading it: every channel
 the Proxy opens on a begin Scope and every ask a FUSE Mount makes on
@@ -188,18 +197,18 @@ another; a filetree; a database connection; the MCP exchanges
 into a tool Container; and a daemon connection between a Daemon
 Connector and an Acceptor.
 
-1.19 **"Runner"** means the Client on whose `containers::agents::run`
+1.20 **"Runner"** means the Client on whose `containers::agents::run`
 or `containers::tools::run` scope a Container is running.
 **"Acceptor"** means a Client on whose `daemons::accept` scope the
 Provider announces daemon connections, under the Identity of that
 scope's Connection. **"Daemon Connector"** means a Client that opens
 a `daemons::connect` scope naming an Acceptor's Identity.
 
-1.20 **"Obligation"** means each requirement this Agreement imposes on
+1.21 **"Obligation"** means each requirement this Agreement imposes on
 the Provider, including every requirement incorporated from the
 Specification under Article 2.
 
-1.21 **"Conforming"** describes conduct of the Provider that satisfies
+1.22 **"Conforming"** describes conduct of the Provider that satisfies
 every Obligation applicable to it. **"Non-Conformance"** means any
 failure to satisfy an Obligation.
 
@@ -413,7 +422,7 @@ byte the Specification does not require.
 that follow a request, the Provider shall ignore them and shall not
 treat the request as malformed on their account.
 
-### 5.5 `version` (tag 15)
+### 5.5 `version` (tag 19)
 
 The Provider shall answer every `version` request with exactly one
 Response whose payload is the string `2.3.0` encoded as UTF-8 with no
@@ -430,7 +439,10 @@ could obtain the image the digest names without the Client's help —
 from what it holds, from a referenced registry its policy lists, or
 from a source of its own — for a container request naming it; the byte `0` followed by exactly `{"type":"unavailable"}` when
 it would not; or the byte `1` followed by an error when it did not
-determine the answer. An available answer reserves nothing.
+determine the answer. An available answer reserves nothing. A Client
+Image of the Identity is an image the Provider holds; a Client Image
+of another Identity is not, and the Provider shall not answer
+available on account of it.
 
 ### 5.7 Volumes
 
@@ -646,7 +658,79 @@ is named and against no other. A Client shall not be able to name,
 mount, stat, read, write, walk, serve, edit or delete a Volume of
 another Identity.
 
-### 5.8 Container Deployment — `containers::agents::run` (tag 0) and `containers::tools::run` (tag 1)
+### 5.8 Client Images
+
+(a) **Listing.** The Provider shall answer every `images::list`
+request with a Scope kept open: first, for every Client Image of the
+Identity when the Scope opened, exactly one Response, the byte `0`
+followed by the image in the postcard form the Specification states;
+then exactly one Response, the byte `2` alone; then, for the life of
+the Scope, exactly one Response of the byte `0` followed by each
+Client Image the Identity builds, and exactly one Response of the
+byte `1` followed by each Client Image the Identity deletes, each
+after the Provider has answered the build or the deletion; and the
+Response Finish when the Identity's stop arrives, the Connection
+ends, or exactly one Response of the byte `3` followed by an error
+has been sent. The Provider shall not end the Scope because the
+Identity has no Client Image, and shall send no Response of the byte
+`1` before the byte `2`.
+
+(b) **Stat.** The Provider shall answer every `images::stat` request
+naming a Client Image of the Identity with exactly one Response and
+the Response Finish: the byte `0` followed by the image as the
+listing reports it and the Containerfile it was built from,
+verbatim, in the postcard form the Specification states; or the byte
+`1` followed by an error. It shall answer a request naming no Client
+Image of the Identity with the byte `1` followed by an error.
+
+(c) **Build.** The Provider shall answer every `images::build`
+request with zero or more Responses of the byte `0`, each followed by
+one line of the build's output as a string, in the order the build's
+tool wrote them; then exactly one Response and the Response Finish:
+the byte `1` followed by the digest and the size of the image only
+after a Client Image of the stated name exists for the Identity; the
+byte `2` alone when the Provider's store has no room for the image,
+and then nothing exists; or the byte `3` followed by an error for any
+other reason, and then nothing exists. From the moment the Provider
+sends the byte `1`, every listing the Provider opens for the Identity
+shall contain the image, and every listing it holds open for the
+Identity shall tell the image as added, until it is deleted. The
+Provider shall refuse, by the byte `3`, a build whose name is already
+in the Identity's listing. Where the request names a context, the
+Provider shall resolve the Volume named against the Identity, shall
+hold it for the duration of the build as a running Container that
+mounts it holds it, shall read the directory named and write nothing
+into it, and shall refuse the build by the byte `3` where the Volume
+is not in the Identity's listing, where the path is not one of names,
+or where the hold cannot be taken. The Provider shall not remove a
+Client Image on its own account: a Client Image exists until the
+Identity deletes it.
+
+(d) **Deletion.** The Provider shall answer every `images::delete`
+request naming a Client Image of the Identity with exactly one
+Response and the Response Finish: the byte `0` only after the image
+no longer exists; the byte `1` when a running Container of the
+Identity runs the image at the time of the request, and then nothing
+changed; or the byte `2` followed by an error for any other reason.
+From the moment the Provider sends the byte `0`, every listing the
+Provider opens for the Identity shall omit the image, and every
+listing it holds open for the Identity that told the image as added
+shall tell it as removed. An error shall leave the image and the
+listing as they were.
+
+(e) **Identity of the image namespace.** The Provider shall resolve
+every Client Image name against the Identity of the Connection on
+which it is named and against no other. A Client shall not be able
+to list, examine, build over or delete a Client Image of another
+Identity. The Provider shall treat a Client Image as an image it
+holds for the Identity that built it — an `images::check` by that
+Identity naming its digest is available under Section 5.6, and a
+container request by that Identity naming its digest runs it from
+what the Provider holds under Section 5.9(b) — and shall not supply
+a Client Image to any other Identity under either Section, unless
+that Identity has itself built an image of the same digest.
+
+### 5.9 Container Deployment — `containers::agents::run` (tag 0) and `containers::tools::run` (tag 1)
 
 For every container run request the Provider accepts, the Provider
 shall perform the following, in the order stated, and shall not
@@ -684,8 +768,10 @@ the request, fetching nothing, deploying nothing, and changing no
 Volume's mode.
 
 (b) **Obtain the image.** The Provider shall obtain the image the
-digest names, from what it holds, from a referenced registry its
-policy lists, or from the Client, as it chooses; the Specification
+digest names, from what it holds — among which every Client Image of
+the Identity, and no Client Image of another Identity — from a
+referenced registry its policy lists, or from the Client, as it
+chooses; the Specification
 does not prescribe which, and a reference naming a registry the
 Provider's policy does not list binds the Provider to nothing. Where
 the Provider would obtain the image from the Client, it may ask the
@@ -811,7 +897,7 @@ every Channel task, and send the Response Finish with no error. After the
 id, the Provider
 shall send no error on the main stream of the Scope.
 
-### 5.9 The Conduit
+### 5.10 The Conduit
 
 (a) The Provider shall relay the bytes of every Relayed Exchange
 verbatim. It shall not read them, shall not alter them, shall not
@@ -873,7 +959,7 @@ answer the Client's Channel with exactly one Channel Response,
 transferred or an error, after the named Container's Proxy has
 answered. The Provider shall send nothing of the file to the Client.
 
-### 5.10 `containers::serve` (tag 2)
+### 5.11 `containers::serve` (tag 2)
 
 For every serve request, the Provider shall, in order: (a) read the
 request and answer a payload that does not decode by a Bare Finish;
@@ -906,7 +992,7 @@ of serve Scopes of one Container at once, shall hold no Volume and no
 mount on account of a serve, shall time nothing out, and shall send
 nothing on the main stream of a serve Scope after the byte `0`.
 
-### 5.11 Daemon connections — `daemons::accept` (tag 16) and `daemons::connect` (tag 17)
+### 5.12 Daemon connections — `daemons::accept` (tag 20) and `daemons::connect` (tag 21)
 
 (a) For every accept request, the Provider shall, in order: read the
 request and answer a payload that does not decode by a Bare Finish;
@@ -962,7 +1048,7 @@ Identity at a time, shall time nothing out, and shall send nothing on
 the main stream of a connect Scope after the byte `0` but the frames
 of the Acceptor's and the Response Finish.
 
-### 5.12 Prohibitions
+### 5.13 Prohibitions
 
 The Provider shall never: (a) refuse, alter or withhold a FUSE ask on
 its own account, whether a change to a FUSE Mount is allowed being the
@@ -983,7 +1069,7 @@ Finish, or a Bare Finish where the Specification states a Response;
 anything a Client chose; or (j) serve a Scope under an Identity other
 than that of the Connection on which the Scope was opened.
 
-### 5.13 The Container Proxy
+### 5.14 The Container Proxy
 
 The Provider shall place inside every Container a Container Proxy
 that conforms in full to the Specification's Container Proxy and
@@ -1026,7 +1112,7 @@ Provider shall not retain any other Client Content after the Scope
 that carried it ends, and shall not retain the content of a Relayed
 Exchange at any time except transiently in the course of relaying it.
 
-6.3 **No inspection.** The Provider's Obligation under Section 5.9(a)
+6.3 **No inspection.** The Provider's Obligation under Section 5.10(a)
 not to read Relayed Exchanges is a term of this Article as well as of
 Article 5.
 
@@ -1042,7 +1128,7 @@ only what is required.
 that: (a) it has full power and authority to enter into and perform
 this Agreement; (b) every Server it holds out as conforming is and
 will remain Conforming for the Term; (c) every Container Proxy it
-places inside a Container conforms to Section 5.13; (d) its
+places inside a Container conforms to Section 5.14; (d) its
 performance of this Agreement does not and will not violate any
 agreement to which it is a party or any applicable law; and (e) the
 Deployment Infrastructure it uses is adequate to perform every

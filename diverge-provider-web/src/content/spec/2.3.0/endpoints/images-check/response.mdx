@@ -22,8 +22,11 @@ finish follows the response, and no frame follows the finish.
   objects: `{"type":"available"}` or `{"type":"unavailable"}`. The
   available answer states that the server could obtain the image
   without the client's help — from what it holds, from a referenced
-  registry its policy lists, or from a source of its own — for a container request naming the requested digest,
-  at the time of the answer. It reserves nothing, and a later
+  registry its policy lists, or from a source of its own — for a
+  container request naming the requested digest, at the time of the
+  answer. What the server holds includes every image the client
+  built on it by [images::build](/endpoints/images-build/), and no
+  image another client built. It reserves nothing, and a later
   container request naming the image may fail. The unavailable
   answer states that the server could not; a container request
   naming the image may still succeed where the client holds the

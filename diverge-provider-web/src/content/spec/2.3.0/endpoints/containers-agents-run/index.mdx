@@ -43,8 +43,10 @@ about the client, which may open any channel at any time.
    fetches nothing and deploys nothing for it. A request may name one
    volume more than once, at different paths.
 2. **The server obtains the image.** The server obtains the image the
-   digest names: from what it holds, from a referenced registry its
-   policy lists, or from the client; this specification does not
+   digest names: from what it holds — among which every image the
+   client built on it by [images::build](/endpoints/images-build/),
+   and no image another client built — from a referenced registry
+   its policy lists, or from the client; this specification does not
    prescribe which. Where it would obtain the image from the client,
    the server asks the client whether it holds the image on an
    [oci-has](/endpoints/containers-agents-run/server/oci-has/) channel, and a

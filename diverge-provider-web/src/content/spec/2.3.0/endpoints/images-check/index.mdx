@@ -22,7 +22,11 @@ finish follows the response, and no frame follows the finish.
   exactly `{"type":"unavailable"}`. The available answer states
   that the server could obtain the image without the client's help —
   from what it holds, or from a source of its own — for a container
-  request naming that digest, at the time of the answer.
+  request naming that digest, at the time of the answer. An image
+  the client built on the server by
+  [images::build](/endpoints/images-build/) is one the server holds
+  for the client; an image another client built is not, and the
+  server does not answer one client's images to another.
   The unavailable answer states that it could not; a container
   request naming the image may still succeed where the client holds
   the image and the server obtains it from the client. Neither

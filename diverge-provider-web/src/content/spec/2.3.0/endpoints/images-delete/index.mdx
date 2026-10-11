@@ -1,0 +1,48 @@
+---
+title: 'images::delete'
+summary: 'Tag 18: a client names an image from its listing; the server sends exactly one response stating that the image no longer exists, that a running container runs it and it was not deleted, or an error, and the scope finishes; the deletion is not reversible.'
+order: 18
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`18` followed by the name of an image. The server sends exactly one
+response, which states that the image is deleted, that a running
+container of the client runs the image and it was not deleted, or an
+error. The response finish follows the response, and no frame follows
+the finish.
+
+- **The request.** The request carries the name of one image.
+  [Request](/endpoints/images-delete/request/) states its form.
+- **The image named.** The client names an image by the `name` its
+  [images::list](/endpoints/images-list/) listing gave it. The server
+  resolves the name against the identity under which the connection
+  was authorized, as [Authorization](/authorization/) provides. A
+  name that is not in the client's listing is answered with an error.
+  A client cannot name another client's image.
+- **The deletion.** When the server sends the byte `0`, the image no
+  longer exists, and the room it took is the server's store's again.
+  From that moment, every [images::list](/endpoints/images-list/)
+  scope the client opens omits the image, and every list scope the
+  client holds open that was sent the image as added is sent it as
+  removed. The name then names no image of the client, and every
+  request of this family naming it is answered with an error, until
+  an [images::build](/endpoints/images-build/) request by the client
+  makes a new image of that name. An [images::check](/endpoints/images-check/)
+  by the client naming the deleted image's digest is answered as for
+  any image the server does not hold.
+  [Response](/endpoints/images-delete/response/) states the form of
+  the response.
+- **One request.** The request is the whole of the exchange. No frame
+  precedes it, no confirmation follows it, and the deletion is not
+  reversible.
+- **An image in use.** When, at the time of the request, a running
+  container of the client runs the image, the server does not delete
+  it and sends the byte `1`. The image and the client's listing are
+  as they were before the request. The server does not send the byte
+  `0` for an image a running container of the client runs at the time
+  of the request.
+- **The error.** An error states that the server did not delete the
+  image, for a reason other than a running container. The image
+  remains in existence, and the client's listing shows it as before
+  the request.

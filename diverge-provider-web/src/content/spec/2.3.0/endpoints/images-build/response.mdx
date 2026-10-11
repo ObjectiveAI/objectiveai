@@ -1,0 +1,62 @@
+---
+title: 'Response'
+summary: 'Zero or more responses of the byte 0 followed by one line of the build’s output; then exactly one response that is the byte 1 followed by the digest and the size of the image, the byte 2 alone, or the byte 3 followed by an error as one JSON value; and the response finish.'
+order: 2
+draft: false
+---
+
+```text
+[0][line_len: varint][line: utf8 …]          per line of output
+[1][digest_len: varint][digest: utf8 …][bytes: varint]   once: the image exists
+[2]                                          once: insufficient capacity
+[3][error JSON …]                            once: an error
+```
+
+- **The sequence.** Zero or more responses of the byte `0`, each
+  followed by one line; then exactly one response whose first byte
+  is `1`, `2` or `3`; then the response finish. No response follows
+  the response whose first byte is `1`, `2` or `3`. A response finish
+  that no response of the byte `1`, `2` or `3` precedes states that
+  the request was not served, as [Endpoints](/endpoints/) provides;
+  whether the image exists is then not stated, and the client learns
+  it from an [images::list](/endpoints/images-list/) scope.
+- **Output.** A payload whose first byte is `0` carries one line of
+  the build's output after that byte, as a varint byte length
+  followed by that many bytes of UTF-8. The server sends the lines in
+  the order the build's tool wrote them. This revision prescribes
+  nothing about their content.
+- **Built.** A payload whose first byte is `1` states that the image
+  exists, and carries its `digest` as a varint byte length followed
+  by that many bytes of UTF-8, the manifest digest of the image as
+  the server holds it, followed by `bytes` as a varint, the size of
+  the image in bytes as the server counts it against its store. The
+  server sends it after the image exists; an `images::list` scope the
+  client opens after receiving it lists the image, and a list scope
+  the client holds open is sent the image as added.
+- **Insufficient capacity.** A payload whose first byte is `2` states
+  that the server's store has no room for the image and that nothing
+  was built. No image exists by that name as a result of the request.
+  The server sends nothing after the byte `2`, and a client ignores
+  every byte that follows it.
+- **The error.** A payload whose first byte is `3` carries an error
+  after that byte, running to the end of the payload. The error is
+  exactly one JSON value, in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  This revision prescribes nothing about its content. The error
+  states that the image does not exist as a result of the request,
+  and that the reason is not capacity.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is none of `0`, `1`, `2` and `3`, a payload whose bytes after `0`
+  do not decode as one string, a payload whose bytes after `1` do not
+  decode as the digest and the size, and a payload whose bytes after
+  `3` are not one JSON value are malformed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/images/build/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/build/server/response/frame.rs
+```
+
+and the image built by `diverge-sdk-rs/src/provider/endpoints/images/build/server/response/built.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/build/server/response/built.rs
+```

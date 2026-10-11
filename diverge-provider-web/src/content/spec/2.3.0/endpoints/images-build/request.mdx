@@ -1,0 +1,48 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 17 followed by the name, the Containerfile and the optional context, in the postcard wire format.'
+order: 1
+draft: false
+---
+
+The payload of the request is the tag byte followed by the request in
+the postcard wire format, as the postcard reading of
+[Notation](/endpoints/#notation) provides:
+
+```text
+[17][name_len: varint][name: utf8 …][containerfile_len: varint][containerfile: utf8 …][0]
+[17][name_len: varint][name: utf8 …][containerfile_len: varint][containerfile: utf8 …][1][volume_name_len: varint][volume_name: utf8 …][components: varint][component_len: varint][component: utf8 …]…
+```
+
+- **`name`.** The name of the image, UTF-8, preceded by its byte
+  length as a varint. The client chooses it.
+- **`containerfile`.** The Containerfile, UTF-8, preceded by its byte
+  length as a varint. The server builds from it verbatim.
+- **`context`.** One byte: `0`, the build has no context; or `1`,
+  followed by the context. The context is the `Context` defined
+  below: `volume_name` as a varint byte length followed by that many
+  bytes of UTF-8, the `name` of a volume in the client's
+  [volumes::list](/endpoints/volumes-list/) listing; followed by
+  `volume_relative_path` as a varint count of components followed by
+  each component as a varint byte length and that many bytes of
+  UTF-8, the path of the directory relative to the volume, empty for
+  the volume itself. A component that is empty, `.` or `..` is
+  answered with an error. The context carries no mode: a build writes
+  nothing into it.
+- **Bytes after the request.** A server ignores every byte that
+  follows the `context` field. A request whose payload extends past
+  the request is not malformed.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is not `17`, and a payload whose bytes after the tag do not decode
+  as the request are malformed. [Endpoints](/endpoints/) states how a
+  server answers a request it cannot read.
+
+The request is defined by `diverge-sdk-rs/src/provider/endpoints/images/build/client/request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/build/client/request/frame.rs
+```
+
+and the context by `diverge-sdk-rs/src/provider/endpoints/images/build/client/request/context.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/build/client/request/context.rs
+```

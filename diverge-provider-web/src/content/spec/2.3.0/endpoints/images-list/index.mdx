@@ -1,0 +1,85 @@
+---
+title: 'images::list'
+summary: 'Tag 15: a client asks which images it has built on the server; the server sends every such image as added, says when the listing is whole, keeps sending as images are built and deleted, and finishes when the client stops.'
+order: 15
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`15` and nothing more. The server sends every image the client built
+on it, one response each, then the word that the listing is whole,
+and keeps the scope open: an image built is sent as added, an image
+deleted as removed, for as long as the scope lives. The scope ends at
+the client's stop, at the client's connection ending, or at an error;
+the response finish follows, and no frame follows the finish.
+
+- **The request.** The request carries no parameter; the tag is the
+  whole of it. [Request](/endpoints/images-list/request/) states its
+  form.
+- **The response.** [Response](/endpoints/images-list/response/)
+  states the responses and the sequence of the main stream.
+- **The channels.** The client opens the one channel of
+  [Client Channels](/endpoints/images-list/client/), the stop. The
+  server opens no channel on a list scope.
+- **The listing.** The listing is zero or more images. The listing
+  contains every image that the client built by an
+  [images::build](/endpoints/images-build/) request and has not
+  deleted by an [images::delete](/endpoints/images-delete/) request,
+  and no other image. Every image in the listing may be named by the
+  client wherever this specification names an image of this family
+  by its name, and may be named by its `digest` in a container
+  request of the client. An image absent from the listing is one the
+  client cannot name. The Containerfile an image was built from is
+  reported by [images::stat](/endpoints/images-stat/), one image at a
+  time.
+- **The client.** The client is the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. The listing is that identity's listing, and contains no
+  image another identity built.
+- **No eviction.** The server does not remove an image from the
+  listing on its own account. An image stays listed until the client
+  deletes it.
+
+## The order
+
+1. **The server reads the request.** A request whose payload has no
+   byte is not a request of any endpoint, as [Endpoints](/endpoints/)
+   provides.
+2. **The server sends the listing.** The server sends every image the
+   client built, one response each, the byte `0` followed by the
+   image. A client with no image is sent none.
+3. **The server says the listing is whole.** The server sends exactly
+   one response whose payload is the byte `2` and nothing else. The
+   server sends it exactly once on a scope, after every response of
+   step 2 and before any other response.
+4. **The server keeps the listing.** For the life of the scope: when
+   the server has sent the byte `1` of an
+   [images::build](/endpoints/images-build/) request by the client,
+   it sends the image built as added; when it has sent the byte `0`
+   of an [images::delete](/endpoints/images-delete/) request by the
+   client, it sends the image deleted as removed.
+5. **The server ends the scope.** When the server receives the
+   client's [stop](/endpoints/images-list/client/stop/), or the
+   client's connection ends, the server sends the response finish.
+   When the server cannot list, it sends the byte `3` followed by an
+   error and the response finish.
+
+## The rules that hold throughout
+
+- **No end of its own.** The server does not end the scope because
+  the client has no image, nor because every image listed has been
+  removed. The client's stop, the client's connection ending, and an
+  error are the only ends.
+- **Once per name.** The server sends an image as added exactly once
+  while it is listed, and as removed exactly once, only after it was
+  sent as added. An image deleted and built again under the same name
+  is sent as removed and then as added. The server sends no image as
+  changed: an image does not change.
+- **An empty listing.** The byte `2` with no response before it
+  states that the client has built no image. An empty listing is not
+  an error.
+- **The error.** An error states that the server did not list, or
+  could not keep listing, and that nothing is determined about the
+  client's images from the moment it is sent. Responses sent before
+  the error were sent as the listing stood. An error is not an empty
+  listing.
