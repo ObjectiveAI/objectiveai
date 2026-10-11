@@ -740,9 +740,10 @@ that Identity has itself built an image of the same digest.
 (f) **Pull.** The Provider shall serve every `images::oci` request
 as a Scope kept open on which it sends no Response, and shall answer
 every Channel the Identity opens on it from what it holds for the
-Identity — the Client Images of the Identity and the images the
-Provider holds on its own account, and no Client Image of another
-Identity: an `oci-has` Channel by exactly one Channel Response, the
+Identity — the Client Images of the Identity, each byte for byte as
+it was at the end of its build, and no other image, neither another
+Identity's Client Image nor an image the Provider holds on its own
+account: an `oci-has` Channel by exactly one Channel Response, the
 byte `1` followed by a repository path for an image it holds for the
 Identity and the byte `0` otherwise, and the Channel Response Finish;
 an `oci-manifest` Channel by at most one Channel Response, the media

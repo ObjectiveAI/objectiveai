@@ -29,13 +29,14 @@ follows the last answer, and no frame follows the finish.
   opens no channel on a pull scope.
 - **What is held for the client.** The server holds, for the client,
   every image the client built on it by
-  [images::build](/endpoints/images-build/) and has not deleted, and
-  every image the server holds on its own account — the two sources
-  `client` and `server` of [images::check](/endpoints/images-check/).
-  An image another client built is not held for the client, however
-  alike the digest, and the server does not serve it. The server
-  obtains nothing for a pull: an image not held is answered as not
-  held, and no registry is asked.
+  [images::build](/endpoints/images-build/) and has not deleted — the
+  `client` source of [images::check](/endpoints/images-check/) — and
+  serves each byte for byte as it was at the end of its build. An
+  image another client built is not held for the client, however
+  alike the digest, and the server does not serve it. An image the
+  server holds on its own account is not served on a pull: the
+  server obtains nothing for a pull, an image not held for the
+  client is answered as not held, and no registry is asked.
 - **The client.** The client is the identity under which the
   connection was authorized, as [Authorization](/authorization/)
   provides. What is held for the client is held for that identity.
