@@ -51,8 +51,8 @@ pub struct Provider {
     checker: Arc<ImageChecker>,
     /// The client image store's manager.
     images: Arc<ImageManager>,
-    /// What is held of an image for a caller, which is nothing until
-    /// the store exists.
+    /// What is held of an image for a caller: its client images, from
+    /// their layouts.
     oci: Arc<OciStore>,
     /// The registry, held to the end so its server lives as long.
     registry: Arc<ImageRegistry>,
@@ -106,6 +106,7 @@ impl Provider {
                 .map_err(Error::Deployer)?,
         );
         let checker = Arc::new(ImageChecker::new(store.clone(), &registries, deployer.auth_file().to_path_buf()));
+        let oci = Arc::new(OciStore::new(store.clone()));
         let images = Arc::new(ImageManager::new(store, Arc::clone(&volumes), Arc::clone(&deployer)));
         Ok(Provider {
             auth: config.auth,
@@ -114,7 +115,7 @@ impl Provider {
             volumes,
             checker,
             images,
-            oci: Arc::new(OciStore),
+            oci,
             registry,
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
@@ -170,8 +171,8 @@ impl Provider {
 
 /// The provider's disk, as its block names it: `dir` with `hooks/`
 /// and `run/` inside it, `storage_path` and every store made if
-/// absent, the client image store's directory with its `root/` and
-/// `meta/` made if absent and its `run/builds/` swept; a fixed
+/// absent, the client image store's directory with its `root/`,
+/// `meta/` and `layouts/` made if absent and `run/builds/` swept; a fixed
 /// volume whose path is not an existing directory refused, since a
 /// fixed volume is content the operator already has; a store whose
 /// capacity is `0` refused, and the image store's likewise; a fixed
@@ -189,7 +190,7 @@ async fn ready(config: &Config, dir: &Path) -> Result<(), Error> {
         if images.capacity == 0 {
             return Err(Error::ImageCapacity(images.path.clone()));
         }
-        for made in [images.path.join("root"), images.path.join("meta")] {
+        for made in [images.path.join("root"), images.path.join("meta"), images.path.join("layouts")] {
             tokio::fs::create_dir_all(&made).await.map_err(|source| Error::Directory(made, source))?;
         }
     }

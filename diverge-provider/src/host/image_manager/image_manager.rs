@@ -84,8 +84,8 @@ impl image_manager::ImageManager for ImageManager {
         }
     }
 
-    /// The image removed from the root and its record removed, under
-    /// the identity's lock; in use where a container runs the copy in
+    /// The image removed from the root, its layout and its record
+    /// removed, under the identity's lock; in use where a container runs the copy in
     /// the cache; the copy removed from the cache too, where it can
     /// be. `None` for a name the identity has no image by.
     async fn delete(&self, client_identity: &str, name: &str) -> Result<Option<Deletion>, Error> {
@@ -114,6 +114,7 @@ impl image_manager::ImageManager for ImageManager {
         if copy.is_some() {
             let _ = podman::podman(["rmi", &tag]).await;
         }
+        store.remove_layout(client_identity, name).await?;
         store.remove(client_identity, name).await?;
         Ok(Some(Deletion::Deleted))
     }

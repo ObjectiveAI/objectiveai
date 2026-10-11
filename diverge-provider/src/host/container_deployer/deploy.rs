@@ -15,11 +15,10 @@ use tokio::process::Child;
 use tokio::sync::{Mutex, OnceCell};
 use tokio::time::{Duration, sleep};
 
-use super::mounts::{Bound, bind, release, tool_path};
+use super::mounts::{Bound, bind, release};
 use super::source::find;
 use super::{Container, ContainerDeployer, Error, Source};
 use crate::host::Held;
-use crate::host::image_manager::Store;
 use crate::host::tools::{capture, podman, start};
 use diverge_sdk::shared::containers::request::Image;
 
@@ -123,12 +122,12 @@ async fn obtain(deployer: &ContainerDeployer, client_identity: &str, image: &Ima
 }
 
 /// The caller's own image under `digest`, as the cache holds a copy
-/// of it: the copy's id, loaded now when the cache has none — saved
-/// from the store's root as an OCI archive under `run/loads/` and
-/// loaded under the same `localhost/diverge/` name, the cache told a
-/// pull is in flight meanwhile, the archive removed after. `None`
-/// where there is no store, or the caller built no image of that
-/// digest.
+/// of it: the copy's id, loaded now when the cache has none — `podman
+/// load` of the image's layout, the bytes the store fixed at its
+/// build, under the same `localhost/diverge/` name, so the copy's
+/// digest is the record's — the cache told a pull is in flight
+/// meanwhile. `None` where there is no store, or the caller built no
+/// image of that digest.
 async fn own(deployer: &ContainerDeployer, client_identity: &str, digest: &str) -> Result<Option<String>, Error> {
     let Some(store) = &deployer.store else {
         return Ok(None);
@@ -140,25 +139,17 @@ async fn own(deployer: &ContainerDeployer, client_identity: &str, digest: &str) 
     if let Ok(id) = podman::image_id(&tag).await {
         return Ok(Some(id));
     }
-    let archive = deployer.loads_dir.join(format!("{}.tar", uuid::Uuid::new_v4()));
+    let layout = store.layout_dir(client_identity, &name);
     deployer.shared.images.pull_begins().await;
-    let loaded = load(store, &tag, &archive).await;
+    let loaded = load(&tag, &layout).await;
     deployer.shared.images.pull_ends(loaded.as_deref().ok()).await;
-    let _ = tokio::fs::remove_file(&archive).await;
     loaded.map(Some)
 }
 
-/// The client image under `tag` copied from the store's root into
-/// the cache through `archive`: `podman save` there, `podman load`
-/// here, and the copy's id.
-async fn load(store: &Store, tag: &str, archive: &Path) -> Result<String, Error> {
-    let saved = tool_path(archive);
-    podman::podman_in(store.root(), ["save", "--format", "oci-archive", "--output", &saved, tag])
-        .await
-        .map_err(Error::Podman)?
-        .require("podman", |status| status.success())
-        .map_err(Error::Podman)?;
-    let input = archive.to_string_lossy().into_owned();
+/// The client image under `tag` copied from its layout into the
+/// cache: `podman load` of the layout, and the copy's id.
+async fn load(tag: &str, layout: &Path) -> Result<String, Error> {
+    let input = layout.to_string_lossy().into_owned();
     podman::podman(["load", "--quiet", "--input", &input])
         .await
         .map_err(Error::Podman)?

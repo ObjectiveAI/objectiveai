@@ -3,6 +3,7 @@
 
 use std::fmt;
 use std::io;
+use std::path::PathBuf;
 use std::process::ExitStatus;
 
 use diverge_sdk::shared::error;
@@ -36,6 +37,9 @@ pub enum Error {
     Io(io::Error),
     /// An image's record did not parse.
     Json(serde_json::Error),
+    /// An image's layout has no index, or one that is not one
+    /// manifest's.
+    Layout(PathBuf),
 }
 
 impl fmt::Display for Error {
@@ -51,6 +55,7 @@ impl fmt::Display for Error {
             Error::Podman(error) => write!(f, "podman did not answer: {error}"),
             Error::Io(error) => write!(f, "the store could not be read or written: {error}"),
             Error::Json(error) => write!(f, "an image's record did not parse: {error}"),
+            Error::Layout(dir) => write!(f, "the layout at `{}` could not be read", dir.display()),
         }
     }
 }
@@ -62,7 +67,7 @@ impl std::error::Error for Error {
             Error::Volumes(error) => Some(error),
             Error::Io(error) => Some(error),
             Error::Json(error) => Some(error),
-            Error::Absent | Error::Name(_) | Error::Exists(_) | Error::Volume(_) | Error::Build(_) => None,
+            Error::Absent | Error::Name(_) | Error::Exists(_) | Error::Volume(_) | Error::Build(_) | Error::Layout(_) => None,
         }
     }
 }
@@ -97,6 +102,7 @@ impl From<Error> for error::Error {
             Error::Podman(_) => "podman",
             Error::Io(_) => "io",
             Error::Json(_) => "record",
+            Error::Layout(_) => "layout",
         };
         error::Error(json!({
             "kind": kind,

@@ -13,17 +13,22 @@
 //! empty directory, when the request named none — and tags what it
 //! built `localhost/diverge/<identity>/<name>`, the identity hashed,
 //! so the root's names are one caller's apart from another's. Beside
-//! it, `meta/<identity>/<name>.json` keeps what podman does not: the
-//! Containerfile, the digest and the size podman answered, and when
-//! the build ended. The listing is that directory read; a stat is
-//! the file; a delete is the image removed from the root and the
-//! file removed.
+//! it, `layouts/<identity>/<name>/` keeps the image exported once as
+//! an OCI layout — `index.json`, `oci-layout`, `blobs/` — which is
+//! the bytes a pull serves, byte for byte, and whose manifest digest
+//! is the digest the image is known by from then on: what is listed,
+//! checked, run and served is one set of bytes, fixed at the build.
+//! And `meta/<identity>/<name>.json` keeps what podman does not: the
+//! Containerfile, that digest, the size podman answered, and when the
+//! build ended. The listing is that directory read; a stat is the
+//! file; a delete is the image removed from the root, the layout and
+//! the file removed.
 //!
 //! # The capacity, and no eviction
 //!
 //! The store holds at most `capacity` bytes, counted as the cache is
 //! counted — every image in the root, every layer, shared or not —
-//! and measured after a build, since an image's size is not known
+//! with every layout's blobs beside, and measured after a build, since an image's size is not known
 //! before it is built: a build that leaves the root over the
 //! capacity is removed again and answered insufficient capacity.
 //! Nothing else removes an image; the cache's trim never sees the
@@ -33,8 +38,9 @@
 //!
 //! A run by the identity that built an image, naming its digest,
 //! finds it here first — see the deployer — and copies it into the
-//! cache, saved from the root and loaded under the same name, where
-//! the cache may evict the copy and the root keeps the image. A copy
+//! cache, loaded from the layout under the same name, so the copy's
+//! digest is the record's, where the cache may evict the copy and the
+//! store keeps the image. A copy
 //! is named under `localhost/diverge/` and nothing else, which is how
 //! the cache's lookup by digest passes it over: another identity's
 //! run, and the `server` source of a check, never see it, and the

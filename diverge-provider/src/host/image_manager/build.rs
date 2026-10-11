@@ -9,7 +9,7 @@ use futures_util::{Stream, stream};
 use tokio::fs;
 use tokio::sync::mpsc::{self, UnboundedSender};
 
-use super::{Error, Meta, Store, name_ok_segment};
+use super::{Error, Layout, Meta, Store, name_ok_segment};
 use crate::host::container_deployer::{ContainerDeployer, descend, tool_path};
 use crate::host::tools::{self, podman};
 use crate::host::volume_manager::VolumeManager;
@@ -47,10 +47,12 @@ struct Job {
 /// `FROM` it lacks through the cache's registries with the auth file;
 /// every line it says sent; then its end: a failure is the error
 /// after the lines, with nothing built; a success is the image
-/// inspected, the root measured, and — over the capacity — the image
-/// removed again and insufficient capacity, or else the record
-/// written and the image built. Whatever the end, the volume is
-/// detached and the build directory removed.
+/// inspected, exported once as an OCI layout beside its record — the
+/// bytes a pull serves, and the manifest digest the record carries —
+/// the root and the layouts measured, and — over the capacity — the
+/// image and its layout removed again and insufficient capacity, or
+/// else the record written and the image built. Whatever the end,
+/// the volume is detached and the build directory removed.
 pub fn build(
     store: Arc<Store>,
     volumes: Arc<VolumeManager>,
@@ -161,23 +163,59 @@ impl Job {
             return Err(Error::Build(finished.status));
         }
         let inspected = podman::inspect_in(self.store.root(), &tag).await.map_err(Error::Podman)?;
+        let dir = self.store.layout_dir(&self.client_identity, &self.name);
+        let layout = match self.export(&tag, &dir).await {
+            Ok(layout) => layout,
+            Err(error) => {
+                self.undo(&tag, &dir).await;
+                return Err(error);
+            }
+        };
         if self.store.used().await? > self.store.capacity() {
-            let _ = podman::podman_in(self.store.root(), ["rmi", "--force", &tag]).await;
+            self.undo(&tag, &dir).await;
             let _ = sender.send(Ok(Progress::InsufficientCapacity));
             return Ok(());
         }
         let meta = Meta {
-            digest: inspected.digest.clone(),
+            digest: layout.digest.clone(),
             bytes: inspected.size,
             created: now(),
             containerfile: self.containerfile.clone(),
         };
-        self.store.write(&self.client_identity, &self.name, &meta).await?;
+        if let Err(error) = self.store.write(&self.client_identity, &self.name, &meta).await {
+            self.undo(&tag, &dir).await;
+            return Err(error);
+        }
         let _ = sender.send(Ok(Progress::Built(Built {
-            digest: inspected.digest,
+            digest: layout.digest,
             bytes: inspected.size,
         })));
         Ok(())
+    }
+
+    /// The image exported once as an OCI layout at `dir`: `podman
+    /// save --format oci-dir` from the root, and the layout read. The
+    /// bytes are fixed here, and the digest read is the image's from
+    /// now on.
+    async fn export(&self, tag: &str, dir: &Path) -> Result<Layout, Error> {
+        let _ = fs::remove_dir_all(dir).await;
+        if let Some(parent) = dir.parent() {
+            fs::create_dir_all(parent).await?;
+        }
+        let output = tool_path(dir);
+        podman::podman_in(self.store.root(), ["save", "--format", "oci-dir", "--output", &output, tag])
+            .await
+            .map_err(Error::Podman)?
+            .require("podman", |status| status.success())
+            .map_err(Error::Podman)?;
+        Store::read_layout(dir).await
+    }
+
+    /// The image removed from the root and its layout removed:
+    /// nothing exists.
+    async fn undo(&self, tag: &str, dir: &Path) {
+        let _ = podman::podman_in(self.store.root(), ["rmi", "--force", tag]).await;
+        let _ = fs::remove_dir_all(dir).await;
     }
 }
 

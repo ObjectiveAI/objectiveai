@@ -36,9 +36,6 @@ pub struct ContainerDeployer {
     /// Where stored volumes are loop-mounted, `run/mounts/`, on this
     /// host.
     pub(super) mounts_dir: PathBuf,
-    /// Where a client image is saved on its way into the cache,
-    /// `run/loads/`, on this host.
-    pub(super) loads_dir: PathBuf,
     /// The client image store, where a caller's own images are looked
     /// for first; `None` where the configuration has none.
     pub(super) store: Option<Arc<Store>>,
@@ -98,8 +95,6 @@ impl ContainerDeployer {
         let run_dir = dir.join("run");
         let mounts_dir = run_dir.join("mounts");
         tokio::fs::create_dir_all(&mounts_dir).await?;
-        let loads_dir = run_dir.join("loads");
-        tokio::fs::create_dir_all(&loads_dir).await?;
         let auth_file = run_dir.join("auth.json");
         let (proxy_path, (), ()) = future::try_join3(
             proxy_present(&proxy),
@@ -121,7 +116,6 @@ impl ContainerDeployer {
             proxy_path,
             auth_file,
             mounts_dir,
-            loads_dir,
             store,
             label,
             volumes,

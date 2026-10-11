@@ -1,10 +1,11 @@
 //! The store: the root, the records, and the names.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest as _, Sha256};
 use tokio::fs;
 use tokio::sync::Mutex;
@@ -30,8 +31,22 @@ pub struct Meta {
     pub containerfile: String,
 }
 
-/// The client image store: where the root and the records are, how
-/// much it may hold, and the names, one caller apart from another.
+/// One image's layout, as `index.json` describes its one manifest:
+/// the digest the record carries and a pull serves, the manifest's
+/// media type, and its size.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Layout {
+    /// The manifest digest, `<algorithm>:<hex>`.
+    pub digest: String,
+    /// The manifest's media type.
+    pub media_type: String,
+    /// The manifest's size in bytes.
+    pub size: u64,
+}
+
+/// The client image store: where the root, the records and the
+/// layouts are, how much it may hold, and the names, one caller apart
+/// from another.
 /// Shared by the manager, which builds, lists and removes; the
 /// deployer, which runs a caller's own image from it; and the
 /// checker, which answers the `client` source from it.
@@ -41,6 +56,9 @@ pub struct Store {
     root: String,
     /// The records, `<path>/meta`, on this host.
     meta: PathBuf,
+    /// The layouts, `<path>/layouts`, on this host: each image
+    /// exported once, the bytes a pull serves.
+    layouts: PathBuf,
     /// The most the root may hold, in BYTES.
     capacity: u64,
     /// One lock per identity, held across a build or a delete of a
@@ -54,6 +72,7 @@ impl Store {
         Store {
             root: tool_path(&images.path.join("root")),
             meta: images.path.join("meta"),
+            layouts: images.path.join("layouts"),
             capacity: images.capacity,
             namespaces: DashMap::new(),
         }
@@ -97,6 +116,63 @@ impl Store {
     /// Where one record is.
     fn meta_path(&self, client_identity: &str, name: &str) -> PathBuf {
         self.meta_dir(client_identity).join(format!("{name}.json"))
+    }
+
+    /// Where one image's layout is: `<layouts>/<identity>/<name>/`.
+    pub fn layout_dir(&self, client_identity: &str, name: &str) -> PathBuf {
+        self.layouts.join(client_identity).join(name)
+    }
+
+    /// The layout at `dir` read: its `index.json`'s one manifest. A
+    /// layout with no index, or an index that is not one manifest's
+    /// digest, media type and size, is [`Error::Layout`].
+    pub async fn read_layout(dir: &Path) -> Result<Layout, Error> {
+        let index: Value = serde_json::from_slice(&fs::read(dir.join("index.json")).await?)?;
+        let manifest = index
+            .get("manifests")
+            .and_then(|manifests| manifests.get(0))
+            .ok_or_else(|| Error::Layout(dir.to_path_buf()))?;
+        let text = |key: &str| manifest.get(key).and_then(Value::as_str).map(str::to_string);
+        match (text("digest"), text("mediaType"), manifest.get("size").and_then(Value::as_u64)) {
+            (Some(digest), Some(media_type), Some(size)) => Ok(Layout { digest, media_type, size }),
+            _ => Err(Error::Layout(dir.to_path_buf())),
+        }
+    }
+
+    /// Where a blob of the layout at `dir` is, by digest:
+    /// `blobs/<algorithm>/<hex>`. `None` for a digest that is not
+    /// two names joined by `:`, which a path could not be made of.
+    pub fn blob_path(dir: &Path, digest: &str) -> Option<PathBuf> {
+        let (algorithm, hex) = digest.split_once(':')?;
+        let name = |part: &str| !part.is_empty() && part.chars().all(|c| c.is_ascii_alphanumeric());
+        (name(algorithm) && name(hex)).then(|| dir.join("blobs").join(algorithm).join(hex))
+    }
+
+    /// How many bytes the layout at `dir` holds: every blob's size.
+    /// A layout with no blobs holds none.
+    pub async fn layout_bytes(dir: &Path) -> Result<u64, Error> {
+        let mut algorithms = match fs::read_dir(dir.join("blobs")).await {
+            Ok(algorithms) => algorithms,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+            Err(error) => return Err(error.into()),
+        };
+        let mut total = 0;
+        while let Some(algorithm) = algorithms.next_entry().await? {
+            let mut blobs = fs::read_dir(algorithm.path()).await?;
+            while let Some(blob) = blobs.next_entry().await? {
+                total += blob.metadata().await?.len();
+            }
+        }
+        Ok(total)
+    }
+
+    /// The layout removed; one already gone is removed.
+    pub async fn remove_layout(&self, client_identity: &str, name: &str) -> Result<(), Error> {
+        match fs::remove_dir_all(self.layout_dir(client_identity, name)).await {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error.into()),
+        }
     }
 
     /// The record under `name` for the identity, or `None` where
@@ -170,11 +246,24 @@ impl Store {
         Some((image.name, meta))
     }
 
-    /// How many bytes the root holds, counted as the cache is
-    /// counted: every image listed, every layer, shared or not.
+    /// How many bytes the store holds: the root as the cache is
+    /// counted — every image listed, every layer, shared or not — and
+    /// every layout's blobs.
     pub async fn used(&self) -> Result<u64, Error> {
         let images = podman::images_in(&self.root).await.map_err(Error::Podman)?;
-        Ok(images.iter().map(|image| image.size).sum())
+        let mut total: u64 = images.iter().map(|image| image.size).sum();
+        let mut identities = match fs::read_dir(&self.layouts).await {
+            Ok(identities) => identities,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(total),
+            Err(error) => return Err(error.into()),
+        };
+        while let Some(identity) = identities.next_entry().await? {
+            let mut names = fs::read_dir(identity.path()).await?;
+            while let Some(name) = names.next_entry().await? {
+                total += Store::layout_bytes(&name.path()).await?;
+            }
+        }
+        Ok(total)
     }
 }
 

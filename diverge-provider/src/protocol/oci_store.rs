@@ -23,12 +23,13 @@ use super::image_source::Manifest;
 /// Every method takes the caller's identity, because what a provider
 /// holds for one identity is not what it holds for another: the
 /// identity's own images, built on this provider through the
-/// [`ImageManager`](super::image_manager::ImageManager), and the
-/// images the provider holds on its own account, which no client
-/// built — the same two sources an
-/// [`ImageChecker`](super::image_checker::ImageChecker) answers as
-/// `client` and `server`. Another identity's images are not held,
-/// however alike the digests, and are never served.
+/// [`ImageManager`](super::image_manager::ImageManager) and held byte
+/// for byte as the provider fixed them at the build — the `client`
+/// source an [`ImageChecker`](super::image_checker::ImageChecker)
+/// answers. Another identity's images are not held, however alike the
+/// digests, and are never served; nor is an image the provider merely
+/// pulled, whose bytes its runtime recompresses on the way out, so
+/// that nothing it could serve hashes to the digest asked for.
 ///
 /// # No error vocabulary
 ///

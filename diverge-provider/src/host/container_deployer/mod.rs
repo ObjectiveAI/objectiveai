@@ -57,8 +57,9 @@
 //! be fetched; where they come from is this provider's decision. The
 //! caller's own images are looked in first: an image the caller
 //! built on this provider, in the client image store, is copied into
-//! the cache if the cache has no copy — saved from the store's root
-//! and loaded, under its `localhost/diverge/` name — and run as its
+//! the cache if the cache has no copy — loaded from the layout the
+//! store fixed at its build, under its `localhost/diverge/` name —
+//! and run as its
 //! id, with nobody asked. Then the cache, by the digest alone — the
 //! name an image is held under there, or no name, does not matter,
 //! except that a copy of a client image is not the provider's own
