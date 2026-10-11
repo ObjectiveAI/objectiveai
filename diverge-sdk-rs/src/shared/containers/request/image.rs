@@ -23,8 +23,10 @@ use super::Reference;
 ///
 /// # Who supplies the bytes is the provider's
 ///
-/// A provider looks in what it holds first, by digest alone. Failing
-/// that it may ask any referenced registry its own policy lists, with
+/// A provider looks in what it holds first, by digest alone — among
+/// which are the images the caller
+/// [built](crate::provider::endpoints::images::build) on it, and no
+/// other caller's. Failing that it may ask any referenced registry its own policy lists, with
 /// the credential it holds for it, and ignores a reference naming one
 /// it does not; and it may take the image from the caller — asking on
 /// the run scope whether the caller holds it and, when it does, for

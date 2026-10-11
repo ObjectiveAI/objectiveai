@@ -24,6 +24,13 @@ use crate::wire::encode::{Encode, Writer};
 /// with access to an image no referenced registry serves can still
 /// say yes, and a client naming a registry the provider cannot reach
 /// has asserted nothing the provider is bound by.
+///
+/// # An image the client built is one the provider holds, for it
+///
+/// A digest the client [built](crate::provider::endpoints::images::build)
+/// on this provider is available to that client, from the store; to
+/// any other client it is not there, unless that client built it too.
+/// A provider never answers one identity's store to another.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame(
     /// The image asked about.

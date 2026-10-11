@@ -1,7 +1,8 @@
 //! The refusals the handlers answer on their own, without asking
 //! the manager: a name the caller has no volume by, a volume that
-//! something is using, a path that is not one of names, and a write
-//! whose content did not arrive whole.
+//! something is using, a volume that will not take one more holder, a
+//! path that is not one of names, and a write whose content did not
+//! arrive whole.
 
 use serde_json::json;
 
@@ -42,6 +43,21 @@ pub fn mounted(name: &str) -> Error {
     Error(json!({
         "kind": "mounted",
         "error": format!("the volume `{name}` is mounted in a running container"),
+    }))
+}
+
+/// The error for a volume whose shared hold, `mount`, could not be
+/// taken by something that is neither a run nor a serve — an image
+/// build reading a directory of it as its context: the volume is
+/// held exclusively, or is a persistent volume held at all.
+///
+/// ```json
+/// {"kind":"held","error":"the volume `work` is held"}
+/// ```
+pub fn held(name: &str) -> Error {
+    Error(json!({
+        "kind": "held",
+        "error": format!("the volume `{name}` is held"),
     }))
 }
 

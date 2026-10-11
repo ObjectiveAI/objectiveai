@@ -7,7 +7,7 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`containers`] | run an agent or a tool server in a container; serve a subtree of a container live |
-//! | [`images`] | ask whether an image can be supplied |
+//! | [`images`] | ask whether an image can be supplied; list the images the caller built, and keep the listing; examine one; build one; destroy one |
 //! | [`volumes`] | list what a provider offers, and keep the listing; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
 //! | [`daemons`] | accept connections from other daemons; connect to another daemon |
 //! | [`version`] | ask what a provider is |
@@ -36,11 +36,15 @@
 //! | `12` | [`volumes::edit`] |
 //! | `13` | [`volumes::delete`] |
 //! | `14` | [`images::check`] |
-//! | `15` | [`version`] |
-//! | `16` | [`daemons::accept`] |
-//! | `17` | [`daemons::connect`] |
+//! | `15` | [`images::list`] |
+//! | `16` | [`images::stat`] |
+//! | `17` | [`images::build`] |
+//! | `18` | [`images::delete`] |
+//! | `19` | [`version`] |
+//! | `20` | [`daemons::accept`] |
+//! | `21` | [`daemons::connect`] |
 //!
-//! Eighteen, grouped by endpoint and ordered within it. The three
+//! Twenty-two, grouped by endpoint and ordered within it. The three
 //! container scopes lead: the agents' run, the tools' run, and the
 //! serve that answers a running container's files live. The eleven volume
 //! scopes follow in the
@@ -48,10 +52,11 @@
 //! it, write one in, see its tree, serve its files live, ask how large
 //! one may be made, make one, ask how far one may grow, resize it,
 //! destroy it.
-//! Then the two that ask rather than do:
-//! [`images::check`], and [`version`]. Last, the two of
-//! [`daemons`], added after: a daemon accepting connections from
-//! other daemons, and a daemon connecting to one.
+//! Then the five of [`images`]: the check, which asks rather than
+//! does, and the caller's own store — list, examine, build, destroy.
+//! Then [`version`], which asks. Last, the two of [`daemons`], added
+//! after: a daemon accepting connections from other daemons, and a
+//! daemon connecting to one.
 //!
 //! Nothing derives meaning from adjacency, which [`version`] is the
 //! proof of — it is the one a client asks FIRST and it holds the
@@ -61,7 +66,7 @@
 //! belongs conceptually, the scopes after it moving up one, and a
 //! scope removed takes its value with it, the scopes after it moving
 //! down — which is how the container serve sits at `2` and the
-//! volumes at `3` through `13`.
+//! volumes at `3` through `13`, and the images at `14` through `18`.
 //!
 //! This table is the whole allocation. Each request states its own
 //! value and points here, because a value chosen in one module has to

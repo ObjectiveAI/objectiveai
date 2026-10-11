@@ -61,11 +61,19 @@ pub enum ClientRequest<'a> {
     VolumesDelete(volumes::delete::client::request::Frame),
     /// Tag `14`. Ask whether an image can be supplied.
     ImagesCheck(images::check::client::request::Frame),
-    /// Tag `15`. Ask what the provider is.
+    /// Tag `15`. List the images the caller built.
+    ImagesList(images::list::client::request::Frame),
+    /// Tag `16`. Examine one of them.
+    ImagesStat(images::stat::client::request::Frame),
+    /// Tag `17`. Build one.
+    ImagesBuild(images::build::client::request::Frame),
+    /// Tag `18`. Destroy one.
+    ImagesDelete(images::delete::client::request::Frame),
+    /// Tag `19`. Ask what the provider is.
     Version(version::client::request::Frame),
-    /// Tag `16`. Accept connections from other daemons.
+    /// Tag `20`. Accept connections from other daemons.
     DaemonsAccept(daemons::accept::client::request::Frame),
-    /// Tag `17`. Connect to another daemon.
+    /// Tag `21`. Connect to another daemon.
     DaemonsConnect(daemons::connect::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -77,7 +85,7 @@ pub enum ClientRequest<'a> {
     /// # It is answered, not dropped
     ///
     /// A server finishes the scope over it, with nothing in front:
-    /// eighteen endpoints have eighteen error vocabularies, and an invalid
+    /// twenty-two endpoints have twenty-two error vocabularies, and an invalid
     /// request names none of them — where a finish with nothing before
     /// it is already what the wire means by a request that could not
     /// be served, and every executor reads it as its own "unanswered".
@@ -90,14 +98,15 @@ pub enum ClientRequest<'a> {
     /// A server that wants one has the bytes and can ask the specific
     /// request to decode them, which answers precisely: an unknown
     /// tag, a body that would not parse, or nothing at all. Storing a
-    /// reason here would mean this type choosing which of eighteen error
-    /// vocabularies to speak, and choosing wrong for seventeen of them.
+    /// reason here would mean this type choosing which of twenty-two
+    /// error vocabularies to speak, and choosing wrong for twenty-one of
+    /// them.
     Invalid(&'a [u8]),
 }
 
 impl Encode for ClientRequest<'_> {
-    /// Two ways to fail, because eighteen requests use two encodings
-    /// between them — and four of the eighteen use neither, having
+    /// Two ways to fail, because twenty-two requests use two encodings
+    /// between them — and five of the twenty-two use neither, having
     /// nothing to encode.
     type Error = ClientRequestEncodeError;
 
@@ -154,6 +163,20 @@ impl Encode for ClientRequest<'_> {
             }
             ClientRequest::ImagesCheck(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
+            }
+            ClientRequest::ImagesList(frame) => {
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                frame.encode(out).map_err(|error| match error {})
+            }
+            ClientRequest::ImagesStat(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
+            }
+            ClientRequest::ImagesBuild(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
+            }
+            ClientRequest::ImagesDelete(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::Version(frame) => {
                 // Its error is `Infallible`, and an empty match on one
@@ -233,13 +256,25 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             14 => images::check::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesCheck)
                 .ok(),
-            15 => version::client::request::Frame::decode(bytes)
+            15 => images::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesList)
+                .ok(),
+            16 => images::stat::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesStat)
+                .ok(),
+            17 => images::build::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesBuild)
+                .ok(),
+            18 => images::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesDelete)
+                .ok(),
+            19 => version::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Version)
                 .ok(),
-            16 => daemons::accept::client::request::Frame::decode(bytes)
+            20 => daemons::accept::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DaemonsAccept)
                 .ok(),
-            17 => daemons::connect::client::request::Frame::decode(bytes)
+            21 => daemons::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DaemonsConnect)
                 .ok(),
             _ => None,
@@ -251,9 +286,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
 /// A request that could not be written.
 ///
 /// Named for the encoding rather than for the request, because
-/// fourteen requests share two of them and a variant per request
-/// would be fourteen names that mean the same failure — fourteen,
-/// because the other four have nothing to encode.
+/// seventeen requests share two of them and a variant per request
+/// would be seventeen names that mean the same failure — seventeen,
+/// because the other five have nothing to encode.
 #[derive(Debug)]
 pub enum ClientRequestEncodeError {
     /// A JSON request did not serialize.
