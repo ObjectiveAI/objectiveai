@@ -1,25 +1,30 @@
-//! Images: the daemon holds none.
+//! Images: the daemon holds none itself, and answers from the other
+//! providers.
 
-use bytes::Bytes;
 use diverge_sdk::provider::client::{Manifest, OciStore};
-use futures_util::stream;
 
 use super::Answerer;
+use crate::containers::images;
 
-/// The daemon keeps no image: a provider asked whether the caller
-/// holds one is told no, and pulls from its own registries.
+/// A provider asked whether the caller holds an image is answered
+/// from the other providers connected: one that holds it is found,
+/// and its manifests and blobs are pulled from there — see
+/// [`images`](crate::containers::images). The provider asking is
+/// never asked, having looked already.
 impl OciStore for Answerer {
-    async fn holds(&self, _: &str) -> Option<String> {
-        None
+    async fn holds(&self, digest: &str) -> Option<String> {
+        images::locate(&self.daemon, digest, &self.provider)
+            .await
+            .map(|_| images::name(digest))
     }
 
-    type Blob = stream::Empty<Bytes>;
+    type Blob = images::Blob;
 
-    async fn manifest(&self, _: &str) -> Option<Manifest> {
-        None
+    async fn manifest(&self, digest: &str) -> Option<Manifest> {
+        images::manifest(&self.daemon, digest, &self.provider).await
     }
 
-    async fn blob(&self, _: &str) -> Option<Self::Blob> {
-        None
+    async fn blob(&self, digest: &str) -> Option<Self::Blob> {
+        images::blob(&self.daemon, digest, &self.provider).await
     }
 }

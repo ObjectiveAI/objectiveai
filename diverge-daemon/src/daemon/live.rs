@@ -11,6 +11,7 @@ use tokio::task::AbortHandle;
 use chrono::{DateTime, Utc};
 
 use diverge_sdk::daemon::reference;
+use diverge_sdk::provider::endpoints::images::oci::client::execute;
 
 use super::{Changes, Kind, Peers};
 use crate::containers::{AgentRun, ConnectionId, DependencyId, Key, ToolKey, ToolRun};
@@ -23,7 +24,8 @@ use crate::volumes::Mirror;
 /// connected as them, and how many; which providers the daemon holds
 /// a connection to, and the handle it speaks to each on; and the dial
 /// tasks keeping the outgoing ones connected; which daemons it holds
-/// a connection to through them; every agent's log as
+/// a connection to through them; which providers hold which image,
+/// and the pull scope held on each; every agent's log as
 /// it is appended and watched; which agents and tools run — a tool
 /// on record, or a dependency deployed for an agent — and what is
 /// live for each. Behind async mutexes, held for a lookup and never
@@ -71,6 +73,15 @@ pub struct Live {
     daemons: Mutex<HashMap<String, Arc<Peer>>>,
     /// The next number for a connect scope another daemon opens.
     next_connect: Mutex<u64>,
+    /// Which providers are known to hold which image, by digest: what
+    /// a provider's has ask is answered from, and where a manifest or
+    /// a blob is pulled from. Positives only, learned from checks; a
+    /// provider's entries go with its connection, or with a pull from
+    /// it that failed.
+    holders: Mutex<HashMap<String, Vec<Identity>>>,
+    /// The pull scope held open on each provider pulled from: opened
+    /// at the first pull, kept for the connection's life.
+    pulls: Mutex<HashMap<Identity, Arc<execute::ExecuteHandle>>>,
 }
 
 impl std::fmt::Debug for Live {
@@ -178,6 +189,10 @@ impl Live {
         if self.volumes.lock().await.remove(identity).is_some() {
             self.changes.changed(Kind::Volumes);
         }
+        for holders in self.holders.lock().await.values_mut() {
+            holders.retain(|holder| holder != identity);
+        }
+        self.pulls.lock().await.remove(identity);
     }
 
     /// A fresh mirror for the provider's volumes, kept for its
@@ -191,6 +206,49 @@ impl Live {
     /// The provider's mirror, if it is connected.
     pub async fn mirror(&self, identity: &Identity) -> Option<Arc<Mirror>> {
         self.volumes.lock().await.get(identity).cloned()
+    }
+
+    /// The providers known to hold the image under `digest`, in the
+    /// order they were learned.
+    pub async fn holders(&self, digest: &str) -> Vec<Identity> {
+        self.holders.lock().await.get(digest).cloned().unwrap_or_default()
+    }
+
+    /// The provider answered that it holds the image: remembered,
+    /// once.
+    pub async fn add_holder(&self, digest: &str, identity: Identity) {
+        let mut holders = self.holders.lock().await;
+        let known = holders.entry(digest.to_string()).or_default();
+        if !known.contains(&identity) {
+            known.push(identity);
+        }
+    }
+
+    /// The provider does not hold the image after all, or could not
+    /// be pulled from: forgotten for this digest.
+    pub async fn drop_holder(&self, digest: &str, identity: &Identity) {
+        if let Some(known) = self.holders.lock().await.get_mut(digest) {
+            known.retain(|holder| holder != identity);
+        }
+    }
+
+    /// The pull scope held on the provider, if one is.
+    pub async fn pull_scope(&self, identity: &Identity) -> Option<Arc<execute::ExecuteHandle>> {
+        self.pulls.lock().await.get(identity).cloned()
+    }
+
+    /// Keep `scope` as the provider's pull scope, unless one is kept
+    /// already: the one kept, either way, so a second opener uses the
+    /// first's and lets its own go.
+    pub async fn keep_pull_scope(&self, identity: Identity, scope: Arc<execute::ExecuteHandle>) -> Arc<execute::ExecuteHandle> {
+        let mut pulls = self.pulls.lock().await;
+        Arc::clone(pulls.entry(identity).or_insert(scope))
+    }
+
+    /// The provider's pull scope let go: a pull from it failed, and
+    /// the next opens anew.
+    pub async fn drop_pull_scope(&self, identity: &Identity) {
+        self.pulls.lock().await.remove(identity);
     }
 
     /// The kind changed: every list of it kept open reads again.

@@ -20,7 +20,9 @@
 //! calls; [`deploy`] deploys a container's declared dependencies then
 //! and there, each a tool of the agent's own for the agent's life;
 //! [`fuse`] serves the mounts — another provider's volume bridged, or
-//! an agent's path into its dependency. [`Key`] names a container by
+//! an agent's path into its dependency; [`images`] answers a
+//! provider's image asks from the other providers connected. [`Key`]
+//! names a container by
 //! its record or, a dependency, by its deployment, [`ToolKey`] a
 //! tool's run either way; [`AgentRun`] and [`ToolRun`] are what is
 //! live for one; [`container`] and [`dependency`] are the request a
@@ -50,6 +52,7 @@ pub mod files;
 pub mod answerers;
 pub mod deploy;
 pub mod fuse;
+pub mod images;
 pub mod mcp;
 pub mod message;
 

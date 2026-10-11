@@ -6,10 +6,10 @@
 //! the served tools, what is in flight — and each trait's impl is
 //! one file. Real: the dependencies, deployed then and there; the `/daemon` pair,
 //! served by the same session a socket gets; MCP, the served tools
-//! merged; FUSE, the mounts. The
-//! truth, which is nothing: OCI — the daemon holds no image, so the
-//! provider pulls from its registries. Declined until their steps:
-//! Postgres, and the vault.
+//! merged; FUSE, the mounts; OCI, answered from the other providers
+//! connected — the daemon holds no image itself, and finds a provider
+//! that does, see [`images`](crate::containers::images). Declined
+//! until their steps: Postgres, and the vault.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
