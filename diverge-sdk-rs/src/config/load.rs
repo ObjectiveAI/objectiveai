@@ -12,7 +12,8 @@ const FILE: &str = "config.yaml";
 /// The configuration at `root`: `config.yaml` read and parsed, or the
 /// defaults where there is no such file, with every path in it
 /// resolved against `root` — `containers.podman.storage_path`, each
-/// store's and each fixed volume's `path` of the provider's block —
+/// store's and each fixed volume's `path`, and `images.path` of the
+/// provider's block —
 /// so that what comes back holds every path absolute. A file that
 /// does not parse, or names a key no block has, is [`Error::Parse`],
 /// with the path to the value that was wrong. Nothing on disk is
@@ -33,6 +34,9 @@ pub async fn load(root: &Path) -> Result<Config, Error> {
         for fixed in volumes.fixed.iter_mut().flatten() {
             resolve(root, &mut fixed.path);
         }
+    }
+    if let Some(images) = &mut config.provider.images {
+        resolve(root, &mut images.path);
     }
     Ok(config)
 }

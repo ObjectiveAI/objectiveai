@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::auth::Auth;
 use super::clients::Clients;
 use super::containers::Containers;
+use super::images::Images;
 use super::volumes::Volumes;
 
 /// The `provider` block of `config.yaml`: the whole of what the
@@ -13,10 +14,10 @@ use super::volumes::Volumes;
 ///
 /// An absent block is this type's [`Default`], and the provider runs
 /// on it: the proxy's own port, no peer accepted, no peer dialled, no
-/// volume, and the [`Containers`] defaults. `port` and `containers`
-/// are always present — absent from the file, each is its default —
-/// and the other three sections are optional, an absent one meaning
-/// what its doc says. An unknown key is an error, so a misspelled
+/// volume, no client image store, and the [`Containers`] defaults.
+/// `port` and `containers` are always present — absent from the
+/// file, each is its default — and the other four sections are
+/// optional, an absent one meaning what its doc says. An unknown key is an error, so a misspelled
 /// setting is refused rather than ignored.
 ///
 /// Every path inside the block resolves relative to the root, the
@@ -50,11 +51,17 @@ pub struct Config {
     /// means no volume can be created and none exists.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub volumes: Option<Volumes>,
+    /// Where the images clients build on the provider are kept, and
+    /// how much they may take. Absent means no client image store: a
+    /// build is refused, a listing is empty, and the `client` source
+    /// of a check is never available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub images: Option<Images>,
 }
 
 /// What a provider runs on before it has written a line of
 /// configuration: the proxy's port, nobody accepted, nobody dialled,
-/// the [`Containers`] defaults, no volume.
+/// the [`Containers`] defaults, no volume, no client image store.
 impl Default for Config {
     fn default() -> Self {
         Config {
@@ -63,6 +70,7 @@ impl Default for Config {
             clients: None,
             containers: Containers::default(),
             volumes: None,
+            images: None,
         }
     }
 }

@@ -1,8 +1,8 @@
 //! The `provider` block of `config.yaml`: what `diverge-provider` is
 //! told.
 //!
-//! [`Config`] is the block; [`auth`], [`clients`], [`containers`] and
-//! [`volumes`] its sections. The provider keeps its state under
+//! [`Config`] is the block; [`auth`], [`clients`], [`containers`],
+//! [`volumes`] and [`images`] its sections. The provider keeps its state under
 //! `<root>/provider/`: `hooks/`, where every folder is a hook the
 //! block names by the folder's name alone; `run/`, its own scratch;
 //! and podman's data under `containers.podman.storage_path`, which is
@@ -48,6 +48,9 @@
 //!         bytes: 536870912000
 //!         mode: ephemeral
 //!         authorize_hook: datasets
+//!   images:
+//!     path: /mnt/images
+//!     capacity: 274877906944
 //! ```
 //!
 //! Its own files are flattened into it, so everything is named
@@ -57,6 +60,7 @@ mod config;
 pub mod auth;
 pub mod clients;
 pub mod containers;
+pub mod images;
 pub mod volumes;
 
 pub use config::*;
