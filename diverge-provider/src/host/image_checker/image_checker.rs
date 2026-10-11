@@ -8,6 +8,7 @@ use futures_util::future;
 
 use super::Error;
 use diverge_sdk::config::provider::containers::Registry;
+use diverge_sdk::provider::endpoints::images::check::client::request::Sources;
 use diverge_sdk::shared::containers::request::Image;
 use crate::host::container_deployer::name_ok;
 use crate::host::tools::podman;
@@ -39,20 +40,28 @@ impl ImageChecker {
 impl image_checker::ImageChecker for ImageChecker {
     type Error = Error;
 
-    /// Every reference's name checked as a repository path. In the
-    /// store, by digest alone, is available, and nothing else is
-    /// asked. Else every referenced registry the configuration lists
-    /// is asked at once, as `<registry>/<name>@<digest>`, and a
-    /// reference naming a registry not listed is ignored: any yes is
-    /// available, every no — and no registry to ask — is unavailable,
-    /// and a podman that could not be started, with no yes beside it,
-    /// is the failure to answer.
-    async fn check(&self, _client_identity: &str, image: &Image) -> Result<Response, Error> {
-        if let Some(reference) = image.references.iter().find(|reference| !name_ok(&reference.name)) {
+    /// Looked where `sources` says, local first. `client` is never
+    /// available: the store of what a caller built does not exist on
+    /// this provider yet, so nothing is held for anyone. `server` is
+    /// the store, by digest alone. Either having the image ends it.
+    /// `registries`, asked only when neither local source asked had
+    /// it: every reference's name checked as a repository path, then
+    /// every referenced registry the configuration lists asked at
+    /// once, as `<registry>/<name>@<digest>`, a reference naming a
+    /// registry not listed ignored. Any yes is available; every no —
+    /// and no source with the image — is unavailable; a podman that
+    /// could not be started, with no yes beside it, is the failure to
+    /// answer.
+    async fn check(&self, _client_identity: &str, image: &Image, sources: &Sources) -> Result<Response, Error> {
+        let named = image.references.iter().find(|reference| !name_ok(&reference.name));
+        if let (true, Some(reference)) = (sources.registries, named) {
             return Err(Error::Name(reference.name.clone()));
         }
-        if podman::image_by_digest(&image.digest).await.map_err(Error::Podman)?.is_some() {
+        if sources.server && podman::image_by_digest(&image.digest).await.map_err(Error::Podman)?.is_some() {
             return Ok(Response::Available(Available::default()));
+        }
+        if !sources.registries {
+            return Ok(Response::Unavailable(Unavailable::default()));
         }
         let listed = image
             .references

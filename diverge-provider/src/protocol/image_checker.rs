@@ -4,6 +4,7 @@
 use std::future::Future;
 
 use diverge_sdk::provider::endpoints::images::check::server::response::Response;
+use diverge_sdk::provider::endpoints::images::check::client::request::Sources;
 use diverge_sdk::shared::containers::request::Image;
 
 /// Answers one question: would you supply this image, to this caller.
@@ -46,14 +47,21 @@ use diverge_sdk::shared::containers::request::Image;
 /// whatever authenticated the connection, opaque here, never minted or
 /// compared by this crate.
 ///
-/// # A reference locates, the digest identifies
+/// # The caller says where to look
 ///
-/// A digest identifies the image and a reference only states where
-/// its bytes may be fetched, so a provider looks in what it holds by
-/// digest first, asks a referenced registry only where its own policy
-/// lists that registry, ignores a reference naming one it does not,
-/// and may look anywhere else of its own. Which, is the provider's
-/// business and not part of what is being asked. See
+/// Three sources, any combination, at least one — the handler answers
+/// `NoSource` itself for a request naming none, so this is never
+/// asked with none. `client` is the caller's own images, those it
+/// built on this provider through the
+/// [`ImageManager`](super::image_manager::ImageManager) and no other
+/// identity's. `server` is what the provider holds on its own
+/// account, which no client built. `registries` is every referenced
+/// registry the provider's policy lists, asked as
+/// `<registry>/<name>@<digest>`, a reference naming one not listed
+/// ignored. Available is any source asked having the image; the
+/// provider looks in what it holds before it asks a registry. A
+/// digest identifies the image and a reference only states where its
+/// bytes may be fetched. See
 /// [`request::Frame`](diverge_sdk::provider::endpoints::images::check::client::request::Frame),
 /// which says the same from the other side.
 ///
@@ -76,8 +84,8 @@ pub trait ImageChecker: Send + Sync {
     /// and is [`Ok`].
     type Error: Send + 'static;
 
-    /// Would you supply the image this digest names, given where its
-    /// bytes may be fetched.
+    /// Would you supply the image this digest names, looking where
+    /// `sources` says, given where its bytes may be fetched.
     ///
     /// [`Available`](diverge_sdk::provider::endpoints::images::check::server::response::Available)
     /// or
@@ -103,5 +111,6 @@ pub trait ImageChecker: Send + Sync {
         &self,
         client_identity: &str,
         image: &Image,
+        sources: &Sources,
     ) -> impl Future<Output = Result<Response, Self::Error>> + Send;
 }

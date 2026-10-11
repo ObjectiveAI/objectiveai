@@ -23,6 +23,13 @@ use diverge_sdk::shared::error::Error;
 /// [`Ok`] becomes the first, whichever way the `Ok` went. Nothing here
 /// turns a no into a failure or a failure into a no.
 ///
+/// # No source is answered here
+///
+/// A request asking for none of the three sources is
+/// [`NoSource`](response::Frame::NoSource), and the checker is never
+/// asked: the question was empty, and the checker's contract is that
+/// at least one source is set.
+///
 /// # The request arrives decoded
 ///
 /// [`server::handle`](crate::protocol::handle::handle) reads every
@@ -38,9 +45,13 @@ pub async fn handle<C>(
     C: ImageChecker,
     C::Error: Into<Error>,
 {
-    let frame = match checker.check(client_identity, &request.0).await {
-        Ok(response) => response::Frame::Response(response),
-        Err(error) => response::Frame::Error(error.into()),
+    let frame = if !request.sources.any() {
+        response::Frame::NoSource
+    } else {
+        match checker.check(client_identity, &request.image, &request.sources).await {
+            Ok(response) => response::Frame::Response(response),
+            Err(error) => response::Frame::Error(error.into()),
+        }
     };
 
     let mut buffer = Vec::new();
