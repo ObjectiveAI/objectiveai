@@ -13,6 +13,7 @@ use super::directory::Directory;
 use super::changes::Changes;
 use super::image_checker::ImageChecker;
 use super::image_manager::ImageManager;
+use super::oci_store::OciStore;
 use super::image_registry::ImageRegistry;
 use diverge_sdk::wire::server::received::Received;
 use diverge_sdk::wire::server::session::Session;
@@ -93,7 +94,7 @@ use diverge_sdk::shared::error::Error;
 /// [`ClientRequest::decode`] cannot fail; what it cannot read it
 /// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
 /// one is a finish with nothing in front. There is no other honest
-/// answer — twenty-two endpoints have twenty-two error vocabularies, and an
+/// answer — twenty-three endpoints have twenty-three error vocabularies, and an
 /// invalid request names none of them — and a bare finish is already
 /// what the wire means by a request that could not be served. Every
 /// executor reads it as its own "unanswered".
@@ -110,7 +111,7 @@ use diverge_sdk::shared::error::Error;
 /// every one of those teardowns — and it would end runs a caller had
 /// already paid for, which is the wrong way round: the work was real,
 /// and a caller that leaves does not un-spend it.
-pub async fn handle<D, V, I, M, U, R>(
+pub async fn handle<D, V, I, M, O, U, R>(
     mut session: Session,
     authorization: Authorization<U>,
     address: IpAddr,
@@ -118,6 +119,7 @@ pub async fn handle<D, V, I, M, U, R>(
     volume_manager: Arc<V>,
     image_checker: Arc<I>,
     image_manager: Arc<M>,
+    oci_store: Arc<O>,
     image_registry: Arc<R>,
     directory: Arc<Directory>,
     volume_changes: Arc<Changes>,
@@ -133,6 +135,7 @@ where
     I::Error: Into<Error>,
     M: ImageManager + 'static,
     M::Error: Into<Error>,
+    O: OciStore + 'static,
     U: UnbrokeredAuthorizer,
     R: ImageRegistry + 'static,
     R::Error: Into<Error>,
@@ -404,6 +407,13 @@ where
                 let changes = Arc::clone(&image_changes);
                 scopes.spawn(async move {
                     endpoints::images::delete::handle(scope, frame, &identity, &*manager, changes).await;
+                });
+            }
+            ClientRequest::ImagesOci(_) => {
+                let identity = Arc::clone(&client_identity);
+                let store = Arc::clone(&oci_store);
+                scopes.spawn(async move {
+                    endpoints::images::oci::handle(scope, &identity, store).await;
                 });
             }
             ClientRequest::Version(_) => {

@@ -24,6 +24,7 @@ use crate::host::container_deployer::ContainerDeployer;
 use crate::host::image_checker::ImageChecker;
 use crate::host::image_manager::ImageManager;
 use crate::host::image_registry::ImageRegistry;
+use crate::host::oci_store::OciStore;
 use crate::host::tools::podman;
 use crate::host::unbrokered_authorizer::{Slot, UnbrokeredAuthorizer};
 use crate::host::volume_manager::{self, Scratch, VolumeManager};
@@ -50,6 +51,9 @@ pub struct Provider {
     checker: Arc<ImageChecker>,
     /// The image store, which refuses everything until it exists.
     images: Arc<ImageManager>,
+    /// What is held of an image for a caller, which is nothing until
+    /// the store exists.
+    oci: Arc<OciStore>,
     /// The registry, held to the end so its server lives as long.
     registry: Arc<ImageRegistry>,
     /// The running containers, one map for the provider.
@@ -100,6 +104,7 @@ impl Provider {
             volumes,
             checker,
             images: Arc::new(ImageManager),
+            oci: Arc::new(OciStore),
             registry,
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
@@ -142,6 +147,7 @@ impl Provider {
             Arc::clone(&self.volumes),
             Arc::clone(&self.checker),
             Arc::clone(&self.images),
+            Arc::clone(&self.oci),
             Arc::clone(&self.registry),
             Arc::clone(&self.directory),
             Arc::clone(&self.volume_changes),

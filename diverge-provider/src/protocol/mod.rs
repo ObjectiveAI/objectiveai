@@ -37,7 +37,7 @@
 //!
 //! # And what a provider supplies
 //!
-//! Seven traits and three types, which are what this half asks FOR
+//! Eight traits and three types, which are what this half asks FOR
 //! rather than provides. They mirror the ones [`client`](diverge_sdk::wire::client)
 //! supplies: something a provider implements, so that the parts this
 //! crate cannot know are somebody else's.
@@ -120,6 +120,13 @@
 //! identity and for nobody else, which the checker and the deployer
 //! a provider supplies beside this are bound to.
 //!
+//! [`oci_store`] is the seventh: what the provider holds of an image
+//! for a caller, served to the caller's own asks on an `images::oci`
+//! scope — the run's three OCI asks the other way round, so a caller
+//! can carry an image from one provider to a run on another. The
+//! mirror of the caller half's `OciStore`, and like it without an
+//! error vocabulary.
+//!
 //! [`directory`] is a type: every container the provider is running,
 //! by id, shared across connections — because a serve names a
 //! container its runner may have started on another socket, and has
@@ -182,6 +189,7 @@ pub mod image_manager;
 pub mod image_registry;
 pub mod image_source;
 pub mod mount;
+pub mod oci_store;
 pub mod progress;
 pub mod proxy;
 pub mod served;

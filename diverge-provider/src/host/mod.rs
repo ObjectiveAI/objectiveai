@@ -4,7 +4,7 @@
 //! request, and serves every endpoint; what it cannot supply is what a
 //! provider IS — a place to run containers, a store of volumes, a
 //! registry, and a judgment about who may connect — and this module
-//! supplies those, as the protocol's seven provider-side traits:
+//! supplies those, as the protocol's eight provider-side traits:
 //!
 //! | trait | supplies |
 //! |-------|----------|
@@ -14,6 +14,7 @@
 //! | `ImageRegistry` | the registry a runtime pulls from, for an image taken from the caller |
 //! | `ImageChecker` | whether an image can be had without the caller |
 //! | `ImageManager` | the images every identity built on this provider — not yet: every request is refused |
+//! | `OciStore` | what the provider holds of an image for a caller, served to the caller's pull — not yet: nothing is held |
 //! | `UnbrokeredAuthorizer` | the identity a credential establishes |
 //!
 //! This is ONE provider, not the only one. The specification binds any
@@ -22,9 +23,10 @@
 //! and supply its own.
 //!
 //! Here is where the implementation goes; [`container_deployer`], [`volume_manager`],
-//! [`image_checker`], [`image_manager`], [`image_registry`] and
-//! [`unbrokered_authorizer`] supply the seven, every method of each
-//! written — the image manager's as refusals, until the store exists. [`tools`] is every program the provider runs — podman,
+//! [`image_checker`], [`image_manager`], [`image_registry`],
+//! [`oci_store`] and [`unbrokered_authorizer`] supply the eight, every
+//! method of each written — the image manager's as refusals and the
+//! OCI store's as not held, until the store exists. [`tools`] is every program the provider runs — podman,
 //! and e2fsprogs, `mount` and `ssh` through it or beside it — and
 //! the one way it runs them. [`watch`] is a directory of this host
 //! walked and watched, the filetree of a fixed volume, one module
@@ -46,6 +48,7 @@ pub mod hook;
 pub mod image_checker;
 pub mod image_manager;
 pub mod image_registry;
+pub mod oci_store;
 pub mod serve;
 pub mod tools;
 pub mod unbrokered_authorizer;
