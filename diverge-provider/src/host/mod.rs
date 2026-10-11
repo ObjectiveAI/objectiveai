@@ -13,7 +13,7 @@
 //! | `VolumeManager` | the volumes of every identity |
 //! | `ImageRegistry` | the registry a runtime pulls from, for an image taken from the caller |
 //! | `ImageChecker` | whether an image can be had without the caller |
-//! | `ImageManager` | the images every identity built on this provider — not yet: every request is refused |
+//! | `ImageManager` | the images every identity built on this provider, in a podman root of their own |
 //! | `OciStore` | what the provider holds of an image for a caller, served to the caller's pull — not yet: nothing is held |
 //! | `UnbrokeredAuthorizer` | the identity a credential establishes |
 //!
@@ -25,8 +25,7 @@
 //! Here is where the implementation goes; [`container_deployer`], [`volume_manager`],
 //! [`image_checker`], [`image_manager`], [`image_registry`],
 //! [`oci_store`] and [`unbrokered_authorizer`] supply the eight, every
-//! method of each written — the image manager's as refusals and the
-//! OCI store's as not held, until the store exists. [`tools`] is every program the provider runs — podman,
+//! method of each written — the OCI store's as not held, for now. [`tools`] is every program the provider runs — podman,
 //! and e2fsprogs, `mount` and `ssh` through it or beside it — and
 //! the one way it runs them. [`watch`] is a directory of this host
 //! walked and watched, the filetree of a fixed volume, one module

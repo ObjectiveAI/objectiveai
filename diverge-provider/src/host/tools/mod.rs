@@ -5,7 +5,9 @@
 //! kept for the error, and killed if the future awaiting it is
 //! dropped. [`run`] is that, with stdout discarded — the tools
 //! narrate; [`capture`] is that with stdout kept — the tools answer,
-//! an id, a port, a listing; [`start`] spawns a program that outlives
+//! an id, a port, a listing; [`stream`] is that with both read line
+//! by line as the program speaks — a build narrating — and the
+//! status waited for after; [`start`] spawns a program that outlives
 //! the call and hands back the child, killed when the child is
 //! dropped. Nothing in the crate starts a process another way.
 //! [`Error`] is what running one fails with: not started, finished

@@ -118,7 +118,7 @@ async fn one(deployer: &ContainerDeployer, mount: &Mount) -> Result<Bound, Error
 
 /// `base` with `components` after it, joined by `/` as the tool
 /// joins paths.
-fn descend(base: &str, components: &[String]) -> String {
+pub fn descend(base: &str, components: &[String]) -> String {
     let mut path = base.to_string();
     for component in components {
         path.push('/');
@@ -130,13 +130,13 @@ fn descend(base: &str, components: &[String]) -> String {
 /// A host path as the tool and podman see it: on Linux, the path
 /// itself.
 #[cfg(target_os = "linux")]
-pub(super) fn tool_path(path: &Path) -> String {
+pub fn tool_path(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
 /// A host path as the tool and podman see it: the machine's view of
 /// it.
 #[cfg(not(target_os = "linux"))]
-pub(super) fn tool_path(path: &Path) -> String {
+pub fn tool_path(path: &Path) -> String {
     crate::host::tools::podman::path(path)
 }

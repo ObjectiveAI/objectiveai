@@ -1,9 +1,11 @@
-//! Running one program: waited for, waited for and read, or left
-//! running.
+//! Running one program: waited for, waited for and read, read as it
+//! speaks, or left running.
 
 use std::process::{ExitStatus, Stdio};
 
+use tokio::io::{AsyncBufReadExt as _, AsyncRead, BufReader};
 use tokio::process::{Child, Command};
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 use super::Error;
 
@@ -106,4 +108,95 @@ pub fn start(program: &str, mut command: Command) -> Result<Child, Error> {
             program: program.to_string(),
             source,
         })
+}
+
+/// Run `command` and read what it says as it says it: every line of
+/// its stdout and its stderr, in the order they arrive, on one
+/// [`Lines`]; then its status, on the [`Pending`]. For the tools that
+/// narrate at length — a build — where a caller shows the lines as
+/// they come. Stdin is closed, and the child is killed when the
+/// [`Pending`] is dropped before it ends. Only the start can fail
+/// here.
+pub fn stream(program: &str, mut command: Command) -> Result<(Lines, Pending), Error> {
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|source| Error::Spawn {
+            program: program.to_string(),
+            source,
+        })?;
+    let (sender, receiver) = mpsc::unbounded_channel();
+    if let Some(stdout) = child.stdout.take() {
+        tokio::spawn(forward(stdout, sender.clone()));
+    }
+    if let Some(stderr) = child.stderr.take() {
+        tokio::spawn(forward(stderr, sender));
+    }
+    Ok((
+        Lines { receiver },
+        Pending {
+            program: program.to_string(),
+            child,
+        },
+    ))
+}
+
+/// Every line of `reader`, sent as it is read, until the reader ends
+/// or nobody listens.
+async fn forward<R>(reader: R, sender: UnboundedSender<String>)
+where
+    R: AsyncRead + Unpin + Send + 'static,
+{
+    let mut lines = BufReader::new(reader).lines();
+    while let Ok(Some(line)) = lines.next_line().await {
+        if sender.send(line).is_err() {
+            break;
+        }
+    }
+}
+
+/// What a program says as it runs: its lines, stdout's and stderr's
+/// together, in the order they arrived. Ends when the program has
+/// closed both.
+#[derive(Debug)]
+pub struct Lines {
+    /// The lines, as the two readers send them.
+    receiver: UnboundedReceiver<String>,
+}
+
+impl Lines {
+    /// The next line, or `None` when there are no more.
+    pub async fn next(&mut self) -> Option<String> {
+        self.receiver.recv().await
+    }
+}
+
+/// A program read as it speaks, still running: what is waited for
+/// once its lines are read. Dropping it kills the program.
+#[derive(Debug)]
+pub struct Pending {
+    /// The tool's name, for the error.
+    program: String,
+    /// The child, killed on drop.
+    child: Child,
+}
+
+impl Pending {
+    /// Wait for the program to end: how it exited, with an empty
+    /// stderr, since what it wrote there went out as lines. A child
+    /// that could not be waited for is [`Error::Spawn`], the one
+    /// failure of the host rather than of the tool.
+    pub async fn wait(mut self) -> Result<Finished, Error> {
+        let status = self.child.wait().await.map_err(|source| Error::Spawn {
+            program: self.program.clone(),
+            source,
+        })?;
+        Ok(Finished {
+            status,
+            stderr: String::new(),
+        })
+    }
 }

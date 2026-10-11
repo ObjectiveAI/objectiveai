@@ -24,6 +24,8 @@ pub enum Error {
     FixedMissing(PathBuf),
     /// A store's capacity is `0`.
     Capacity(PathBuf),
+    /// The client image store's capacity is `0`.
+    ImageCapacity(PathBuf),
     /// A fixed volume's name is not one a volume may have, or two
     /// fixed volumes have it.
     FixedName(String),
@@ -49,6 +51,7 @@ impl fmt::Display for Error {
             Error::Directory(path, error) => write!(f, "`{}` could not be made: {error}", path.display()),
             Error::FixedMissing(path) => write!(f, "the fixed volume `{}` is not a directory that exists", path.display()),
             Error::Capacity(path) => write!(f, "the store `{}` has a capacity of 0", path.display()),
+            Error::ImageCapacity(path) => write!(f, "the image store `{}` has a capacity of 0", path.display()),
             Error::FixedName(name) => write!(f, "the fixed volume name `{name}` is not usable, or is used twice"),
             Error::Registry(error) => write!(f, "the image registry could not start: {error}"),
             Error::Deployer(error) => write!(f, "the deployer could not be made: {error}"),
@@ -71,7 +74,7 @@ impl std::error::Error for Error {
             Error::Runtime(error) => Some(error),
             Error::Config(error) => Some(error),
             Error::Directory(_, error) => Some(error),
-            Error::FixedMissing(_) | Error::Capacity(_) | Error::FixedName(_) => None,
+            Error::FixedMissing(_) | Error::Capacity(_) | Error::ImageCapacity(_) | Error::FixedName(_) => None,
             Error::Registry(error) => Some(error),
             Error::Deployer(error) => Some(error),
             Error::Bind(error) => Some(error),

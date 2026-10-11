@@ -55,24 +55,29 @@
 //!
 //! An image is a digest, and references stating where its bytes may
 //! be fetched; where they come from is this provider's decision. The
-//! store is looked in first, by the digest alone — the name an image
-//! is held under there, or no name, does not matter — and an image
-//! there is run as its id, with nothing pulled and nobody asked. Any
-//! other is looked for everywhere else at once: every referenced
-//! registry the configuration lists, asked as
-//! `<registry>/<name>@<digest>` with the credential listed through an
-//! auth file the provider writes for podman — a reference naming a
-//! registry not listed is ignored — and the caller, asked on its
-//! scope whether it holds the image, which answers the path it holds
-//! it under. The first to say yes is the source, and the image is
-//! pulled from there: from a registry as the reference names it; from
-//! the caller through the provider's own registry, which listens on
-//! this host's loopback and fetches from the caller by digest — on
-//! Linux podman pulls on the host and reaches it there; on macOS and
-//! Windows podman pulls inside its machine, and reaches the registry
-//! through one SSH tunnel the provider opens into the machine with
-//! the machine's own settings, for the provider's life. An image
-//! nowhere is the run's error.
+//! caller's own images are looked in first: an image the caller
+//! built on this provider, in the client image store, is copied into
+//! the cache if the cache has no copy — saved from the store's root
+//! and loaded, under its `localhost/diverge/` name — and run as its
+//! id, with nobody asked. Then the cache, by the digest alone — the
+//! name an image is held under there, or no name, does not matter,
+//! except that a copy of a client image is not the provider's own
+//! and is passed over — and an image there is run as its id, with
+//! nothing pulled and nobody asked. Any other is looked for
+//! everywhere else at once: every referenced registry the
+//! configuration lists, asked as `<registry>/<name>@<digest>` with
+//! the credential listed through an auth file the provider writes
+//! for podman — a reference naming a registry not listed is ignored
+//! — and the caller, asked on its scope whether it holds the image,
+//! which answers the path it holds it under. The first to say yes is
+//! the source, and the image is pulled from there: from a registry
+//! as the reference names it; from the caller through the provider's
+//! own registry, which listens on this host's loopback and fetches
+//! from the caller by digest — on Linux podman pulls on the host and
+//! reaches it there; on macOS and Windows podman pulls inside its
+//! machine, and reaches the registry through one SSH tunnel the
+//! provider opens into the machine with the machine's own settings,
+//! for the provider's life. An image nowhere is the run's error.
 //!
 //! Podman evicts nothing from its image store, so the provider does:
 //! whenever the store's count passes `image_cache_disk`, images are
@@ -115,6 +120,7 @@ pub use container::*;
 pub use container_deployer::*;
 pub use error::*;
 pub use images::*;
+pub use mounts::{descend, tool_path};
 pub use shared::*;
 pub use source::*;
 #[cfg(not(target_os = "linux"))]

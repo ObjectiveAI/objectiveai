@@ -16,6 +16,7 @@ use super::deploy::deploy;
 use super::mounts::tool_path;
 use super::{Container, Error, Images, Shared, name_ok};
 use crate::host::Limit;
+use crate::host::image_manager::Store;
 use diverge_sdk::config::provider::containers::{Containers, Podman};
 use crate::host::tools::{mount, podman};
 use crate::host::volume_manager::VolumeManager;
@@ -35,6 +36,12 @@ pub struct ContainerDeployer {
     /// Where stored volumes are loop-mounted, `run/mounts/`, on this
     /// host.
     pub(super) mounts_dir: PathBuf,
+    /// Where a client image is saved on its way into the cache,
+    /// `run/loads/`, on this host.
+    pub(super) loads_dir: PathBuf,
+    /// The client image store, where a caller's own images are looked
+    /// for first; `None` where the configuration has none.
+    pub(super) store: Option<Arc<Store>>,
     /// The label every container of this provider carries,
     /// `diverge.provider=<dir>`, for the cleanup of an earlier life.
     pub(super) label: String,
@@ -53,7 +60,8 @@ impl ContainerDeployer {
     /// its image registry listens, `shares` the directories the
     /// volumes live in, which a podman machine must see beside `dir`
     /// and the executable's directory, and `disk` the
-    /// `container_overlay_disk` cap, which the volumes hold too. Made ready here: on Linux the
+    /// `container_overlay_disk` cap, which the volumes hold too, and
+    /// `store` the client image store, if there is one. Made ready here: on Linux the
     /// provider found to be root, and on the hosts with a machine the
     /// machine brought to what the configuration says, first, since
     /// everything after asks podman; the proxy
@@ -69,6 +77,7 @@ impl ContainerDeployer {
         registry: SocketAddr,
         shares: Vec<PathBuf>,
         disk: Arc<Limit>,
+        store: Option<Arc<Store>>,
     ) -> Result<Self, Error> {
         let proxy = proxy_beside_executable()?;
         #[cfg(target_os = "linux")]
@@ -89,6 +98,8 @@ impl ContainerDeployer {
         let run_dir = dir.join("run");
         let mounts_dir = run_dir.join("mounts");
         tokio::fs::create_dir_all(&mounts_dir).await?;
+        let loads_dir = run_dir.join("loads");
+        tokio::fs::create_dir_all(&loads_dir).await?;
         let auth_file = run_dir.join("auth.json");
         let (proxy_path, (), ()) = future::try_join3(
             proxy_present(&proxy),
@@ -110,6 +121,8 @@ impl ContainerDeployer {
             proxy_path,
             auth_file,
             mounts_dir,
+            loads_dir,
+            store,
             label,
             volumes,
             #[cfg(not(target_os = "linux"))]
@@ -131,6 +144,17 @@ impl ContainerDeployer {
     /// and every look into a registry is given.
     pub fn auth_file(&self) -> &Path {
         &self.auth_file
+    }
+
+    /// Where stored volumes are loop-mounted, `run/mounts/`: what a
+    /// build attaches its context volume under, as a run does.
+    pub fn mounts_dir(&self) -> &Path {
+        &self.mounts_dir
+    }
+
+    /// Whether a container runs the image with `id` now.
+    pub async fn running_image(&self, id: &str) -> bool {
+        self.shared.images.running(id).await
     }
 
     /// The port podman reaches the provider's registry at: the
@@ -157,7 +181,7 @@ impl container_deployer::ContainerDeployer for ContainerDeployer {
     /// and the container run.
     async fn deploy(
         &self,
-        _client_identity: &str,
+        client_identity: &str,
         deployment: &Deployment,
         image: &Image,
         caller: &Caller,
@@ -165,7 +189,7 @@ impl container_deployer::ContainerDeployer for ContainerDeployer {
         if let Some(reference) = image.references.iter().find(|reference| !name_ok(&reference.name)) {
             return Err(Error::Name(reference.name.clone()));
         }
-        deploy(self, deployment, image, caller).await
+        deploy(self, client_identity, deployment, image, caller).await
     }
 }
 

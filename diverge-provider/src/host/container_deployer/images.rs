@@ -149,6 +149,13 @@ impl Images {
         Ok(())
     }
 
+    /// Whether a container runs the image with `id` now, as far as
+    /// the provider recorded: what a delete of a client image asks
+    /// of its copy in the cache.
+    pub async fn running(&self, id: &str) -> bool {
+        self.state.lock().await.running.get(id).is_some_and(|count| *count > 0)
+    }
+
     /// An image with `id` is running one container fewer.
     pub async fn ended(&self, id: &str) {
         if let Some(count) = self.state.lock().await.running.get_mut(id) {

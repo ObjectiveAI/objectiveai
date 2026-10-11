@@ -22,7 +22,7 @@ use diverge_sdk::config::provider::volumes::Volumes;
 use super::{Error, Peers};
 use crate::host::container_deployer::ContainerDeployer;
 use crate::host::image_checker::ImageChecker;
-use crate::host::image_manager::ImageManager;
+use crate::host::image_manager::{ImageManager, Store};
 use crate::host::image_registry::ImageRegistry;
 use crate::host::oci_store::OciStore;
 use crate::host::tools::podman;
@@ -49,7 +49,7 @@ pub struct Provider {
     volumes: Arc<VolumeManager>,
     /// The image checker.
     checker: Arc<ImageChecker>,
-    /// The image store, which refuses everything until it exists.
+    /// The client image store's manager.
     images: Arc<ImageManager>,
     /// What is held of an image for a caller, which is nothing until
     /// the store exists.
@@ -81,29 +81,39 @@ impl Provider {
     /// volumes; the deployer, which
     /// brings the machine up, sweeps an earlier life away, writes the
     /// auth file and opens the tunnel; the image checker, given that
-    /// auth file; and the directory.
+    /// auth file; the image manager, given the deployer; and the
+    /// directory. The client image store, where the configuration
+    /// names one, is made before the deployer and handed to it, the
+    /// checker and the manager.
     pub async fn start(config: Config, dir: PathBuf) -> Result<Self, Error> {
         ready(&config, &dir).await?;
         podman::configure(config.containers.podman.storage_path.clone());
         let hooks_dir = dir.join("hooks");
         let registry = Arc::new(ImageRegistry::start().await.map_err(Error::Registry)?);
-        let shares = config.volumes.as_ref().map(Volumes::paths).unwrap_or_default();
+        let mut shares = config.volumes.as_ref().map(Volumes::paths).unwrap_or_default();
+        let store = config.images.as_ref().map(|images| {
+            shares.push(images.path.clone());
+            Arc::new(Store::new(images))
+        });
         let disk = Arc::new(Limit::new(config.containers.podman.container_overlay_disk));
         let scratch = Scratch::new(config.containers.podman.storage_path.join("ephemeral"), Arc::clone(&disk));
         scratch.sweep().await.map_err(Error::Scratch)?;
         let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone(), scratch));
         let registries = config.containers.podman.registries.clone();
-        let deployer = ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares, disk)
-            .await
-            .map_err(Error::Deployer)?;
-        let checker = Arc::new(ImageChecker::new(&registries, deployer.auth_file().to_path_buf()));
+        let deployer = Arc::new(
+            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares, disk, store.clone())
+                .await
+                .map_err(Error::Deployer)?,
+        );
+        let checker = Arc::new(ImageChecker::new(store.clone(), &registries, deployer.auth_file().to_path_buf()));
+        let images = Arc::new(ImageManager::new(store, Arc::clone(&volumes), Arc::clone(&deployer)));
         Ok(Provider {
             auth: config.auth,
             hooks_dir,
-            deployer: Arc::new(deployer),
+            deployer,
             volumes,
             checker,
-            images: Arc::new(ImageManager),
+            images,
             oci: Arc::new(OciStore),
             registry,
             directory: Arc::new(Directory::new()),
@@ -160,15 +170,28 @@ impl Provider {
 
 /// The provider's disk, as its block names it: `dir` with `hooks/`
 /// and `run/` inside it, `storage_path` and every store made if
-/// absent; a fixed volume whose path is not an existing directory
-/// refused, since a fixed volume is content the operator already has;
-/// a store whose capacity is `0` refused; a fixed volume whose name
-/// is not one a volume may have, or is another fixed volume's,
-/// refused. What the file said is the SDK's to read; what it names
+/// absent, the client image store's directory with its `root/` and
+/// `meta/` made if absent and its `run/builds/` swept; a fixed
+/// volume whose path is not an existing directory refused, since a
+/// fixed volume is content the operator already has; a store whose
+/// capacity is `0` refused, and the image store's likewise; a fixed
+/// volume whose name is not one a volume may have, or is another
+/// fixed volume's, refused. What the file said is the SDK's to read; what it names
 /// here is the provider's to check.
 async fn ready(config: &Config, dir: &Path) -> Result<(), Error> {
     for made in [dir.join("hooks"), dir.join("run"), config.containers.podman.storage_path.clone()] {
         tokio::fs::create_dir_all(&made).await.map_err(|source| Error::Directory(made, source))?;
+    }
+    let builds = dir.join("run").join("builds");
+    let _ = tokio::fs::remove_dir_all(&builds).await;
+    tokio::fs::create_dir_all(&builds).await.map_err(|source| Error::Directory(builds, source))?;
+    if let Some(images) = &config.images {
+        if images.capacity == 0 {
+            return Err(Error::ImageCapacity(images.path.clone()));
+        }
+        for made in [images.path.join("root"), images.path.join("meta")] {
+            tokio::fs::create_dir_all(&made).await.map_err(|source| Error::Directory(made, source))?;
+        }
     }
     let Some(volumes) = &config.volumes else {
         return Ok(());

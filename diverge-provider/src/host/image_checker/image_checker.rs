@@ -1,6 +1,7 @@
 //! The checker.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use diverge_sdk::provider::endpoints::images::check::server::response::{Available, Response, Unavailable};
 use crate::protocol::image_checker;
@@ -11,12 +12,16 @@ use diverge_sdk::config::provider::containers::Registry;
 use diverge_sdk::provider::endpoints::images::check::client::request::Sources;
 use diverge_sdk::shared::containers::request::Image;
 use crate::host::container_deployer::name_ok;
+use crate::host::image_manager::Store;
 use crate::host::tools::podman;
 
-/// The provider's image checker: the store, then the referenced
-/// registries the configuration lists, asked.
+/// The provider's image checker: the caller's own images, the cache,
+/// then the referenced registries the configuration lists, asked.
 #[derive(Debug)]
 pub struct ImageChecker {
+    /// The client image store, where the caller's own images are;
+    /// `None` where the configuration has none.
+    store: Option<Arc<Store>>,
     /// The hosts of the configured registries, in the configuration's
     /// order: those a reference may name.
     registries: Vec<String>,
@@ -26,11 +31,13 @@ pub struct ImageChecker {
 }
 
 impl ImageChecker {
-    /// A checker over the `containers` section's `podman.registries`,
-    /// with the auth file the deployer writes for podman, which every
-    /// look into a registry is given.
-    pub fn new(registries: &[Registry], auth_file: PathBuf) -> Self {
+    /// A checker over the client image store, if there is one, and
+    /// the `containers` section's `podman.registries`, with the auth
+    /// file the deployer writes for podman, which every look into a
+    /// registry is given.
+    pub fn new(store: Option<Arc<Store>>, registries: &[Registry], auth_file: PathBuf) -> Self {
         ImageChecker {
+            store,
             registries: registries.iter().map(|registry| registry.host.clone()).collect(),
             auth_file,
         }
@@ -40,10 +47,11 @@ impl ImageChecker {
 impl image_checker::ImageChecker for ImageChecker {
     type Error = Error;
 
-    /// Looked where `sources` says, local first. `client` is never
-    /// available: the store of what a caller built does not exist on
-    /// this provider yet, so nothing is held for anyone. `server` is
-    /// the store, by digest alone. Either having the image ends it.
+    /// Looked where `sources` says, local first. `client` is the
+    /// caller's own images in the client image store, by digest, and
+    /// never another identity's; with no store, never available.
+    /// `server` is the cache, by digest alone, a copy of a client
+    /// image passed over. Either having the image ends it.
     /// `registries`, asked only when neither local source asked had
     /// it: every reference's name checked as a repository path, then
     /// every referenced registry the configuration lists asked at
@@ -52,10 +60,15 @@ impl image_checker::ImageChecker for ImageChecker {
     /// and no source with the image — is unavailable; a podman that
     /// could not be started, with no yes beside it, is the failure to
     /// answer.
-    async fn check(&self, _client_identity: &str, image: &Image, sources: &Sources) -> Result<Response, Error> {
+    async fn check(&self, client_identity: &str, image: &Image, sources: &Sources) -> Result<Response, Error> {
         let named = image.references.iter().find(|reference| !name_ok(&reference.name));
         if let (true, Some(reference)) = (sources.registries, named) {
             return Err(Error::Name(reference.name.clone()));
+        }
+        if let (true, Some(store)) = (sources.client, &self.store) {
+            if store.find_digest(client_identity, &image.digest).await.is_some() {
+                return Ok(Response::Available(Available::default()));
+            }
         }
         if sources.server && podman::image_by_digest(&image.digest).await.map_err(Error::Podman)?.is_some() {
             return Ok(Response::Available(Available::default()));

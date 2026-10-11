@@ -2,6 +2,7 @@
 //! caps, then the image and the mounts beside each other, then the
 //! run.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
@@ -14,10 +15,11 @@ use tokio::process::Child;
 use tokio::sync::{Mutex, OnceCell};
 use tokio::time::{Duration, sleep};
 
-use super::mounts::{Bound, bind, release};
+use super::mounts::{Bound, bind, release, tool_path};
 use super::source::find;
 use super::{Container, ContainerDeployer, Error, Source};
 use crate::host::Held;
+use crate::host::image_manager::Store;
 use crate::host::tools::{capture, podman, start};
 use diverge_sdk::shared::containers::request::Image;
 
@@ -34,6 +36,7 @@ const PROXY_INSIDE: &str = "/.diverge/diverge-container-proxy";
 /// any step after it.
 pub(super) async fn deploy(
     deployer: &ContainerDeployer,
+    client_identity: &str,
     deployment: &Deployment,
     image: &Image,
     caller: &Caller,
@@ -45,7 +48,7 @@ pub(super) async fn deploy(
         return Err(Error::Memory);
     };
     // A failure past here drops both, which gives both back.
-    after_limits(deployer, deployment, image, caller, (disk, memory)).await
+    after_limits(deployer, client_identity, deployment, image, caller, (disk, memory)).await
 }
 
 /// The steps once the caps are taken: the image and the mounts, both
@@ -54,13 +57,14 @@ pub(super) async fn deploy(
 /// made, the run; either failing undoes the other.
 async fn after_limits(
     deployer: &ContainerDeployer,
+    client_identity: &str,
     deployment: &Deployment,
     image: &Image,
     caller: &Caller,
     caps: (Held, Held),
 ) -> Result<Container, Error> {
     let (image, bound) = future::join(
-        obtain(deployer, image, caller),
+        obtain(deployer, client_identity, image, caller),
         bind(deployer, &deployment.mounts),
     )
     .await;
@@ -95,23 +99,72 @@ async fn after_limits(
     }
 }
 
-/// The image obtained: in the store, found by digest under any name
-/// or none, run as its id with nothing pulled and nobody asked; else
-/// wherever of every referenced registry the configuration lists and
-/// the caller first answers that it holds it, pulled from there,
-/// which answers the id. Either way counted in the cache. The source
-/// and the id.
-async fn obtain(deployer: &ContainerDeployer, image: &Image, caller: &Caller) -> Result<(Source, String), Error> {
-    let (source, id) = match podman::image_by_digest(&image.digest).await.map_err(Error::Podman)? {
+/// The image obtained: the caller's own, from the client image store,
+/// its copy in the cache loaded if the cache has none, run as its id;
+/// else in the cache, found by digest under any name or none, run as
+/// its id with nothing pulled and nobody asked; else wherever of
+/// every referenced registry the configuration lists and the caller
+/// first answers that it holds it, pulled from there, which answers
+/// the id. Every way counted in the cache. The source and the id.
+async fn obtain(deployer: &ContainerDeployer, client_identity: &str, image: &Image, caller: &Caller) -> Result<(Source, String), Error> {
+    let (source, id) = match own(deployer, client_identity, &image.digest).await? {
         Some(id) => (Source::Local(id.clone()), id),
-        None => {
-            let source = find(deployer, image, caller).await?;
-            let id = pull(deployer, &source).await?;
-            (source, id)
-        }
+        None => match podman::image_by_digest(&image.digest).await.map_err(Error::Podman)? {
+            Some(id) => (Source::Local(id.clone()), id),
+            None => {
+                let source = find(deployer, image, caller).await?;
+                let id = pull(deployer, &source).await?;
+                (source, id)
+            }
+        },
     };
     deployer.shared.images.starting(&id).await?;
     Ok((source, id))
+}
+
+/// The caller's own image under `digest`, as the cache holds a copy
+/// of it: the copy's id, loaded now when the cache has none — saved
+/// from the store's root as an OCI archive under `run/loads/` and
+/// loaded under the same `localhost/diverge/` name, the cache told a
+/// pull is in flight meanwhile, the archive removed after. `None`
+/// where there is no store, or the caller built no image of that
+/// digest.
+async fn own(deployer: &ContainerDeployer, client_identity: &str, digest: &str) -> Result<Option<String>, Error> {
+    let Some(store) = &deployer.store else {
+        return Ok(None);
+    };
+    let Some((name, _)) = store.find_digest(client_identity, digest).await else {
+        return Ok(None);
+    };
+    let tag = store.tag(client_identity, &name);
+    if let Ok(id) = podman::image_id(&tag).await {
+        return Ok(Some(id));
+    }
+    let archive = deployer.loads_dir.join(format!("{}.tar", uuid::Uuid::new_v4()));
+    deployer.shared.images.pull_begins().await;
+    let loaded = load(store, &tag, &archive).await;
+    deployer.shared.images.pull_ends(loaded.as_deref().ok()).await;
+    let _ = tokio::fs::remove_file(&archive).await;
+    loaded.map(Some)
+}
+
+/// The client image under `tag` copied from the store's root into
+/// the cache through `archive`: `podman save` there, `podman load`
+/// here, and the copy's id.
+async fn load(store: &Store, tag: &str, archive: &Path) -> Result<String, Error> {
+    let saved = tool_path(archive);
+    podman::podman_in(store.root(), ["save", "--format", "oci-archive", "--output", &saved, tag])
+        .await
+        .map_err(Error::Podman)?
+        .require("podman", |status| status.success())
+        .map_err(Error::Podman)?;
+    let input = archive.to_string_lossy().into_owned();
+    podman::podman(["load", "--quiet", "--input", &input])
+        .await
+        .map_err(Error::Podman)?
+        .require("podman", |status| status.success())
+        .map_err(Error::Podman)?;
+    podman::image_id(tag).await.map_err(Error::Podman)
 }
 
 /// The steps once the image is in the store and counted: the
