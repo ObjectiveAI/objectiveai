@@ -17,8 +17,8 @@ use crate::daemon::Daemon;
 /// `None`.
 ///
 /// Every connected provider but `asker` — the one asking, which has
-/// looked already — is asked an `images::check` at once, for its
-/// caller's own images and its own, and the first to answer
+/// looked already — is asked an `images::check` at once, for the
+/// daemon's own images there and nothing else, and the first to answer
 /// available is the answer. The rest are not waited for: the asks go
 /// on in a task of their own, and every provider that answers
 /// available after is remembered beside the first, so a pull that
@@ -60,10 +60,12 @@ pub async fn locate(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Opt
     hits.recv().await
 }
 
-/// Whether the provider on `handle` answers available for the digest,
-/// among its caller's own images and its own, and never the
-/// registries: a check that asked a registry would be asking the
-/// provider to pull, and a pull is the asking provider's own to do.
+/// Whether the provider on `handle` answers available for the digest
+/// among the daemon's own images there — the only images a pull from
+/// it can deliver, byte for byte, as it fixed them at their build —
+/// and never its own cache nor the registries: an image it merely
+/// pulled it cannot re-serve under the digest, and a registry is the
+/// asking provider's own to pull from.
 async fn holds(handle: &Handle, digest: &str) -> bool {
     let frame = request::Frame {
         image: Image {
@@ -72,7 +74,7 @@ async fn holds(handle: &Handle, digest: &str) -> bool {
         },
         sources: request::Sources {
             client: true,
-            server: true,
+            server: false,
             registries: false,
         },
     };
