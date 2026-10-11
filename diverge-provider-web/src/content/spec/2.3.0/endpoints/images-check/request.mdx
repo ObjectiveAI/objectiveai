@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 14 followed by a JSON object that names the image by manifest digest and by zero or more references, each a registry host and a repository path.'
+summary: 'The payload is the tag byte 14 followed by a JSON object that names the image by manifest digest and by zero or more references, and states which of the three sources the server is to look in.'
 order: 1
 draft: false
 ---
@@ -26,6 +26,15 @@ JSON, running to the end of the payload:
   its own policy lists that registry, and ignores a reference naming
   one it does not. A reference whose `name` is not a repository path
   is answered with the error.
+- **`client`.** A boolean: whether the server is to look among the
+  images the client built on it. Absent is `false`.
+- **`server`.** A boolean: whether the server is to look among the
+  images it holds on its own account. Absent is `false`.
+- **`registries`.** A boolean: whether the server is to ask the
+  referenced registries its policy lists. Absent is `false`.
+- **At least one.** A request in which none of `client`, `server` and
+  `registries` is `true` is answered with the byte `2` alone, and
+  the server looks nowhere.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is not `14`, and a payload whose bytes after the tag do not parse as
   the request are malformed. [Endpoints](/endpoints/) states how a

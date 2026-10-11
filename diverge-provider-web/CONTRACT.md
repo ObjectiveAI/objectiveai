@@ -433,16 +433,22 @@ string, and shall not send an error on this Endpoint.
 ### 5.6 `images::check` (tag 14)
 
 The Provider shall answer every `images::check` request with exactly
-one Response and the Response Finish: the byte `0` followed by exactly
-`{"type":"available"}` when, at the time of the answer, the Provider
-could obtain the image the digest names without the Client's help —
-from what it holds, from a referenced registry its policy lists, or
-from a source of its own — for a container request naming it; the byte `0` followed by exactly `{"type":"unavailable"}` when
-it would not; or the byte `1` followed by an error when it did not
-determine the answer. An available answer reserves nothing. A Client
-Image of the Identity is an image the Provider holds; a Client Image
-of another Identity is not, and the Provider shall not answer
-available on account of it.
+one Response and the Response Finish: the byte `2` alone when the
+request asks for none of the sources `client`, `server` and
+`registries`, and then the Provider shall look nowhere; otherwise the
+byte `0` followed by exactly `{"type":"available"}` when, at the
+time of the answer, at least one source the request asks for has the
+image the digest names — `client` being the Client Images of the
+Identity and no other Identity's, `server` the images the Provider
+holds on its own account, and `registries` the referenced registries
+the Provider's policy lists, asked by each reference's name — for a
+container request naming it; the byte `0` followed by exactly
+`{"type":"unavailable"}` when no source asked has it; or the byte `1`
+followed by an error when it did not determine the answer. The
+Provider shall not answer available on account of a source the
+request did not ask for, and shall not answer available on account of
+a Client Image of another Identity. An available answer reserves
+nothing.
 
 ### 5.7 Volumes
 
