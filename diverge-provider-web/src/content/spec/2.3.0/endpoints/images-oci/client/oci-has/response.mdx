@@ -1,0 +1,33 @@
+---
+title: 'Response'
+summary: 'The server answers with exactly one channel response, the byte 0, or the byte 1 followed by the repository path it holds the image under, and the channel response finish; a finish with nothing before it states that it does not hold the image for the client.'
+order: 2
+draft: false
+---
+
+```text
+[1][name: utf8 …]      once: the server holds the image for the client, under that repository path
+[0]                    once: it does not
+```
+
+- **The sequence.** Exactly one channel response, followed by the
+  channel response finish. A channel response finish that no channel
+  response precedes states that the server does not hold the image
+  for the client.
+- **The frame.** The byte `0` and nothing after it: the server does
+  not hold the image for the client. The byte `1` followed by one or
+  more bytes of UTF-8: the server holds the image the digest names
+  for the client, and the bytes are the repository path it holds it
+  under, with no host and no tag. A frame whose first byte is
+  neither, a frame of the byte `0` followed by anything, a frame of
+  the byte `1` followed by nothing, and a frame whose bytes after `1`
+  are not UTF-8 are malformed.
+- **What follows.** A client that was answered `1` may ask for the
+  manifest and blobs of the image on
+  [oci-manifest](/endpoints/images-oci/client/oci-manifest/) and
+  [oci-blob](/endpoints/images-oci/client/oci-blob/) channels.
+
+The channel response is defined by `diverge-sdk-rs/src/shared/containers/oci/has/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/has/response/frame.rs
+```

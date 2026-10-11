@@ -1,0 +1,20 @@
+---
+title: 'OCI manifest'
+summary: 'Tag 0: the client asks the server for the manifest of an image the server holds for it, by digest; the server answers with at most one channel response, the media type and the bytes, and the channel response finish; a finish with nothing before it states that the server does not hold the digest for the client.'
+order: 0
+draft: false
+---
+
+The client opens this channel to pull a manifest the server holds for
+it: the manifest the digest names, including the manifest of a
+platform an index names.
+
+- **The request.** The tag byte `0` followed by the digest as JSON.
+  [Request](/endpoints/images-oci/client/oci-manifest/request/) states its form.
+- **The response.** At most one channel response, the media type and
+  the manifest verbatim, and the channel response finish.
+  [Response](/endpoints/images-oci/client/oci-manifest/response/) states the sequence.
+- **Held for the client.** The server answers the manifest only of
+  an image it holds for the client, as [images::oci](/endpoints/images-oci/)
+  states. A digest it does not hold for the client is answered with
+  the channel response finish and nothing before it.

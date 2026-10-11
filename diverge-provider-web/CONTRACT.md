@@ -63,7 +63,7 @@ Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
 the WebSocket transport, the nine-byte frame header and seven frame
-types, the authorization handshake, the twenty-two endpoints and their
+types, the authorization handshake, the twenty-three endpoints and their
 channels, and the payload forms the Specification states for each.
 
 1.4 **"Server"** means the party that, on one WebSocket connection,
@@ -94,7 +94,7 @@ Specification's Frames layer gives them. **"Bare Finish"** means a
 Response Finish that no Response precedes, or a Channel Response
 Finish that no Channel Response precedes.
 
-1.9 **"Endpoint"** means one of the twenty-two scope-opening requests
+1.9 **"Endpoint"** means one of the twenty-three scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `containers::serve`, `3` `volumes::list`, `4` `volumes::stat`, `5`
@@ -103,7 +103,8 @@ byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `volumes::create`, `11` `volumes::edit_capacity`, `12` `volumes::edit`,
 `13` `volumes::delete`, `14` `images::check`, `15` `images::list`,
 `16` `images::stat`, `17` `images::build`, `18` `images::delete`,
-`19` `version`, `20` `daemons::accept`, `21` `daemons::connect`.
+`19` `images::oci`, `20` `version`, `21` `daemons::accept`, `22`
+`daemons::connect`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
 a container request by a manifest digest and by zero or more
@@ -422,7 +423,7 @@ byte the Specification does not require.
 that follow a request, the Provider shall ignore them and shall not
 treat the request as malformed on their account.
 
-### 5.5 `version` (tag 19)
+### 5.5 `version` (tag 20)
 
 The Provider shall answer every `version` request with exactly one
 Response whose payload is the string `2.3.0` encoded as UTF-8 with no
@@ -736,6 +737,29 @@ what the Provider holds under Section 5.9(b) — and shall not supply
 a Client Image to any other Identity under either Section, unless
 that Identity has itself built an image of the same digest.
 
+(f) **Pull.** The Provider shall serve every `images::oci` request
+as a Scope kept open on which it sends no Response, and shall answer
+every Channel the Identity opens on it from what it holds for the
+Identity — the Client Images of the Identity and the images the
+Provider holds on its own account, and no Client Image of another
+Identity: an `oci-has` Channel by exactly one Channel Response, the
+byte `1` followed by a repository path for an image it holds for the
+Identity and the byte `0` otherwise, and the Channel Response Finish;
+an `oci-manifest` Channel by at most one Channel Response, the media
+type and the manifest the digest names verbatim, and the Channel
+Response Finish, the Finish alone for a digest it does not hold for
+the Identity; an `oci-blob` Channel by the blob the digest names in
+zero or more Channel Responses, each a piece in order, and the
+Channel Response Finish, the Finish alone for a digest it does not
+hold for the Identity; and a `disconnect` Channel by nothing on that
+Channel. The Provider shall obtain nothing for a pull. It shall
+answer a Channel Request that does not decode by a Bare Finish. It
+shall end the Scope by the Response Finish, after the last answer of
+every Channel still open, when it receives the Identity's
+`disconnect` and when the Identity's Connection ends, and shall send
+the Response Finish with no Response before it, serving no Channel,
+for a pull it will not serve.
+
 ### 5.9 Container Deployment — `containers::agents::run` (tag 0) and `containers::tools::run` (tag 1)
 
 For every container run request the Provider accepts, the Provider
@@ -998,7 +1022,7 @@ of serve Scopes of one Container at once, shall hold no Volume and no
 mount on account of a serve, shall time nothing out, and shall send
 nothing on the main stream of a serve Scope after the byte `0`.
 
-### 5.12 Daemon connections — `daemons::accept` (tag 20) and `daemons::connect` (tag 21)
+### 5.12 Daemon connections — `daemons::accept` (tag 21) and `daemons::connect` (tag 22)
 
 (a) For every accept request, the Provider shall, in order: read the
 request and answer a payload that does not decode by a Bare Finish;

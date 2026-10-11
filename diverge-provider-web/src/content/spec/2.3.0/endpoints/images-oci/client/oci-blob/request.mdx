@@ -1,0 +1,25 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the client sends: the tag byte 1 and the ask.'
+order: 1
+draft: false
+---
+
+```text
+[1][request JSON …]
+```
+
+- **`digest`.** The blob digest, `<algorithm>:<hex>`.
+- **Malformed.** A channel request whose payload does not decode as
+  stated is answered by a channel response finish that no channel
+  response precedes.
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/images/oci/client/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/oci/client/channel_request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/oci/blob/request/request.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/blob/request/request.rs
+```

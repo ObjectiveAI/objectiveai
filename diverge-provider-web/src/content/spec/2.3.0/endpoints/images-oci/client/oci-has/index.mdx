@@ -1,0 +1,20 @@
+---
+title: 'OCI has'
+summary: 'Tag 2: the client asks the server whether it holds an image for the client, by digest; the server answers with exactly one channel response, the byte 0, or the byte 1 followed by a repository path, and the channel response finish; a finish that no response precedes states that the server does not hold it for the client.'
+order: 2
+draft: false
+---
+
+The client opens this channel to ask whether the server holds an
+image for it, before it asks for anything of the image.
+
+- **The request.** The tag byte `2` followed by the digest as JSON.
+  [Request](/endpoints/images-oci/client/oci-has/request/) states its form.
+- **The response.** Exactly one channel response, the byte `0`, or
+  the byte `1` followed by the repository path the server holds the
+  image under, and the channel response finish.
+  [Response](/endpoints/images-oci/client/oci-has/response/) states the sequence.
+- **Held for the client.** The server answers `1` only for an image
+  it holds for the client, as [images::oci](/endpoints/images-oci/)
+  states: an image the client built on it, or one it holds on its own
+  account. An image another client built is answered `0`.

@@ -1,6 +1,6 @@
 ---
 title: 'Endpoints'
-summary: 'A request’s payload begins with one tag byte designating the endpoint; twenty-two endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
+summary: 'A request’s payload begins with one tag byte designating the endpoint; twenty-three endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
 order: 6
 draft: false
 ---
@@ -31,9 +31,10 @@ endpoint's request content, in the form the endpoint defines.
 | `16` | [images::stat](/endpoints/images-stat/) |
 | `17` | [images::build](/endpoints/images-build/) |
 | `18` | [images::delete](/endpoints/images-delete/) |
-| `19` | [version](/endpoints/version/) |
-| `20` | [daemons::accept](/endpoints/daemons-accept/) |
-| `21` | [daemons::connect](/endpoints/daemons-connect/) |
+| `19` | [images::oci](/endpoints/images-oci/) |
+| `20` | [version](/endpoints/version/) |
+| `21` | [daemons::accept](/endpoints/daemons-accept/) |
+| `22` | [daemons::connect](/endpoints/daemons-connect/) |
 
 The tag values are normative as tabulated. Each endpoint has its own
 section. Every section of this layer states requirements of the

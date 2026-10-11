@@ -1,0 +1,24 @@
+---
+title: 'Response'
+summary: 'The server sends no response on the scope; the response finish follows the last answer when the client disconnects or its connection ends, and a response finish the client did not ask for states that the scope is not served.'
+order: 2
+draft: false
+---
+
+The server sends no response on the scope. Every answer comes on the
+channel of the ask it answers.
+
+```text
+(nothing)      the main stream carries no response
+```
+
+- **The sequence.** No response. The response finish follows the
+  last answer of every channel still open when the server receives
+  the client's [disconnect](/endpoints/images-oci/client/disconnect/)
+  or the client's connection ends; no frame follows the finish.
+- **Not served.** A response finish that the client did not ask for
+  by a disconnect states that the server will not serve the pull, as
+  [Endpoints](/endpoints/) provides for a request not served. The
+  server serves no channel after it.
+- **Malformed.** A response on the main stream of a pull scope is
+  malformed; a client ignores it.

@@ -1,12 +1,12 @@
 ---
 title: 'daemons::accept'
-summary: 'Tag 20: a client, the acceptor, offers to take daemon connections under its identity; the server answers the identity once and, for as long as the scope lives, announces each connection a daemon connector opens as a pair of channels, relaying every frame of it unread.'
-order: 20
+summary: 'Tag 21: a client, the acceptor, offers to take daemon connections under its identity; the server answers the identity once and, for as long as the scope lives, announces each connection a daemon connector opens as a pair of channels, relaying every frame of it unread.'
+order: 21
 draft: false
 ---
 
 A client, the acceptor, opens the scope with a request whose payload
-is the tag byte `20` and nothing more. The server sends exactly one
+is the tag byte `21` and nothing more. The server sends exactly one
 response: the identity of the connection, under which the acceptor
 takes daemon connections from then on, or an error when another
 scope accepts under that identity already. For as long as the scope
