@@ -72,7 +72,7 @@ pub enum Frame {
     ///
     /// Neither an answer nor a failure: the question was empty. A
     /// caller that wanted an answer asks again with at least one of
-    /// the three sources set.
+    /// the two sources set.
     NoSource,
 }
 
