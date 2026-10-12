@@ -31,16 +31,32 @@ whether the run goes on.
   error, and the channel response finish.
   [Response](/endpoints/containers-agents-run/server/dependencies/response/) states the sequence.
 - **Verbatim.** The server relays the list as the proxy sent it and
-  reads none of it: not the mounts, not the database word, not the
-  permissions.
+  reads none of it: not the kind, not the scope, not the mounts, not
+  the permissions.
+- **Two kinds.** A template's `type` is `transient` or `service`. A
+  transient tool is deployed for the one run of the one agent that
+  declared it and stopped with that run; its database scope is that
+  agent's alone; it alone may name the agent's files and directories
+  as mounts. A service is made once, under the scope key its `scope`
+  names — the agent, the agent's template, or the template alone —
+  and kept by the client from then on, started again whenever its
+  container ends and at every start of the client's, for as long as
+  any agent is attached to it: an agent is attached by a
+  registration that declares the template and detached by one that
+  no longer does, and a service no agent is attached to is retired
+  by the client after its idle time. A service names no mount, and
+  its database scope is shared as far as its scope says.
 - **What the client does.** The client runs each dependency as a
   [containers::tools::run](/endpoints/containers-tools-run/) from
-  the template's `image`, `memory`, `disk` and `arguments`; serves
-  the agent container's paths the template's mounts name into the
-  tool container live, as [containers::serve](/endpoints/containers-serve/)
+  the template's `image`, `memory`, `disk` and `arguments`, with the
+  template's id as the run's `template`; serves, for a transient
+  tool, the agent container's paths the template's mounts name into
+  the tool container live, as [containers::serve](/endpoints/containers-serve/)
   serves them and a FUSE mount of the tools run mounts them; gives
-  the tool the database the template's `database` names and an
-  account holding the template's `permissions`; and serves the tool
-  to the container under the template's id among the MCP servers
-  the client answers the container's tool calls with. A tool
-  container declares no dependencies of its own.
+  the tool the database scope its kind names and an account holding
+  the template's `permissions`, within which the word `self` reaches
+  the agent a transient tool was deployed for and every agent
+  attached to a service; and serves the tool to the container under
+  the template's id among the MCP servers the client answers the
+  container's tool calls with. A tool container declares no
+  dependencies of its own, and makes no tool call outward.

@@ -839,8 +839,8 @@ Deployment is the run's error.
 (d) **Connect to the Proxy.** The Provider shall open exactly one
 WebSocket connection to TCP port 14979 of the Container and, on it
 before any other Scope, the begin Scope of the Container's family,
-carrying the request's `arguments` verbatim, and shall await its
-answer. A Proxy that does not accept the
+carrying the request's `arguments` and `template` verbatim, and
+shall await its answer. A Proxy that does not accept the
 connection, or that answers the begin Scope with an error, is a
 Container that did not come up: the Provider shall stop the Container
 and treat the failure as the run's error. The Provider shall open no
@@ -875,10 +875,11 @@ Channel the Client opened before the id was sent only after the id is
 sent, in the order the Channels were opened, and shall neither refuse
 nor read such a Channel before the last FUSE Mount is complete.
 
-(g) **Carry the arguments.** The Provider shall carry the request's
-`arguments` verbatim in the begin Scope's request, and in nothing
-else. A begin the Proxy answers with an error is the run's error, and
-the Provider shall stop the Container.
+(g) **Carry the arguments and the template.** The Provider shall
+carry the request's `arguments` and `template` verbatim in the begin
+Scope's request, and in nothing else, and shall read the `template`
+for nothing. A begin the Proxy answers with an error is the run's
+error, and the Provider shall stop the Container.
 
 (h) **Deploy the dependencies.** On a `containers::agents::run`
 Scope, the Provider shall choose the id of (i) before this step and
@@ -889,7 +890,7 @@ When the Proxy's answer to the begin Scope carries one or more
 dependency tool templates, the Provider shall open exactly one
 `dependencies` Channel on the run Scope carrying the id and the
 templates verbatim — every template whole, its image, limits,
-arguments, database, mounts and permissions unread — before the id
+arguments, type, scope, mounts and permissions unread — before the id
 is sent and beside the FUSE Mounts, and shall read the Client's
 answer to its finish; the Provider shall treat the byte `1`, a Bare
 Finish, and a Client that is gone as the run's error and shall stop
@@ -1108,11 +1109,15 @@ Container Proxy Endpoints layers:
 that listens on TCP port 14979 and accepts one WebSocket connection
 there; that speaks the Protocol's own frames on it and sends no auth
 frame; that answers exactly one begin Scope per connection, holding the
-arguments it carries for the Container's life and answering, for an
-agent Container, with the dependency tool templates the program
-declared, unread, and, for a tool Container, with nothing; that sets nothing under `_meta` on any
-MCP exchange it relays, in either direction, or on any chunk of an
-agent's conversation, and alters nothing of them; that makes each
+arguments and the template id it carries for the Container's life
+and answering, for an agent Container, with the dependency tool
+templates the program declared, unread, and, for a tool Container,
+with nothing; that opens no daemon Channel for an agent Container
+and no MCP Channel outward for a tool Container, answering the
+program of either that it has no such thing; that sets nothing under
+`_meta` on any MCP exchange it relays, in either direction, or on
+any chunk of an agent's conversation, and alters nothing of them;
+that makes each
 mount
 Scope's mount before answering it and holds every mount for its life,
 asking for what the mount needs on channels of that Scope; that

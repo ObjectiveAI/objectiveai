@@ -74,7 +74,8 @@ about the client, which may open any channel at any time.
    the [Container Proxy](/container-proxy/) layer, and on it, before
    anything else, the begin scope of the container's family —
    [agents::begin](/container-proxy-endpoints/agents-begin/),
-   carrying the `arguments` of the request verbatim.
+   carrying the `arguments` and the `template` of the request
+   verbatim.
    A proxy that does not accept the connection, or that answers the
    begin with an error, is a container that did not come up: the
    server stops the container, and the failure is the run's error.

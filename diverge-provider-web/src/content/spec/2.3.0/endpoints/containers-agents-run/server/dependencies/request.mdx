@@ -17,27 +17,36 @@ draft: false
   answered while the channel is open.
 - **`dependencies`.** An array of dependency tool templates, in the
   order the program declared them. Each is an object of five members,
-  and three that may be absent: `image`, an object of `digest` and
-  `references` as the [request](/endpoints/containers-tools-run/request/)
-  of a tools run names one; `memory` and `disk`, limits in bytes as
-  that request states them; `arguments`, any JSON value, the
-  `arguments` of that request; `database`, the string
-  `per_agent_instance` or `per_agent_template`, which database scope
-  the client gives the tool — one of the tool's own under the agent
-  the dependency is deployed for, or one every tool of this
-  dependency under every agent made from the same agent template
-  shares; `fuse_file_mounts` and `fuse_directory_mounts`, arrays of
-  mounts, each an object of `agent_path` and `tool_path`, both arrays
-  of path components, a file or a directory of the agent container
-  the client serves live at a path of the tool container, absent when
-  empty; and `permissions`, an array of grants in the forms
+  the members of its kind, and one that may be absent: `image`, an
+  object of `digest` and `references` as the
+  [request](/endpoints/containers-tools-run/request/) of a tools run
+  names one; `memory` and `disk`, limits in bytes as that request
+  states them; `arguments`, any JSON value, the `arguments` of that
+  request; `type`, the string `transient` or `service`, which kind
+  of dependency it is, with that kind's own members flat beside it;
+  and `permissions`, an array of grants in the forms
   `shared::permission` defines — each one object with one member
   named for a kind, whose value is a bare array of making actions, an
   object of `actions` and `within`, or an object of `actions`,
   `within` and `tags`, where `within` is the string `any` or an
-  object of `all_tags` and `any_tags` and names nothing — absent when
-  empty. The volumes of a tools run are not here: the client chooses
-  them. The server relays every member and reads none.
+  object of `all_tags` and `any_tags` and names nothing, and, over
+  agents alone, may be the string `self`, the agents the dependency
+  is a dependency of — absent when empty. The volumes of a tools run
+  are not here: the client chooses them. The server relays every
+  member and reads none.
+- **A transient tool's members.** `fuse_file_mounts` and
+  `fuse_directory_mounts`, arrays of mounts, each an object of
+  `agent_path` and `tool_path`, both arrays of path components, a
+  file or a directory of the agent container the client serves live
+  at a path of the tool container, each absent when empty. A
+  transient tool's database scope is the agent's it is deployed for,
+  and the template says so by its kind alone.
+- **A service's members.** `scope`, the string `per_agent_instance`,
+  `per_agent_template` or `global`: how far the service is shared,
+  and its database scope with it — one service and one scope per
+  agent that declares it, one per agent template whose agents
+  declare it, or one for every agent that declares it, from whatever
+  template. A service names no mount.
 - **The id.** A template has no name. The client names a dependency
   by the template's id: the lowercase hexadecimal SHA-256 of the
   template as compact JSON with absent members omitted, the image's
@@ -71,9 +80,14 @@ and by `diverge-sdk-rs/src/shared/containers/dependencies/mount.rs`:
 ```rust include=diverge-sdk-rs/src/shared/containers/dependencies/mount.rs
 ```
 
-and by `diverge-sdk-rs/src/shared/containers/dependencies/database.rs`:
+and by `diverge-sdk-rs/src/shared/containers/dependencies/kind.rs`:
 
-```rust include=diverge-sdk-rs/src/shared/containers/dependencies/database.rs
+```rust include=diverge-sdk-rs/src/shared/containers/dependencies/kind.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/dependencies/scope.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/dependencies/scope.rs
 ```
 
 and by `diverge-sdk-rs/src/shared/permission/grant.rs`:
@@ -84,6 +98,12 @@ and by `diverge-sdk-rs/src/shared/permission/grant.rs`:
 and by `diverge-sdk-rs/src/shared/permission/within.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/permission/within.rs
+```
+
+and, for the grant over agents, by
+`diverge-sdk-rs/src/shared/permission/agents/within.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/permission/agents/within.rs
 ```
 
 and by `diverge-sdk-rs/src/shared/permission/tags.rs`:

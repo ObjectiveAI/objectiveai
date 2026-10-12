@@ -1,12 +1,13 @@
 ---
 title: 'agents::begin'
-summary: 'Tag 0: the client begins its work on an agent container, once, first, and hands over the arguments; the server answers Begun, carrying the dependencies the container declared, once the container holds them and, for the life of the connection, every chunk the agent says on the scope; every channel of the container’s life rides this scope.'
+summary: 'Tag 0: the client begins its work on an agent container, once, first, and hands over the arguments and the template id; the server answers Begun, carrying the dependencies the container declared, once the container holds them and, for the life of the connection, every chunk the agent says on the scope; every channel of the container’s life rides this scope.'
 order: 0
 draft: false
 ---
 
 The client opens the scope with a request whose payload is the tag
-byte `0` followed by the arguments as JSON. The server answers with
+byte `0` followed by the request as JSON: the arguments, and the id
+of the template the container is made from. The server answers with
 exactly one `Begun` response, carrying the dependencies the
 container declared, once the container holds its arguments, and after it
 sends every chunk of the agent's conversation as a response, for as
@@ -31,11 +32,11 @@ the server does. It states nothing about the client beyond the order
    as [Container Proxy Endpoints](/container-proxy-endpoints/) provides. A begin on a
    connection that has begun is answered by exactly one response, the
    error, and the finish; the first begin continues.
-2. **The server hands the arguments to the container.** The arguments
-   are held for the life of the container. A container that refuses
-   them is answered by exactly one response, the error in the
-   container's own words, and the finish; the connection has not
-   begun.
+2. **The server hands the arguments and the template id to the
+   container.** Both are held for the life of the container. A
+   container that refuses them is answered by exactly one response,
+   the error in the container's own words, and the finish; the
+   connection has not begun.
 3. **The server answers `Begun`.** Exactly once, and before any chunk,
    carrying the tools the container's program answered its
    registration with.
@@ -55,9 +56,12 @@ the server does. It states nothing about the client beyond the order
   connection.
 - **Both directions.** The server opens channels on this scope for
   everything the container asks of the world outside it — its
-  database connections, its daemon connection, its vault, its tool calls
-  outward — and the client opens channels on it for the schema, the
-  queue, and its half of each database connection.
+  database connections, its vault, its tool calls outward — and the
+  client opens channels on it for the schema, the queue, and its half
+  of each database connection.
+- **No daemon connection.** An agent container holds no account and
+  asks the daemon nothing: the server opens no daemon channel on
+  this scope, and the client opens none.
 - **No error on the stream after `Begun`.** After `Begun`, the server
   sends no error response on the scope. A loop that ends, however it
   ends, is not reported on the scope.

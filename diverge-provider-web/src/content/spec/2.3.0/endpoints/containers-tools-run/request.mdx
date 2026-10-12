@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 1 followed by the request as JSON: the image, the limits, the mounts and the arguments.'
+summary: 'The payload is the tag byte 1 followed by the request as JSON: the image, the template id, the limits, the mounts and the arguments.'
 order: 1
 draft: false
 ---
@@ -21,6 +21,12 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   request names no source beyond them: the server looks in what it
   holds first, asks the referenced registries its policy lists, and
   may take the image from the client.
+- **`template`.** A string: the id of the template the container is
+  made from, as the client names it — an agent template's, a tool
+  template's, or a dependency tool template's. The server carries it
+  verbatim in the begin scope's request beside `arguments`, so the
+  container's program is told which template it runs as, and reads
+  it for nothing else.
 - **`memory`, `disk`.** Limits in bytes: the memory the container may
   use, and the bytes the container may write to its own filesystem.
   Neither governs a mount.
