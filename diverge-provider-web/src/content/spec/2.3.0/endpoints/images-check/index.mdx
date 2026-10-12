@@ -1,6 +1,6 @@
 ---
 title: 'images::check'
-summary: 'Tag 14: a client names an image by digest and references and says where the server is to look, among its own images, the server’s and the registries; the server sends exactly one response stating whether a source asked has the image, that no source was asked, or an error, and the scope finishes.'
+summary: 'Tag 14: a client names an image by digest and references and says where the server is to look, among its own images and the registries; the server sends exactly one response stating whether a source asked has the image, that no source was asked, or an error, and the scope finishes.'
 order: 14
 draft: false
 ---
@@ -14,21 +14,24 @@ finish.
 
 - **The request.** The request names a manifest digest and zero or
   more references, each a registry host and a repository path, and
-  states which of three sources the server is to look in. The digest
+  states which of two sources the server is to look in. The digest
   identifies the image; a reference states where the client knows
   the bytes to be. [Request](/endpoints/images-check/request/)
   states its form.
 - **The sources.** `client` is the images the client built on the
   server by [images::build](/endpoints/images-build/) and has not
-  deleted, and no image another client built. `server` is the images
-  the server holds on its own account, which no client built. `registries`
-  is every referenced registry the server's policy lists, asked as
+  deleted, and no image another client built. `registries` is every
+  referenced registry the server's policy lists, asked as
   `<registry>/<name>@<digest>`; the server ignores a reference naming
   a registry its policy does not list, and a request naming no
-  reference asks nothing of this source. Any combination may be
-  asked. The server looks in the local sources asked before it asks a
-  registry, and asks a registry only when no local source asked has
-  the image.
+  reference asks nothing of this source. Either or both may be
+  asked. The server looks in the client's own images, where asked,
+  before it asks a registry, and asks a registry only when the
+  client's own images, where asked, do not have the image.
+- **Never the server's own.** The images the server holds on its own
+  account, which no client built, are not a source. The server does
+  not look among them, and does not answer available on account of
+  one, whatever the request asks.
 - **The answer.** The answer is exactly `{"type":"available"}` or
   exactly `{"type":"unavailable"}`. The available answer states
   that at least one source asked has the image, at the time of the
@@ -38,8 +41,8 @@ finish.
   the image and the server obtains it from the client, or where a
   source not asked has it. Neither answer states which source.
   [Response](/endpoints/images-check/response/) states their form.
-- **No source.** A request that asks for none of the three sources is
-  answered with the byte `2` alone. The server looks nowhere, and
+- **No source.** A request that asks for neither of the two sources
+  is answered with the byte `2` alone. The server looks nowhere, and
   nothing is determined about the image.
 - **The error.** An error states that the server did not answer the
   question, and that nothing was determined about the image. An

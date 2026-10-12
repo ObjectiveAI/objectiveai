@@ -25,9 +25,10 @@ finish follows the response, and no frame follows the finish.
   for has the image, at the time of the answer, for a container
   request naming the requested digest: the client's own images, built
   on the server by [images::build](/endpoints/images-build/) and no
-  other client's, where `client` was asked; the images the server
-  holds on its own account, where `server` was asked; a referenced
-  registry the server's policy lists, where `registries` was asked.
+  other client's, where `client` was asked; a referenced registry the
+  server's policy lists, where `registries` was asked. The server
+  does not answer available on account of an image it holds on its
+  own account.
   It reserves nothing, and a later container request naming the
   image may fail. The unavailable answer states that no source asked
   has it; a container request naming the image may still succeed
@@ -40,7 +41,7 @@ finish follows the response, and no frame follows the finish.
   answer the question and that nothing was determined about the
   image. An error is not an unavailable answer.
 - **No source.** A payload that is the byte `2` and nothing else
-  states that the request asked for none of the three sources, that
+  states that the request asked for neither of the two sources, that
   the server looked nowhere, and that nothing is determined about
   the image. A payload whose first byte is `2` is read by that byte
   alone; bytes after it are not read.
