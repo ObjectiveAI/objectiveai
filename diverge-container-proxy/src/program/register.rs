@@ -1,5 +1,6 @@
-//! The arguments, told to the program's server once: `POST
-//! /register`, answered with the dependencies the program declares.
+//! The arguments and the template, told to the program's server
+//! once: `POST /register`, answered with the dependencies the program
+//! declares.
 
 use diverge_sdk::container_proxy::inside::register::request::Request;
 use diverge_sdk::container_proxy::inside::register::response::Response;
@@ -10,16 +11,17 @@ use serde_json::Value;
 
 use super::{Upstream, refused, status_error};
 
-/// Register `arguments` with the program's server. A `2xx` is the
-/// arguments held for the container's life, and its body the
+/// Register `arguments` and `template`, the id of the template the
+/// container is made from, with the program's server. A `2xx` is the
+/// arguments and the template held for the container's life, and its body the
 /// dependencies the program declares, which an agent container's `Begun` carries
 /// and a tool container's begin ignores; a non-`2xx` is the
 /// image refusing them, in its own words, and a server that cannot be
 /// reached is the refusal too. So is a `2xx` whose body is not the
 /// response: the dependencies are part of registration, and a
 /// registration the proxy cannot read has not happened.
-pub async fn register(upstream: &Upstream, arguments: Value) -> Result<Vec<Template>, Error> {
-    let body = serde_json::to_vec(&Request { arguments }).map_err(|error| {
+pub async fn register(upstream: &Upstream, arguments: Value, template: String) -> Result<Vec<Template>, Error> {
+    let body = serde_json::to_vec(&Request { arguments, template }).map_err(|error| {
         Error(serde_json::json!({
             "kind": "program",
             "error": format!("the arguments did not serialize: {error}"),

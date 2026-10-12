@@ -19,8 +19,8 @@ use crate::tool::Tool;
 pub struct Begun {
     /// The scope, shared by every task that asks on it.
     pub scope: Arc<ScopeHandle>,
-    /// Whose twelve asks: the two families encode the same twelve,
-    /// each in its own frame.
+    /// Whose asks: the two families encode the same asks, each in its
+    /// own frame and each less what its container never makes.
     pub family: Family,
 }
 

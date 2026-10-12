@@ -10,16 +10,22 @@
 //! long as the server wants it; on the begin scope the proxy opens
 //! channels of its own for
 //! everything the container asks of the world outside: its database
-//! connections, its commands, its vault, its tool calls outward.
+//! connections, its vault, an agent container's tool calls outward,
+//! a tool container's daemon connections.
 //!
 //! The program beside the proxy sees none of that. On the loopback
-//! at `80` it finds a fully compliant MCP server at `/mcp`, the vault
-//! as plain HTTP at `/vault/<op>`, and its commands at `POST
-//! /command`; at `81` a pgwire listener that is, to its driver, a
-//! database. Each of those becomes one channel on the begin scope,
-//! and nothing the program dials has to know.
+//! at `80` it finds a fully compliant MCP server at `/mcp` — an agent
+//! container's, a tool container's program being answered that it
+//! makes no tool call outward — the vault as plain HTTP at
+//! `/vault/<op>`, and the daemon protocol as a WebSocket at `/daemon`
+//! — a tool container's, an agent container's program having the
+//! socket closed on it, since an agent holds no account; at `81` a
+//! pgwire listener that is, to its driver, a database. Each of those
+//! becomes one channel on the begin scope, and nothing the program
+//! dials has to know.
 //!
-//! For either kind of container the proxy registers the arguments
+//! For either kind of container the proxy registers the arguments and
+//! the id of the template the container is made from
 //! with the program's own server on the loopback when the server
 //! begins, hands the server the dependencies the program answered with, and
 //! asks the program for their schema when the server asks. It sets

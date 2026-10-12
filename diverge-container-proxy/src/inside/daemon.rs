@@ -1,13 +1,15 @@
 //! The daemon, from the inside: the WebSocket at `/daemon`, each
 //! connection announced and then carried.
 //!
-//! The proxy is the daemon to the container. A program that dials
+//! The proxy is the daemon to a tool container. A program that dials
 //! `ws://127.0.0.1:80/daemon` gets a connection that is one ask on the
 //! begin scope — `Daemon`, with an id the proxy minted — and, once the
 //! server opens its half, a conduit: the program's client frames out
 //! as responses on the server's channel, the ask's frames in as
 //! messages to the program, nothing parsed beyond the one check that a
-//! frame is a frame, until either side hangs up.
+//! frame is a frame, until either side hangs up. An agent container's
+//! program gets the socket closed at once: an agent holds no account
+//! and asks the daemon nothing, and its begin has no such ask.
 //!
 //! # Every connection is its own
 //!
@@ -32,12 +34,14 @@ use tokio::sync::oneshot;
 
 use crate::answer::{self, Answer};
 use crate::ask;
+use crate::begin::Family;
 use crate::own::Own;
 use crate::proxy::Proxy;
 
 /// The upgrade, and nothing before it: the connection is served for
-/// the container's account, so there is no credential to take and
-/// nothing to refuse here.
+/// the tool container's account or its template's grants, so there is
+/// no credential to take and nothing to refuse here; an agent
+/// container's socket is closed once the begin says which it is.
 pub async fn serve(State(proxy): State<Arc<Proxy>>, upgrade: WebSocketUpgrade) -> Response {
     upgrade.on_upgrade(move |socket| connection(socket, proxy)).into_response()
 }
@@ -89,6 +93,12 @@ pub async fn attach(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, co
 /// than being guessed at. What the daemon says is not decoded at all:
 /// the program's own wire reads it.
 async fn connection(socket: WebSocket, proxy: Arc<Proxy>) {
+    // An agent container has no daemon connection: the socket is
+    // dropped, and closed with it, before anything is announced.
+    match proxy.begun().await {
+        Some(begun) if begun.family == Family::Tools => {}
+        _ => return,
+    }
     let (id, half) = proxy.daemons.announce().await;
     let Ok((begun, mut channel)) = ask::open(
         &proxy,

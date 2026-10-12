@@ -1,4 +1,5 @@
-//! The MCP server the agent talks to — every method a relay.
+//! The MCP server the agent talks to — every method a relay; a tool
+//! container's program is answered that it has no such server.
 
 use std::sync::Arc;
 
@@ -15,6 +16,7 @@ use rmcp::{ErrorData, RoleServer, ServerHandler};
 
 use crate::ask::{self, Asked};
 use super::carry;
+use crate::begin::Family;
 use crate::own::Own;
 use crate::proxy::{Begun, Proxy};
 
@@ -59,9 +61,16 @@ impl Handler {
     }
 
     /// The begin, waited for as every ask waits for it: a proxy
-    /// without one is a proxy whose connection is gone.
+    /// without one is a proxy whose connection is gone. A tool
+    /// container's begin is no begin for this server: a tool
+    /// container makes no tool call outward, and every method answers
+    /// its program so.
     async fn begun(&self) -> Result<Begun, ErrorData> {
-        self.proxy.begun().await.ok_or_else(gone)
+        let begun = self.proxy.begun().await.ok_or_else(gone)?;
+        match begun.family {
+            Family::Agents => Ok(begun),
+            Family::Tools => Err(outward()),
+        }
     }
 }
 
@@ -191,6 +200,12 @@ fn failed(error: ErrorData) -> rmcp::model::CallToolResult {
     rmcp::model::CallToolResult::error(vec![
         rmcp::model::ContentBlock::text(text),
     ])
+}
+
+/// A tool container's program calling: a tool container makes no
+/// tool call outward, and the wire has no channel for one.
+fn outward() -> ErrorData {
+    ErrorData::invalid_request("a tool container makes no tool call outward", None)
 }
 
 /// The far side's deliberate empty finish: the exchange could not be

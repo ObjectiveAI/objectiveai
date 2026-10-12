@@ -2,10 +2,12 @@
 //! the loopback, and what each becomes on the begin scope.
 //!
 //! The vault as plain HTTP, the daemon protocol as a WebSocket at
-//! `/daemon`, a compliant MCP server at `/mcp`, and a pgwire listener
-//! that is a database to the program's driver. None of them changes with the
-//! wire outside: each is the proxy's own ask, a channel on the begin
-//! scope, and its answer handed back untouched.
+//! `/daemon` for a tool container, a compliant MCP server at `/mcp`
+//! for an agent container, and a pgwire listener that is a database
+//! to the program's driver. None of them changes with the wire
+//! outside: each is the proxy's own ask, a channel on the begin
+//! scope, and its answer handed back untouched; the two a family does
+//! not have answer the program that it has none.
 
 pub mod daemon;
 pub mod pairs;

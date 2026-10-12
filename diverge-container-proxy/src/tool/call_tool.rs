@@ -7,10 +7,10 @@ use super::{Tool, outcome};
 use crate::encode::encoded;
 use crate::reply::reply;
 
-/// One exchange: the result, the container's image under `_meta`, or
-/// the error, then the finish. The error
-/// is sent as the error, not folded into a result: the far side is
-/// the provider's server, which does that folding itself.
+/// One exchange: the result or the error, as the container's server
+/// gave it and with nothing set under `_meta`, then the finish. The
+/// error is sent as the error, not folded into a result: the far side
+/// is the provider's server, which does that folding itself.
 pub async fn call_tool(tool: &Tool, scope: &ScopeHandle, channel: u32, request: request::Request) {
     let frame = match tool.client().await {
         Err(error) => response::Frame::Error(error),
