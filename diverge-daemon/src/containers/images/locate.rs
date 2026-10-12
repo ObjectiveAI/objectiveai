@@ -63,9 +63,9 @@ pub async fn locate(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Opt
 /// Whether the provider on `handle` answers available for the digest
 /// among the daemon's own images there — the only images a pull from
 /// it can deliver, byte for byte, as it fixed them at their build —
-/// and never its own cache nor the registries: an image it merely
-/// pulled it cannot re-serve under the digest, and a registry is the
-/// asking provider's own to pull from.
+/// and not the registries, which are the asking provider's own to
+/// pull from; its cache no check can ask, and an image it merely
+/// pulled it could not re-serve under the digest.
 async fn holds(handle: &Handle, digest: &str) -> bool {
     let frame = request::Frame {
         image: Image {
@@ -74,7 +74,6 @@ async fn holds(handle: &Handle, digest: &str) -> bool {
         },
         sources: request::Sources {
             client: true,
-            server: false,
             registries: false,
         },
     };
