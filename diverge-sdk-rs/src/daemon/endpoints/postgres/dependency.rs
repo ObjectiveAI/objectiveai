@@ -31,10 +31,10 @@ pub struct Dependency {
 #[serde(rename_all = "snake_case")]
 pub enum Parent {
     /// The one agent, once and for all: a transient tool's, or a
-    /// service's whose template's `scope` is `per_agent_instance`.
+    /// service's whose template's `scope` is `instance`.
     Agent(reference::Agent),
     /// Every agent made from the template: a service's whose
-    /// template's `scope` is `per_agent_template`.
+    /// template's `scope` is `template`.
     AgentTemplate {
         /// The agent template, by id.
         template: String,

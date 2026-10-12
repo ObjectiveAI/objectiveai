@@ -15,10 +15,10 @@ use super::Agent;
 #[serde(rename_all = "snake_case")]
 pub enum Owner {
     /// The one agent, once and for all: the template's `scope` is
-    /// `per_agent_instance`.
+    /// `instance`.
     Agent(Agent),
     /// Every agent made from the template: the template's `scope` is
-    /// `per_agent_template`.
+    /// `template`.
     AgentTemplate {
         /// The agent template, by id.
         template: String,
