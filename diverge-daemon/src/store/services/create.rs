@@ -33,8 +33,8 @@ pub struct Declared<'a> {
 /// scope key, and the row is read again.
 pub async fn find_or_create(conn: &mut PgConnection, declared: &Declared<'_>) -> Result<Service, Error> {
     let (owner_agent, owner_template) = match declared.scope {
-        Scope::PerAgentInstance => (Some(declared.agent), None),
-        Scope::PerAgentTemplate => (None, Some(declared.agent_template)),
+        Scope::Instance => (Some(declared.agent), None),
+        Scope::Template => (None, Some(declared.agent_template)),
         Scope::Global => (None, None),
     };
     if let Some(found) = by_scope(conn, declared.template, declared.scope, owner_agent, owner_template).await? {

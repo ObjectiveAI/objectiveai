@@ -147,14 +147,14 @@ pub fn container_of_dependency(dependency: &Dependency) -> Container {
 /// `None` for a per-agent service whose agent is gone.
 pub fn container_of_service(service: &Service, owner: Option<&Agent>) -> Option<Container> {
     let parent = match service.scope {
-        Scope::PerAgentInstance => {
+        Scope::Instance => {
             let owner = owner?;
             Parent::Agent(reference::Agent::TemplateIndex {
                 template: owner.template.clone(),
                 index: owner.index,
             })
         }
-        Scope::PerAgentTemplate => Parent::AgentTemplate {
+        Scope::Template => Parent::AgentTemplate {
             template: service.owner_template.clone().unwrap_or_default(),
         },
         Scope::Global => Parent::Global,

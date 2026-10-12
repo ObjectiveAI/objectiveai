@@ -200,7 +200,7 @@ CREATE INDEX IF NOT EXISTS attachments_agent ON diverge.attachments (agent);
 CREATE TABLE IF NOT EXISTS diverge.services (
     id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     template       TEXT NOT NULL,
-    -- `per_agent_instance`, `per_agent_template` or `global`.
+    -- `instance`, `template` or `global`.
     scope          TEXT NOT NULL,
     owner_agent    BIGINT REFERENCES diverge.agents(id) ON DELETE CASCADE,
     owner_template TEXT,
@@ -209,15 +209,15 @@ CREATE TABLE IF NOT EXISTS diverge.services (
     created        TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator        JSONB NOT NULL,
     CONSTRAINT services_scope_owner CHECK (
-        (scope = 'per_agent_instance' AND owner_agent IS NOT NULL AND owner_template IS NULL)
-        OR (scope = 'per_agent_template' AND owner_agent IS NULL AND owner_template IS NOT NULL)
+        (scope = 'instance' AND owner_agent IS NOT NULL AND owner_template IS NULL)
+        OR (scope = 'template' AND owner_agent IS NULL AND owner_template IS NOT NULL)
         OR (scope = 'global' AND owner_agent IS NULL AND owner_template IS NULL)
     )
 );
 CREATE UNIQUE INDEX IF NOT EXISTS services_per_agent
-    ON diverge.services (template, owner_agent) WHERE scope = 'per_agent_instance';
+    ON diverge.services (template, owner_agent) WHERE scope = 'instance';
 CREATE UNIQUE INDEX IF NOT EXISTS services_per_template
-    ON diverge.services (template, owner_template) WHERE scope = 'per_agent_template';
+    ON diverge.services (template, owner_template) WHERE scope = 'template';
 CREATE UNIQUE INDEX IF NOT EXISTS services_global
     ON diverge.services (template) WHERE scope = 'global';
 

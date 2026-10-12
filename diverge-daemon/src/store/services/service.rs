@@ -40,8 +40,8 @@ impl Service {
     /// service whose owner the caller did not hand in.
     pub fn owner(&self, owner_agent: Option<&Agent>) -> Option<key::Owner> {
         Some(match self.scope {
-            Scope::PerAgentInstance => key::Owner::Agent(owner_agent?.key()),
-            Scope::PerAgentTemplate => key::Owner::AgentTemplate {
+            Scope::Instance => key::Owner::Agent(owner_agent?.key()),
+            Scope::Template => key::Owner::AgentTemplate {
                 template: self.owner_template.clone().unwrap_or_default(),
             },
             Scope::Global => key::Owner::Global,
@@ -61,8 +61,8 @@ impl Service {
 /// of the wire.
 pub fn scope_name(scope: Scope) -> &'static str {
     match scope {
-        Scope::PerAgentInstance => "per_agent_instance",
-        Scope::PerAgentTemplate => "per_agent_template",
+        Scope::Instance => "instance",
+        Scope::Template => "template",
         Scope::Global => "global",
     }
 }
@@ -71,8 +71,8 @@ pub fn scope_name(scope: Scope) -> &'static str {
 /// none of the three.
 pub fn scope_of(name: &str) -> Option<Scope> {
     match name {
-        "per_agent_instance" => Some(Scope::PerAgentInstance),
-        "per_agent_template" => Some(Scope::PerAgentTemplate),
+        "instance" => Some(Scope::Instance),
+        "template" => Some(Scope::Template),
         "global" => Some(Scope::Global),
         _ => None,
     }

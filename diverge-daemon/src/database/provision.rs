@@ -85,11 +85,13 @@ pub async fn drop(conn: &mut PgConnection, role: &str) -> Result<(), store::Erro
 
 /// Drop every scope under the prefix: what an owner has — a
 /// container's own scope and, an agent's, every scope of its
-/// `per_agent_instance` dependencies; an agent template's, every
-/// `per_agent_template` scope its agents' dependencies shared, swept
-/// at the template's delete once no agent is left of it — found in
-/// the catalog by the owner's prefix, which every role of the owner's
-/// begins with, and [`drop`]ped one by one. A `per_agent_template`
+/// transient dependencies and its `instance` services; an agent
+/// template's, every `template` service's scope its agents shared,
+/// swept at the template's delete once no agent is left of it; a
+/// global service's template's, its one scope, swept when the last
+/// agent template whose agents attached it is deleted — found in the
+/// catalog by the owner's prefix, which every role of the owner's
+/// begins with, and [`drop`]ped one by one. A `template` or `global`
 /// scope is under no agent's prefix; a tool template owns none.
 pub async fn sweep(conn: &mut PgConnection, prefix: &str) -> Result<(), store::Error> {
     let pattern = format!("{}%", prefix.replace('_', "\\_"));
