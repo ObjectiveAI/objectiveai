@@ -1,68 +1,57 @@
-//! The store: the root, the records, and the names.
+//! The store: the pools, the records, and the names.
 
-use std::path::{Path, PathBuf};
+use std::collections::HashSet;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sha2::{Digest as _, Sha256};
 use tokio::fs;
 use tokio::sync::Mutex;
 
 use super::Error;
-use crate::host::container_deployer::{name_ok, tool_path};
+use crate::host::container_deployer::name_ok;
 use crate::host::tools::podman;
 use diverge_sdk::config::provider::images;
 use diverge_sdk::provider::endpoints::images::list::server::response::Image;
 
-/// An image's record, `meta/<identity>/<name>.json`: what podman does
-/// not keep.
+/// An image's record, `<pool>/images/<name>.json`: what the pool's
+/// blobs do not say of themselves.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Meta {
-    /// The manifest digest podman answered for the image built.
+    /// The manifest digest of the image as it was exported, which a
+    /// pull names it by.
     pub digest: String,
-    /// Its size in BYTES, as podman counted it.
+    /// Its size in BYTES: every blob of its export, shared with
+    /// another of the identity's images or not.
     pub bytes: u64,
     /// When the build ended, in seconds since the epoch.
     pub created: u64,
     /// The Containerfile, verbatim.
     pub containerfile: String,
+    /// Every blob of its export, `<algorithm>:<hex>`, the manifest
+    /// among them: what a prune keeps for it.
+    pub blobs: Vec<String>,
 }
 
-/// One image's layout, as `index.json` describes its one manifest:
-/// the digest the record carries and a pull serves, the manifest's
-/// media type, and its size.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Layout {
-    /// The manifest digest, `<algorithm>:<hex>`.
-    pub digest: String,
-    /// The manifest's media type.
-    pub media_type: String,
-    /// The manifest's size in bytes.
-    pub size: u64,
-}
-
-/// The client image store: where the root, the records and the
-/// layouts are, how much it may hold, and the names, one caller apart
-/// from another.
+/// The client image store: where the pools are, how much they may
+/// hold between them, and the names, one caller apart from another.
 /// Shared by the manager, which builds, lists and removes; the
-/// deployer, which runs a caller's own image from it; and the
-/// checker, which answers the `client` source from it.
+/// registry, which serves a pool to a pull; the deployer, which
+/// pulls a caller's own image from it; the OCI store, which serves a
+/// pool to the caller; and the checker, which answers the `client`
+/// source from it.
 #[derive(Debug)]
 pub struct Store {
-    /// The podman storage root, `<path>/root`, as podman sees it.
-    root: String,
-    /// The records, `<path>/meta`, on this host.
-    meta: PathBuf,
-    /// The layouts, `<path>/layouts`, on this host: each image
-    /// exported once, the bytes a pull serves.
-    layouts: PathBuf,
-    /// The most the root may hold, in BYTES.
+    /// The directory the pools are under, `<path>`, on this host.
+    images: PathBuf,
+    /// The most every pool may hold together, in BYTES.
     capacity: u64,
     /// One lock per identity, held across a build or a delete of a
-    /// name, so two builds of one name do not race each other.
+    /// name, so two builds of one name do not race each other and a
+    /// prune sees no blob still on its way into a record.
     namespaces: DashMap<String, Arc<Mutex<()>>>,
 }
 
@@ -70,31 +59,50 @@ impl Store {
     /// The store the `images` section names.
     pub fn new(images: &images::Images) -> Self {
         Store {
-            root: tool_path(&images.path.join("root")),
-            meta: images.path.join("meta"),
-            layouts: images.path.join("layouts"),
+            images: images.path.clone(),
             capacity: images.capacity,
             namespaces: DashMap::new(),
         }
     }
 
-    /// The podman storage root, as podman is handed it.
-    pub fn root(&self) -> &str {
-        &self.root
-    }
-
-    /// The most the root may hold, in BYTES.
+    /// The most every pool may hold together, in BYTES.
     pub fn capacity(&self) -> u64 {
         self.capacity
     }
 
-    /// The name an image is built under in the root, and copied into
-    /// the cache under: `localhost/diverge/<identity>/<name>`, the
-    /// identity as sixteen hexadecimal characters of its SHA-256, so
-    /// that it is a repository path whatever the identity is.
-    pub fn tag(&self, client_identity: &str, name: &str) -> String {
-        let hashed = hex::encode(&Sha256::digest(client_identity.as_bytes())[..8]);
-        format!("{}{hashed}/{name}", podman::CLIENT_PREFIX)
+    /// The identity as its pool is named: sixteen hexadecimal
+    /// characters of its SHA-256, so that it is one segment of a
+    /// repository path and one directory's name whatever the identity
+    /// is, and so that the identity itself is written nowhere a pull
+    /// could read it.
+    pub fn hash(client_identity: &str) -> String {
+        hex::encode(&Sha256::digest(client_identity.as_bytes())[..8])
+    }
+
+    /// Whether `text` is a pool's name as [`hash`](Self::hash) makes
+    /// one: exactly sixteen lowercase hexadecimal characters.
+    pub fn hash_ok(text: &str) -> bool {
+        text.len() == 16 && text.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    }
+
+    /// Where the identity's pool is: `<images>/<hash>/`.
+    pub fn pool_dir(&self, client_identity: &str) -> PathBuf {
+        self.pool_dir_of(&Store::hash(client_identity))
+    }
+
+    /// Where the pool named `hash` is, `<images>/<hash>/`, whether or
+    /// not there is one.
+    pub fn pool_dir_of(&self, hash: &str) -> PathBuf {
+        self.images.join(hash)
+    }
+
+    /// The name an image is pulled by from the provider's own
+    /// registry at `port`, and built and held under in the cache:
+    /// `127.0.0.1:<port>/<hash>/<name>`, the registry's repository
+    /// being the pool. Every name under [`CLIENT_PREFIX`](podman::CLIENT_PREFIX)
+    /// is one the cache's lookup by digest passes over.
+    pub fn reference(&self, port: u16, client_identity: &str, name: &str) -> String {
+        format!("{}{port}/{}/{name}", podman::CLIENT_PREFIX, Store::hash(client_identity))
     }
 
     /// The identity's lock, for a build or a delete of one of its
@@ -108,77 +116,20 @@ impl Store {
         )
     }
 
-    /// Where the identity's records are.
-    fn meta_dir(&self, client_identity: &str) -> PathBuf {
-        self.meta.join(client_identity)
+    /// Where the identity's records are, `<pool>/images/`.
+    fn records_dir(&self, client_identity: &str) -> PathBuf {
+        self.pool_dir(client_identity).join("images")
     }
 
     /// Where one record is.
-    fn meta_path(&self, client_identity: &str, name: &str) -> PathBuf {
-        self.meta_dir(client_identity).join(format!("{name}.json"))
-    }
-
-    /// Where one image's layout is: `<layouts>/<identity>/<name>/`.
-    pub fn layout_dir(&self, client_identity: &str, name: &str) -> PathBuf {
-        self.layouts.join(client_identity).join(name)
-    }
-
-    /// The layout at `dir` read: its `index.json`'s one manifest. A
-    /// layout with no index, or an index that is not one manifest's
-    /// digest, media type and size, is [`Error::Layout`].
-    pub async fn read_layout(dir: &Path) -> Result<Layout, Error> {
-        let index: Value = serde_json::from_slice(&fs::read(dir.join("index.json")).await?)?;
-        let manifest = index
-            .get("manifests")
-            .and_then(|manifests| manifests.get(0))
-            .ok_or_else(|| Error::Layout(dir.to_path_buf()))?;
-        let text = |key: &str| manifest.get(key).and_then(Value::as_str).map(str::to_string);
-        match (text("digest"), text("mediaType"), manifest.get("size").and_then(Value::as_u64)) {
-            (Some(digest), Some(media_type), Some(size)) => Ok(Layout { digest, media_type, size }),
-            _ => Err(Error::Layout(dir.to_path_buf())),
-        }
-    }
-
-    /// Where a blob of the layout at `dir` is, by digest:
-    /// `blobs/<algorithm>/<hex>`. `None` for a digest that is not
-    /// two names joined by `:`, which a path could not be made of.
-    pub fn blob_path(dir: &Path, digest: &str) -> Option<PathBuf> {
-        let (algorithm, hex) = digest.split_once(':')?;
-        let name = |part: &str| !part.is_empty() && part.chars().all(|c| c.is_ascii_alphanumeric());
-        (name(algorithm) && name(hex)).then(|| dir.join("blobs").join(algorithm).join(hex))
-    }
-
-    /// How many bytes the layout at `dir` holds: every blob's size.
-    /// A layout with no blobs holds none.
-    pub async fn layout_bytes(dir: &Path) -> Result<u64, Error> {
-        let mut algorithms = match fs::read_dir(dir.join("blobs")).await {
-            Ok(algorithms) => algorithms,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
-            Err(error) => return Err(error.into()),
-        };
-        let mut total = 0;
-        while let Some(algorithm) = algorithms.next_entry().await? {
-            let mut blobs = fs::read_dir(algorithm.path()).await?;
-            while let Some(blob) = blobs.next_entry().await? {
-                total += blob.metadata().await?.len();
-            }
-        }
-        Ok(total)
-    }
-
-    /// The layout removed; one already gone is removed.
-    pub async fn remove_layout(&self, client_identity: &str, name: &str) -> Result<(), Error> {
-        match fs::remove_dir_all(self.layout_dir(client_identity, name)).await {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(error.into()),
-        }
+    fn record_path(&self, client_identity: &str, name: &str) -> PathBuf {
+        self.records_dir(client_identity).join(format!("{name}.json"))
     }
 
     /// The record under `name` for the identity, or `None` where
     /// there is none.
     pub async fn read(&self, client_identity: &str, name: &str) -> Result<Option<Meta>, Error> {
-        match fs::read(self.meta_path(client_identity, name)).await {
+        match fs::read(self.record_path(client_identity, name)).await {
             Ok(bytes) => Ok(Some(serde_json::from_slice(&bytes)?)),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(error.into()),
@@ -188,8 +139,8 @@ impl Store {
     /// The record written, whole or not at all: to a sibling, then
     /// renamed over.
     pub async fn write(&self, client_identity: &str, name: &str, meta: &Meta) -> Result<(), Error> {
-        fs::create_dir_all(self.meta_dir(client_identity)).await?;
-        let path = self.meta_path(client_identity, name);
+        fs::create_dir_all(self.records_dir(client_identity)).await?;
+        let path = self.record_path(client_identity, name);
         let temporary = path.with_extension("tmp");
         fs::write(&temporary, serde_json::to_vec(meta)?).await?;
         fs::rename(&temporary, &path).await?;
@@ -198,24 +149,23 @@ impl Store {
 
     /// The record removed; one already gone is removed.
     pub async fn remove(&self, client_identity: &str, name: &str) -> Result<(), Error> {
-        match fs::remove_file(self.meta_path(client_identity, name)).await {
+        match fs::remove_file(self.record_path(client_identity, name)).await {
             Ok(()) => Ok(()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(error) => Err(error.into()),
         }
     }
 
-    /// Every image the identity has, as a listing reports them: the
-    /// identity's records read, in the directory's order. An identity
-    /// with no directory has none. A record that will not parse is
-    /// the error.
-    pub async fn list(&self, client_identity: &str) -> Result<Vec<Image>, Error> {
-        let mut entries = match fs::read_dir(self.meta_dir(client_identity)).await {
+    /// Every record the identity has, by name, in the directory's
+    /// order. An identity with no directory has none. A record that
+    /// will not parse is the error.
+    async fn records(&self, client_identity: &str) -> Result<Vec<(String, Meta)>, Error> {
+        let mut entries = match fs::read_dir(self.records_dir(client_identity)).await {
             Ok(entries) => entries,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
             Err(error) => return Err(error.into()),
         };
-        let mut images = Vec::new();
+        let mut records = Vec::new();
         while let Some(entry) = entries.next_entry().await? {
             let Ok(file) = entry.file_name().into_string() else {
                 continue;
@@ -227,40 +177,88 @@ impl Store {
                 continue;
             }
             let meta: Meta = serde_json::from_slice(&fs::read(entry.path()).await?)?;
-            images.push(Image {
-                name: name.to_string(),
+            records.push((name.to_string(), meta));
+        }
+        Ok(records)
+    }
+
+    /// Every image the identity has, as a listing reports them.
+    pub async fn list(&self, client_identity: &str) -> Result<Vec<Image>, Error> {
+        Ok(self
+            .records(client_identity)
+            .await?
+            .into_iter()
+            .map(|(name, meta)| Image {
+                name,
                 digest: meta.digest,
                 bytes: meta.bytes,
                 created: meta.created,
-            });
-        }
-        Ok(images)
+            })
+            .collect())
     }
 
     /// The identity's image under `digest`, if it has one: its name
     /// and its record. A store that cannot be read has none.
     pub async fn find_digest(&self, client_identity: &str, digest: &str) -> Option<(String, Meta)> {
-        let listed = self.list(client_identity).await.ok()?;
-        let image = listed.into_iter().find(|image| image.digest == digest)?;
-        let meta = self.read(client_identity, &image.name).await.ok()??;
-        Some((image.name, meta))
+        self.records(client_identity)
+            .await
+            .ok()?
+            .into_iter()
+            .find(|(_, meta)| meta.digest == digest)
     }
 
-    /// How many bytes the store holds: the root as the cache is
-    /// counted — every image listed, every layer, shared or not — and
-    /// every layout's blobs.
-    pub async fn used(&self) -> Result<u64, Error> {
-        let images = podman::images_in(&self.root).await.map_err(Error::Podman)?;
-        let mut total: u64 = images.iter().map(|image| image.size).sum();
-        let mut identities = match fs::read_dir(&self.layouts).await {
-            Ok(identities) => identities,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(total),
+    /// Every blob of the identity's pool that no record of the
+    /// identity names, removed. What a delete does after its record
+    /// is gone and what a build undone does: the pool holds what the
+    /// records name and nothing else. Under the identity's lock, so
+    /// no build of the identity has a blob in the pool that its
+    /// record does not name yet.
+    pub async fn prune(&self, client_identity: &str) -> Result<(), Error> {
+        let named: HashSet<String> = self
+            .records(client_identity)
+            .await?
+            .into_iter()
+            .flat_map(|(_, meta)| meta.blobs)
+            .collect();
+        let mut algorithms = match fs::read_dir(self.pool_dir(client_identity).join("blobs")).await {
+            Ok(algorithms) => algorithms,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
             Err(error) => return Err(error.into()),
         };
-        while let Some(identity) = identities.next_entry().await? {
-            let mut names = fs::read_dir(identity.path()).await?;
-            while let Some(name) = names.next_entry().await? {
-                total += Store::layout_bytes(&name.path()).await?;
+        while let Some(algorithm) = algorithms.next_entry().await? {
+            let Ok(algorithm_name) = algorithm.file_name().into_string() else {
+                continue;
+            };
+            let mut blobs = fs::read_dir(algorithm.path()).await?;
+            while let Some(blob) = blobs.next_entry().await? {
+                let Ok(hex) = blob.file_name().into_string() else {
+                    continue;
+                };
+                if !named.contains(&format!("{algorithm_name}:{hex}")) {
+                    fs::remove_file(blob.path()).await?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// How many bytes every pool holds together: every blob under
+    /// `<images>/*/blobs/`, each counted once however many records
+    /// name it. What the capacity is measured against.
+    pub async fn used(&self) -> Result<u64, Error> {
+        let mut total = 0;
+        let mut pools = fs::read_dir(&self.images).await?;
+        while let Some(pool) = pools.next_entry().await? {
+            let mut algorithms = match fs::read_dir(pool.path().join("blobs")).await {
+                Ok(algorithms) => algorithms,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.into()),
+            };
+            while let Some(algorithm) = algorithms.next_entry().await? {
+                let mut blobs = fs::read_dir(algorithm.path()).await?;
+                while let Some(blob) = blobs.next_entry().await? {
+                    total += blob.metadata().await?.len();
+                }
             }
         }
         Ok(total)
@@ -268,8 +266,8 @@ impl Store {
 }
 
 /// Whether `name` may name a client image: one segment of a
-/// repository path, so that it is a segment of the tag and the stem
-/// of the record's file.
+/// repository path, so that it is a segment of the reference and the
+/// stem of the record's file.
 pub fn name_ok_segment(name: &str) -> bool {
     name_ok(name) && !name.contains('/')
 }

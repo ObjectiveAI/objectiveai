@@ -1,4 +1,5 @@
-//! The registry: started on its port, serving what the protocol asks.
+//! The registry: started on its port, serving what the protocol asks
+//! and what the store holds.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -9,10 +10,11 @@ use crate::protocol::image_source::ImageSource;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
-use super::{Error, Repositories, Repository, router};
+use super::{Error, Registry, Repositories, Repository, router};
+use crate::host::image_manager::Store;
 
 /// The provider's registry: an HTTP server on an ephemeral loopback
-/// port, serving one repository per run.
+/// port, serving one repository per run and one per identity's pool.
 ///
 /// Started once by [`start`](Self::start), which binds the port and
 /// spawns the server on the runtime; [`address`](Self::address) is
@@ -28,12 +30,17 @@ pub struct ImageRegistry {
 
 impl ImageRegistry {
     /// Bind a loopback port the OS picks, and serve on it from now
-    /// until this is dropped.
-    pub async fn start() -> Result<Self, Error> {
+    /// until this is dropped: the run repositories as the protocol
+    /// enters them, and the pools of `store`, if there is one.
+    pub async fn start(store: Option<Arc<Store>>) -> Result<Self, Error> {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.map_err(Error::Bind)?;
         let address = listener.local_addr().map_err(Error::Bind)?;
         let repositories: Repositories = Arc::new(DashMap::new());
-        let server = tokio::spawn(serve(listener, Arc::clone(&repositories)));
+        let registry = Registry {
+            repositories: Arc::clone(&repositories),
+            store,
+        };
+        let server = tokio::spawn(serve(listener, registry));
         Ok(ImageRegistry {
             address,
             repositories,
@@ -49,8 +56,8 @@ impl ImageRegistry {
 
 /// The server, for the listener's life. An error from it is the
 /// listener gone, and there is nothing to do about that here.
-async fn serve(listener: TcpListener, repositories: Repositories) {
-    let _ = axum::serve(listener, router(repositories)).await;
+async fn serve(listener: TcpListener, registry: Registry) {
+    let _ = axum::serve(listener, router(registry)).await;
 }
 
 impl Drop for ImageRegistry {

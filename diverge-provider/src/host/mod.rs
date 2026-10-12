@@ -11,10 +11,10 @@
 //! | `ContainerDeployer` | a container, running, with the proxy inside and port 14979 reachable |
 //! | `Container` | the address of that proxy, and the stop |
 //! | `VolumeManager` | the volumes of every identity |
-//! | `ImageRegistry` | the registry a runtime pulls from, for an image taken from the caller |
-//! | `ImageChecker` | whether an image can be had without the caller |
-//! | `ImageManager` | the images every identity built on this provider, in a podman root of their own |
-//! | `OciStore` | what the provider holds of an image for a caller — its client images, from their layouts — served to the caller's pull |
+//! | `ImageRegistry` | the registry a runtime pulls from, for an image taken from the caller or from an identity's pool |
+//! | `ImageChecker` | whether an image can be had without the caller, and without the cache |
+//! | `ImageManager` | the images every identity built on this provider, in a pool of their own |
+//! | `OciStore` | what the provider holds of an image for a caller — its client images, from its pool — served to the caller's pull |
 //! | `UnbrokeredAuthorizer` | the identity a credential establishes |
 //!
 //! This is ONE provider, not the only one. The specification binds any

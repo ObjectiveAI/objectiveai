@@ -49,17 +49,19 @@ use diverge_sdk::shared::containers::request::Image;
 ///
 /// # The caller says where to look
 ///
-/// Three sources, any combination, at least one — the handler answers
-/// `NoSource` itself for a request naming none, so this is never
-/// asked with none. `client` is the caller's own images, those it
-/// built on this provider through the
+/// Two sources, either or both — the handler answers `NoSource`
+/// itself for a request naming neither, so this is never asked with
+/// none. `client` is the caller's own images, those it built on this
+/// provider through the
 /// [`ImageManager`](super::image_manager::ImageManager) and no other
-/// identity's. `server` is what the provider holds on its own
-/// account, which no client built. `registries` is every referenced
-/// registry the provider's policy lists, asked as
-/// `<registry>/<name>@<digest>`, a reference naming one not listed
-/// ignored. Available is any source asked having the image; the
-/// provider looks in what it holds before it asks a registry. A
+/// identity's. `registries` is every referenced registry the
+/// provider's policy lists, asked as `<registry>/<name>@<digest>`, a
+/// reference naming one not listed ignored. What the provider holds
+/// on its own account is never a source: a check answers nothing of
+/// the provider's cache, so no image it pulled for one caller is
+/// revealed to another. Available is any source asked having the
+/// image; the provider looks in the caller's own before it asks a
+/// registry. A
 /// digest identifies the image and a reference only states where its
 /// bytes may be fetched. See
 /// [`request::Frame`](diverge_sdk::provider::endpoints::images::check::client::request::Frame),

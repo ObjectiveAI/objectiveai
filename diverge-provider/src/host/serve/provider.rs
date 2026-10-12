@@ -52,7 +52,7 @@ pub struct Provider {
     /// The client image store's manager.
     images: Arc<ImageManager>,
     /// What is held of an image for a caller: its client images, from
-    /// their layouts.
+    /// its pool.
     oci: Arc<OciStore>,
     /// The registry, held to the end so its server lives as long.
     registry: Arc<ImageRegistry>,
@@ -75,26 +75,27 @@ impl Provider {
     /// `hooks/` and `run/`, podman's `storage_path` and every store
     /// made, every fixed volume found to be a directory, every store's
     /// capacity and every fixed name checked; podman told where its
-    /// data is; the registry started, since the
+    /// data is; the client image store, where the configuration
+    /// names one, made first of all, since the registry serves its
+    /// pools; the registry started, since the
     /// deployer is told its address; the container overlay cap and
     /// the scratch directory under podman's storage, swept; the
     /// volumes; the deployer, which
     /// brings the machine up, sweeps an earlier life away, writes the
     /// auth file and opens the tunnel; the image checker, given that
     /// auth file; the image manager, given the deployer; and the
-    /// directory. The client image store, where the configuration
-    /// names one, is made before the deployer and handed to it, the
-    /// checker and the manager.
+    /// directory. The store is handed to the registry, the deployer,
+    /// the checker, the OCI store and the manager.
     pub async fn start(config: Config, dir: PathBuf) -> Result<Self, Error> {
         ready(&config, &dir).await?;
         podman::configure(config.containers.podman.storage_path.clone());
         let hooks_dir = dir.join("hooks");
-        let registry = Arc::new(ImageRegistry::start().await.map_err(Error::Registry)?);
         let mut shares = config.volumes.as_ref().map(Volumes::paths).unwrap_or_default();
         let store = config.images.as_ref().map(|images| {
             shares.push(images.path.clone());
             Arc::new(Store::new(images))
         });
+        let registry = Arc::new(ImageRegistry::start(store.clone()).await.map_err(Error::Registry)?);
         let disk = Arc::new(Limit::new(config.containers.podman.container_overlay_disk));
         let scratch = Scratch::new(config.containers.podman.storage_path.join("ephemeral"), Arc::clone(&disk));
         scratch.sweep().await.map_err(Error::Scratch)?;
@@ -171,8 +172,8 @@ impl Provider {
 
 /// The provider's disk, as its block names it: `dir` with `hooks/`
 /// and `run/` inside it, `storage_path` and every store made if
-/// absent, the client image store's directory with its `root/`,
-/// `meta/` and `layouts/` made if absent and `run/builds/` swept; a fixed
+/// absent, the client image store's directory made if absent and
+/// `run/builds/` swept; a fixed
 /// volume whose path is not an existing directory refused, since a
 /// fixed volume is content the operator already has; a store whose
 /// capacity is `0` refused, and the image store's likewise; a fixed
@@ -190,9 +191,9 @@ async fn ready(config: &Config, dir: &Path) -> Result<(), Error> {
         if images.capacity == 0 {
             return Err(Error::ImageCapacity(images.path.clone()));
         }
-        for made in [images.path.join("root"), images.path.join("meta"), images.path.join("layouts")] {
-            tokio::fs::create_dir_all(&made).await.map_err(|source| Error::Directory(made, source))?;
-        }
+        tokio::fs::create_dir_all(&images.path)
+            .await
+            .map_err(|source| Error::Directory(images.path.clone(), source))?;
     }
     let Some(volumes) = &config.volumes else {
         return Ok(());

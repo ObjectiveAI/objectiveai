@@ -56,15 +56,16 @@
 //! An image is a digest, and references stating where its bytes may
 //! be fetched; where they come from is this provider's decision. The
 //! caller's own images are looked in first: an image the caller
-//! built on this provider, in the client image store, is copied into
-//! the cache if the cache has no copy — loaded from the layout the
-//! store fixed at its build, under its `localhost/diverge/` name —
-//! and run as its
-//! id, with nobody asked. Then the cache, by the digest alone — the
-//! name an image is held under there, or no name, does not matter,
-//! except that a copy of a client image is not the provider's own
-//! and is passed over — and an image there is run as its id, with
-//! nothing pulled and nobody asked. Any other is looked for
+//! built on this provider, in its pool of the client image store, is
+//! pulled from the provider's own registry, which serves the pool
+//! under the identity's hash — a confirmation and no bytes where the
+//! cache holds the copy still — and run as its id, with nobody
+//! asked. Then the cache, by the digest alone — the name an image is
+//! held under there, or no name, does not matter, except that an
+//! image pulled from the provider's own registry, named under
+//! `127.0.0.1:` and nothing else, is not the provider's own and is
+//! passed over — and an image there is run as its id, with nothing
+//! pulled and nobody asked. Any other is looked for
 //! everywhere else at once: every referenced registry the
 //! configuration lists, asked as `<registry>/<name>@<digest>` with
 //! the credential listed through an auth file the provider writes

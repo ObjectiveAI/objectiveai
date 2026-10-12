@@ -39,6 +39,10 @@ pub struct ContainerDeployer {
     /// The client image store, where a caller's own images are looked
     /// for first; `None` where the configuration has none.
     pub(super) store: Option<Arc<Store>>,
+    /// The port podman reaches the provider's registry at: the
+    /// registry's own on Linux, where podman pulls on this host; the
+    /// tunnel's elsewhere, inside the machine, where podman pulls.
+    pub(super) registry_port: u16,
     /// The label every container of this provider carries,
     /// `diverge.provider=<dir>`, for the cleanup of an earlier life.
     pub(super) label: String,
@@ -104,8 +108,10 @@ impl ContainerDeployer {
         .await?;
         #[cfg(not(target_os = "linux"))]
         let tunnel = super::Tunnel::open(&run_dir, registry).await?;
+        #[cfg(not(target_os = "linux"))]
+        let registry_port = tunnel.port();
         #[cfg(target_os = "linux")]
-        let _ = registry;
+        let registry_port = registry.port();
         Ok(ContainerDeployer {
             shared: Arc::new(Shared {
                 disk,
@@ -117,6 +123,7 @@ impl ContainerDeployer {
             auth_file,
             mounts_dir,
             store,
+            registry_port,
             label,
             volumes,
             #[cfg(not(target_os = "linux"))]
@@ -152,17 +159,11 @@ impl ContainerDeployer {
     }
 
     /// The port podman reaches the provider's registry at: the
-    /// registry's own on Linux, where podman pulls on this host.
-    #[cfg(target_os = "linux")]
-    pub(super) fn registry_port(&self, registry: SocketAddr) -> u16 {
-        registry.port()
-    }
-
-    /// The port podman reaches the provider's registry at: the
-    /// tunnel's, inside the machine, where podman pulls.
-    #[cfg(not(target_os = "linux"))]
-    pub(super) fn registry_port(&self, _registry: SocketAddr) -> u16 {
-        self.tunnel.port()
+    /// registry's own on Linux, where podman pulls on this host; the
+    /// tunnel's elsewhere, inside the machine, where podman pulls.
+    /// What a client image is built under and pulled by.
+    pub fn registry_port(&self) -> u16 {
+        self.registry_port
     }
 }
 

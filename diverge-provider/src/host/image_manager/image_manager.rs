@@ -24,8 +24,8 @@ pub struct ImageManager {
     store: Option<Arc<Store>>,
     /// The volumes, for a build's context.
     volumes: Arc<VolumeManager>,
-    /// The deployer: its mounts directory and auth file for a build,
-    /// its cache for a delete's in-use answer.
+    /// The deployer: its mounts directory, auth file and registry
+    /// port for a build, its cache for a delete's in-use answer.
     deployer: Arc<ContainerDeployer>,
 }
 
@@ -84,10 +84,11 @@ impl image_manager::ImageManager for ImageManager {
         }
     }
 
-    /// The image removed from the root, its layout and its record
-    /// removed, under the identity's lock; in use where a container runs the copy in
-    /// the cache; the copy removed from the cache too, where it can
-    /// be. `None` for a name the identity has no image by.
+    /// The record removed and the pool pruned of what no other record
+    /// of the identity names, under the identity's lock; in use where
+    /// a container runs the copy in the cache; the copy removed from
+    /// the cache too, where it can be. `None` for a name the identity
+    /// has no image by.
     async fn delete(&self, client_identity: &str, name: &str) -> Result<Option<Deletion>, Error> {
         let Some(store) = &self.store else {
             return Ok(None);
@@ -97,8 +98,8 @@ impl image_manager::ImageManager for ImageManager {
         if store.read(client_identity, name).await?.is_none() {
             return Ok(None);
         }
-        let tag = store.tag(client_identity, name);
-        let copy = podman::image_id(&tag).await.ok();
+        let reference = store.reference(self.deployer.registry_port(), client_identity, name);
+        let copy = podman::image_id(&reference).await.ok();
         let running = match &copy {
             Some(id) => self.deployer.running_image(id).await,
             None => false,
@@ -106,16 +107,11 @@ impl image_manager::ImageManager for ImageManager {
         if running {
             return Ok(Some(Deletion::InUse));
         }
-        podman::podman_in(store.root(), ["rmi", "--force", &tag])
-            .await
-            .map_err(Error::Podman)?
-            .require("podman", |status| status.success())
-            .map_err(Error::Podman)?;
-        if copy.is_some() {
-            let _ = podman::podman(["rmi", &tag]).await;
-        }
-        store.remove_layout(client_identity, name).await?;
         store.remove(client_identity, name).await?;
+        store.prune(client_identity).await?;
+        if copy.is_some() {
+            let _ = podman::podman(["rmi", &reference]).await;
+        }
         Ok(Some(Deletion::Deleted))
     }
 }

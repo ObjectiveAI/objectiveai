@@ -15,8 +15,9 @@ use crate::host::container_deployer::name_ok;
 use crate::host::image_manager::Store;
 use crate::host::tools::podman;
 
-/// The provider's image checker: the caller's own images, the cache,
-/// then the referenced registries the configuration lists, asked.
+/// The provider's image checker: the caller's own images, then the
+/// referenced registries the configuration lists, asked; never the
+/// cache.
 #[derive(Debug)]
 pub struct ImageChecker {
     /// The client image store, where the caller's own images are;
@@ -50,10 +51,9 @@ impl image_checker::ImageChecker for ImageChecker {
     /// Looked where `sources` says, local first. `client` is the
     /// caller's own images in the client image store, by digest, and
     /// never another identity's; with no store, never available.
-    /// `server` is the cache, by digest alone, a copy of a client
-    /// image passed over. Either having the image ends it.
-    /// `registries`, asked only when neither local source asked had
-    /// it: every reference's name checked as a repository path, then
+    /// Having the image ends it. `registries`, asked only when the
+    /// local source asked did not have it: every reference's name
+    /// checked as a repository path, then
     /// every referenced registry the configuration lists asked at
     /// once, as `<registry>/<name>@<digest>`, a reference naming a
     /// registry not listed ignored. Any yes is available; every no —
@@ -69,9 +69,6 @@ impl image_checker::ImageChecker for ImageChecker {
             if store.find_digest(client_identity, &image.digest).await.is_some() {
                 return Ok(Response::Available(Available::default()));
             }
-        }
-        if sources.server && podman::image_by_digest(&image.digest).await.map_err(Error::Podman)?.is_some() {
-            return Ok(Response::Available(Available::default()));
         }
         if !sources.registries {
             return Ok(Response::Unavailable(Unavailable::default()));

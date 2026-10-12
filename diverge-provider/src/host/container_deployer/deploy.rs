@@ -2,7 +2,6 @@
 //! caps, then the image and the mounts beside each other, then the
 //! run.
 
-use std::path::Path;
 use std::sync::Arc;
 
 use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
@@ -98,16 +97,21 @@ async fn after_limits(
     }
 }
 
-/// The image obtained: the caller's own, from the client image store,
-/// its copy in the cache loaded if the cache has none, run as its id;
-/// else in the cache, found by digest under any name or none, run as
-/// its id with nothing pulled and nobody asked; else wherever of
-/// every referenced registry the configuration lists and the caller
-/// first answers that it holds it, pulled from there, which answers
-/// the id. Every way counted in the cache. The source and the id.
+/// The image obtained: the caller's own, from its pool in the client
+/// image store, pulled from the provider's own registry, which
+/// answers the id, and which is a confirmation and no bytes where
+/// the cache holds the copy still; else in the cache, found by digest
+/// under any name or none, run as its id with nothing pulled and
+/// nobody asked; else wherever of every referenced registry the
+/// configuration lists and the caller first answers that it holds
+/// it, pulled from there, which answers the id. Every way counted in
+/// the cache. The source and the id.
 async fn obtain(deployer: &ContainerDeployer, client_identity: &str, image: &Image, caller: &Caller) -> Result<(Source, String), Error> {
-    let (source, id) = match own(deployer, client_identity, &image.digest).await? {
-        Some(id) => (Source::Local(id.clone()), id),
+    let (source, id) = match own(deployer, client_identity, &image.digest).await {
+        Some(source) => {
+            let id = pull(deployer, &source).await?;
+            (source, id)
+        }
         None => match podman::image_by_digest(&image.digest).await.map_err(Error::Podman)? {
             Some(id) => (Source::Local(id.clone()), id),
             None => {
@@ -121,41 +125,16 @@ async fn obtain(deployer: &ContainerDeployer, client_identity: &str, image: &Ima
     Ok((source, id))
 }
 
-/// The caller's own image under `digest`, as the cache holds a copy
-/// of it: the copy's id, loaded now when the cache has none — `podman
-/// load` of the image's layout, the bytes the store fixed at its
-/// build, under the same `localhost/diverge/` name, so the copy's
-/// digest is the record's — the cache told a pull is in flight
-/// meanwhile. `None` where there is no store, or the caller built no
-/// image of that digest.
-async fn own(deployer: &ContainerDeployer, client_identity: &str, digest: &str) -> Result<Option<String>, Error> {
-    let Some(store) = &deployer.store else {
-        return Ok(None);
-    };
-    let Some((name, _)) = store.find_digest(client_identity, digest).await else {
-        return Ok(None);
-    };
-    let tag = store.tag(client_identity, &name);
-    if let Ok(id) = podman::image_id(&tag).await {
-        return Ok(Some(id));
-    }
-    let layout = store.layout_dir(client_identity, &name);
-    deployer.shared.images.pull_begins().await;
-    let loaded = load(&tag, &layout).await;
-    deployer.shared.images.pull_ends(loaded.as_deref().ok()).await;
-    loaded.map(Some)
-}
-
-/// The client image under `tag` copied from its layout into the
-/// cache: `podman load` of the layout, and the copy's id.
-async fn load(tag: &str, layout: &Path) -> Result<String, Error> {
-    let input = layout.to_string_lossy().into_owned();
-    podman::podman(["load", "--quiet", "--input", &input])
-        .await
-        .map_err(Error::Podman)?
-        .require("podman", |status| status.success())
-        .map_err(Error::Podman)?;
-    podman::image_id(tag).await.map_err(Error::Podman)
+/// The caller's own image under `digest`, as the provider's own
+/// registry serves it from the caller's pool:
+/// `127.0.0.1:<port>/<hash>/<name>@<digest>`, at the port podman
+/// reaches the registry by. `None` where there is no store, or the
+/// caller built no image of that digest.
+async fn own(deployer: &ContainerDeployer, client_identity: &str, digest: &str) -> Option<Source> {
+    let store = deployer.store.as_ref()?;
+    let (name, _) = store.find_digest(client_identity, digest).await?;
+    let reference = store.reference(deployer.registry_port(), client_identity, &name);
+    Some(Source::Stored(format!("{reference}@{digest}")))
 }
 
 /// The steps once the image is in the store and counted: the

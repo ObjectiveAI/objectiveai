@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 use tokio::process::Command;
 
-use super::{command, command_in, podman};
+use super::{command, podman};
 use crate::host::tools::{Error, capture};
 
 /// The label an image carries to be kept: present in the image's
@@ -16,14 +16,17 @@ use crate::host::tools::{Error, capture};
 /// image is built.
 pub const KEEP_LABEL: &str = "diverge.network/keep";
 
-/// The names a copy of a client image carries in the cache: every
-/// name under this prefix is one, and no image the provider holds on
-/// its own account is named so. A client image is built in the client
-/// store under `localhost/diverge/<identity>/<name>` and copied into
-/// the cache under the same name, which is how the cache's lookup by
-/// digest tells the provider's own images from a client's and never
-/// answers one identity's image to another.
-pub const CLIENT_PREFIX: &str = "localhost/diverge/";
+/// The names an image pulled from the provider's own registry
+/// carries in the cache: every name under this prefix is one, since
+/// the registry listens on the loopback and nowhere else, and no
+/// image the provider holds on its own account is named so. A
+/// client image is built and pulled under
+/// `127.0.0.1:<port>/<hash>/<name>`, and a caller's image for a run
+/// under `127.0.0.1:<port>/<repository>/…`, which is how the cache's
+/// lookup by digest tells the provider's own images from what it
+/// holds for one identity and never answers one identity's image to
+/// another.
+pub const CLIENT_PREFIX: &str = "127.0.0.1:";
 
 /// One image in podman's storage, as `podman image ls` lists it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,12 +58,13 @@ struct ListedRow {
 }
 
 impl ListedRow {
-    /// Whether every name the image is held under is a client
-    /// image's: a copy in the cache, not the provider's own.
-    fn client_copy(&self) -> bool {
+    /// Whether the image is the provider's own: held under at least
+    /// one name that is not under [`CLIENT_PREFIX`]. An image with
+    /// no name at all is not known to be, and is passed over too.
+    fn own(&self) -> bool {
         self.names
             .as_ref()
-            .is_some_and(|names| !names.is_empty() && names.iter().all(|name| name.starts_with(CLIENT_PREFIX)))
+            .is_some_and(|names| names.iter().any(|name| !name.starts_with(CLIENT_PREFIX)))
     }
 }
 
@@ -70,13 +74,6 @@ impl ListedRow {
 /// once.
 pub async fn images() -> Result<Vec<Listed>, Error> {
     let rows = listed(command(["image", "ls", "--no-trunc", "--format", "json"])).await?;
-    Ok(once(rows))
-}
-
-/// Every image in another storage root, once each — the client
-/// image store's — as [`images`] lists the cache.
-pub async fn images_in(root: &str) -> Result<Vec<Listed>, Error> {
-    let rows = listed(command_in(root, ["image", "ls", "--no-trunc", "--format", "json"])).await?;
     Ok(once(rows))
 }
 
@@ -101,14 +98,15 @@ fn once(rows: Vec<ListedRow>) -> Vec<Listed> {
 /// where the store has no such image. `podman image ls --filter
 /// digest=<digest>` matches every digest an image was pulled by, so
 /// no name is needed; an image loaded into the store with no digest
-/// recorded is not matched, which is podman's limit. A copy of a
-/// client image — one named under [`CLIENT_PREFIX`] and nothing else
-/// — is not matched either: it is held for the identity that built
-/// it, and the deployer finds it by that identity, not here.
+/// recorded is not matched, which is podman's limit. An image pulled
+/// from the provider's own registry — one named under
+/// [`CLIENT_PREFIX`] and nothing else — is not matched either, nor
+/// one with no name: it is held for the identity it was pulled for,
+/// and the deployer finds it by that identity, not here.
 pub async fn image_by_digest(digest: &str) -> Result<Option<String>, Error> {
     let filter = format!("digest={digest}");
     let rows = listed(command(["image", "ls", "--no-trunc", "--filter", &filter, "--format", "json"])).await?;
-    Ok(rows.into_iter().find(|row| !row.client_copy()).map(|row| row.id))
+    Ok(rows.into_iter().find(ListedRow::own).map(|row| row.id))
 }
 
 /// A listing of images, as podman answers `command`, its rows read.
@@ -125,44 +123,6 @@ async fn listed(command: Command) -> Result<Vec<ListedRow>, Error> {
 pub async fn image_id(reference: &str) -> Result<String, Error> {
     let answer = capture("podman", command(["image", "inspect", "--format", "{{.Id}}", reference])).await?;
     Ok(answer.trim().to_string())
-}
-
-/// One image in another storage root, as `podman image inspect`
-/// answers for it: its id, its manifest digest, and its size.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Inspected {
-    /// The image id, the full hexadecimal.
-    pub id: String,
-    /// The manifest digest podman records for it, `<algorithm>:<hex>`.
-    pub digest: String,
-    /// Its size in BYTES, every layer counted.
-    pub size: u64,
-}
-
-/// The image `reference` names in another storage root — the client
-/// image store's — inspected: `podman --root <root> image inspect`
-/// with its id, digest and size on one line. An answer that is not
-/// those three is [`Error::Output`].
-pub async fn inspect_in(root: &str, reference: &str) -> Result<Inspected, Error> {
-    let answer = capture(
-        "podman",
-        command_in(root, ["image", "inspect", "--format", "{{.Id}} {{.Digest}} {{.Size}}", reference]),
-    )
-    .await?;
-    let mut fields = answer.split_whitespace();
-    let inspected = match (fields.next(), fields.next(), fields.next().and_then(|size| size.parse().ok())) {
-        (Some(id), Some(digest), Some(size)) => Inspected {
-            id: id.to_string(),
-            digest: digest.to_string(),
-            size,
-        },
-        _ => {
-            return Err(Error::Output {
-                program: "podman".to_string(),
-            });
-        }
-    };
-    Ok(inspected)
 }
 
 /// Whether the registry `reference` names serves its manifest:

@@ -20,6 +20,11 @@ pub enum Source {
     /// `127.0.0.1:<port>/<repository>/<name>@<digest>`, with `name`
     /// the path the caller answered, pulled over plain HTTP.
     Client(String),
+    /// The caller's own, in its pool of the client image store,
+    /// served by the provider's own registry:
+    /// `127.0.0.1:<port>/<hash>/<name>@<digest>`, pulled over plain
+    /// HTTP.
+    Stored(String),
     /// In the store already, found by digest: its id, run from the
     /// store, pulled from nowhere.
     Local(String),
@@ -29,8 +34,8 @@ pub enum Source {
     Registry(String),
 }
 
-/// Where the image is, once the store has not got it, among the
-/// places the provider looks all at once: every referenced registry
+/// Where the image is, once neither the pool nor the cache has got
+/// it, among the places the provider looks all at once: every referenced registry
 /// the configuration lists, asked as `<registry>/<name>@<digest>` with
 /// the credential listed — a reference naming a registry not listed
 /// is ignored — and the caller, asked on its scope. The first to
@@ -73,7 +78,7 @@ async fn with_caller(deployer: &ContainerDeployer, caller: &Caller, digest: &str
     let Some(name) = caller.holds().await.filter(|name| name_ok(name)) else {
         return Ok(None);
     };
-    let port = deployer.registry_port(caller.registry());
+    let port = deployer.registry_port();
     Ok(Some(Source::Client(format!("127.0.0.1:{port}/{}/{name}@{digest}", caller.repository()))))
 }
 
@@ -81,7 +86,7 @@ impl Source {
     /// The reference podman is handed.
     pub fn reference(&self) -> &str {
         match self {
-            Source::Client(reference) | Source::Local(reference) | Source::Registry(reference) => reference,
+            Source::Client(reference) | Source::Stored(reference) | Source::Local(reference) | Source::Registry(reference) => reference,
         }
     }
 
@@ -91,9 +96,9 @@ impl Source {
     }
 
     /// Whether the pull is from the provider's own registry, which
-    /// speaks plain HTTP.
+    /// speaks plain HTTP: a caller's image or a stored one.
     pub fn own(&self) -> bool {
-        matches!(self, Source::Client(_))
+        matches!(self, Source::Client(_) | Source::Stored(_))
     }
 }
 

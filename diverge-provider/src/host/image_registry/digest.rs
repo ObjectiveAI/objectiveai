@@ -59,6 +59,18 @@ impl Digest {
         })
     }
 
+    /// The algorithm's name, `sha256` or `sha512`: one segment of the
+    /// path a blob is kept under.
+    pub fn algorithm(&self) -> &'static str {
+        self.algorithm.name()
+    }
+
+    /// The hexadecimal, lowercase and of the algorithm's length: the
+    /// file a blob is kept as.
+    pub fn hex(&self) -> &str {
+        &self.hex
+    }
+
     /// A hasher for this digest's algorithm, to hash bytes toward it.
     pub fn hasher(&self) -> Hasher {
         match self.algorithm {

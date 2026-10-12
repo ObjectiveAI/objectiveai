@@ -25,7 +25,7 @@ use diverge_sdk::shared::error::Error;
 ///
 /// # No source is answered here
 ///
-/// A request asking for none of the three sources is
+/// A request asking for neither of the two sources is
 /// [`NoSource`](response::Frame::NoSource), and the checker is never
 /// asked: the question was empty, and the checker's contract is that
 /// at least one source is set.

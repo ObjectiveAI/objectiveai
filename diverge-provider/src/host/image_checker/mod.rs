@@ -7,13 +7,14 @@
 //! check asks the same question with the caller left out, and says
 //! where to look: the caller's own images, built on this provider
 //! and kept in the client image store, found by digest for the
-//! identity asking and for no other; the provider's own, which is
-//! the podman cache by digest, under any name or none, a copy of a
-//! client image passed over; and the referenced registries the
-//! configuration lists, asked under each reference's name, a
-//! reference naming a registry not listed ignored. The local sources
-//! asked are looked in first, and an image there ends the question;
-//! only then are the referenced registries asked, all at once, each
+//! identity asking and for no other; and the referenced registries
+//! the configuration lists, asked under each reference's name, a
+//! reference naming a registry not listed ignored. The provider's
+//! own cache is never asked, whatever a request says: an image it
+//! pulled for one caller is no answer to another, and a check
+//! reveals nothing of what the cache holds. The caller's own images,
+//! when asked, are looked in first, and an image there ends the
+//! question; only then are the referenced registries asked, all at once, each
 //! with the credential listed, and any yes is the answer. A
 //! reference whose name is not a repository path is the failure to
 //! answer. The identity asking chooses only which images are its

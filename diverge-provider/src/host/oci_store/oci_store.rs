@@ -1,17 +1,14 @@
-//! The store that serves the caller's layouts.
+//! The store that serves the caller's pool.
 
 use std::sync::Arc;
 
-use bytes::Bytes;
-use tokio::fs;
-
-use super::{Pieces, pieces};
-use crate::host::image_manager::Store;
+use crate::host::image_manager::{Pieces, Store, pool};
+use crate::host::image_registry::Digest;
 use crate::protocol::image_source::Manifest;
 use crate::protocol::oci_store;
 
-/// This provider's OCI store: the caller's own images, from their
-/// layouts; nothing without the client image store.
+/// This provider's OCI store: the caller's own images, from its
+/// pool; nothing without the client image store.
 #[derive(Debug)]
 pub struct OciStore {
     /// The client image store; `None` where the configuration has
@@ -28,45 +25,31 @@ impl OciStore {
 
 impl oci_store::OciStore for OciStore {
     /// Held where the caller built an image of that digest: under
-    /// the repository path it was built as, less the `localhost/`.
+    /// `<hash>/<name>`, the repository path the provider's own
+    /// registry serves it at.
     async fn holds(&self, client_identity: &str, digest: &str) -> Option<String> {
         let store = self.store.as_ref()?;
         let (name, _) = store.find_digest(client_identity, digest).await?;
-        let tag = store.tag(client_identity, &name);
-        Some(tag.trim_start_matches("localhost/").to_string())
+        Some(format!("{}/{name}", Store::hash(client_identity)))
     }
 
-    /// The layout's manifest, for the caller's image of that digest.
+    /// The manifest of the caller's image of that digest, from its
+    /// pool: the record found first, so that a manifest is served
+    /// under a digest the caller built and no other.
     async fn manifest(&self, client_identity: &str, digest: &str) -> Option<Manifest> {
         let store = self.store.as_ref()?;
-        let (name, _) = store.find_digest(client_identity, digest).await?;
-        let dir = store.layout_dir(client_identity, &name);
-        let layout = Store::read_layout(&dir).await.ok()?;
-        if layout.digest != digest {
-            return None;
-        }
-        let body = fs::read(Store::blob_path(&dir, digest)?).await.ok()?;
-        Some(Manifest {
-            media_type: layout.media_type,
-            body: Bytes::from(body),
-        })
+        store.find_digest(client_identity, digest).await?;
+        let parsed = Digest::parse(digest)?;
+        pool::manifest(&store.pool_dir(client_identity), &parsed).await
     }
 
     type Blob = Pieces;
 
-    /// The blob of that digest among the caller's layouts, the first
-    /// layout holding it.
+    /// The blob of that digest in the caller's pool, and in no other
+    /// identity's.
     async fn blob(&self, client_identity: &str, digest: &str) -> Option<Pieces> {
         let store = self.store.as_ref()?;
-        for image in store.list(client_identity).await.ok()? {
-            let dir = store.layout_dir(client_identity, &image.name);
-            let Some(path) = Store::blob_path(&dir, digest) else {
-                continue;
-            };
-            if fs::metadata(&path).await.is_ok() {
-                return pieces(&path).await;
-            }
-        }
-        None
+        let parsed = Digest::parse(digest)?;
+        pool::blob(&store.pool_dir(client_identity), &parsed).await
     }
 }

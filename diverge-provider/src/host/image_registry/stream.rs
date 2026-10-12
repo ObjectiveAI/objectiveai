@@ -3,28 +3,29 @@
 use std::io;
 
 use bytes::Bytes;
-use crate::protocol::image_source::BlobStream;
 use futures_util::{Stream, StreamExt as _, stream};
 
 use super::{Digest, Hasher};
 
-/// What a hash-as-you-go stream carries between pieces: the caller's
-/// pieces, the hash so far — `None` once the blob has ended and the
-/// stream with it — the one piece held back, and the digest it all
-/// must come to.
-struct Passing {
-    pieces: BlobStream,
+/// What a hash-as-you-go stream carries between pieces: the pieces,
+/// the hash so far — `None` once the blob has ended and the stream
+/// with it — the one piece held back, and the digest it all must
+/// come to.
+struct Passing<S> {
+    pieces: S,
     hasher: Option<Hasher>,
     held: Option<Bytes>,
     digest: Digest,
 }
 
 /// The blob's pieces as the response body, each hashed on its way
-/// through, the blob completed only if the hash comes out.
+/// through, the blob completed only if the hash comes out. The
+/// pieces are a caller's, over its scope, or a pool's, off the disk:
+/// the same stream either way.
 ///
 /// One piece is always held back: when a piece arrives it is hashed
 /// and the PREVIOUS piece is yielded, so the last piece of the blob
-/// is still in hand when the caller's stream ends. Then the hash is
+/// is still in hand when the stream of pieces ends. Then the hash is
 /// finished — the held piece is yielded if it is the digest's, and an
 /// error is yielded if it is not, which hyper turns into a closed
 /// connection and podman into a failed pull. A caller that goes away
@@ -33,7 +34,10 @@ struct Passing {
 /// [`CHUNK_SIZE`](diverge_sdk::CHUNK_SIZE), per blob in
 /// flight. Nothing empty is ever yielded: the first piece is held
 /// without a yield, and a blob of no pieces yields its verdict alone.
-pub fn verified(digest: Digest, pieces: BlobStream) -> impl Stream<Item = Result<Bytes, io::Error>> {
+pub fn verified<S>(digest: Digest, pieces: S) -> impl Stream<Item = Result<Bytes, io::Error>>
+where
+    S: Stream<Item = Bytes> + Unpin + Send + 'static,
+{
     let hasher = Some(digest.hasher());
     stream::unfold(
         Passing {
