@@ -41,8 +41,8 @@ draft: false
   at a path of the tool container, each absent when empty. A
   transient tool's database scope is the agent's it is deployed for,
   and the template says so by its kind alone.
-- **A service's members.** `scope`, the string `per_agent_instance`,
-  `per_agent_template` or `global`: how far the service is shared,
+- **A service's members.** `scope`, the string `instance`,
+  `template` or `global`: how far the service is shared,
   and its database scope with it — one service and one scope per
   agent that declares it, one per agent template whose agents
   declare it, or one for every agent that declares it, from whatever
