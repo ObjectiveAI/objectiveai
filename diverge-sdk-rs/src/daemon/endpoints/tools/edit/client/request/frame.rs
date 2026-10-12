@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 
-use crate::daemon::edit::Edit;
+use crate::daemon::edit::{Change, Edit};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -29,11 +29,20 @@ pub struct Frame {
     /// or by its template and its index, which name a created tool
     /// once and for all. See [`reference::Tool`].
     pub tool: reference::Tool,
-    /// What an agent's edit and a tool's share — the name, the account,
-    /// the mounts, every one optional: see [`Edit`]. Flattened, so its
-    /// members are this object's own.
+    /// What an agent's edit and a tool's share — the name, the mounts,
+    /// every one optional: see [`Edit`]. Flattened, so its members are
+    /// this object's own.
     #[serde(flatten)]
     pub edit: Edit,
+    /// The account the tool runs under: see the create's
+    /// [`account`](crate::daemon::endpoints::tools::create::client::request::Frame::account).
+    /// An account the daemon does not have is the edit's `NoAccount`,
+    /// one the caller holds no `assign` grant over its `Forbidden`,
+    /// and nothing changes. Absent, as it is; `delete`, the tool runs
+    /// under no account, and everything it asks of the daemon is
+    /// answered `Forbidden` from then on. Changes live.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<Change<String>>,
 }
 
 /// This frame's tag among the scope-opening requests.

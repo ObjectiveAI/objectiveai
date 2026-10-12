@@ -3,13 +3,16 @@
 //! An ACCOUNT is the one principal the daemon knows. Every request the
 //! daemon serves is served for exactly one account — the account the
 //! connection it arrived on dialed in as, or the
-//! [`account`](crate::daemon::create::Inner::account) a container was
-//! created under when the request comes from an agent or a tool — and
+//! [`account`](crate::daemon::endpoints::tools::create::client::request::Frame::account) a tool container was
+//! created under when the request comes from one — and
 //! the daemon judges the request by that account's
 //! [roles](crate::daemon::endpoints::roles): each a list of
 //! [grants](crate::daemon::grant), the union of which is what the
-//! account may do. A container created under no account holds no grant,
-//! and everything it asks is answered `Forbidden`.
+//! account may do. A tool created under no account holds no grant,
+//! and everything it asks is answered `Forbidden`; an agent container
+//! holds no account and asks the daemon nothing. A dependency tool is
+//! the one container served for no account: its template's grants are
+//! its standing.
 //!
 //! # A name, a credential, or both
 //!

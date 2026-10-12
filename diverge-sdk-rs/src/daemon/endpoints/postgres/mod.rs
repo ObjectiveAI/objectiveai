@@ -34,8 +34,9 @@
 //!
 //! What a container reaches is one schema of its own, made at its
 //! first connection and dropped at its delete — a dependency tool's
-//! the scope its template's `database` names, one per parent agent or
-//! one per parent agent template, see [`Dependency`]: one login role and one
+//! the scope its kind names, a transient tool's one per parent agent,
+//! a service's as far as its template's `scope` says, see
+//! [`Dependency`]: one login role and one
 //! schema of the same name, owned by the role, with the role's search
 //! path pinned to that schema alone. An unqualified table name lands
 //! in it and resolves in it; another container's table is `permission

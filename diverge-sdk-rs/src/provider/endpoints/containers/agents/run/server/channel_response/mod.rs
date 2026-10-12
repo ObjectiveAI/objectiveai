@@ -13,7 +13,6 @@
 pub mod dequeue;
 pub mod enqueue;
 pub mod filetree;
-pub mod daemon;
 pub mod postgres;
 pub mod read;
 pub mod schema;

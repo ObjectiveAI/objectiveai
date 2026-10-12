@@ -2,17 +2,18 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::shared::permission::{Tagging, Tags, Within};
-use super::{Make, Over};
+use crate::shared::permission::{self, Tagging, Tags};
+use super::{Make, Over, Within};
 
 /// What one grant over agents allows, in one of three shapes told
 /// apart on the wire by their very form, as
 /// [`permission`](crate::shared::permission) states them: a bare array
 /// of [`Make`] actions; an object of [`Over`] actions and how far they
-/// reach, by tags; or an object of tagging actions, how far they
-/// reach, and which tags. An object that is none of these — an action
-/// of one shape among another's, a member missing, a `within` that is
-/// not `"any"` or a [`Tags`] — does not decode.
+/// reach — every agent, the dependency's own, or by tags; or an object
+/// of tagging actions, how far they reach, and which tags. An object
+/// that is none of these — an action of one shape among another's, a
+/// member missing, a `within` that is not `"any"`, `"self"` or a
+/// [`Tags`] — does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
@@ -21,13 +22,14 @@ pub enum Permission {
     /// judged but that the action is held.
     Make(Vec<Make>),
     /// Over agents that exist: the [`Over`] actions held, reaching
-    /// every one of them, or only those the [`Tags`] let through,
-    /// read as a test.
+    /// every one of them, the dependency's own agents, or only those
+    /// the [`Tags`] let through, read as a test.
     Over {
         /// The actions.
         actions: Vec<Over>,
-        /// How far: `"any"`, or the tags as a test.
-        within: Within<Tags>,
+        /// How far: `"any"`, `"self"`, or the tags as a test. See
+        /// [`Within`].
+        within: Within,
     },
     /// Tagging agents: putting tags on, taking them off, or both,
     /// reaching every one or only those the [`Tags`] let through, and
@@ -36,8 +38,8 @@ pub enum Permission {
         /// `tag`, `untag`, or both.
         actions: Vec<Tagging>,
         /// How far: `"any"`, or the tags as a test.
-        within: Within<Tags>,
+        within: permission::Within<Tags>,
         /// Which tags: `"any"`, or only these.
-        tags: Within<Vec<String>>,
+        tags: permission::Within<Vec<String>>,
     },
 }

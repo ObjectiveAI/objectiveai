@@ -23,6 +23,15 @@ use super::{FuseMount, Image, VolumeMount};
 pub struct Container {
     /// The image: a digest and its references. See [`Image`].
     pub image: Image,
+    /// The template the container is made from, by id: the caller's
+    /// word for what this container is an instance of — an agent
+    /// template's id, a tool template's, or a dependency tool
+    /// template's, each the lowercase hexadecimal SHA-256 of the
+    /// template's canonical bytes. The provider hands it to the
+    /// container beside the arguments, at its registration, and reads
+    /// nothing of it: it is the program's to know which template it
+    /// runs as.
+    pub template: String,
     /// How much memory the container may have, in BYTES.
     ///
     /// A ceiling, not a hint. A process that exceeds what the

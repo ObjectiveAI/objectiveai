@@ -4,18 +4,20 @@
 //! An AGENT container's program answers its registration with the
 //! tools it depends on — each a [`Template`]: a tool container the
 //! caller runs, by its image — a digest, and where its bytes may be
-//! fetched — its limits and its arguments; the
-//! agent's own files and directories the caller serves live into it;
-//! which database it gets; the grants its account holds — and named
-//! by its id, the hash of its canonical bytes, which the caller
-//! serves it to the program under. The proxy carries the
-//! list on the agents begin's `Begun`; the provider, when the list is
-//! not empty, opens one channel on the run scope with
-//! [`request::Request`], the list verbatim, and the caller answers
-//! with one [`response::Frame`] — deployed, or an error in its own
-//! words — then the channel finishes. The run goes on to its id on a
-//! deploy and ends, the container stopped, on anything else. An agent
-//! that declares nothing is never asked about.
+//! fetched — its limits and its arguments; which of two kinds it is,
+//! a transient tool of the agent's run or a service the caller keeps,
+//! with the kind's own members — the agent's files and directories
+//! the caller serves live into a transient tool, how far a service is
+//! shared; the grants its account holds — and named by its id, the
+//! hash of its canonical bytes, which the caller serves it to the
+//! program under. The proxy carries the list on the agents begin's
+//! `Begun`; the provider, when the list is not empty, opens one
+//! channel on the run scope with [`request::Request`], the list
+//! verbatim, and the caller answers with one [`response::Frame`] —
+//! deployed, or an error in its own words — then the channel
+//! finishes. The run goes on to its id on a deploy and ends, the
+//! container stopped, on anything else. An agent that declares
+//! nothing is never asked about.
 //!
 //! A TOOL container has no dependencies: its program may answer its
 //! registration with a list, and its proxy ignores it; its begin's
@@ -28,13 +30,15 @@
 //! between a dependency tool template and the tool templates a daemon
 //! keeps for itself, and why one travels inside an image.
 
-mod database;
+mod kind;
 mod mount;
+mod scope;
 mod template;
 
 pub mod request;
 pub mod response;
 
-pub use database::*;
+pub use kind::*;
 pub use mount::*;
+pub use scope::*;
 pub use template::*;

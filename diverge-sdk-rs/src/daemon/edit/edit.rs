@@ -11,14 +11,14 @@ use super::Change;
 /// — a list of mounts is the new list entire, the name the new name —
 /// and nothing is merged. A request with every member absent changes
 /// nothing and is not a failure. What is not here does not change: the
-/// template, the provider pin, the index, who made it. The deployer
-/// is an agent's alone, on its own edit.
+/// template, the provider pin, the index, who made it. The account is
+/// a tool's alone, on its own edit: an agent holds none.
 ///
 /// # What waits for the container to be inactive
 ///
 /// The mounts: a request that names any of the three mount lists is
 /// refused while the container is active, and left as it is. The name
-/// and the account change live.
+/// changes live.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Edit {
     /// The name, unique among the caller's agents or tools as the
@@ -27,15 +27,6 @@ pub struct Edit {
     /// the container has no name, and is reached once and for all only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<Change<String>>,
-    /// The account the container runs under: see the create's
-    /// [`account`](crate::daemon::create::Inner::account). An account
-    /// the daemon does not have is the edit's `NoAccount`, one the
-    /// caller holds no `assign` grant over its `Forbidden`, and nothing
-    /// changes. Absent, as it is; `delete`, the container runs under no
-    /// account, and everything it asks of the daemon is answered
-    /// `Forbidden` from then on.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub account: Option<Change<String>>,
     /// Volumes of the provider the create pinned the container to, as
     /// it is to mount them: see [`VolumeMount`]. The new list whole; a
     /// container pinned to no provider mounts no volume, and a request

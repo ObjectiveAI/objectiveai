@@ -14,8 +14,8 @@ use super::Credential;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Definition {
-    /// An account with a name: what a container's
-    /// [`account`](crate::daemon::create::Inner::account) names, and
+    /// An account with a name: what a tool container's
+    /// [`account`](crate::daemon::endpoints::tools::create::client::request::Frame::account) names, and
     /// what a request names the account by. With a credential, a client
     /// dials in as it too.
     Named {

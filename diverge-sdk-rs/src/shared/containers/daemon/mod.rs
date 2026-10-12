@@ -41,8 +41,9 @@
 //!
 //! # One connection, one session
 //!
-//! The daemon serves every connection for the container's
-//! [`account`](crate::daemon::create::Inner::account), and no credential
+//! The daemon serves every connection for the tool container's
+//! [`account`](crate::daemon::endpoints::tools::create::client::request::Frame::account), or under its
+//! dependency template's grants, and no credential
 //! passes: the proxy is the trust boundary, and an `Auth` frame is the
 //! one frame of either side that neither [`client::Frame`] nor
 //! [`server::Frame`] has — one does not decode, and the proxy closes

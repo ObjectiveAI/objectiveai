@@ -1,6 +1,5 @@
 //! The answers the proxy sends on the channels the server opened.
 //!
-//! [`daemon`] is what the program sent on a daemon connection,
 //! [`postgres`] is what the container's driver wrote on a database
 //! connection, [`schema`] what its arguments may be. [`enqueue`] and
 //! [`dequeue`] are the fates of what the server sent the agent — the
@@ -11,6 +10,5 @@
 
 pub mod dequeue;
 pub mod enqueue;
-pub mod daemon;
 pub mod postgres;
 pub mod schema;

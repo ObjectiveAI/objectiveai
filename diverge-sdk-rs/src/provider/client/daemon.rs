@@ -32,10 +32,12 @@ use crate::shared::containers::daemon;
 /// # The account is the container's
 ///
 /// Nothing here carries a credential, and the connection presents
-/// none: the session is served for the container's
-/// [`account`](crate::daemon::create::Inner::account), which the caller
-/// knows from the run. Two connections of one container are two
-/// sessions, with scopes of their own.
+/// none: the session is served for the tool container's
+/// [`account`](crate::daemon::endpoints::tools::create::client::request::Frame::account), or under its
+/// dependency template's grants, which the caller knows from the run.
+/// Two connections of one container are two sessions, with scopes of
+/// their own. A tool container's alone: an agent container holds no
+/// account, and its run scope has no such channel.
 pub trait Daemon: Send + Sync {
     /// The server frames the daemon sends on one connection, in order,
     /// then the end.

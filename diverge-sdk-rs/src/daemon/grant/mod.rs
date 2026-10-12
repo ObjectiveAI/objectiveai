@@ -94,6 +94,7 @@
 mod convert;
 mod grant;
 
+pub use convert::*;
 pub use grant::*;
 pub use crate::shared::permission::{Tagging, Within};
 

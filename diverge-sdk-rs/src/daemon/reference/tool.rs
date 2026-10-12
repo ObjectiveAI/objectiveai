@@ -37,15 +37,15 @@ pub enum Tool {
         /// that daemon and compared by this one.
         tool: Box<Tool>,
     },
-    /// By the agent it was deployed for and its template:
-    /// `{"agent":…,"template":…}`. A dependency tool only, which
-    /// lives while its agent's container runs: found while it does,
-    /// and nothing after.
+    /// By an agent and a template: `{"agent":…,"template":…}`. A
+    /// transient dependency tool of the agent's run, found while the
+    /// run lasts, or a service the agent is attached to under the
+    /// template, found for as long as it is attached, running or not.
     Dependency {
         /// The agent, by its name or once and for all: see [`Agent`].
         agent: Agent,
-        /// The dependency tool template it was deployed from, by id:
-        /// the hash of the template's canonical bytes.
+        /// The dependency tool template, by id: the hash of the
+        /// template's canonical bytes.
         template: String,
     },
 }

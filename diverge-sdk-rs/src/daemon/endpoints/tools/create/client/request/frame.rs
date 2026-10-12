@@ -13,9 +13,10 @@ use crate::wire::encode::{Encode, Writer};
 /// limits, the arguments — is the
 /// [`template`](Inner::template), named by its id; what is this
 /// tool's own is here: the provider it runs on with the volumes it
-/// mounts there, its FUSE mounts of providers' volumes, and the name
-/// the tool is held under from then on. The agents create's shape —
-/// the one [`Inner`] flattened into both — because a tool
+/// mounts there, its FUSE mounts of providers' volumes, the account
+/// it runs under, and the name the tool is held under from then on.
+/// The agents create's shape — the one [`Inner`] flattened into both
+/// — because a tool
 /// container is made of what an agent container is
 /// made of; what makes it a tool is the image,
 /// which runs an MCP server, and what the daemon does with it, which
@@ -38,10 +39,24 @@ use crate::wire::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// What an agent's create and a tool's share — the template, the
-    /// provider and its volumes, the FUSE mounts, the account: see
-    /// [`Inner`]. Flattened, so its members are this object's own.
+    /// provider and its volumes, the FUSE mounts: see [`Inner`].
+    /// Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub inner: Inner,
+    /// The account the tool runs under, if any — a NAMED
+    /// [account](crate::daemon::endpoints::accounts), by its name: the
+    /// identity it acts as toward the daemon, and what the daemon
+    /// judges everything it asks of the daemon by, through the roles
+    /// the account holds. One the daemon does not have is the create's
+    /// `NoAccount`; one the caller holds no `assign` grant over is its
+    /// `Forbidden`; in either case nothing is made. Absent, the tool
+    /// runs under no account and holds no grant: everything it asks of
+    /// the daemon is answered `Forbidden`. The account is the tool's
+    /// for its life unless an edit replaces or deletes it. A tool's
+    /// alone: an agent container holds no account and asks the daemon
+    /// nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
     /// The name, if any: a string of the caller's choosing, unique
     /// among the caller's tools, by which the tool is reached
     /// afterwards beside its template and its index. Absent, the

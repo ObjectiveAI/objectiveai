@@ -11,8 +11,10 @@ use crate::shared::containers::dependencies::Template;
 /// borrowed: what the serving loop hands to a task.
 ///
 /// The two families' `server::channel_request::Frame`s carry the same
-/// asks in the same order with the same payloads — the agents family
-/// one more, the dependencies an agent alone declares — and
+/// asks with the same payloads, each family less what its container
+/// never asks — the agents family has the dependencies and the five
+/// MCP exchanges outward, which a tool container never makes, and no
+/// daemon connection, which an agent container never opens — and
 /// borrow from the frame they were decoded from; this is the one
 /// owned form both convert into, so the answer to each is written
 /// once. Which family it came from does not matter to the answer: the
@@ -96,7 +98,6 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
             },
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
-            Frame::Daemon(request) => Ask::Daemon(request.connection_id),
             Frame::VaultGet(request) => Ask::VaultGet(request.key.to_string()),
             Frame::VaultSet(request) => {
                 Ask::VaultSet(request.key.to_string(), Bytes::copy_from_slice(request.value))
@@ -159,11 +160,6 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             Frame::VaultDelete(request) => Ask::VaultDelete(request.key.to_string()),
             Frame::VaultLock(request) => Ask::VaultLock(request.key.to_string(), request.ttl),
             Frame::VaultUnlock(request) => Ask::VaultUnlock(request.key.to_string()),
-            Frame::McpListTools(request) => Ask::McpListTools(request.0),
-            Frame::McpListResources(request) => Ask::McpListResources(request.0),
-            Frame::McpCallTool(request) => Ask::McpCallTool(request.0),
-            Frame::McpReadResource(request) => Ask::McpReadResource(request.0),
-            Frame::McpNotifications(_) => Ask::McpNotifications,
             Frame::FuseRead(request) => Ask::FuseRead(
                 request.id.to_string(),
                 request.path.to_string(),

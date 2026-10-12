@@ -7,8 +7,7 @@
 //! being written. The rest answer the CONTAINER, relayed: [`postgres`] is
 //! what its database said, [`daemon`] the server frames that answer a
 //! frame of its daemon connection, the five `vault_*` what its vault
-//! answered, the five `mcp_*` what the caller's MCP servers answered
-//! its tool calls with, and the nine `fuse_*` what the files and
+//! answered, and the nine `fuse_*` what the files and
 //! directories it mounted live hold, what an entry of them is, and
 //! whether a change to one took.
 
@@ -22,11 +21,6 @@ pub mod fuse_setattr;
 pub mod fuse_stat;
 pub mod fuse_truncate;
 pub mod fuse_write;
-pub mod mcp_call_tool;
-pub mod mcp_list_resources;
-pub mod mcp_list_tools;
-pub mod mcp_notifications;
-pub mod mcp_read_resource;
 pub mod oci_blob;
 pub mod oci_has;
 pub mod oci_manifest;

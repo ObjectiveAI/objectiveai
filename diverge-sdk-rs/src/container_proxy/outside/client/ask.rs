@@ -8,7 +8,10 @@ use crate::shared::mcp;
 
 /// What the proxy asks the server for on a begin scope, in the one
 /// owned form both families' frames convert into, so the relay of
-/// each is written once.
+/// each is written once: an agent container's are the database
+/// connections, the vault and the five MCP exchanges outward, a tool
+/// container's the database connections, the daemon connection and
+/// the vault.
 ///
 /// Owned, because the frame it came from borrows the message it
 /// arrived in and an ask outlives that message: it is relayed to the
@@ -67,7 +70,6 @@ impl From<agents::begin::server::channel_request::Frame<'_>> for Ask {
         use agents::begin::server::channel_request::Frame;
         match frame {
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
-            Frame::Daemon(request) => Ask::Daemon(request.connection_id),
             Frame::VaultGet(request) => Ask::VaultGet {
                 key: request.key.to_owned(),
             },
@@ -117,11 +119,6 @@ impl From<tools::begin::server::channel_request::Frame<'_>> for Ask {
             Frame::VaultUnlock(request) => Ask::VaultUnlock {
                 key: request.key.to_owned(),
             },
-            Frame::McpListTools(request) => Ask::McpListTools(request),
-            Frame::McpListResources(request) => Ask::McpListResources(request),
-            Frame::McpCallTool(request) => Ask::McpCallTool(request),
-            Frame::McpReadResource(request) => Ask::McpReadResource(request),
-            Frame::McpNotifications(_) => Ask::McpNotifications,
         }
     }
 }

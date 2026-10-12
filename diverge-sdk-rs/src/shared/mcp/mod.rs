@@ -17,11 +17,13 @@
 //! # Why they are shared
 //!
 //! Because more than one scope carries them, in more than one
-//! direction. Every [`containers`](crate::provider::endpoints::containers) scope
-//! has the container inside asking a caller's servers; a
-//! [`tools`](crate::provider::endpoints::containers::tools) scope also has the
-//! caller asking a server the provider is holding; and the
-//! [`proxy`](crate::container_proxy::outside::endpoints::agents::begin) inside the container relays
+//! direction. An [`agents`](crate::provider::endpoints::containers::agents)
+//! run scope has the container inside asking a caller's servers; a
+//! [`tools`](crate::provider::endpoints::containers::tools) run scope
+//! has the caller asking a server the provider is holding, and never
+//! the other way, since a tool container makes no tool call outward;
+//! and the
+//! [`proxy`](crate::container_proxy::outside::endpoints::agents::begin) inside the agent container relays
 //! the first of those one hop earlier.
 //!
 //! Same five exchanges, opposite ways round. A shape defined once per
@@ -33,7 +35,7 @@
 //! proxy, and the caller merges its servers into one list. So the
 //! caller says who is which, under three `_meta` keys — [`IMAGE`],
 //! [`AGENT`], [`TOOL`], set by [`attest`] — and the caller is the
-//! daemon. On the four requests a program sends outward the daemon
+//! daemon. On the four requests an agent's program sends outward the daemon
 //! sets them on the params before it forwards the call, so a tool
 //! container that receives it knows which agent is calling: its
 //! image, its template and its index. On what a tool container's own

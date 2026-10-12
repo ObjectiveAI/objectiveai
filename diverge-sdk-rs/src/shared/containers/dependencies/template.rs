@@ -1,10 +1,9 @@
-//! One tool container an agent's program depends on, as a template
-//! the caller deploys.
+//! One dependency, as an image declares it.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{Database, Mount};
+use super::Kind;
 use super::super::request::Image;
 use crate::shared::permission::Grant;
 
@@ -17,16 +16,18 @@ use crate::shared::permission::Grant;
 /// and the arguments are here, member for member. The mounts are not
 /// the caller's volumes — a volume is named in the caller's own
 /// listing, and a tool that named one would be dictating the caller's
-/// storage — but the AGENT's own files and directories,
-/// [`fuse_file_mounts`](Self::fuse_file_mounts) and
-/// [`fuse_directory_mounts`](Self::fuse_directory_mounts), each a path
-/// in the agent container served live at a path in the tool container:
-/// the caller serves the agent container, a `containers::serve` of the
-/// path, and mounts the tool, a `fuse::mount` answered from it. Beside
-/// them, [`database`](Self::database) says which database scope the
-/// tool gets, and [`permissions`](Self::permissions) what its account
-/// may do — grants that name nothing, so the template is the same on
-/// every daemon it reaches.
+/// storage — but, for a transient tool alone, the AGENT's own files
+/// and directories, each a path in the agent container served live at
+/// a path in the tool container: the caller serves the agent
+/// container, a `containers::serve` of the path, and mounts the tool,
+/// a `fuse::mount` answered from it. [`kind`](Self::kind) says which
+/// of the two kinds the dependency is — a transient tool of the
+/// agent's run, with those mounts, or a service the caller keeps,
+/// with a scope — see [`Kind`]; and [`permissions`](Self::permissions)
+/// what its account may do — grants that name nothing, so the
+/// template is the same on every daemon it reaches, and among them
+/// the word `self`, which reaches the agent a transient tool is the
+/// dependency of and every agent attached to a service.
 ///
 /// There are no instructions. What a template cannot say — the
 /// provider the tool runs on, the volumes it is given, the account's
@@ -39,14 +40,16 @@ use crate::shared::permission::Grant;
 /// hexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)
 /// bytes — this template as compact JSON, absent members omitted,
 /// the image's `references` absent too, every object key sorted at
-/// every depth, the `arguments` included — sixty-four characters,
-/// which the caller computes over [`hashed`](Self::hashed). Two
-/// declarations with one id are one dependency, and a list that
-/// declares one twice is refused; the same template deployed for the
-/// same agent, on whatever provider, is the same dependency with the
-/// same database scope. The caller labels the tool's MCP tools by the
-/// id when it merges lists, and the program knows which tool serves
-/// each by the keys under `_meta`, see [`shared::mcp`](crate::shared::mcp).
+/// every depth, the `arguments` included, the kind's `type` and its
+/// members among the keys — sixty-four characters, which the caller
+/// computes over [`hashed`](Self::hashed). Two declarations with one
+/// id are one dependency, and a list that declares one twice is
+/// refused; the same template deployed for the same agent, on
+/// whatever provider, is the same dependency, and the same service
+/// template declared under the same scope key, by whatever agent, is
+/// the same service. The caller labels the tool's MCP tools by the id
+/// when it merges lists, and the program knows which tool serves each
+/// by the keys under `_meta`, see [`shared::mcp`](crate::shared::mcp).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Template {
@@ -60,22 +63,11 @@ pub struct Template {
     /// The arguments the tool container is registered with — the
     /// `arguments` of the run request that makes it, verbatim.
     pub arguments: Value,
-    /// Which database scope the tool gets: one per parent agent, or
-    /// one shared by every parent made from the same agent template.
-    /// See [`Database`].
-    pub database: Database,
-    /// Files of the agent container served live into the tool
-    /// container, one each over FUSE: see [`Mount`]. The agent's path
-    /// names a file; the tool's path is where it appears. Absent when
-    /// empty.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_file_mounts: Vec<Mount>,
-    /// Directories of the agent container served live into the tool
-    /// container, one each over FUSE: see [`Mount`]. The agent's path
-    /// names a directory, whose whole tree the tool sees; the tool's
-    /// path is where it appears. Absent when empty.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_directory_mounts: Vec<Mount>,
+    /// Which kind of dependency this is, with that kind's own members
+    /// flat beside the `type` that names it: a transient tool's
+    /// mounts, or a service's scope. See [`Kind`].
+    #[serde(flatten)]
+    pub kind: Kind,
     /// What the tool's account may do, as grants that name nothing:
     /// see [`Grant`]. The caller gives the tool an account holding
     /// exactly these. Absent when empty, and then the tool may do

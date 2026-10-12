@@ -3,14 +3,17 @@
 use serde::{Deserialize, Serialize};
 
 use super::Agent;
+use crate::daemon::key;
 
 /// A tool of the client's that made something: one the client made
 /// from a template, named once and for all by its template and its
-/// index, and by its name as it was called; or a dependency tool,
-/// named once and for all by the agent it was deployed for and the
-/// template it was deployed from. A connected tool makes nothing.
-/// Externally tagged on the wire, snake case: `{"record":{…}}` or
-/// `{"dependency":{…}}`, beside the creator's own `type`.
+/// index, and by its name as it was called; a transient dependency
+/// tool, named once and for all by the agent it was deployed for and
+/// the template it was deployed from; or a service, named once and
+/// for all by its template and whose it is. A connected tool makes
+/// nothing. Externally tagged on the wire, snake case:
+/// `{"record":{…}}`, `{"dependency":{…}}` or `{"service":{…}}`,
+/// beside the creator's own `type`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Tool {
@@ -28,11 +31,19 @@ pub enum Tool {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         name: Option<String>,
     },
-    /// A dependency tool, deployed for an agent.
+    /// A transient dependency tool, deployed for an agent's run.
     Dependency {
         /// The agent it was deployed for: see [`Agent`].
         agent: Agent,
         /// The dependency tool template it was deployed from, by id.
         template: String,
+    },
+    /// A service, made from a dependency tool template under its
+    /// scope key.
+    Service {
+        /// The dependency tool template it was made from, by id.
+        template: String,
+        /// Whose it is: see [`key::Owner`].
+        owner: key::Owner,
     },
 }

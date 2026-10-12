@@ -15,7 +15,6 @@ use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::agents::run::server;
 use crate::provider::endpoints::containers::client::{Ask, Encoders, Scoped, Writes, encoded, serve};
 use crate::wire::frame;
-use crate::shared::containers::daemon;
 use crate::shared::containers::postgres;
 use crate::shared::containers::response::Id;
 use crate::shared::containers::write_bytes;
@@ -147,8 +146,10 @@ const ENCODERS: Encoders = Encoders {
     write_error,
 };
 
-fn daemon_half(connection_id: u32) -> Option<Vec<u8>> {
-    encoded(&channel_request::Frame::Daemon(daemon::request::Daemon { connection_id }))
+/// An agent container has no daemon connection: this family opens no
+/// half, and a connection its proxy announced would be declined.
+fn daemon_half(_: u32) -> Option<Vec<u8>> {
+    None
 }
 
 fn postgres_half(connection_id: u32) -> Option<Vec<u8>> {

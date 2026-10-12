@@ -18,7 +18,10 @@
 //! `within` is the kind's own list filter — names, templates, creators,
 //! attachments — this one is [`Within`]: the string `"any"`, every one
 //! of the kind, or a [`Tags`] test, those carrying every one of some
-//! tags and any one of others. A tagging grant likewise touches `"any"`
+//! tags and any one of others — and, over agents alone, the word
+//! `"self"`, [`agents::Within`]: the agents the dependency is a
+//! dependency of, which a template may name without naming anyone. A
+//! tagging grant likewise touches `"any"`
 //! tag or a listed set. No name of an agent, a tool, a volume, an
 //! account or a role appears anywhere, and no route: a dependency tool
 //! template is meant to travel — handed from one caller to another,

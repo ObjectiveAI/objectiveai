@@ -13,7 +13,9 @@ use crate::wire::frame;
 use crate::shared::containers::dependencies::Template;
 
 /// Begin the server's work on an agent container: open the scope
-/// carrying `arguments`, and wait for the proxy to say it has begun.
+/// carrying `arguments` and `template`, the id of the template the
+/// container is made from, and wait for the proxy to say it has
+/// begun.
 ///
 /// Reads exactly one frame off the main stream before returning,
 /// because nothing may be opened on the scope before its `Begun`:
@@ -26,9 +28,10 @@ use crate::shared::containers::dependencies::Template;
 pub async fn execute(
     handle: &Handle,
     arguments: Value,
+    template: String,
 ) -> Result<(ExecuteHandle, Asks<Ask>, Chunks, Vec<Template>), ExecuteError> {
     let mut payload = Vec::new();
-    request::Frame { arguments }
+    request::Frame { arguments, template }
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
     let mut scope = handle.send_request(&payload).await.map_err(ExecuteError::Send)?;

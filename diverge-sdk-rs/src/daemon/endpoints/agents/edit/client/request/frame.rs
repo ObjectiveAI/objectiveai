@@ -8,8 +8,7 @@ use crate::daemon::edit::Edit;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to change an agent: its name, its account, its
-/// mounts, its deployer.
+/// Ask the daemon to change an agent: its name, its mounts.
 ///
 /// The agent is named by its name or by its template and its index, as
 /// [`reference`](crate::daemon::reference) states. Every other member
@@ -28,9 +27,9 @@ pub struct Frame {
     /// template and its index, which name it once and for all. See
     /// [`reference::Agent`].
     pub agent: reference::Agent,
-    /// What an agent's edit and a tool's share — the name, the account,
-    /// the mounts, every one optional: see [`Edit`]. Flattened, so its
-    /// members are this object's own.
+    /// What an agent's edit and a tool's share — the name, the mounts,
+    /// every one optional: see [`Edit`]. Flattened, so its members are
+    /// this object's own. No account: an agent holds none.
     #[serde(flatten)]
     pub edit: Edit,
 }

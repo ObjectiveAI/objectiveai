@@ -25,7 +25,7 @@ use crate::daemon::reference;
 /// string for a dependency's; so that everything an agent owns, its
 /// own scope and its per-instance dependencies' scopes, shares its
 /// prefix and goes with it when it is deleted, and what an agent
-/// template owns does not.
+/// template owns, or a global service's template, does not.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Container {
