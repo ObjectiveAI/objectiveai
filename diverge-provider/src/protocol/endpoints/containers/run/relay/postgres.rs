@@ -17,7 +17,7 @@ use diverge_sdk::wire::server::answer::{Answer, answer};
 /// what opens this end's half on the begin scope, in `serve`.
 pub(crate) async fn postgres<R: Runs>(run: Arc<Run>, channel: u32, proxy_id: u32) {
     let caller_id = run.pairs.open(proxy_id).await;
-    let Some(payload) = encoded(&R::Ask::from(Own::Postgres(caller_id))) else {
+    let Some(payload) = R::Ask::try_from(Own::Postgres(caller_id)).ok().and_then(|ask| encoded(&ask)) else {
         run.pairs.forget(caller_id).await;
         let _ = run.begin.finish(channel).await;
         return;

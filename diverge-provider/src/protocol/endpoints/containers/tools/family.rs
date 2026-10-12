@@ -18,7 +18,7 @@ use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::client::execu
 use diverge_sdk::wire::decode::Decode as _;
 use crate::protocol::endpoints::containers::run::begin::{Begin, Begun};
 use crate::protocol::endpoints::containers::run::family::{Family, Opened, Runs};
-use crate::protocol::endpoints::containers::run::own::Own;
+use crate::protocol::endpoints::containers::run::own::{Own, Unasked};
 use crate::protocol::endpoints::containers::run::run::Run;
 use crate::protocol::endpoints::containers::run::serve::tool;
 use crate::protocol::endpoints::containers::run::{encoded::encoded, render};
@@ -27,7 +27,6 @@ use diverge_sdk::shared;
 use diverge_sdk::shared::containers::response::{Id, VolumeHeld, VolumeMode};
 use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, vault};
 use diverge_sdk::shared::containers::daemon;
-use diverge_sdk::shared::mcp;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree as tree;
 
@@ -121,10 +120,10 @@ impl Family for Tools {
 impl Runs for Tools {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn begin(proxy: &Handle, arguments: Value) -> impl Future<Output = Result<Begun, Error>> + Send {
+    fn begin(proxy: &Handle, arguments: Value, template: String) -> impl Future<Output = Result<Begun, Error>> + Send {
         let proxy = proxy.clone();
         async move {
-            match begin::execute(&proxy, arguments).await {
+            match begin::execute(&proxy, arguments, template).await {
                 Ok((handle, asks, finish)) => Ok(Begun {
                     begin: Begin::Tools(handle),
                     asks,
@@ -164,8 +163,10 @@ impl Runs for Tools {
     }
 }
 
-/// The proxy's ask as this family's frame; a database connection is
-/// re-asked under this end's own id, see `Own::Postgres`.
+/// The proxy's ask as this family's frame; a database connection and
+/// a daemon connection are re-asked under this end's own id, see
+/// `Own`, and a tool call outward is nothing a tool container's proxy
+/// opens, this wire having no frame for one.
 fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
     Some(match ask {
         Ask::Postgres(_) => return None,
@@ -175,11 +176,11 @@ fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
         Ask::VaultDelete { key } => ask::Frame::VaultDelete(vault::delete::request::Request { key }),
         Ask::VaultLock { key, ttl } => ask::Frame::VaultLock(vault::lock::request::Request { key, ttl: *ttl }),
         Ask::VaultUnlock { key } => ask::Frame::VaultUnlock(vault::unlock::request::Request { key }),
-        Ask::McpListTools(request) => ask::Frame::McpListTools(request.clone()),
-        Ask::McpListResources(request) => ask::Frame::McpListResources(request.clone()),
-        Ask::McpCallTool(request) => ask::Frame::McpCallTool(request.clone()),
-        Ask::McpReadResource(request) => ask::Frame::McpReadResource(request.clone()),
-        Ask::McpNotifications => ask::Frame::McpNotifications(mcp::notifications::request::Request),
+        Ask::McpListTools(_)
+        | Ask::McpListResources(_)
+        | Ask::McpCallTool(_)
+        | Ask::McpReadResource(_)
+        | Ask::McpNotifications => return None,
     })
 }
 
@@ -208,9 +209,13 @@ fn fuse<'a>(id: &'a str, ask: &'a MountAsk) -> ask::Frame<'a> {
     }
 }
 
-impl<'a> From<Own<'a>> for ask::Frame<'a> {
-    fn from(own: Own<'a>) -> Self {
-        match own {
+/// Every own ask as this family's frame: a tool container's wire has
+/// a frame for each.
+impl<'a> TryFrom<Own<'a>> for ask::Frame<'a> {
+    type Error = Unasked;
+
+    fn try_from(own: Own<'a>) -> Result<Self, Unasked> {
+        Ok(match own {
             Own::OciManifest(digest) => ask::Frame::OciManifest(oci::manifest::request::Request {
                 digest: digest.to_string(),
             }),
@@ -222,6 +227,6 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
             }),
             Own::Daemon(connection_id) => ask::Frame::Daemon(daemon::request::Daemon { connection_id }),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
-        }
+        })
     }
 }

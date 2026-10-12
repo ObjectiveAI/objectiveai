@@ -28,7 +28,7 @@ use super::super::run::Run;
 /// never come.
 pub(crate) async fn daemon(run: Arc<Run>, channel: u32, caller_id: u32) {
     if let Some(proxy_id) = run.daemons.take(caller_id).await
-        && let Ok(mut program) = run.begin.daemon(proxy_id).await
+        && let Some(Ok(mut program)) = run.begin.daemon(proxy_id).await
     {
         while let Some(Ok(frame)) = program.next().await {
             let Some(payload) = encoded(&frame.as_frame()) else {

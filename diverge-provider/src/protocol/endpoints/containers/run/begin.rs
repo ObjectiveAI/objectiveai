@@ -46,15 +46,20 @@ impl Begin {
         }
     }
 
-    /// This end's half of a database connection the proxy announced,
-    /// quoting the proxy's id.
-    pub(crate) async fn daemon(&self, connection_id: u32) -> Result<ChannelStream<Daemon>, OpenError> {
+    /// This end's half of a daemon connection the proxy announced,
+    /// quoting the proxy's id: a tool container's begin alone has
+    /// the channel, and an agent container's answers `None`, since an
+    /// agent asks for no daemon connection and its wire has no frame
+    /// for one.
+    pub(crate) async fn daemon(&self, connection_id: u32) -> Option<Result<ChannelStream<Daemon>, OpenError>> {
         match self {
-            Begin::Agents(begin) => begin.daemon(connection_id).await,
-            Begin::Tools(begin) => begin.daemon(connection_id).await,
+            Begin::Agents(_) => None,
+            Begin::Tools(begin) => Some(begin.daemon(connection_id).await),
         }
     }
 
+    /// This end's half of a database connection the proxy announced,
+    /// quoting the proxy's id.
     pub(crate) async fn postgres(&self, connection_id: u32) -> Result<ChannelStream<Postgres>, OpenError> {
         match self {
             Begin::Agents(begin) => begin.postgres(connection_id).await,

@@ -12,7 +12,7 @@ use bytes::Bytes;
 use serde_json::Value;
 
 use super::begin::Begun;
-use super::own::Own;
+use super::own::{Own, Unasked};
 use super::run::Run;
 use diverge_sdk::wire::client::handle::Handle;
 use diverge_sdk::container_proxy::outside::client::Ask;
@@ -71,14 +71,17 @@ pub(crate) trait Family: Send + Sync + 'static {
 /// What the two scopes that deploy supply besides: how their container
 /// begins, and how the proxy's asks are put to the caller.
 pub(crate) trait Runs: Family {
-    /// The channel request frame this end opens on the caller.
-    type Ask<'a>: Encode + From<Own<'a>>;
+    /// The channel request frame this end opens on the caller: every
+    /// [`Own`] as the family spells it, or [`Unasked`] for the one the
+    /// family's wire has no frame for.
+    type Ask<'a>: Encode + TryFrom<Own<'a>, Error = Unasked>;
 
     /// Begin the container's proxy: the family's begin scope on the
-    /// connection `proxy`, carrying the container's `arguments`.
+    /// connection `proxy`, carrying the container's `arguments` and
+    /// `template`, the id of the template it is made from.
     /// What comes back is the scope and what rides it; an
     /// error is the run's, in the proxy's words where it refused.
-    fn begin(proxy: &Handle, arguments: Value) -> impl Future<Output = Result<Begun, Error>> + Send;
+    fn begin(proxy: &Handle, arguments: Value, template: String) -> impl Future<Output = Result<Begun, Error>> + Send;
 
     /// The dependencies the container declared, asked of the caller
     /// before the id goes out but with the id minted and told: an
@@ -89,9 +92,11 @@ pub(crate) trait Runs: Family {
     fn deploy(scope: &ScopeHandle, id: &str, declared: &[Template]) -> impl Future<Output = Result<(), Error>> + Send;
 
     /// The proxy's ask on the begin scope, as this family's frame to
-    /// the caller — or [`None`] for the one that is not carried as it
-    /// came: a database connection, which this end re-asks under an
-    /// id of its own. See [`Own::Postgres`].
+    /// the caller — or [`None`] for one that is not carried as it
+    /// came: a database connection or a daemon connection, which this
+    /// end re-asks under an id of its own, see [`Own`]; and one the
+    /// family's wire has no frame for, which a proxy of that family
+    /// never opens.
     fn relayed<'a>(ask: &'a Ask) -> Option<Self::Ask<'a>>;
 
     /// A mount's ask, as this family's frame to the caller, with the
@@ -114,7 +119,7 @@ pub(crate) enum Opened<E> {
     /// The container's tree, watched.
     Filetree,
     /// A daemon connection the proxy announced, by an id of this
-    /// end's own.
+    /// end's own: a tool container's alone.
     Daemon(u32),
     /// One file, read.
     Read(Vec<String>),

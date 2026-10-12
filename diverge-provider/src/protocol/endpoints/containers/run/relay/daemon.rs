@@ -32,7 +32,7 @@ use diverge_sdk::wire::server::answer::{Answer, answer};
 /// is forgotten when this returns.
 pub(crate) async fn daemon<R: Runs>(run: Arc<Run>, channel: u32, proxy_id: u32) {
     let caller_id = run.daemons.open(proxy_id).await;
-    let Some(payload) = encoded(&R::Ask::from(Own::Daemon(caller_id))) else {
+    let Some(payload) = R::Ask::try_from(Own::Daemon(caller_id)).ok().and_then(|ask| encoded(&ask)) else {
         run.daemons.forget(caller_id).await;
         let _ = run.begin.finish(channel).await;
         return;

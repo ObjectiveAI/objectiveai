@@ -18,7 +18,7 @@ use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::client::execu
 use diverge_sdk::wire::decode::Decode as _;
 use crate::protocol::endpoints::containers::run::begin::{Begin, Begun};
 use crate::protocol::endpoints::containers::run::family::{Family, Opened, Runs};
-use crate::protocol::endpoints::containers::run::own::Own;
+use crate::protocol::endpoints::containers::run::own::{Own, Unasked};
 use crate::protocol::endpoints::containers::run::run::Run;
 use crate::protocol::endpoints::containers::run::serve::agent;
 use crate::protocol::endpoints::containers::run::setup::deployed;
@@ -28,7 +28,6 @@ use diverge_sdk::container_proxy::outside::endpoints::agents::begin::client::exe
 use diverge_sdk::shared;
 use diverge_sdk::shared::containers::response::{Id, VolumeHeld, VolumeMode};
 use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, vault};
-use diverge_sdk::shared::containers::daemon;
 use diverge_sdk::shared::mcp;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree as tree;
@@ -54,7 +53,6 @@ impl Family for Agents {
                 id: request.id,
                 destination: request.destination,
             },
-            channel_request::Frame::Daemon(request) => Opened::Daemon(request.connection_id),
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
             channel_request::Frame::Schema => Opened::Schema,
             channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.key, request.content)),
@@ -118,10 +116,10 @@ impl Family for Agents {
 impl Runs for Agents {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn begin(proxy: &Handle, arguments: Value) -> impl Future<Output = Result<Begun, Error>> + Send {
+    fn begin(proxy: &Handle, arguments: Value, template: String) -> impl Future<Output = Result<Begun, Error>> + Send {
         let proxy = proxy.clone();
         async move {
-            match begin::execute(&proxy, arguments).await {
+            match begin::execute(&proxy, arguments, template).await {
                 Ok((handle, asks, chunks, dependencies)) => Ok(Begun {
                     begin: Begin::Agents(handle),
                     asks,
@@ -176,7 +174,8 @@ impl Runs for Agents {
 }
 
 /// The proxy's ask as this family's frame; a database connection is
-/// re-asked under this end's own id, see `Own::Postgres`.
+/// re-asked under this end's own id, see `Own::Postgres`, and a
+/// daemon connection is nothing an agent container's proxy opens.
 fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
     Some(match ask {
         Ask::Postgres(_) => return None,
@@ -219,9 +218,13 @@ fn fuse<'a>(id: &'a str, ask: &'a MountAsk) -> ask::Frame<'a> {
     }
 }
 
-impl<'a> From<Own<'a>> for ask::Frame<'a> {
-    fn from(own: Own<'a>) -> Self {
-        match own {
+/// Every own ask as this family's frame but the daemon connection,
+/// which an agent container's wire has no frame for.
+impl<'a> TryFrom<Own<'a>> for ask::Frame<'a> {
+    type Error = Unasked;
+
+    fn try_from(own: Own<'a>) -> Result<Self, Unasked> {
+        Ok(match own {
             Own::OciManifest(digest) => ask::Frame::OciManifest(oci::manifest::request::Request {
                 digest: digest.to_string(),
             }),
@@ -231,8 +234,8 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
             Own::OciHas(digest) => ask::Frame::OciHas(oci::has::request::Request {
                 digest: digest.to_string(),
             }),
-            Own::Daemon(connection_id) => ask::Frame::Daemon(daemon::request::Daemon { connection_id }),
+            Own::Daemon(_) => return Err(Unasked),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
-        }
+        })
     }
 }

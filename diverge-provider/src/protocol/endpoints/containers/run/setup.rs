@@ -150,7 +150,7 @@ where
         }
     };
 
-    let begun = match R::begin(&proxy, arguments).await {
+    let begun = match R::begin(&proxy, arguments, request.template.clone()).await {
         Ok(begun) => begun,
         Err(error) => {
             undo(&container, &repository, registry).await;
@@ -309,17 +309,17 @@ where
 /// The ask whether the caller holds the image, as this family's
 /// frame.
 fn has_ask<R: Runs>(digest: &str) -> Vec<u8> {
-    encoded(&R::Ask::from(Own::OciHas(digest))).unwrap_or_default()
+    R::Ask::try_from(Own::OciHas(digest)).ok().and_then(|ask| encoded(&ask)).unwrap_or_default()
 }
 
 /// The ask for a manifest the registry does not hold, as this
 /// family's frame.
 fn manifest_ask<R: Runs>(digest: &str) -> Vec<u8> {
-    encoded(&R::Ask::from(Own::OciManifest(digest))).unwrap_or_default()
+    R::Ask::try_from(Own::OciManifest(digest)).ok().and_then(|ask| encoded(&ask)).unwrap_or_default()
 }
 
 /// The ask for a blob the registry does not hold, as this family's
 /// frame.
 fn blob_ask<R: Runs>(digest: &str) -> Vec<u8> {
-    encoded(&R::Ask::from(Own::OciBlob(digest))).unwrap_or_default()
+    R::Ask::try_from(Own::OciBlob(digest)).ok().and_then(|ask| encoded(&ask)).unwrap_or_default()
 }
