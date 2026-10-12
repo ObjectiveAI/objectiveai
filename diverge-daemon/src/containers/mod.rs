@@ -18,7 +18,10 @@
 //! with the last, a [`User`] either way;
 //! [`mcp`] is the one tool list an agent sees and the routing of its
 //! calls; [`deploy`] deploys a container's declared dependencies then
-//! and there, each a tool of the agent's own for the agent's life;
+//! and there — a transient tool of the agent's own for the agent's
+//! run, a service registered with [`services`], which keeps every
+//! service up for as long as any agent is attached to it and retires
+//! it after;
 //! [`fuse`] serves the mounts — another provider's volume bridged, or
 //! an agent's path into its dependency; [`images`] answers a
 //! provider's image asks from the other providers connected. [`Key`]
@@ -55,6 +58,7 @@ pub mod fuse;
 pub mod images;
 pub mod mcp;
 pub mod message;
+pub mod services;
 
 pub use build::*;
 pub use caller::*;

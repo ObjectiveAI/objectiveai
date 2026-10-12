@@ -1,18 +1,23 @@
 //! The account as of one request.
 
+use std::collections::HashSet;
+
 use diverge_sdk::daemon::grant::{self, Grant};
 use sqlx::PgConnection;
 
-use super::Who;
-use crate::store;
+use super::{Selves, Who};
+use crate::store::{self, AgentId, services};
 
 /// Who is asking, for the length of one request: the identity they
-/// are served under, and every grant they hold. An account's is every
-/// grant of every role it holds, read inside the request's
-/// transaction so that the judgment and the write see one state;
-/// `None` is an account deleted since its client was admitted, which
-/// every handler answers as `Forbidden`. A dependency tool's is its
-/// template's grants, fixed when it was deployed.
+/// are served under, every grant they hold, and — a dependency tool's
+/// — the actions over agents it holds within `self` and which agents
+/// those are. An account's grants are every grant of every role it
+/// holds, read inside the request's transaction so that the judgment
+/// and the write see one state; `None` is an account deleted since
+/// its client was admitted, which every handler answers as
+/// `Forbidden`. A dependency tool's are its template's, fixed when it
+/// was deployed, and its selves are its one agent, or every agent
+/// attached to its service as of the request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Standing {
     /// The account's name when it has one, else its credential's
@@ -20,24 +25,48 @@ pub struct Standing {
     pub identity: String,
     /// Every grant, in no order.
     grants: Vec<Grant>,
+    /// The actions over agents held within `self`, in no order: a
+    /// dependency tool's, and none for an account.
+    self_actions: Vec<grant::agents::Over>,
+    /// The agents `self` reaches: a dependency tool's own, and none for
+    /// an account.
+    selves: HashSet<AgentId>,
 }
 
 impl Standing {
     /// The standing of `who` now: an account's read fresh, a
-    /// dependency's as it was fixed.
+    /// dependency's as it was fixed, with its selves read fresh.
     pub async fn of(conn: &mut PgConnection, who: Who) -> Result<Option<Standing>, store::Error> {
         match who {
-            Who::Account(id) => Ok(store::of_account(conn, id)
-                .await?
-                .map(|(identity, grants)| Standing { identity, grants })),
-            Who::Dependency(standing) => Ok(Some((*standing).clone())),
+            Who::Account(id) => Ok(store::of_account(conn, id).await?.map(|(identity, grants)| Standing {
+                identity,
+                grants,
+                self_actions: Vec::new(),
+                selves: HashSet::new(),
+            })),
+            Who::Dependency(dependent) => {
+                let selves = match dependent.selves {
+                    Selves::Agent(agent) => HashSet::from([agent]),
+                    Selves::Service(service) => services::attachments::attached(conn, service).await?.into_iter().collect(),
+                };
+                Ok(Some(Standing {
+                    identity: dependent.fixed.identity.clone(),
+                    grants: dependent.fixed.grants.clone(),
+                    self_actions: dependent.fixed.self_actions.clone(),
+                    selves,
+                }))
+            }
         }
     }
 
-    /// A standing from grants alone: a dependency tool's, from its
-    /// template.
-    pub fn from_grants(identity: String, grants: Vec<Grant>) -> Standing {
-        Standing { identity, grants }
+    /// The actions over agents held within `self`.
+    pub fn self_actions(&self) -> &[grant::agents::Over] {
+        &self.self_actions
+    }
+
+    /// Whether the agent is one `self` reaches.
+    pub fn is_self(&self, agent: AgentId) -> bool {
+        self.selves.contains(&agent)
     }
 
     /// The grants over accounts.

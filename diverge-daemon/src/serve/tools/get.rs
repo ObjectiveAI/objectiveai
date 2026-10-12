@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::tools::get::server::response::Frame;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{Found, active, agents_of, report, report_dependency, resolve};
+use super::{Found, active, agents_of, report, report_dependency, report_service, resolve, service_agents, service_owner};
 use crate::daemon::Daemon;
 use crate::judge::filter::tools::Facts;
 use crate::judge::{self, Standing, Who};
@@ -24,7 +24,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `get` grant at all; `NotFound`; `Forbidden`
 /// for a tool the grants do not reach; else the tool as a list
-/// reports it — a record, or a dependency that runs now.
+/// reports it — a record, a transient dependency that runs now, or a
+/// service.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -53,6 +54,17 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
                 Some(item) => Frame::Found(item),
                 None => Frame::NotFound,
             })
+        }
+        Some(Found::Service { service, run }) => {
+            let attached = service_agents(&mut conn, &service).await?;
+            if !judge::tools::over(&standing, Over::Get, &Facts::service(&service, run.is_some(), &attached)) {
+                return Ok(Frame::Forbidden);
+            }
+            let Some(owner) = service_owner(&mut conn, &service).await? else {
+                return Ok(Frame::NotFound);
+            };
+            let running = run.as_ref().and_then(|run| run.container.clone());
+            Ok(Frame::Found(report_service(&service, owner, attached, run.is_some(), running)))
         }
     }
 }

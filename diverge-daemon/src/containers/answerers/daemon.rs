@@ -12,18 +12,19 @@ use crate::judge::Who;
 use crate::serve::{self, PairFrames};
 
 /// A connection the container's program opened, taken when the
-/// container has a standing — a record's account, read fresh for
-/// every request, or a dependency's grants, fixed at its deploy — and
-/// declined when it has none: served by [`serve::serve_pair`], the
-/// same session and dispatch a socket gets, for that standing — no
+/// container has a standing — a tool record's account, read fresh for
+/// every request, or a dependency's grants, fixed at its deploy, with
+/// its `self` read fresh — and declined when it has none, as an agent
+/// container never has: served by [`serve::serve_pair`], the same
+/// session and dispatch a socket gets, for that standing — no
 /// credential passes. Every frame the program sends is a use of the
 /// container.
 impl DaemonAnswerer for Answerer {
     type Frames = PairFrames;
 
     async fn connect(&self, _: u32, from_program: UnboundedReceiver<pair::client::Owned>) -> Option<Self::Frames> {
-        let who = match (&self.standing, self.account) {
-            (Some(standing), _) => Who::Dependency(Arc::clone(standing)),
+        let who = match (&self.dependent, self.account) {
+            (Some(dependent), _) => Who::Dependency(dependent.clone()),
             (None, Some(account)) => Who::Account(account),
             (None, None) => return None,
         };

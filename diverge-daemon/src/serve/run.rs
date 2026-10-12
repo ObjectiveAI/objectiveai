@@ -61,6 +61,10 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
         postgres.stop().await;
         return Err(Error::Store(error));
     }
+    if let Err(error) = containers::services::boot(&daemon).await {
+        postgres.stop().await;
+        return Err(Error::Store(error));
+    }
     let (stop, stopped) = watch::channel(false);
     let listening = pin!(listen(config.port, stopped, Arc::clone(&daemon)));
     let signal = pin!(shutdown());

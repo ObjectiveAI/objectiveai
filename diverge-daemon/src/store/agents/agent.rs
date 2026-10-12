@@ -7,7 +7,7 @@ use diverge_sdk::daemon::endpoints::agents::list::server::response;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as logs, Identity};
 use diverge_sdk::daemon::key;
 
-use crate::store::{AccountId, AgentId};
+use crate::store::AgentId;
 
 /// An agent row.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,8 +20,6 @@ pub struct Agent {
     pub index: u64,
     /// The name, if the agent has one.
     pub name: Option<String>,
-    /// The account it runs under, if any.
-    pub account: Option<AccountId>,
     /// The provider it is pinned to, with that provider's volumes
     /// mounted, if any.
     pub provider: Option<Provider>,

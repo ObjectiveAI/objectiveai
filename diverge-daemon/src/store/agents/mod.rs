@@ -1,8 +1,9 @@
 //! The agent records: what an agent is, apart from its container.
 //!
 //! [`Agent`] is one as the store holds it: a template and what the
-//! create added — a name, an account, a provider and its volumes,
-//! mounts across providers — with its once-and-for-all
+//! create added — a name, a provider and its volumes, mounts across
+//! providers; no account, since an agent asks the daemon nothing —
+//! with its once-and-for-all
 //! index, the provider it last ran on and when, its tags, who made
 //! it. The container is work made from the row and is nowhere in it;
 //! what runs is the live state's. [`all`], [`by_id`] and

@@ -12,8 +12,8 @@ use crate::containers::fuse::Mounts;
 use crate::containers::mcp::Served;
 use crate::containers::{Caller, Inflight, Key};
 use crate::daemon::Daemon;
-use crate::judge::Standing;
-use crate::store::AccountId;
+use crate::judge::Dependent;
+use crate::store::{AccountId, ServiceId};
 
 /// One run's answerer: the seven traits on one value.
 pub struct Answerer {
@@ -27,13 +27,16 @@ pub struct Answerer {
     /// The container as a sender.
     pub sender: Creator,
     /// The account it runs under, if any: who its `/daemon`
-    /// connections are served for, for a record's container.
+    /// connections are served for, for a tool record's container.
+    /// None for an agent, which holds no account and asks the daemon
+    /// nothing, and for a dependency.
     pub account: Option<AccountId>,
-    /// The standing its `/daemon` connections are served under, for
-    /// a dependency: its template's grants, fixed for its life. None
-    /// for a record's container, whose account is read fresh, and for
-    /// a dependency whose template grants nothing.
-    pub standing: Option<Arc<Standing>>,
+    /// What its `/daemon` connections are served under, for a
+    /// dependency: its template's grants, fixed for its life, and
+    /// whose `self` it is. None for a record's container, whose
+    /// account is read fresh, and for a dependency whose template
+    /// grants nothing.
+    pub dependent: Option<Dependent>,
     /// The provider the run is on: where the container's own paths
     /// are served from, for its dependencies.
     pub provider: Identity,
@@ -43,9 +46,15 @@ pub struct Answerer {
     pub served: Arc<Mutex<Served>>,
     /// Where a use is noted.
     pub touched: watch::Sender<Instant>,
-    /// The MCP exchanges in flight: the agent's own, which a
+    /// The MCP exchanges in flight: the agent's own, which a transient
     /// dependency shares with its agent.
     pub inflight: Arc<Inflight>,
+    /// The services an agent's registration declared, once its
+    /// dependencies were deployed: `None` until then, and still
+    /// `None` for a program that declared nothing, which is never
+    /// asked about. What the start settles the agent's attachments
+    /// by.
+    pub services: Mutex<Option<Vec<ServiceId>>>,
 }
 
 /// The answerers of a run: all seven the one [`Answerer`].

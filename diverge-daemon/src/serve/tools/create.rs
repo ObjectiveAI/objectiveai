@@ -41,7 +41,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if tools_templates::by_id(&mut tx, &inner.template, false).await?.is_none() {
         return Ok(Frame::Error(reply::failure(&"the tool template named is none the daemon has")));
     }
-    let account = match inner::account(&mut tx, &standing, daemon, inner.account.as_deref()).await? {
+    let account = match inner::account(&mut tx, &standing, daemon, frame.account.as_deref()).await? {
         Checked::Ok(account) => account,
         Checked::NoAccount => return Ok(Frame::NoAccount),
         Checked::Forbidden => return Ok(Frame::Forbidden),

@@ -28,6 +28,7 @@ use super::fuse::Mounts;
 use super::mcp::Served;
 use super::{DependencyId, Frames, Inflight, ToolKey, User};
 use crate::content::Pieces;
+use crate::store::services::Service;
 use crate::store::{AccountId, AgentId};
 
 /// A running agent: the scope held on its provider, whether a loop
@@ -43,8 +44,6 @@ pub struct AgentRun {
     pub image: Image,
     /// The agent as a sender and a maker.
     pub sender: Creator,
-    /// The account it runs under, if any.
-    pub account: Option<AccountId>,
     /// The provider it runs on.
     pub provider: Identity,
     /// The container's id there.
@@ -211,8 +210,8 @@ impl ToolHandle {
     }
 }
 
-/// What a dependency tool is, beyond a tool run: whose it is, what
-/// it was deployed from — by id, and whole — and when.
+/// What a transient dependency tool is, beyond a tool run: whose it
+/// is, what it was deployed from — by id, and whole — and when.
 pub struct Dependency {
     /// Its number among the dependencies deployed since the start.
     pub id: DependencyId,
@@ -232,7 +231,8 @@ pub struct Dependency {
 
 /// A running tool: the scope held on it, which containers and connect
 /// scopes use it, and what it mounts — a record's container, a
-/// connected tool's connection, or a dependency deployed for an agent.
+/// connected tool's connection, a transient dependency deployed for
+/// an agent's run, or one run of a service's.
 pub struct ToolRun {
     /// The record, or the deployment.
     pub id: ToolKey,
@@ -274,8 +274,11 @@ pub struct ToolRun {
     /// The tasks that are the run's: the waiter, and a connected
     /// tool's idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
-    /// What it is as a dependency, when it is one.
+    /// What it is as a transient dependency, when it is one.
     pub dependency: Option<Dependency>,
+    /// What it is as a service, when it is one: the row, as it was
+    /// when this run started.
+    pub service: Option<Service>,
 }
 
 impl ToolRun {

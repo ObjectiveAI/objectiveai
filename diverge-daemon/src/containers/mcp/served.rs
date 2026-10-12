@@ -8,10 +8,13 @@ use tokio::sync::broadcast;
 
 use super::Registry;
 use crate::containers::{ToolKey, ToolRun};
+use crate::store::ServiceId;
 use crate::store::tools::Tool;
 
 /// One served tool: an attached record, with its run while it has
-/// one, or a dependency, which runs for as long as it is served.
+/// one; a transient dependency, which runs for as long as it is
+/// served; or a service, by its row, whose run — up or not, and a
+/// new one after every end — is the live set's to find.
 pub enum Entry {
     /// A tool attached to the agent: its record, and its run once
     /// its container is needed — on the loop's begin or the first ask
@@ -22,9 +25,17 @@ pub enum Entry {
         /// The run, while there is one.
         run: Option<Arc<ToolRun>>,
     },
-    /// A dependency deployed for the agent: running for the agent's
-    /// life.
+    /// A transient dependency deployed for the agent: running for the
+    /// agent's run.
     Dependency(Arc<ToolRun>),
+    /// A service the agent is attached to: kept by the daemon, its
+    /// run looked up when it is called.
+    Service {
+        /// The row.
+        id: ServiceId,
+        /// The template it was made from, by id.
+        template: String,
+    },
 }
 
 /// The tools one run is served, each under its prefix, and the word
@@ -62,12 +73,28 @@ impl Served {
         prefix
     }
 
-    /// Serve the dependency under `serve_name`, its template's id
-    /// short; the prefix it gets.
+    /// Serve the transient dependency under `serve_name`, its
+    /// template's id short; the prefix it gets.
     pub fn insert_dependency(&mut self, run: Arc<ToolRun>, serve_name: &str) -> String {
         let key = run.id;
         let prefix = self.registry.assign(key, serve_name);
         self.entries.insert(key, Entry::Dependency(run));
+        self.changed();
+        prefix
+    }
+
+    /// Serve the service under `serve_name`, its template's id short;
+    /// the prefix it gets.
+    pub fn insert_service(&mut self, id: ServiceId, template: &str, serve_name: &str) -> String {
+        let key = ToolKey::Service(id);
+        let prefix = self.registry.assign(key, serve_name);
+        self.entries.insert(
+            key,
+            Entry::Service {
+                id,
+                template: template.to_string(),
+            },
+        );
         self.changed();
         prefix
     }
@@ -106,14 +133,16 @@ impl Served {
         self.entries.keys().copied().collect()
     }
 
-    /// Every running served tool: attached ones with a run, and every
-    /// dependency.
+    /// Every running served tool this set holds the run of: attached
+    /// ones with a run, and every transient dependency. A service's
+    /// run is the live set's; see [`services`](Self::services).
     pub fn runs(&self) -> Vec<Arc<ToolRun>> {
         self.entries
             .values()
             .filter_map(|entry| match entry {
                 Entry::Attached { run, .. } => run.clone(),
                 Entry::Dependency(run) => Some(Arc::clone(run)),
+                Entry::Service { .. } => None,
             })
             .collect()
     }
@@ -130,21 +159,42 @@ impl Served {
             .collect()
     }
 
-    /// Every dependency, in no order.
+    /// Every transient dependency, in no order: what is stopped with
+    /// the agent's run.
     pub fn dependencies(&self) -> Vec<Arc<ToolRun>> {
         self.entries
             .values()
             .filter_map(|entry| match entry {
                 Entry::Dependency(run) => Some(Arc::clone(run)),
-                Entry::Attached { .. } => None,
+                Entry::Attached { .. } | Entry::Service { .. } => None,
             })
             .collect()
     }
 
-    /// The dependency deployed from the template, by id, if one.
+    /// Every service, by id, in no order.
+    pub fn services(&self) -> Vec<ServiceId> {
+        self.entries
+            .values()
+            .filter_map(|entry| match entry {
+                Entry::Service { id, .. } => Some(*id),
+                Entry::Attached { .. } | Entry::Dependency(_) => None,
+            })
+            .collect()
+    }
+
+    /// The transient dependency deployed from the template, by id, if
+    /// one.
     pub fn dependency_of_template(&self, template: &str) -> Option<Arc<ToolRun>> {
         self.entries.values().find_map(|entry| match entry {
             Entry::Dependency(run) if run.dependency.as_ref().is_some_and(|dependency| dependency.template == template) => Some(Arc::clone(run)),
+            _ => None,
+        })
+    }
+
+    /// The service made from the template, by id, if one is served.
+    pub fn service_of_template(&self, template: &str) -> Option<ServiceId> {
+        self.entries.values().find_map(|entry| match entry {
+            Entry::Service { id, template: served } if served == template => Some(*id),
             _ => None,
         })
     }

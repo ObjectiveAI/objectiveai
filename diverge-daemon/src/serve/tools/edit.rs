@@ -57,7 +57,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if mounts_named && active {
         return Ok(Frame::Active);
     }
-    if tool.is_connected() && (mounts_named || edit.account.is_some()) {
+    if tool.is_connected() && (mounts_named || frame.account.is_some()) {
         return Ok(Frame::NotOwned);
     }
     let name = match edit.name {
@@ -65,7 +65,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Some(Change::Delete) => None,
         Some(Change::Set(name)) => Some(name),
     };
-    let account = match edit.account {
+    let account = match frame.account {
         None => tool.account,
         Some(Change::Delete) => None,
         Some(Change::Set(name)) => match inner::account(&mut tx, &standing, daemon, Some(&name)).await? {

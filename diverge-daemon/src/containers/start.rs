@@ -14,7 +14,7 @@ use tokio::sync::{Mutex, watch};
 use super::answerers::Answerer;
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{AgentRun, Caller, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, stop};
+use super::{AgentRun, Caller, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, services, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::daemons;
 use crate::store::agents::Agent;
@@ -24,10 +24,12 @@ use crate::store::{agents, agents_templates, providers_daemons, tools as tool_re
 /// The agent's run, started now if it was not up: the providers it
 /// may run on found, the mounts served, the attached tools served
 /// idle, the run opened on the first provider that runs it — its
-/// dependencies deployed meanwhile, and stopped again when that
-/// provider does not — and its id taken, the log told it began, the
-/// pump and the idle clock running. A start that fails keeps an
-/// `Error` item in the log, and the mounts opened are let go.
+/// dependencies deployed meanwhile, the transient ones stopped again
+/// when that provider does not — its attachments to services settled
+/// to what its registration declared, and its id taken, the log told
+/// it began, the pump and the idle clock running. A start that fails
+/// keeps an `Error` item in the log, and the mounts opened are let
+/// go.
 pub async fn agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun>, StartError> {
     if let Some(run) = daemon.live.agent_run(agent.id).await {
         return Ok(run);
@@ -81,7 +83,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             .map_err(StartError::Mounts)?,
     );
     let volumes = agent.provider.as_ref().map(|provider| provider.volume_mounts.as_slice()).unwrap_or(&[]);
-    let container = build::container(&template.template, volumes, &mounts);
+    let container = build::container(&agent.template, &template.template, volumes, &mounts);
     let image = container.image.clone();
     let served = Arc::new(Mutex::new(Served::new()));
     {
@@ -103,13 +105,14 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
                 image: image.clone(),
             },
             sender: sender_of_agent(agent),
-            account: agent.account,
-            standing: None,
+            account: None,
+            dependent: None,
             provider: identity.clone(),
             mounts: Arc::clone(&mounts),
             served: Arc::clone(&served),
             touched: touched.clone(),
             inflight: Arc::clone(&inflight),
+            services: Mutex::new(None),
         });
         let opened = agents_run::execute(&handle, &agents_request::Frame(container.clone()), answerer.set()).await;
         let (id, handle, stream) = match opened {
@@ -129,12 +132,13 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
                 continue;
             }
         };
+        let declared = answerer.services.lock().await.clone().unwrap_or_default();
+        services::settle(daemon, agent.id, &declared).await;
         let run = Arc::new(AgentRun {
             id: agent.id,
             key: agent.key(),
             image,
             sender: sender_of_agent(agent),
-            account: agent.account,
             provider: identity.clone(),
             container: id.id,
             handle,
@@ -188,7 +192,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
     let touched = watch::channel(Instant::now()).0;
     let (identity, container, handle, mounts, image) = match &tool.origin {
         Origin::Created { template, provider: pinned } => {
-            let template = {
+            let record = {
                 let mut conn = daemon.store.acquire().await?;
                 tools_templates::by_id(&mut conn, template, false)
                     .await?
@@ -203,7 +207,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     .map_err(StartError::Mounts)?,
             );
             let volumes = pinned.as_ref().map(|provider| provider.volume_mounts.as_slice()).unwrap_or(&[]);
-            let container = build::container(&template.template, volumes, &mounts);
+            let container = build::container(template, &record.template, volumes, &mounts);
             let image = container.image.clone();
             let mut last = String::new();
             let mut opened = None;
@@ -217,12 +221,13 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     },
                     sender: sender_of_tool(tool),
                     account: tool.account,
-                    standing: None,
+                    dependent: None,
                     provider: identity.clone(),
                     mounts: Arc::clone(&mounts),
                     served: Arc::new(Mutex::new(Served::new())),
                     touched: touched.clone(),
                     inflight: Arc::new(Inflight::new()),
+                    services: Mutex::new(None),
                 });
                 match tools_run::execute(&handle, &tools_request::Frame(container.clone()), answerer.set()).await {
                     Ok((id, handle)) => {
@@ -271,6 +276,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         ended: watch::channel(false).0,
         tasks: Mutex::new(Vec::new()),
         dependency: None,
+        service: None,
     });
     {
         let mut conn = daemon.store.acquire().await?;

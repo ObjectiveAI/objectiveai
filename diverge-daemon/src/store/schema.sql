@@ -138,11 +138,9 @@ CREATE TABLE IF NOT EXISTS diverge.agents (
     template              TEXT NOT NULL,
     index                 BIGINT NOT NULL,
     name                  TEXT UNIQUE,
-    -- The account it runs under, if any; an account a container
-    -- names is not deleted.
-    account               BIGINT REFERENCES diverge.accounts(id) ON DELETE RESTRICT,
     -- The provider it is pinned to and that provider's volumes
-    -- mounted, as the create named them.
+    -- mounted, as the create named them. No account: an agent holds
+    -- none, and asks the daemon nothing.
     provider              JSONB,
     fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
     fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
@@ -194,6 +192,54 @@ CREATE TABLE IF NOT EXISTS diverge.attachments (
 );
 CREATE INDEX IF NOT EXISTS attachments_agent ON diverge.attachments (agent);
 
+-- A service: a dependency tool template an agent's program declared
+-- as one, made under its scope key — the agent, the agent's
+-- template, or the template alone — and kept by the daemon for as
+-- long as any agent is attached to it. The container is work made
+-- from the row, never the row.
+CREATE TABLE IF NOT EXISTS diverge.services (
+    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    template       TEXT NOT NULL,
+    -- `per_agent_instance`, `per_agent_template` or `global`.
+    scope          TEXT NOT NULL,
+    owner_agent    BIGINT REFERENCES diverge.agents(id) ON DELETE CASCADE,
+    owner_template TEXT,
+    declared       JSONB NOT NULL,
+    last_provider  JSONB,
+    created        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator        JSONB NOT NULL,
+    CONSTRAINT services_scope_owner CHECK (
+        (scope = 'per_agent_instance' AND owner_agent IS NOT NULL AND owner_template IS NULL)
+        OR (scope = 'per_agent_template' AND owner_agent IS NULL AND owner_template IS NOT NULL)
+        OR (scope = 'global' AND owner_agent IS NULL AND owner_template IS NULL)
+    )
+);
+CREATE UNIQUE INDEX IF NOT EXISTS services_per_agent
+    ON diverge.services (template, owner_agent) WHERE scope = 'per_agent_instance';
+CREATE UNIQUE INDEX IF NOT EXISTS services_per_template
+    ON diverge.services (template, owner_template) WHERE scope = 'per_agent_template';
+CREATE UNIQUE INDEX IF NOT EXISTS services_global
+    ON diverge.services (template) WHERE scope = 'global';
+
+-- An agent attached to a service: its last registration declared the
+-- service's template. `seq` is the order of attaching.
+CREATE TABLE IF NOT EXISTS diverge.service_attachments (
+    service     BIGINT NOT NULL REFERENCES diverge.services(id) ON DELETE CASCADE,
+    agent       BIGINT NOT NULL REFERENCES diverge.agents(id) ON DELETE CASCADE,
+    seq         BIGINT GENERATED ALWAYS AS IDENTITY,
+    PRIMARY KEY (service, agent)
+);
+CREATE INDEX IF NOT EXISTS service_attachments_agent ON diverge.service_attachments (agent);
+
+-- The agent templates whose agents ever attached a global service of
+-- the dependency tool template: what holds the service's database
+-- scope up, swept when the last is deleted.
+CREATE TABLE IF NOT EXISTS diverge.service_owners (
+    template       TEXT NOT NULL,
+    agent_template TEXT NOT NULL,
+    PRIMARY KEY (template, agent_template)
+);
+
 -- The tags on a volume: the one thing the daemon keeps of one, which
 -- is its provider's and listed by it. One row per tagged volume; a
 -- volume whose tags are all taken off has none.
@@ -209,6 +255,8 @@ CREATE TABLE IF NOT EXISTS diverge.volume_tags (
 ALTER TABLE diverge.providers_outgoing ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE diverge.providers_incoming ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE diverge.agents DROP COLUMN IF EXISTS deployer;
+-- An agent holds no account: it asks the daemon nothing.
+ALTER TABLE diverge.agents DROP COLUMN IF EXISTS account;
 DROP TABLE IF EXISTS diverge.routes;
 -- Admissions gave way to exposures, which are held in memory alone.
 DROP TABLE IF EXISTS diverge.admissions;

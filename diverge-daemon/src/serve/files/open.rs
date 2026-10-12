@@ -31,17 +31,21 @@ pub async fn open_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Opened, Stri
 }
 
 /// What a tool reference found, opened: a record's container as
-/// [`open_tool`] opens it; a dependency's run as it is, which runs
-/// for its agent's life and is nobody's to start or stop.
+/// [`open_tool`] opens it; a transient dependency's run as it is,
+/// which runs for its agent's run and is nobody's to start or stop; a
+/// service's run as it is while its container is up, and the error
+/// while it is not, since its supervisor is what starts it.
 pub async fn open_found(daemon: &Arc<Daemon>, found: &Found) -> Result<Opened, String> {
     match found {
         Found::Record(tool) => open_tool(daemon, tool).await,
         Found::Dependency(run) => Ok(Opened::Tool(Arc::clone(run))),
+        Found::Service { run: Some(run), .. } => Ok(Opened::Tool(Arc::clone(run))),
+        Found::Service { run: None, .. } => Err("the service is not running now".to_string()),
     }
 }
 
-/// The operation is over: a record's tool released, a dependency
-/// left running.
+/// The operation is over: a record's tool released, a dependency or
+/// a service left running.
 pub async fn close(daemon: &Daemon, opened: &Opened) {
     if let Opened::Tool(run) = opened {
         containers::release(daemon, run.id, User::Container(Key::Tool(run.id))).await;

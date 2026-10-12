@@ -5,19 +5,16 @@ use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount,
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
-use crate::store::{AccountId, AgentId, Error, counters};
+use crate::store::{AgentId, Error, counters};
 
 /// What a new agent is made of: the create's members, checked by the
-/// caller — the template live, the account found and assignable, the
-/// provider on record.
+/// caller — the template live, the provider on record.
 #[derive(Debug, Clone)]
 pub struct New {
     /// The template, by id.
     pub template: String,
     /// The name, if any.
     pub name: Option<String>,
-    /// The account it runs under, if any.
-    pub account: Option<AccountId>,
     /// The provider pin and its volumes, if any.
     pub provider: Option<Provider>,
     /// Files of other providers' volumes.
@@ -43,13 +40,12 @@ pub enum Created {
 pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error> {
     let index = counters::next(conn, &format!("agents:{}", new.template)).await?;
     let inserted = sqlx::query(
-        "INSERT INTO diverge.agents (template, index, name, account, provider, fuse_file_mounts, fuse_directory_mounts, creator) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+        "INSERT INTO diverge.agents (template, index, name, provider, fuse_file_mounts, fuse_directory_mounts, creator) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
     )
     .bind(&new.template)
     .bind(i64::try_from(index).unwrap_or(i64::MAX))
     .bind(&new.name)
-    .bind(new.account.map(|account| account.0))
     .bind(new.provider.as_ref().map(Json))
     .bind(Json(&new.fuse_file_mounts))
     .bind(Json(&new.fuse_directory_mounts))

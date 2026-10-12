@@ -24,11 +24,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `edit` grant at all; `NotFound`; `Forbidden`
-/// for an agent the grants do not reach, or an account named the
-/// caller holds no `assign` over; `Active` for a change of any mount
-/// list while a loop runs; `NoAccount`; the error for a provider that
-/// is not there, or volumes named on an agent pinned to no provider; `InUse` for a name another agent has; else the agent
-/// as the request states, whole or not at all.
+/// for an agent the grants do not reach; `Active` for a change of any
+/// mount list while a loop runs; the error for a provider that is not
+/// there, or volumes named on an agent pinned to no provider; `InUse`
+/// for a name another agent has; else the agent as the request
+/// states, whole or not at all.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -53,16 +53,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         None => agent.name.clone(),
         Some(Change::Delete) => None,
         Some(Change::Set(name)) => Some(name),
-    };
-    let account = match edit.account {
-        None => agent.account,
-        Some(Change::Delete) => None,
-        Some(Change::Set(name)) => match inner::account(&mut tx, &standing, daemon, Some(&name)).await? {
-            Checked::Ok(account) => account,
-            Checked::NoAccount => return Ok(Frame::NoAccount),
-            Checked::Forbidden => return Ok(Frame::Forbidden),
-            Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
-        },
     };
     let provider = match edit.volume_mounts {
         None => agent.provider.clone(),
@@ -106,7 +96,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     let columns = agents::Columns {
         name,
-        account,
         provider,
         fuse_file_mounts,
         fuse_directory_mounts,

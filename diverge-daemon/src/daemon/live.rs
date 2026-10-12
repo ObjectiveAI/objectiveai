@@ -14,10 +14,11 @@ use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::images::oci::client::execute;
 
 use super::{Changes, Kind, Peers};
+use crate::containers::services::State;
 use crate::containers::{AgentRun, ConnectionId, DependencyId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
 use crate::database::Scope;
-use crate::store::{AccountId, AgentId};
+use crate::store::{AccountId, AgentId, ServiceId};
 use crate::volumes::Mirror;
 
 /// The live state of the daemon: which accounts have a client
@@ -50,6 +51,9 @@ pub struct Live {
     tools: Mutex<HashMap<ToolKey, Arc<ToolRun>>>,
     /// The next dependency number.
     next_dependency: Mutex<u64>,
+    /// Every service kept since the start, run or no run: whether it
+    /// is held, and its supervisor and its clock.
+    services: Mutex<HashMap<ServiceId, Arc<State>>>,
     /// Every container's database scope touched since the start: its
     /// password, in memory only.
     scopes: Mutex<HashMap<Key, Arc<Scope>>>,
@@ -406,6 +410,32 @@ impl Live {
         let mut next = self.next_dependency.lock().await;
         *next += 1;
         DependencyId(*next)
+    }
+
+    /// The service's state, if it is kept.
+    pub async fn service_state(&self, id: ServiceId) -> Option<Arc<State>> {
+        self.services.lock().await.get(&id).cloned()
+    }
+
+    /// Keep `state` for the service, unless one is kept already: the
+    /// one kept, and whether it is the one handed in.
+    pub async fn keep_service_state(&self, id: ServiceId, state: Arc<State>) -> (Arc<State>, bool) {
+        let mut services = self.services.lock().await;
+        if let Some(kept) = services.get(&id) {
+            return (Arc::clone(kept), false);
+        }
+        services.insert(id, Arc::clone(&state));
+        (state, true)
+    }
+
+    /// The service is retired: its state, once.
+    pub async fn remove_service_state(&self, id: ServiceId) -> Option<Arc<State>> {
+        self.services.lock().await.remove(&id)
+    }
+
+    /// Every service's state.
+    pub async fn service_states(&self) -> Vec<Arc<State>> {
+        self.services.lock().await.values().cloned().collect()
     }
 
     /// The container's database scope, live: the one there is, or one

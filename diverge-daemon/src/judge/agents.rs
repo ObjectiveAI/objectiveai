@@ -5,8 +5,10 @@
 //! by a grant that holds it and whose `within` reaches the agent —
 //! `any`, or the agents list filter as [`filter::agents::test`] reads
 //! it, with whether a loop runs in the agent now, which the caller
-//! knows; a tagging action by a grant that holds it, reaches the
-//! agent, and covers every tag named.
+//! knows — or, a dependency tool's, by an action held within `self`
+//! where the agent is one of the tool's own, whatever its activity; a
+//! tagging action by a grant that holds it, reaches the agent, and
+//! covers every tag named.
 
 use diverge_sdk::daemon::endpoints::agents::list::client::request::Filter;
 use diverge_sdk::daemon::grant::agents::{Make, Over, Permission};
@@ -23,20 +25,24 @@ pub fn create(standing: &Standing) -> bool {
         .any(|permission| matches!(permission, Permission::Make(makes) if makes.contains(&Make::Create)))
 }
 
-/// Whether the standing holds `action` over any agent at all.
+/// Whether the standing holds `action` over any agent at all: by a
+/// grant, or within `self`.
 pub fn holds(standing: &Standing, action: Over) -> bool {
-    standing
-        .agents()
-        .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
+    standing.self_actions().contains(&action)
+        || standing
+            .agents()
+            .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
 }
 
 /// Whether the standing may do `action` to `agent`, given whether a
-/// loop runs in it now.
+/// loop runs in it now: by a grant that reaches it, or within `self`
+/// where the agent is one of the standing's own.
 pub fn over(standing: &Standing, action: Over, agent: &Agent, active: bool) -> bool {
-    standing.agents().any(|permission| match permission {
-        Permission::Over { actions, within } => actions.contains(&action) && reaches(within, agent, active),
-        _ => false,
-    })
+    (standing.self_actions().contains(&action) && standing.is_self(agent.id))
+        || standing.agents().any(|permission| match permission {
+            Permission::Over { actions, within } => actions.contains(&action) && reaches(within, agent, active),
+            _ => false,
+        })
 }
 
 /// Whether the standing holds the tagging `action` over any agent at

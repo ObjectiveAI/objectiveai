@@ -9,14 +9,14 @@ use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::daemon::key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::report_dependency;
+use super::{report_dependency, report_service};
 use crate::containers::ToolKey;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::filter::tools::Facts;
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Change, Source};
 use crate::serve::reply;
-use crate::store::{self, ToolId, agents, tools};
+use crate::store::{self, ServiceId, ToolId, agents, services, tools};
 
 /// Send the list and its changes, then finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -28,14 +28,16 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// One `Forbidden` with no `list` grant at all; else every tool any
 /// `list` grant reaches that the request's filter lets through —
-/// every record, oldest created first, and every dependency running
-/// now, oldest deployed first after them — the first `count` of
-/// them, one frame each, then the word that the list is whole — and
-/// from then on each tool added, changed or removed as the records,
-/// the attachments and the runs change, a dependency added when its
-/// agent's container starts and removed when it ends, until the
-/// client cancels. The attachments are one load for the whole list,
-/// at every reading.
+/// every record, oldest created first, every transient dependency
+/// running now, oldest deployed first after them, and every service,
+/// oldest made first after those — the first `count` of them, one
+/// frame each, then the word that the list is whole — and from then
+/// on each tool added, changed or removed as the records, the
+/// attachments and the runs change, a transient dependency added when
+/// its agent's container starts and removed when it ends, a service
+/// added when the registration that makes it comes and removed when
+/// it is retired, until the client cancels. The attachments are one
+/// load for the whole list, at every reading.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;
@@ -79,11 +81,19 @@ impl Source for Listed<'_> {
         async move {
             let mut conn = self.daemon.store.acquire().await?;
             let all = tools::all(&mut conn).await?;
-            let keys: HashMap<_, _> = agents::all(&mut conn).await?.into_iter().map(|agent| (agent.id, agent.key())).collect();
+            let rows: HashMap<_, _> = agents::all(&mut conn).await?.into_iter().map(|agent| (agent.id, agent)).collect();
+            let keys: HashMap<_, _> = rows.iter().map(|(id, agent)| (*id, agent.key())).collect();
             let mut attached: HashMap<ToolId, Vec<key::Agent>> = HashMap::new();
             for attachment in tools::attachments::all(&mut conn).await? {
                 if let Some(key) = keys.get(&attachment.agent) {
                     attached.entry(attachment.tool).or_default().push(key.clone());
+                }
+            }
+            let all_services = services::all(&mut conn).await?;
+            let mut service_agents: HashMap<ServiceId, Vec<key::Agent>> = HashMap::new();
+            for attachment in services::attachments::all(&mut conn).await? {
+                if let Some(key) = keys.get(&attachment.agent) {
+                    service_agents.entry(attachment.service).or_default().push(key.clone());
                 }
             }
             drop(conn);
@@ -120,6 +130,20 @@ impl Source for Listed<'_> {
                 if let Some(item) = report_dependency(&run) {
                     listed.push((run.id, item));
                 }
+            }
+            for service in &all_services {
+                let key = ToolKey::Service(service.id);
+                let Some(owner) = service.owner(service.owner_agent.and_then(|id| rows.get(&id))) else {
+                    continue;
+                };
+                let attached = service_agents.get(&service.id).unwrap_or(&empty);
+                let active = states.contains_key(&key);
+                let facts = Facts::service(service, active, attached);
+                if !judge::tools::over(self.standing, Over::List, &facts) || !filter::tools::test(self.filter, &facts) {
+                    continue;
+                }
+                let running = states.get(&key).cloned().flatten();
+                listed.push((key, report_service(service, owner, attached.clone(), active, running)));
             }
             Ok(listed)
         }

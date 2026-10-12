@@ -9,10 +9,10 @@ use sqlx::postgres::PgRow;
 use sqlx::types::Json;
 
 use super::Agent;
-use crate::store::{AccountId, AgentId, Error};
+use crate::store::{AgentId, Error};
 
 /// The columns every agent query selects.
-pub(super) const SELECT: &str = "SELECT id, template, index, name, account, provider, fuse_file_mounts, fuse_directory_mounts, \
+pub(super) const SELECT: &str = "SELECT id, template, index, name, provider, fuse_file_mounts, fuse_directory_mounts, \
      last_provider, last_active, tags, created, creator FROM diverge.agents";
 
 /// The order: oldest first.
@@ -21,7 +21,6 @@ pub(super) const ORDER: &str = "ORDER BY created, id";
 /// The agent a row of [`SELECT`] holds.
 pub(super) fn agent(row: &PgRow) -> Result<Agent, Error> {
     let index: i64 = row.try_get("index")?;
-    let account: Option<i64> = row.try_get("account")?;
     let provider: Option<Json<Provider>> = row.try_get("provider")?;
     let Json(fuse_file_mounts): Json<Vec<FuseMount>> = row.try_get("fuse_file_mounts")?;
     let Json(fuse_directory_mounts): Json<Vec<FuseMount>> = row.try_get("fuse_directory_mounts")?;
@@ -33,7 +32,6 @@ pub(super) fn agent(row: &PgRow) -> Result<Agent, Error> {
         template: row.try_get("template")?,
         index: u64::try_from(index).unwrap_or(0),
         name: row.try_get("name")?,
-        account: account.map(AccountId),
         provider: provider.map(|Json(provider)| provider),
         fuse_file_mounts,
         fuse_directory_mounts,

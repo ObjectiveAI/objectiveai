@@ -4,7 +4,7 @@ use diverge_sdk::daemon::creator::Creator;
 
 use crate::store::agents::Agent;
 use crate::store::tools::Tool;
-use crate::store::{AgentId, ToolId};
+use crate::store::{AgentId, ServiceId, ToolId};
 
 /// A dependency tool's number among the dependencies deployed since
 /// the daemon started: minted by [`Live`](crate::daemon::Live), never
@@ -13,13 +13,17 @@ use crate::store::{AgentId, ToolId};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct DependencyId(pub u64);
 
-/// One tool run of the daemon's: a record's, or a dependency's.
+/// One tool run of the daemon's: a record's, a transient
+/// dependency's, or a service's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ToolKey {
     /// A tool on record, by its row.
     Record(ToolId),
-    /// A dependency tool, by the number it was deployed under.
+    /// A transient dependency tool, by the number it was deployed
+    /// under.
     Dependency(DependencyId),
+    /// A service, by its row.
+    Service(ServiceId),
 }
 
 /// A connect scope's number among those another daemon has opened
@@ -41,7 +45,8 @@ pub enum User {
 }
 
 /// One container of the daemon's: an agent, by the record it is made
-/// from; or a tool, by its record or by its deployment.
+/// from; or a tool, by its record, by its deployment, or by its
+/// service's row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Key {
     /// An agent.

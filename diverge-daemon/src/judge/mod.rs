@@ -7,11 +7,13 @@
 //! dialled in — or into nothing, which is the socket closed; see
 //! [`key`] for how a key is minted and how it is kept as a hash. A
 //! dependency tool's `/daemon` connection is admitted by no
-//! credential: its [`Who`] is the standing its template fixed. The
+//! credential: its [`Who`] is the [`Dependent`] its template fixed,
+//! the grants and whose `self` it is. The
 //! second is per request: [`Standing`] is who is asking as of THIS
 //! request — an account's identity and the union of the grants of
 //! the roles it holds, read fresh inside the request's own
-//! transaction, or a dependency's grants as fixed — and
+//! transaction, or a dependency's grants as fixed with the agents its
+//! `self` reaches read fresh — and
 //! [`accounts`], [`roles`], [`providers_outgoing`],
 //! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
 //! [`tools_templates`],
@@ -33,10 +35,12 @@
 //! through this module and not through the file it lives in.
 
 mod admit;
+mod dependent;
 mod standing;
 mod who;
 
 pub use admit::*;
+pub use dependent::*;
 pub use standing::*;
 pub use who::*;
 

@@ -44,7 +44,7 @@ pub async fn judged(conn: &mut PgConnection, daemon: &Daemon, standing: &Standin
             };
             if !serve_tools::reaches(conn, daemon, standing, tools::Over::Upload, &found).await? {
                 Judged::Forbidden
-            } else if let Found::Dependency(_) = found {
+            } else if let Found::Dependency(_) | Found::Service { .. } = found {
                 Judged::Error(READ_ONLY.to_string())
             } else {
                 Judged::Allowed

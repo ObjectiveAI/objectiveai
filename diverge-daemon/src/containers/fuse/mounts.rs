@@ -11,7 +11,7 @@ use diverge_sdk::provider::endpoints::containers::serve::client::execute::{self 
 use diverge_sdk::provider::endpoints::containers::serve::client::request::Frame as ContainerServeRequest;
 use diverge_sdk::provider::endpoints::volumes::serve::client::execute::{self as volume_serve, ExecuteHandle as VolumeServe};
 use diverge_sdk::provider::endpoints::volumes::serve::client::request::Frame as VolumeServeRequest;
-use diverge_sdk::shared::containers::dependencies::Template;
+use diverge_sdk::shared::containers::dependencies::Mount;
 use diverge_sdk::shared::containers::fuse::Attrs;
 use diverge_sdk::shared::containers::fuse::ack::Refused;
 use diverge_sdk::shared::containers::fuse::stat::Stat;
@@ -152,23 +152,23 @@ impl Mounts {
         Ok(mounts)
     }
 
-    /// The mounts for a dependency's run: the agent's paths the
-    /// template names, each served by the agent's provider from the
-    /// agent's container — a directory whole, a file with the
-    /// directory holding it — and watched for every change, the
-    /// agent's own included. The first that cannot be served is the
-    /// failure, in a sentence, and what was opened is let go.
-    pub async fn build_dependency(daemon: &Daemon, agent_provider: &Identity, agent_container: &str, template: &Template) -> Result<Mounts, String> {
+    /// The mounts for a transient dependency's run: the agent's paths
+    /// the template names, `files` and `directories`, each served by
+    /// the agent's provider from the agent's container — a directory
+    /// whole, a file with the directory holding it — and watched for
+    /// every change, the agent's own included. The first that cannot
+    /// be served is the failure, in a sentence, and what was opened is
+    /// let go.
+    pub async fn build_dependency(daemon: &Daemon, agent_provider: &Identity, agent_container: &str, files: &[Mount], directories: &[Mount]) -> Result<Mounts, String> {
         let mut mounts = Mounts::empty();
         let Some(handle) = daemon.live.provider(agent_provider).await else {
             return Err("the agent's provider is not connected now".to_string());
         };
         let mut d = 0usize;
-        for (mount, directory) in template
-            .fuse_file_mounts
+        for (mount, directory) in files
             .iter()
             .map(|mount| (mount, false))
-            .chain(template.fuse_directory_mounts.iter().map(|mount| (mount, true)))
+            .chain(directories.iter().map(|mount| (mount, true)))
         {
             d += 1;
             let id = format!("d{d}");

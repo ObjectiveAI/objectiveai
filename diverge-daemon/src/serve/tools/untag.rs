@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::tools::untag::server::response::Frame;
 use diverge_sdk::daemon::grant::Tagging;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{Found, READ_ONLY, active, agents_of, resolve};
+use super::{Found, READ_ONLY, active, agents_of, resolve, service_agents};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::filter::tools::Facts;
 use crate::judge::{self, Standing, Who};
@@ -46,6 +46,11 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         }
         Found::Dependency(run) => {
             let reached = Facts::dependency(&run).is_some_and(|facts| judge::tools::tagging(&standing, Tagging::Untag, &facts, &frame.tags));
+            return Ok(if reached { Frame::Error(reply::failure(&READ_ONLY)) } else { Frame::Forbidden });
+        }
+        Found::Service { service, run } => {
+            let attached = service_agents(&mut tx, &service).await?;
+            let reached = judge::tools::tagging(&standing, Tagging::Untag, &Facts::service(&service, run.is_some(), &attached), &frame.tags);
             return Ok(if reached { Frame::Error(reply::failure(&READ_ONLY)) } else { Frame::Forbidden });
         }
     };

@@ -1,9 +1,9 @@
 //! What containers hold: the templates they were made from, the
-//! accounts they run under, the daemons their tools are on; and what
-//! daemon records hold: the providers their links name.
+//! accounts their tools run under, the daemons their tools are on;
+//! and what daemon records hold: the providers their links name.
 //!
 //! A template is in use while a container made from it exists; an
-//! account while a container names it; a daemon record while a
+//! account while a tool names it; a daemon record while a
 //! connected tool names it; a provider while a daemon record links
 //! through it. All are facts of the records, not of what runs, so
 //! they survive a restart as the records do.
@@ -26,12 +26,9 @@ pub async fn tools_templates(conn: &mut PgConnection) -> Result<HashSet<String>,
     ids(conn, "SELECT DISTINCT template AS id FROM diverge.tools WHERE kind = 'created'").await
 }
 
-/// Whether some agent or tool runs under the account.
+/// Whether some tool runs under the account. An agent holds none.
 pub async fn account(conn: &mut PgConnection, id: AccountId) -> Result<bool, Error> {
-    let row = sqlx::query(
-        "SELECT EXISTS (SELECT 1 FROM diverge.agents WHERE account = $1) \
-             OR EXISTS (SELECT 1 FROM diverge.tools WHERE account = $1) AS held",
-    )
+    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.tools WHERE account = $1) AS held")
     .bind(id.0)
     .fetch_one(&mut *conn)
     .await?;

@@ -14,6 +14,8 @@ use tokio::sync::{Mutex, mpsc};
 use super::{Entry, Served, exposed, split};
 use crate::containers::{Caller, Key, ToolKey, ToolRun, User, tools};
 use crate::daemon::Daemon;
+use crate::store::ServiceId;
+use crate::store::tools::Tool;
 
 /// The notifications a container hears: every served tool's, and the
 /// word that the set changed.
@@ -32,17 +34,46 @@ pub struct Context {
     pub served: Arc<Mutex<Served>>,
 }
 
-/// The served tool's run: a dependency's, or an attached tool's,
-/// started now if it was idle.
+/// What a served entry comes to, read under the served lock and acted
+/// on after it.
+enum Next {
+    /// A run this set holds.
+    Run(Arc<ToolRun>),
+    /// An attached tool with no run.
+    Idle(Tool),
+    /// A service, whose run the live set holds.
+    Service(ServiceId),
+    /// Nothing is served under the key.
+    Missing,
+}
+
+/// The served tool's run: a transient dependency's; an attached
+/// tool's, started now if it was idle; or a service's as the live set
+/// holds it now, which is an error while the service's container is
+/// not up.
 pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, String> {
-    let idle = {
+    let next = {
         let served = context.served.lock().await;
         match served.entry(key) {
-            Some(Entry::Dependency(run)) => return Ok(Arc::clone(run)),
-            Some(Entry::Attached { run: Some(run), .. }) => return Ok(Arc::clone(run)),
-            Some(Entry::Attached { tool, run: None }) => tool.clone(),
-            None => return Err("no tool is served under that prefix".to_string()),
+            Some(Entry::Dependency(run)) => Next::Run(Arc::clone(run)),
+            Some(Entry::Attached { run: Some(run), .. }) => Next::Run(Arc::clone(run)),
+            Some(Entry::Attached { tool, run: None }) => Next::Idle(tool.clone()),
+            Some(Entry::Service { id, .. }) => Next::Service(*id),
+            None => Next::Missing,
         }
+    };
+    let idle = match next {
+        Next::Run(run) => return Ok(run),
+        Next::Service(id) => {
+            return context
+                .daemon
+                .live
+                .tool_run(ToolKey::Service(id))
+                .await
+                .ok_or_else(|| "the service is not running now".to_string());
+        }
+        Next::Missing => return Err("no tool is served under that prefix".to_string()),
+        Next::Idle(tool) => tool,
     };
     let run = tools::use_tool(&context.daemon, &idle, User::Container(context.user))
         .await
@@ -158,10 +189,15 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
 /// scope lives, and the set's own changes.
 pub async fn notifications(context: &Context) -> Notifications {
     let (sender, receiver) = mpsc::unbounded_channel::<Result<ServerNotification, ErrorData>>();
-    let (runs, mut changes) = {
+    let (mut runs, services, mut changes) = {
         let served = context.served.lock().await;
-        (served.runs(), served.subscribe())
+        (served.runs(), served.services(), served.subscribe())
     };
+    for id in services {
+        if let Some(run) = context.daemon.live.tool_run(ToolKey::Service(id)).await {
+            runs.push(run);
+        }
+    }
     for run in runs {
         if let Ok(mut stream) = run.handle.notifications().await {
             let sender = sender.clone();

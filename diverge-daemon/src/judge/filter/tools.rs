@@ -6,15 +6,18 @@ use diverge_sdk::daemon::endpoints::tools::list::client::request::{Filter, Kind}
 use diverge_sdk::daemon::key;
 
 use crate::containers::ToolRun;
+use crate::store::services::Service;
 use crate::store::tools::Tool;
 
 /// What a tool is, as a filter and a grant see it: the one shape for
-/// a record and for a dependency, so that both are listed, judged and
-/// narrowed by one test. A record brings its row, whether it is
-/// active now and the agents it is attached to; a dependency brings
-/// its run, always active, attached to the one agent it was deployed
-/// for, with no name and no tags, its template the id of the one it
-/// was deployed from.
+/// a record, a transient dependency and a service, so that all are
+/// listed, judged and narrowed by one test. A record brings its row,
+/// whether it is active now and the agents it is attached to; a
+/// transient dependency brings its run, always active, attached to
+/// the one agent it was deployed for, with no name and no tags, its
+/// template the id of the one it was deployed from; a service brings
+/// its row, whether its container runs now and the agents attached
+/// to it, with no name and no tags.
 pub struct Facts<'a> {
     /// Its name, if any.
     pub name: Option<&'a str>,
@@ -50,7 +53,23 @@ impl<'a> Facts<'a> {
         }
     }
 
-    /// A dependency's run: `None` for a run that is a record's.
+    /// A service, given whether its container runs now and the agents
+    /// attached to it.
+    pub fn service(service: &'a Service, active: bool, attached: &'a [key::Agent]) -> Facts<'a> {
+        Facts {
+            name: None,
+            template: Some(&service.template),
+            creator: &service.creator,
+            kind: Kind::Service,
+            active,
+            attached,
+            tags: &[],
+            created: service.created,
+        }
+    }
+
+    /// A transient dependency's run: `None` for a run that is a
+    /// record's or a service's.
     pub fn dependency(run: &'a ToolRun) -> Option<Facts<'a>> {
         let dependency = run.dependency.as_ref()?;
         Some(Facts {

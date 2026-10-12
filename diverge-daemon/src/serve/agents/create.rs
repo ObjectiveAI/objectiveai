@@ -21,12 +21,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` without the `create` grant, or without `assign` over
-/// the account named; the error for a template or a provider that is
-/// not there; `NoAccount`; `InUse` for a name another
-/// agent has; else the agent made, its index the next for its
-/// template, nothing running: the container is work made from the
-/// record on its first use.
+/// `Forbidden` without the `create` grant; the error for a template
+/// or a provider that is not there; `InUse` for a name another agent
+/// has; else the agent made, its index the next for its template,
+/// nothing running: the container is work made from the record on
+/// its first use. No account: an agent holds none.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -39,12 +38,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if agents_templates::by_id(&mut tx, &inner.template, false).await?.is_none() {
         return Ok(Frame::Error(reply::failure(&"the agent template named is none the daemon has")));
     }
-    let account = match inner::account(&mut tx, &standing, daemon, inner.account.as_deref()).await? {
-        Checked::Ok(account) => account,
-        Checked::NoAccount => return Ok(Frame::NoAccount),
-        Checked::Forbidden => return Ok(Frame::Forbidden),
-        Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
-    };
     match inner::providers(&mut tx, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts).await? {
         Checked::Ok(()) => {}
         Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
@@ -58,7 +51,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let new = agents::New {
         template: inner.template,
         name: frame.name,
-        account,
         provider: inner.provider,
         fuse_file_mounts: inner.fuse_file_mounts,
         fuse_directory_mounts: inner.fuse_directory_mounts,
