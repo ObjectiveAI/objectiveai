@@ -20,7 +20,8 @@
 //! and does not yet serve: it selects the daemon and the account and
 //! ends. The other command, `config`, reads, rewrites and edits the
 //! three documents in the root — the daemon's, the provider's and the
-//! CLI's own — through jq, as JSON on this side; see [`document`].
+//! CLI's own — through jq, as JSON on this side, an edit being one
+//! place set or deleted by a jq path; see [`document`].
 
 pub mod arguments;
 pub mod cli;

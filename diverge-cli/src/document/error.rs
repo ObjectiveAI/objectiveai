@@ -3,10 +3,9 @@
 use std::fmt;
 use std::io;
 use std::path::PathBuf;
-use std::process::ExitStatus;
 
 /// What the document operations fail with: the filesystem, the file's
-/// own content, the type's refusal, jq, the editor, or stdout.
+/// own content, the type's refusal, jq, an edit's value, or stdout.
 #[derive(Debug)]
 pub enum Error {
     /// A file could not be read, written, renamed or removed.
@@ -36,12 +35,8 @@ pub enum Error {
     /// A `set` program yielded this many values, and one is what a
     /// document is.
     NotOne(usize),
-    /// Neither `VISUAL` nor `EDITOR` names an editor.
-    NoEditor,
-    /// The editor could not be started.
-    Spawn(io::Error),
-    /// The editor ended other than by success; nothing was written.
-    Editor(ExitStatus),
+    /// An edit's value is not YAML.
+    Value(serde_path_to_error::Error<serde_yaml_ng::Error>),
     /// Stdout could not be written.
     Stdout(io::Error),
 }
@@ -56,9 +51,7 @@ impl fmt::Display for Error {
             Error::Serialize(error) => write!(f, "the document could not be written as YAML: {error}"),
             Error::Jq(error) => write!(f, "the jq program: {error}"),
             Error::NotOne(count) => write!(f, "the jq program yielded {count} values, and a document is one"),
-            Error::NoEditor => write!(f, "neither `VISUAL` nor `EDITOR` names an editor"),
-            Error::Spawn(error) => write!(f, "the editor could not be started: {error}"),
-            Error::Editor(status) => write!(f, "the editor ended other than by success: {status}"),
+            Error::Value(error) => write!(f, "the value is not YAML: {error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
         }
     }
@@ -72,8 +65,9 @@ impl std::error::Error for Error {
             Error::Invalid(error) => Some(error),
             Error::Json(error) => Some(error),
             Error::Serialize(error) => Some(error),
-            Error::Spawn(error) | Error::Stdout(error) => Some(error),
-            Error::Jq(_) | Error::NotOne(_) | Error::NoEditor | Error::Editor(_) => None,
+            Error::Value(error) => Some(error),
+            Error::Stdout(error) => Some(error),
+            Error::Jq(_) | Error::NotOne(_) => None,
         }
     }
 }

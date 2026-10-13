@@ -5,8 +5,10 @@
 //! `provider.yaml`, `cli.yaml` — and this module handles all three the
 //! same way: a document is [`read`] as its program reads it, the
 //! built-in defaults where there is no file, and held as JSON on this
-//! side; a jq program is [`run`] over it, for a `get` to narrow it and
-//! for a `set` to rewrite it; what a `set` or an [`edit`] yields is
+//! side; a jq program is [`run`] over it, for a `get` to narrow it,
+//! for a `set` to rewrite it, and for an `edit` — the [`program`] a jq
+//! path expression and a YAML [`value`] make — to set or delete one
+//! place in it; what a `set` or an `edit` yields is
 //! [`validate`](Which::validate)d by the document's own type — the
 //! daemon's `Config`, the provider's, the CLI's — so that a key the
 //! program would refuse, or a value of the wrong kind, is refused here
