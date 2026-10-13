@@ -1,7 +1,6 @@
 //! One daemon, as the document holds it.
 
-use std::collections::BTreeMap;
-
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::Account;
@@ -21,9 +20,10 @@ pub struct Daemon {
     /// its name in `accounts`. `root` unless the document says.
     #[serde(default = "root")]
     pub default: String,
-    /// The accounts the CLI may dial it as, by name.
+    /// The accounts the CLI may dial it as, by name, in the order the
+    /// document gives them.
     #[serde(default)]
-    pub accounts: BTreeMap<String, Account>,
+    pub accounts: IndexMap<String, Account>,
 }
 
 /// [`ROOT`], as a serde default.

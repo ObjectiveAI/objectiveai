@@ -1,8 +1,7 @@
 //! The document.
 
-use std::collections::BTreeMap;
-
 use diverge_sdk::config::daemon;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{Account, Daemon, ROOT};
@@ -18,8 +17,9 @@ pub struct Config {
     /// The daemon dialled when the command line names none, by its
     /// name in `daemons`.
     pub default: String,
-    /// The daemons the CLI may dial, by name.
-    pub daemons: BTreeMap<String, Daemon>,
+    /// The daemons the CLI may dial, by name, in the order the document
+    /// gives them.
+    pub daemons: IndexMap<String, Daemon>,
 }
 
 impl Default for Config {
@@ -32,7 +32,7 @@ impl Default for Config {
         let local = Daemon {
             address: format!("ws://127.0.0.1:{port}/"),
             default: ROOT.to_string(),
-            accounts: BTreeMap::from([(
+            accounts: IndexMap::from([(
                 ROOT.to_string(),
                 Account {
                     key: ROOT.to_string(),
@@ -41,7 +41,7 @@ impl Default for Config {
         };
         Config {
             default: LOCAL.to_string(),
-            daemons: BTreeMap::from([(LOCAL.to_string(), local)]),
+            daemons: IndexMap::from([(LOCAL.to_string(), local)]),
         }
     }
 }

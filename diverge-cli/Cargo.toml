@@ -27,6 +27,9 @@ clap = { version = "4.6.0", features = ["derive"] }
 serde = { version = "1.0.229", features = ["derive"] }
 # The JSON it is written in.
 serde_json = "1.0.151"
+# The daemons and the accounts, by name, in the order the document
+# gives them.
+indexmap = { version = "2.14.2", features = ["serde"] }
 # Where in the document a value was wrong, in a parse error.
 serde_path_to_error = "0.1.20"
 # The runtime: the file read, and every request to a daemon.
