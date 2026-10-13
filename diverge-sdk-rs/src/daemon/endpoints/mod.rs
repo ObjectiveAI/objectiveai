@@ -7,7 +7,8 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
-//! | [`tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent; detach one; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent; detach one; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`dependency_tools`] | list the dependency templates agents' programs declare, narrowed, each with the agents that depend on it and the tools running from it; get one; delete one no tool runs from; tag one and untag one; watch a running dependency tool's container whole; download files out of one, upload files into one, transfer files out of one |
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a credential of providers that dial in, get one, list them, take one out, replace one; add a daemon to connect to, get one, list them, forget one, replace its mode or its links, tag one and untag one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
@@ -38,22 +39,22 @@
 //! | `12` | [`agents::templates::delete`] |
 //! | `13` | [`agents::templates::tag`] |
 //! | `14` | [`agents::templates::untag`] |
-//! | `15` | [`tools::create`] |
-//! | `16` | [`tools::get`] |
-//! | `17` | [`tools::edit`] |
-//! | `18` | [`tools::register`] |
-//! | `19` | [`tools::attach`] |
-//! | `20` | [`tools::detach`] |
-//! | `21` | [`tools::delete`] |
-//! | `22` | [`tools::list`] |
-//! | `23` | [`tools::tag`] |
-//! | `24` | [`tools::untag`] |
-//! | `25` | [`tools::templates::create`] |
-//! | `26` | [`tools::templates::get`] |
-//! | `27` | [`tools::templates::list`] |
-//! | `28` | [`tools::templates::delete`] |
-//! | `29` | [`tools::templates::tag`] |
-//! | `30` | [`tools::templates::untag`] |
+//! | `15` | [`standalone_tools::create`] |
+//! | `16` | [`standalone_tools::get`] |
+//! | `17` | [`standalone_tools::edit`] |
+//! | `18` | [`standalone_tools::register`] |
+//! | `19` | [`standalone_tools::attach`] |
+//! | `20` | [`standalone_tools::detach`] |
+//! | `21` | [`standalone_tools::delete`] |
+//! | `22` | [`standalone_tools::list`] |
+//! | `23` | [`standalone_tools::tag`] |
+//! | `24` | [`standalone_tools::untag`] |
+//! | `25` | [`standalone_tools::templates::create`] |
+//! | `26` | [`standalone_tools::templates::get`] |
+//! | `27` | [`standalone_tools::templates::list`] |
+//! | `28` | [`standalone_tools::templates::delete`] |
+//! | `29` | [`standalone_tools::templates::tag`] |
+//! | `30` | [`standalone_tools::templates::untag`] |
 //! | `31` | [`providers::outgoing::add`] |
 //! | `32` | [`providers::outgoing::get`] |
 //! | `33` | [`providers::outgoing::list`] |
@@ -85,9 +86,9 @@
 //! | `59` | [`agents::download`] |
 //! | `60` | [`agents::upload`] |
 //! | `61` | [`agents::transfer`] |
-//! | `62` | [`tools::download`] |
-//! | `63` | [`tools::upload`] |
-//! | `64` | [`tools::transfer`] |
+//! | `62` | [`standalone_tools::download`] |
+//! | `63` | [`standalone_tools::upload`] |
+//! | `64` | [`standalone_tools::transfer`] |
 //! | `65` | [`volumes::create`] |
 //! | `66` | [`volumes::get`] |
 //! | `67` | [`volumes::list`] |
@@ -100,11 +101,11 @@
 //! | `74` | [`volumes::upload`] |
 //! | `75` | [`volumes::transfer`] |
 //! | `76` | [`agents::filetree`] |
-//! | `77` | [`tools::filetree`] |
+//! | `77` | [`standalone_tools::filetree`] |
 //! | `78` | [`volumes::filetree`] |
 //! | `79` | [`postgres::get`] |
 //! | `80` | [`postgres::list`] |
-//! | `81` | [`tools::connect`] |
+//! | `81` | [`standalone_tools::connect`] |
 //! | `82` | [`providers::daemons::add`] |
 //! | `83` | [`providers::daemons::get`] |
 //! | `84` | [`providers::daemons::list`] |
@@ -112,15 +113,15 @@
 //! | `86` | [`providers::daemons::edit`] |
 //! | `87` | [`providers::daemons::tag`] |
 //! | `88` | [`providers::daemons::untag`] |
-//! | `89` | [`dependencies::list`] |
-//! | `90` | [`dependencies::get`] |
-//! | `91` | [`dependencies::delete`] |
-//! | `92` | [`dependencies::tag`] |
-//! | `93` | [`dependencies::untag`] |
-//! | `94` | [`dependencies::filetree`] |
-//! | `95` | [`dependencies::download`] |
-//! | `96` | [`dependencies::upload`] |
-//! | `97` | [`dependencies::transfer`] |
+//! | `89` | [`dependency_tools::list`] |
+//! | `90` | [`dependency_tools::get`] |
+//! | `91` | [`dependency_tools::delete`] |
+//! | `92` | [`dependency_tools::tag`] |
+//! | `93` | [`dependency_tools::untag`] |
+//! | `94` | [`dependency_tools::filetree`] |
+//! | `95` | [`dependency_tools::download`] |
+//! | `96` | [`dependency_tools::upload`] |
+//! | `97` | [`dependency_tools::transfer`] |
 //!
 //! Ninety-eight, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
@@ -155,9 +156,9 @@ pub use client_request::*;
 
 pub mod accounts;
 pub mod agents;
-pub mod dependencies;
+pub mod dependency_tools;
 pub mod postgres;
 pub mod providers;
 pub mod roles;
-pub mod tools;
+pub mod standalone_tools;
 pub mod volumes;

@@ -10,7 +10,7 @@
 //! here; which of the two it is for is its `type`, the first member,
 //! `"agent"` for an [agent
 //! template](crate::daemon::endpoints::agents::templates) and `"tool"`
-//! for a [tool template](crate::daemon::endpoints::tools::templates),
+//! for a [tool template](crate::daemon::endpoints::standalone_tools::templates),
 //! so the two kinds never hash the same and a template's text says what
 //! it is for. Each family makes, lists and deletes its own. The account
 //! a container runs under is not a template's but a create's, and so

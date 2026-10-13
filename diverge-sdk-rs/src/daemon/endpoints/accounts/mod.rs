@@ -3,7 +3,7 @@
 //! An ACCOUNT is the one principal the daemon knows. Every request the
 //! daemon serves is served for exactly one account — the account the
 //! connection it arrived on dialed in as, or the
-//! [`account`](crate::daemon::endpoints::tools::create::client::request::Frame::account) a tool container was
+//! [`account`](crate::daemon::endpoints::standalone_tools::create::client::request::Frame::account) a tool container was
 //! created under when the request comes from one — and
 //! the daemon judges the request by that account's
 //! [roles](crate::daemon::endpoints::roles): each a list of

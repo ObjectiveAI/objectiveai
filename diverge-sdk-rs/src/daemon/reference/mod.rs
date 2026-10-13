@@ -21,7 +21,7 @@
 //! one is malformed.
 //!
 //! A dependency tool — one running from a template an agent's program
-//! declared — is no tool of the [`tools`](crate::daemon::endpoints::tools)
+//! declared — is no tool of the [`standalone_tools`](crate::daemon::endpoints::standalone_tools)
 //! family, and no request of that family finds one. It is named by
 //! [`Dependency`]: the TEMPLATE it runs from, by id, and its
 //! [`Owner`] — the agent, named either way, the agent template, or

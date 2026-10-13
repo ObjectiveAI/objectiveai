@@ -17,10 +17,10 @@
 //! one, when it holds none, through the links whose providers it is
 //! connected to, in random order, the first to answer winning. What a
 //! daemon record is FOR is
-//! [`tools::register`](crate::daemon::endpoints::tools::register): a
+//! [`tools::register`](crate::daemon::endpoints::standalone_tools::register): a
 //! tool of another daemon's, named by the record and as that daemon
 //! names it, which this daemon reaches through that daemon's
-//! [`tools::connect`](crate::daemon::endpoints::tools::connect) over
+//! [`tools::connect`](crate::daemon::endpoints::standalone_tools::connect) over
 //! the connection. [`add`]
 //! names one; [`get`] answers one as a list would; [`list`] lists them,
 //! narrowed, with their tags; [`delete`] forgets one no connected tool

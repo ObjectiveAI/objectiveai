@@ -8,8 +8,8 @@ use crate::daemon::reference;
 /// the template a created tool was made from, or the daemon and the
 /// tool a connected tool joined — and not where a created tool
 /// happens to run, which changes. JSON-tagged by `kind`, `created` or
-/// `connected`, as the tools list's
-/// [`Origin`](crate::daemon::endpoints::tools::list::server::response::Origin)
+/// `connected`, as the standalone tools list's
+/// [`Origin`](crate::daemon::endpoints::standalone_tools::list::server::response::Origin)
 /// is. A tool's index counts among the tools ever made with the same
 /// one of these.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

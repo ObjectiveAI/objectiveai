@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{accounts, agents, agents_templates, dependencies, postgres, providers_daemons, providers_incoming, providers_outgoing, roles, tools, tools_templates, volumes};
+use super::{accounts, agents, agents_templates, dependency_tools, postgres, providers_daemons, providers_incoming, providers_outgoing, roles, standalone_tools, standalone_tools_templates, volumes};
 
 /// One grant that names nothing: a permission over one kind of thing
 /// the daemon holds, reaching by tags alone. Externally tagged by the
@@ -10,8 +10,9 @@ use super::{accounts, agents, agents_templates, dependencies, postgres, provider
 /// `{"volumes":…}` — whose value is that kind's
 /// [`Permission`](agents::Permission), in one of the shapes
 /// [`permission`](crate::shared::permission) states. Snake case on the
-/// wire: `"agents"`, `"agents_templates"`, `"tools"`,
-/// `"tools_templates"`, `"dependencies"`, `"providers_outgoing"`,
+/// wire: `"agents"`, `"agents_templates"`, `"standalone_tools"`,
+/// `"standalone_tools_templates"`, `"dependency_tools"`,
+/// `"providers_outgoing"`,
 /// `"providers_incoming"`, `"providers_daemons"`, `"accounts"`,
 /// `"roles"`, `"volumes"`, `"postgres"` — the kinds of
 /// the daemon's [`Grant`](crate::daemon::grant::Grant), which is made
@@ -24,12 +25,13 @@ pub enum Grant {
     Agents(agents::Permission),
     /// Over agent templates: see [`agents_templates::Permission`].
     AgentsTemplates(agents_templates::Permission),
-    /// Over tools: see [`tools::Permission`].
-    Tools(tools::Permission),
-    /// Over tool templates: see [`tools_templates::Permission`].
-    ToolsTemplates(tools_templates::Permission),
-    /// Over dependency templates: see [`dependencies::Permission`].
-    Dependencies(dependencies::Permission),
+    /// Over standalone tools: see [`standalone_tools::Permission`].
+    StandaloneTools(standalone_tools::Permission),
+    /// Over standalone tool templates: see
+    /// [`standalone_tools_templates::Permission`].
+    StandaloneToolsTemplates(standalone_tools_templates::Permission),
+    /// Over dependency tools: see [`dependency_tools::Permission`].
+    DependencyTools(dependency_tools::Permission),
     /// Over outgoing providers: see [`providers_outgoing::Permission`].
     ProvidersOutgoing(providers_outgoing::Permission),
     /// Over incoming credentials: see [`providers_incoming::Permission`].

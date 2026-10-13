@@ -15,7 +15,7 @@ use super::Credential;
 #[serde(untagged)]
 pub enum Definition {
     /// An account with a name: what a tool container's
-    /// [`account`](crate::daemon::endpoints::tools::create::client::request::Frame::account) names, and
+    /// [`account`](crate::daemon::endpoints::standalone_tools::create::client::request::Frame::account) names, and
     /// what a request names the account by. With a credential, a client
     /// dials in as it too.
     Named {

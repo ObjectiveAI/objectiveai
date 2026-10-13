@@ -10,7 +10,7 @@ use crate::daemon::endpoints::agents::create::client::request::{FuseMount, Provi
 /// an agent container holds none and asks the daemon nothing.
 /// Flattened into an
 /// [agent's](crate::daemon::endpoints::agents::create) and a
-/// [tool's](crate::daemon::endpoints::tools::create) create, so its
+/// [tool's](crate::daemon::endpoints::standalone_tools::create) create, so its
 /// members are the request's own.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Inner {

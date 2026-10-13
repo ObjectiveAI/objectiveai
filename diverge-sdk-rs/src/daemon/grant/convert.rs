@@ -1,6 +1,6 @@
 //! A dependency tool template's grants, as grants of the daemon's.
 
-use super::{Grant, accounts, agents, agents_templates, dependencies, providers_daemons, providers_incoming, providers_outgoing, roles, tools, tools_templates, volumes};
+use super::{Grant, accounts, agents, agents_templates, dependency_tools, providers_daemons, providers_incoming, providers_outgoing, roles, standalone_tools, standalone_tools_templates, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
 /// A dependency tool template's grants, as the daemon judges them:
@@ -67,38 +67,38 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
                 tags,
             },
         }),
-        permission::Grant::Tools(permission) => Grant::Tools(match permission {
-            permission::tools::Permission::Make(makes) => tools::Permission::Make(makes),
-            permission::tools::Permission::Over { actions, within } => tools::Permission::Over {
+        permission::Grant::StandaloneTools(permission) => Grant::StandaloneTools(match permission {
+            permission::standalone_tools::Permission::Make(makes) => standalone_tools::Permission::Make(makes),
+            permission::standalone_tools::Permission::Over { actions, within } => standalone_tools::Permission::Over {
                 actions,
-                within: within.map(tools_filter),
+                within: within.map(standalone_tools_filter),
             },
-            permission::tools::Permission::Tags { actions, within, tags } => tools::Permission::Tags {
+            permission::standalone_tools::Permission::Tags { actions, within, tags } => standalone_tools::Permission::Tags {
                 actions,
-                within: within.map(tools_filter),
+                within: within.map(standalone_tools_filter),
                 tags,
             },
         }),
-        permission::Grant::ToolsTemplates(permission) => Grant::ToolsTemplates(match permission {
-            permission::tools_templates::Permission::Make(makes) => tools_templates::Permission::Make(makes),
-            permission::tools_templates::Permission::Over { actions, within } => tools_templates::Permission::Over {
+        permission::Grant::StandaloneToolsTemplates(permission) => Grant::StandaloneToolsTemplates(match permission {
+            permission::standalone_tools_templates::Permission::Make(makes) => standalone_tools_templates::Permission::Make(makes),
+            permission::standalone_tools_templates::Permission::Over { actions, within } => standalone_tools_templates::Permission::Over {
                 actions,
-                within: within.map(tools_templates_filter),
+                within: within.map(standalone_tools_templates_filter),
             },
-            permission::tools_templates::Permission::Tags { actions, within, tags } => tools_templates::Permission::Tags {
+            permission::standalone_tools_templates::Permission::Tags { actions, within, tags } => standalone_tools_templates::Permission::Tags {
                 actions,
-                within: within.map(tools_templates_filter),
+                within: within.map(standalone_tools_templates_filter),
                 tags,
             },
         }),
-        permission::Grant::Dependencies(permission) => Grant::Dependencies(match permission {
-            permission::dependencies::Permission::Over { actions, within } => dependencies::Permission::Over {
+        permission::Grant::DependencyTools(permission) => Grant::DependencyTools(match permission {
+            permission::dependency_tools::Permission::Over { actions, within } => dependency_tools::Permission::Over {
                 actions,
-                within: within.map(dependencies_filter),
+                within: within.map(dependency_tools_filter),
             },
-            permission::dependencies::Permission::Tags { actions, within, tags } => dependencies::Permission::Tags {
+            permission::dependency_tools::Permission::Tags { actions, within, tags } => dependency_tools::Permission::Tags {
                 actions,
-                within: within.map(dependencies_filter),
+                within: within.map(dependency_tools_filter),
                 tags,
             },
         }),
@@ -204,24 +204,24 @@ fn agents_templates_filter(tags: Tags) -> crate::daemon::endpoints::agents::temp
     }
 }
 
-fn tools_filter(tags: Tags) -> crate::daemon::endpoints::tools::list::client::request::Filter {
-    crate::daemon::endpoints::tools::list::client::request::Filter {
+fn standalone_tools_filter(tags: Tags) -> crate::daemon::endpoints::standalone_tools::list::client::request::Filter {
+    crate::daemon::endpoints::standalone_tools::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()
     }
 }
 
-fn tools_templates_filter(tags: Tags) -> crate::daemon::endpoints::tools::templates::list::client::request::Filter {
-    crate::daemon::endpoints::tools::templates::list::client::request::Filter {
+fn standalone_tools_templates_filter(tags: Tags) -> crate::daemon::endpoints::standalone_tools::templates::list::client::request::Filter {
+    crate::daemon::endpoints::standalone_tools::templates::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()
     }
 }
 
-fn dependencies_filter(tags: Tags) -> crate::daemon::endpoints::dependencies::list::client::request::Filter {
-    crate::daemon::endpoints::dependencies::list::client::request::Filter {
+fn dependency_tools_filter(tags: Tags) -> crate::daemon::endpoints::dependency_tools::list::client::request::Filter {
+    crate::daemon::endpoints::dependency_tools::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()

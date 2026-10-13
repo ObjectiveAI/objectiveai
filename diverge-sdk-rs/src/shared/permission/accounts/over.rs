@@ -26,7 +26,7 @@ pub enum Over {
     Edit,
     /// Name one as a container's `account`, at an
     /// [agent's](crate::daemon::endpoints::agents::create) or a
-    /// [tool's](crate::daemon::endpoints::tools::create) create or
+    /// [tool's](crate::daemon::endpoints::standalone_tools::create) create or
     /// edit.
     Assign,
 }

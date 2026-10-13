@@ -2,15 +2,16 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{agents, agents_templates, tools, tools_templates, dependencies, providers_outgoing, providers_incoming, providers_daemons, accounts, roles, volumes, postgres};
+use super::{agents, agents_templates, standalone_tools, standalone_tools_templates, dependency_tools, providers_outgoing, providers_incoming, providers_daemons, accounts, roles, volumes, postgres};
 
 /// One grant: a permission over one kind of thing the daemon holds.
 /// Externally tagged by the kind's name — one object with one member,
 /// `{"agents":…}`, `{"providers_incoming":…}` — whose value is that
 /// kind's [`Permission`](agents::Permission), in one of the shapes
 /// [`grant`](crate::daemon::grant) states. Snake case on the wire:
-/// `"agents"`, `"agents_templates"`, `"tools"`, `"tools_templates"`,
-/// `"dependencies"`, `"providers_outgoing"`, `"providers_incoming"`,
+/// `"agents"`, `"agents_templates"`, `"standalone_tools"`,
+/// `"standalone_tools_templates"`, `"dependency_tools"`,
+/// `"providers_outgoing"`, `"providers_incoming"`,
 /// `"providers_daemons"`, `"accounts"`, `"roles"`, `"volumes"`,
 /// `"postgres"` — the kinds of
 /// [`shared::permission::Grant`](crate::shared::permission::Grant),
@@ -22,12 +23,13 @@ pub enum Grant {
     Agents(agents::Permission),
     /// Over agent templates: see [`agents_templates::Permission`].
     AgentsTemplates(agents_templates::Permission),
-    /// Over tools: see [`tools::Permission`].
-    Tools(tools::Permission),
-    /// Over tool templates: see [`tools_templates::Permission`].
-    ToolsTemplates(tools_templates::Permission),
-    /// Over dependency templates: see [`dependencies::Permission`].
-    Dependencies(dependencies::Permission),
+    /// Over standalone tools: see [`standalone_tools::Permission`].
+    StandaloneTools(standalone_tools::Permission),
+    /// Over standalone tool templates: see
+    /// [`standalone_tools_templates::Permission`].
+    StandaloneToolsTemplates(standalone_tools_templates::Permission),
+    /// Over dependency tools: see [`dependency_tools::Permission`].
+    DependencyTools(dependency_tools::Permission),
     /// Over outgoing providers: see [`providers_outgoing::Permission`].
     ProvidersOutgoing(providers_outgoing::Permission),
     /// Over incoming credentials: see [`providers_incoming::Permission`].

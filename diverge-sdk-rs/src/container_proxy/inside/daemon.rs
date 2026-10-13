@@ -26,7 +26,7 @@ impl Client {
     /// the daemon answers, and the proxy carries every frame between
     /// them. No credential is presented and none is asked for — the
     /// connection is served for the tool container's
-    /// [`account`](crate::daemon::endpoints::tools::create::client::request::Frame::account),
+    /// [`account`](crate::daemon::endpoints::standalone_tools::create::client::request::Frame::account),
     /// or under its dependency template's grants, and the proxy is
     /// the trust boundary — so the first frame on the socket is the
     /// first request. The router that reads the socket runs on a task

@@ -31,7 +31,7 @@ use crate::daemon::reference;
 /// under one owner reach one scope; under two owners, two. A scope,
 /// once made, is dropped by exactly one delete: a tool's own by the
 /// tool's, a dependency tool's by its
-/// [template's](crate::daemon::endpoints::dependencies::delete), and
+/// [template's](crate::daemon::endpoints::dependency_tools::delete), and
 /// an agent's own by none — an agent's delete and an agent template's
 /// drop no scope.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

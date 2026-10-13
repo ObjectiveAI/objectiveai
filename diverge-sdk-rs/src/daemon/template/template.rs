@@ -12,14 +12,14 @@ use crate::daemon::endpoints::agents::create::client::request::Image;
 /// differs one to the next — the name, the provider it runs on, and
 /// every mount of providers' volumes — which the
 /// [agent's](crate::daemon::endpoints::agents::create) or the
-/// [tool's](crate::daemon::endpoints::tools::create) create states.
+/// [tool's](crate::daemon::endpoints::standalone_tools::create) create states.
 ///
 /// # One shape, typed
 ///
 /// `Type` is the family's own single-value enum —
 /// [`AgentType`](crate::daemon::endpoints::agents::templates::AgentType)
 /// or
-/// [`ToolType`](crate::daemon::endpoints::tools::templates::ToolType) —
+/// [`ToolType`](crate::daemon::endpoints::standalone_tools::templates::ToolType) —
 /// so an agent template is `{"type":"agent",…}` and a tool template
 /// `{"type":"tool",…}`, neither decoding as the other, and the two
 /// hashing apart however alike the rest.

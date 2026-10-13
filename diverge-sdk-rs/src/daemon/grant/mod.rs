@@ -1,8 +1,8 @@
 //! Grants: what a role allows, kind by kind.
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds —
-//! agents, agent templates, tools, tool templates, dependency
-//! templates, outgoing providers, incoming credentials, daemons,
+//! agents, agent templates, standalone tools, their templates,
+//! dependency tools, outgoing providers, incoming credentials, daemons,
 //! accounts, roles, volumes, the database — and a
 //! [role](crate::daemon::endpoints::roles) is a
 //! list of them, held by
@@ -61,7 +61,7 @@
 //! Two actions name no endpoint of their own kind: `assign` over
 //! accounts, naming the account as a container's `account` at an
 //! [agent's](crate::daemon::endpoints::agents::create) or a
-//! [tool's](crate::daemon::endpoints::tools::create) create or edit;
+//! [tool's](crate::daemon::endpoints::standalone_tools::create) create or edit;
 //! and `grant` over roles, naming the role in an account's `roles` at
 //! the account's create or edit. A request that names several things — an account and its roles, a
 //! tool and an agent — is allowed when every one of them is.
@@ -107,9 +107,9 @@ pub use crate::shared::permission::{Tagging, Within};
 
 pub mod agents;
 pub mod agents_templates;
-pub mod tools;
-pub mod tools_templates;
-pub mod dependencies;
+pub mod standalone_tools;
+pub mod standalone_tools_templates;
+pub mod dependency_tools;
 pub mod providers_outgoing;
 pub mod providers_incoming;
 pub mod providers_daemons;

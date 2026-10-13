@@ -11,7 +11,7 @@ use super::{Origin, Owner};
 /// `{"dependency":{…}}`.
 ///
 /// A dependency tool is no record of the tools family: it runs from a
-/// [dependency template](crate::daemon::endpoints::dependencies) an
+/// [dependency template](crate::daemon::endpoints::dependency_tools) an
 /// agent's program declared — a transient one for the agent's run,
 /// a service for as long as any agent is attached to it. What names
 /// it once and for all is its template's id and its [`Owner`]: the

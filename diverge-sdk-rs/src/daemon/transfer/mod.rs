@@ -2,7 +2,7 @@
 //!
 //! A transfer — an
 //! [agent's](crate::daemon::endpoints::agents::transfer), a
-//! [tool's](crate::daemon::endpoints::tools::transfer), a
+//! [tool's](crate::daemon::endpoints::standalone_tools::transfer), a
 //! [volume's](crate::daemon::endpoints::volumes::transfer) — copies a
 //! file or a directory out of its source into a [`Destination`]: a
 //! path in an agent's container, a path in a tool's, or a path in a

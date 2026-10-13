@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{accounts, agents, dependencies, postgres, providers, roles, tools, volumes};
+use super::{accounts, agents, dependency_tools, postgres, providers, roles, standalone_tools, volumes};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -58,37 +58,37 @@ pub enum ClientRequest<'a> {
     /// Tag `14`. Take tags off a template.
     AgentsTemplatesUntag(agents::templates::untag::client::request::Frame),
     /// Tag `15`. Create a tool under a name.
-    ToolsCreate(tools::create::client::request::Frame),
+    StandaloneToolsCreate(standalone_tools::create::client::request::Frame),
     /// Tag `16`. Get one tool.
-    ToolsGet(tools::get::client::request::Frame),
+    StandaloneToolsGet(standalone_tools::get::client::request::Frame),
     /// Tag `17`. Change a tool.
-    ToolsEdit(tools::edit::client::request::Frame),
+    StandaloneToolsEdit(standalone_tools::edit::client::request::Frame),
     /// Tag `18`. Register a tool another daemon holds, under a name.
-    ToolsRegister(tools::register::client::request::Frame),
+    StandaloneToolsRegister(standalone_tools::register::client::request::Frame),
     /// Tag `19`. Attach a tool to an agent.
-    ToolsAttach(tools::attach::client::request::Frame),
+    StandaloneToolsAttach(standalone_tools::attach::client::request::Frame),
     /// Tag `20`. Detach a tool from an agent.
-    ToolsDetach(tools::detach::client::request::Frame),
+    StandaloneToolsDetach(standalone_tools::detach::client::request::Frame),
     /// Tag `21`. Delete a tool.
-    ToolsDelete(tools::delete::client::request::Frame),
+    StandaloneToolsDelete(standalone_tools::delete::client::request::Frame),
     /// Tag `22`. List the caller's tools, narrowed, and keep the list.
-    ToolsList(tools::list::client::request::Frame),
+    StandaloneToolsList(standalone_tools::list::client::request::Frame),
     /// Tag `23`. Put tags on a tool.
-    ToolsTag(tools::tag::client::request::Frame),
+    StandaloneToolsTag(standalone_tools::tag::client::request::Frame),
     /// Tag `24`. Take tags off a tool.
-    ToolsUntag(tools::untag::client::request::Frame),
+    StandaloneToolsUntag(standalone_tools::untag::client::request::Frame),
     /// Tag `25`. Make a tool template.
-    ToolsTemplatesCreate(tools::templates::create::client::request::Frame),
+    StandaloneToolsTemplatesCreate(standalone_tools::templates::create::client::request::Frame),
     /// Tag `26`. Get one tool template by id.
-    ToolsTemplatesGet(tools::templates::get::client::request::Frame),
+    StandaloneToolsTemplatesGet(standalone_tools::templates::get::client::request::Frame),
     /// Tag `27`. List the caller's tool templates, narrowed, and keep the list.
-    ToolsTemplatesList(tools::templates::list::client::request::Frame),
+    StandaloneToolsTemplatesList(standalone_tools::templates::list::client::request::Frame),
     /// Tag `28`. Delete a tool template by id.
-    ToolsTemplatesDelete(tools::templates::delete::client::request::Frame),
+    StandaloneToolsTemplatesDelete(standalone_tools::templates::delete::client::request::Frame),
     /// Tag `29`. Put tags on a tool template.
-    ToolsTemplatesTag(tools::templates::tag::client::request::Frame),
+    StandaloneToolsTemplatesTag(standalone_tools::templates::tag::client::request::Frame),
     /// Tag `30`. Take tags off a tool template.
-    ToolsTemplatesUntag(tools::templates::untag::client::request::Frame),
+    StandaloneToolsTemplatesUntag(standalone_tools::templates::untag::client::request::Frame),
     /// Tag `31`. Add a provider to dial.
     ProvidersOutgoingAdd(providers::outgoing::add::client::request::Frame),
     /// Tag `32`. Get one outgoing provider.
@@ -152,11 +152,11 @@ pub enum ClientRequest<'a> {
     /// Tag `61`. Copy files out of an agent's container elsewhere.
     AgentsTransfer(agents::transfer::client::request::Frame),
     /// Tag `62`. Send the client files out of a tool's container.
-    ToolsDownload(tools::download::client::request::Frame),
+    StandaloneToolsDownload(standalone_tools::download::client::request::Frame),
     /// Tag `63`. Put files into a tool's container.
-    ToolsUpload(tools::upload::client::request::Frame),
+    StandaloneToolsUpload(standalone_tools::upload::client::request::Frame),
     /// Tag `64`. Copy files out of a tool's container elsewhere.
-    ToolsTransfer(tools::transfer::client::request::Frame),
+    StandaloneToolsTransfer(standalone_tools::transfer::client::request::Frame),
     /// Tag `65`. Create a volume on a provider.
     VolumesCreate(volumes::create::client::request::Frame),
     /// Tag `66`. Get one volume.
@@ -182,7 +182,7 @@ pub enum ClientRequest<'a> {
     /// Tag `76`. Watch an agent's container whole.
     AgentsFiletree(agents::filetree::client::request::Frame),
     /// Tag `77`. Watch a tool's container whole.
-    ToolsFiletree(tools::filetree::client::request::Frame),
+    StandaloneToolsFiletree(standalone_tools::filetree::client::request::Frame),
     /// Tag `78`. See a volume's tree, once.
     VolumesFiletree(volumes::filetree::client::request::Frame),
     /// Tag `79`. Read which database the daemon serves.
@@ -190,7 +190,7 @@ pub enum ClientRequest<'a> {
     /// Tag `80`. List the container connections open through the database.
     PostgresList(postgres::list::client::request::Frame),
     /// Tag `81`. Serve a tool to another daemon.
-    ToolsConnect(tools::connect::client::request::Frame),
+    StandaloneToolsConnect(standalone_tools::connect::client::request::Frame),
     /// Tag `82`. Add a daemon to connect to.
     ProvidersDaemonsAdd(providers::daemons::add::client::request::Frame),
     /// Tag `83`. Get one daemon.
@@ -206,25 +206,25 @@ pub enum ClientRequest<'a> {
     /// Tag `88`. Take tags off a daemon.
     ProvidersDaemonsUntag(providers::daemons::untag::client::request::Frame),
     /// Tag `89`. List the caller's dependency templates, narrowed.
-    DependenciesList(dependencies::list::client::request::Frame),
+    DependencyToolsList(dependency_tools::list::client::request::Frame),
     /// Tag `90`. Get one dependency template.
-    DependenciesGet(dependencies::get::client::request::Frame),
+    DependencyToolsGet(dependency_tools::get::client::request::Frame),
     /// Tag `91`. Delete a dependency template no tool runs from.
-    DependenciesDelete(dependencies::delete::client::request::Frame),
+    DependencyToolsDelete(dependency_tools::delete::client::request::Frame),
     /// Tag `92`. Put tags on a dependency template.
-    DependenciesTag(dependencies::tag::client::request::Frame),
+    DependencyToolsTag(dependency_tools::tag::client::request::Frame),
     /// Tag `93`. Take tags off a dependency template.
-    DependenciesUntag(dependencies::untag::client::request::Frame),
+    DependencyToolsUntag(dependency_tools::untag::client::request::Frame),
     /// Tag `94`. Watch a running dependency tool's container whole.
-    DependenciesFiletree(dependencies::filetree::client::request::Frame),
+    DependencyToolsFiletree(dependency_tools::filetree::client::request::Frame),
     /// Tag `95`. Download out of a running dependency tool's
     /// container.
-    DependenciesDownload(dependencies::download::client::request::Frame),
+    DependencyToolsDownload(dependency_tools::download::client::request::Frame),
     /// Tag `96`. Upload into a running dependency tool's container.
-    DependenciesUpload(dependencies::upload::client::request::Frame),
+    DependencyToolsUpload(dependency_tools::upload::client::request::Frame),
     /// Tag `97`. Transfer out of a running dependency tool's
     /// container.
-    DependenciesTransfer(dependencies::transfer::client::request::Frame),
+    DependencyToolsTransfer(dependency_tools::transfer::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -260,22 +260,22 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsTemplatesDelete(frame) => frame.encode(out),
             ClientRequest::AgentsTemplatesTag(frame) => frame.encode(out),
             ClientRequest::AgentsTemplatesUntag(frame) => frame.encode(out),
-            ClientRequest::ToolsCreate(frame) => frame.encode(out),
-            ClientRequest::ToolsGet(frame) => frame.encode(out),
-            ClientRequest::ToolsEdit(frame) => frame.encode(out),
-            ClientRequest::ToolsRegister(frame) => frame.encode(out),
-            ClientRequest::ToolsAttach(frame) => frame.encode(out),
-            ClientRequest::ToolsDetach(frame) => frame.encode(out),
-            ClientRequest::ToolsDelete(frame) => frame.encode(out),
-            ClientRequest::ToolsList(frame) => frame.encode(out),
-            ClientRequest::ToolsTag(frame) => frame.encode(out),
-            ClientRequest::ToolsUntag(frame) => frame.encode(out),
-            ClientRequest::ToolsTemplatesCreate(frame) => frame.encode(out),
-            ClientRequest::ToolsTemplatesGet(frame) => frame.encode(out),
-            ClientRequest::ToolsTemplatesList(frame) => frame.encode(out),
-            ClientRequest::ToolsTemplatesDelete(frame) => frame.encode(out),
-            ClientRequest::ToolsTemplatesTag(frame) => frame.encode(out),
-            ClientRequest::ToolsTemplatesUntag(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsCreate(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsGet(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsEdit(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsRegister(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsAttach(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsDetach(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsDelete(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsList(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsTag(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsUntag(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsTemplatesCreate(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsTemplatesGet(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsTemplatesList(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsTemplatesDelete(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsTemplatesTag(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsTemplatesUntag(frame) => frame.encode(out),
             ClientRequest::ProvidersOutgoingAdd(frame) => frame.encode(out),
             ClientRequest::ProvidersOutgoingGet(frame) => frame.encode(out),
             ClientRequest::ProvidersOutgoingList(frame) => frame.encode(out),
@@ -307,9 +307,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsDownload(frame) => frame.encode(out),
             ClientRequest::AgentsUpload(frame) => frame.encode(out),
             ClientRequest::AgentsTransfer(frame) => frame.encode(out),
-            ClientRequest::ToolsDownload(frame) => frame.encode(out),
-            ClientRequest::ToolsUpload(frame) => frame.encode(out),
-            ClientRequest::ToolsTransfer(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsDownload(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsUpload(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsTransfer(frame) => frame.encode(out),
             ClientRequest::VolumesCreate(frame) => frame.encode(out),
             ClientRequest::VolumesGet(frame) => frame.encode(out),
             ClientRequest::VolumesList(frame) => frame.encode(out),
@@ -322,11 +322,11 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesUpload(frame) => frame.encode(out),
             ClientRequest::VolumesTransfer(frame) => frame.encode(out),
             ClientRequest::AgentsFiletree(frame) => frame.encode(out),
-            ClientRequest::ToolsFiletree(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsFiletree(frame) => frame.encode(out),
             ClientRequest::VolumesFiletree(frame) => frame.encode(out),
             ClientRequest::PostgresGet(frame) => frame.encode(out),
             ClientRequest::PostgresList(frame) => frame.encode(out),
-            ClientRequest::ToolsConnect(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsConnect(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsAdd(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsGet(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsList(frame) => frame.encode(out),
@@ -334,15 +334,15 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsEdit(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsTag(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsUntag(frame) => frame.encode(out),
-            ClientRequest::DependenciesList(frame) => frame.encode(out),
-            ClientRequest::DependenciesGet(frame) => frame.encode(out),
-            ClientRequest::DependenciesDelete(frame) => frame.encode(out),
-            ClientRequest::DependenciesTag(frame) => frame.encode(out),
-            ClientRequest::DependenciesUntag(frame) => frame.encode(out),
-            ClientRequest::DependenciesFiletree(frame) => frame.encode(out),
-            ClientRequest::DependenciesDownload(frame) => frame.encode(out),
-            ClientRequest::DependenciesUpload(frame) => frame.encode(out),
-            ClientRequest::DependenciesTransfer(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsList(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsGet(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsDelete(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsTag(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsUntag(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsFiletree(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsDownload(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsUpload(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsTransfer(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -412,53 +412,53 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             14 => agents::templates::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsTemplatesUntag)
                 .ok(),
-            15 => tools::create::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsCreate)
+            15 => standalone_tools::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsCreate)
                 .ok(),
-            16 => tools::get::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsGet)
+            16 => standalone_tools::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsGet)
                 .ok(),
-            17 => tools::edit::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsEdit)
+            17 => standalone_tools::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsEdit)
                 .ok(),
-            18 => tools::register::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsRegister)
+            18 => standalone_tools::register::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsRegister)
                 .ok(),
-            19 => tools::attach::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsAttach)
+            19 => standalone_tools::attach::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsAttach)
                 .ok(),
-            20 => tools::detach::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsDetach)
+            20 => standalone_tools::detach::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsDetach)
                 .ok(),
-            21 => tools::delete::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsDelete)
+            21 => standalone_tools::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsDelete)
                 .ok(),
-            22 => tools::list::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsList)
+            22 => standalone_tools::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsList)
                 .ok(),
-            23 => tools::tag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsTag)
+            23 => standalone_tools::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsTag)
                 .ok(),
-            24 => tools::untag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsUntag)
+            24 => standalone_tools::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsUntag)
                 .ok(),
-            25 => tools::templates::create::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsTemplatesCreate)
+            25 => standalone_tools::templates::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsTemplatesCreate)
                 .ok(),
-            26 => tools::templates::get::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsTemplatesGet)
+            26 => standalone_tools::templates::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsTemplatesGet)
                 .ok(),
-            27 => tools::templates::list::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsTemplatesList)
+            27 => standalone_tools::templates::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsTemplatesList)
                 .ok(),
-            28 => tools::templates::delete::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsTemplatesDelete)
+            28 => standalone_tools::templates::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsTemplatesDelete)
                 .ok(),
-            29 => tools::templates::tag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsTemplatesTag)
+            29 => standalone_tools::templates::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsTemplatesTag)
                 .ok(),
-            30 => tools::templates::untag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsTemplatesUntag)
+            30 => standalone_tools::templates::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsTemplatesUntag)
                 .ok(),
             31 => providers::outgoing::add::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingAdd)
@@ -553,14 +553,14 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             61 => agents::transfer::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsTransfer)
                 .ok(),
-            62 => tools::download::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsDownload)
+            62 => standalone_tools::download::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsDownload)
                 .ok(),
-            63 => tools::upload::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsUpload)
+            63 => standalone_tools::upload::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsUpload)
                 .ok(),
-            64 => tools::transfer::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsTransfer)
+            64 => standalone_tools::transfer::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsTransfer)
                 .ok(),
             65 => volumes::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreate)
@@ -598,8 +598,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             76 => agents::filetree::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsFiletree)
                 .ok(),
-            77 => tools::filetree::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsFiletree)
+            77 => standalone_tools::filetree::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsFiletree)
                 .ok(),
             78 => volumes::filetree::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesFiletree)
@@ -610,8 +610,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             80 => postgres::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::PostgresList)
                 .ok(),
-            81 => tools::connect::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsConnect)
+            81 => standalone_tools::connect::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsConnect)
                 .ok(),
             82 => providers::daemons::add::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersDaemonsAdd)
@@ -634,32 +634,32 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             88 => providers::daemons::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersDaemonsUntag)
                 .ok(),
-            89 => dependencies::list::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DependenciesList)
+            89 => dependency_tools::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsList)
                 .ok(),
-            90 => dependencies::get::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DependenciesGet)
+            90 => dependency_tools::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsGet)
                 .ok(),
-            91 => dependencies::delete::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DependenciesDelete)
+            91 => dependency_tools::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsDelete)
                 .ok(),
-            92 => dependencies::tag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DependenciesTag)
+            92 => dependency_tools::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsTag)
                 .ok(),
-            93 => dependencies::untag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DependenciesUntag)
+            93 => dependency_tools::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsUntag)
                 .ok(),
-            94 => dependencies::filetree::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DependenciesFiletree)
+            94 => dependency_tools::filetree::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsFiletree)
                 .ok(),
-            95 => dependencies::download::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DependenciesDownload)
+            95 => dependency_tools::download::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsDownload)
                 .ok(),
-            96 => dependencies::upload::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DependenciesUpload)
+            96 => dependency_tools::upload::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsUpload)
                 .ok(),
-            97 => dependencies::transfer::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DependenciesTransfer)
+            97 => dependency_tools::transfer::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsTransfer)
                 .ok(),
             _ => None,
         };
@@ -685,22 +685,22 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsTemplatesDelete(_) => f.write_str("agents templates delete"),
             ClientRequest::AgentsTemplatesTag(_) => f.write_str("agents templates tag"),
             ClientRequest::AgentsTemplatesUntag(_) => f.write_str("agents templates untag"),
-            ClientRequest::ToolsCreate(_) => f.write_str("tools create"),
-            ClientRequest::ToolsGet(_) => f.write_str("tools get"),
-            ClientRequest::ToolsEdit(_) => f.write_str("tools edit"),
-            ClientRequest::ToolsRegister(_) => f.write_str("tools register"),
-            ClientRequest::ToolsAttach(_) => f.write_str("tools attach"),
-            ClientRequest::ToolsDetach(_) => f.write_str("tools detach"),
-            ClientRequest::ToolsDelete(_) => f.write_str("tools delete"),
-            ClientRequest::ToolsList(_) => f.write_str("tools list"),
-            ClientRequest::ToolsTag(_) => f.write_str("tools tag"),
-            ClientRequest::ToolsUntag(_) => f.write_str("tools untag"),
-            ClientRequest::ToolsTemplatesCreate(_) => f.write_str("tools templates create"),
-            ClientRequest::ToolsTemplatesGet(_) => f.write_str("tools templates get"),
-            ClientRequest::ToolsTemplatesList(_) => f.write_str("tools templates list"),
-            ClientRequest::ToolsTemplatesDelete(_) => f.write_str("tools templates delete"),
-            ClientRequest::ToolsTemplatesTag(_) => f.write_str("tools templates tag"),
-            ClientRequest::ToolsTemplatesUntag(_) => f.write_str("tools templates untag"),
+            ClientRequest::StandaloneToolsCreate(_) => f.write_str("standalone tools create"),
+            ClientRequest::StandaloneToolsGet(_) => f.write_str("standalone tools get"),
+            ClientRequest::StandaloneToolsEdit(_) => f.write_str("standalone tools edit"),
+            ClientRequest::StandaloneToolsRegister(_) => f.write_str("standalone tools register"),
+            ClientRequest::StandaloneToolsAttach(_) => f.write_str("standalone tools attach"),
+            ClientRequest::StandaloneToolsDetach(_) => f.write_str("standalone tools detach"),
+            ClientRequest::StandaloneToolsDelete(_) => f.write_str("standalone tools delete"),
+            ClientRequest::StandaloneToolsList(_) => f.write_str("standalone tools list"),
+            ClientRequest::StandaloneToolsTag(_) => f.write_str("standalone tools tag"),
+            ClientRequest::StandaloneToolsUntag(_) => f.write_str("standalone tools untag"),
+            ClientRequest::StandaloneToolsTemplatesCreate(_) => f.write_str("standalone tools templates create"),
+            ClientRequest::StandaloneToolsTemplatesGet(_) => f.write_str("standalone tools templates get"),
+            ClientRequest::StandaloneToolsTemplatesList(_) => f.write_str("standalone tools templates list"),
+            ClientRequest::StandaloneToolsTemplatesDelete(_) => f.write_str("standalone tools templates delete"),
+            ClientRequest::StandaloneToolsTemplatesTag(_) => f.write_str("standalone tools templates tag"),
+            ClientRequest::StandaloneToolsTemplatesUntag(_) => f.write_str("standalone tools templates untag"),
             ClientRequest::ProvidersOutgoingAdd(_) => f.write_str("providers outgoing add"),
             ClientRequest::ProvidersOutgoingGet(_) => f.write_str("providers outgoing get"),
             ClientRequest::ProvidersOutgoingList(_) => f.write_str("providers outgoing list"),
@@ -732,9 +732,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsDownload(_) => f.write_str("agents download"),
             ClientRequest::AgentsUpload(_) => f.write_str("agents upload"),
             ClientRequest::AgentsTransfer(_) => f.write_str("agents transfer"),
-            ClientRequest::ToolsDownload(_) => f.write_str("tools download"),
-            ClientRequest::ToolsUpload(_) => f.write_str("tools upload"),
-            ClientRequest::ToolsTransfer(_) => f.write_str("tools transfer"),
+            ClientRequest::StandaloneToolsDownload(_) => f.write_str("standalone tools download"),
+            ClientRequest::StandaloneToolsUpload(_) => f.write_str("standalone tools upload"),
+            ClientRequest::StandaloneToolsTransfer(_) => f.write_str("standalone tools transfer"),
             ClientRequest::VolumesCreate(_) => f.write_str("volumes create"),
             ClientRequest::VolumesGet(_) => f.write_str("volumes get"),
             ClientRequest::VolumesList(_) => f.write_str("volumes list"),
@@ -747,11 +747,11 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::VolumesUpload(_) => f.write_str("volumes upload"),
             ClientRequest::VolumesTransfer(_) => f.write_str("volumes transfer"),
             ClientRequest::AgentsFiletree(_) => f.write_str("agents filetree"),
-            ClientRequest::ToolsFiletree(_) => f.write_str("tools filetree"),
+            ClientRequest::StandaloneToolsFiletree(_) => f.write_str("standalone tools filetree"),
             ClientRequest::VolumesFiletree(_) => f.write_str("volumes filetree"),
             ClientRequest::PostgresGet(_) => f.write_str("postgres get"),
             ClientRequest::PostgresList(_) => f.write_str("postgres list"),
-            ClientRequest::ToolsConnect(_) => f.write_str("tools connect"),
+            ClientRequest::StandaloneToolsConnect(_) => f.write_str("standalone tools connect"),
             ClientRequest::ProvidersDaemonsAdd(_) => f.write_str("providers daemons add"),
             ClientRequest::ProvidersDaemonsGet(_) => f.write_str("providers daemons get"),
             ClientRequest::ProvidersDaemonsList(_) => f.write_str("providers daemons list"),
@@ -759,15 +759,15 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsEdit(_) => f.write_str("providers daemons edit"),
             ClientRequest::ProvidersDaemonsTag(_) => f.write_str("providers daemons tag"),
             ClientRequest::ProvidersDaemonsUntag(_) => f.write_str("providers daemons untag"),
-            ClientRequest::DependenciesList(_) => f.write_str("dependencies list"),
-            ClientRequest::DependenciesGet(_) => f.write_str("dependencies get"),
-            ClientRequest::DependenciesDelete(_) => f.write_str("dependencies delete"),
-            ClientRequest::DependenciesTag(_) => f.write_str("dependencies tag"),
-            ClientRequest::DependenciesUntag(_) => f.write_str("dependencies untag"),
-            ClientRequest::DependenciesFiletree(_) => f.write_str("dependencies filetree"),
-            ClientRequest::DependenciesDownload(_) => f.write_str("dependencies download"),
-            ClientRequest::DependenciesUpload(_) => f.write_str("dependencies upload"),
-            ClientRequest::DependenciesTransfer(_) => f.write_str("dependencies transfer"),
+            ClientRequest::DependencyToolsList(_) => f.write_str("dependency tools list"),
+            ClientRequest::DependencyToolsGet(_) => f.write_str("dependency tools get"),
+            ClientRequest::DependencyToolsDelete(_) => f.write_str("dependency tools delete"),
+            ClientRequest::DependencyToolsTag(_) => f.write_str("dependency tools tag"),
+            ClientRequest::DependencyToolsUntag(_) => f.write_str("dependency tools untag"),
+            ClientRequest::DependencyToolsFiletree(_) => f.write_str("dependency tools filetree"),
+            ClientRequest::DependencyToolsDownload(_) => f.write_str("dependency tools download"),
+            ClientRequest::DependencyToolsUpload(_) => f.write_str("dependency tools upload"),
+            ClientRequest::DependencyToolsTransfer(_) => f.write_str("dependency tools transfer"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

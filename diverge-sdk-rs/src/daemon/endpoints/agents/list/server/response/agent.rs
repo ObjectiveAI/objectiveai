@@ -57,7 +57,7 @@ pub struct Agent {
     /// and where a read that wants only what comes next starts.
     /// `0` for an empty log.
     pub logs_index: u64,
-    /// The [`tools`](crate::daemon::endpoints::tools) attached to it,
+    /// The [`standalone_tools`](crate::daemon::endpoints::standalone_tools) attached to it,
     /// each by its [`key`](crate::daemon::key) — its origin and its
     /// index, with its name beside when it has one — in the order
     /// they were attached; empty for an agent with none. The tools

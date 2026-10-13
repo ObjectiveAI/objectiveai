@@ -3,8 +3,8 @@
 //! daemon's is made of.
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds
-//! — agents, agent templates, tools, tool templates, dependency
-//! templates, outgoing providers, incoming credentials, daemons,
+//! — agents, agent templates, standalone tools, their templates,
+//! dependency tools, outgoing providers, incoming credentials, daemons,
 //! accounts, roles, volumes, the database — and on the wire it is
 //! one object with one member, named
 //! for the kind, whose value is the kind's permission: `{"agents":…}`,
@@ -65,12 +65,12 @@ pub use within::*;
 pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
-pub mod dependencies;
+pub mod dependency_tools;
 pub mod postgres;
 pub mod providers_daemons;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod roles;
-pub mod tools;
-pub mod tools_templates;
+pub mod standalone_tools;
+pub mod standalone_tools_templates;
 pub mod volumes;

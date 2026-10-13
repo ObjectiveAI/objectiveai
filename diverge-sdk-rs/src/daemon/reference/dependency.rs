@@ -15,7 +15,7 @@ use super::Owner;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Dependency {
     /// The dependency template, by id: the hash of its canonical
-    /// bytes, as the [`dependencies`](crate::daemon::endpoints::dependencies)
+    /// bytes, as the [`dependency_tools`](crate::daemon::endpoints::dependency_tools)
     /// list reports it.
     pub template: String,
     /// Whose the tool is: see [`Owner`].
