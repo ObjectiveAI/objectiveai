@@ -58,13 +58,15 @@ use crate::shared::filetree;
 /// For a client that prints what the daemon answered: the variant,
 /// snake case, over its payload — `{"found":…}`, `{"error":…}` — and
 /// a bare variant the string alone — `"not_found"`. The wire is the
-/// tag byte and the payload, never this.
+/// tag byte and the payload, never this. The filetree frame inside is
+/// written tagged, as [`json`](crate::shared::filetree::response::json)
+/// writes it: `{"filetree":{"type":"snapshot",…}}`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// One change on the container's tree: the snapshot first, then one
     /// per change. Tag `0`.
-    Filetree(filetree::response::Frame),
+    Filetree(#[serde(serialize_with = "filetree::response::json::frame")] filetree::response::Frame),
     /// No agent is the one named; nothing was sent. Tag `1`.
     NotFound,
     /// The account the request is served for holds no grant allowing

@@ -57,13 +57,15 @@ use crate::shared::filetree::response::Node;
 /// For a client that prints what the daemon answered: the variant,
 /// snake case, over its payload — `{"found":…}`, `{"error":…}` — and
 /// a bare variant the string alone — `"not_found"`. The wire is the
-/// tag byte and the payload, never this.
+/// tag byte and the payload, never this. The nodes inside are written
+/// tagged, as [`json`](crate::shared::filetree::response::json) writes
+/// them: `{"tree":[{"type":"directory",…}]}`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// The tree: the entries beneath the path, each with everything
     /// beneath it. Tag `0`.
-    Tree(Vec<Node>),
+    Tree(#[serde(serialize_with = "crate::shared::filetree::response::json::nodes")] Vec<Node>),
     /// No volume is the one named, or nothing is at the path; nothing
     /// was walked. Tag `1`.
     NotFound,
