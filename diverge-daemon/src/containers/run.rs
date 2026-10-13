@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::tools::connect::client::execute::ExecuteHandle as ConnectHandle;
+use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::ExecuteHandle as ConnectHandle;
 use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::reference;

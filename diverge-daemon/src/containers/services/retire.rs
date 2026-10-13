@@ -29,7 +29,7 @@ pub async fn retire(daemon: &Arc<Daemon>, id: ServiceId) {
         let _ = services::delete(&mut conn, id).await;
     }
     daemon.live.forget_scope(Key::Tool(ToolKey::Service(id))).await;
-    daemon.live.changed(Kind::Tools);
+    daemon.live.changed(Kind::StandaloneTools);
     if let Some(state) = state {
         if let Some(clock) = state.clock.lock().await.take() {
             clock.abort();

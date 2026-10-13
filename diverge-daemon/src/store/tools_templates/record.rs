@@ -2,8 +2,8 @@
 
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::tools::templates::Template;
-use diverge_sdk::daemon::endpoints::tools::templates::list::server::response::Listed;
+use diverge_sdk::daemon::endpoints::standalone_tools::templates::Template;
+use diverge_sdk::daemon::endpoints::standalone_tools::templates::list::server::response::Listed;
 
 /// A live tool template row: the template whole, its id, its tags,
 /// and who first made it.

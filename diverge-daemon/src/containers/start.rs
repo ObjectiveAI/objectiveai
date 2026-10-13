@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use chrono::Utc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
-use diverge_sdk::daemon::endpoints::tools::connect::client::{execute as tools_connect, request as connect_request};
+use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::{execute as tools_connect, request as connect_request};
 use diverge_sdk::provider::endpoints::containers::agents::run::client::{execute as agents_run, request as agents_request};
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
 use tokio::sync::{Mutex, watch};
@@ -284,7 +284,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         tool_records::set_last(&mut conn, tool.id, &identity, Utc::now()).await?;
     }
     daemon.live.insert_tool(Arc::clone(&run)).await;
-    daemon.live.changed(Kind::Tools);
+    daemon.live.changed(Kind::StandaloneTools);
     let waiter = {
         let daemon = Arc::clone(daemon);
         let run = Arc::clone(&run);

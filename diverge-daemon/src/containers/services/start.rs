@@ -111,7 +111,7 @@ pub async fn start(daemon: &Arc<Daemon>, service: &Service) -> Result<Arc<ToolRu
             services::set_last(&mut conn, service.id, &identity).await?;
         }
         daemon.live.insert_tool(Arc::clone(&run)).await;
-        daemon.live.changed(Kind::Tools);
+        daemon.live.changed(Kind::StandaloneTools);
         let waiter = {
             let daemon = Arc::clone(daemon);
             let run = Arc::clone(&run);

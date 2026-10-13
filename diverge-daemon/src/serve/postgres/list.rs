@@ -44,7 +44,7 @@ async fn serve(scope: &ScopeHandle, _: request::Frame, who: Who, daemon: &Daemon
         return Ok(());
     }
     let source = Open { daemon };
-    stream::listing(scope, daemon, &[Kind::Postgres, Kind::Agents, Kind::Tools], None, &source, |change| match change {
+    stream::listing(scope, daemon, &[Kind::Postgres, Kind::Agents, Kind::StandaloneTools], None, &source, |change| match change {
         Change::Added(connection) => Frame::Added(connection),
         Change::Changed(connection) => Frame::Changed(connection),
         Change::Removed(connection) => Frame::Removed(connection),

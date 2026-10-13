@@ -111,7 +111,7 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
             }
         }
     }
-    daemon.live.changed(Kind::Tools);
+    daemon.live.changed(Kind::StandaloneTools);
 }
 
 /// The daemon stops: every service's supervisor stilled first, so

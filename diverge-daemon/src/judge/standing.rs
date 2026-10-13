@@ -110,17 +110,17 @@ impl Standing {
     }
 
     /// The grants over tool templates.
-    pub fn tools_templates(&self) -> impl Iterator<Item = &grant::tools_templates::Permission> {
+    pub fn standalone_tools_templates(&self) -> impl Iterator<Item = &grant::standalone_tools_templates::Permission> {
         self.grants.iter().filter_map(|grant| match grant {
-            Grant::ToolsTemplates(permission) => Some(permission),
+            Grant::StandaloneToolsTemplates(permission) => Some(permission),
             _ => None,
         })
     }
 
     /// The grants over dependency templates.
-    pub fn dependencies(&self) -> impl Iterator<Item = &grant::dependencies::Permission> {
+    pub fn dependency_tools(&self) -> impl Iterator<Item = &grant::dependency_tools::Permission> {
         self.grants.iter().filter_map(|grant| match grant {
-            Grant::Dependencies(permission) => Some(permission),
+            Grant::DependencyTools(permission) => Some(permission),
             _ => None,
         })
     }
@@ -142,9 +142,9 @@ impl Standing {
     }
 
     /// The grants over tools.
-    pub fn tools(&self) -> impl Iterator<Item = &grant::tools::Permission> {
+    pub fn standalone_tools(&self) -> impl Iterator<Item = &grant::standalone_tools::Permission> {
         self.grants.iter().filter_map(|grant| match grant {
-            Grant::Tools(permission) => Some(permission),
+            Grant::StandaloneTools(permission) => Some(permission),
             _ => None,
         })
     }

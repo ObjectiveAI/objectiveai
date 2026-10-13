@@ -68,6 +68,6 @@ pub async fn register(daemon: &Arc<Daemon>, agent: AgentId, agent_key: &key::Age
     for id in left {
         held(daemon, id).await;
     }
-    daemon.live.changed(Kind::Tools);
+    daemon.live.changed(Kind::StandaloneTools);
     Ok(ids)
 }

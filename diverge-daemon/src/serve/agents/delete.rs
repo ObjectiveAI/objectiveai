@@ -61,8 +61,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     daemon.live.end_log(agent.id).await;
     logs::remove(&daemon.logs, agent.id).await?;
     daemon.live.changed(Kind::Agents);
-    daemon.live.changed(Kind::Tools);
-    daemon.live.changed(Kind::Dependencies);
+    daemon.live.changed(Kind::StandaloneTools);
+    daemon.live.changed(Kind::DependencyTools);
     daemon.live.changed(Kind::Volumes);
     Ok(Frame::Deleted)
 }

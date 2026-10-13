@@ -69,9 +69,9 @@ pub async fn seed(conn: &mut PgConnection) -> Result<(), Error> {
 /// have no making action: a registration makes one.
 pub fn every_grant() -> Vec<Grant> {
     use grant::{
-        accounts as ac, agents as ag, agents_templates as at, dependencies as de, postgres as pg,
+        accounts as ac, agents as ag, agents_templates as at, dependency_tools as de, postgres as pg,
         providers_daemons as pd, providers_incoming as pi, providers_outgoing as po, roles as ro,
-        tools as to, tools_templates as tt, volumes as vo,
+        standalone_tools as to, standalone_tools_templates as tt, volumes as vo,
     };
     let tagging = vec![Tagging::Tag, Tagging::Untag];
     vec![
@@ -106,8 +106,8 @@ pub fn every_grant() -> Vec<Grant> {
             within: Within::Any,
             tags: Within::Any,
         }),
-        Grant::Tools(to::Permission::Make(vec![to::Make::Create, to::Make::Register])),
-        Grant::Tools(to::Permission::Over {
+        Grant::StandaloneTools(to::Permission::Make(vec![to::Make::Create, to::Make::Register])),
+        Grant::StandaloneTools(to::Permission::Over {
             actions: vec![
                 to::Over::Get,
                 to::Over::Edit,
@@ -123,22 +123,22 @@ pub fn every_grant() -> Vec<Grant> {
             ],
             within: Within::Any,
         }),
-        Grant::Tools(to::Permission::Tags {
+        Grant::StandaloneTools(to::Permission::Tags {
             actions: tagging.clone(),
             within: Within::Any,
             tags: Within::Any,
         }),
-        Grant::ToolsTemplates(tt::Permission::Make(vec![tt::Make::Create])),
-        Grant::ToolsTemplates(tt::Permission::Over {
+        Grant::StandaloneToolsTemplates(tt::Permission::Make(vec![tt::Make::Create])),
+        Grant::StandaloneToolsTemplates(tt::Permission::Over {
             actions: vec![tt::Over::Get, tt::Over::Delete, tt::Over::List],
             within: Within::Any,
         }),
-        Grant::ToolsTemplates(tt::Permission::Tags {
+        Grant::StandaloneToolsTemplates(tt::Permission::Tags {
             actions: tagging.clone(),
             within: Within::Any,
             tags: Within::Any,
         }),
-        Grant::Dependencies(de::Permission::Over {
+        Grant::DependencyTools(de::Permission::Over {
             actions: vec![
                 de::Over::Get,
                 de::Over::Delete,
@@ -150,7 +150,7 @@ pub fn every_grant() -> Vec<Grant> {
             ],
             within: Within::Any,
         }),
-        Grant::Dependencies(de::Permission::Tags {
+        Grant::DependencyTools(de::Permission::Tags {
             actions: tagging.clone(),
             within: Within::Any,
             tags: Within::Any,

@@ -9,7 +9,8 @@
 //! carries every one; `any_tags` any one; an empty list is absent.
 //! [`accounts`], [`roles`], [`providers_outgoing`],
 //! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
-//! [`tools_templates`], [`dependencies`], [`agents`], [`tools`] and
+//! [`standalone_tools_templates`], [`dependency_tools`], [`agents`],
+//! [`standalone_tools`] and
 //! [`volumes`] are the tests.
 //!
 //! Evaluated here, in the daemon, against records loaded whole, and
@@ -21,11 +22,11 @@
 pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
-pub mod dependencies;
+pub mod dependency_tools;
 pub mod providers_daemons;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod roles;
-pub mod tools;
-pub mod tools_templates;
+pub mod standalone_tools;
+pub mod standalone_tools_templates;
 pub mod volumes;

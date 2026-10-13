@@ -1,6 +1,6 @@
 //! A transfer's destination, judged by its own grant.
 
-use diverge_sdk::daemon::grant::{agents, dependencies, tools, volumes};
+use diverge_sdk::daemon::grant::{agents, dependency_tools, standalone_tools, volumes};
 use diverge_sdk::daemon::transfer::Destination;
 use sqlx::PgConnection;
 
@@ -38,20 +38,20 @@ pub async fn judged(conn: &mut PgConnection, daemon: &Daemon, standing: &Standin
             if judge::agents::over(standing, agents::Over::Upload, &record, active) { Judged::Allowed } else { Judged::Forbidden }
         }
         Destination::Tool { tool, .. } => {
-            let Some(tool) = serve::tools::resolve(conn, tool, false).await? else {
+            let Some(tool) = serve::standalone_tools::resolve(conn, tool, false).await? else {
                 return Ok(Judged::NoDestination);
             };
-            if serve::tools::reaches(conn, daemon, standing, tools::Over::Upload, &tool).await? {
+            if serve::standalone_tools::reaches(conn, daemon, standing, standalone_tools::Over::Upload, &tool).await? {
                 Judged::Allowed
             } else {
                 Judged::Forbidden
             }
         }
         Destination::Dependency { dependency, .. } => {
-            let Some((record, _)) = serve::dependencies::resolve(conn, daemon, dependency).await? else {
+            let Some((record, _)) = serve::dependency_tools::resolve(conn, daemon, dependency).await? else {
                 return Ok(Judged::NoDestination);
             };
-            if serve::dependencies::reaches(conn, daemon, standing, dependencies::Over::Upload, &record).await? {
+            if serve::dependency_tools::reaches(conn, daemon, standing, dependency_tools::Over::Upload, &record).await? {
                 Judged::Allowed
             } else {
                 Judged::Forbidden

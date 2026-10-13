@@ -128,7 +128,7 @@ async fn record(daemon: &Daemon, agent: AgentId, records: &[store::dependencies:
         .await
         .map_err(|error| error.to_string())?;
     tx.commit().await.map_err(|error| error.to_string())?;
-    daemon.live.changed(Kind::Dependencies);
+    daemon.live.changed(Kind::DependencyTools);
     Ok(())
 }
 
@@ -224,7 +224,7 @@ async fn start(
             service: None,
         });
         daemon.live.insert_tool(Arc::clone(&run)).await;
-        daemon.live.changed(Kind::Tools);
+        daemon.live.changed(Kind::StandaloneTools);
         let waiter = {
             let daemon = Arc::clone(daemon);
             let run = Arc::clone(&run);

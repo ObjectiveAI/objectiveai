@@ -54,6 +54,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     tx.commit().await?;
     crate::containers::services::template_deleted(daemon, removed).await;
     daemon.live.changed(Kind::AgentsTemplates);
-    daemon.live.changed(Kind::Tools);
+    daemon.live.changed(Kind::StandaloneTools);
     Ok(Frame::Deleted)
 }

@@ -29,12 +29,12 @@ pub async fn settle(daemon: &Arc<Daemon>, agent: AgentId) {
         }
         left
     };
-    daemon.live.changed(Kind::Dependencies);
+    daemon.live.changed(Kind::DependencyTools);
     if left.is_empty() {
         return;
     }
     for id in left {
         held(daemon, id).await;
     }
-    daemon.live.changed(Kind::Tools);
+    daemon.live.changed(Kind::StandaloneTools);
 }

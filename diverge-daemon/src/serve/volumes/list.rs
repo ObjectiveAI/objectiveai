@@ -57,7 +57,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
     stream::listing(
         scope,
         daemon,
-        &[Kind::Volumes, Kind::ProvidersOutgoing, Kind::ProvidersIncoming, Kind::Agents, Kind::Tools],
+        &[Kind::Volumes, Kind::ProvidersOutgoing, Kind::ProvidersIncoming, Kind::Agents, Kind::StandaloneTools],
         frame.count,
         &source,
         |change| match change {

@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::tools::templates::Template;
+use diverge_sdk::daemon::endpoints::standalone_tools::templates::Template;
 use sqlx::Row as _;
 use sqlx::postgres::PgRow;
 use sqlx::types::Json;

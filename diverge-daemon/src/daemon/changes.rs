@@ -28,15 +28,15 @@ pub enum Kind {
     /// Agent templates: the records, and which are in use.
     AgentsTemplates,
     /// Tool templates: the records, and which are in use.
-    ToolsTemplates,
+    StandaloneToolsTemplates,
     /// Dependency templates: the records, and what each agent
     /// depends on. Which tools run from each is the word for tools.
-    Dependencies,
+    DependencyTools,
     /// Agents: the records, what is attached, which run.
     Agents,
     /// Tools: the records, what is attached, which run, and which
     /// dependency tools run.
-    Tools,
+    StandaloneTools,
     /// Volumes: a provider's listing, and the records that mount one.
     Volumes,
     /// The container connections open through the database.

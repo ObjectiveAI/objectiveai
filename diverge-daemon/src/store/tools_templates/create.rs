@@ -1,7 +1,7 @@
 //! Making a tool template, or finding it made.
 
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::tools::templates::Template;
+use diverge_sdk::daemon::endpoints::standalone_tools::templates::Template;
 use sqlx::PgConnection;
 use sqlx::types::Json;
 

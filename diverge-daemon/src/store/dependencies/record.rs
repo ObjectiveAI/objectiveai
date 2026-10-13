@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::dependencies::list::server::response::{Listed, Run};
+use diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::{Listed, Run};
 use diverge_sdk::daemon::key;
 use diverge_sdk::shared::containers::dependencies::Template;
 
