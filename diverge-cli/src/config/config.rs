@@ -1,6 +1,6 @@
 //! The document.
 
-use diverge_sdk::config::daemon;
+use diverge_sdk::daemon::DEFAULT_PORT;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +9,7 @@ use super::{Account, Daemon, ROOT};
 /// The name the built-in default daemon has.
 pub const LOCAL: &str = "local";
 
-/// The whole of `cli.json`: the daemons, by name, and which is dialled
+/// The whole of `cli.yaml`: the daemons, by name, and which is dialled
 /// when the command line names none.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
@@ -28,9 +28,8 @@ impl Default for Config {
     /// [`ROOT`] with the key a fresh daemon seeds, which is the word
     /// `root`.
     fn default() -> Self {
-        let port = daemon::Config::default().port;
         let local = Daemon {
-            address: format!("ws://127.0.0.1:{port}/"),
+            address: format!("ws://127.0.0.1:{DEFAULT_PORT}/"),
             default: ROOT.to_string(),
             accounts: IndexMap::from([(
                 ROOT.to_string(),

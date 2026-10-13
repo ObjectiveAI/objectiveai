@@ -3,7 +3,7 @@ name = "diverge-cli"
 version = "2.3.0"
 edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
-description = "The Diverge CLI — the daemon's client as a program: its daemons and accounts from one `cli.json`, every request of the daemon's wire from the command line"
+description = "The Diverge CLI — the daemon's client as a program: its daemons and accounts from one `cli.yaml`, every request of the daemon's wire from the command line"
 license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 homepage = "https://diverge.network"
@@ -23,10 +23,10 @@ path = "src/main.rs"
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The arguments: the one parser every command hangs off, derived.
 clap = { version = "4.6.0", features = ["derive"] }
-# The document `cli.json` is, as Rust.
+# The document `cli.yaml` is, as Rust.
 serde = { version = "1.0.229", features = ["derive"] }
-# The JSON it is written in.
-serde_json = "1.0.151"
+# The YAML it is written in.
+serde_yaml_ng = "0.10.0"
 # The daemons and the accounts, by name, in the order the document
 # gives them.
 indexmap = { version = "2.14.2", features = ["serde"] }

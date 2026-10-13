@@ -4,7 +4,7 @@ use crate::arguments::{Arguments, Command};
 use crate::config;
 use super::Error;
 
-/// Run `diverge` as told: the root found and `cli.json` read; then,
+/// Run `diverge` as told: the root found and `cli.yaml` read; then,
 /// for `run`, the daemon and the account selected — and nothing more
 /// yet: the request is not put, and the run ends. With no command the
 /// configuration is resolved and the run ends.

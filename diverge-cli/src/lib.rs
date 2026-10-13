@@ -2,9 +2,9 @@
 //!
 //! `diverge` dials one daemon as one account and puts the daemon's
 //! requests on the command line. Which daemon and which account are
-//! the document's, `cli.json` under the ROOT: the root is
+//! the document's, `cli.yaml` under the ROOT: the root is
 //! `--config <dir>`, else `DIVERGE_CONFIG`, else `.diverge` in the
-//! working directory where that directory exists — `cli.json` in it
+//! working directory where that directory exists — `cli.yaml` in it
 //! or not — else `.diverge` under the home directory, as every
 //! Diverge program finds its root but for the working directory's
 //! turn; see [`config`]. The document names daemons by address, each

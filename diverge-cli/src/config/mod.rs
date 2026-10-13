@@ -1,13 +1,12 @@
-//! The one `cli.json` the CLI reads.
+//! The one `cli.yaml` the CLI reads.
 //!
 //! - The ROOT is `--config <dir>`, else `DIVERGE_CONFIG`, else
 //!   `.diverge` in the working directory where that directory exists,
 //!   else `.diverge` under the home directory, made if absent — see
-//!   [`root`]. The first three are what every Diverge program does,
-//!   through the SDK's [`root_at`](diverge_sdk::config::root_at); the
-//!   working directory's turn is the CLI's own, so that a project
-//!   carrying its own `.diverge` is dialled from inside it.
-//! - `<root>/cli.json` is read if present; absent means the built-in
+//!   [`root`]. All but the working directory's turn is what every
+//!   Diverge program does; that turn is the CLI's own, so that a
+//!   project carrying its own `.diverge` is dialled from inside it.
+//! - `<root>/cli.yaml` is read if present; absent means the built-in
 //!   default, [`Config::default`]. No other name is looked for — see
 //!   [`load`].
 //! - The document is [`Config`]: `daemons`, by name, each a
@@ -20,19 +19,15 @@
 //!   `run` names, else the defaults, each refused by name when the
 //!   document has no such one.
 //!
-//! ```json
-//! {
-//!   "default": "local",
-//!   "daemons": {
-//!     "local": {
-//!       "address": "ws://127.0.0.1:14980/",
-//!       "default": "root",
-//!       "accounts": {
-//!         "root": { "key": "root" }
-//!       }
-//!     }
-//!   }
-//! }
+//! ```yaml
+//! default: local
+//! daemons:
+//!   local:
+//!     address: ws://127.0.0.1:14980/
+//!     default: root
+//!     accounts:
+//!       root:
+//!         key: root
 //! ```
 //!
 //! That document is the built-in default, word for word: the daemon

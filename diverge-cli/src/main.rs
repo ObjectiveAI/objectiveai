@@ -2,7 +2,7 @@
 //!
 //! In order: the arguments are parsed — see
 //! [`arguments`](diverge_cli::arguments) — the root found and the one
-//! `cli.json` read — see [`config`](diverge_cli::config) — and the
+//! `cli.yaml` read — see [`config`](diverge_cli::config) — and the
 //! command run — see [`cli`]. The runtime is built
 //! here rather than attributed onto `main`, and a run that fails is
 //! the one thing this prints, as the error returned.

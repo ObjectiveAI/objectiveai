@@ -1867,8 +1867,8 @@ dependencies = [
  "diverge-sdk",
  "indexmap 2.14.2",
  "serde",
- "serde_json",
  "serde_path_to_error",
+ "serde_yaml_ng",
  "tokio",
 ]
 
@@ -1909,6 +1909,8 @@ dependencies = [
  "rustls-pki-types",
  "serde",
  "serde_json",
+ "serde_path_to_error",
+ "serde_yaml_ng",
  "sha2 0.10.9",
  "sqlx",
  "tokio",
@@ -1975,8 +1977,6 @@ dependencies = [
  "schemars 1.2.2",
  "serde",
  "serde_json",
- "serde_path_to_error",
- "serde_yaml_ng",
  "tokio",
  "tokio-tungstenite 0.29.0",
  "uuid",
