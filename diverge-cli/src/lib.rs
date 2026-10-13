@@ -18,8 +18,11 @@
 //! daemon and the account by name, else the defaults, the request by
 //! its path on the wire, and its body as JSON — which this cut takes
 //! and does not yet serve: it selects the daemon and the account and
-//! ends.
+//! ends. The other command, `config`, reads, rewrites and edits the
+//! three documents in the root — the daemon's, the provider's and the
+//! CLI's own — through jq, as JSON on this side; see [`document`].
 
 pub mod arguments;
 pub mod cli;
 pub mod config;
+pub mod document;

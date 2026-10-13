@@ -2,12 +2,17 @@
 
 use clap::{Args, Subcommand};
 
+use super::Config;
+
 /// The commands. Every request of the daemon's wire goes under
-/// [`Run`](Self::Run).
+/// [`Run`](Self::Run); the documents in the root are
+/// [`Config`](Self::Config)'s.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Command {
     /// Put one request to a daemon, as an account of it.
     Run(Run),
+    /// Read, rewrite or edit one of the three documents in the root.
+    Config(Config),
 }
 
 /// One request to a daemon: which daemon, as whom, which request, and
