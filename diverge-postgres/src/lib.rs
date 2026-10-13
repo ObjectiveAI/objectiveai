@@ -25,20 +25,19 @@
 //!
 //! # The directory
 //!
-//! The root the SDK finds — `--config <dir>`, else `DIVERGE_CONFIG`,
-//! else `~/.diverge/` — holds the one `config.yaml`, and this program
-//! takes the daemon's `postgres` from it,
-//! [`diverge_sdk::config::daemon::Postgres`]: the local kind, with the
-//! cluster's own settings, or the remote kind, under which no cluster
-//! is wanted and the program refuses to start. The cluster lives under
-//! `<root>/daemon/postgres/`, the daemon's own place for it, so that a
-//! supervisor the daemon starts and one started by hand are the same
-//! cluster. Inside it: `bin/`, where the binaries are extracted and
-//! where EVERY lock file lives, under `bin/locks/`; `data/`, the
-//! cluster, with `data.ready` beside it as the mark that its
-//! initialization finished; and `password`, the superuser's, minted at
-//! the first start and read at every one.
+//! The program is told its root and the cluster's settings as
+//! arguments, `--root <dir>` and `--max-connections <n>`: the daemon
+//! gives both when it starts the program, from its own `daemon.yaml`,
+//! and this program reads no document of its own. The cluster lives
+//! under `<root>/daemon/postgres/`, the daemon's own place for it, so
+//! that a supervisor the daemon starts and one started by hand with
+//! the same two arguments are the same cluster. Inside it: `bin/`,
+//! where the binaries are extracted and where EVERY lock file lives,
+//! under `bin/locks/`; `data/`, the cluster, with `data.ready` beside
+//! it as the mark that its initialization finished; and `password`,
+//! the superuser's, minted at the first start and read at every one.
 //!
+//! [`arguments`] is the two arguments;
 //! [`install`] is the binaries;
 //! [`cluster`] the password and the initialization; [`postmaster`]
 //! the stop, the start and the readiness of the server process;
@@ -47,6 +46,7 @@
 //! [`postgres_supervisor`](diverge_sdk::postgres_supervisor), so the
 //! daemon that starts it names them from the same place.
 
+pub mod arguments;
 pub mod cluster;
 pub mod install;
 pub mod postmaster;

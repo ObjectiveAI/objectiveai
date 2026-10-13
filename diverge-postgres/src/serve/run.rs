@@ -3,7 +3,6 @@
 use std::path::PathBuf;
 use std::pin::pin;
 
-use diverge_sdk::config::daemon::Postgres;
 use diverge_sdk::file_lock;
 use diverge_sdk::postgres_supervisor::{Command, Ready};
 use futures_util::future::{self, Either};
@@ -14,10 +13,9 @@ use crate::cluster;
 use crate::install;
 use crate::postmaster;
 
-/// Run the cluster the daemon's `postgres` asks for, under
-/// `<root>/daemon/postgres/`, until a shutdown line, a signal, or the
-/// postmaster's own exit. The remote kind asks for none, and is
-/// [`Error::Remote`].
+/// Run the cluster under `<root>/daemon/postgres/`, its postmaster
+/// accepting `max_connections` at once, until a shutdown line, a
+/// signal, or the postmaster's own exit.
 ///
 /// In order: the directory made, [`install::ensure`], the init lock, [`cluster::password`],
 /// [`cluster::init`], [`postmaster::stop`] of whatever the last start
@@ -26,11 +24,7 @@ use crate::postmaster;
 /// returned — the lock let go, the [`Ready`] line on stdout, and the
 /// wait. A shutdown line or a signal stops the postmaster fast and is
 /// `Ok`; the postmaster exiting on its own is [`Error::Exited`].
-pub async fn run(postgres: Postgres, root: PathBuf) -> Result<(), Error> {
-    let max_connections = match postgres {
-        Postgres::Local { max_connections } => max_connections,
-        Postgres::Remote { .. } => return Err(Error::Remote),
-    };
+pub async fn run(root: PathBuf, max_connections: u32) -> Result<(), Error> {
     let dir = root.join("daemon").join("postgres");
     tokio::fs::create_dir_all(&dir).await.map_err(Error::Directory)?;
     let bin = dir.join("bin");

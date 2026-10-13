@@ -4,9 +4,9 @@ use std::fmt;
 use std::io;
 use std::process::ExitStatus;
 
-use diverge_sdk::config;
 use diverge_sdk::file_lock;
 
+use crate::arguments;
 use crate::cluster;
 use crate::install;
 use crate::postmaster;
@@ -17,11 +17,8 @@ use crate::postmaster;
 pub enum Error {
     /// The runtime could not be built.
     Runtime(io::Error),
-    /// The root or the file could not be used.
-    Config(config::Error),
-    /// The daemon's block names a remote database: no cluster is
-    /// wanted, and this program has nothing to run.
-    Remote,
+    /// The arguments could not be read.
+    Arguments(arguments::Error),
     /// The cluster's directory could not be made.
     Directory(io::Error),
     /// The binaries could not be had.
@@ -47,8 +44,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Runtime(error) => write!(f, "the runtime could not be built: {error}"),
-            Error::Config(error) => write!(f, "the configuration could not be used: {error}"),
-            Error::Remote => write!(f, "the daemon is configured for a remote database; no cluster is wanted here"),
+            Error::Arguments(error) => write!(f, "{error}"),
             Error::Directory(error) => write!(f, "the cluster's directory could not be made: {error}"),
             Error::Install(error) => write!(f, "the binaries could not be had: {error}"),
             Error::Lock(error) => write!(f, "the init lock could not be taken: {error}"),
@@ -72,8 +68,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Runtime(error) | Error::Stdout(error) | Error::Wait(error) | Error::Directory(error) => Some(error),
-            Error::Config(error) => Some(error),
-            Error::Remote => None,
+            Error::Arguments(error) => Some(error),
             Error::Install(error) => Some(error),
             Error::Lock(error) => Some(error),
             Error::Cluster(error) => Some(error),
@@ -84,9 +79,9 @@ impl std::error::Error for Error {
     }
 }
 
-impl From<config::Error> for Error {
-    fn from(error: config::Error) -> Self {
-        Error::Config(error)
+impl From<arguments::Error> for Error {
+    fn from(error: arguments::Error) -> Self {
+        Error::Arguments(error)
     }
 }
 

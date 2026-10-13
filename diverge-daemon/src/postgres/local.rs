@@ -28,9 +28,10 @@ pub struct Local {
     stdin: ChildStdin,
 }
 
-/// Start `diverge-postgres` on the same root — it reads the same
-/// `config.yaml` and keeps its cluster under `<root>/daemon/postgres/`
-/// — and hand back it and the URL of its cluster.
+/// Start `diverge-postgres` on the same root, with the connections
+/// its postmaster accepts — it reads no document, and keeps its
+/// cluster under `<root>/daemon/postgres/` — and hand back it and the
+/// URL of its cluster.
 ///
 /// The program is the one beside the daemon's own executable. Its
 /// stdout is read line by line until one is the
@@ -40,11 +41,13 @@ pub struct Local {
 /// which is left to be the daemon's own. The program is not leashed:
 /// nothing ends it when the daemon dies, and the daemon's next start
 /// has the program stop what it left.
-pub async fn spawn(root: &Path) -> Result<(Local, String), Error> {
+pub async fn spawn(root: &Path, max_connections: u32) -> Result<(Local, String), Error> {
     let path = beside()?;
     let mut child = tokio::process::Command::new(&path)
-        .arg("--config")
+        .arg("--root")
         .arg(root)
+        .arg("--max-connections")
+        .arg(max_connections.to_string())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())

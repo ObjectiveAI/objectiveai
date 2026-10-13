@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::pin::pin;
 use std::sync::Arc;
 
-use diverge_sdk::config::daemon::Config;
+use crate::config::Config;
 use futures_util::future::{self, Either};
 use tokio::sync::watch;
 
@@ -16,7 +16,7 @@ use crate::postgres;
 use crate::providers;
 use crate::store;
 
-/// Run the daemon on `config`, its block of the file at `root`, under
+/// Run the daemon on `config`, the file at `root`, under
 /// `<root>/daemon/`, until Ctrl-C or, on Unix, SIGTERM.
 ///
 /// In order: the directory is made; the database the configuration names is started, or

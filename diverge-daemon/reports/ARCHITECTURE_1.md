@@ -117,7 +117,7 @@ Two populations, kept apart by type and by fate:
   `daemons::connect`, the remote judging the credential as it judges
   any client's. On every provider connection it holds, a daemon opens
   one `daemons::accept` scope, unless `daemon: accept_daemons: false`
-  in `config.yaml`, and is known there by the identity the provider
+  in `daemon.yaml`, and is known there by the identity the provider
   answers; each connection the provider announces is judged by the
   credential in its mode and the address the provider saw, as a
   socket's handshake is, and served by the same session a socket
@@ -244,7 +244,7 @@ Two populations, kept apart by type and by fate:
   is exactly two things: a loop running in it, between the proxy's
   Active and Inactive, or an MCP exchange in flight for it or for any
   of its dependency tools. The countdown runs only when neither holds. When it reaches `idle_seconds`, a key of the
-  daemon's block of `config.yaml` beside `postgres`, default `10`, the daemon ends the
+  key of `daemon.yaml` beside `postgres`, default `10`, the daemon ends the
   container's run. The record stays; the container is work, and the next
   use starts it again from the record and its continuation. Nothing a
   client holds — a logs watch, a filetree watch — counts as use, so a

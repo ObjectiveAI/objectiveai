@@ -1,66 +1,70 @@
 # The filesystem under `.diverge/`: provider, daemon, postgres
 
-Written 2026-10-08, from the code as it stands in `diverge-sdk-rs`'s
-`config`, `diverge-provider`, `diverge-daemon` and `diverge-postgres`.
+Written 2026-10-08; revised 2026-10-13, when each program took its
+own document. From the code as it stands in `diverge-provider`,
+`diverge-daemon`, `diverge-postgres` and `diverge-cli`.
 Every path below is relative to one root, written `<root>`, and every
 file and directory is named as the code names it. Nothing here has been observed on a live
 host; the three programs have never been run.
 
-## 1. The root, the one file, and the three directories under it
+## 1. The root, one document per program, and the directories under it
 
-Every Diverge program finds ONE root, the same way, through
-`diverge_sdk::config::root`:
+Every Diverge program finds ONE root, the same way, each through its
+own `config::root`:
 
 1. `--config <dir>`, the one argument any of them takes;
 2. else the environment variable `DIVERGE_CONFIG`;
 3. else `.diverge` under the home directory, `HOME` or, on Windows,
    `USERPROFILE`.
 
-The path is made absolute against the working directory without
-following links, and the root is made if absent. The root holds ONE
-`config.yaml`, read whole by every program through
-`diverge_sdk::config::load`, with one block per program at its top;
-each program takes its block and keeps its state under a directory of
-its own:
+The CLI alone takes one more turn before the home directory:
+`.diverge` in the working directory, where that directory exists. The
+path is made absolute against the working directory without following
+links, and the root is made if absent. Each program reads ITS OWN
+document in the root — `provider.yaml`, `daemon.yaml`, `cli.yaml` —
+and keeps its state under a directory of its own:
 
 ```text
 ~/.diverge/                         <root>
-├── config.yaml                     the one file: provider: and daemon: blocks
+├── provider.yaml                   the provider's document
+├── daemon.yaml                     the daemon's document
+├── cli.yaml                        the CLI's document
 ├── provider/                       the provider's directory
 └── daemon/                         the daemon's directory
     └── postgres/                   the supervisor's, by the daemon or by hand
 ```
 
-Three rules of the file, stated once in `diverge_sdk::config`:
+Three rules of a document, each program's `config` stating them for
+its own:
 
-- **A block absent, or bare, is that program's defaults.** No file at
-  all is every default. A key no block has, at any level, is refused,
-  so a misspelled setting is an error and not a silence. Every program
-  parses the whole file, so a block that does not parse stops every
-  program.
+- **An absent file is the defaults; an absent key is its default.** A
+  key the document does not have, at any level, is refused, so a
+  misspelled setting is an error and not a silence. No program reads
+  another's document.
 - **A relative path resolves against the root**, the directory that
-  holds the file, never the working directory. `load` resolves every
-  path as it reads — `provider.containers.podman.storage_path`, each
-  store's and each fixed volume's `path` — so a program holds every
-  path absolute. The default `storage_path` is `provider/podman_data`.
-- **The SDK reads; each program checks its own disk.** What a block
+  holds the file, never the working directory. The provider's `load`
+  resolves every path as it reads — `containers.podman.storage_path`,
+  each store's and each fixed volume's `path`, `images.path` — so it
+  holds every path absolute. The default `storage_path` is
+  `provider/podman_data`.
+- **`config` reads; the program checks its own disk.** What a document
   names on disk — a store to make, a fixed volume that must exist, a
-  capacity that must not be `0` — is checked by the program the block
-  belongs to, at its start, with its own errors.
+  capacity that must not be `0` — is checked by the program at its
+  start, with its own errors.
 
 Two things to hold onto before the trees:
 
-- **The provider and the daemon share the file and nothing else.**
-  Neither reads the other's block or the other's directory; they talk
-  to each other over the wire. A volume's bytes are the provider's; an
-  agent's log is the daemon's.
-- **The daemon's Postgres lives inside the daemon's directory, and
-  reads the daemon's block.** The daemon runs
-  `diverge-postgres --config <root>`; the supervisor takes
-  `daemon.postgres` from the same file — the local kind with
-  `max_connections`, or the remote kind, under which it refuses to
-  start — and keeps its cluster at `<root>/daemon/postgres/`, so one
-  started by hand and one the daemon starts are the same cluster.
+- **The provider and the daemon share the root and nothing else.**
+  Neither reads the other's document or the other's directory; they
+  talk to each other over the wire. A volume's bytes are the
+  provider's; an agent's log is the daemon's.
+- **The daemon's Postgres lives inside the daemon's directory, and is
+  told its settings by the daemon.** The daemon runs
+  `diverge-postgres --root <root> --max-connections <n>`, from the
+  local kind of its own `postgres`; the supervisor reads no document
+  and keeps its cluster at `<root>/daemon/postgres/`, so one started
+  by hand with the same two arguments and one the daemon starts are
+  the same cluster. Under the remote kind nothing is started.
 
 Beside the directories there are two binaries each program expects
 NEXT TO ITS OWN EXECUTABLE, not under `<root>`:
@@ -68,14 +72,14 @@ NEXT TO ITS OWN EXECUTABLE, not under `<root>`:
 | Program | Looks for | Why |
 |---|---|---|
 | `diverge-provider` | `diverge-container-proxy` | bind-mounted into every container it runs; missing is a start error |
-| `diverge-daemon` | `diverge-postgres` (`.exe` on Windows) | spawned when `daemon.postgres` is `{kind: local}` |
+| `diverge-daemon` | `diverge-postgres` (`.exe` on Windows) | spawned when `postgres` is `{kind: local}` |
 
 ## 2. The provider: `<root>/provider/`
 
 ```text
 <root>/provider/                    made at start
 ├── hooks/                          made at start, even when empty
-│   └── <name>/                     one folder per hook, named in config.yaml
+│   └── <name>/                     one folder per hook, named in provider.yaml
 │       ├── hook.yaml               {windows|macos|linux: [argv…]}, no shell
 │       └── …                       the program argv[0] names, resolved in this folder
 ├── run/                            made at start; the provider's own scratch
@@ -103,38 +107,37 @@ relative, so `stores/a` is `<root>/stores/a`:
                                     .<name>.<uuid> temporaries renamed into place
 ```
 
-### 2.1 The `provider` block
+### 2.1 `provider.yaml`
 
-The block is optional, every section of it is optional, and an
+The file is optional, every section of it is optional, and an
 unknown key is refused. Every relative path resolves against the
 root.
 
 ```yaml
-provider:
-  port: 14979                       # OUTSIDE_PORT; what peers dial
-  auth:                             # who may dial in; absent = nobody
-    unbrokered:
-      - key: {key: "…", identity: "…", address: 203.0.113.7}   # address optional
-      - hook: {authorize_hook: "<name>"}                       # provider/hooks/<name>/
-  clients:                          # whom the provider dials; absent = nobody
-    unbrokered:
-      - {address: "host:port", key: "…", identity: "…"}
-  containers:                       # always present; absent = defaults
-    podman:
-      registries:                   # default: docker.io, ghcr.io, quay.io, anonymous
-        - {host: docker.io, credential: {username: "…", password: "…"}}
-      storage_path: provider/podman_data   # relative → <root>/provider/podman_data
-      image_cache_disk: 34359738368 # 32 GiB
-      container_overlay_disk: 34359738368
-      memory: 8589934592            # 8 GiB
-  volumes:                          # absent = no volume can exist
-    stores:                         # made at the provider's start; capacity 0 refused
-      - {path: /srv/volumes, capacity: 1099511627776}
-    fixed:                          # must be existing directories; names unique
-      - {name: datasets, path: /srv/datasets, bytes: 0, mode: read_only, authorize_hook: "<name>"}
-  images:                           # absent = no client image store
-    path: provider/images           # relative → <root>/provider/images; root/ and meta/ inside
-    capacity: 274877906944          # 256 GiB over every client image; 0 refused
+port: 14979                       # OUTSIDE_PORT; what peers dial
+auth:                             # who may dial in; absent = nobody
+  unbrokered:
+    - key: {key: "…", identity: "…", address: 203.0.113.7}   # address optional
+    - hook: {authorize_hook: "<name>"}                       # provider/hooks/<name>/
+clients:                          # whom the provider dials; absent = nobody
+  unbrokered:
+    - {address: "host:port", key: "…", identity: "…"}
+containers:                       # always present; absent = defaults
+  podman:
+    registries:                   # default: docker.io, ghcr.io, quay.io, anonymous
+      - {host: docker.io, credential: {username: "…", password: "…"}}
+    storage_path: provider/podman_data   # relative → <root>/provider/podman_data
+    image_cache_disk: 34359738368 # 32 GiB
+    container_overlay_disk: 34359738368
+    memory: 8589934592            # 8 GiB
+volumes:                          # absent = no volume can exist
+  stores:                         # made at the provider's start; capacity 0 refused
+    - {path: /srv/volumes, capacity: 1099511627776}
+  fixed:                          # must be existing directories; names unique
+    - {name: datasets, path: /srv/datasets, bytes: 0, mode: read_only, authorize_hook: "<name>"}
+images:                           # absent = no client image store
+  path: provider/images           # relative → <root>/provider/images; root/ and meta/ inside
+  capacity: 274877906944          # 256 GiB over every client image; 0 refused
 ```
 
 What the provider checks at its start, in `serve::Provider::start`:
@@ -181,20 +184,20 @@ mirrors each provider's listing in memory and serves FUSE mounts of
 them through the provider. Nothing else of a container's content is
 the daemon's: what a container needs is a provider's volume.
 
-### 3.1 The `daemon` block
+### 3.1 `daemon.yaml`
 
 ```yaml
-daemon:
-  port: 14980                       # OUTSIDE_PORT + 1, one above a provider's
-  postgres: {kind: local, max_connections: 1024}   # or {kind: remote, url: "postgres://user:pw@host:port/db"}
-  idle_seconds: 10                  # a container unused this long is stopped
+port: 14980                       # DEFAULT_PORT, one above a provider's
+postgres: {kind: local, max_connections: 1024}   # or {kind: remote, url: "postgres://user:pw@host:port/db"}
+idle_seconds: 10                  # a container unused this long is stopped
+accept_daemons: true              # other daemons reached through the providers
 ```
 
-Three keys, all optional, unknown keys refused, including a key the
+Four keys, all optional, unknown keys refused, including a key the
 `postgres` kind does not have. `postgres` is read once; another
 database is another start. With `remote` nothing of §4 exists and the
-daemon dials the URL. `max_connections` is the supervisor's, read from
-this same block.
+daemon dials the URL. `max_connections` is handed to the supervisor
+as an argument.
 
 ### 3.2 Who writes what, when
 
@@ -204,8 +207,8 @@ this same block.
 
 ## 4. The Postgres supervisor: `<root>/daemon/postgres/`
 
-What `diverge-postgres` makes under the root it is given — the same
-root, the same file, the daemon's block:
+What `diverge-postgres` makes under the root it is given, with the
+settings the daemon hands it:
 
 ```text
 <root>/daemon/postgres/             made at start
@@ -222,7 +225,8 @@ root, the same file, the daemon's block:
 ```
 
 The postmaster listens on `127.0.0.1` on a port chosen at start, with
-no Unix socket, accepting `daemon.postgres.max_connections` at once; the supervisor prints one `Ready {url}` line on stdout
+no Unix socket, accepting the `--max-connections` it was given at
+once; the supervisor prints one `Ready {url}` line on stdout
 and the daemon takes the URL from it. The daemon does not leash the
 supervisor: the next daemon start has the supervisor stop whatever
 the last one left, under `init.lock`.
@@ -231,7 +235,9 @@ the last one left, under `init.lock`.
 
 ```text
 ~/.diverge/
-├── config.yaml                     provider: {…}  daemon: {…}
+├── provider.yaml
+├── daemon.yaml
+├── cli.yaml
 ├── provider/
 │   ├── hooks/<name>/hook.yaml
 │   ├── run/{auth.json, known_hosts, mounts/<uuid>/}
@@ -240,7 +246,7 @@ the last one left, under `init.lock`.
     ├── postgres/{password, data.ready, data/, bin/<version>/, bin/locks/}
     └── agents/<id>/{log, index}
 
-elsewhere, named by the provider block:
+elsewhere, named by provider.yaml:
 <store.path>/<identity>/{<name>, .<name>}
 <fixed.path>/…
 

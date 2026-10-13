@@ -3,7 +3,7 @@
 use std::fmt;
 use std::io;
 
-use diverge_sdk::config;
+use crate::config;
 
 use crate::database;
 use crate::postgres;

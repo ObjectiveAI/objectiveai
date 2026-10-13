@@ -48,8 +48,7 @@
 //! this one comes the same way, admitted by a credential as any client
 //! is, through every provider this daemon accepts on. The records live in the one Postgres
 //! the daemon runs on — its own, started beside it, or a remote one,
-//! as its block of the one `config.yaml` says,
-//! [`diverge_sdk::config::daemon`] — in a schema of the daemon's,
+//! as its `daemon.yaml` says, [`config`] — in a schema of the daemon's,
 //! [`store`]; who a
 //! connection is and what each request may do is [`judge`]; what is
 //! live and shared is [`daemon`]; the local Postgres is [`postgres`];
@@ -73,13 +72,14 @@
 //!
 //! # The directory
 //!
-//! The root the SDK finds — `--config <dir>`, else `DIVERGE_CONFIG`,
-//! else `~/.diverge/` — holds the one `config.yaml`, and the daemon
+//! The root the daemon finds — `--config <dir>`, else `DIVERGE_CONFIG`,
+//! else `~/.diverge/` — holds its `daemon.yaml`, and the daemon
 //! keeps its state under `<root>/daemon/`, which is `<dir>` wherever
 //! this crate says it: `postgres/`, the local cluster's own directory
 //! when the daemon runs one, and `agents/`, every agent's log by its
 //! id.
 
+pub mod config;
 pub mod containers;
 pub mod content;
 pub mod daemon;

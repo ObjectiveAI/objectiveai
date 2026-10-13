@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use diverge_sdk::config;
+use crate::config;
 
 use super::{Error, Local};
 
@@ -16,17 +16,17 @@ pub enum Postgres {
     Remote,
 }
 
-/// Start, or name, the database `postgres` says, for the file at
-/// `root`, and hand back what is held and the URL the store opens:
+/// Start, or name, the database `postgres` says, under `root`, and
+/// hand back what is held and the URL the store opens:
 /// the local cluster's, which names no database, or the remote URL
 /// exactly as configured.
-pub async fn start(postgres: &config::daemon::Postgres, root: &Path) -> Result<(Postgres, String), Error> {
+pub async fn start(postgres: &config::Postgres, root: &Path) -> Result<(Postgres, String), Error> {
     match postgres {
-        config::daemon::Postgres::Local { .. } => {
-            let (local, url) = super::spawn(root).await?;
+        config::Postgres::Local { max_connections } => {
+            let (local, url) = super::spawn(root, *max_connections).await?;
             Ok((Postgres::Local(local), url))
         }
-        config::daemon::Postgres::Remote { url } => Ok((Postgres::Remote, url.clone())),
+        config::Postgres::Remote { url } => Ok((Postgres::Remote, url.clone())),
     }
 }
 
