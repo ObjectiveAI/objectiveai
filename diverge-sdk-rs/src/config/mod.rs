@@ -1,7 +1,8 @@
 //! The one `config.yaml` every Diverge program reads.
 //!
 //! - `--config <dir>`, else `DIVERGE_CONFIG`, else `~/.diverge/`,
-//!   names the ROOT, created if absent — see [`root`]. The root is
+//!   names the ROOT, created if absent — see [`root`], and [`root_at`]
+//!   for a program that reads its arguments its own way. The root is
 //!   one directory for every Diverge program on the host: the
 //!   provider keeps its state under `<root>/provider/`, the daemon
 //!   under `<root>/daemon/`, and the daemon's Postgres under

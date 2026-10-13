@@ -11,12 +11,8 @@ use super::Error;
 ///
 /// `--config <dir>` is the one argument there is, and it may be given
 /// once. Any other argument, or a `--config` with nothing after it,
-/// is [`Error::Arguments`]. With no argument, `DIVERGE_CONFIG` names
-/// the root; with neither, it is `.diverge` under the home directory
-/// — `HOME`, or `USERPROFILE` on Windows — and a host with no home is
-/// [`Error::Home`]. The path is made absolute against the working
-/// directory without following links, so what a program names by it
-/// — a provider its containers — is the path as it was given.
+/// is [`Error::Arguments`]. What the argument gives, or nothing, is
+/// then [`root_at`]'s.
 pub async fn root(args: impl Iterator<Item = OsString>) -> Result<PathBuf, Error> {
     let mut given: Option<PathBuf> = None;
     let mut args = args;
@@ -30,6 +26,20 @@ pub async fn root(args: impl Iterator<Item = OsString>) -> Result<PathBuf, Error
             return Err(Error::Arguments(arg.to_string_lossy().into_owned()));
         }
     }
+    root_at(given).await
+}
+
+/// The root, from `given` — a directory a program was handed, by
+/// whatever means it takes arguments — else the environment, else the
+/// home directory; made if absent, and made absolute.
+///
+/// With nothing given, `DIVERGE_CONFIG` names the root; with neither,
+/// it is `.diverge` under the home directory — `HOME`, or
+/// `USERPROFILE` on Windows — and a host with no home is
+/// [`Error::Home`]. The path is made absolute against the working
+/// directory without following links, so what a program names by it
+/// — a provider its containers — is the path as it was given.
+pub async fn root_at(given: Option<PathBuf>) -> Result<PathBuf, Error> {
     let root = match given.or_else(|| std::env::var_os("DIVERGE_CONFIG").map(PathBuf::from)) {
         Some(root) => root,
         None => home()?.join(".diverge"),
