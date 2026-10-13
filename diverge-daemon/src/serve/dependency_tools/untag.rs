@@ -1,16 +1,15 @@
-//! Untagged: the tags off a dependency template.
+//! Untagged: the tags off a dependency tool.
 
 use diverge_sdk::daemon::endpoints::dependency_tools::untag::client::request;
 use diverge_sdk::daemon::endpoints::dependency_tools::untag::server::response::Frame;
 use diverge_sdk::daemon::grant::Tagging;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{agents_of, runs_of};
+use super::{load, resolve};
 use crate::daemon::{Daemon, Kind};
-use crate::judge::filter::dependency_tools::Facts;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::{self, dependencies, tags};
+use crate::store::{self, dependency_tools, tags};
 
 /// Answer the untag and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -23,9 +22,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `untag` grant at all; `NotFound`; `Forbidden`
-/// for a template the grants do not reach, or a tag the grant does not
-/// cover; else the tags off the template, and an empty list
-/// changing nothing.
+/// for a tool the grants do not reach, or a tag the grant does not
+/// cover; else the tags off the tool, and an empty list changing
+/// nothing.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -34,20 +33,16 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::dependency_tools::holds_tagging(&standing, Tagging::Untag) {
         return Ok(Frame::Forbidden);
     }
-    let Some(record) = dependencies::by_id(&mut tx, &frame.id, true).await? else {
+    let Some((tool, _)) = resolve(&mut tx, daemon, &frame.dependency, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let agents = agents_of(&mut tx, &record.id).await?;
-    let runs = runs_of(daemon, &record.id).await;
-    let facts = Facts {
-        record: &record,
-        agents: &agents,
-        runs: &runs,
+    let Some(loaded) = load(&mut tx, daemon, &tool).await? else {
+        return Ok(Frame::NotFound);
     };
-    if !judge::dependency_tools::tagging(&standing, Tagging::Untag, &facts, &frame.tags) {
+    if !judge::dependency_tools::tagging(&standing, Tagging::Untag, &loaded.facts(&tool), &frame.tags) {
         return Ok(Frame::Forbidden);
     }
-    dependencies::set_tags(&mut tx, &record.id, &tags::without(&record.tags, &frame.tags)).await?;
+    dependency_tools::set_tags(&mut tx, tool.id, &tags::without(&tool.tags, &frame.tags)).await?;
     tx.commit().await?;
     daemon.live.changed(Kind::DependencyTools);
     Ok(Frame::Untagged)

@@ -14,7 +14,7 @@ use tokio::sync::{Mutex, mpsc};
 use super::{Entry, Served, exposed, split};
 use crate::containers::{Caller, Key, ToolKey, ToolRun, User, tools};
 use crate::daemon::Daemon;
-use crate::store::ServiceId;
+use crate::store::DependencyToolId;
 use crate::store::tools::Tool;
 
 /// The notifications a container hears: every served tool's, and the
@@ -42,12 +42,12 @@ enum Next {
     /// An attached tool with no run.
     Idle(Tool),
     /// A service, whose run the live set holds.
-    Service(ServiceId),
+    Service(DependencyToolId),
     /// Nothing is served under the key.
     Missing,
 }
 
-/// The served tool's run: a transient dependency's; an attached
+/// The served tool's run: a transient dependency tool's; an attached
 /// tool's, started now if it was idle; or a service's as the live set
 /// holds it now, which is an error while the service's container is
 /// not up.
@@ -55,7 +55,7 @@ pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, St
     let next = {
         let served = context.served.lock().await;
         match served.entry(key) {
-            Some(Entry::Dependency(run)) => Next::Run(Arc::clone(run)),
+            Some(Entry::Transient(run)) => Next::Run(Arc::clone(run)),
             Some(Entry::Attached { run: Some(run), .. }) => Next::Run(Arc::clone(run)),
             Some(Entry::Attached { tool, run: None }) => Next::Idle(tool.clone()),
             Some(Entry::Service { id, .. }) => Next::Service(*id),
@@ -68,7 +68,7 @@ pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, St
             return context
                 .daemon
                 .live
-                .tool_run(ToolKey::Service(id))
+                .tool_run(ToolKey::Dependency(id))
                 .await
                 .ok_or_else(|| "the service is not running now".to_string());
         }
@@ -194,7 +194,7 @@ pub async fn notifications(context: &Context) -> Notifications {
         (served.runs(), served.services(), served.subscribe())
     };
     for id in services {
-        if let Some(run) = context.daemon.live.tool_run(ToolKey::Service(id)).await {
+        if let Some(run) = context.daemon.live.tool_run(ToolKey::Dependency(id)).await {
             runs.push(run);
         }
     }

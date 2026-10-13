@@ -192,44 +192,51 @@ CREATE TABLE IF NOT EXISTS diverge.attachments (
 );
 CREATE INDEX IF NOT EXISTS attachments_agent ON diverge.attachments (agent);
 
--- A service: a dependency tool template an agent's program declared
--- as one, made under its scope key — the agent, the agent's
--- template, or the template alone — and kept by the daemon for as
--- long as any agent is attached to it. The container is work made
--- from the row, never the row.
-CREATE TABLE IF NOT EXISTS diverge.services (
+-- A dependency tool: a dependency template under one owner, as the
+-- template's scope decides — a transient template or an `instance`
+-- service one per agent, a `template` service one per agent template,
+-- a `global` service one for all — made by the first registration
+-- that declares the template under that owner. An instance tool goes
+-- with its agent; a per-template tool with its agent template, by the
+-- template's delete; a global tool with nothing but the dependency
+-- template's delete, which takes every tool of the template. The
+-- container is work made from the row, never the row.
+CREATE TABLE IF NOT EXISTS diverge.dependency_tools (
     id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     template       TEXT NOT NULL,
     -- `instance`, `template` or `global`.
     scope          TEXT NOT NULL,
     owner_agent    BIGINT REFERENCES diverge.agents(id) ON DELETE CASCADE,
     owner_template TEXT,
-    declared       JSONB NOT NULL,
-    last_provider  JSONB,
+    tags           TEXT[] NOT NULL DEFAULT '{}',
     created        TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator        JSONB NOT NULL,
-    CONSTRAINT services_scope_owner CHECK (
+    CONSTRAINT dependency_tools_scope_owner CHECK (
         (scope = 'instance' AND owner_agent IS NOT NULL AND owner_template IS NULL)
         OR (scope = 'template' AND owner_agent IS NULL AND owner_template IS NOT NULL)
         OR (scope = 'global' AND owner_agent IS NULL AND owner_template IS NULL)
     )
 );
-CREATE UNIQUE INDEX IF NOT EXISTS services_per_agent
-    ON diverge.services (template, owner_agent) WHERE scope = 'instance';
-CREATE UNIQUE INDEX IF NOT EXISTS services_per_template
-    ON diverge.services (template, owner_template) WHERE scope = 'template';
-CREATE UNIQUE INDEX IF NOT EXISTS services_global
-    ON diverge.services (template) WHERE scope = 'global';
+CREATE UNIQUE INDEX IF NOT EXISTS dependency_tools_per_agent
+    ON diverge.dependency_tools (template, owner_agent) WHERE scope = 'instance';
+CREATE UNIQUE INDEX IF NOT EXISTS dependency_tools_per_template
+    ON diverge.dependency_tools (template, owner_template) WHERE scope = 'template';
+CREATE UNIQUE INDEX IF NOT EXISTS dependency_tools_global
+    ON diverge.dependency_tools (template) WHERE scope = 'global';
+CREATE INDEX IF NOT EXISTS dependency_tools_template ON diverge.dependency_tools (template);
 
--- An agent attached to a service: its last registration declared the
--- service's template. `seq` is the order of attaching.
-CREATE TABLE IF NOT EXISTS diverge.service_attachments (
-    service     BIGINT NOT NULL REFERENCES diverge.services(id) ON DELETE CASCADE,
+-- An agent attached to a dependency tool: its last registration
+-- declared the tool's template, at `declared`. `seq` is the order of
+-- first attaching; a registration that declares it again moves
+-- `declared` forward and nothing else.
+CREATE TABLE IF NOT EXISTS diverge.dependency_attachments (
+    tool        BIGINT NOT NULL REFERENCES diverge.dependency_tools(id) ON DELETE CASCADE,
     agent       BIGINT NOT NULL REFERENCES diverge.agents(id) ON DELETE CASCADE,
     seq         BIGINT GENERATED ALWAYS AS IDENTITY,
-    PRIMARY KEY (service, agent)
+    declared    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (tool, agent)
 );
-CREATE INDEX IF NOT EXISTS service_attachments_agent ON diverge.service_attachments (agent);
+CREATE INDEX IF NOT EXISTS dependency_attachments_agent ON diverge.dependency_attachments (agent);
 
 -- The tags on a volume: the one thing the daemon keeps of one, which
 -- is its provider's and listed by it. One row per tagged volume; a
@@ -241,43 +248,13 @@ CREATE TABLE IF NOT EXISTS diverge.volume_tags (
     PRIMARY KEY (provider, name)
 );
 
--- A dependency template: what an agent's program declared at its
--- registration, held by the hash of its own JSON and made a record
--- by the first registration that declares it; a deleted one keeps
--- its row, so that one declared anew is the one that was deleted,
--- with the first registration's creator and time.
+-- A dependency template, by the hash of its own JSON: the body every
+-- dependency tool of it shares. Made by the first registration that
+-- declares it, gone with the template's delete.
 CREATE TABLE IF NOT EXISTS diverge.dependencies (
     id       TEXT PRIMARY KEY,
-    template JSONB NOT NULL,
-    tags     TEXT[] NOT NULL DEFAULT '{}',
-    created  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    creator  JSONB NOT NULL,
-    deleted  BOOLEAN NOT NULL DEFAULT false
+    template JSONB NOT NULL
 );
-
--- What an agent depends on: exactly the templates its last
--- registration declared, reset at every registration. `seq` is the
--- order of first declaring, kept across registrations that declare
--- the template still.
-CREATE TABLE IF NOT EXISTS diverge.agent_dependencies (
-    agent    BIGINT NOT NULL REFERENCES diverge.agents(id) ON DELETE CASCADE,
-    template TEXT NOT NULL,
-    seq      BIGINT GENERATED ALWAYS AS IDENTITY,
-    PRIMARY KEY (agent, template)
-);
-CREATE INDEX IF NOT EXISTS agent_dependencies_template ON diverge.agent_dependencies (template);
-
--- Every database scope the daemon has provisioned: its role, which
--- is its schema; the dependency template it was made for a tool of,
--- absent for a container's own scope; and whose it is, as the
--- daemon's Owner, as JSON. What a dependency template's delete reads
--- to drop every scope ever made from the template.
-CREATE TABLE IF NOT EXISTS diverge.scopes (
-    role     TEXT PRIMARY KEY,
-    template TEXT,
-    owner    JSONB NOT NULL
-);
-CREATE INDEX IF NOT EXISTS scopes_template ON diverge.scopes (template);
 
 -- What an earlier daemon made, brought up to the above: every
 -- statement idempotent, as the rest are.
@@ -289,9 +266,15 @@ ALTER TABLE diverge.agents DROP COLUMN IF EXISTS account;
 DROP TABLE IF EXISTS diverge.routes;
 -- Admissions gave way to exposures, which are held in memory alone.
 DROP TABLE IF EXISTS diverge.admissions;
--- No scope goes with an agent template's delete any more: a
--- dependency template's scopes go with the template's own delete.
-DROP TABLE IF EXISTS diverge.service_owners;
+-- Services and what agents depend on are dependency tools and their
+-- attachments; a scope's role is computed from its tool, not kept.
+DROP TABLE IF EXISTS diverge.service_owners, diverge.service_attachments, diverge.services, diverge.agent_dependencies, diverge.scopes;
+-- A dependency template is its body alone: tags, the time and the
+-- maker are each tool's.
+ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS tags;
+ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS created;
+ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS creator;
+ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS deleted;
 -- A connected tool names a daemon record and a tool, not a provider,
 -- an id and an authorization: a tool joined the old way joins nothing
 -- any more, and goes.

@@ -10,7 +10,8 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::{self, agents_templates, services};
+use crate::database;
+use crate::store::{self, agents_templates, dependency_tools};
 use super::in_use;
 
 /// Answer the delete and finish the scope.
@@ -26,10 +27,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for a template the grants do not reach; `InUse` while some agent
 /// was made from it; else the template deleted — every per-template
-/// service its agents ever had gone and retired, its row kept, so one
-/// made anew is this one again. No database scope goes with it: a
-/// per-template service's scope stays until its dependency
-/// template's delete.
+/// dependency tool it owns gone with its database scope and its every
+/// table, each service among them retired, its row kept, so one made
+/// anew is this one again, with fresh scopes.
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -49,11 +49,16 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if used {
         return Ok(Frame::InUse);
     }
-    let removed = services::delete_of_owner_template(&mut tx, &record.id).await?;
+    for tool in dependency_tools::of_owner_template(&mut tx, &record.id).await? {
+        if let Some(container) = database::container_of_dependency_tool(&tool, None) {
+            database::provision::drop(&mut tx, &database::role_of(&container)).await?;
+        }
+    }
+    let removed = dependency_tools::delete_of_owner_template(&mut tx, &record.id).await?;
     agents_templates::delete(&mut tx, &record.id).await?;
     tx.commit().await?;
     crate::containers::services::template_deleted(daemon, removed).await;
     daemon.live.changed(Kind::AgentsTemplates);
-    daemon.live.changed(Kind::StandaloneTools);
+    daemon.live.changed(Kind::DependencyTools);
     Ok(Frame::Deleted)
 }

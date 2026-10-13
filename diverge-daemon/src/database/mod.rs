@@ -18,12 +18,12 @@
 //! statements every Postgres since 10 takes — the role with a
 //! SCRAM-SHA-256 verifier, a member of nothing, able to create
 //! nowhere but its schema, its search path pinned to that schema
-//! alone — and put on record in [`scopes`](crate::store::scopes).
-//! Dropped by exactly one delete: a tool's own scope at the tool's,
-//! and every scope ever made for a tool of a dependency template —
-//! under every agent, every agent template and the global one — at
-//! the template's. An agent's delete and an agent template's drop no
-//! scope: an agent's own scope and its dependencies' outlive it. The
+//! alone. Dropped by exactly one delete, the one that removes the row
+//! the role is computed from: a tool's own scope at the tool's; a
+//! dependency tool's at its row's — an instance tool's at its agent's
+//! delete, a per-template tool's at its agent template's, every tool
+//! of a template at the template's — and a global tool's at the
+//! template's alone. An agent's own scope goes with nothing. The
 //! role's password is the daemon's, minted in memory for the daemon's
 //! life and never written anywhere; nothing is ever handed to the
 //! container.
@@ -47,7 +47,7 @@
 //!
 //! [`Target`] is what the daemon knows of its database; [`role_of`]
 //! and [`container_of`] name a container's scope, [`Owner`] whose it
-//! is and [`template_of`] which template it was made for;
+//! is;
 //! [`provision`] is the statements; [`Scope`] is the password in
 //! memory and the scope made once per daemon life; [`connect`] is one
 //! connection, handshake to end. Not guaranteed, as the design says: names leak through the

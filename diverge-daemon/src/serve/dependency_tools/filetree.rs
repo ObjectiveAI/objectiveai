@@ -23,8 +23,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `filetree` grant at all; `NotFound` for a
-/// template that is none, an owner it has no tool for, or a tool that
-/// does not run; `Forbidden` for a template the grants do not reach;
+/// template that is none, an owner it has no tool under, or a tool
+/// that does not run; `Forbidden` for a tool the grants do not reach;
 /// else a snapshot of the whole tree, the daemon's mounts spliced in,
 /// then every change until the client cancels, the run ends, or the
 /// stream fails. Nothing is started, nothing is released after, and
@@ -40,11 +40,11 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let Some((record, run)) = resolve(&mut conn, daemon, &frame.dependency).await? else {
+    let Some((tool, Some(run))) = resolve(&mut conn, daemon, &frame.dependency, false).await? else {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     };
-    let reached = reaches(&mut conn, daemon, &standing, Over::Filetree, &record).await?;
+    let reached = reaches(&mut conn, daemon, &standing, Over::Filetree, &tool).await?;
     drop(conn);
     if !reached {
         reply::reply(scope, &Frame::Forbidden).await;

@@ -27,9 +27,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `download` grant at all; `NotFound` for a
-/// template that is none, an owner it has no tool for, a tool that
+/// template that is none, an owner it has no tool under, a tool that
 /// does not run, or a path at which nothing is; `Forbidden` for a
-/// template the grants do not reach; else every file at the path as
+/// tool the grants do not reach; else every file at the path as
 /// chunks, out of the run as it is. Nothing is started, and nothing
 /// is released after.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
@@ -42,11 +42,11 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let Some((record, run)) = resolve(&mut conn, daemon, &frame.dependency).await? else {
+    let Some((tool, Some(run))) = resolve(&mut conn, daemon, &frame.dependency, false).await? else {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     };
-    let reached = reaches(&mut conn, daemon, &standing, Over::Download, &record).await?;
+    let reached = reaches(&mut conn, daemon, &standing, Over::Download, &tool).await?;
     drop(conn);
     if !reached {
         reply::reply(scope, &Frame::Forbidden).await;

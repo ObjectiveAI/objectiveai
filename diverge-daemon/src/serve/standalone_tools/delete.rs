@@ -11,7 +11,7 @@ use crate::daemon::{Daemon, Kind};
 use crate::database;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::{self, scopes, tools};
+use crate::store::{self, tools};
 
 /// Answer the delete and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -26,7 +26,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for a tool the grants do not reach; `Attached` while it is
 /// attached to any agent; else the tool gone — its own database scope
-/// dropped with its every table and taken off record, its name free.
+/// dropped with its every table, its name free.
 /// A tool attached nowhere runs nowhere, so nothing is stopped.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
@@ -49,7 +49,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     tools::delete(&mut tx, tool.id).await?;
     let role = database::role_of(&database::container_of_tool(&tool));
     database::provision::drop(&mut tx, &role).await?;
-    scopes::remove(&mut tx, &role).await?;
     tx.commit().await?;
     daemon.live.forget_scope(Key::Tool(ToolKey::Record(tool.id))).await;
     daemon.live.changed(Kind::StandaloneTools);

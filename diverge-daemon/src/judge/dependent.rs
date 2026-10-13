@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use diverge_sdk::daemon::grant::{self, Converted, Grant};
 
-use crate::store::{AgentId, ServiceId};
+use crate::store::DependencyToolId;
 
 /// What a dependency tool template fixed for the tool's life: the
 /// identity its requests are served under, the daemon's grants its
@@ -33,23 +33,15 @@ impl Fixed {
     }
 }
 
-/// Whose `self` a dependency tool's is: the one agent a transient tool
-/// was deployed for, or the agents attached to a service, read fresh
-/// for every request.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Selves {
-    /// A transient tool's one agent.
-    Agent(AgentId),
-    /// A service's attached agents, as of the request.
-    Service(ServiceId),
-}
-
 /// A dependency tool, as its `/daemon` connections are served: what
-/// its template fixed, and whose `self` it is.
+/// its template fixed, and which tool it is, whose attached agents —
+/// the one agent a transient tool was deployed for, every agent
+/// attached to a service — are its `self`, read fresh for every
+/// request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dependent {
     /// What the template fixed.
     pub fixed: Arc<Fixed>,
-    /// Whose `self` it is.
-    pub selves: Selves,
+    /// The tool, by its row: whose attachments `self` reaches.
+    pub tool: DependencyToolId,
 }

@@ -1,43 +1,50 @@
-//! One service, as the store holds it.
+//! One dependency tool, as the store holds it.
 
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::{Attached, Listed, Run};
 use diverge_sdk::daemon::key;
-use diverge_sdk::shared::containers::dependencies::{Scope, Template};
+use diverge_sdk::shared::containers::dependencies::{Kind, Scope, Template};
 
 use crate::store::agents::Agent;
-use crate::store::{AgentId, ServiceId};
+use crate::store::{AgentId, DependencyToolId};
 
-/// A service row.
+/// A dependency tool row.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Service {
+pub struct DependencyTool {
     /// The row.
-    pub id: ServiceId,
-    /// The dependency tool template it was made from, by id.
+    pub id: DependencyToolId,
+    /// The template it is of, by id.
     pub template: String,
-    /// How far it is shared: what its scope key is made of.
+    /// The template, whole.
+    pub declared: Template,
+    /// How far it is shared: what its scope key is made of. A
+    /// transient template's is `instance`.
     pub scope: Scope,
     /// The one agent it is for, when its scope is per agent.
     pub owner_agent: Option<AgentId>,
     /// The one agent template it is for, when its scope is per agent
     /// template.
     pub owner_template: Option<String>,
-    /// The template it was made from, whole.
-    pub declared: Template,
-    /// The provider it last ran on, if it ever ran.
-    pub last_provider: Option<Identity>,
+    /// Its tags, sorted bytewise.
+    pub tags: Vec<String>,
     /// When it was made.
     pub created: DateTime<Utc>,
     /// The agent whose registration made it.
     pub creator: Creator,
 }
 
-impl Service {
+impl DependencyTool {
+    /// Whether it is a service, kept by the daemon, rather than a
+    /// transient tool of its agent's run.
+    pub fn is_service(&self) -> bool {
+        matches!(self.declared.kind, Kind::Service { .. })
+    }
+
     /// Whose it is, as the wire names it: the owner agent, handed in
-    /// by the caller for a per-agent service since a name is as it is
-    /// called now, its template, or nobody. `None` for a per-agent
-    /// service whose owner the caller did not hand in.
+    /// by the caller for a per-agent tool since a name is as it is
+    /// called now, its agent template, or nobody. `None` for a
+    /// per-agent tool whose owner the caller did not hand in.
     pub fn owner(&self, owner_agent: Option<&Agent>) -> Option<key::Owner> {
         Some(match self.scope {
             Scope::Instance => key::Owner::Agent(owner_agent?.key()),
@@ -48,12 +55,27 @@ impl Service {
         })
     }
 
-    /// The service as a key: its template and whose it is.
+    /// The tool as a key: its template and whose it is.
     pub fn key(&self, owner_agent: Option<&Agent>) -> Option<key::Tool> {
         Some(key::Tool::Dependency {
             template: self.template.clone(),
             owner: self.owner(owner_agent)?,
         })
+    }
+
+    /// The tool as a list reports it, with its owner, the agents
+    /// attached to it and its run, loaded by the caller.
+    pub fn report(&self, owner: key::Owner, agents: Vec<Attached>, run: Option<Run>) -> Listed {
+        Listed {
+            id: self.template.clone(),
+            owner,
+            created: self.created,
+            creator: self.creator.clone(),
+            tags: self.tags.clone(),
+            template: self.declared.clone(),
+            agents,
+            run,
+        }
     }
 }
 

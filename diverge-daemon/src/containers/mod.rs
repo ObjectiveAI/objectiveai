@@ -19,16 +19,16 @@
 //! the dependency tool a reference names, found running or not at
 //! all, since one is started by nobody's request;
 //! [`mcp`] is the one tool list an agent sees and the routing of its
-//! calls; [`deploy`] deploys a container's declared dependencies then
-//! and there — a transient tool of the agent's own for the agent's
-//! run, a service registered with [`services`], which keeps every
-//! service up for as long as any agent is attached to it and retires
-//! it after;
+//! calls; [`deploy`] records a container's declared dependencies as
+//! dependency tools under their owners and deploys them then and there
+//! — a transient tool of the agent's own for the agent's run, a
+//! service kept by [`services`] for as long as any agent is attached
+//! to it and stopped after;
 //! [`fuse`] serves the mounts — another provider's volume bridged, or
 //! an agent's path into its dependency; [`images`] answers a
 //! provider's image asks from the other providers connected. [`Key`]
 //! names a container by
-//! its record or, a dependency, by its deployment, [`ToolKey`] a
+//! its record or, a dependency tool, by its row, [`ToolKey`] a
 //! tool's run either way; [`AgentRun`] and [`ToolRun`] are what is
 //! live for one; [`container`] and [`dependency`] are the request a
 //! run is; [`Opened`] is a run as a file operation works on it, and

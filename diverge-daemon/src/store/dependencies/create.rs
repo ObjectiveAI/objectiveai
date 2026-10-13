@@ -1,47 +1,18 @@
-//! Making a dependency template, or finding it made.
+//! Putting a dependency template's body on record.
 
-use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::shared::containers::dependencies::Template;
 use sqlx::PgConnection;
 use sqlx::types::Json;
 
 use crate::store::Error;
 
-/// What a new dependency template is made of: the template, under the
-/// id the caller hashed it to, and the agent whose registration
-/// declares it.
-#[derive(Debug, Clone)]
-pub struct New {
-    /// The id: the template's hash.
-    pub id: String,
-    /// The template, whole.
-    pub template: Template,
-    /// Who makes it — kept only when the row is new.
-    pub creator: Creator,
-}
-
-/// What a create came to.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Created {
-    /// The template is made: a new row, or one deleted earlier and
-    /// now live again under its first creator and created time.
-    Created,
-    /// A live template of the hash was there already; nothing changed.
-    Exists,
-}
-
-/// Insert the template, or revive a deleted row of the same id with
-/// its tags cleared; a live row is left as it is.
-pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error> {
-    let revived = sqlx::query(
-        "INSERT INTO diverge.dependencies (id, template, creator) VALUES ($1, $2, $3) \
-         ON CONFLICT (id) DO UPDATE SET deleted = false, tags = '{}' WHERE diverge.dependencies.deleted \
-         RETURNING id",
-    )
-    .bind(&new.id)
-    .bind(Json(&new.template))
-    .bind(Json(&new.creator))
-    .fetch_optional(&mut *conn)
-    .await?;
-    Ok(if revived.is_some() { Created::Created } else { Created::Exists })
+/// Insert the body under the id the caller hashed it to; one there
+/// already is left as it is, since the same hash is the same body.
+pub async fn create(conn: &mut PgConnection, id: &str, template: &Template) -> Result<(), Error> {
+    sqlx::query("INSERT INTO diverge.dependencies (id, template) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING")
+        .bind(id)
+        .bind(Json(template))
+        .execute(&mut *conn)
+        .await?;
+    Ok(())
 }

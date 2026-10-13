@@ -13,7 +13,8 @@ use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::logs;
 use crate::serve::reply;
-use crate::store::{agents, services};
+use crate::database;
+use crate::store::{agents, dependency_tools};
 
 /// Answer the delete and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
@@ -28,12 +29,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for an agent the grants do not reach; `Active` while a loop runs
 /// in it; else the agent gone — its container stopped if it was up,
-/// its attachments and its dependencies with it, its per-agent
-/// services retired and every other service it was attached to told,
+/// its attachments with it, the dependency tools it owns gone with
+/// their database scopes and their every table, each service among
+/// them retired, every other dependency tool it was attached to told,
 /// its name free, every watch on its log ended and the log removed.
-/// No database scope goes with it: its own, and those of the
-/// dependency tools ever deployed for it, stay until the tool's or
-/// the dependency template's delete.
+/// Its own database scope stays: nothing drops an agent's own.
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, Failure> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -52,12 +52,23 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if active {
         return Ok(Frame::Active);
     }
-    let attached = services::of_agent(&mut tx, agent.id).await?;
+    let attached = dependency_tools::of_agent(&mut tx, agent.id).await?;
+    for tool in dependency_tools::of_owner_agent(&mut tx, agent.id).await? {
+        if let Some(container) = database::container_of_dependency_tool(&tool, Some(&agent)) {
+            database::provision::drop(&mut tx, &database::role_of(&container)).await?;
+        }
+    }
+    let removed = dependency_tools::delete_of_owner_agent(&mut tx, agent.id).await?;
     agents::delete(&mut tx, agent.id).await?;
     tx.commit().await?;
     daemon.live.forget_scope(containers::Key::Agent(agent.id)).await;
     containers::stop_agent(daemon, agent.id).await;
-    containers::services::agent_deleted(daemon, agent.id, attached).await;
+    let left = attached
+        .iter()
+        .filter(|tool| !removed.iter().any(|gone| gone.id == tool.id))
+        .map(|tool| tool.id)
+        .collect();
+    containers::services::agent_deleted(daemon, removed, left).await;
     daemon.live.end_log(agent.id).await;
     logs::remove(&daemon.logs, agent.id).await?;
     daemon.live.changed(Kind::Agents);

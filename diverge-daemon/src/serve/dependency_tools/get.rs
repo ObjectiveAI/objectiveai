@@ -1,15 +1,15 @@
-//! Getting one dependency template.
+//! Getting one dependency tool.
 
 use diverge_sdk::daemon::endpoints::dependency_tools::get::client::request;
 use diverge_sdk::daemon::endpoints::dependency_tools::get::server::response::Frame;
 use diverge_sdk::daemon::grant::dependency_tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{agents_of, reaches, runs_of};
+use super::{load, resolve};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::{self, dependencies};
+use crate::store;
 
 /// Answer the get and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -22,8 +22,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `get` grant at all; `NotFound`; `Forbidden` for
-/// a template the grants do not reach; else the template as a list
-/// reports it.
+/// a tool the grants do not reach; else the tool as a list reports it.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -32,13 +31,14 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::dependency_tools::holds(&standing, Over::Get) {
         return Ok(Frame::Forbidden);
     }
-    let Some(record) = dependencies::by_id(&mut conn, &frame.id, false).await? else {
+    let Some((tool, _)) = resolve(&mut conn, daemon, &frame.dependency, false).await? else {
         return Ok(Frame::NotFound);
     };
-    if !reaches(&mut conn, daemon, &standing, Over::Get, &record).await? {
+    let Some(loaded) = load(&mut conn, daemon, &tool).await? else {
+        return Ok(Frame::NotFound);
+    };
+    if !judge::dependency_tools::over(&standing, Over::Get, &loaded.facts(&tool)) {
         return Ok(Frame::Forbidden);
     }
-    let agents = agents_of(&mut conn, &record.id).await?;
-    let runs = runs_of(daemon, &record.id).await;
-    Ok(Frame::Found(record.report(agents, runs)))
+    Ok(Frame::Found(loaded.report(&tool)))
 }

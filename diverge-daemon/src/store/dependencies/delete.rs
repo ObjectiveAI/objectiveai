@@ -1,14 +1,13 @@
-//! Deleting a dependency template.
+//! Removing a dependency template's body.
 
 use sqlx::PgConnection;
 
 use crate::store::Error;
 
-/// Mark the template deleted and clear its tags; the row stays, so a
-/// registration declaring the same template later makes this one
-/// again. Whether a tool runs from it is the caller's to have checked.
+/// Delete the body. That no tool of the template is left is the
+/// caller's to have seen to; one already gone is nothing to do.
 pub async fn delete(conn: &mut PgConnection, id: &str) -> Result<(), Error> {
-    sqlx::query("UPDATE diverge.dependencies SET deleted = true, tags = '{}' WHERE id = $1")
+    sqlx::query("DELETE FROM diverge.dependencies WHERE id = $1")
         .bind(id)
         .execute(&mut *conn)
         .await?;

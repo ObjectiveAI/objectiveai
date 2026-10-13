@@ -48,10 +48,10 @@ pub async fn judged(conn: &mut PgConnection, daemon: &Daemon, standing: &Standin
             }
         }
         Destination::Dependency { dependency, .. } => {
-            let Some((record, _)) = serve::dependency_tools::resolve(conn, daemon, dependency).await? else {
+            let Some((tool, Some(_))) = serve::dependency_tools::resolve(conn, daemon, dependency, false).await? else {
                 return Ok(Judged::NoDestination);
             };
-            if serve::dependency_tools::reaches(conn, daemon, standing, dependency_tools::Over::Upload, &record).await? {
+            if serve::dependency_tools::reaches(conn, daemon, standing, dependency_tools::Over::Upload, &tool).await? {
                 Judged::Allowed
             } else {
                 Judged::Forbidden

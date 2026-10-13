@@ -1,17 +1,11 @@
-//! The dependency template records: what an agent's program declares,
-//! held by its hash, and what each agent depends on now.
+//! The dependency template bodies: what every dependency tool of a
+//! template shares, by the template's hash.
 //!
-//! [`Record`] is one as the store holds it: the template whole, under
-//! the id that is its hash, with its tags and the agent whose
-//! registration first declared it. A template deleted stays as a row
-//! with `deleted` set and no tags, so that one declared anew after the
-//! delete is the one that was deleted, its creator and its created
-//! time the first registration's — as the wire says it is. [`all`]
-//! and [`by_id`] load the live ones; [`create`] makes one or revives
-//! one, answering whether it was live already; [`delete`] marks one;
-//! [`set_tags`] writes the tags. Beside the records, [`agents`] is
-//! what each agent depends on: exactly the templates its last
-//! registration declared, reset at every registration.
+//! A template is the body alone: its tags, when it was made and who
+//! made it are each [tool](crate::store::dependency_tools)'s. [`create`]
+//! puts a body on record, or finds it there; [`by_id`] loads one;
+//! [`delete`] removes one, which the template's delete does after its
+//! tools.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -19,14 +13,7 @@
 mod create;
 mod delete;
 mod load;
-mod record;
-mod row;
-mod tags;
-
-pub mod agents;
 
 pub use create::*;
 pub use delete::*;
 pub use load::*;
-pub use record::*;
-pub use tags::*;

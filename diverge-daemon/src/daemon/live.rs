@@ -15,10 +15,10 @@ use diverge_sdk::provider::endpoints::images::oci::client::execute;
 
 use super::{Changes, Kind, Peers};
 use crate::containers::services::State;
-use crate::containers::{AgentRun, ConnectionId, DependencyId, Key, ToolKey, ToolRun};
+use crate::containers::{AgentRun, ConnectionId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
 use crate::database::Scope;
-use crate::store::{AccountId, AgentId, ServiceId};
+use crate::store::{AccountId, AgentId, DependencyToolId};
 use crate::volumes::Mirror;
 
 /// The live state of the daemon: which accounts have a client
@@ -28,7 +28,7 @@ use crate::volumes::Mirror;
 /// a connection to through them; which providers hold which image,
 /// and the pull scope held on each; every agent's log as
 /// it is appended and watched; which agents and tools run — a tool
-/// on record, or a dependency deployed for an agent — and what is
+/// on record, or a dependency tool — and what is
 /// live for each. Behind async mutexes, held for a lookup and never
 /// across anything that waits on the outside.
 #[derive(Default)]
@@ -47,13 +47,12 @@ pub struct Live {
     logs: Mutex<HashMap<AgentId, Arc<Log>>>,
     /// The agents running now.
     agents: Mutex<HashMap<AgentId, Arc<AgentRun>>>,
-    /// The tools running now, or joined: records and dependencies.
+    /// The tools running now, or joined: records and dependency tools.
     tools: Mutex<HashMap<ToolKey, Arc<ToolRun>>>,
-    /// The next dependency number.
-    next_dependency: Mutex<u64>,
-    /// Every service kept since the start, run or no run: whether it
-    /// is held, and its supervisor and its clock.
-    services: Mutex<HashMap<ServiceId, Arc<State>>>,
+    /// Every service kept since the start, run or no run, by its
+    /// dependency tool's row: whether it is held, and its supervisor
+    /// and its clock.
+    services: Mutex<HashMap<DependencyToolId, Arc<State>>>,
     /// Every container's database scope touched since the start: its
     /// password, in memory only.
     scopes: Mutex<HashMap<Key, Arc<Scope>>>,
@@ -388,7 +387,7 @@ impl Live {
         self.tools.lock().await.remove(&key)
     }
 
-    /// Every tool running now, records and dependencies.
+    /// Every tool running now, records and dependency tools.
     pub async fn tool_runs(&self) -> Vec<Arc<ToolRun>> {
         self.tools.lock().await.values().cloned().collect()
     }
@@ -404,22 +403,14 @@ impl Live {
             .collect()
     }
 
-    /// A number for a dependency about to be deployed, never given
-    /// twice this daemon life.
-    pub async fn mint_dependency(&self) -> DependencyId {
-        let mut next = self.next_dependency.lock().await;
-        *next += 1;
-        DependencyId(*next)
-    }
-
     /// The service's state, if it is kept.
-    pub async fn service_state(&self, id: ServiceId) -> Option<Arc<State>> {
+    pub async fn service_state(&self, id: DependencyToolId) -> Option<Arc<State>> {
         self.services.lock().await.get(&id).cloned()
     }
 
     /// Keep `state` for the service, unless one is kept already: the
     /// one kept, and whether it is the one handed in.
-    pub async fn keep_service_state(&self, id: ServiceId, state: Arc<State>) -> (Arc<State>, bool) {
+    pub async fn keep_service_state(&self, id: DependencyToolId, state: Arc<State>) -> (Arc<State>, bool) {
         let mut services = self.services.lock().await;
         if let Some(kept) = services.get(&id) {
             return (Arc::clone(kept), false);
@@ -429,7 +420,7 @@ impl Live {
     }
 
     /// The service is retired: its state, once.
-    pub async fn remove_service_state(&self, id: ServiceId) -> Option<Arc<State>> {
+    pub async fn remove_service_state(&self, id: DependencyToolId) -> Option<Arc<State>> {
         self.services.lock().await.remove(&id)
     }
 

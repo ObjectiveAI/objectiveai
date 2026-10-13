@@ -2,33 +2,28 @@
 
 use std::sync::Arc;
 
-use super::{held, keep, retire};
+use super::{held, keep};
 use crate::daemon::Daemon;
-use crate::store::{self, services};
+use crate::store::{self, dependency_tools};
 
 /// At the daemon's start: every service on record with an agent
-/// attached is kept — its supervisor starts its container — and every
-/// one with none is retired, since nothing holds it and nothing will.
+/// attached is kept — its supervisor starts its container. One with
+/// none is left as it is: nothing holds it, and the next registration
+/// that attaches to it keeps it up.
 pub async fn boot(daemon: &Arc<Daemon>) -> Result<(), store::Error> {
-    let (kept, retired) = {
+    let kept = {
         let mut conn = daemon.store.acquire().await?;
         let mut kept = Vec::new();
-        let mut retired = Vec::new();
-        for service in services::all(&mut conn).await? {
-            if services::attachments::attached(&mut conn, service.id).await?.is_empty() {
-                retired.push(service.id);
-            } else {
-                kept.push(service.id);
+        for tool in dependency_tools::all(&mut conn).await? {
+            if tool.is_service() && !dependency_tools::attachments::attached(&mut conn, tool.id).await?.is_empty() {
+                kept.push(tool.id);
             }
         }
-        (kept, retired)
+        kept
     };
     for id in kept {
         keep(daemon, id).await;
         held(daemon, id).await;
-    }
-    for id in retired {
-        retire(daemon, id).await;
     }
     Ok(())
 }

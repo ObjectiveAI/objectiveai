@@ -8,7 +8,7 @@ use futures_util::future;
 
 use super::{AgentRun, Key, ToolKey, ToolRun, User, pump, services, tools};
 use crate::daemon::{Daemon, Kind};
-use crate::store::{AgentId, agents, services as service_records, tools as tool_records};
+use crate::store::{AgentId, agents, tools as tool_records};
 
 /// Stop the agent's run, if one is up: the container is told to stop,
 /// and the pump hears the end.
@@ -34,7 +34,7 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     }
     let (dependencies, attached) = {
         let served = run.served.lock().await;
-        (served.dependencies(), served.attached_running())
+        (served.transients(), served.attached_running())
     };
     future::join(
         stop_dependencies(daemon, dependencies),
@@ -59,7 +59,7 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     daemon.live.changed(Kind::Agents);
 }
 
-/// Every transient dependency stopped at once: each told to stop,
+/// Every transient dependency tool stopped at once: each told to stop,
 /// each waited for, each taken down.
 pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>) {
     future::join_all(dependencies.iter().map(|run| async move {
@@ -75,12 +75,11 @@ pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>)
 /// The tool's run has ended: forgotten as live, its tasks ended, the
 /// word that it ended said — which finishes every connect scope on it
 /// — its mounts let go; a record's told where and when it last ran; a
-/// transient dependency's taken out of its agent's served set, which
-/// tells the agent its tools changed, and its scope's password
-/// forgotten, since its key is never seen again; a service's told
-/// where it last ran, its scope and its place in every served set
-/// kept for the next run, which its supervisor starts while any agent
-/// is attached.
+/// transient dependency tool's taken out of its agent's served set,
+/// which tells the agent its tools changed, and its scope's password
+/// forgotten, since its row is next run from a new agent run; a
+/// service's scope and its place in every served set kept for the
+/// next run, which its supervisor starts while any agent is attached.
 pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     if daemon.live.remove_tool(run.id).await.is_none() {
         return;
@@ -96,21 +95,17 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
                 let _ = tool_records::set_last(&mut conn, id, &run.provider, Utc::now()).await;
             }
         }
-        (ToolKey::Dependency(_), Some(dependency)) => {
-            if let Some(agent) = daemon.live.agent_run(dependency.agent).await {
-                agent.served.lock().await.remove(run.id);
+        (ToolKey::Dependency(_), Some(tool)) if !tool.is_service() => {
+            if let Some(agent) = tool.owner_agent {
+                if let Some(agent) = daemon.live.agent_run(agent).await {
+                    agent.served.lock().await.remove(run.id);
+                }
             }
             daemon.live.forget_scope(Key::Tool(run.id)).await;
         }
-        (ToolKey::Dependency(_), None) => {
-            daemon.live.forget_scope(Key::Tool(run.id)).await;
-        }
-        (ToolKey::Service(id), _) => {
-            if let Ok(mut conn) = daemon.store.acquire().await {
-                let _ = service_records::set_last(&mut conn, id, &run.provider).await;
-            }
-        }
+        (ToolKey::Dependency(_), _) => {}
     }
+    daemon.live.changed(Kind::DependencyTools);
     daemon.live.changed(Kind::StandaloneTools);
 }
 

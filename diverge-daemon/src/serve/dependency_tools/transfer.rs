@@ -44,10 +44,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if !judge::dependency_tools::holds(&standing, Over::Transfer) {
         return Ok(Frame::Forbidden);
     }
-    let Some((record, run)) = resolve(&mut conn, daemon, &frame.dependency).await? else {
+    let Some((tool, Some(run))) = resolve(&mut conn, daemon, &frame.dependency, false).await? else {
         return Ok(Frame::NotFound);
     };
-    if !reaches(&mut conn, daemon, &standing, Over::Transfer, &record).await? {
+    if !reaches(&mut conn, daemon, &standing, Over::Transfer, &tool).await? {
         return Ok(Frame::Forbidden);
     }
     if content::inside(&frame.path).is_err() {

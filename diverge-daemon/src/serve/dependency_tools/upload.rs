@@ -28,8 +28,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `upload` grant at all; `NotFound` for a
-/// template that is none, an owner it has no tool for, or a tool that
-/// does not run; `Forbidden` for a template the grants do not reach;
+/// template that is none, an owner it has no tool under, or a tool
+/// that does not run; `Forbidden` for a tool the grants do not reach;
 /// else every file asked for on its own channel and landed at the
 /// path, every parent made, and `Uploaded`; a file whose content ends
 /// in an error is the `Error`, files landed before it staying. Nothing
@@ -46,10 +46,10 @@ async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon:
     if !judge::dependency_tools::holds(&standing, Over::Upload) {
         return Ok(Frame::Forbidden);
     }
-    let Some((record, run)) = resolve(&mut conn, daemon, reference).await? else {
+    let Some((tool, Some(run))) = resolve(&mut conn, daemon, reference, false).await? else {
         return Ok(Frame::NotFound);
     };
-    let reached = reaches(&mut conn, daemon, &standing, Over::Upload, &record).await?;
+    let reached = reaches(&mut conn, daemon, &standing, Over::Upload, &tool).await?;
     drop(conn);
     if !reached {
         return Ok(Frame::Forbidden);

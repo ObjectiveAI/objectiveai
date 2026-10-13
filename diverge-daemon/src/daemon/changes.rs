@@ -29,8 +29,8 @@ pub enum Kind {
     AgentsTemplates,
     /// Tool templates: the records, and which are in use.
     StandaloneToolsTemplates,
-    /// Dependency templates: the records, and what each agent
-    /// depends on. Which tools run from each is the word for tools.
+    /// Dependency tools: the rows, and what each agent depends on.
+    /// Which of them run is the word for standalone tools.
     DependencyTools,
     /// Agents: the records, what is attached, which run.
     Agents,

@@ -13,7 +13,7 @@ use crate::containers::mcp::Served;
 use crate::containers::{Caller, Inflight, Key};
 use crate::daemon::Daemon;
 use crate::judge::Dependent;
-use crate::store::{AccountId, ServiceId};
+use crate::store::{AccountId, DependencyToolId};
 
 /// One run's answerer: the seven traits on one value.
 pub struct Answerer {
@@ -54,7 +54,7 @@ pub struct Answerer {
     /// `None` for a program that declared nothing, which is never
     /// asked about. What the start settles the agent's attachments
     /// by.
-    pub services: Mutex<Option<Vec<ServiceId>>>,
+    pub services: Mutex<Option<Vec<DependencyToolId>>>,
 }
 
 /// The answerers of a run: all seven the one [`Answerer`].

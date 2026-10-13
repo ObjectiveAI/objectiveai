@@ -5,8 +5,8 @@ use std::collections::HashSet;
 use diverge_sdk::daemon::grant::{self, Grant};
 use sqlx::PgConnection;
 
-use super::{Selves, Who};
-use crate::store::{self, AgentId, services};
+use super::Who;
+use crate::store::{self, AgentId, dependency_tools};
 
 /// Who is asking, for the length of one request: the identity they
 /// are served under, every grant they hold, and — a dependency tool's
@@ -16,8 +16,9 @@ use crate::store::{self, AgentId, services};
 /// and the write see one state; `None` is an account deleted since
 /// its client was admitted, which every handler answers as
 /// `Forbidden`. A dependency tool's are its template's, fixed when it
-/// was deployed, and its selves are its one agent, or every agent
-/// attached to its service as of the request.
+/// was deployed, and its selves are the agents attached to its row as
+/// of the request: its one agent for a transient tool, every agent
+/// attached to a service.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Standing {
     /// The account's name when it has one, else its credential's
@@ -45,10 +46,11 @@ impl Standing {
                 selves: HashSet::new(),
             })),
             Who::Dependency(dependent) => {
-                let selves = match dependent.selves {
-                    Selves::Agent(agent) => HashSet::from([agent]),
-                    Selves::Service(service) => services::attachments::attached(conn, service).await?.into_iter().collect(),
-                };
+                let selves = dependency_tools::attachments::attached(conn, dependent.tool)
+                    .await?
+                    .into_iter()
+                    .map(|attachment| attachment.agent)
+                    .collect();
                 Ok(Some(Standing {
                     identity: dependent.fixed.identity.clone(),
                     grants: dependent.fixed.grants.clone(),

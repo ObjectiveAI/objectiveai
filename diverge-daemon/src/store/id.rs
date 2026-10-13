@@ -31,7 +31,7 @@ pub struct AgentId(pub i64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ToolId(pub i64);
 
-/// A service's row id. Never on the wire — a service is named there
-/// by its template and whose it is.
+/// A dependency tool's row id. Never on the wire — a dependency tool
+/// is named there by its template and whose it is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ServiceId(pub i64);
+pub struct DependencyToolId(pub i64);

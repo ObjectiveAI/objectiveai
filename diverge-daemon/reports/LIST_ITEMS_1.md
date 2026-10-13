@@ -27,8 +27,8 @@ imports; nothing here is hand-edited.
 | 11 | [`agents templates list`](#agents-templates-list) | `diverge_sdk::daemon::endpoints::agents::templates::list::server::response::Listed` | 11 types |
 | 27 | [`standalone tools templates list`](#standalone-tools-templates-list) | `diverge_sdk::daemon::endpoints::standalone_tools::templates::list::server::response::Listed` | 11 types |
 | 47 | [`accounts list`](#accounts-list) | `diverge_sdk::daemon::endpoints::accounts::list::server::response::Account` | 7 types |
-| 54 | [`roles list`](#roles-list) | `diverge_sdk::daemon::endpoints::roles::list::server::response::Role` | 36 types |
-| 89 | [`dependency tools list`](#dependency-tools-list) | `diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::Listed` | 53 types |
+| 54 | [`roles list`](#roles-list) | `diverge_sdk::daemon::endpoints::roles::list::server::response::Role` | 38 types |
+| 89 | [`dependency tools list`](#dependency-tools-list) | `diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::Listed` | 54 types |
 
 The identities the items name one another by, which is where the
 edges are:
@@ -563,14 +563,15 @@ pub enum Agent {
 `diverge-sdk-rs/src/daemon/reference/dependency.rs`
 
 ```rust
-/// One dependency tool of the caller's: the template it runs from, by
-/// id, and whose it is — the one agent, the agent template, or
-/// everyone — see [`Owner`]. A transient tool is its agent's; a
-/// service is whose its template's `scope` says. The pair names the
-/// tool while it runs and names nothing else: a template that is
-/// none, an owner the template has no tool for, and a tool that does
-/// not run are each the request's `NotFound`. One JSON object:
-/// `{"template":…,"owner":…}`.
+/// One dependency tool of the caller's: its template, by id, and
+/// whose it is — the one agent, the agent template, or nobody — see
+/// [`Owner`]. A transient tool is its agent's; a service is whose its
+/// template's `scope` says. The pair names the tool, which the
+/// [`dependency_tools`](crate::daemon::endpoints::dependency_tools)
+/// list reports one item for: a template that is none, and an owner
+/// the template has no tool under, are each the request's `NotFound`,
+/// and so, for an operation on the tool's container, is a tool that
+/// does not run. One JSON object: `{"template":…,"owner":…}`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Dependency {
     /// The dependency template, by id: the hash of its canonical
@@ -820,7 +821,7 @@ pub enum Tool {
 /// the template a created tool was made from, or the daemon and the
 /// tool a connected tool joined — and not where a created tool
 /// happens to run, which changes. JSON-tagged by `kind`, `created` or
-/// `connected`, as the tools list's
+/// `connected`, as the standalone tools list's
 /// [`Origin`](crate::daemon::endpoints::standalone_tools::list::server::response::Origin)
 /// is. A tool's index counts among the tools ever made with the same
 /// one of these.
@@ -2197,28 +2198,33 @@ pub struct Filter {
 `diverge-sdk-rs/src/daemon/endpoints/dependency_tools/list/client/request/filter.rs`
 
 ```rust
-/// The filter over dependency templates: every member optional, and
-/// every one given a condition a template passes or does not. In a
-/// [list request](super::Frame) it is flattened into the request and
-/// narrows what the daemon sends. A filter with no member given passes
-/// every template.
+/// The filter over dependency tools: every member optional, and every
+/// one given a condition a tool passes or does not. In a [list
+/// request](super::Frame) it is flattened into the request and narrows
+/// what the daemon sends. A filter with no member given passes every
+/// tool.
 ///
 /// # Any one of, every one of
 ///
-/// A member that lists candidates matches a template that is any one
-/// of them, was made by any one of them, or is of any one of them;
-/// `agents` a template every one of them depends on; `all_tags` a
-/// template that carries every one of them, `any_tags` one that
-/// carries any one of them. An empty list is absent, and matches every
-/// template.
+/// A member that lists candidates matches a tool that is of any one
+/// of them, owned by any one of them, was made by any one of them, or
+/// is of any one of their types or scopes; `agents` a tool every one
+/// of them depends on; `all_tags` a tool that carries every one of
+/// them, `any_tags` one that carries any one of them. An empty list is
+/// absent, and matches every tool.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Filter {
-    /// Any one of these ids.
+    /// Of any one of these templates, by id.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ids: Vec<String>,
+    /// Owned by any one of these: an agent, by name or once and for
+    /// all, an agent template, or nobody — see [`reference::Owner`].
+    /// Absent when empty, and then any owner.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub owners: Vec<reference::Owner>,
     /// Made by any one of these, directly: see
     /// [`Creator`](crate::daemon::creator::Creator) — the agent whose
-    /// registration first declared it. Absent when empty, and then
+    /// registration first made the tool. Absent when empty, and then
     /// made by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
@@ -2227,32 +2233,32 @@ pub struct Filter {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub types: Vec<Type>,
     /// A service whose `scope` is any one of these: see [`Scope`]. A
-    /// transient template has no scope and matches none of them.
-    /// Absent when empty, and then any scope, or none.
+    /// transient tool has no scope and matches none of them. Absent
+    /// when empty, and then any scope, or none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub scopes: Vec<Scope>,
-    /// Whether some agent's last registration declared it — the
-    /// template is among the `agents` of its list item — `true`, or
-    /// none did, `false`; absent, either.
+    /// Whether some agent's last registration declared it — the tool
+    /// has `agents` on its list item — `true`, or none did, `false`;
+    /// absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depended: Option<bool>,
     /// Depended on by every one of these agents, by name. Absent when
     /// empty, and then by any agents, or none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<String>,
-    /// Whether some tool runs from it now — the template has `runs`
-    /// on its list item, and a
+    /// Whether its container runs now — the tool has a `run` on its
+    /// list item, and a
     /// [`delete`](crate::daemon::endpoints::dependency_tools::delete)
-    /// answers `InUse` — `true`, or none does, `false`; absent,
-    /// either.
+    /// of its template answers `InUse` — `true`, or not, `false`;
+    /// absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub in_use: Option<bool>,
-    /// Every one of these among the template's tags, as
+    /// Every one of these among the tool's tags, as
     /// [`tag`](crate::daemon::endpoints::dependency_tools::tag) put
     /// them. Absent when empty, and then any tags.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub all_tags: Vec<String>,
-    /// Any one of these among the template's tags, as
+    /// Any one of these among the tool's tags, as
     /// [`tag`](crate::daemon::endpoints::dependency_tools::tag) put
     /// them; with `all_tags`, both hold. Absent when empty, and then
     /// any tags.
@@ -2716,7 +2722,7 @@ pub enum Kind {
 }
 ```
 
-Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::key::Owner` (under `providers outgoing list`), `diverge_sdk::daemon::key::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity` (under `providers daemons list`), `diverge_sdk::daemon::endpoints::providers::outgoing::Kind` (under `providers outgoing list`), `diverge_sdk::provider::endpoints::volumes::Mode` (under `volumes list`).
+Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::key::Owner` (under `providers outgoing list`), `diverge_sdk::daemon::key::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::reference::Owner` (under `postgres list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity` (under `providers daemons list`), `diverge_sdk::daemon::endpoints::providers::outgoing::Kind` (under `providers outgoing list`), `diverge_sdk::provider::endpoints::volumes::Mode` (under `volumes list`), `diverge_sdk::daemon::reference::Agent` (under `postgres list`).
 
 Not placed: `postgres::Permission`, `Make`, `Over`, `Tagging`, `Within`.
 
@@ -2729,28 +2735,30 @@ Item: `diverge_sdk::daemon::endpoints::dependency_tools::list::server::response:
 `diverge-sdk-rs/src/daemon/endpoints/dependency_tools/list/server/response/listed.rs`
 
 ```rust
-/// One dependency template of the caller's: its id, when it was made,
-/// who made it, its tags, the template whole, the agents that depend
-/// on it, and the tools running from it. The tags are the caller's
-/// and not the template's: not in it, and not in its hash.
+/// One dependency tool of the caller's: its template and its owner,
+/// which together name it, when it was made, who made it, its tags,
+/// the template whole, the agents that depend on it, and its run, if
+/// its container is up. The tags are the tool's and not the
+/// template's: not in it, and not in its hash.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Listed {
-    /// The id: the lowercase hexadecimal SHA-256 of the template's
+    /// The template, by id: the lowercase hexadecimal SHA-256 of its
     /// canonical bytes, as
-    /// [`dependency_tools`](crate::daemon::endpoints::dependency_tools) states
-    /// it. An agent calls a tool running from the template by the
-    /// id's first eight characters, as a prefix.
+    /// [`dependency_tools`](crate::daemon::endpoints::dependency_tools)
+    /// states it. An agent calls the tool's MCP tools by the id's
+    /// first eight characters, as a prefix.
     pub id: String,
-    /// When the first registration that declared it made it. On the
-    /// wire an RFC 3339 timestamp in UTC. A template declared again —
-    /// held already, or made anew after a delete — keeps it, as it
-    /// keeps its creator.
+    /// Whose the tool is, as the template's scope decides: the one
+    /// agent, the one agent template, or nobody. See [`key::Owner`].
+    pub owner: key::Owner,
+    /// When the first registration that declared the template under
+    /// this owner made the tool. On the wire an RFC 3339 timestamp in
+    /// UTC.
     pub created: DateTime<Utc>,
-    /// Who made it: the agent whose registration first declared it.
-    /// One [`Creator`](crate::daemon::creator::Creator), the direct
-    /// maker; the maker's own maker is on the maker's list item. A
-    /// template declared again — held already, or made anew after a
-    /// delete — is the first maker's still.
+    /// Who made it: the agent whose registration first declared the
+    /// template under this owner. One
+    /// [`Creator`](crate::daemon::creator::Creator), the direct maker;
+    /// the maker's own maker is on the maker's list item.
     pub creator: Creator,
     /// Its tags, sorted bytewise: what
     /// [`tag`](crate::daemon::endpoints::dependency_tools::tag) put on
@@ -2763,18 +2771,39 @@ pub struct Listed {
     /// the hash of. See [`Template`].
     pub template: Template,
     /// The agents that depend on it now — every agent whose LAST
-    /// registration declared it, in the order they first did — each
-    /// by its [`key`](crate::daemon::key). An agent whose last
-    /// registration left it out is not among them, though a tool of
-    /// its may run from the template still, until its run ends.
-    /// Absent when empty.
+    /// registration declared the template under this owner, in the
+    /// order they first did, each with when it last did: see
+    /// [`Attached`]. At most one for an instance tool. Absent when
+    /// empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub agents: Vec<key::Agent>,
-    /// The tools running from it now, one [`Run`] each: what a
+    pub agents: Vec<Attached>,
+    /// Its run, while its container is up: see [`Run`]. What a
     /// [`delete`](crate::daemon::endpoints::dependency_tools::delete)
-    /// answers `InUse` for. Absent when empty.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub runs: Vec<Run>,
+    /// answers `InUse` for. Absent while it does not run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run: Option<Run>,
+}
+```
+
+### `diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::Attached`
+
+`diverge-sdk-rs/src/daemon/endpoints/dependency_tools/list/server/response/attached.rs`
+
+```rust
+/// One agent whose last registration declared the tool's template,
+/// and when it last did. An instance tool has at most one, its owner;
+/// a per-template tool the agents of its agent template that declare
+/// it; a global tool every agent that does.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Attached {
+    /// The agent, by its [`key`](crate::daemon::key): its template and
+    /// its index, with its name beside when it has one.
+    pub agent: key::Agent,
+    /// When the agent's registration last declared the template. On
+    /// the wire an RFC 3339 timestamp in UTC. Every registration that
+    /// declares it moves this forward; one that leaves it out takes
+    /// the agent off the tool.
+    pub declared: DateTime<Utc>,
 }
 ```
 
@@ -2783,18 +2812,13 @@ pub struct Listed {
 `diverge-sdk-rs/src/daemon/endpoints/dependency_tools/list/server/response/run.rs`
 
 ```rust
-/// One tool running from a dependency template now: whose it is,
-/// which with the template names it once and for all — the
-/// [`key::Tool::Dependency`](crate::daemon::key::Tool::Dependency)
-/// the daemon reports it as elsewhere — and where it runs. A
-/// transient tool's owner is the agent it was deployed for; a
-/// service's is whatever its template's `scope` names. A tool that
-/// does not run is no run: a service held between runs is listed by
-/// nothing until it runs again.
+/// The tool's container, while it runs: where, and under what id. A
+/// tool has at most one run — a transient tool's for its agent's run,
+/// a service's for as long as the daemon keeps it up — and none while
+/// its container is down: a service held between runs has no run
+/// until it runs again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Run {
-    /// Whose the tool is: see [`key::Owner`].
-    pub owner: key::Owner,
     /// The provider the container runs on. See [`Provider`].
     pub provider: Provider,
     /// The container's id, as the provider's run answered it.
@@ -3875,9 +3899,10 @@ pub enum Over {
 `diverge-sdk-rs/src/shared/permission/dependency_tools/over.rs`
 
 ```rust
-/// The actions over dependency templates that exist, which a grant
-/// reaches as far as its `within` says. An action over a tool running
-/// from a template is judged by the grant's reach over the template.
+/// The actions over dependency tools that exist, which a grant
+/// reaches as far as its `within` says: each tool is judged on its
+/// own, by the tools list filter; a delete, which is by template,
+/// takes the action over every tool of the template.
 /// Snake case on the wire: `"get"`, `"delete"`, `"list"`,
 /// `"download"`, `"upload"`, `"transfer"`, `"filetree"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -3888,7 +3913,7 @@ pub enum Over {
     /// [`dependencies::get`](crate::daemon::endpoints::dependency_tools::get)
     /// does.
     Get,
-    /// Delete one, as
+    /// Delete every tool of a template, as
     /// [`dependencies::delete`](crate::daemon::endpoints::dependency_tools::delete)
     /// does.
     Delete,
@@ -3896,19 +3921,19 @@ pub enum Over {
     /// [`dependencies::list`](crate::daemon::endpoints::dependency_tools::list)
     /// does; the list sends what the grant reaches.
     List,
-    /// Send the client files out of a tool running from one, as
+    /// Send the client files out of one, running, as
     /// [`dependencies::download`](crate::daemon::endpoints::dependency_tools::download)
     /// does.
     Download,
-    /// Put files into a tool running from one, as
+    /// Put files into one, running, as
     /// [`dependencies::upload`](crate::daemon::endpoints::dependency_tools::upload)
     /// does, and as a transfer landing in one does.
     Upload,
-    /// Copy files out of a tool running from one, as
+    /// Copy files out of one, running, as
     /// [`dependencies::transfer`](crate::daemon::endpoints::dependency_tools::transfer)
     /// does; where they land is judged by its own grant.
     Transfer,
-    /// Watch a tool running from one whole, as
+    /// Watch one's container whole, as
     /// [`dependencies::filetree`](crate::daemon::endpoints::dependency_tools::filetree)
     /// does.
     Filetree,
@@ -4314,6 +4339,6 @@ pub enum Over {
 }
 ```
 
-Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::key::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Provider` (under `agents list`), `diverge_sdk::daemon::key::Owner` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity` (under `providers daemons list`), `diverge_sdk::shared::containers::dependencies::Scope` (under `roles list`).
+Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::key::Owner` (under `providers outgoing list`), `diverge_sdk::daemon::key::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Provider` (under `agents list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity` (under `providers daemons list`), `diverge_sdk::shared::containers::dependencies::Scope` (under `roles list`).
 
 Not placed: `permission::Within`.

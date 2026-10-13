@@ -8,7 +8,7 @@
 //! [`key`] for how a key is minted and how it is kept as a hash. A
 //! dependency tool's `/daemon` connection is admitted by no
 //! credential: its [`Who`] is the [`Dependent`] its template fixed,
-//! the grants and whose `self` it is. The
+//! the grants and which tool's attachments its `self` is. The
 //! second is per request: [`Standing`] is who is asking as of THIS
 //! request — an account's identity and the union of the grants of
 //! the roles it holds, read fresh inside the request's own

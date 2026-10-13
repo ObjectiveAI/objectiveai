@@ -121,7 +121,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
                 // Dependencies deployed for this attempt go with it.
                 let deployed = {
                     let mut set = served.lock().await;
-                    let deployed = set.dependencies();
+                    let deployed = set.transients();
                     for run in &deployed {
                         set.remove(run.id);
                     }
@@ -277,7 +277,6 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         ended: watch::channel(false).0,
         tasks: Mutex::new(Vec::new()),
         dependency: None,
-        service: None,
     });
     {
         let mut conn = daemon.store.acquire().await?;

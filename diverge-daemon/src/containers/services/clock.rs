@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::{State, retire};
 use crate::daemon::Daemon;
-use crate::store::ServiceId;
+use crate::store::DependencyToolId;
 
 /// Run the service's clock until it is retired: while any agent is
 /// attached the clock does not run; otherwise, `idle_seconds` after
@@ -12,7 +12,7 @@ use crate::store::ServiceId;
 /// retired. The countdown begins only when nothing is attached, and
 /// begins again from the last change whenever that becomes so, so an
 /// agent attaching and leaving inside the window starts it over.
-pub async fn clock(daemon: Arc<Daemon>, id: ServiceId, state: Arc<State>) {
+pub async fn clock(daemon: Arc<Daemon>, id: DependencyToolId, state: Arc<State>) {
     let mut held = state.held.subscribe();
     let mut touched = state.touched.subscribe();
     loop {

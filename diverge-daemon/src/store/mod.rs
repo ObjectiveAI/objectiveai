@@ -11,14 +11,11 @@
 //! connect — and both are ordinary records from then on, editable and
 //! deletable. [`accounts`], [`roles`], [`providers_outgoing`],
 //! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
-//! [`tools_templates`], [`dependencies`] — the templates agents'
-//! programs declare, with what each agent depends on now —
-//! [`agents`], [`tools`] and [`services`] are the records of each
-//! kind — a service a dependency template an agent declared as
-//! one, with the agents attached to it — and [`volumes`] what the
-//! daemon keeps of a volume, which is its tags alone; [`scopes`] is
-//! every database scope provisioned, for a template's delete to
-//! find;
+//! [`tools_templates`], [`dependencies`] — the bodies of the templates
+//! agents' programs declare — [`dependency_tools`] — one per
+//! template and owner, with the agents attached to it — [`agents`]
+//! and [`tools`] are the records of each kind, and [`volumes`] what
+//! the daemon keeps of a volume, which is its tags alone;
 //! loaded whole and written whole; [`hash`] is the one id that is a
 //! hash; [`counters`] is the once-and-for-all
 //! index of a container; [`in_use`] is what containers hold —
@@ -26,7 +23,7 @@
 //! providers — as the records say; [`of_account`]
 //! is what an account may do, read fresh for every request; [`tags`]
 //! is the one way a set of tags is kept; the ids are [`AccountId`],
-//! [`RoleId`], [`AgentId`], [`ToolId`], [`ServiceId`], [`DaemonId`] and the
+//! [`RoleId`], [`AgentId`], [`ToolId`], [`DependencyToolId`], [`DaemonId`] and the
 //! providers', so that an
 //! id of one kind is never handed to a query of another.
 //!
@@ -64,14 +61,13 @@ pub mod agents;
 pub mod agents_templates;
 pub mod counters;
 pub mod dependencies;
+pub mod dependency_tools;
 pub mod hash;
 pub mod in_use;
 pub mod providers_daemons;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod roles;
-pub mod scopes;
-pub mod services;
 pub mod tags;
 pub mod tools;
 pub mod tools_templates;

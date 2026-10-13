@@ -9,21 +9,20 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::PgConnection;
 
-use crate::containers::{Dependency, Key, ToolKey};
-use crate::daemon::Daemon;
+use crate::containers::{Key, ToolKey};
 use crate::store::agents::Agent;
-use crate::store::services::Service;
+use crate::store::dependency_tools::DependencyTool;
 use crate::store::tools::{Origin, Tool};
-use crate::store::{self, agents, services, tools};
+use crate::store::{self, agents, dependency_tools, tools};
 
 /// Whose a scope is: what its role names first. An agent owns its own
-/// scope, the scopes of its transient dependencies and those of its
-/// per-agent services; a tool owns its own; an agent template owns
-/// the per-template scopes of the services its agents declared; and
-/// a global service's scope is its template's own. Owning is a matter
-/// of the role's name alone: no scope is dropped because its owner
-/// was deleted, only because the tool or the dependency template it
-/// was made for was.
+/// scope and those of its instance dependency tools; a tool owns its
+/// own; an agent template owns the scopes of its per-template
+/// dependency tools; and a global dependency tool's scope is its
+/// template's own. A dependency tool's scope goes with its row: an
+/// instance tool's at its agent's delete, a per-template tool's at its
+/// agent template's, every tool's at the template's; an agent's own
+/// scope goes with nothing.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Owner {
@@ -60,15 +59,6 @@ pub fn owner_of(container: &Container) -> Owner {
     }
 }
 
-/// The dependency template the container's scope was made for a tool
-/// of: `None` for an agent's or a tool's own scope.
-pub fn template_of(container: &Container) -> Option<&str> {
-    match container {
-        Container::Agent(_) | Container::Tool(_) => None,
-        Container::Dependency(dependency) => Some(&dependency.template),
-    }
-}
-
 /// The scope's part within its owner: none for a container's own
 /// scope and for a global service's, whose owner is its template
 /// itself; the dependency's template id for every other dependency's.
@@ -98,9 +88,8 @@ fn twenty<T: Serialize + ?Sized>(value: &T) -> String {
 /// dependency's template id as a JSON string for any other
 /// dependency's. Forty-eight bytes of `[a-z0-9_]`, stable across
 /// restarts and providers, never reused because the identity is never
-/// reused, and safe to write as a bare identifier. Every role made is
-/// on record in [`scopes`](crate::store::scopes), which is how a
-/// dependency template's delete finds every scope of its tools.
+/// reused, and safe to write as a bare identifier, and computable from
+/// the row at any time, which is how a delete finds the scope to drop.
 pub fn role_of(container: &Container) -> String {
     format!("diverge_{}{}", twenty(&owner_of(container)), twenty(&part_of(container)))
 }
@@ -134,25 +123,12 @@ pub fn container_of_tool(tool: &Tool) -> Container {
     })
 }
 
-/// The transient dependency's scope as the database names it: by its
-/// template's id and its agent, once and for all, which a transient
-/// tool's owner always is.
-pub fn container_of_dependency(dependency: &Dependency) -> Container {
-    Container::Dependency(reference::Dependency {
-        template: dependency.template.clone(),
-        owner: reference::Owner::Agent(reference::Agent::TemplateIndex {
-            template: dependency.agent_key.template.clone(),
-            index: dependency.agent_key.index,
-        }),
-    })
-}
-
-/// The service's scope as the database names it: by its template's id
-/// and its one agent — `owner`, loaded by the caller — its one agent
-/// template, or everyone, as its scope says. `None` for a per-agent
-/// service whose agent is gone.
-pub fn container_of_service(service: &Service, owner: Option<&Agent>) -> Option<Container> {
-    let owner = match service.scope {
+/// The dependency tool's scope as the database names it: by its
+/// template's id and its one agent — `owner`, loaded by the caller —
+/// its one agent template, or everyone, as its scope says. `None` for
+/// a per-agent tool whose agent the caller did not hand in.
+pub fn container_of_dependency_tool(tool: &DependencyTool, owner: Option<&Agent>) -> Option<Container> {
+    let owner = match tool.scope {
         Scope::Instance => {
             let owner = owner?;
             reference::Owner::Agent(reference::Agent::TemplateIndex {
@@ -161,37 +137,31 @@ pub fn container_of_service(service: &Service, owner: Option<&Agent>) -> Option<
             })
         }
         Scope::Template => reference::Owner::AgentTemplate {
-            template: service.owner_template.clone().unwrap_or_default(),
+            template: tool.owner_template.clone().unwrap_or_default(),
         },
         Scope::Global => reference::Owner::Global,
     };
     Some(Container::Dependency(reference::Dependency {
-        template: service.template.clone(),
+        template: tool.template.clone(),
         owner,
     }))
 }
 
 /// The container the key names, as the database names it: a record's
-/// if its record is there, a transient dependency's if it runs, a
-/// service's if its row is there.
-pub async fn container_of(daemon: &Daemon, conn: &mut PgConnection, key: Key) -> Result<Option<Container>, store::Error> {
+/// if its record is there, a dependency tool's if its row is.
+pub async fn container_of(conn: &mut PgConnection, key: Key) -> Result<Option<Container>, store::Error> {
     Ok(match key {
         Key::Agent(id) => agents::by_id(conn, id, false).await?.map(|agent| container_of_agent(&agent)),
         Key::Tool(ToolKey::Record(id)) => tools::by_id(conn, id, false).await?.map(|tool| container_of_tool(&tool)),
-        Key::Tool(tool @ ToolKey::Dependency(_)) => daemon
-            .live
-            .tool_run(tool)
-            .await
-            .and_then(|run| run.dependency.as_ref().map(container_of_dependency)),
-        Key::Tool(ToolKey::Service(id)) => {
-            let Some(service) = services::by_id(conn, id, false).await? else {
+        Key::Tool(ToolKey::Dependency(id)) => {
+            let Some(tool) = dependency_tools::by_id(conn, id, false).await? else {
                 return Ok(None);
             };
-            let owner = match service.owner_agent {
+            let owner = match tool.owner_agent {
                 Some(id) => agents::by_id(conn, id, false).await?,
                 None => None,
             };
-            container_of_service(&service, owner.as_ref())
+            container_of_dependency_tool(&tool, owner.as_ref())
         }
     })
 }

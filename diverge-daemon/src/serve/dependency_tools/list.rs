@@ -1,21 +1,21 @@
-//! Listing dependency templates, and keeping the list.
+//! Listing dependency tools, and keeping the list.
 
 use std::collections::HashMap;
 use std::future::Future;
 
 use diverge_sdk::daemon::endpoints::dependency_tools::list::client::request::{self, Filter};
-use diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::{Frame, Listed, Run};
+use diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::{Attached, Frame, Listed};
 use diverge_sdk::daemon::grant::dependency_tools::Over;
 use diverge_sdk::daemon::key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{run_of, run_order};
+use super::{Loaded, run_of};
+use crate::containers::ToolKey;
 use crate::daemon::{Daemon, Kind};
-use crate::judge::filter::dependency_tools::Facts;
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Change, Source};
 use crate::serve::reply;
-use crate::store::{self, agents, dependencies};
+use crate::store::{self, DependencyToolId, agents, dependency_tools};
 
 /// Send the list and its changes, then finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -25,15 +25,15 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// One `Forbidden` with no `list` grant at all; else every template
-/// any `list` grant reaches that the request's filter lets through,
-/// oldest first, the first `count` of them, one frame each, then the
-/// word that the list is whole — and from then on each template added,
-/// changed or removed as registrations make templates and reset what
-/// agents depend on, as templates are tagged and deleted, and as the
-/// tools running from them start and stop, until the client cancels.
-/// What agents depend on is one load for the whole list, at every
-/// reading.
+/// One `Forbidden` with no `list` grant at all; else every tool any
+/// `list` grant reaches that the request's filter lets through, oldest
+/// first, the first `count` of them, one frame each, then the word
+/// that the list is whole — and from then on each tool added, changed
+/// or removed as registrations make tools and reset what agents depend
+/// on, as tools are tagged and deleted, and as their containers start
+/// and stop, until the client cancels. The agents and the attachments
+/// are one load each for the whole list, at every reading; a per-agent
+/// tool whose agent is gone is left out.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;
@@ -47,63 +47,75 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let source = Templates {
+    let source = Tools {
         daemon,
         standing: &standing,
         filter: &frame.filter,
     };
     stream::listing(scope, daemon, &[Kind::DependencyTools, Kind::StandaloneTools], frame.count, &source, |change| match change {
-        Change::Added(template) => Frame::Added(template),
-        Change::Changed(template) => Frame::Changed(template),
-        Change::Removed(template) => Frame::Removed(template),
+        Change::Added(tool) => Frame::Added(tool),
+        Change::Changed(tool) => Frame::Changed(tool),
+        Change::Removed(tool) => Frame::Removed(tool),
         Change::Listed => Frame::Listed,
     })
     .await
 }
 
-/// The templates as the caller may list them now.
-struct Templates<'a> {
+/// The tools as the caller may list them now.
+struct Tools<'a> {
     daemon: &'a Daemon,
     standing: &'a Standing,
     filter: &'a Filter,
 }
 
-impl Source for Templates<'_> {
-    type Key = String;
+impl Source for Tools<'_> {
+    type Key = (String, key::Owner);
     type Item = Listed;
     type Error = store::Error;
 
-    fn read(&self) -> impl Future<Output = Result<Vec<(String, Listed)>, store::Error>> + Send {
+    fn read(&self) -> impl Future<Output = Result<Vec<((String, key::Owner), Listed)>, store::Error>> + Send {
         async move {
-            let (all, depended) = {
+            let (all, rows, attached) = {
                 let mut conn = self.daemon.store.acquire().await?;
-                let all = dependencies::all(&mut conn).await?;
-                let keys: HashMap<_, _> = agents::all(&mut conn).await?.into_iter().map(|agent| (agent.id, agent.key())).collect();
-                let mut depended: HashMap<String, Vec<key::Agent>> = HashMap::new();
-                for dependence in dependencies::agents::all(&mut conn).await? {
-                    if let Some(key) = keys.get(&dependence.agent) {
-                        depended.entry(dependence.template).or_default().push(key.clone());
+                let all = dependency_tools::all(&mut conn).await?;
+                let rows: HashMap<_, _> = agents::all(&mut conn).await?.into_iter().map(|agent| (agent.id, agent)).collect();
+                let mut attached: HashMap<DependencyToolId, Vec<Attached>> = HashMap::new();
+                for attachment in dependency_tools::attachments::all(&mut conn).await? {
+                    if let Some(agent) = rows.get(&attachment.agent) {
+                        attached.entry(attachment.tool).or_default().push(Attached {
+                            agent: agent.key(),
+                            declared: attachment.declared,
+                        });
                     }
                 }
-                (all, depended)
+                (all, rows, attached)
             };
-            let mut live = self.daemon.live.tool_runs().await;
-            live.sort_by_key(|run| run_order(run));
-            let mut runs: HashMap<String, Vec<Run>> = HashMap::new();
-            for (template, run) in live.iter().filter_map(|run| run_of(run)) {
-                runs.entry(template).or_default().push(run);
-            }
-            let none_agents = Vec::new();
-            let none_runs = Vec::new();
+            let runs: HashMap<_, _> = self
+                .daemon
+                .live
+                .tool_runs()
+                .await
+                .into_iter()
+                .filter_map(|run| match run.id {
+                    ToolKey::Dependency(id) => Some((id, run_of(&run))),
+                    ToolKey::Record(_) => None,
+                })
+                .collect();
             let mut listed = Vec::new();
-            for record in &all {
-                let agents = depended.get(&record.id).unwrap_or(&none_agents);
-                let runs = runs.get(&record.id).unwrap_or(&none_runs);
-                let facts = Facts { record, agents, runs };
+            for tool in &all {
+                let Some(owner) = tool.owner(tool.owner_agent.and_then(|id| rows.get(&id))) else {
+                    continue;
+                };
+                let loaded = Loaded {
+                    owner,
+                    attached: attached.get(&tool.id).cloned().unwrap_or_default(),
+                    run: runs.get(&tool.id).cloned(),
+                };
+                let facts = loaded.facts(tool);
                 if !judge::dependency_tools::over(self.standing, Over::List, &facts) || !filter::dependency_tools::test(self.filter, &facts) {
                     continue;
                 }
-                listed.push((record.id.clone(), record.report(agents.clone(), runs.clone())));
+                listed.push(((tool.template.clone(), loaded.owner.clone()), loaded.report(tool)));
             }
             Ok(listed)
         }

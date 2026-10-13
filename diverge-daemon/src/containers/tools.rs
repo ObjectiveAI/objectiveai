@@ -29,11 +29,11 @@ pub async fn use_tool(daemon: &Arc<Daemon>, tool: &Tool, user: User) -> Result<A
 
 /// `user` is done with the tool: a record's container is stopped when
 /// it was the last user; a connected tool's connection is left to its
-/// idle clock. A dependency is nobody's to release: a transient one
-/// is stopped with its agent's run and a service is held by its
+/// idle clock. A dependency tool is nobody's to release: a transient
+/// one is stopped with its agent's run and a service is held by its
 /// attachments, and this does nothing for either.
 pub async fn release(daemon: &Daemon, tool: ToolKey, user: User) {
-    if let ToolKey::Dependency(_) | ToolKey::Service(_) = tool {
+    if let ToolKey::Dependency(_) = tool {
         return;
     }
     let Some(run) = daemon.live.tool_run(tool).await else {

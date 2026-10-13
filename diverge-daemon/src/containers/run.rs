@@ -4,7 +4,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
-use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::ExecuteHandle as ConnectHandle;
 use diverge_sdk::daemon::key;
@@ -12,7 +11,6 @@ use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
-use diverge_sdk::shared::containers::dependencies::Template;
 use diverge_sdk::shared::containers::request::Image;
 use diverge_sdk::shared::mcp::{Who, attest};
 use bytes::Bytes;
@@ -26,9 +24,9 @@ use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{DependencyId, Frames, Inflight, ToolKey, User};
+use super::{Frames, Inflight, ToolKey, User};
 use crate::content::Pieces;
-use crate::store::services::Service;
+use crate::store::dependency_tools::DependencyTool;
 use crate::store::{AccountId, AgentId};
 
 /// A running agent: the scope held on its provider, whether a loop
@@ -210,31 +208,12 @@ impl ToolHandle {
     }
 }
 
-/// What a transient dependency tool is, beyond a tool run: whose it
-/// is, what it was deployed from — by id, and whole — and when.
-pub struct Dependency {
-    /// Its number among the dependencies deployed since the start.
-    pub id: DependencyId,
-    /// The agent it was deployed for.
-    pub agent: AgentId,
-    /// That agent, once and for all, with its name: what names the
-    /// dependency beside its template.
-    pub agent_key: key::Agent,
-    /// The template it was deployed from, by id: the hash of its
-    /// canonical bytes, unique among the agent's dependencies.
-    pub template: String,
-    /// The template it was deployed from, whole.
-    pub declared: Template,
-    /// When it was deployed.
-    pub started: DateTime<Utc>,
-}
-
 /// A running tool: the scope held on it, which containers and connect
 /// scopes use it, and what it mounts — a record's container, a
-/// connected tool's connection, a transient dependency deployed for
-/// an agent's run, or one run of a service's.
+/// connected tool's connection, or a dependency tool's container, a
+/// transient one's for its agent's run or one run of a service's.
 pub struct ToolRun {
-    /// The record, or the deployment.
+    /// The record, or the dependency tool's row.
     pub id: ToolKey,
     /// The tool as the daemon attests it under `_meta`, on everything
     /// its server answers.
@@ -254,8 +233,8 @@ pub struct ToolRun {
     /// The scope.
     pub handle: ToolHandle,
     /// The containers using it now, and the connect scopes holding it.
-    /// A dependency has one user for its life, its agent, and is
-    /// stopped with it.
+    /// A transient dependency tool has one user for its life, its
+    /// agent, and is stopped with it.
     pub users: Mutex<HashSet<User>>,
     /// Whether anything uses it now: `true` while `users` is not
     /// empty, kept in step under the users lock. What a connected
@@ -274,11 +253,9 @@ pub struct ToolRun {
     /// The tasks that are the run's: the waiter, and a connected
     /// tool's idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
-    /// What it is as a transient dependency, when it is one.
-    pub dependency: Option<Dependency>,
-    /// What it is as a service, when it is one: the row, as it was
-    /// when this run started.
-    pub service: Option<Service>,
+    /// What it is as a dependency tool, when it is one: the row, as
+    /// it was when this run started.
+    pub dependency: Option<DependencyTool>,
 }
 
 impl ToolRun {
