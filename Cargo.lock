@@ -1863,10 +1863,12 @@ dependencies = [
 name = "diverge-cli"
 version = "2.3.0"
 dependencies = [
+ "bytes",
  "clap",
  "diverge-daemon",
  "diverge-provider",
  "diverge-sdk",
+ "futures-util",
  "indexmap 2.14.2",
  "jaq-core",
  "jaq-json",
@@ -1876,6 +1878,7 @@ dependencies = [
  "serde_path_to_error",
  "serde_yaml_ng",
  "tokio",
+ "tokio-tungstenite 0.29.0",
 ]
 
 [[package]]

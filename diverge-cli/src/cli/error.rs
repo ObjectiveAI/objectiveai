@@ -5,9 +5,10 @@ use std::io;
 
 use crate::config;
 use crate::document;
+use crate::run;
 
 /// What [`run`](super::run) fails with: the runtime, the
-/// configuration, or a document. A `main` returning one of these prints it, and that
+/// configuration, a document, or a request. A `main` returning one of these prints it, and that
 /// is the one report a failed run gets, so its `Debug` is its
 /// `Display`.
 pub enum Error {
@@ -17,6 +18,8 @@ pub enum Error {
     Config(config::Error),
     /// A document could not be read, rewritten or edited.
     Document(document::Error),
+    /// A request could not be put, or its answers printed.
+    Run(run::Error),
 }
 
 impl fmt::Display for Error {
@@ -25,6 +28,7 @@ impl fmt::Display for Error {
             Error::Runtime(error) => write!(f, "the runtime could not be built: {error}"),
             Error::Config(error) => write!(f, "{error}"),
             Error::Document(error) => write!(f, "{error}"),
+            Error::Run(error) => write!(f, "{error}"),
         }
     }
 }
@@ -41,6 +45,7 @@ impl std::error::Error for Error {
             Error::Runtime(error) => Some(error),
             Error::Config(error) => Some(error),
             Error::Document(error) => Some(error),
+            Error::Run(error) => Some(error),
         }
     }
 }
@@ -54,5 +59,11 @@ impl From<config::Error> for Error {
 impl From<document::Error> for Error {
     fn from(error: document::Error) -> Self {
         Error::Document(error)
+    }
+}
+
+impl From<run::Error> for Error {
+    fn from(error: run::Error) -> Self {
+        Error::Run(error)
     }
 }

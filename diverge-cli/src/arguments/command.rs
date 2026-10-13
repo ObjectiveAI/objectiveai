@@ -1,5 +1,7 @@
 //! What `diverge` does.
 
+use std::path::PathBuf;
+
 use clap::{Args, Subcommand};
 
 use super::Config;
@@ -15,9 +17,11 @@ pub enum Command {
     Config(Config),
 }
 
-/// One request to a daemon: which daemon, as whom, which request, and
-/// what it carries. Not yet served: the daemon and the account are
-/// selected and the program ends.
+/// One request to a daemon: which daemon, as whom, which request,
+/// what it carries, and how its answers are printed. Every answer
+/// frame is one compact JSON line, through the jq filter when one is
+/// given; nothing stays open — a list ends at its `listed`, a filetree
+/// at its first snapshot, and a logs request may not watch.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 pub struct Run {
     /// The daemon to dial, by its name in the document. Absent, the
@@ -28,12 +32,29 @@ pub struct Run {
     /// the daemon's default.
     #[arg(long, value_name = "NAME")]
     pub account: Option<String>,
-    /// The request: the endpoint's path on the daemon's wire, as the
-    /// family and the endpoint are named there.
+    /// The request: its name on the daemon's wire, the family and the
+    /// endpoint joined by `/` — `agents/create`,
+    /// `standalone_tools/templates/list`, `providers/daemons/add`.
     #[arg(value_name = "PATH")]
     pub path: String,
-    /// What the request carries, as JSON. Absent, a request that
-    /// carries nothing.
+    /// What the request carries, as a JSON object. Absent, `{}`: a
+    /// request that carries nothing, or one whose every member has a
+    /// default.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
+    /// A jq filter run over every answer frame: each value it yields is
+    /// a line, and a frame it yields nothing for, or only `null`, is
+    /// not printed.
+    #[arg(long, value_name = "FILTER")]
+    pub jq: Option<String>,
+    /// The local file or directory an upload reads from, or a download
+    /// writes into. Required for those requests, refused for every
+    /// other.
+    #[arg(long = "path", value_name = "LOCAL")]
+    pub local: Option<PathBuf>,
+    /// How many seconds the request may take, dialling included; a
+    /// request not complete by then is abandoned and the run ends with
+    /// an error. Absent, no limit.
+    #[arg(long, value_name = "SECONDS")]
+    pub timeout: Option<u64>,
 }

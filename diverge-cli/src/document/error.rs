@@ -4,6 +4,8 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
+use crate::jq;
+
 /// What the document operations fail with: the filesystem, the file's
 /// own content, the type's refusal, jq, an edit's value, or stdout.
 #[derive(Debug)]
@@ -30,8 +32,8 @@ pub enum Error {
     /// The typed document could not be written as YAML.
     Serialize(serde_yaml_ng::Error),
     /// The jq program did not parse, did not compile, or failed as it
-    /// ran, in jaq's words.
-    Jq(String),
+    /// ran.
+    Jq(jq::Error),
     /// A `set` program yielded this many values, and one is what a
     /// document is.
     NotOne(usize),
@@ -49,7 +51,7 @@ impl fmt::Display for Error {
             Error::Invalid(error) => write!(f, "the document is not one its program takes: {error}"),
             Error::Json(error) => write!(f, "the default document could not be written as JSON: {error}"),
             Error::Serialize(error) => write!(f, "the document could not be written as YAML: {error}"),
-            Error::Jq(error) => write!(f, "the jq program: {error}"),
+            Error::Jq(error) => write!(f, "{error}"),
             Error::NotOne(count) => write!(f, "the jq program yielded {count} values, and a document is one"),
             Error::Value(error) => write!(f, "the value is not YAML: {error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
@@ -67,7 +69,14 @@ impl std::error::Error for Error {
             Error::Serialize(error) => Some(error),
             Error::Value(error) => Some(error),
             Error::Stdout(error) => Some(error),
-            Error::Jq(_) | Error::NotOne(_) => None,
+            Error::Jq(error) => Some(error),
+            Error::NotOne(_) => None,
         }
+    }
+}
+
+impl From<jq::Error> for Error {
+    fn from(error: jq::Error) -> Self {
+        Error::Jq(error)
     }
 }

@@ -5,7 +5,8 @@
 //! `provider.yaml`, `cli.yaml` — and this module handles all three the
 //! same way: a document is [`read`] as its program reads it, the
 //! built-in defaults where there is no file, and held as JSON on this
-//! side; a jq program is [`run`] over it, for a `get` to narrow it,
+//! side; a jq program is [`run`](crate::jq::run) over it, for a `get`
+//! to narrow it,
 //! for a `set` to rewrite it, and for an `edit` — the [`program`] a jq
 //! path expression and a YAML [`value`] make — to set or delete one
 //! place in it; what a `set` or an `edit` yields is
@@ -28,14 +29,12 @@
 
 mod edit;
 mod error;
-mod jq;
 mod read;
 mod which;
 mod write;
 
 pub use edit::*;
 pub use error::*;
-pub use jq::*;
 pub use read::*;
 pub use which::*;
 pub use write::*;

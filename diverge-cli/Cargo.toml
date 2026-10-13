@@ -41,11 +41,19 @@ serde_path_to_error = "0.1.20"
 # document gives them, which is what a jq program sees and what
 # `config get` prints.
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
-# The jq a `config get` narrows by and a `config set` edits with:
-# the language, its standard definitions, and its values over JSON.
+# The jq a `config get` narrows by, a `config set` edits with, and a
+# `run --jq` prints through: the language, its standard definitions,
+# and its values over JSON.
 jaq-core = "2.2.1"
 jaq-std = "2.1.2"
 jaq-json = { version = "1.1.3", features = ["serde_json"] }
-# The runtime: the files read and written, stdout, and every request
-# to a daemon.
-tokio = { version = "1.53.1", features = ["fs", "io-std", "io-util", "macros", "rt", "rt-multi-thread"] }
+# The runtime: the files read and written, stdout, the socket to a
+# daemon, and a run's timeout.
+tokio = { version = "1.53.1", features = ["fs", "io-std", "io-util", "macros", "net", "rt", "rt-multi-thread", "time"] }
+# The socket to a daemon, dialled.
+tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["connect"] }
+# The socket split into its two halves, and a stream read frame by
+# frame; an upload's content as a stream of one piece.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# The bytes of a download's chunk and an upload's piece.
+bytes = "1.11.1"
