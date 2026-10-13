@@ -17,8 +17,8 @@
 //!   and the `default` daemon. A key the document does not have is
 //!   refused, so a misspelled setting is refused rather than ignored.
 //! - [`select`] picks the daemon and the account a run is: the ones
-//!   named on the command line, else the defaults, each refused by
-//!   name when the document has no such one.
+//!   `run` names, else the defaults, each refused by name when the
+//!   document has no such one.
 //!
 //! ```json
 //! {

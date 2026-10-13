@@ -11,13 +11,14 @@
 //! with named accounts by key and a default account, and a default
 //! daemon; with no file it is the built-in default, the daemon `local`
 //! on this host at the daemon's own default port, as the account
-//! `root` with the key a fresh daemon seeds. `--daemon` and
-//! `--account` pick others by name.
+//! `root` with the key a fresh daemon seeds.
 //!
 //! [`arguments`] is the command line; [`cli`] runs it. Every request of
-//! the daemon's wire is reached under the one command `run`, which
-//! this cut declares and does not yet serve: it resolves the
-//! configuration and ends.
+//! the daemon's wire is reached under the one command `run` — the
+//! daemon and the account by name, else the defaults, the request by
+//! its path on the wire, and its body as JSON — which this cut takes
+//! and does not yet serve: it selects the daemon and the account and
+//! ends.
 
 pub mod arguments;
 pub mod cli;
