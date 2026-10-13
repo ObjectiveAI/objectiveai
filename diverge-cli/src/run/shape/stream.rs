@@ -31,7 +31,7 @@ pub fn at_listed(value: &Value) -> bool {
 /// At the first snapshot: a filetree is whole, and the changes after
 /// it are not this command's.
 pub fn at_snapshot(value: &Value) -> bool {
-    value.get("filetree").and_then(|frame| frame.get("Snapshot")).is_some()
+    value.get("filetree").and_then(|frame| frame.get("type")).and_then(Value::as_str) == Some("snapshot")
 }
 
 /// The request put, every answer emitted as it comes, until the
