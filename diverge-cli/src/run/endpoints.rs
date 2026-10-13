@@ -5,7 +5,8 @@
 //! keeps. Each arm names its [`shape`] and the
 //! endpoint's own request and answer types; the four downloads and
 //! the four uploads implement the shapes' [`Download`] and [`Upload`]
-//! beside the arms, since their executors are not one function.
+//! beside the arms, since their executors are not one function, and
+//! the connect takes the MCP exchange it was given.
 
 use std::path::Path;
 
@@ -17,15 +18,23 @@ use serde_json::Value;
 
 use super::shape::{self, Content, Download, Downloaded, Upload};
 use super::{Emitter, Error, Request};
+use crate::arguments::Mcp;
 
 /// Put `request` on `handle` and print its answers; `local_path` is
 /// the local file or directory the four uploads read from and the
 /// four downloads write into, which they need and every other
-/// request refuses.
-pub async fn run(request: &Request, handle: &Handle, local_path: Option<&Path>, emitter: &mut Emitter) -> Result<(), Error> {
+/// request refuses; `mcp` the one exchange the connect puts, which it
+/// needs and every other request refuses.
+pub async fn run(request: &Request, handle: &Handle, local_path: Option<&Path>, mcp: Option<(Mcp, Option<&str>)>, emitter: &mut Emitter) -> Result<(), Error> {
     let path = request.path.as_str();
     if local_path.is_some() && !takes_local(path) {
         return Err(Error::Path {
+            path: request.path.clone(),
+            given: true,
+        });
+    }
+    if mcp.is_some() && path != CONNECT {
+        return Err(Error::Mcp {
             path: request.path.clone(),
             given: true,
         });
@@ -97,7 +106,15 @@ pub async fn run(request: &Request, handle: &Handle, local_path: Option<&Path>, 
         "roles/tag" => shape::one_shot::<roles::tag::client::request::Frame, roles::tag::server::response::Frame, _>(handle, &request.bytes, emitter).await,
         "roles/untag" => shape::one_shot::<roles::untag::client::request::Frame, roles::untag::server::response::Frame, _>(handle, &request.bytes, emitter).await,
         "standalone_tools/attach" => shape::one_shot::<standalone_tools::attach::client::request::Frame, standalone_tools::attach::server::response::Frame, _>(handle, &request.bytes, emitter).await,
-        "standalone_tools/connect" => Err(Error::Unsupported(request.path.clone())),
+        CONNECT => {
+            let Some((method, params)) = mcp else {
+                return Err(Error::Mcp {
+                    path: request.path.clone(),
+                    given: false,
+                });
+            };
+            shape::mcp(handle, &request.bytes, method, params, emitter).await
+        }
         "standalone_tools/create" => shape::one_shot::<standalone_tools::create::client::request::Frame, standalone_tools::create::server::response::Frame, _>(handle, &request.bytes, emitter).await,
         "standalone_tools/delete" => shape::one_shot::<standalone_tools::delete::client::request::Frame, standalone_tools::delete::server::response::Frame, _>(handle, &request.bytes, emitter).await,
         "standalone_tools/detach" => shape::one_shot::<standalone_tools::detach::client::request::Frame, standalone_tools::detach::server::response::Frame, _>(handle, &request.bytes, emitter).await,
@@ -132,6 +149,9 @@ pub async fn run(request: &Request, handle: &Handle, local_path: Option<&Path>, 
         _ => Err(Error::NoSuchRequest(request.path.clone())),
     }
 }
+
+/// The one request that is an MCP connect.
+const CONNECT: &str = "standalone_tools/connect";
 
 /// Whether the request reads or writes local files.
 fn takes_local(path: &str) -> bool {

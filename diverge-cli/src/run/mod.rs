@@ -8,8 +8,8 @@
 //! when there is one. Nothing stays open past its answer: a list ends
 //! at its `listed` frame and a filetree at its first snapshot; a logs
 //! request runs as far as it asked — to the log's end, or, watching,
-//! as many items as its `count` — and the MCP connect scope is no
-//! request of this command's. Bytes never cross stdout: an upload
+//! as many items as its `count` — and a connect puts the one MCP
+//! exchange `--mcp` names and disconnects. Bytes never cross stdout: an upload
 //! reads under, and a download writes under, the local path `--path`
 //! names, which those requests require and every other refuses. A
 //! timeout abandons the request and ends the run with [`Error::Timeout`].

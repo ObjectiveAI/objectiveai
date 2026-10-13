@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use super::Config;
+use super::{Config, Mcp};
 
 /// The commands. Every request of the daemon's wire goes under
 /// [`Run`](Self::Run); the documents in the root are
@@ -22,7 +22,7 @@ pub enum Command {
 /// frame is one compact JSON line, through the jq filter when one is
 /// given; nothing stays open past its answer — a list ends at its
 /// `listed`, a filetree at its first snapshot, a logs request where
-/// it asked to.
+/// it asked to, and a connect once its one MCP exchange is answered.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 pub struct Run {
     /// The daemon to dial, by its name in the document. Absent, the
@@ -53,6 +53,17 @@ pub struct Run {
     /// other.
     #[arg(long = "path", value_name = "LOCAL")]
     pub local: Option<PathBuf>,
+    /// The MCP exchange to put through a connected tool: required for
+    /// `standalone_tools/connect`, which connects, puts this one
+    /// exchange, prints its result, and disconnects; refused for every
+    /// other request.
+    #[arg(long, value_name = "METHOD")]
+    pub mcp: Option<Mcp>,
+    /// The exchange's MCP request, as JSON: the method's params as MCP
+    /// names them, decoded as such — absent for a list, required for a
+    /// call or a read.
+    #[arg(long = "mcp-request", value_name = "JSON", requires = "mcp")]
+    pub mcp_request: Option<String>,
     /// How many seconds the request may take, dialling included; a
     /// request not complete by then is abandoned and the run ends with
     /// an error. Absent, no limit.

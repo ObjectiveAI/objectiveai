@@ -1,12 +1,13 @@
 //! The exchange shapes, each run generically over an endpoint's own
 //! request and answer types.
 //!
-//! The daemon's wire has four shapes of exchange — one answer, a
-//! stream, a pending answer, an upload with content channels — and
-//! every endpoint is one of them. [`one_shot`], [`stream`] (with a
-//! [`Stop`] that ends a list at its `listed` and a filetree at its
-//! snapshot), [`pending`], [`download`] and [`upload`] put a request of
-//! that shape and print its answers: the request decoded as the
+//! The daemon's wire has five shapes of exchange — one answer, a
+//! stream, a pending answer, an upload with content channels, and the
+//! MCP connect scope — and every endpoint is one of them.
+//! [`one_shot`], [`stream`] (with a [`Stop`] that ends a list at its
+//! `listed` and a filetree at its snapshot), [`pending`], [`download`],
+//! [`upload`] and [`mcp`] put a request of that shape and print its
+//! answers: the request decoded as the
 //! endpoint's own type from the bytes, so that a body the endpoint
 //! does not take is refused in the endpoint's words; the answers
 //! emitted as the endpoint's own frames. The two shapes that carry
@@ -21,6 +22,7 @@
 //! through this module and not through the file it lives in.
 
 mod download;
+mod mcp;
 mod one_shot;
 mod pending;
 mod stream;
@@ -29,6 +31,7 @@ mod upload;
 pub mod exchange;
 
 pub use download::*;
+pub use mcp::*;
 pub use one_shot::*;
 pub use pending::*;
 pub use stream::*;

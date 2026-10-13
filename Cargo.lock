@@ -1873,6 +1873,7 @@ dependencies = [
  "jaq-core",
  "jaq-json",
  "jaq-std",
+ "rmcp 3.1.2",
  "serde",
  "serde_json",
  "serde_path_to_error",

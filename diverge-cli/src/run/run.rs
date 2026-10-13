@@ -15,7 +15,8 @@ pub async fn run(selected: &Selected<'_>, run: arguments::Run) -> Result<(), Err
     let mut emitter = Emitter::new(run.jq);
     let exchange = async {
         let handle = dial(&selected.daemon.address, &selected.account.key).await?;
-        endpoints::run(&request, &handle, run.local.as_deref(), &mut emitter).await
+        let mcp = run.mcp.map(|method| (method, run.mcp_request.as_deref()));
+        endpoints::run(&request, &handle, run.local.as_deref(), mcp, &mut emitter).await
     };
     match run.timeout {
         None => exchange.await,

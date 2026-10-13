@@ -15,9 +15,18 @@ pub enum Error {
     Body(serde_json::Error),
     /// The body is JSON, and not an object.
     NotAnObject,
-    /// The request is one this command does not put: the MCP connect
-    /// scope, held by a daemon and not a command line.
-    Unsupported(String),
+    /// `--mcp` was given to a request that is no connect, or not
+    /// given to the connect.
+    Mcp {
+        /// The request.
+        path: String,
+        /// Whether it was given.
+        given: bool,
+    },
+    /// `--mcp-request` is not the method's params.
+    McpRequest(serde_json::Error),
+    /// `--mcp-request` was not given, and the method takes one.
+    McpRequestMissing,
     /// The body is not what the request takes, in the request's own
     /// words.
     Request(Box<dyn std::error::Error + Send + Sync>),
@@ -64,7 +73,10 @@ impl fmt::Display for Error {
             Error::NoSuchRequest(path) => write!(f, "no request is named `{path}`"),
             Error::Body(error) => write!(f, "the body is not JSON: {error}"),
             Error::NotAnObject => write!(f, "the body is JSON, and not an object"),
-            Error::Unsupported(path) => write!(f, "`{path}` is not a request this command puts"),
+            Error::Mcp { path, given: true } => write!(f, "`{path}` takes no `--mcp`"),
+            Error::Mcp { path, given: false } => write!(f, "`{path}` needs `--mcp`, the MCP exchange to put"),
+            Error::McpRequest(error) => write!(f, "`--mcp-request` is not the method's params: {error}"),
+            Error::McpRequestMissing => write!(f, "`--mcp-request` was not given, and the method takes one"),
             Error::Request(error) => write!(f, "the body is not what the request takes: {error}"),
             Error::Dial(error) => write!(f, "the daemon could not be dialled: {error}"),
             Error::Authorize(error) => write!(f, "the credential could not be presented: {error}"),
@@ -84,7 +96,7 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Body(error) | Error::Json(error) => Some(error),
+            Error::Body(error) | Error::Json(error) | Error::McpRequest(error) => Some(error),
             Error::Request(error) => Some(error.as_ref()),
             Error::Io { source, .. } => Some(source),
             Error::Jq(error) => Some(error),
@@ -92,7 +104,8 @@ impl std::error::Error for Error {
             Error::NoSuchRequest(_)
             | Error::NotAnObject
             | Error::Rejected
-            | Error::Unsupported(_)
+            | Error::Mcp { .. }
+            | Error::McpRequestMissing
             | Error::Dial(_)
             | Error::Authorize(_)
             | Error::Exchange(_)
