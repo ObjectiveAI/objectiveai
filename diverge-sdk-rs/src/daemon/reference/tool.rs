@@ -1,15 +1,13 @@
-//! One tool of the caller's, named any of four ways.
+//! One tool of the caller's, named any of three ways.
 
 use serde::{Deserialize, Serialize};
 
-use super::Agent;
-
 /// One tool of the caller's: by its name, by its template and its
-/// index, by — a connected tool — the daemon and the tool it joined,
-/// or — a dependency tool — the agent it was deployed for and the
-/// template it was deployed from. See [`reference`](super) for which
-/// names what. Untagged JSON, one object any way; an object with
-/// members of more than one variant does not decode.
+/// index, or — a connected tool — by the daemon and the tool it
+/// joined. See [`reference`](super) for which names what. Untagged
+/// JSON, one object any way; an object with members of more than one
+/// variant does not decode. A dependency tool is none of these: see
+/// [`Dependency`](super::Dependency).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Tool {
@@ -36,16 +34,5 @@ pub enum Tool {
         /// The tool, as that daemon names it: any of these, read by
         /// that daemon and compared by this one.
         tool: Box<Tool>,
-    },
-    /// By an agent and a template: `{"agent":…,"template":…}`. A
-    /// transient dependency tool of the agent's run, found while the
-    /// run lasts, or a service the agent is attached to under the
-    /// template, found for as long as it is attached, running or not.
-    Dependency {
-        /// The agent, by its name or once and for all: see [`Agent`].
-        agent: Agent,
-        /// The dependency tool template, by id: the hash of the
-        /// template's canonical bytes.
-        template: String,
     },
 }

@@ -33,10 +33,11 @@
 //! # One scope per container
 //!
 //! What a container reaches is one schema of its own, made at its
-//! first connection and dropped at its delete — a dependency tool's
-//! the scope its kind names, a transient tool's one per parent agent,
-//! a service's as far as its template's `scope` says, see
-//! [`Dependency`]: one login role and one
+//! first connection — a dependency tool's the scope its owner names,
+//! a transient tool's one per agent, a service's as far as its
+//! template's `scope` says, see [`Container`] — and dropped by the
+//! delete of what owns it, a tool's or a dependency template's, and
+//! by no other: one login role and one
 //! schema of the same name, owned by the role, with the role's search
 //! path pinned to that schema alone. An unqualified table name lands
 //! in it and resolves in it; another container's table is `permission
@@ -56,12 +57,10 @@
 
 mod connection;
 mod container;
-mod dependency;
 mod mode;
 
 pub use connection::*;
 pub use container::*;
-pub use dependency::*;
 pub use mode::*;
 
 pub mod get;

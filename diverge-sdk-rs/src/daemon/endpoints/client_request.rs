@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{accounts, agents, postgres, providers, roles, tools, volumes};
+use super::{accounts, agents, dependencies, postgres, providers, roles, tools, volumes};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -205,6 +205,26 @@ pub enum ClientRequest<'a> {
     ProvidersDaemonsTag(providers::daemons::tag::client::request::Frame),
     /// Tag `88`. Take tags off a daemon.
     ProvidersDaemonsUntag(providers::daemons::untag::client::request::Frame),
+    /// Tag `89`. List the caller's dependency templates, narrowed.
+    DependenciesList(dependencies::list::client::request::Frame),
+    /// Tag `90`. Get one dependency template.
+    DependenciesGet(dependencies::get::client::request::Frame),
+    /// Tag `91`. Delete a dependency template no tool runs from.
+    DependenciesDelete(dependencies::delete::client::request::Frame),
+    /// Tag `92`. Put tags on a dependency template.
+    DependenciesTag(dependencies::tag::client::request::Frame),
+    /// Tag `93`. Take tags off a dependency template.
+    DependenciesUntag(dependencies::untag::client::request::Frame),
+    /// Tag `94`. Watch a running dependency tool's container whole.
+    DependenciesFiletree(dependencies::filetree::client::request::Frame),
+    /// Tag `95`. Download out of a running dependency tool's
+    /// container.
+    DependenciesDownload(dependencies::download::client::request::Frame),
+    /// Tag `96`. Upload into a running dependency tool's container.
+    DependenciesUpload(dependencies::upload::client::request::Frame),
+    /// Tag `97`. Transfer out of a running dependency tool's
+    /// container.
+    DependenciesTransfer(dependencies::transfer::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -314,6 +334,15 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsEdit(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsTag(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsUntag(frame) => frame.encode(out),
+            ClientRequest::DependenciesList(frame) => frame.encode(out),
+            ClientRequest::DependenciesGet(frame) => frame.encode(out),
+            ClientRequest::DependenciesDelete(frame) => frame.encode(out),
+            ClientRequest::DependenciesTag(frame) => frame.encode(out),
+            ClientRequest::DependenciesUntag(frame) => frame.encode(out),
+            ClientRequest::DependenciesFiletree(frame) => frame.encode(out),
+            ClientRequest::DependenciesDownload(frame) => frame.encode(out),
+            ClientRequest::DependenciesUpload(frame) => frame.encode(out),
+            ClientRequest::DependenciesTransfer(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -605,6 +634,33 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             88 => providers::daemons::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersDaemonsUntag)
                 .ok(),
+            89 => dependencies::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependenciesList)
+                .ok(),
+            90 => dependencies::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependenciesGet)
+                .ok(),
+            91 => dependencies::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependenciesDelete)
+                .ok(),
+            92 => dependencies::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependenciesTag)
+                .ok(),
+            93 => dependencies::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependenciesUntag)
+                .ok(),
+            94 => dependencies::filetree::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependenciesFiletree)
+                .ok(),
+            95 => dependencies::download::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependenciesDownload)
+                .ok(),
+            96 => dependencies::upload::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependenciesUpload)
+                .ok(),
+            97 => dependencies::transfer::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependenciesTransfer)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -703,6 +759,15 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsEdit(_) => f.write_str("providers daemons edit"),
             ClientRequest::ProvidersDaemonsTag(_) => f.write_str("providers daemons tag"),
             ClientRequest::ProvidersDaemonsUntag(_) => f.write_str("providers daemons untag"),
+            ClientRequest::DependenciesList(_) => f.write_str("dependencies list"),
+            ClientRequest::DependenciesGet(_) => f.write_str("dependencies get"),
+            ClientRequest::DependenciesDelete(_) => f.write_str("dependencies delete"),
+            ClientRequest::DependenciesTag(_) => f.write_str("dependencies tag"),
+            ClientRequest::DependenciesUntag(_) => f.write_str("dependencies untag"),
+            ClientRequest::DependenciesFiletree(_) => f.write_str("dependencies filetree"),
+            ClientRequest::DependenciesDownload(_) => f.write_str("dependencies download"),
+            ClientRequest::DependenciesUpload(_) => f.write_str("dependencies upload"),
+            ClientRequest::DependenciesTransfer(_) => f.write_str("dependencies transfer"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

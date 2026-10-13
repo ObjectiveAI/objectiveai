@@ -1,9 +1,10 @@
 //! Grants: what a role allows, kind by kind.
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds —
-//! agents, agent templates, tools, tool templates, outgoing
-//! providers, incoming credentials, daemons, accounts, roles,
-//! volumes, the database — and a [role](crate::daemon::endpoints::roles) is a
+//! agents, agent templates, tools, tool templates, dependency
+//! templates, outgoing providers, incoming credentials, daemons,
+//! accounts, roles, volumes, the database — and a
+//! [role](crate::daemon::endpoints::roles) is a
 //! list of them, held by
 //! [accounts](crate::daemon::endpoints::accounts). On the wire a grant
 //! is one object with one member, named for the kind, whose value is
@@ -66,11 +67,15 @@
 //! tool and an agent — is allowed when every one of them is.
 //!
 //! Moving files is two-sided. A download takes `download` over its
-//! source; an upload takes `upload` over the agent, the tool or the
-//! volume it lands in; a transfer takes `transfer` over its source and
-//! `upload` over the agent, the tool or the volume it lands in. A
-//! grant reaches a container or a volume whole: which paths within it
-//! may be read or written is not a grant's to narrow.
+//! source; an upload takes `upload` over the agent, the tool, the
+//! dependency template or the volume it lands in; a transfer takes
+//! `transfer` over its source and `upload` over the agent, the tool,
+//! the dependency template or the volume it lands in. A grant reaches
+//! a container or a volume whole: which paths within it may be read
+//! or written is not a grant's to narrow. A tool running from a
+//! dependency template is reached by the grant's reach over the
+//! template: the four file actions over dependencies name a running
+//! tool and are judged by its template.
 //!
 //! Mounting is two-sided the same way: naming a volume in a container's
 //! mounts — a volume mount of the provider it is pinned to, or a FUSE
@@ -85,9 +90,11 @@
 //! and re-exported here: the grants a dependency tool template carries
 //! are made of the same actions, reaching by tags alone, and a grant
 //! here reaches by the kind's own filter. Every kind but the database
-//! carries tags — agents, templates, tools, providers, credentials,
-//! daemons, accounts, roles and volumes alike — so every kind but the database
-//! has the tagging shape. A grant that names nothing becomes one of
+//! carries tags — agents, templates, tools, dependency templates,
+//! providers, credentials, daemons, accounts, roles and volumes alike
+//! — so every kind but the database has the tagging shape; every kind
+//! but the database and dependency templates, which a registration
+//! makes, has the making shape. A grant that names nothing becomes one of
 //! these by [`From`]: the same actions, reaching by a filter of the
 //! tags alone, which is how a dependency tool's requests are judged.
 
@@ -102,6 +109,7 @@ pub mod agents;
 pub mod agents_templates;
 pub mod tools;
 pub mod tools_templates;
+pub mod dependencies;
 pub mod providers_outgoing;
 pub mod providers_incoming;
 pub mod providers_daemons;

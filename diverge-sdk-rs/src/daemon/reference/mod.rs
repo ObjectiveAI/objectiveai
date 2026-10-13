@@ -1,5 +1,5 @@
-//! Naming an agent, a tool or a volume: by its name, or once and for
-//! all.
+//! Naming an agent, a tool, a dependency tool or a volume: by its
+//! name, or once and for all.
 //!
 //! Every request that acts on an agent or a tool of the caller's — a
 //! delete, an edit, a message, a logs read, a tag, an untag, an attach,
@@ -13,15 +13,20 @@
 //! naming it that way finds nothing. A connected tool has no template,
 //! and is named instead by the DAEMON and the TOOL it is registered
 //! from — the record of the other daemon, by name, and the tool as
-//! that daemon names it — which name it once and for all the same way. A
-//! dependency tool has neither, and is named by the AGENT it was
-//! deployed for and the TEMPLATE it was deployed from, by id, which
-//! name it while it runs. These are the variants of [`Agent`] and of
-//! [`Tool`], one JSON object each, told apart by their members:
-//! `{"name":…}`, `{"template":…,"index":…}`, for a connected tool
-//! `{"daemon":…,"tool":…}`, for a dependency tool
-//! `{"agent":…,"template":…}`. An object carrying members of more
-//! than one is malformed.
+//! that daemon names it — which name it once and for all the same way.
+//! These are the variants of [`Agent`] and of [`Tool`], one JSON
+//! object each, told apart by their members: `{"name":…}`,
+//! `{"template":…,"index":…}`, for a connected tool
+//! `{"daemon":…,"tool":…}`. An object carrying members of more than
+//! one is malformed.
+//!
+//! A dependency tool — one running from a template an agent's program
+//! declared — is no tool of the [`tools`](crate::daemon::endpoints::tools)
+//! family, and no request of that family finds one. It is named by
+//! [`Dependency`]: the TEMPLATE it runs from, by id, and its
+//! [`Owner`] — the agent, named either way, the agent template, or
+//! everyone — which name it while it runs,
+//! `{"template":…,"owner":…}`.
 //!
 //! A volume is named one way only, by [`Volume`]: the provider that
 //! holds it and the name that provider lists it under,
@@ -34,9 +39,13 @@
 //! one.
 
 mod agent;
+mod dependency;
+mod owner;
 mod tool;
 mod volume;
 
 pub use agent::*;
+pub use dependency::*;
+pub use owner::*;
 pub use tool::*;
 pub use volume::*;

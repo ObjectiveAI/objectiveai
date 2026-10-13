@@ -23,9 +23,8 @@ pub struct Filter {
     /// Any one of these names, as a create or a connect gave them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub names: Vec<String>,
-    /// A created tool made from any one of these templates, by id,
-    /// or a dependency deployed from any one of them, by the id of
-    /// its template; a connected tool matches none of them.
+    /// A created tool made from any one of these templates, by id;
+    /// a connected tool matches none of them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<String>,
     /// Made by any one of these, directly: see
@@ -33,8 +32,8 @@ pub struct Filter {
     /// and then made by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
-    /// Created by the daemon, connected to somebody else's, or
-    /// deployed for an agent: the `kind` an
+    /// Created by the daemon or connected to somebody else's: the
+    /// `kind` an
     /// [`Origin`](crate::daemon::endpoints::tools::list::server::response::Origin)
     /// is tagged with, see [`Kind`]; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]

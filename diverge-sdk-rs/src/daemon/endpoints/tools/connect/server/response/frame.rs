@@ -27,9 +27,9 @@ use crate::shared::error::Error;
 /// ANSWER: the daemon looked, and no tool of the caller's is the one
 /// named, and nothing is retried. An [`Error`](Self::Error) is a
 /// failure: the daemon could not serve the tool, for whatever reason
-/// it knows — a dependency tool, which is its agent's; a connected
-/// tool, which is another daemon's and is served there; a container
-/// that would not start.///
+/// it knows — a connected tool, which is another daemon's and is
+/// served there; a container that would not start.
+//////
 /// # Forbidden
 ///
 /// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the

@@ -1,0 +1,11 @@
+//! The download response: one chunk each, no such dependency tool
+//! running or no such path,
+//! forbidden, or a failure.
+//!
+//! [`Frame`] is what a response frame holds. A chunk is the daemon's
+//! one [`Chunk`](crate::daemon::download::Chunk), defined beside the
+//! other families' downloads and not repeated here.
+
+mod frame;
+
+pub use frame::*;

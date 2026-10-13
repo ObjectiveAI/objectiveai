@@ -14,9 +14,8 @@ use crate::daemon::reference;
 pub struct Frame {
     /// The tool: by its name, as its create gave it, or by its template
     /// and its index, which name a created tool once and for all. A
-    /// connected tool is another daemon's and is served there, and a
-    /// dependency tool is its agent's: naming either is a failure. See
-    /// [`reference::Tool`].
+    /// connected tool is another daemon's and is served there, and
+    /// naming one is a failure. See [`reference::Tool`].
     pub tool: reference::Tool,
 }
 

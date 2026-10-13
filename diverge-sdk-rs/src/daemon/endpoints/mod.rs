@@ -112,8 +112,17 @@
 //! | `86` | [`providers::daemons::edit`] |
 //! | `87` | [`providers::daemons::tag`] |
 //! | `88` | [`providers::daemons::untag`] |
+//! | `89` | [`dependencies::list`] |
+//! | `90` | [`dependencies::get`] |
+//! | `91` | [`dependencies::delete`] |
+//! | `92` | [`dependencies::tag`] |
+//! | `93` | [`dependencies::untag`] |
+//! | `94` | [`dependencies::filetree`] |
+//! | `95` | [`dependencies::download`] |
+//! | `96` | [`dependencies::upload`] |
+//! | `97` | [`dependencies::transfer`] |
 //!
-//! Eighty-nine, so far. Tags are handed out in the order scopes are defined
+//! Ninety-eight, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,
@@ -146,6 +155,7 @@ pub use client_request::*;
 
 pub mod accounts;
 pub mod agents;
+pub mod dependencies;
 pub mod postgres;
 pub mod providers;
 pub mod roles;

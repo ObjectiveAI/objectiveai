@@ -1,6 +1,6 @@
 //! A dependency tool template's grants, as grants of the daemon's.
 
-use super::{Grant, accounts, agents, agents_templates, providers_daemons, providers_incoming, providers_outgoing, roles, tools, tools_templates, volumes};
+use super::{Grant, accounts, agents, agents_templates, dependencies, providers_daemons, providers_incoming, providers_outgoing, roles, tools, tools_templates, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
 /// A dependency tool template's grants, as the daemon judges them:
@@ -88,6 +88,17 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
             permission::tools_templates::Permission::Tags { actions, within, tags } => tools_templates::Permission::Tags {
                 actions,
                 within: within.map(tools_templates_filter),
+                tags,
+            },
+        }),
+        permission::Grant::Dependencies(permission) => Grant::Dependencies(match permission {
+            permission::dependencies::Permission::Over { actions, within } => dependencies::Permission::Over {
+                actions,
+                within: within.map(dependencies_filter),
+            },
+            permission::dependencies::Permission::Tags { actions, within, tags } => dependencies::Permission::Tags {
+                actions,
+                within: within.map(dependencies_filter),
                 tags,
             },
         }),
@@ -203,6 +214,14 @@ fn tools_filter(tags: Tags) -> crate::daemon::endpoints::tools::list::client::re
 
 fn tools_templates_filter(tags: Tags) -> crate::daemon::endpoints::tools::templates::list::client::request::Filter {
     crate::daemon::endpoints::tools::templates::list::client::request::Filter {
+        all_tags: tags.all_tags,
+        any_tags: tags.any_tags,
+        ..Default::default()
+    }
+}
+
+fn dependencies_filter(tags: Tags) -> crate::daemon::endpoints::dependencies::list::client::request::Filter {
+    crate::daemon::endpoints::dependencies::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()

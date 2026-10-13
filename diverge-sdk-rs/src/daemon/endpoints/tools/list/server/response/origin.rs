@@ -1,33 +1,26 @@
-//! Where a tool comes from: made by this caller, somebody else's
-//! joined, deployed for an agent's run, or kept as a service.
+//! Where a tool comes from: made by this caller, or somebody else's
+//! joined.
 
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::agents::logs::server::response::Provider;
-use crate::daemon::key;
 use crate::daemon::reference;
-use crate::shared::containers::dependencies::Template;
 
-/// The four ways a tool comes to be, and what the daemon knows of
+/// The two ways a tool comes to be, and what the daemon knows of
 /// each: a [`create`](crate::daemon::endpoints::tools::create) made it
-/// from an image, a
+/// from an image, or a
 /// [`register`](crate::daemon::endpoints::tools::register) named a
-/// tool another daemon holds, an agent's program declared it as a
-/// transient dependency and the daemon deployed it when the agent's
-/// container started, or an agent's program declared it as a service
-/// and the daemon made it and keeps it. JSON-tagged by `kind`,
-/// `created`, `connected`, `dependency` or `service`.
+/// tool another daemon holds. JSON-tagged by `kind`, `created` or
+/// `connected`.
 ///
-/// A created or a connected tool is a record, with the index its
-/// kind counts: the first made the same way is `1`, each after is one
-/// more, and no number is given twice, so the fixed part and the
-/// index name the tool once and for all. A transient dependency tool
-/// is no record: it is listed while its agent's container runs and
-/// not after, named once and for all by its agent and its template's
-/// id. A service is a record of the daemon's own making, listed from
-/// the registration that made it until the last attached agent
-/// leaves it and its idle time runs out, running or not, named once
-/// and for all by its template's id and whose it is.
+/// Either is a record, with the index its kind counts: the first made
+/// the same way is `1`, each after is one more, and no number is given
+/// twice, so the fixed part and the index name the tool once and for
+/// all. A dependency tool — one running from a template an agent's
+/// program declared — is no tool of this family: it is listed under
+/// its template by the
+/// [`dependencies`](crate::daemon::endpoints::dependencies) list, and
+/// nowhere here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Origin {
@@ -64,62 +57,5 @@ pub enum Origin {
         /// Its number among all tools of the caller's ever joined to
         /// that daemon's tool, deleted ones included.
         index: u64,
-    },
-    /// Deployed for an agent's run, from the transient dependency tool
-    /// template the agent's program declared: the daemon runs its
-    /// container for as long as the agent's runs, and lists it only
-    /// then.
-    Dependency {
-        /// The agent it was deployed for: see [`key::Agent`].
-        agent: key::Agent,
-        /// The dependency tool template it was deployed from, by id:
-        /// the lowercase hexadecimal SHA-256 of the template's
-        /// canonical bytes, unique among that agent's dependencies.
-        /// The agent calls the tool's MCP tools by its first eight
-        /// characters, as a prefix.
-        template: String,
-        /// The template whole, as the program declared it: its image,
-        /// its limits, its arguments, its kind — transient, with the
-        /// agent's paths served into it — and the grants its requests
-        /// are judged by. See [`Template`].
-        declared: Template,
-        /// The provider the container runs on. See [`Provider`].
-        provider: Provider,
-        /// The container's id, as the provider's run answered it.
-        id: String,
-    },
-    /// A service: made from the dependency tool template an agent's
-    /// program declared, under the scope key the template's `scope`
-    /// names, and kept by the daemon — started again whenever its
-    /// container ends, and at every start of the daemon's — for as
-    /// long as any agent is attached to it, and for the daemon's idle
-    /// time after the last leaves.
-    Service {
-        /// The dependency tool template it was made from, by id: the
-        /// lowercase hexadecimal SHA-256 of the template's canonical
-        /// bytes. An attached agent calls the service's MCP tools by
-        /// its first eight characters, as a prefix.
-        template: String,
-        /// Whose it is: the agent, the agent template, or everyone's.
-        /// See [`key::Owner`].
-        owner: key::Owner,
-        /// The template whole, as the program declared it: its image,
-        /// its limits, its arguments, its kind — a service, with its
-        /// scope — and the grants its requests are judged by. See
-        /// [`Template`].
-        declared: Template,
-        /// The agents attached to it now, in the order they attached:
-        /// every agent whose last registration declared the template.
-        /// See [`key::Agent`].
-        attached: Vec<key::Agent>,
-        /// The provider the container runs on, if it runs, or last
-        /// ran on; absent for a service that has never run. See
-        /// [`Provider`].
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        provider: Option<Provider>,
-        /// The container's id while it runs, as the provider's run
-        /// answered it. Absent while the container does not run.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        id: Option<String>,
     },
 }

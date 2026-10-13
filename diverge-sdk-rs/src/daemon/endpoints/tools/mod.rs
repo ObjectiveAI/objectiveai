@@ -46,10 +46,11 @@
 //! another tool or a volume, the bytes never reaching the client — the
 //! four of a created tool only, since a connected tool's files are on
 //! the other daemon. A dependency an agent declares at register time
-//! is deployed by the daemon then and there, as a tool of the agent's
-//! own that lives while the agent's container does: listed among the
-//! tools as `dependency` kind, reached by its agent and its template,
-//! read and never changed. A tool declares no dependencies.
+//! is no tool of this family: the daemon deploys it then and there,
+//! holds its template as a record of the
+//! [`dependencies`](super::dependencies) family, and serves the
+//! running tool there, under its template; no request here finds
+//! one. A tool declares no dependencies.
 
 pub mod attach;
 pub mod connect;

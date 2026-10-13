@@ -7,9 +7,8 @@
 //! when it was created — one response each, oldest created first,
 //! then the word that the list is whole, and keeps the scope open:
 //! each tool added, changed or removed, as the records, the
-//! attachments and the runs change — a dependency
-//! tool among them only while its agent's container runs — until
-//! the client cancels, the one channel it opens on the scope. Each is
+//! attachments and the runs change — until the client cancels, the
+//! one channel it opens on the scope. Each is
 //! what the tool is called, where it comes from — the template it was
 //! made from, or the tool of another daemon's it joins — whether
 //! it is active now, when that last changed, which agents it is

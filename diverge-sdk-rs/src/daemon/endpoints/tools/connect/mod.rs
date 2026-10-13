@@ -14,10 +14,9 @@
 //! the scope. The finish follows the disconnect, the tool's run
 //! ending, however it ends, or the client's connection ending. Or the
 //! daemon answers that no tool of the caller's is the one named,
-//! forbidden, or that it failed, and finishes: a dependency tool is
-//! its agent's and a connected tool is another daemon's, and naming
-//! either is a failure. A tool is connected to by its name or by its
-//! template and index, a record tool only.
+//! forbidden, or that it failed, and finishes: a connected tool is
+//! another daemon's, and naming one is a failure. A tool is connected
+//! to by its name or by its template and index, a created tool only.
 //!
 //! # The scope holds the tool
 //!

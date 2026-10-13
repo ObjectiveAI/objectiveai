@@ -63,8 +63,8 @@ pub enum ExecuteError {
     /// The account the request is served for holds no grant allowing
     /// it.
     Forbidden,
-    /// The daemon could not serve the tool, and said so: a dependency
-    /// tool, a connected tool, or a container that would not start.
+    /// The daemon could not serve the tool, and said so: a connected
+    /// tool, or a container that would not start.
     Daemon(Error),
 }
 

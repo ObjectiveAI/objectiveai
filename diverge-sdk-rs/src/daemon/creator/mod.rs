@@ -15,8 +15,8 @@
 //! to another: an [`Agent`] by its template and its index among the
 //! agents ever made from that template, a [`Tool`] by its template
 //! and its index among the tools ever made from that template — or,
-//! a dependency tool, by the agent it was deployed for and its
-//! declared name — the [`Client`] by its identity. The name is
+//! a dependency tool, by the template it runs from and whose it is
+//! — the [`Client`] by its identity. The name is
 //! carried beside, when the create gave one. A connected tool is
 //! somebody else's container and calls nothing of the client's, so it
 //! makes nothing and is never a creator.

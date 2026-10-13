@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{agents, agents_templates, tools, tools_templates, providers_outgoing, providers_incoming, providers_daemons, accounts, roles, volumes, postgres};
+use super::{agents, agents_templates, tools, tools_templates, dependencies, providers_outgoing, providers_incoming, providers_daemons, accounts, roles, volumes, postgres};
 
 /// One grant: a permission over one kind of thing the daemon holds.
 /// Externally tagged by the kind's name — one object with one member,
@@ -10,7 +10,7 @@ use super::{agents, agents_templates, tools, tools_templates, providers_outgoing
 /// kind's [`Permission`](agents::Permission), in one of the shapes
 /// [`grant`](crate::daemon::grant) states. Snake case on the wire:
 /// `"agents"`, `"agents_templates"`, `"tools"`, `"tools_templates"`,
-/// `"providers_outgoing"`, `"providers_incoming"`,
+/// `"dependencies"`, `"providers_outgoing"`, `"providers_incoming"`,
 /// `"providers_daemons"`, `"accounts"`, `"roles"`, `"volumes"`,
 /// `"postgres"` — the kinds of
 /// [`shared::permission::Grant`](crate::shared::permission::Grant),
@@ -26,6 +26,8 @@ pub enum Grant {
     Tools(tools::Permission),
     /// Over tool templates: see [`tools_templates::Permission`].
     ToolsTemplates(tools_templates::Permission),
+    /// Over dependency templates: see [`dependencies::Permission`].
+    Dependencies(dependencies::Permission),
     /// Over outgoing providers: see [`providers_outgoing::Permission`].
     ProvidersOutgoing(providers_outgoing::Permission),
     /// Over incoming credentials: see [`providers_incoming::Permission`].

@@ -6,9 +6,9 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A transfer's answer: it landed, no tool is the one named, no agent,
-/// tool or volume is the destination's, a volume held, forbidden, or a
-/// failure.
+/// A transfer's answer: it landed, no tool is the one named, no
+/// agent, tool, dependency tool or volume is the destination's, a
+/// volume held, forbidden, or a failure.
 ///
 /// A transfer is one question and one reply, sent once everything has
 /// landed, so there is exactly one of these per scope, before the
@@ -25,7 +25,7 @@ use crate::shared::error::Error;
 /// [`NotFound`](Self::NotFound), [`NoDestination`](Self::NoDestination)
 /// and [`Held`](Self::Held) are ANSWERS: the daemon looked, and no tool
 /// is the one named or nothing is at the path, or the destination names
-/// an agent, a tool or a volume that is none, or a volume at either end
+/// an agent, a tool, a dependency tool or a volume that is none, or a volume at either end
 /// is held — a running container has it, or another download, upload or
 /// transfer is on it — and in each case nothing landed and nothing is
 /// retried. An [`Error`](Self::Error) is the absence of an answer: the
@@ -50,7 +50,7 @@ pub enum Frame {
     /// No tool is the one named, or nothing is at the path; nothing
     /// landed. Tag `1`.
     NotFound,
-    /// The destination names an agent, a tool or a volume that is none;
+    /// The destination names an agent, a tool, a dependency tool or a volume that is none;
     /// nothing landed. Tag `2`.
     NoDestination,
     /// A volume at either end is held: a running container has it, or

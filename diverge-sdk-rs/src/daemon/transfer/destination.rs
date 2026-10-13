@@ -1,14 +1,15 @@
-//! The three places a transfer lands.
+//! The four places a transfer lands.
 
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 
 /// Where a transfer puts what it copies: at a path in an agent's
-/// container, at a path in a tool's, or at a path in a volume.
-/// Untagged JSON, told apart by its members — `{"agent":…,"path":…}`,
-/// `{"tool":…,"path":…}`, `{"volume":…,"path":…}` — and an object
-/// with members of more than one does not decode.
+/// container, at a path in a tool's, at a path in a dependency tool's,
+/// or at a path in a volume. Untagged JSON, told apart by its members
+/// — `{"agent":…,"path":…}`, `{"tool":…,"path":…}`,
+/// `{"dependency":…,"path":…}`, `{"volume":…,"path":…}` — and an
+/// object with members of more than one does not decode.
 ///
 /// # What lands where
 ///
@@ -21,7 +22,9 @@ use crate::daemon::reference;
 /// provider's
 /// [`volumes::write`](crate::provider::endpoints::volumes::write)
 /// writes it: one a running container has, or another download, upload
-/// or transfer is on, is the transfer's `Held`.
+/// or transfer is on, is the transfer's `Held`. A dependency tool is
+/// written only while it runs: one that does not is the transfer's
+/// `NoDestination`, and nothing is started for it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Destination {
@@ -37,6 +40,14 @@ pub enum Destination {
     Tool {
         /// The tool: see [`reference::Tool`].
         tool: reference::Tool,
+        /// The destination, as components from the container's root; at
+        /// least one, each a name.
+        path: Vec<String>,
+    },
+    /// A path in a dependency tool's container, while it runs.
+    Dependency {
+        /// The dependency tool: see [`reference::Dependency`].
+        dependency: reference::Dependency,
         /// The destination, as components from the container's root; at
         /// least one, each a name.
         path: Vec<String>,
