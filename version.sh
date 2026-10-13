@@ -248,6 +248,7 @@ CARGO_TOMLS=(
   diverge-provider/Cargo.toml
   diverge-postgres/Cargo.toml
   diverge-daemon/Cargo.toml
+  diverge-cli/Cargo.toml
   objectiveai-sdk-rs/Cargo.toml
   objectiveai-sdk-rs-cffi/Cargo.toml
   objectiveai-sdk-rs-macros/Cargo.toml

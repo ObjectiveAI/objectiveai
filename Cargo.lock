@@ -1860,6 +1860,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-cli"
+version = "2.3.0"
+dependencies = [
+ "clap",
+ "diverge-sdk",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "tokio",
+]
+
+[[package]]
 name = "diverge-container-proxy"
 version = "2.3.0"
 dependencies = [

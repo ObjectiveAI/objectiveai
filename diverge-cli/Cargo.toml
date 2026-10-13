@@ -1,0 +1,33 @@
+[package]
+name = "diverge-cli"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The Diverge CLI — the daemon's client as a program: its daemons and accounts from one `cli.json`, every request of the daemon's wire from the command line"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "diverge"
+path = "src/main.rs"
+
+[dependencies]
+# Path-only: this crate rides the workspace and is never published, so
+# the SDK is named by where it lives rather than by a version pin
+# version.sh would have to chase.
+diverge-sdk = { path = "../diverge-sdk-rs" }
+# The arguments: the one parser every command hangs off, derived.
+clap = { version = "4.6.0", features = ["derive"] }
+# The document `cli.json` is, as Rust.
+serde = { version = "1.0.229", features = ["derive"] }
+# The JSON it is written in.
+serde_json = "1.0.151"
+# Where in the document a value was wrong, in a parse error.
+serde_path_to_error = "0.1.20"
+# The runtime: the file read, and every request to a daemon.
+tokio = { version = "1.53.1", features = ["fs", "macros", "rt", "rt-multi-thread"] }

@@ -19,6 +19,7 @@ members = [
     "diverge-provider",
     "diverge-postgres",
     "diverge-daemon",
+    "diverge-cli",
     "objectiveai-sdk-rs",
     "objectiveai-json-schema/builder",
     "objectiveai-sdk-rs-wasm-js",
