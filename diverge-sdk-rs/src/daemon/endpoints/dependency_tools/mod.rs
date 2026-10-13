@@ -1,36 +1,45 @@
-//! Dependency tools: the templates agents' programs declare, held by
-//! their hash, with the tools running from each.
+//! Dependency tools: one per dependency template and owner, as far as
+//! the template's scope shares it, with the agents that depend on it
+//! and the tool running from it.
 //!
 //! A dependency template is a
 //! [`Template`](crate::shared::containers::dependencies::Template) an
-//! agent's program declared at its registration — transient, deployed
-//! for the agent's run, or a service, kept under the scope its
-//! `scope` names — made a record of the daemon's by the first
-//! registration that declares it and held by its id, the hash of its
-//! canonical bytes, so the same template declared twice is one.
-//! Nothing on this wire makes one: a registration does, and every
-//! registration RESETS what the agent depends on — exactly the
-//! templates it declared then are its dependencies, and one declared
-//! before and not again is its dependency no more. A template outlives
-//! the agents that declared it, and so do the database scopes the
-//! tools running from it were given, under every agent, agent
-//! template and the global one, until the template is deleted:
-//! [`delete`] removes one no tool runs from — transient or service —
-//! with every scope ever made from it, and the agents that depended
-//! on it depend on it no more, until a registration declares it anew
-//! and makes it a record again; [`get`] answers one by id; [`list`]
-//! lists them,
-//! narrowed, each with the agents whose last registration declared it
-//! and the tools running from it now; [`tag`] and [`untag`] change a
-//! template's tags, which are the caller's and not in its hash.
+//! agent's program declares at its registration — transient, deployed
+//! for the agent's run, or a service, kept under the scope its `scope`
+//! names — held by its id, the hash of its canonical bytes, so the
+//! same template declared twice is one. A DEPENDENCY TOOL is that
+//! template under one OWNER, which the template's scope decides: a
+//! transient template, and a service whose scope is `instance`, is one
+//! tool per agent instance, owned by that agent; a service whose scope
+//! is `template` is one tool per agent template, owned by it; a
+//! service whose scope is `global` is one tool, owned by nobody.
+//! Nothing on this wire makes one: the first registration that
+//! declares the template under that owner does, and every registration
+//! RESETS what the agent depends on — exactly the tools of the
+//! templates it declared then, each noting when the agent last
+//! declared it, and a tool it declared before and not again is its
+//! dependency no more. A tool outlives the registrations: it holds
+//! its database scope until it is deleted. An instance tool goes with
+//! its agent's delete and a per-template tool with its agent
+//! template's, scope and all; a global tool goes with nothing but the
+//! template's [`delete`], which removes every tool of the template
+//! under every owner and is refused `InUse` while any of them runs.
+//! [`get`] answers one tool by its template and its owner, as a list
+//! would report it; [`list`] lists them, narrowed, each with the
+//! agents that depend on it — at most one for an instance tool, every
+//! agent of the one agent template for a per-template one, every agent
+//! for a global one — and the one run from it, if its container is
+//! up; [`tag`] and [`untag`] change one tool's tags, which are the
+//! tool's and not in the template's hash.
 //!
-//! # The tools
+//! # The run
 //!
-//! A tool running from a dependency template is no record: it is
-//! listed under its template, by whose it is and where it runs, and
-//! nowhere else — never among the [`standalone_tools`](super::standalone_tools), whose
-//! endpoints find no dependency tool. It is named by its template and
-//! its owner, a
+//! A tool has at most one run: a transient tool's container, while its
+//! agent's container runs; a service's, while the daemon keeps it up.
+//! It is listed on the tool, by where it runs, and nowhere else —
+//! never among the [`standalone_tools`](super::standalone_tools), whose
+//! endpoints find no dependency tool. A tool is named by its template
+//! and its owner, a
 //! [`reference::Dependency`](crate::daemon::reference::Dependency),
 //! for the four operations on a running container's files:
 //! [`filetree`] watches one whole; [`download`] sends the client a

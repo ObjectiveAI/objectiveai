@@ -6,32 +6,33 @@ use serde::{Deserialize, Serialize};
 
 use super::Filter;
 
-/// Ask the daemon for the caller's templates, narrowed.
+/// Ask the daemon for the caller's dependency tools, narrowed.
 ///
 /// Everything is optional, and a request with none of it — `{}` on the
-/// wire — is every template of the caller's. The members but `count`
+/// wire — is every dependency tool of the caller's. The members but `count`
 /// together are the filter. The daemon applies the filter, oldest
-/// created first, and sends each dependency template it lets through as a
+/// created first, and sends each dependency tool it lets through as a
 /// [`Listed`](crate::daemon::endpoints::dependency_tools::list::server::response::Listed),
-/// and keeps sending as the templates, what depends on them and what
-/// runs from them change. The count keeps the
+/// and keeps sending as the tools, what depends on them and what
+/// runs change. The count keeps the
 /// list to the first that many that match.
 ///
 /// # Any one of, every one of
 ///
-/// A member that lists candidates — `ids`, `creators`, `types`,
-/// `scopes` — matches a template that is any one of them, was made
-/// by any one of them, or is of any one of them; `agents` one that
-/// every one of them depends on. `all_tags` matches a template that
-/// carries every one of them, and `any_tags` one that carries any one
-/// of them. An empty list is absent, and matches every template.
+/// A member that lists candidates — `ids`, `owners`, `creators`,
+/// `types`, `scopes` — matches a tool that is of any one of them,
+/// owned or made by any one of them, or of any one of their types or
+/// scopes; `agents` one that every one of them depends on. `all_tags`
+/// matches a tool that carries every one of them, and `any_tags` one
+/// that carries any one of them. An empty list is absent, and matches
+/// every tool.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
     /// The filter: see [`Filter`]. Flattened, so its members are this
     /// object's own.
     #[serde(flatten)]
     pub filter: Filter,
-    /// How many templates the list is kept to, counting what matches
+    /// How many tools the list is kept to, counting what matches
     /// and not what the filter reads: the first that many that match
     /// are the list, and one leaving that window is removed as one
     /// entering it is added. `0` is a list of nothing, told whole at

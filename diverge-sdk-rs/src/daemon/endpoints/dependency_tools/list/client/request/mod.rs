@@ -1,6 +1,6 @@
 //! List request data.
 //!
-//! What a caller hands the daemon to list its dependency templates:
+//! What a caller hands the daemon to list its dependency tools:
 //! the [`Filter`] and the count, each optional. [`Type`] is the one
 //! value the filter narrows by that is the template's `type` as a
 //! word of its own.

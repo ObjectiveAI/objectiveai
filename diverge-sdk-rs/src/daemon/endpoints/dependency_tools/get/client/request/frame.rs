@@ -4,12 +4,14 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-/// Ask the daemon for one dependency template. The template is named
-/// by its id, its hash.
+use crate::daemon::reference;
+
+/// Ask the daemon for one dependency tool: see
+/// [`reference::Dependency`], the template by id and whose it is.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The template's id: its hash, as its list item carries it.
-    pub id: String,
+    /// The tool: its template and its owner.
+    pub dependency: reference::Dependency,
 }
 
 /// This frame's tag among the scope-opening requests.

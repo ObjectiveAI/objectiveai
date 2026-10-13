@@ -4,14 +4,15 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-/// Ask the daemon to take tags off a dependency template, by id.
-///
-/// The id is the template's hash, as its list item carries it. A tag the template did not hold is not held still, and
+use crate::daemon::reference;
+
+/// Ask the daemon to take tags off a dependency tool: see
+/// [`reference::Dependency`], the template by id and whose it is. A tag the tool did not hold is not held still, and
 /// is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The template's id: its hash, as its list item carries it.
-    pub id: String,
+    /// The tool: its template and its owner.
+    pub dependency: reference::Dependency,
     /// The tags to take off, one by one. Empty changes nothing and is
     /// not a failure.
     pub tags: Vec<String>,

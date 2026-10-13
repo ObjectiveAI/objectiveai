@@ -1,11 +1,12 @@
-//! Putting tags on a dependency template.
+//! Putting tags on a dependency tool.
 //!
-//! One request, one answer. A client names a dependency template of its own and
+//! One request, one answer. A client names a dependency tool of its
+//! own, by its template and its owner, and
 //! the tags to put on it; the daemon answers that the tags are on it,
-//! that no template has that id, or that it failed, and the scope
-//! finishes. A tag the template held already is held still, and is not
+//! that no tool is the one named, or that it failed, and the scope
+//! finishes. A tag the tool held already is held still, and is not
 //! a failure. A tag is a string of the caller's choosing, compared and
-//! not read, as a name is; what a template holds is a set of them,
+//! not read, as a name is; what a tool holds is a set of them,
 //! which its list item reports.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the

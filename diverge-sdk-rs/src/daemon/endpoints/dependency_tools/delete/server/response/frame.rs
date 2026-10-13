@@ -6,8 +6,8 @@ use crate::shared::error::Error;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// A delete's answer: the template is deleted, no template has the id,
-/// a tool runs from it, or a failure.
+/// A delete's answer: the template's tools are deleted, no tool has
+/// the template, one of them runs, or a failure.
 ///
 /// A delete is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
@@ -20,14 +20,13 @@ use crate::wire::encode::{Encode, Writer};
 /// # Three answers, one failure
 ///
 /// [`NotFound`](Self::NotFound) and [`InUse`](Self::InUse) are
-/// ANSWERS: the daemon looked, and either no template of the caller's
-/// has the id, or one does and a tool runs from it, transient or a
+/// ANSWERS: the daemon looked, and either no tool of the caller's has
+/// the template, or one does and one of them runs, transient or a
 /// service, and in either case nothing was deleted and nothing is
 /// retried — the caller has the wrong id, or waits for the runs to
 /// end and asks again. An [`Error`](Self::Error) is the absence of
-/// an answer: the daemon could not delete the template, for whatever
-/// reason it knows, and the template is as it was, or some of its
-/// scopes are gone and the rest are not; asking again finishes it.
+/// an answer: the daemon could not delete the tools, for whatever
+/// reason it knows, and they are as they were.
 ///
 /// # Forbidden
 ///

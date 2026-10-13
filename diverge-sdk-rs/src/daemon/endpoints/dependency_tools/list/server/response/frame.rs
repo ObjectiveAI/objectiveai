@@ -17,7 +17,7 @@ use super::Listed;
 /// [`Listed`](Self::Listed); then, for the scope's life, a template come
 /// to match as `Added`, one that matches still and differs from what
 /// was last sent as [`Changed`](Self::Changed) — its tags, its agents
-/// or its runs — one that matches no
+/// or its run — one that matches no
 /// more as [`Removed`](Self::Removed) — the listing kept as the first
 /// `count` that match, so one leaving that window is removed and one
 /// entering it added. The finish follows the client's cancel, the

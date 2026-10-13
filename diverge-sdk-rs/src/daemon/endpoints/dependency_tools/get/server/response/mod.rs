@@ -1,4 +1,4 @@
-//! The get response: the template, no such template, forbidden, or a
+//! The get response: the tool, no such tool, forbidden, or a
 //! failure.
 //!
 //! [`Frame`] is what a response frame holds. The template comes back as

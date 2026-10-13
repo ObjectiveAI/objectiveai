@@ -3,9 +3,10 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The actions over dependency templates that exist, which a grant
-/// reaches as far as its `within` says. An action over a tool running
-/// from a template is judged by the grant's reach over the template.
+/// The actions over dependency tools that exist, which a grant
+/// reaches as far as its `within` says: each tool is judged on its
+/// own, by the tools list filter; a delete, which is by template,
+/// takes the action over every tool of the template.
 /// Snake case on the wire: `"get"`, `"delete"`, `"list"`,
 /// `"download"`, `"upload"`, `"transfer"`, `"filetree"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -16,7 +17,7 @@ pub enum Over {
     /// [`dependencies::get`](crate::daemon::endpoints::dependency_tools::get)
     /// does.
     Get,
-    /// Delete one, as
+    /// Delete every tool of a template, as
     /// [`dependencies::delete`](crate::daemon::endpoints::dependency_tools::delete)
     /// does.
     Delete,
@@ -24,19 +25,19 @@ pub enum Over {
     /// [`dependencies::list`](crate::daemon::endpoints::dependency_tools::list)
     /// does; the list sends what the grant reaches.
     List,
-    /// Send the client files out of a tool running from one, as
+    /// Send the client files out of one, running, as
     /// [`dependencies::download`](crate::daemon::endpoints::dependency_tools::download)
     /// does.
     Download,
-    /// Put files into a tool running from one, as
+    /// Put files into one, running, as
     /// [`dependencies::upload`](crate::daemon::endpoints::dependency_tools::upload)
     /// does, and as a transfer landing in one does.
     Upload,
-    /// Copy files out of a tool running from one, as
+    /// Copy files out of one, running, as
     /// [`dependencies::transfer`](crate::daemon::endpoints::dependency_tools::transfer)
     /// does; where they land is judged by its own grant.
     Transfer,
-    /// Watch a tool running from one whole, as
+    /// Watch one's container whole, as
     /// [`dependencies::filetree`](crate::daemon::endpoints::dependency_tools::filetree)
     /// does.
     Filetree,

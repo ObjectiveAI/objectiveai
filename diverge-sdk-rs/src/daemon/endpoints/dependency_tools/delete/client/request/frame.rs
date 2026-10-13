@@ -5,19 +5,20 @@ use serde::{Deserialize, Serialize};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to delete a dependency template, by id.
+/// Ask the daemon to delete every tool of a dependency template, by
+/// the template's id.
 ///
-/// The id is the template's hash, as its list item carries it,
-/// compared as the daemon compares ids and not read. A template any
-/// tool runs from — a transient one in an agent's run, or a service,
-/// held or not — is not deleted, and the daemon says so with a
-/// variant of its own, because a caller acts on it differently from
-/// a failure: wait for the runs to end, and ask again. A template
-/// agents depend on and no tool runs from is deleted, and they
-/// depend on it no more.
+/// The id is the template's hash, as each tool's list item carries
+/// it, compared as the daemon compares ids and not read. A template
+/// any tool of which runs — a transient one in an agent's run, or a
+/// service's container, up — is not deleted, and the daemon says so
+/// with a variant of its own, because a caller acts on it differently
+/// from a failure: wait for the runs to end, and ask again. Tools
+/// agents depend on and none of which runs are deleted, and the
+/// agents depend on them no more.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The template's id, as its list item carries it.
+    /// The template's id, as its tools' list items carry it.
     pub id: String,
 }
 

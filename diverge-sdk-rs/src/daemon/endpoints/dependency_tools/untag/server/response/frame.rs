@@ -6,8 +6,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// An untag's answer: the tags are off the template, no template has
-/// the id, or a failure.
+/// An untag's answer: the tags are off the tool, no tool is
+/// the one named, or a failure.
 ///
 /// An untag is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
@@ -19,9 +19,9 @@ use crate::shared::error::Error;
 /// # One answer, one failure
 ///
 /// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and
-/// no template of the caller's has the id, and nothing is retried —
+/// no tool of the caller's is the one named, and nothing is retried —
 /// the caller has the wrong id. An [`Error`](Self::Error) is the
-/// absence of an answer: the daemon could not change the template's
+/// absence of an answer: the daemon could not change the tool's
 /// tags, for whatever reason it knows, and the tags are as they were.
 ///
 /// # Forbidden
@@ -35,7 +35,7 @@ use crate::shared::error::Error;
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The tags are off the template. Tag `0`.
+    /// The tags are off the tool. Tag `0`.
     Untagged,
     /// No template of the caller's has the id; nothing changed.
     /// Tag `1`.

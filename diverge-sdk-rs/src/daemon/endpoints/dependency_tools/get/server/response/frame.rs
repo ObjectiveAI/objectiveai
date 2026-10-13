@@ -8,7 +8,7 @@ use crate::shared::error::Error;
 
 use crate::daemon::endpoints::dependency_tools::list::server::response::Listed;
 
-/// A get's answer: the template, no template is the one named, or a
+/// A get's answer: the tool, no tool is the one named, or a
 /// failure.
 ///
 /// A get is one question and one reply, so there is exactly one of
@@ -24,7 +24,8 @@ use crate::daemon::endpoints::dependency_tools::list::server::response::Listed;
 /// # One answer, one failure
 ///
 /// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and no
-/// template of the caller's is the one named, and nothing is retried.
+/// tool of the caller's is the one named — no template has the id, or
+/// the template has no tool under the owner — and nothing is retried.
 /// An [`Error`](Self::Error) is the absence of an answer: the daemon
 /// could not look, for whatever reason it knows.
 ///
@@ -39,9 +40,9 @@ use crate::daemon::endpoints::dependency_tools::list::server::response::Listed;
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The template, as the list reports it. Tag `0`.
+    /// The tool, as the list reports it. Tag `0`.
     Found(Listed),
-    /// No template of the caller's is the one named. Tag `1`.
+    /// No tool of the caller's is the one named. Tag `1`.
     NotFound,
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `2`.
