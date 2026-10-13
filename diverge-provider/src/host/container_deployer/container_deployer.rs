@@ -17,7 +17,7 @@ use super::mounts::tool_path;
 use super::{Container, Error, Images, Shared, name_ok};
 use crate::host::Limit;
 use crate::host::image_manager::Store;
-use diverge_sdk::config::provider::containers::{Containers, Podman};
+use crate::config::containers::{Containers, Podman};
 use crate::host::tools::{mount, podman};
 use crate::host::volume_manager::VolumeManager;
 use diverge_sdk::shared::containers::request::Image;

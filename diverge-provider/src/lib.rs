@@ -16,5 +16,6 @@
 //! calls its [`handle`](protocol::handle::handle) per connection; the
 //! binary of this crate does exactly that with [`host`].
 
+pub mod config;
 pub mod host;
 pub mod protocol;

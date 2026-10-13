@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 use super::Error;
 use crate::host::container_deployer::name_ok;
 use crate::host::tools::podman;
-use diverge_sdk::config::provider::images;
+use crate::config::images;
 use diverge_sdk::provider::endpoints::images::list::server::response::Image;
 
 /// An image's record, `<pool>/images/<name>.json`: what the pool's

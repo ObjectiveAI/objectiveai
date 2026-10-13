@@ -30,9 +30,9 @@
 //! the one way it runs them. [`watch`] is a directory of this host
 //! walked and watched, the filetree of a fixed volume, one module
 //! for every host through `notify`. What the provider is told is the
-//! `provider` block of the one `config.yaml`,
-//! [`diverge_sdk::config::provider`], read from the root the SDK
-//! finds; the provider keeps its state under `<root>/provider/`.
+//! one `provider.yaml`, [`crate::config`], read from the root the
+//! provider finds; the provider keeps its state under
+//! `<root>/provider/`.
 //! [`serve`] is the provider running: the pieces built once, a
 //! WebSocket accepted on its port or dialled to each peer it is told
 //! of, every connection handed to the protocol's dispatch, and the

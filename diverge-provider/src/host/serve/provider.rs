@@ -15,9 +15,9 @@ use crate::protocol::changes::Changes;
 use crate::protocol::handle::handle;
 use diverge_sdk::wire::server::session::Session;
 
-use diverge_sdk::config::provider::Config;
-use diverge_sdk::config::provider::auth::Auth;
-use diverge_sdk::config::provider::volumes::Volumes;
+use crate::config::Config;
+use crate::config::auth::Auth;
+use crate::config::volumes::Volumes;
 
 use super::{Error, Peers};
 use crate::host::container_deployer::ContainerDeployer;

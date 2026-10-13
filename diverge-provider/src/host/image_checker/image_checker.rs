@@ -8,7 +8,7 @@ use crate::protocol::image_checker;
 use futures_util::future;
 
 use super::Error;
-use diverge_sdk::config::provider::containers::Registry;
+use crate::config::containers::Registry;
 use diverge_sdk::provider::endpoints::images::check::client::request::Sources;
 use diverge_sdk::shared::containers::request::Image;
 use crate::host::container_deployer::name_ok;

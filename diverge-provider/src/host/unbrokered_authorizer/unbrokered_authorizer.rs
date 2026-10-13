@@ -8,7 +8,7 @@ use diverge_sdk::wire::server::unbrokered_authorizer;
 use futures_util::future;
 
 use super::{Error, Slot, Taken};
-use diverge_sdk::config::provider::auth::{Auth, Hook, HookInput, HookOutput, Key, Unbrokered};
+use crate::config::auth::{Auth, Hook, HookInput, HookOutput, Key, Unbrokered};
 use crate::host::hook;
 use crate::host::serve::{Peers, digest};
 

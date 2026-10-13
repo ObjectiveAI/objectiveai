@@ -4,7 +4,7 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
-use diverge_sdk::config;
+use crate::config;
 
 use crate::host::container_deployer;
 use crate::host::image_registry;

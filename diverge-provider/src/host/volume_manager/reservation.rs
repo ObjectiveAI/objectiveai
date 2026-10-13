@@ -7,7 +7,7 @@ use tokio::fs;
 use tokio::sync::{Mutex, OnceCell};
 
 use super::name;
-use diverge_sdk::config::provider::volumes::Store;
+use crate::config::volumes::Store;
 
 /// The stores volumes are created in, and how many bytes each has
 /// given out, kept in memory and taken by compare-and-swap.

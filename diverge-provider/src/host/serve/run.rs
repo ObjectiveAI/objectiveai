@@ -8,11 +8,11 @@ use futures_util::future::{self, Either};
 use tokio::sync::watch;
 use tokio::task::JoinSet;
 
-use diverge_sdk::config::provider::Config;
+use crate::config::Config;
 
 use super::{Error, Provider, dial, listen};
 
-/// Run the provider on `config`, its block of the file at `root`,
+/// Run the provider on `config`, the file at `root`,
 /// under `<root>/provider/`, until Ctrl-C or, on Unix, SIGTERM. The
 /// pieces are built by [`Provider::start`]; one task per
 /// peer of `clients.unbrokered` dials; the port is listened on until
