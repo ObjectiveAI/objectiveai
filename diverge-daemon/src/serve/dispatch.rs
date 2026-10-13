@@ -6,7 +6,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, postgres, providers, roles, tools, volumes};
+use super::{accounts, agents, dependencies, postgres, providers, roles, tools, volumes};
 use crate::daemon::Daemon;
 use crate::judge::Who;
 
@@ -15,7 +15,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// eighty-nine has a handler. A payload that is no request at all is
+/// ninety-eight has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -109,6 +109,15 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ProvidersDaemonsEdit(frame) => providers::daemons::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersDaemonsTag(frame) => providers::daemons::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersDaemonsUntag(frame) => providers::daemons::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependenciesList(frame) => dependencies::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependenciesGet(frame) => dependencies::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependenciesDelete(frame) => dependencies::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependenciesTag(frame) => dependencies::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependenciesUntag(frame) => dependencies::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependenciesFiletree(frame) => dependencies::filetree::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependenciesDownload(frame) => dependencies::download::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependenciesUpload(frame) => dependencies::upload::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependenciesTransfer(frame) => dependencies::transfer::handle(scope, frame, who, daemon).await,
         ClientRequest::Invalid(_) => scope.send_response_finish().await,
     }
 }

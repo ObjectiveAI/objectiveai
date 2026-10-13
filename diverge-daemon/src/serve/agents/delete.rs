@@ -10,7 +10,6 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use super::{Failure, active};
 use crate::containers;
 use crate::daemon::{Daemon, Kind};
-use crate::database;
 use crate::judge::{self, Standing, Who};
 use crate::logs;
 use crate::serve::reply;
@@ -28,13 +27,13 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for an agent the grants do not reach; `Active` while a loop runs
-/// in it; else the agent gone — its database scope and the scope of
-/// every transient dependency and every per-agent service ever
-/// deployed for it dropped with their every table, the per-template
-/// and global scopes left to their owners, its container stopped if
-/// it was up, its attachments with it, its per-agent services retired
-/// and every other service it was attached to told, its name free,
-/// every watch on its log ended and the log removed.
+/// in it; else the agent gone — its container stopped if it was up,
+/// its attachments and its dependencies with it, its per-agent
+/// services retired and every other service it was attached to told,
+/// its name free, every watch on its log ended and the log removed.
+/// No database scope goes with it: its own, and those of the
+/// dependency tools ever deployed for it, stay until the tool's or
+/// the dependency template's delete.
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, Failure> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -55,7 +54,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     }
     let attached = services::of_agent(&mut tx, agent.id).await?;
     agents::delete(&mut tx, agent.id).await?;
-    database::provision::sweep(&mut tx, &database::prefix_of(&database::owner_of(&database::container_of_agent(&agent)))).await?;
     tx.commit().await?;
     daemon.live.forget_scope(containers::Key::Agent(agent.id)).await;
     containers::stop_agent(daemon, agent.id).await;
@@ -64,6 +62,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     logs::remove(&daemon.logs, agent.id).await?;
     daemon.live.changed(Kind::Agents);
     daemon.live.changed(Kind::Tools);
+    daemon.live.changed(Kind::Dependencies);
     daemon.live.changed(Kind::Volumes);
     Ok(Frame::Deleted)
 }

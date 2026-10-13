@@ -41,11 +41,11 @@ pub async fn start(daemon: &Arc<Daemon>, service: &Service) -> Result<Arc<ToolRu
     let Some(owner) = service.owner(owner.as_ref()) else {
         return Err(StartError::Run("the service's agent is gone".to_string()));
     };
-    let key = key::Tool::Service {
+    let key = key::Tool::Dependency {
         template: service.template.clone(),
         owner: owner.clone(),
     };
-    let sender = Creator::Tool(creator::Tool::Service {
+    let sender = Creator::Tool(creator::Tool::Dependency {
         template: service.template.clone(),
         owner,
     });

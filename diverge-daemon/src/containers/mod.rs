@@ -15,7 +15,9 @@
 //! while nothing uses it; [`message`] is the one way into an agent;
 //! [`use_tool`] and [`release`] are "one container per tool", started
 //! for the first container or connect scope that uses it and stopped
-//! with the last, a [`User`] either way;
+//! with the last, a [`User`] either way; [`running_dependency`] is
+//! the dependency tool a reference names, found running or not at
+//! all, since one is started by nobody's request;
 //! [`mcp`] is the one tool list an agent sees and the routing of its
 //! calls; [`deploy`] deploys a container's declared dependencies then
 //! and there — a transient tool of the agent's own for the agent's
@@ -46,6 +48,7 @@ mod opened;
 mod provider;
 mod pump;
 mod run;
+mod running;
 mod start;
 mod stop;
 mod tools;
@@ -70,6 +73,7 @@ pub use opened::*;
 pub use provider::*;
 pub use pump::*;
 pub use run::*;
+pub use running::*;
 pub use start::*;
 pub use stop::*;
 pub use tools::*;

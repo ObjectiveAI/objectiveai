@@ -22,9 +22,10 @@ pub async fn agent_deleted(daemon: &Arc<Daemon>, agent: AgentId, services: Vec<S
     }
 }
 
-/// The agent template is deleted, and `removed` were its per-template
-/// services, whose rows went with it: each is retired, its run with
-/// it.
+/// The agent template, or the dependency template, is deleted, and
+/// `removed` were the services whose rows went with it — the agent
+/// template's per-template ones, or every one made from the
+/// dependency template: each is retired, its run with it.
 pub async fn template_deleted(daemon: &Arc<Daemon>, removed: Vec<ServiceId>) {
     for id in removed {
         retire(daemon, id).await;

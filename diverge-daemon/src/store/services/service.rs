@@ -50,7 +50,7 @@ impl Service {
 
     /// The service as a key: its template and whose it is.
     pub fn key(&self, owner_agent: Option<&Agent>) -> Option<key::Tool> {
-        Some(key::Tool::Service {
+        Some(key::Tool::Dependency {
             template: self.template.clone(),
             owner: self.owner(owner_agent)?,
         })

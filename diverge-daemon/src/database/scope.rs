@@ -1,7 +1,7 @@
 //! Which scope is a container's: its role, from its owner and its
 //! part.
 
-use diverge_sdk::daemon::endpoints::postgres::{Container, Dependency as Scoped, Parent};
+use diverge_sdk::daemon::endpoints::postgres::Container;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::shared::canonical;
 use diverge_sdk::shared::containers::dependencies::Scope;
@@ -16,14 +16,14 @@ use crate::store::services::Service;
 use crate::store::tools::{Origin, Tool};
 use crate::store::{self, agents, services, tools};
 
-/// Whose a scope is: what its role names first, so that everything
-/// one owner has shares a prefix. An agent owns its own scope, the
-/// scopes of its transient dependencies and those of its per-agent
-/// services; a tool owns its own; an agent template owns the
-/// per-template scopes of the services its agents declared; and a
-/// global service's scope is its template's own, held up by the agent
-/// templates whose agents ever declared it and swept when the last
-/// of them is deleted.
+/// Whose a scope is: what its role names first. An agent owns its own
+/// scope, the scopes of its transient dependencies and those of its
+/// per-agent services; a tool owns its own; an agent template owns
+/// the per-template scopes of the services its agents declared; and
+/// a global service's scope is its template's own. Owning is a matter
+/// of the role's name alone: no scope is dropped because its owner
+/// was deleted, only because the tool or the dependency template it
+/// was made for was.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Owner {
@@ -38,7 +38,7 @@ pub enum Owner {
     },
     /// A global service's template, by id.
     Global {
-        /// The dependency tool template.
+        /// The dependency template.
         template: String,
     },
 }
@@ -48,15 +48,24 @@ pub fn owner_of(container: &Container) -> Owner {
     match container {
         Container::Agent(agent) => Owner::Agent(agent.clone()),
         Container::Tool(tool) => Owner::Tool(tool.clone()),
-        Container::Dependency(Scoped { parent, template }) => match parent {
-            Parent::Agent(agent) => Owner::Agent(agent.clone()),
-            Parent::AgentTemplate { template } => Owner::AgentTemplate {
+        Container::Dependency(reference::Dependency { owner, template }) => match owner {
+            reference::Owner::Agent(agent) => Owner::Agent(agent.clone()),
+            reference::Owner::AgentTemplate { template } => Owner::AgentTemplate {
                 template: template.clone(),
             },
-            Parent::Global => Owner::Global {
+            reference::Owner::Global => Owner::Global {
                 template: template.clone(),
             },
         },
+    }
+}
+
+/// The dependency template the container's scope was made for a tool
+/// of: `None` for an agent's or a tool's own scope.
+pub fn template_of(container: &Container) -> Option<&str> {
+    match container {
+        Container::Agent(_) | Container::Tool(_) => None,
+        Container::Dependency(dependency) => Some(&dependency.template),
     }
 }
 
@@ -66,8 +75,11 @@ pub fn owner_of(container: &Container) -> Owner {
 fn part_of(container: &Container) -> Option<&str> {
     match container {
         Container::Agent(_) | Container::Tool(_) => None,
-        Container::Dependency(Scoped { parent: Parent::Global, .. }) => None,
-        Container::Dependency(Scoped { template, .. }) => Some(template),
+        Container::Dependency(reference::Dependency {
+            owner: reference::Owner::Global,
+            ..
+        }) => None,
+        Container::Dependency(reference::Dependency { template, .. }) => Some(template),
     }
 }
 
@@ -86,17 +98,11 @@ fn twenty<T: Serialize + ?Sized>(value: &T) -> String {
 /// dependency's template id as a JSON string for any other
 /// dependency's. Forty-eight bytes of `[a-z0-9_]`, stable across
 /// restarts and providers, never reused because the identity is never
-/// reused, safe to write as a bare identifier, and OWNER FIRST: every
-/// scope an owner has is under [`prefix_of`] its owner, which is how
-/// a delete finds them all.
+/// reused, and safe to write as a bare identifier. Every role made is
+/// on record in [`scopes`](crate::store::scopes), which is how a
+/// dependency template's delete finds every scope of its tools.
 pub fn role_of(container: &Container) -> String {
     format!("diverge_{}{}", twenty(&owner_of(container)), twenty(&part_of(container)))
-}
-
-/// What every role the owner has begins with: `diverge_` and the
-/// owner's twenty.
-pub fn prefix_of(owner: &Owner) -> String {
-    format!("diverge_{}", twenty(owner))
 }
 
 /// The key the scope's provisioning is serialized under: the first
@@ -129,39 +135,39 @@ pub fn container_of_tool(tool: &Tool) -> Container {
 }
 
 /// The transient dependency's scope as the database names it: by its
-/// parent agent, once and for all, which a transient tool's always
-/// is, and by its template's id.
+/// template's id and its agent, once and for all, which a transient
+/// tool's owner always is.
 pub fn container_of_dependency(dependency: &Dependency) -> Container {
-    Container::Dependency(Scoped {
-        parent: Parent::Agent(reference::Agent::TemplateIndex {
+    Container::Dependency(reference::Dependency {
+        template: dependency.template.clone(),
+        owner: reference::Owner::Agent(reference::Agent::TemplateIndex {
             template: dependency.agent_key.template.clone(),
             index: dependency.agent_key.index,
         }),
-        template: dependency.template.clone(),
     })
 }
 
-/// The service's scope as the database names it: by its one agent —
-/// `owner`, loaded by the caller — its one agent template, or the
-/// template alone, as its scope says, and by its template's id.
-/// `None` for a per-agent service whose agent is gone.
+/// The service's scope as the database names it: by its template's id
+/// and its one agent — `owner`, loaded by the caller — its one agent
+/// template, or everyone, as its scope says. `None` for a per-agent
+/// service whose agent is gone.
 pub fn container_of_service(service: &Service, owner: Option<&Agent>) -> Option<Container> {
-    let parent = match service.scope {
+    let owner = match service.scope {
         Scope::Instance => {
             let owner = owner?;
-            Parent::Agent(reference::Agent::TemplateIndex {
+            reference::Owner::Agent(reference::Agent::TemplateIndex {
                 template: owner.template.clone(),
                 index: owner.index,
             })
         }
-        Scope::Template => Parent::AgentTemplate {
+        Scope::Template => reference::Owner::AgentTemplate {
             template: service.owner_template.clone().unwrap_or_default(),
         },
-        Scope::Global => Parent::Global,
+        Scope::Global => reference::Owner::Global,
     };
-    Some(Container::Dependency(Scoped {
-        parent,
+    Some(Container::Dependency(reference::Dependency {
         template: service.template.clone(),
+        owner,
     }))
 }
 

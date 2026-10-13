@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::tools::untag::server::response::Frame;
 use diverge_sdk::daemon::grant::Tagging;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{Found, READ_ONLY, active, agents_of, resolve, service_agents};
+use super::{active, agents_of, resolve};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::filter::tools::Facts;
 use crate::judge::{self, Standing, Who};
@@ -24,7 +24,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `untag` grant at all; `NotFound`; `Forbidden`
 /// for a tool the grants do not reach, or a tag the grant does not
-/// cover; the error for a dependency, which carries no tags; else the tags off the tool, a tag not held not held still.
+/// cover; else the tags off the tool, a tag not held not held still.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -33,27 +33,13 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::tools::holds_tagging(&standing, Tagging::Untag) {
         return Ok(Frame::Forbidden);
     }
-    let Some(found) = resolve(&mut tx, daemon, &frame.tool, true).await? else {
+    let Some(tool) = resolve(&mut tx, &frame.tool, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let tool = match found {
-        Found::Record(tool) => {
-            let attached = agents_of(&mut tx, tool.id).await?;
-            if !judge::tools::tagging(&standing, Tagging::Untag, &Facts::record(&tool, active(daemon, tool.id).await, &attached), &frame.tags) {
-                return Ok(Frame::Forbidden);
-            }
-            tool
-        }
-        Found::Dependency(run) => {
-            let reached = Facts::dependency(&run).is_some_and(|facts| judge::tools::tagging(&standing, Tagging::Untag, &facts, &frame.tags));
-            return Ok(if reached { Frame::Error(reply::failure(&READ_ONLY)) } else { Frame::Forbidden });
-        }
-        Found::Service { service, run } => {
-            let attached = service_agents(&mut tx, &service).await?;
-            let reached = judge::tools::tagging(&standing, Tagging::Untag, &Facts::service(&service, run.is_some(), &attached), &frame.tags);
-            return Ok(if reached { Frame::Error(reply::failure(&READ_ONLY)) } else { Frame::Forbidden });
-        }
-    };
+    let attached = agents_of(&mut tx, tool.id).await?;
+    if !judge::tools::tagging(&standing, Tagging::Untag, &Facts::record(&tool, active(daemon, tool.id).await, &attached), &frame.tags) {
+        return Ok(Frame::Forbidden);
+    }
     tools::set_tags(&mut tx, tool.id, &tags::without(&tool.tags, &frame.tags)).await?;
     tx.commit().await?;
     daemon.live.changed(Kind::Tools);

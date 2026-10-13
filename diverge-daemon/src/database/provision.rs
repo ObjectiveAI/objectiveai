@@ -82,27 +82,3 @@ pub async fn drop(conn: &mut PgConnection, role: &str) -> Result<(), store::Erro
     let _ = sqlx::query(&format!("DROP ROLE IF EXISTS {role}")).execute(&mut *conn).await;
     Ok(())
 }
-
-/// Drop every scope under the prefix: what an owner has — a
-/// container's own scope and, an agent's, every scope of its
-/// transient dependencies and its `instance` services; an agent
-/// template's, every `template` service's scope its agents shared,
-/// swept at the template's delete once no agent is left of it; a
-/// global service's template's, its one scope, swept when the last
-/// agent template whose agents attached it is deleted — found in the
-/// catalog by the owner's prefix, which every role of the owner's
-/// begins with, and [`drop`]ped one by one. A `template` or `global`
-/// scope is under no agent's prefix; a tool template owns none.
-pub async fn sweep(conn: &mut PgConnection, prefix: &str) -> Result<(), store::Error> {
-    let pattern = format!("{}%", prefix.replace('_', "\\_"));
-    let rows = sqlx::query(r"SELECT nspname FROM pg_namespace WHERE nspname LIKE $1 ESCAPE '\'")
-        .bind(&pattern)
-        .fetch_all(&mut *conn)
-        .await?;
-    for row in &rows {
-        let role: String = row.try_get("nspname")?;
-        drop(&mut *conn, &role).await?;
-    }
-    Ok(())
-}
-

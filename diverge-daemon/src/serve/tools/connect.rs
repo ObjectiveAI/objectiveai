@@ -16,7 +16,7 @@ use futures_util::StreamExt as _;
 use rmcp::model::{ErrorData, GetMeta as _};
 use tokio::task::JoinSet;
 
-use super::{Found, READ_ONLY, reaches, resolve};
+use super::{reaches, resolve};
 use crate::containers::{self, ToolRun, User};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
@@ -38,9 +38,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 const CONNECTED: &str = "a connected tool is another daemon's, and is served there";
 
 /// `Forbidden` with no `connect` grant at all; `NotFound`; `Forbidden`
-/// for a tool the grants do not reach; the error for a dependency,
-/// which is its agent's, and for a connected tool, which is another
-/// daemon's; the container started, or touched if it runs, as a user
+/// for a tool the grants do not reach; the error for a connected
+/// tool, which is another daemon's; the container started, or
+/// touched if it runs, as a user
 /// of the scope's own, which failing is the `Error`; else exactly one
 /// `Connected`, and then the scope held until the run ends or the
 /// client disconnects: every channel the client opens is one of the
@@ -59,20 +59,16 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let Some(found) = resolve(&mut conn, daemon, &frame.tool, false).await? else {
+    let Some(tool) = resolve(&mut conn, &frame.tool, false).await? else {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     };
-    let reached = reaches(&mut conn, daemon, &standing, Over::Connect, &found).await?;
+    let reached = reaches(&mut conn, daemon, &standing, Over::Connect, &tool).await?;
     drop(conn);
     if !reached {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let Found::Record(tool) = found else {
-        reply::reply(scope, &Frame::Error(reply::failure(&READ_ONLY))).await;
-        return Ok(());
-    };
     if tool.is_connected() {
         reply::reply(scope, &Frame::Error(reply::failure(&CONNECTED))).await;
         return Ok(());

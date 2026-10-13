@@ -13,8 +13,8 @@
 //! first, [`admit`](crate::judge::admit)ted, and then every request,
 //! read as a [`ClientRequest`](diverge_sdk::daemon::endpoints::ClientRequest)
 //! and handed by [`dispatch`] to its handler — [`accounts`],
-//! [`roles`], [`providers`], [`agents`], [`tools`], [`volumes`] and
-//! [`postgres`] have one per request, every request
+//! [`roles`], [`providers`], [`agents`], [`tools`], [`dependencies`],
+//! [`volumes`] and [`postgres`] have one per request, every request
 //! of the wire served; what the file operations of every family
 //! share is [`files`]. A credential that admits a provider rather
 //! than a client hands the socket to [`providers`](crate::providers)
@@ -59,6 +59,7 @@ pub use run::*;
 
 pub mod accounts;
 pub mod agents;
+pub mod dependencies;
 pub mod files;
 pub mod inner;
 pub mod postgres;

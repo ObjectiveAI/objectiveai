@@ -6,7 +6,7 @@ use diverge_sdk::daemon::grant::agents::Over as AgentsOver;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{Found, READ_ONLY, reaches, resolve};
+use super::{reaches, resolve};
 use crate::containers;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
@@ -27,9 +27,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `attach` grant over tools or no `edit` grant
 /// over agents at all; `NoTool`; `NoAgent`; `Forbidden` for a tool or
-/// an agent the grants do not reach; the error for a dependency,
-/// which is served to its own agent and attached to none; else the
-/// tool attached, after
+/// an agent the grants do not reach; else the tool attached, after
 /// every tool attached before it — on an active agent as well as an
 /// idle one, and one attached already left in its place.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -40,20 +38,17 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::tools::holds(&standing, Over::Attach) || !judge::agents::holds(&standing, AgentsOver::Edit) {
         return Ok(Frame::Forbidden);
     }
-    let Some(found) = resolve(&mut tx, daemon, &frame.tool, true).await? else {
+    let Some(tool) = resolve(&mut tx, &frame.tool, true).await? else {
         return Ok(Frame::NoTool);
     };
     let Some(agent) = agent_records::by_reference(&mut tx, &frame.agent, true).await? else {
         return Ok(Frame::NoAgent);
     };
-    if !reaches(&mut tx, daemon, &standing, Over::Attach, &found).await?
+    if !reaches(&mut tx, daemon, &standing, Over::Attach, &tool).await?
         || !judge::agents::over(&standing, AgentsOver::Edit, &agent, agents::active(daemon, agent.id).await)
     {
         return Ok(Frame::Forbidden);
     }
-    let Found::Record(tool) = found else {
-        return Ok(Frame::Error(reply::failure(&READ_ONLY)));
-    };
     attachments::attach(&mut tx, tool.id, agent.id).await?;
     tx.commit().await?;
     daemon.live.changed(Kind::Agents);

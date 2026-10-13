@@ -27,8 +27,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` with no `download` grant at all; `NotFound`;
 /// `Forbidden` for a tool the grants do not reach; the container
 /// started, or the connected tool joined, for the operation, which
-/// failing is the `Error` — a dependency's running already, for its
-/// agent; `NotFound` for a path at which nothing is;
+/// failing is the `Error`; `NotFound` for a path at which nothing is;
 /// else every file at the path as chunks; the container released
 /// after.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
@@ -41,11 +40,11 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let Some(found) = resolve(&mut conn, daemon, &frame.tool, false).await? else {
+    let Some(tool) = resolve(&mut conn, &frame.tool, false).await? else {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     };
-    let reached = reaches(&mut conn, daemon, &standing, Over::Download, &found).await?;
+    let reached = reaches(&mut conn, daemon, &standing, Over::Download, &tool).await?;
     drop(conn);
     if !reached {
         reply::reply(scope, &Frame::Forbidden).await;
@@ -55,7 +54,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     }
-    let opened = match files::open_found(daemon, &found).await {
+    let opened = match files::open_tool(daemon, &tool).await {
         Ok(opened) => opened,
         Err(error) => {
             reply::reply(scope, &Frame::Error(reply::failure(&error))).await;

@@ -24,8 +24,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` with no `filetree` grant at all; `NotFound`;
 /// `Forbidden` for a tool the grants do not reach; the container
 /// started, or the connected tool joined, for the watch, which
-/// failing is the `Error` — a dependency's running already, for its
-/// agent; else a snapshot of the whole tree, the
+/// failing is the `Error`; else a snapshot of the whole tree, the
 /// daemon's mounts spliced in, then every change until the client
 /// cancels, the run ends, or the stream fails; the container released
 /// after. The watch touches nothing: it never keeps the container up
@@ -40,17 +39,17 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let Some(found) = resolve(&mut conn, daemon, &frame.tool, false).await? else {
+    let Some(tool) = resolve(&mut conn, &frame.tool, false).await? else {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     };
-    let reached = reaches(&mut conn, daemon, &standing, Over::Filetree, &found).await?;
+    let reached = reaches(&mut conn, daemon, &standing, Over::Filetree, &tool).await?;
     drop(conn);
     if !reached {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let opened = match files::open_found(daemon, &found).await {
+    let opened = match files::open_tool(daemon, &tool).await {
         Ok(opened) => opened,
         Err(error) => {
             reply::reply(scope, &Frame::Error(reply::failure(&error))).await;

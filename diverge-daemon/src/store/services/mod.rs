@@ -7,14 +7,13 @@
 //! service — who first declared it and when. Beside the row are its
 //! [`attachments`] to agents, in attach order: every agent whose last
 //! registration declared the template, which is what holds the
-//! service up; and [`owners`], the agent templates whose agents ever
-//! attached a global service, which is what holds its database scope
-//! up. The container is work made from the row and is nowhere in it;
-//! what runs is the live state's. [`all`], [`by_id`], [`by_scope`],
-//! [`of_agent`] and [`of_owner_template`] load; [`find_or_create`]
-//! makes one under its scope key, or finds the one there is;
-//! [`delete`] and [`delete_of_owner_template`] remove; [`set_last`]
-//! keeps where and when it last ran.
+//! service up. The container is work made from the row and is
+//! nowhere in it; what runs is the live state's. [`all`], [`by_id`],
+//! [`by_scope`], [`of_agent`] and [`of_owner_template`] load;
+//! [`find_or_create`] makes one under its scope key, or finds the
+//! one there is; [`delete`], [`delete_of_owner_template`] and
+//! [`delete_of_template`] remove; [`set_last`] keeps where and when
+//! it last ran.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -27,7 +26,6 @@ mod row;
 mod service;
 
 pub mod attachments;
-pub mod owners;
 
 pub use activity::*;
 pub use create::*;

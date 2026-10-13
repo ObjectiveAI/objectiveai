@@ -5,13 +5,13 @@ use diverge_sdk::daemon::endpoints::tools::delete::server::response::Frame;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{Found, READ_ONLY, agents_of, reaches, resolve};
+use super::{agents_of, reaches, resolve};
 use crate::containers::{Key, ToolKey};
 use crate::daemon::{Daemon, Kind};
 use crate::database;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::{self, tools};
+use crate::store::{self, scopes, tools};
 
 /// Answer the delete and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -24,11 +24,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
-/// for a tool the grants do not reach; the error for a dependency,
-/// which is its agent's and goes with it; `Attached` while it is
-/// attached to any agent; else the tool gone — its database scope
-/// dropped with its every table, its name free. A tool attached
-/// nowhere runs nowhere, so nothing is stopped.
+/// for a tool the grants do not reach; `Attached` while it is
+/// attached to any agent; else the tool gone — its own database scope
+/// dropped with its every table and taken off record, its name free.
+/// A tool attached nowhere runs nowhere, so nothing is stopped.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -37,21 +36,20 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::tools::holds(&standing, Over::Delete) {
         return Ok(Frame::Forbidden);
     }
-    let Some(found) = resolve(&mut tx, daemon, &frame.tool, true).await? else {
+    let Some(tool) = resolve(&mut tx, &frame.tool, true).await? else {
         return Ok(Frame::NotFound);
     };
-    if !reaches(&mut tx, daemon, &standing, Over::Delete, &found).await? {
+    if !reaches(&mut tx, daemon, &standing, Over::Delete, &tool).await? {
         return Ok(Frame::Forbidden);
     }
-    let Found::Record(tool) = found else {
-        return Ok(Frame::Error(reply::failure(&READ_ONLY)));
-    };
     let attached = agents_of(&mut tx, tool.id).await?;
     if !attached.is_empty() {
         return Ok(Frame::Attached);
     }
     tools::delete(&mut tx, tool.id).await?;
-    database::provision::sweep(&mut tx, &database::prefix_of(&database::owner_of(&database::container_of_tool(&tool)))).await?;
+    let role = database::role_of(&database::container_of_tool(&tool));
+    database::provision::drop(&mut tx, &role).await?;
+    scopes::remove(&mut tx, &role).await?;
     tx.commit().await?;
     daemon.live.forget_scope(Key::Tool(ToolKey::Record(tool.id))).await;
     daemon.live.changed(Kind::Tools);

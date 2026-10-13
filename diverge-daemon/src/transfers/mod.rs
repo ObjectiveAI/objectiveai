@@ -6,7 +6,8 @@
 //! a directory, landing file by file at the destination joined with
 //! each file's path within it, nothing removed. A destination is a
 //! path in an agent's or a tool's container — started or joined for
-//! the operation — or a path in a volume. A volume at either end is taken for
+//! the operation — in a dependency tool's, taken as it runs, or a
+//! path in a volume. A volume at either end is taken for
 //! the length of the copy, or the copy is `Held`; two containers on
 //! one provider copy through the provider, the bytes staying there;
 //! every other pair streams through the daemon. [`copy`] is the whole

@@ -12,22 +12,23 @@
 //! none is, its idle clock runs, and `idle_seconds` after the last
 //! attachment left with none since it is RETIRED: its run stopped,
 //! its row gone, for good. Its database scope is not retired with
-//! it: that goes with its scope's owner — the agent, the agent
-//! template, or the last agent template whose agents ever attached a
-//! global service — at that owner's delete.
+//! it: that goes with its dependency template, at the template's
+//! delete, which is refused while any tool runs from the template.
 //!
 //! [`register`] is what a registration does: every service declared
 //! found or made, the agent attached, the rest detached; [`settle`]
 //! what a start does when the program declared nothing, the agent
-//! detached from every service; [`keep`] is a service kept up — its
+//! detached from every service and depending on nothing; [`keep`] is
+//! a service kept up — its
 //! [`State`] made, its [`supervise`] task and its [`clock`] started —
 //! and [`held`] its hold recomputed from its attachments; [`start`]
 //! is one run of its container; [`retire`] is the end; [`boot`] is
 //! every service brought up at the daemon's start, every unattached
 //! one retired; [`stop_all`] is the daemon stopping, the supervisors
 //! stilled before the runs are stopped so that none comes back; and
-//! [`agent_deleted`] and [`template_deleted`] are what the deletes do
-//! to the services the deleted thing held up or owned.
+//! [`agent_deleted`] and [`template_deleted`] are what the deletes —
+//! an agent's, an agent template's, a dependency template's — do to
+//! the services the deleted thing held up, owned, or was made into.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

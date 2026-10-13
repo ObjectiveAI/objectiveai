@@ -8,7 +8,6 @@ use diverge_sdk::daemon::endpoints::agents::templates::delete::server::response:
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
-use crate::database::{self, Owner};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, agents_templates, services};
@@ -26,12 +25,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for a template the grants do not reach; `InUse` while some agent
-/// was made from it; else the template deleted — the compartment of
-/// every per-template service its agents ever had dropped with its
-/// every table and the service retired, the template taken off every
-/// global service its agents ever attached and the compartment of
-/// each left with no owner dropped likewise, its row kept, so one
-/// made anew is this one again, with fresh compartments.
+/// was made from it; else the template deleted — every per-template
+/// service its agents ever had gone and retired, its row kept, so one
+/// made anew is this one again. No database scope goes with it: a
+/// per-template service's scope stays until its dependency
+/// template's delete.
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -51,17 +49,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if used {
         return Ok(Frame::InUse);
     }
-    database::provision::sweep(
-        &mut tx,
-        &database::prefix_of(&Owner::AgentTemplate {
-            template: record.id.clone(),
-        }),
-    )
-    .await?;
     let removed = services::delete_of_owner_template(&mut tx, &record.id).await?;
-    for template in services::owners::remove_template(&mut tx, &record.id).await? {
-        database::provision::sweep(&mut tx, &database::prefix_of(&Owner::Global { template })).await?;
-    }
     agents_templates::delete(&mut tx, &record.id).await?;
     tx.commit().await?;
     crate::containers::services::template_deleted(daemon, removed).await;

@@ -21,34 +21,49 @@ use crate::containers::fuse::Mounts;
 use crate::containers::mcp::Served;
 use crate::containers::services::{self, Declared};
 use crate::containers::{Caller, Dependency, Key, ToolHandle, ToolKey, ToolRun, User, build, provider, stop};
-use crate::daemon::Kind;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{Dependent, Fixed, Selves};
-use crate::store::{AgentId, hash};
+use crate::store::{self, AgentId, hash};
 
 /// Deploy every template for the agent `answerer` answers for, whose
 /// container runs under `id` on the answerer's provider: every
+/// template put on record as a dependency template of the daemon's,
+/// made or found made, and the agent's dependencies RESET to exactly
+/// these, in one transaction before anything starts; then every
 /// transient tool started at once, each served to the agent under
 /// its template's id once every one is up; then every service
 /// registered — found under its scope key or made, the agent attached
 /// to each and detached from every service it no longer declares —
 /// and served the same way. A template declared twice — one id twice
-/// — a tool container asking, no provider to run on, a path of the
-/// agent's that cannot be served, a provider that will not run one —
-/// every candidate tried — or a registration the store refuses is the
-/// error, naming the dependency by its id where there is one, and
-/// every transient tool started is stopped.
+/// — a tool container asking, a store that refuses the records, no
+/// provider to run on, a path of the agent's that cannot be served, a
+/// provider that will not run one — every candidate tried — or a
+/// registration the store refuses is the error, naming the dependency
+/// by its id where there is one, and every transient tool started is
+/// stopped.
 pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -> Result<(), Error> {
     let (Key::Agent(agent), Caller::Agent { key: agent_key, .. }) = (answerer.key, &answerer.caller) else {
         return Err(error("", "a tool container declares no dependencies"));
     };
+    let creator = Creator::Agent(creator::Agent {
+        template: agent_key.template.clone(),
+        index: agent_key.index,
+        name: agent_key.name.clone(),
+    });
     let mut transient = Vec::new();
     let mut services = Vec::new();
     let mut ids = HashSet::new();
+    let mut records = Vec::with_capacity(templates.len());
     for template in templates {
         let template_id = hash::template_id(&template.hashed()).map_err(|failure| error("", &failure.to_string()))?;
         if !ids.insert(template_id.clone()) {
             return Err(error(&template_id, "declared twice"));
         }
+        records.push(store::dependencies::New {
+            id: template_id.clone(),
+            template: template.clone(),
+            creator: creator.clone(),
+        });
         match &template.kind {
             dependencies::Kind::Transient { .. } => transient.push((template_id, template)),
             dependencies::Kind::Service { scope } => services.push(Declared {
@@ -58,6 +73,7 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
             }),
         }
     }
+    record(&answerer.daemon, agent, &records).await.map_err(|reason| error("", &reason))?;
     let id = id.as_str();
     let started = future::join_all(transient.into_iter().map(|(template_id, template)| async move {
         let outcome = start(answerer, agent, agent_key, id, template_id.clone(), template).await;
@@ -97,6 +113,25 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
     Ok(())
 }
 
+/// Every declared template on record, made by this registration or
+/// found made — a deleted one made anew, under its first creator —
+/// and the agent's dependencies made exactly the templates declared,
+/// in the order declared, in one transaction. The reason the store
+/// refused, in a sentence.
+async fn record(daemon: &Daemon, agent: AgentId, records: &[store::dependencies::New]) -> Result<(), String> {
+    let mut tx = daemon.store.begin().await.map_err(|error| error.to_string())?;
+    for new in records {
+        store::dependencies::create(&mut tx, new).await.map_err(|error| error.to_string())?;
+    }
+    let ids: Vec<String> = records.iter().map(|new| new.id.clone()).collect();
+    store::dependencies::agents::replace(&mut tx, agent, &ids)
+        .await
+        .map_err(|error| error.to_string())?;
+    tx.commit().await.map_err(|error| error.to_string())?;
+    daemon.live.changed(Kind::Dependencies);
+    Ok(())
+}
+
 /// One transient tool started: its mounts served from the agent, its
 /// container run on the first candidate provider that will, its run
 /// entered as live with a waiter. The reason it could not be, in a
@@ -123,16 +158,12 @@ async fn start(
     let image = container.image.clone();
     let dependency_id = daemon.live.mint_dependency().await;
     let key = key::Tool::Dependency {
-        agent: agent_key.clone(),
         template: template_id.clone(),
+        owner: key::Owner::Agent(agent_key.clone()),
     };
     let sender = Creator::Tool(creator::Tool::Dependency {
-        agent: creator::Agent {
-            template: agent_key.template.clone(),
-            index: agent_key.index,
-            name: agent_key.name.clone(),
-        },
         template: template_id.clone(),
+        owner: key::Owner::Agent(agent_key.clone()),
     });
     let dependent = (!template.permissions.is_empty()).then(|| Dependent {
         fixed: Arc::new(Fixed::new(identity(agent_key, &template_id), Converted::from(template.permissions.clone()))),

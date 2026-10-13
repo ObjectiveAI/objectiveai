@@ -26,3 +26,14 @@ pub async fn delete_of_owner_template(conn: &mut PgConnection, template: &str) -
         .await?;
     rows.iter().map(|row| Ok(ServiceId(row.try_get("id")?))).collect()
 }
+
+/// Delete every service made from the dependency template, under
+/// whatever scope: what the template's delete does. The ids removed,
+/// for their states to be retired.
+pub async fn delete_of_template(conn: &mut PgConnection, template: &str) -> Result<Vec<ServiceId>, Error> {
+    let rows = sqlx::query("DELETE FROM diverge.services WHERE template = $1 RETURNING id")
+        .bind(template)
+        .fetch_all(&mut *conn)
+        .await?;
+    rows.iter().map(|row| Ok(ServiceId(row.try_get("id")?))).collect()
+}

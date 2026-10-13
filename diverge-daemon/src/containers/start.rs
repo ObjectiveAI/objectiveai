@@ -25,8 +25,8 @@ use crate::store::{agents, agents_templates, providers_daemons, tools as tool_re
 /// may run on found, the mounts served, the attached tools served
 /// idle, the run opened on the first provider that runs it — its
 /// dependencies deployed meanwhile, the transient ones stopped again
-/// when that provider does not — its attachments to services settled
-/// to what its registration declared, and its id taken, the log told
+/// when that provider does not — its dependencies settled to none
+/// when its program declared none, and its id taken, the log told
 /// it began, the pump and the idle clock running. A start that fails
 /// keeps an `Error` item in the log, and the mounts opened are let
 /// go.
@@ -132,8 +132,9 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
                 continue;
             }
         };
-        let declared = answerer.services.lock().await.clone().unwrap_or_default();
-        services::settle(daemon, agent.id, &declared).await;
+        if answerer.services.lock().await.is_none() {
+            services::settle(daemon, agent.id).await;
+        }
         let run = Arc::new(AgentRun {
             id: agent.id,
             key: agent.key(),

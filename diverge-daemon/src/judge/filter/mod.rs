@@ -8,8 +8,9 @@
 //! passes a record that is any one of them; `all_tags` a record that
 //! carries every one; `any_tags` any one; an empty list is absent.
 //! [`accounts`], [`roles`], [`providers_outgoing`],
-//! [`providers_incoming`], [`providers_daemons`], [`agents_templates`]
-//! and [`tools_templates`] are the tests.
+//! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
+//! [`tools_templates`], [`dependencies`], [`agents`], [`tools`] and
+//! [`volumes`] are the tests.
 //!
 //! Evaluated here, in the daemon, against records loaded whole, and
 //! not translated into the database's own queries: one truth for the
@@ -20,6 +21,7 @@
 pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
+pub mod dependencies;
 pub mod providers_daemons;
 pub mod providers_incoming;
 pub mod providers_outgoing;

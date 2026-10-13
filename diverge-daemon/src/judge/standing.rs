@@ -117,6 +117,14 @@ impl Standing {
         })
     }
 
+    /// The grants over dependency templates.
+    pub fn dependencies(&self) -> impl Iterator<Item = &grant::dependencies::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::Dependencies(permission) => Some(permission),
+            _ => None,
+        })
+    }
+
     /// The grants over incoming credentials.
     pub fn providers_incoming(&self) -> impl Iterator<Item = &grant::providers_incoming::Permission> {
         self.grants.iter().filter_map(|grant| match grant {

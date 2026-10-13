@@ -11,11 +11,14 @@
 //! connect — and both are ordinary records from then on, editable and
 //! deletable. [`accounts`], [`roles`], [`providers_outgoing`],
 //! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
-//! [`tools_templates`],
+//! [`tools_templates`], [`dependencies`] — the templates agents'
+//! programs declare, with what each agent depends on now —
 //! [`agents`], [`tools`] and [`services`] are the records of each
-//! kind — a service a dependency tool template an agent declared as
+//! kind — a service a dependency template an agent declared as
 //! one, with the agents attached to it — and [`volumes`] what the
-//! daemon keeps of a volume, which is its tags alone;
+//! daemon keeps of a volume, which is its tags alone; [`scopes`] is
+//! every database scope provisioned, for a template's delete to
+//! find;
 //! loaded whole and written whole; [`hash`] is the one id that is a
 //! hash; [`counters`] is the once-and-for-all
 //! index of a container; [`in_use`] is what containers hold —
@@ -60,12 +63,14 @@ pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
 pub mod counters;
+pub mod dependencies;
 pub mod hash;
 pub mod in_use;
 pub mod providers_daemons;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod roles;
+pub mod scopes;
 pub mod services;
 pub mod tags;
 pub mod tools;

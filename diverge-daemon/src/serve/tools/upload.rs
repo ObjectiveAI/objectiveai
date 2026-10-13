@@ -7,7 +7,7 @@ use diverge_sdk::daemon::endpoints::tools::upload::server::response::Frame;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{Found, READ_ONLY, reaches, resolve};
+use super::{reaches, resolve};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::files::{Into, What};
@@ -26,8 +26,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `upload` grant at all; `NotFound`; `Forbidden`
-/// for a tool the grants do not reach; the error for a dependency,
-/// whose files are read and never written from here; the container
+/// for a tool the grants do not reach; the container
 /// started, or the
 /// connected tool joined, for the operation, which failing is the
 /// `Error`; else every file asked for on its own channel and landed
@@ -46,17 +45,14 @@ async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon:
     if !judge::tools::holds(&standing, Over::Upload) {
         return Ok(Frame::Forbidden);
     }
-    let Some(found) = resolve(&mut conn, daemon, reference, false).await? else {
+    let Some(tool) = resolve(&mut conn, reference, false).await? else {
         return Ok(Frame::NotFound);
     };
-    let reached = reaches(&mut conn, daemon, &standing, Over::Upload, &found).await?;
+    let reached = reaches(&mut conn, daemon, &standing, Over::Upload, &tool).await?;
     drop(conn);
     if !reached {
         return Ok(Frame::Forbidden);
     }
-    let Found::Record(tool) = found else {
-        return Ok(Frame::Error(reply::failure(&READ_ONLY)));
-    };
     let opened = match files::open_tool(daemon, &tool).await {
         Ok(opened) => opened,
         Err(error) => return Ok(Frame::Error(reply::failure(&error))),

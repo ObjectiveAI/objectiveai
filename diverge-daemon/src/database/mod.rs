@@ -13,21 +13,20 @@
 //! hash of the scope's OWNER — the agent or the tool it is the own
 //! scope of, the agent or the agent template a dependency's scope is
 //! shared under, or a global service's template — then twenty of the
-//! hash of the scope's part within the owner, so that everything an
-//! owner has shares its prefix and is swept with it at its delete: an
-//! agent's own scope, its transient dependencies' and its per-agent
-//! services' at the agent's, an agent template's per-template
-//! services' scopes at the template's, a global service's at the
-//! delete of the last agent template whose agents ever attached it,
-//! a tool's own at the tool's; a tool template owns none. Made at
-//! the container's
+//! hash of the scope's part within the owner. Made at the container's
 //! first connection, in one transaction under an advisory lock, by
 //! statements every Postgres since 10 takes — the role with a
 //! SCRAM-SHA-256 verifier, a member of nothing, able to create
 //! nowhere but its schema, its search path pinned to that schema
-//! alone — and dropped at the container's delete. The role's password
-//! is the daemon's, minted in memory for the daemon's life and never
-//! written anywhere; nothing is ever handed to the container.
+//! alone — and put on record in [`scopes`](crate::store::scopes).
+//! Dropped by exactly one delete: a tool's own scope at the tool's,
+//! and every scope ever made for a tool of a dependency template —
+//! under every agent, every agent template and the global one — at
+//! the template's. An agent's delete and an agent template's drop no
+//! scope: an agent's own scope and its dependencies' outlive it. The
+//! role's password is the daemon's, minted in memory for the daemon's
+//! life and never written anywhere; nothing is ever handed to the
+//! container.
 //!
 //! A CONNECTION a container opens arrives on its run scope as a pair
 //! of channels, raw pgwire. The daemon answers the container's
@@ -47,10 +46,11 @@
 //! ends the other.
 //!
 //! [`Target`] is what the daemon knows of its database; [`role_of`]
-//! and [`container_of`] name a container's scope, [`Owner`] and
-//! [`prefix_of`] whose it is; [`provision`] is the statements; [`Scope`] is the password in memory and the scope made
-//! once per daemon life; [`connect`] is one connection, handshake to
-//! end. Not guaranteed, as the design says: names leak through the
+//! and [`container_of`] name a container's scope, [`Owner`] whose it
+//! is and [`template_of`] which template it was made for;
+//! [`provision`] is the statements; [`Scope`] is the password in
+//! memory and the scope made once per daemon life; [`connect`] is one
+//! connection, handshake to end. Not guaranteed, as the design says: names leak through the
 //! catalog, `public` is the database's, `LISTEN` and advisory locks
 //! are database-wide, and resources are shared.
 //!

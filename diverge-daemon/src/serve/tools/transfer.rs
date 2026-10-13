@@ -30,7 +30,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` for a tool the grants do not reach, or a destination
 /// they do not; `NoDestination`; the container started, or the
 /// connected tool joined, for the operation, which failing is the
-/// `Error` — a dependency's running already, for its agent; `NotFound` for a path at which nothing is; `Held` for a
+/// `Error`; `NotFound` for a path at which nothing is; `Held` for a
 /// destination volume that is held; else the copy — through the
 /// provider when both ends run on it — and `Transferred`; the
 /// container released after.
@@ -42,10 +42,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if !judge::tools::holds(&standing, Over::Transfer) {
         return Ok(Frame::Forbidden);
     }
-    let Some(found) = resolve(&mut conn, daemon, &frame.tool, false).await? else {
+    let Some(tool) = resolve(&mut conn, &frame.tool, false).await? else {
         return Ok(Frame::NotFound);
     };
-    if !reaches(&mut conn, daemon, &standing, Over::Transfer, &found).await? {
+    if !reaches(&mut conn, daemon, &standing, Over::Transfer, &tool).await? {
         return Ok(Frame::Forbidden);
     }
     if content::inside(&frame.path).is_err() {
@@ -58,7 +58,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         Judged::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
     drop(conn);
-    let opened = match files::open_found(daemon, &found).await {
+    let opened = match files::open_tool(daemon, &tool).await {
         Ok(opened) => opened,
         Err(error) => return Ok(Frame::Error(reply::failure(&error))),
     };

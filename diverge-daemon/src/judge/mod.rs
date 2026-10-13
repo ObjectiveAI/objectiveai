@@ -16,7 +16,7 @@
 //! `self` reaches read fresh — and
 //! [`accounts`], [`roles`], [`providers_outgoing`],
 //! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
-//! [`tools_templates`],
+//! [`tools_templates`], [`dependencies`],
 //! [`agents`], [`tools`], [`postgres`] and [`volumes`] are the pure functions that say whether a
 //! standing holds a making action, holds an action over a record, or
 //! holds a tagging action over a record and its tags, by the rule the
@@ -47,6 +47,7 @@ pub use who::*;
 pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
+pub mod dependencies;
 pub mod filter;
 pub mod key;
 pub mod postgres;

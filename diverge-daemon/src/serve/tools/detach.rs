@@ -6,7 +6,7 @@ use diverge_sdk::daemon::grant::agents::Over as AgentsOver;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{Found, READ_ONLY, reaches, resolve};
+use super::{reaches, resolve};
 use crate::containers::{self, Key, ToolKey, User};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
@@ -27,8 +27,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `detach` grant over tools or no `edit` grant
 /// over agents at all; `NoTool`; `NoAgent`; `Forbidden` for a tool or
-/// an agent the grants do not reach; the error for a dependency,
-/// attached to nothing; `Active` while a loop runs in
+/// an agent the grants do not reach; `Active` while a loop runs in
 /// the agent, which keeps its tools until the loop ends; else the
 /// tool detached, one not attached nothing to take back.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -39,21 +38,18 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::tools::holds(&standing, Over::Detach) || !judge::agents::holds(&standing, AgentsOver::Edit) {
         return Ok(Frame::Forbidden);
     }
-    let Some(found) = resolve(&mut tx, daemon, &frame.tool, true).await? else {
+    let Some(tool) = resolve(&mut tx, &frame.tool, true).await? else {
         return Ok(Frame::NoTool);
     };
     let Some(agent) = agent_records::by_reference(&mut tx, &frame.agent, true).await? else {
         return Ok(Frame::NoAgent);
     };
     let agent_active = agents::active(daemon, agent.id).await;
-    if !reaches(&mut tx, daemon, &standing, Over::Detach, &found).await?
+    if !reaches(&mut tx, daemon, &standing, Over::Detach, &tool).await?
         || !judge::agents::over(&standing, AgentsOver::Edit, &agent, agent_active)
     {
         return Ok(Frame::Forbidden);
     }
-    let Found::Record(tool) = found else {
-        return Ok(Frame::Error(reply::failure(&READ_ONLY)));
-    };
     if agent_active {
         return Ok(Frame::Active);
     }

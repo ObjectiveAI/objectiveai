@@ -25,8 +25,7 @@ pub struct Declared {
 
 /// The agent's registration declared these services: in one
 /// transaction, each found under its scope key or made now — with the
-/// agent as its creator — the agent attached to each, the agent's
-/// template noted as an owner of each global one, and the agent
+/// agent as its creator — the agent attached to each, and the agent
 /// detached from every service it was attached to and did not declare
 /// this time; then each declared kept up and its hold recomputed, and
 /// each left told its attachments changed. The services, in the
@@ -56,11 +55,6 @@ pub async fn register(daemon: &Arc<Daemon>, agent: AgentId, agent_key: &key::Age
         services::attachments::attach(&mut tx, service.id, agent)
             .await
             .map_err(|error| error.to_string())?;
-        if one.scope == Scope::Global {
-            services::owners::add(&mut tx, &one.template, &agent_key.template)
-                .await
-                .map_err(|error| error.to_string())?;
-        }
         ids.push(service.id);
     }
     let left = services::attachments::detach_except(&mut tx, agent, &ids)

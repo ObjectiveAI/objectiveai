@@ -6,7 +6,7 @@ use std::sync::Arc;
 use rand::RngCore as _;
 use tokio::sync::OnceCell;
 
-use super::{container_of, provision, role_of};
+use super::{container_of, owner_of, provision, role_of, template_of};
 use crate::containers::Key;
 use crate::daemon::Daemon;
 
@@ -37,7 +37,8 @@ impl Scope {
 
 /// The container's scope, made if it was not this daemon life: the
 /// identity looked up — a record's row, a dependency's run — the
-/// daemon's role checked able, the four statements run once — a pool
+/// daemon's role checked able, the four statements run once and the
+/// scope put on record, for the delete that drops it to find — a pool
 /// opening many connections at once waits on the first. The failure,
 /// in a sentence: a record gone, a dependency ended, a role that
 /// cannot provision, the store.
@@ -56,6 +57,10 @@ pub async fn scope(daemon: &Daemon, key: Key) -> Result<Arc<Scope>, String> {
             let mut tx = daemon.store.begin().await.map_err(|error| error.to_string())?;
             provision::capable(&mut tx).await.map_err(|error| error.to_string())??;
             provision::ensure(&mut tx, &scope.role, &scope.password)
+                .await
+                .map_err(|error| error.to_string())?;
+            let owner = serde_json::to_value(owner_of(&container)).map_err(|error| error.to_string())?;
+            crate::store::scopes::record(&mut tx, &scope.role, template_of(&container), &owner)
                 .await
                 .map_err(|error| error.to_string())?;
             tx.commit().await.map_err(|error| error.to_string())?;
