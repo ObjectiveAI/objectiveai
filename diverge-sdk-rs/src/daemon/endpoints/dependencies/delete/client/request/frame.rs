@@ -13,7 +13,8 @@ use crate::wire::encode::{Encode, Writer};
 /// held or not — is not deleted, and the daemon says so with a
 /// variant of its own, because a caller acts on it differently from
 /// a failure: wait for the runs to end, and ask again. A template
-/// agents depend on and no tool runs from is deleted.
+/// agents depend on and no tool runs from is deleted, and they
+/// depend on it no more.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The template's id, as its list item carries it.

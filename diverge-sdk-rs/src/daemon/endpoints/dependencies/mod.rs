@@ -16,9 +16,10 @@
 //! tools running from it were given, under every agent, agent
 //! template and the global one, until the template is deleted:
 //! [`delete`] removes one no tool runs from — transient or service —
-//! with every scope ever made from it, while agents still depending on
-//! it depend on it still and deploy it anew, as a new record, at their
-//! next registration; [`get`] answers one by id; [`list`] lists them,
+//! with every scope ever made from it, and the agents that depended
+//! on it depend on it no more, until a registration declares it anew
+//! and makes it a record again; [`get`] answers one by id; [`list`]
+//! lists them,
 //! narrowed, each with the agents whose last registration declared it
 //! and the tools running from it now; [`tag`] and [`untag`] change a
 //! template's tags, which are the caller's and not in its hash.
