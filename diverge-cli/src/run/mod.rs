@@ -5,9 +5,10 @@
 //! puts it — one of the ninety-eight, through the [`shape`] its
 //! exchange has — printing every answer frame through the
 //! [`Emitter`] as one compact JSON line, each through the jq filter
-//! when there is one. Nothing stays open: a list ends at its `listed`
-//! frame, a filetree at its first snapshot, a logs request that would
-//! watch is refused before the dial, and the MCP connect scope is no
+//! when there is one. Nothing stays open past its answer: a list ends
+//! at its `listed` frame and a filetree at its first snapshot; a logs
+//! request runs as far as it asked — to the log's end, or, watching,
+//! as many items as its `count` — and the MCP connect scope is no
 //! request of this command's. Bytes never cross stdout: an upload
 //! reads under, and a download writes under, the local path `--path`
 //! names, which those requests require and every other refuses. A

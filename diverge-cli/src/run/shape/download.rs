@@ -12,7 +12,7 @@ use futures_util::StreamExt as _;
 use serde::Serialize;
 use tokio::io::AsyncWriteExt as _;
 
-use super::request;
+use super::{exchange, request};
 use crate::run::{Emitter, Error};
 
 /// A download's request: what its endpoint's executor yields, one
@@ -43,11 +43,11 @@ pub trait Downloaded: Serialize {
 /// written: its path and its size.
 pub async fn download<Q: Download>(handle: &Handle, bytes: &[u8], into: &Path, emitter: &mut Emitter) -> Result<(), Error> {
     let request: Q = request(bytes)?;
-    let mut items = request.execute(handle).await.map_err(|error| Error::Exchange(error.to_string()))?;
+    let mut items = request.execute(handle).await.map_err(exchange::open)?;
     let mut written: Vec<(Vec<String>, u64)> = Vec::new();
     let mut files: HashMap<Vec<String>, tokio::fs::File> = HashMap::new();
     while let Some(item) = items.next().await {
-        let item = item.map_err(|error| Error::Exchange(error.to_string()))?;
+        let item = item.map_err(exchange::stream)?;
         let (path, body) = match item.chunk() {
             Ok(chunk) => chunk,
             Err(answer) => {

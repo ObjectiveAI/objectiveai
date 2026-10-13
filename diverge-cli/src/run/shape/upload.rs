@@ -22,7 +22,7 @@ pub type Content = Once<std::pin::Pin<Box<dyn Future<Output = Result<Bytes, Refu
 pub trait Upload: for<'a> Decode<'a> {
     /// The request put with `source` answering the daemon's asks: the
     /// endpoint's own `execute`, its answer as JSON.
-    fn execute<F>(&self, handle: &Handle, source: F) -> impl Future<Output = Result<Value, String>> + Send
+    fn execute<F>(&self, handle: &Handle, source: F) -> impl Future<Output = Result<Value, Error>> + Send
     where
         F: FnMut(Option<String>) -> Option<Content> + Send;
 }
@@ -45,7 +45,7 @@ pub async fn upload<Q: Upload>(handle: &Handle, bytes: &[u8], from: &Path, emitt
         };
         Some(stream::once(Box::pin(read(local)) as std::pin::Pin<Box<dyn Future<Output = Result<Bytes, Refusal>> + Send>>))
     };
-    let answer = request.execute(handle, source).await.map_err(Error::Exchange)?;
+    let answer = request.execute(handle, source).await?;
     emitter.emit_value(answer).await?;
     Ok(())
 }

@@ -44,14 +44,4 @@ impl Request {
             bytes,
         })
     }
-
-    /// Refuse a request that would never end: `agents/logs` with
-    /// `watch` true, which keeps its scope open for every item to
-    /// come. [`Error::Endless`].
-    pub fn refuse_endless(&self) -> Result<(), Error> {
-        if self.path == "agents/logs" && self.body.get("watch").and_then(Value::as_bool) == Some(true) {
-            return Err(Error::Endless);
-        }
-        Ok(())
-    }
 }

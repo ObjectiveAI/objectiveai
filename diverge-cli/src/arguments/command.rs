@@ -20,8 +20,9 @@ pub enum Command {
 /// One request to a daemon: which daemon, as whom, which request,
 /// what it carries, and how its answers are printed. Every answer
 /// frame is one compact JSON line, through the jq filter when one is
-/// given; nothing stays open — a list ends at its `listed`, a filetree
-/// at its first snapshot, and a logs request may not watch.
+/// given; nothing stays open past its answer — a list ends at its
+/// `listed`, a filetree at its first snapshot, a logs request where
+/// it asked to.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 pub struct Run {
     /// The daemon to dial, by its name in the document. Absent, the

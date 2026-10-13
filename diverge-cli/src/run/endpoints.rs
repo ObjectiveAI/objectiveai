@@ -223,44 +223,44 @@ impl Downloaded for volumes::download::client::execute::Item {
 }
 
 impl Upload for agents::upload::client::request::Frame {
-    async fn execute<F>(&self, handle: &Handle, source: F) -> Result<Value, String>
+    async fn execute<F>(&self, handle: &Handle, source: F) -> Result<Value, Error>
     where
         F: FnMut(Option<String>) -> Option<Content> + Send,
     {
-        let answer = agents::upload::client::execute::execute(handle, self, source).await.map_err(|error| error.to_string())?;
-        serde_json::to_value(&answer).map_err(|error| error.to_string())
+        let answer = agents::upload::client::execute::execute(handle, self, source).await.map_err(shape::exchange::upload)?;
+        serde_json::to_value(&answer).map_err(Error::Json)
     }
 }
 
 
 impl Upload for dependency_tools::upload::client::request::Frame {
-    async fn execute<F>(&self, handle: &Handle, source: F) -> Result<Value, String>
+    async fn execute<F>(&self, handle: &Handle, source: F) -> Result<Value, Error>
     where
         F: FnMut(Option<String>) -> Option<Content> + Send,
     {
-        let answer = dependency_tools::upload::client::execute::execute(handle, self, source).await.map_err(|error| error.to_string())?;
-        serde_json::to_value(&answer).map_err(|error| error.to_string())
+        let answer = dependency_tools::upload::client::execute::execute(handle, self, source).await.map_err(shape::exchange::upload)?;
+        serde_json::to_value(&answer).map_err(Error::Json)
     }
 }
 
 
 impl Upload for standalone_tools::upload::client::request::Frame {
-    async fn execute<F>(&self, handle: &Handle, source: F) -> Result<Value, String>
+    async fn execute<F>(&self, handle: &Handle, source: F) -> Result<Value, Error>
     where
         F: FnMut(Option<String>) -> Option<Content> + Send,
     {
-        let answer = standalone_tools::upload::client::execute::execute(handle, self, source).await.map_err(|error| error.to_string())?;
-        serde_json::to_value(&answer).map_err(|error| error.to_string())
+        let answer = standalone_tools::upload::client::execute::execute(handle, self, source).await.map_err(shape::exchange::upload)?;
+        serde_json::to_value(&answer).map_err(Error::Json)
     }
 }
 
 
 impl Upload for volumes::upload::client::request::Frame {
-    async fn execute<F>(&self, handle: &Handle, source: F) -> Result<Value, String>
+    async fn execute<F>(&self, handle: &Handle, source: F) -> Result<Value, Error>
     where
         F: FnMut(Option<String>) -> Option<Content> + Send,
     {
-        let answer = volumes::upload::client::execute::execute(handle, self, source).await.map_err(|error| error.to_string())?;
-        serde_json::to_value(&answer).map_err(|error| error.to_string())
+        let answer = volumes::upload::client::execute::execute(handle, self, source).await.map_err(shape::exchange::upload)?;
+        serde_json::to_value(&answer).map_err(Error::Json)
     }
 }

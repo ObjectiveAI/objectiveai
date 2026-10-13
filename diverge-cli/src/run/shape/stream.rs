@@ -8,7 +8,7 @@ use futures_util::StreamExt as _;
 use serde::Serialize;
 use serde_json::Value;
 
-use super::request;
+use super::{exchange, request};
 use crate::run::{Emitter, Error};
 
 /// Where a stream is cut: a frame, as JSON, after which the scope is
@@ -16,8 +16,8 @@ use crate::run::{Emitter, Error};
 /// scope open.
 pub type Stop = fn(&Value) -> bool;
 
-/// Never: the stream runs to its finish — a logs request without a
-/// watch, which the daemon finishes itself.
+/// Never: the stream runs to its finish — a logs request, which the
+/// daemon finishes at the log's end or, watching, at its `count`.
 pub fn never(_: &Value) -> bool {
     false
 }
@@ -46,9 +46,9 @@ where
     let request: Q = request(bytes)?;
     let (mut answers, cancel) = stream::execute_cancellable::<Q, A, E>(handle, &request, |_, payload| A::decode(payload))
         .await
-        .map_err(|error| Error::Exchange(error.to_string()))?;
+        .map_err(exchange::open)?;
     while let Some(item) = answers.next().await {
-        let answer = item.map_err(|error| Error::Exchange(error.to_string()))?;
+        let answer = item.map_err(exchange::stream)?;
         let value = emitter.emit(&answer).await?;
         if stop(&value) {
             let _ = cancel.cancel().await;

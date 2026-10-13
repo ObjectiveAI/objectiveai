@@ -6,7 +6,7 @@ use diverge_sdk::wire::decode::Decode;
 use diverge_sdk::wire::encode::Encode;
 use serde::Serialize;
 
-use super::request;
+use super::{exchange, request};
 use crate::run::{Emitter, Error};
 
 /// The request put, its answer waited for and emitted: an agent's
@@ -18,8 +18,8 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     let request: Q = request(bytes)?;
-    let waiting = pending::execute(handle, &request).await.map_err(|error| Error::Exchange(error.to_string()))?;
-    let answer: A = waiting.wait().await.map_err(|error| Error::Exchange(error.to_string()))?;
+    let waiting = pending::execute(handle, &request).await.map_err(exchange::open)?;
+    let answer: A = waiting.wait().await.map_err(exchange::one_shot)?;
     emitter.emit(&answer).await?;
     Ok(())
 }

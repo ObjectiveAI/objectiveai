@@ -6,7 +6,7 @@ use diverge_sdk::wire::decode::Decode;
 use diverge_sdk::wire::encode::Encode;
 use serde::Serialize;
 
-use super::request;
+use super::{exchange, request};
 use crate::run::{Emitter, Error};
 
 /// The request put, its one answer emitted.
@@ -17,7 +17,7 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     let request: Q = request(bytes)?;
-    let answer: A = one_shot::execute(handle, &request).await.map_err(|error| Error::Exchange(error.to_string()))?;
+    let answer: A = one_shot::execute(handle, &request).await.map_err(exchange::one_shot)?;
     emitter.emit(&answer).await?;
     Ok(())
 }

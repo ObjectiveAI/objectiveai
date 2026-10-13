@@ -12,7 +12,10 @@
 //! emitted as the endpoint's own frames. The two shapes that carry
 //! bytes go through the [`Download`] and [`Upload`] traits, one
 //! implementation per endpoint, since those endpoints' executors are
-//! not one function.
+//! not one function. A failure is the executor's own, in its words,
+//! but for the one every shape tells apart: the connection closing
+//! with no answer, which is how the daemon refuses a credential —
+//! [`exchange`] names it.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -22,6 +25,8 @@ mod one_shot;
 mod pending;
 mod stream;
 mod upload;
+
+pub mod exchange;
 
 pub use download::*;
 pub use one_shot::*;

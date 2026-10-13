@@ -15,9 +15,6 @@ pub enum Error {
     Body(serde_json::Error),
     /// The body is JSON, and not an object.
     NotAnObject,
-    /// The request would keep its scope open for ever, which this
-    /// command does not do: a logs request with `watch` true.
-    Endless,
     /// The request is one this command does not put: the MCP connect
     /// scope, held by a daemon and not a command line.
     Unsupported(String),
@@ -28,8 +25,12 @@ pub enum Error {
     Dial(String),
     /// The credential could not be presented.
     Authorize(String),
-    /// The exchange failed: the scope could not be opened, the
-    /// connection closed, a frame could not be read.
+    /// The daemon closed the connection with no answer, which is what
+    /// it does to a credential it refuses — and to nothing else it
+    /// says: the account's key may have been rejected.
+    Rejected,
+    /// The exchange failed: the scope could not be opened, a frame
+    /// could not be read.
     Exchange(String),
     /// `--path` was given to a request that takes none, or not given
     /// to one that needs it.
@@ -63,11 +64,11 @@ impl fmt::Display for Error {
             Error::NoSuchRequest(path) => write!(f, "no request is named `{path}`"),
             Error::Body(error) => write!(f, "the body is not JSON: {error}"),
             Error::NotAnObject => write!(f, "the body is JSON, and not an object"),
-            Error::Endless => write!(f, "a logs request that watches never ends, and this command does not watch"),
             Error::Unsupported(path) => write!(f, "`{path}` is not a request this command puts"),
             Error::Request(error) => write!(f, "the body is not what the request takes: {error}"),
             Error::Dial(error) => write!(f, "the daemon could not be dialled: {error}"),
             Error::Authorize(error) => write!(f, "the credential could not be presented: {error}"),
+            Error::Rejected => write!(f, "the daemon closed the connection without answering: the account's key may have been rejected"),
             Error::Exchange(error) => write!(f, "the exchange failed: {error}"),
             Error::Path { path, given: true } => write!(f, "`{path}` takes no `--path`"),
             Error::Path { path, given: false } => write!(f, "`{path}` needs `--path`, the local file or directory"),
@@ -90,7 +91,7 @@ impl std::error::Error for Error {
             Error::Stdout(error) => Some(error),
             Error::NoSuchRequest(_)
             | Error::NotAnObject
-            | Error::Endless
+            | Error::Rejected
             | Error::Unsupported(_)
             | Error::Dial(_)
             | Error::Authorize(_)
