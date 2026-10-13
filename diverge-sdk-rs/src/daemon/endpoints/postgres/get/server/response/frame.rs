@@ -1,5 +1,6 @@
 //! What a server's response frame carries for a get.
 
+use serde::Serialize;
 use std::fmt;
 
 use crate::wire::decode::Decode;
@@ -35,7 +36,15 @@ use crate::daemon::endpoints::postgres::Mode;
 /// the answer is a stream it comes as an error does: exactly one, with
 /// nothing before it, then the finish. Nothing is retried. See
 /// [`grant`](crate::daemon::grant).
-#[derive(Debug, Clone, PartialEq)]
+///
+/// # As JSON
+///
+/// For a client that prints what the daemon answered: the variant,
+/// snake case, over its payload — `{"found":…}`, `{"error":…}` — and
+/// a bare variant the string alone — `"not_found"`. The wire is the
+/// tag byte and the payload, never this.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// Which database the daemon serves: local, or remote with the URL,
     /// its password taken out. Tag `0`.

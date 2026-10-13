@@ -1,5 +1,7 @@
 //! Opening the scope and streaming the files out.
 
+use serde::ser::SerializeMap as _;
+use serde::{Serialize, Serializer};
 use bytes::Bytes;
 
 use super::super::request;
@@ -54,4 +56,32 @@ fn decode(bytes: &Bytes, payload: &[u8]) -> Result<Item, response::FrameError> {
         response::Frame::Forbidden => Item::Forbidden,
         response::Frame::Error(error) => Item::Error(error),
     })
+}
+
+/// As JSON, as the [`response::Frame`] is: the variant, snake case,
+/// over its payload, a chunk by its path and its size.
+impl Serialize for Item {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Item::Chunk { path, body } => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("chunk", &Piece { path, bytes: body.len() })?;
+                map.end()
+            }
+            Item::NotFound => serializer.serialize_str("not_found"),
+            Item::Forbidden => serializer.serialize_str("forbidden"),
+            Item::Error(error) => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("error", error)?;
+                map.end()
+            }
+        }
+    }
+}
+
+/// A chunk as JSON: its path and its size.
+#[derive(Serialize)]
+struct Piece<'a> {
+    path: &'a [String],
+    bytes: usize,
 }

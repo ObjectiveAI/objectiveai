@@ -1,5 +1,7 @@
 //! One piece of one file, and which file.
 
+use serde::ser::SerializeStruct as _;
+use serde::{Serialize, Serializer};
 use std::fmt;
 
 use serde::ser::Error as _;
@@ -97,5 +99,18 @@ impl std::error::Error for ChunkError {
             ChunkError::Path(error) => Some(error),
             ChunkError::Short => None,
         }
+    }
+}
+
+/// As JSON, for a client that prints what the daemon answered: the
+/// path, and the body's size as `bytes` — the body itself is not
+/// JSON's to carry, and a client that wants it takes the chunk off the
+/// wire.
+impl Serialize for Chunk<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut chunk = serializer.serialize_struct("Chunk", 2)?;
+        chunk.serialize_field("path", &self.path)?;
+        chunk.serialize_field("bytes", &self.body.len())?;
+        chunk.end()
     }
 }

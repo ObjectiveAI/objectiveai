@@ -1,5 +1,6 @@
 //! What a server's response frame carries for a standalone tools list.
 
+use serde::Serialize;
 use std::fmt;
 
 use crate::wire::decode::Decode;
@@ -49,7 +50,15 @@ use super::Tool;
 /// the answer is a stream it comes as an error does: exactly one, with
 /// nothing before it, then the finish. Nothing is retried. See
 /// [`grant`](crate::daemon::grant).
-#[derive(Debug, Clone, PartialEq)]
+///
+/// # As JSON
+///
+/// For a client that prints what the daemon answered: the variant,
+/// snake case, over its payload — `{"found":…}`, `{"error":…}` — and
+/// a bare variant the string alone — `"not_found"`. The wire is the
+/// tag byte and the payload, never this.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// One tool that matches, as the daemon holds it, listed now and
     /// not before. Tag `0`.

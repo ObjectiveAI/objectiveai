@@ -133,6 +133,18 @@
 //! [`ClientRequest`] is the same table as a type: one variant per row,
 //! in tag order, plus an [`Invalid`](ClientRequest::Invalid) for a
 //! payload that is none of them. It is the only place the values meet.
+//! A request's NAME, for a client that takes one from a command line,
+//! is its module path slashed — `agents/create`,
+//! `standalone_tools/templates/list` — and [`tag`] is the name to the
+//! tag, [`ClientRequest::path`] the tag to the name.
+//!
+//! # The answers as JSON
+//!
+//! Every response frame serializes to JSON, for a client that prints
+//! what the daemon answered: the variant, snake case, over its payload
+//! — `{"found":…}` — and a bare variant the string alone —
+//! `"not_found"`. The wire never carries this form; a download's
+//! chunk writes its path and its size and not its body.
 //!
 //! # Who asks, and what they may
 //!

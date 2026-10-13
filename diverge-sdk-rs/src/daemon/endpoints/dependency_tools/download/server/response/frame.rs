@@ -1,5 +1,7 @@
 //! What a server's response frame carries for a download.
 
+use serde::ser::SerializeMap as _;
+use serde::{Serialize, Serializer};
 use std::fmt;
 
 use crate::wire::decode::Decode;
@@ -43,6 +45,11 @@ use crate::shared::error::Error;
 /// the answer is a stream it comes as an error does: exactly one, with
 /// nothing before it, then the finish. Nothing is retried. See
 /// [`grant`](crate::daemon::grant).
+///
+/// # As JSON
+///
+/// See the [`Serialize`] below: the variant, snake case, over its
+/// payload, a chunk by its path and its size.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// One piece of one file, with its path. Tag `0`.
@@ -149,6 +156,29 @@ impl std::error::Error for FrameError {
             FrameError::Chunk(error) => Some(error),
             FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
+        }
+    }
+}
+
+/// As JSON, for a client that prints what the daemon answered: the
+/// variant, snake case, over its payload — a chunk as [`Chunk`]
+/// writes itself, its path and its size and not its body — and a bare
+/// variant the string alone.
+impl Serialize for Frame<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Frame::Chunk(chunk) => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("chunk", chunk)?;
+                map.end()
+            }
+            Frame::NotFound => serializer.serialize_str("not_found"),
+            Frame::Forbidden => serializer.serialize_str("forbidden"),
+            Frame::Error(error) => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("error", error)?;
+                map.end()
+            }
         }
     }
 }
