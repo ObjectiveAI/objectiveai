@@ -28,6 +28,13 @@
 //! not the daemon's, and nothing here names them but what a daemon
 //! spawns an agent from.
 
+/// The TCP port a daemon accepts the protocol on unless its own
+/// configuration says otherwise: one above the port a provider
+/// listens on, [`OUTSIDE_PORT`](crate::container_proxy::outside::OUTSIDE_PORT),
+/// so that a daemon and a provider on one host do not contend for
+/// it. What a client dials by default.
+pub const DEFAULT_PORT: u16 = crate::container_proxy::outside::OUTSIDE_PORT + 1;
+
 pub mod client;
 pub mod create;
 pub mod creator;
