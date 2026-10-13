@@ -41,7 +41,7 @@ pub enum Document {
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Action {
     /// Print the document, narrowed by a jq filter, as JSON: every
-    /// value the filter yields, one after another.
+    /// value the filter yields, one line each.
     Get {
         /// The jq filter. Absent, `.`, the whole document.
         #[arg(value_name = "FILTER")]
