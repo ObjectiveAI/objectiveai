@@ -1,30 +1,34 @@
 //! A connect, one MCP exchange through it, and the disconnect.
 
+use std::fmt::Display;
+
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::{
-    self, ExecuteError,
+    self, ExecuteError, ExecuteHandle,
 };
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::request;
 use diverge_sdk::wire::client::handle::Handle;
-use rmcp::model::{CallToolRequestParams, PaginatedRequestParams, ReadResourceRequestParams};
 use serde::Serialize;
-use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use crate::run::standalone_tools::connect::Mcp;
 use crate::run::{Emitter, Error};
 
-/// The tool connected to, the one exchange `mcp` names put with the
-/// params `request` carries, the result printed as the MCP result's
-/// own JSON, and the scope disconnected and waited to its end. A
-/// connect the daemon refuses — no such tool, forbidden, or its own
-/// error — is printed as the answer it is, and the run ends there.
-pub async fn mcp(
+/// The tool connected to, the one `exchange` put through the scope,
+/// its result printed as the MCP result's own JSON, and the scope
+/// disconnected and waited to its end. A connect the daemon refuses —
+/// no such tool, forbidden, or its own error — is printed as the
+/// answer it is, and the run ends there. Which exchange, and with
+/// what, is the leaf's: the shape holds the scope around it.
+pub async fn mcp<F, T, E>(
     handle: &Handle,
     connect: &request::Frame,
-    mcp: Mcp,
-    request: Option<&str>,
+    exchange: F,
     emitter: &mut Emitter,
-) -> Result<(), Error> {
+) -> Result<(), Error>
+where
+    F: AsyncFnOnce(&ExecuteHandle) -> Result<T, E>,
+    T: Serialize,
+    E: Display,
+{
     let tool = match execute::execute(handle, connect).await {
         Ok(tool) => tool,
         Err(ExecuteError::NotFound) => return emitter.emit_value(Value::from("not_found")).await,
@@ -37,50 +41,14 @@ pub async fn mcp(
         Err(ExecuteError::Closed | ExecuteError::Send(_)) => return Err(Error::Rejected),
         Err(error) => return Err(Error::Exchange(error.to_string())),
     };
-    let outcome = match mcp {
-        Mcp::ListTools => answer(
-            tool.list_tools(optional::<PaginatedRequestParams>(request)?)
-                .await,
-        ),
-        Mcp::ListResources => answer(
-            tool.list_resources(optional::<PaginatedRequestParams>(request)?)
-                .await,
-        ),
-        Mcp::CallTool => answer(
-            tool.call_tool(required::<CallToolRequestParams>(request)?)
-                .await,
-        ),
-        Mcp::ReadResource => answer(
-            tool.read_resource(required::<ReadResourceRequestParams>(request)?)
-                .await,
-        ),
-    };
+    let outcome = answer(exchange(&tool).await);
     let _ = tool.disconnect().await;
     tool.wait().await;
     emitter.emit_value(outcome?).await
 }
 
-/// The exchange's params, from `--mcp-request`, for a method that
-/// takes none: decoded as the method's own type when given, `None`
-/// when not.
-fn optional<T: DeserializeOwned>(request: Option<&str>) -> Result<Option<T>, Error> {
-    request
-        .map(|text| serde_json::from_str(text).map_err(Error::McpRequest))
-        .transpose()
-}
-
-/// The exchange's params, from `--mcp-request`, for a method that
-/// takes one: decoded as the method's own type; not given is
-/// [`Error::McpRequestMissing`].
-fn required<T: DeserializeOwned>(request: Option<&str>) -> Result<T, Error> {
-    match request {
-        Some(text) => serde_json::from_str(text).map_err(Error::McpRequest),
-        None => Err(Error::McpRequestMissing),
-    }
-}
-
-/// The method's result as JSON, or its failure in the SDK's words.
-fn answer<T: Serialize, E: std::fmt::Display>(outcome: Result<T, E>) -> Result<Value, Error> {
+/// The exchange's result as JSON, or its failure in the SDK's words.
+fn answer<T: Serialize, E: Display>(outcome: Result<T, E>) -> Result<Value, Error> {
     let result = outcome.map_err(|error| Error::Exchange(error.to_string()))?;
     serde_json::to_value(result).map_err(Error::Json)
 }

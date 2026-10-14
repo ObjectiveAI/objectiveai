@@ -6,7 +6,8 @@
 //! MCP connect scope — and every endpoint is one of them.
 //! [`one_shot`], [`stream`] (with a [`Stop`] that ends a list at its
 //! `listed` and a filetree at its snapshot), [`pending`], [`download`],
-//! [`upload`] and [`mcp`] put a request of that shape — decoded
+//! [`upload`] and [`mcp`] (the leaf naming the exchange the scope is
+//! held for) put a request of that shape — decoded
 //! already as the endpoint's own type, by the leaf that owns it — and
 //! print its answers as the endpoint's own frames. The two shapes that carry
 //! bytes go through the [`Download`] and [`Upload`] traits, one

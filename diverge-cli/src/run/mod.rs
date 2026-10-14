@@ -7,7 +7,8 @@
 //! is the same tree, one folder per family and one file per request,
 //! each file holding the request's arguments and its run. What a
 //! request alone takes is on its own leaf: the eight that read or
-//! write files take `--path`, the connect takes `--mcp`; nothing is
+//! write files take `--path`, the connect holds its scope for the
+//! one MCP exchange its own subcommand names; nothing is
 //! checked at run time that the command line did not already shape.
 //!
 //! The selected daemon is [`dial`]ed as the selected account; the
@@ -17,7 +18,8 @@
 //! through the jq filter when there is one. Nothing stays open past
 //! its answer: a list ends at its `listed` frame, a filetree at its
 //! first snapshot, a logs request where it asked to, and a connect
-//! once its one MCP exchange is answered. A timeout abandons the
+//! once the one MCP exchange its subcommand names is answered. A
+//! timeout abandons the
 //! request and ends the run with [`Error::Timeout`].
 //!
 //! Its own files are flattened into it, so everything is named

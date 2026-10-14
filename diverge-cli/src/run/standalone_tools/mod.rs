@@ -33,8 +33,9 @@ pub enum StandaloneTools {
     Attach(attach::Arguments),
     /// Serving a tool the daemon runs to another daemon: the scope that
     /// daemon's agents reach the tool through, over the daemon
-    /// connection.
-    Connect(connect::Arguments),
+    /// connection, held for one MCP exchange.
+    #[command(subcommand)]
+    Connect(connect::Connect),
     /// Creating a tool under a name.
     Create(create::Arguments),
     /// Deleting a tool by name.
@@ -76,7 +77,7 @@ pub async fn run(
 ) -> Result<(), Error> {
     match command {
         StandaloneTools::Attach(arguments) => attach::run(arguments, handle, emitter).await,
-        StandaloneTools::Connect(arguments) => connect::run(arguments, handle, emitter).await,
+        StandaloneTools::Connect(command) => connect::run(command, handle, emitter).await,
         StandaloneTools::Create(arguments) => create::run(arguments, handle, emitter).await,
         StandaloneTools::Delete(arguments) => delete::run(arguments, handle, emitter).await,
         StandaloneTools::Detach(arguments) => detach::run(arguments, handle, emitter).await,

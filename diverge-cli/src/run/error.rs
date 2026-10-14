@@ -14,10 +14,9 @@ pub enum Error {
     /// The body is not JSON, or not what the request takes: where in
     /// it, and what was wrong.
     Body(serde_path_to_error::Error<serde_json::Error>),
-    /// `--mcp-request` is not the method's params.
-    McpRequest(serde_json::Error),
-    /// `--mcp-request` was not given, and the method takes one.
-    McpRequestMissing,
+    /// `--arguments` is not a JSON object: where in it, and what was
+    /// wrong.
+    Arguments(serde_path_to_error::Error<serde_json::Error>),
     /// The daemon could not be dialled.
     Dial(String),
     /// The credential could not be presented.
@@ -51,12 +50,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Body(error) => write!(f, "the body is not what the request takes: {error}"),
-            Error::McpRequest(error) => {
-                write!(f, "`--mcp-request` is not the method's params: {error}")
-            }
-            Error::McpRequestMissing => {
-                write!(f, "`--mcp-request` was not given, and the method takes one")
-            }
+            Error::Arguments(error) => write!(f, "`--arguments` is not a JSON object: {error}"),
             Error::Dial(error) => write!(f, "the daemon could not be dialled: {error}"),
             Error::Authorize(error) => write!(f, "the credential could not be presented: {error}"),
             Error::Rejected => write!(
@@ -80,13 +74,12 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Body(error) => Some(error),
-            Error::Json(error) | Error::McpRequest(error) => Some(error),
+            Error::Body(error) | Error::Arguments(error) => Some(error),
+            Error::Json(error) => Some(error),
             Error::Io { source, .. } => Some(source),
             Error::Jq(error) => Some(error),
             Error::Stdout(error) => Some(error),
             Error::Rejected
-            | Error::McpRequestMissing
             | Error::Dial(_)
             | Error::Authorize(_)
             | Error::Exchange(_)
