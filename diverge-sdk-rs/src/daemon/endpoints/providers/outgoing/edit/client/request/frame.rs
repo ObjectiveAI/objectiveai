@@ -12,6 +12,7 @@ use crate::daemon::endpoints::providers::outgoing::Mode;
 /// carries the new mode entire. A connection the daemon holds now is
 /// not dropped; the next dial presents the new credential.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The provider's address, as its add gave it.
     pub address: String,

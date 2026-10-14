@@ -13,6 +13,7 @@ use super::Agent;
 /// wire, snake case: `{"agent":{"template":…,"index":…}}`,
 /// `{"agent_template":{"template":…}}`, or the string `"global"`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Owner {
     /// The one agent, once and for all: a transient tool's, or a

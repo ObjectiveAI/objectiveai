@@ -10,6 +10,7 @@ use crate::daemon::reference;
 /// [`reference::Dependency`], the template by id and whose it is. A tag the tool held already is held still, and is
 /// not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The tool: its template and its owner.
     pub dependency: reference::Dependency,

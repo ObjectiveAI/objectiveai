@@ -15,6 +15,7 @@ use crate::daemon::reference;
 /// acts on it differently from a failure: wait for the loop to end,
 /// and ask again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
     /// template and its index, which name it once and for all. See

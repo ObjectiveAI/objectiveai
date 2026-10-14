@@ -10,6 +10,7 @@ use crate::daemon::transfer::Destination;
 /// container to a destination: see [`Destination`] for what lands
 /// where.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The tool: see [`reference::Tool`].
     pub tool: reference::Tool,

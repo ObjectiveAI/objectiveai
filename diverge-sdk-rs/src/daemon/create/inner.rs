@@ -13,6 +13,7 @@ use crate::daemon::endpoints::agents::create::client::request::{FuseMount, Provi
 /// [tool's](crate::daemon::endpoints::standalone_tools::create) create, so its
 /// members are the request's own.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Inner {
     /// The template the container is made from, by its id — the hash
     /// its family's `templates::create` answered. An id no template of

@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 /// What a create that left the member out would have made: no name,
 /// no deployer, no mount of that kind, a daemon's tool `disabled`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Change<T> {
     /// The member is taken away.

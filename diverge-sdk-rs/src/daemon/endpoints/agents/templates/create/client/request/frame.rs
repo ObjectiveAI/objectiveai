@@ -14,6 +14,7 @@ use crate::wire::encode::{Encode, Writer};
 /// was made before, so a caller that creates the same template twice
 /// holds one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame(
     /// The template.
     pub Template,

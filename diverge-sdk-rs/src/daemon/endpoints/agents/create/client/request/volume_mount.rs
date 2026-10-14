@@ -38,6 +38,7 @@ use serde::{Deserialize, Serialize};
 /// ephemeral or a read-only volume, one at a time for a persistent
 /// one.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub struct VolumeMount {
     /// Which volume, by the name the provider's listing gives it.
     /// Naming it takes the `mount` grant over it: see

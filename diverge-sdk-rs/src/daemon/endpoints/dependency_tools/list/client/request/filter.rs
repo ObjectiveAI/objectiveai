@@ -23,6 +23,7 @@ use super::Type;
 /// them, `any_tags` one that carries any one of them. An empty list is
 /// absent, and matches every tool.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Of any one of these templates, by id.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

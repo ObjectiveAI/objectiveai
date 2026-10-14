@@ -11,6 +11,7 @@ use crate::daemon::endpoints::providers::incoming::Credential;
 /// answers it. A credential for an identity there is one for already is
 /// refused.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The credential, without its key: see [`Credential`]. Flattened,
     /// so its members are this object's own.

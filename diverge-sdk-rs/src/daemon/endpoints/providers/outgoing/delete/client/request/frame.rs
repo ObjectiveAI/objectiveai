@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 /// it differently from a failure: re-pin or delete the containers, and
 /// ask again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The provider's address, as its add gave it.
     pub address: String,

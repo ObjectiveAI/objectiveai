@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Ask the daemon to put tags on an incoming credential, by the identity it names. A tag the credential held
 /// already is held still, and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The identity the credential names.
     pub identity: String,

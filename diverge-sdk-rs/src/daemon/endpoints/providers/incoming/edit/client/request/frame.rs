@@ -10,6 +10,7 @@ use crate::daemon::endpoints::providers::incoming::Credential;
 /// one, answered once, admits the new identity. A new identity that
 /// another credential names already is refused.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The identity the credential to replace names.
     pub identity: String,

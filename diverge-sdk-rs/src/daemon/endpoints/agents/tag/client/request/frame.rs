@@ -12,6 +12,7 @@ use crate::daemon::reference;
 /// [`create`](crate::daemon::endpoints::agents::create) gave the agent.
 /// A tag the agent held already is held still, and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
     /// template and its index, which name it once and for all. See

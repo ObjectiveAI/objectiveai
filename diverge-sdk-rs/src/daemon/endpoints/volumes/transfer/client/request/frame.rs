@@ -10,6 +10,7 @@ use crate::daemon::transfer::Destination;
 /// destination: see [`Destination`] for what lands where. The
 /// destination may be another volume, or the same one at another path.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The volume: see [`reference::Volume`].
     pub volume: reference::Volume,

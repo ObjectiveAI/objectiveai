@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Ask the daemon to take tags off an outgoing provider, by its address. A tag the provider did
 /// not hold is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The provider's address: its identity.
     pub address: String,

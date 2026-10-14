@@ -10,6 +10,7 @@ use crate::daemon::reference;
 /// Ask the daemon to take tags off a volume, by its reference. A tag the volume did
 /// not hold is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The volume: its provider and its name. See
     /// [`reference::Volume`].

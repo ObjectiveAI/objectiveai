@@ -23,6 +23,7 @@ use super::Filter;
 /// and `any_tags` one that carries any one of them. An empty list is
 /// absent, and matches every agent.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The filter: see [`Filter`]. Flattened, so its members are this
     /// object's own.

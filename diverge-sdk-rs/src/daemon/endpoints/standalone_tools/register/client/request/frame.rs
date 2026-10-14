@@ -45,6 +45,7 @@ use crate::daemon::reference;
 /// constrains the string's form; the daemon compares it and does not
 /// read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The daemon the tool is on, by the name of its record: see
     /// [`providers::daemons`](crate::daemon::endpoints::providers::daemons).

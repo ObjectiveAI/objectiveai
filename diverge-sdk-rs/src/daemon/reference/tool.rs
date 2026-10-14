@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 /// variant does not decode. A dependency tool is none of these: see
 /// [`Dependency`](super::Dependency).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Tool {
     /// By name: `{"name":…}`.

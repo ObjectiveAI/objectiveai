@@ -37,6 +37,7 @@ use crate::wire::encode::{Encode, Writer};
 /// its index, which it always has. Nothing here constrains the
 /// string's form; the daemon compares it and does not read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// What an agent's create and a tool's share — the template, the
     /// provider and its volumes, the FUSE mounts: see [`Inner`].

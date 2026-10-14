@@ -8,6 +8,7 @@ use crate::daemon::reference;
 /// Ask the daemon for one snapshot of a volume's tree, at a subtree of
 /// it or whole.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The volume: see [`reference::Volume`].
     pub volume: reference::Volume,

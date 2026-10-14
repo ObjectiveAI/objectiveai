@@ -22,6 +22,7 @@ use crate::wire::encode::{Encode, Writer};
 /// that names no mount is applied live. The agent's image, limits,
 /// provider and arguments are not edited: they are its for its life.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
     /// template and its index, which name it once and for all. See

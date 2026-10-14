@@ -17,6 +17,7 @@ use super::Agent;
 /// The daemon answers the once-and-for-all form, as
 /// [`key::Owner`](crate::daemon::key::Owner).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Owner {
     /// The one agent: a transient tool's, or a service's whose

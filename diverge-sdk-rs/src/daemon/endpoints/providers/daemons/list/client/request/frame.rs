@@ -15,6 +15,7 @@ use super::Filter;
 /// [`Daemon`](crate::daemon::endpoints::providers::daemons::list::server::response::Daemon).
 /// The count caps what comes back.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The filter: see [`Filter`]. Flattened, so its members are this
     /// object's own.

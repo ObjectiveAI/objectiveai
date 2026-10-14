@@ -19,6 +19,7 @@ use super::Kind;
 /// every one of them, `any_tags` one that carries any one of them. An
 /// empty list is absent, and matches every tool.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these names, as a create or a connect gave them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

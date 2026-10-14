@@ -11,6 +11,7 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 /// every place one is mounted. One JSON object,
 /// `{"provider":…,"name":…}`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Volume {
     /// The provider: `kind: "outgoing"` and the address the daemon
     /// dials, or `kind: "incoming_unbrokered"` and the identity its

@@ -88,6 +88,7 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 /// allows, and the program in the container sees that provider's own
 /// refusals.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct FuseMount {
     /// Which provider holds the volume: the same object the create's
     /// [`Provider`](super::Provider) names one by, and an agent's log

@@ -15,6 +15,7 @@ use super::Filter;
 /// and keeps sending as the accounts change. The count keeps the
 /// list to the first that many that match.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The filter: see [`Filter`]. Flattened, so its members are this
     /// object's own.

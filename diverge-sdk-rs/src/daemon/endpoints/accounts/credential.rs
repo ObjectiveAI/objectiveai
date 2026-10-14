@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 /// alone. One credential per identity. One JSON object,
 /// `{"identity":…}` with an `address` if any.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Credential {
     /// Who a client presenting the key is: the identity it is served
     /// under from then on, unless the account has a name, which is then

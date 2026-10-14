@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// `{"unbrokered":{"authorization":…}}`. One mode today; a brokered
 /// mode is a second member when the wire defines it, and nothing moves.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
     /// The two ends already know each other: the daemon presents a

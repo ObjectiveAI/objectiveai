@@ -9,6 +9,7 @@ use crate::daemon::reference;
 /// Ask the daemon for one dependency tool: see
 /// [`reference::Dependency`], the template by id and whose it is.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The tool: its template and its owner.
     pub dependency: reference::Dependency,

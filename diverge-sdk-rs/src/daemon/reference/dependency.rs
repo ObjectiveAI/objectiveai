@@ -14,6 +14,7 @@ use super::Owner;
 /// and so, for an operation on the tool's container, is a tool that
 /// does not run. One JSON object: `{"template":…,"owner":…}`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Dependency {
     /// The dependency template, by id: the hash of its canonical
     /// bytes, as the [`dependency_tools`](crate::daemon::endpoints::dependency_tools)

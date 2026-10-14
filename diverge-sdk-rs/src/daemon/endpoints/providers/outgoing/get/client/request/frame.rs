@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// Ask the daemon for one outgoing provider, by address.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The provider's address, as its add gave it.
     pub address: String,

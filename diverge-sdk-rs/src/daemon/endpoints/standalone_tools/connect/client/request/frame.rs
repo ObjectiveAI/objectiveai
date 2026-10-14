@@ -11,6 +11,7 @@ use crate::daemon::reference;
 /// The tool is named by its name, or by its template and its index,
 /// as [`reference`](crate::daemon::reference) states.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The tool: by its name, as its create gave it, or by its template
     /// and its index, which name a created tool once and for all. A

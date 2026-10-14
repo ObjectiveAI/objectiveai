@@ -13,6 +13,7 @@ use crate::daemon::reference;
 /// [`connect`](crate::daemon::endpoints::standalone_tools::connect) gave the tool.
 /// A tag the tool held already is held still, and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The tool: by its name, as its create or its connect gave it,
     /// or by its template and its index, which name a created tool

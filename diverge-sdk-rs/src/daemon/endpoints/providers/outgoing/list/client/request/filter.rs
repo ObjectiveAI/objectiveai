@@ -19,6 +19,7 @@ use crate::daemon::endpoints::providers::outgoing::Kind;
 /// them, or was made by any one of them. An empty list is absent, and
 /// matches every provider.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these addresses.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

@@ -17,6 +17,7 @@ use crate::daemon::creator::Creator;
 /// of them, or was added by any one of them. An empty list is absent,
 /// and matches every credential.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Naming any one of these identities.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

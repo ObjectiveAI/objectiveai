@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Ask the daemon to take tags off a daemon, by its name. A tag the
 /// daemon did not hold is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The daemon's name, as its add gave it.
     pub name: String,

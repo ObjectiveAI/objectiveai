@@ -10,6 +10,7 @@ use crate::daemon::reference;
 /// of its own: take it out of the containers' mounts, or wait for the
 /// operation on it to finish, and ask again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The volume: see [`reference::Volume`].
     pub volume: reference::Volume,

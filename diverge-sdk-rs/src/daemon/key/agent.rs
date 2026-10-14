@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 /// One agent of the caller's, by its template and its index, with
 /// its name beside when it has one.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Agent {
     /// The template it was made from, by id.
     pub template: String,

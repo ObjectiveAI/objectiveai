@@ -9,6 +9,7 @@ use crate::daemon::reference;
 /// [`reference::Tool`]. The tree is the container's root; there is no
 /// path to narrow it, since a watch is of the whole container.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The tool: see [`reference::Tool`].
     pub tool: reference::Tool,

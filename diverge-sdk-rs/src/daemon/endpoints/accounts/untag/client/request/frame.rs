@@ -8,6 +8,7 @@ use crate::daemon::endpoints::accounts::Reference;
 /// Ask the daemon to take tags off an account: see [`Reference`]. A tag
 /// the account did not hold is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The account: see [`Reference`].
     pub account: Reference,

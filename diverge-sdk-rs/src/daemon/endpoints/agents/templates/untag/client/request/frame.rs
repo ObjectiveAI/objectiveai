@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 /// answered it. A tag the template did not hold is not held still, and
 /// is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The template's id: its hash, as its create answered it.
     pub id: String,

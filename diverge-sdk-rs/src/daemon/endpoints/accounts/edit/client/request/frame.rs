@@ -20,6 +20,7 @@ use crate::daemon::endpoints::accounts::{Credential, Reference};
 /// account with no name, or both of one with both, is refused as
 /// leaving the account alone, and nothing changes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The account to change: see [`Reference`].
     pub account: Reference,

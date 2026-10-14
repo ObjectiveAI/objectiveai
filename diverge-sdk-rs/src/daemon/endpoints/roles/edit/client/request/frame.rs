@@ -12,6 +12,7 @@ use crate::daemon::grant::Grant;
 /// entire, and nothing is merged. A request with every member absent
 /// changes nothing and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The role to change, by name.
     pub name: String,

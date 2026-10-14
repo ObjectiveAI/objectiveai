@@ -13,6 +13,7 @@ use crate::daemon::endpoints::providers::outgoing::Mode;
 /// through. A name the caller has given a daemon already is refused; so
 /// is a link naming a provider the caller has no record of.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The name, of the caller's choosing: the daemon's identity on
     /// this daemon from then on, unique among the caller's daemons, and

@@ -36,6 +36,7 @@ use crate::daemon::create::Inner;
 /// the caller's word for its agent, and the daemon compares it and does
 /// not read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// What an agent's create and a tool's share — the template, the
     /// provider and its volumes, the FUSE mounts: see [`Inner`].

@@ -14,6 +14,7 @@ use crate::wire::encode::{Encode, Writer};
 /// own, because a caller acts on it differently from a failure:
 /// delete the tools, and ask again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The template's id, as its create answered it.
     pub id: String,

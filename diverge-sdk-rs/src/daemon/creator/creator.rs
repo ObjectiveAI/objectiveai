@@ -8,6 +8,7 @@ use super::{Agent, Client, Tool};
 /// an agent or a tool of the client's. JSON-tagged by `type`,
 /// `client`, `agent` or `tool`, beside the variant's own members.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Creator {
     /// The client itself, over an endpoint. See [`Client`].

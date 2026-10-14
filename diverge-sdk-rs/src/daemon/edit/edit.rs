@@ -20,6 +20,7 @@ use super::Change;
 /// refused while the container is active, and left as it is. The name
 /// changes live.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Edit {
     /// The name, unique among the caller's agents or tools as the
     /// container is one or the other; a name another holds is the

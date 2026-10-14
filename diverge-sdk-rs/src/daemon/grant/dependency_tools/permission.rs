@@ -14,6 +14,7 @@ use super::Over;
 /// action of one shape among the other's, a member missing — does not
 /// decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// Over dependency templates that exist: the [`Over`] actions

@@ -12,6 +12,7 @@ use crate::daemon::endpoints::providers::outgoing::Mode;
 /// anything else for naming — and one the caller has added already is
 /// refused.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// Where to dial, as the daemon is to write it: the provider's
     /// identity from then on. See

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 /// exactly one, and a named account with a credential is named by
 /// either.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Reference {
     /// By name.

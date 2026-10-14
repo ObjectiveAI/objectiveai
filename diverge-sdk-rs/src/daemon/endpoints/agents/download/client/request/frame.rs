@@ -10,6 +10,7 @@ use crate::daemon::reference;
 /// a file's chunks carry the empty path, a directory's each file's path
 /// within it — see [`Chunk`](crate::daemon::download::Chunk).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The agent: see [`reference::Agent`].
     pub agent: reference::Agent,

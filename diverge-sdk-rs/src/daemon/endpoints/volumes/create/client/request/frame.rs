@@ -13,6 +13,7 @@ use crate::provider::endpoints::volumes::Mode;
 /// reserves, and its mode. A name a volume of that provider's has
 /// already is refused.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The provider to make it on: see [`Identity`].
     pub provider: Identity,

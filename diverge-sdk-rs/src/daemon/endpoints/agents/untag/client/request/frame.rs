@@ -13,6 +13,7 @@ use crate::daemon::reference;
 /// A tag the agent did not hold is not held still, and is not a
 /// failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
     /// template and its index, which name it once and for all. See

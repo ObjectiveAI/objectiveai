@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 /// Ask the daemon for one template. The template is named by its id,
 /// its hash.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The template's id: its hash, as its create answered it.
     pub id: String,

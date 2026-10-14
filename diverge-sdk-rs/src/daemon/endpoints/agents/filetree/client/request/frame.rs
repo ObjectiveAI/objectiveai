@@ -9,6 +9,7 @@ use crate::daemon::reference;
 /// see [`reference::Agent`]. The tree is the container's root; there is
 /// no path to narrow it, since a watch is of the whole container.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The agent: see [`reference::Agent`].
     pub agent: reference::Agent,

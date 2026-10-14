@@ -62,6 +62,7 @@ use super::ItemType;
 ///
 /// [`ItemWrapper`]: crate::daemon::endpoints::agents::logs::server::response::ItemWrapper
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
     /// template and its index, which name it once and for all. See

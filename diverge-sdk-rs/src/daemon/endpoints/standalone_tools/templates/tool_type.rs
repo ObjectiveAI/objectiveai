@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 /// limits, mounts and arguments. A template whose `type` is anything
 /// else does not decode as a tool template.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolType {
     /// The only value.

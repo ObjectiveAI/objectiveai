@@ -10,6 +10,7 @@ use crate::daemon::endpoints::accounts::Reference;
 /// and the daemon says so with a variant of its own: delete the
 /// containers, or wait for the client to go, and ask again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The account: see [`Reference`].
     pub account: Reference,

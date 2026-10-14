@@ -8,6 +8,7 @@ use crate::daemon::endpoints::accounts::Reference;
 /// Ask the daemon to put tags on an account: see [`Reference`]. A tag
 /// the account held already is held still, and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The account: see [`Reference`].
     pub account: Reference,

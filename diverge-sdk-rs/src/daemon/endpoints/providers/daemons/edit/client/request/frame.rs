@@ -14,6 +14,7 @@ use crate::daemon::endpoints::providers::outgoing::Mode;
 /// list leaves the daemon reached through nothing. A request giving
 /// neither changes nothing and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The daemon's name, as its add gave it.
     pub name: String,

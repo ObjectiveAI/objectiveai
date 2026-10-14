@@ -8,6 +8,7 @@ use crate::daemon::endpoints::accounts::Reference;
 /// Ask the daemon for one account, by its name or by its credential's
 /// identity: see [`Reference`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The account: see [`Reference`].
     pub account: Reference,

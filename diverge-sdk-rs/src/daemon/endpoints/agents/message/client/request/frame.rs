@@ -17,6 +17,7 @@ use crate::daemon::reference;
 /// that cannot take one refuses the whole message, and the scope's
 /// error carries its words.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
     /// template and its index, which name it once and for all. See

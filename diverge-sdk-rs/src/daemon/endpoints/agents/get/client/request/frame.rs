@@ -10,6 +10,7 @@ use crate::daemon::reference;
 /// its template and its index, as
 /// [`reference`](crate::daemon::reference) states.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
     /// template and its index, which name it once and for all. See

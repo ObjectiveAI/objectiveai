@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// Ask the daemon for one daemon, by name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The daemon's name, as its add gave it.
     pub name: String,

@@ -30,6 +30,7 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 /// judging of the provider's credential answered. A provider the
 /// daemon does not know by that identity is the create's error.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Provider {
     /// Which provider. See [`Identity`].
     pub identity: Identity,

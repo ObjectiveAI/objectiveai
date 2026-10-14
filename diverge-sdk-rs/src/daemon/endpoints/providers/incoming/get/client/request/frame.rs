@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Ask the daemon for one credential of incoming providers, by the
 /// identity it names.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The identity the credential names.
     pub identity: String,

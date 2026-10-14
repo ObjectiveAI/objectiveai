@@ -26,6 +26,7 @@ use crate::daemon::reference;
 /// written only while it runs: one that does not is the transfer's
 /// `NoDestination`, and nothing is started for it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Destination {
     /// A path in an agent's container.

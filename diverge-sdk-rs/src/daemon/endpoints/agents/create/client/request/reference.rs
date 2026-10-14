@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 /// and the provider asks a referenced registry only where its own
 /// policy lists that registry.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Reference {
     /// The registry's host, as a reference names it before its first
     /// `/`: `docker.io`, `ghcr.io`, `registry.example.com:5000`. No

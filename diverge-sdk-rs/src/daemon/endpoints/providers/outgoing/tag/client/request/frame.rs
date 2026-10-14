@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Ask the daemon to put tags on an outgoing provider, by its address. A tag the provider held
 /// already is held still, and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The provider's address: its identity.
     pub address: String,

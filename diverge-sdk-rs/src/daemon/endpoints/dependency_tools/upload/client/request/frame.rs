@@ -18,6 +18,7 @@ use crate::daemon::reference;
 /// the daemon opens one content channel per path, and each file lands
 /// at the destination joined with its path.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Frame {
     /// One file.

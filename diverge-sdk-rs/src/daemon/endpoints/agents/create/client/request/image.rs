@@ -26,6 +26,7 @@ use super::Reference;
 /// where, is between them, and a caller learns only whether the agent
 /// runs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Image {
     /// The manifest digest, `<algorithm>:<hex>`.
     ///

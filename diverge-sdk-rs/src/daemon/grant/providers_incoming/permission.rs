@@ -14,6 +14,7 @@ use super::{Make, Over};
 /// which tags. An object that is none of these — an action of one
 /// shape among another's, a member missing — does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is

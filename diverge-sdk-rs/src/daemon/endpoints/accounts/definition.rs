@@ -12,6 +12,7 @@ use super::Credential;
 /// [create](crate::daemon::endpoints::accounts::create), so its members
 /// are the request's own.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Definition {
     /// An account with a name: what a tool container's

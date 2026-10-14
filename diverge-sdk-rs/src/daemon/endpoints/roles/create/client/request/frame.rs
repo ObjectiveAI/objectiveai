@@ -8,6 +8,7 @@ use crate::daemon::grant::Grant;
 /// Ask the daemon to create a role under a name. A name that is a
 /// role's already is refused.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The name, unique among roles; compared and not read.
     pub name: String,

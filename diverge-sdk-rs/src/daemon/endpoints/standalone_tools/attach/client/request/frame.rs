@@ -19,6 +19,7 @@ use crate::wire::encode::{Encode, Writer};
 /// its next listing shows the tool, and the tool container is started
 /// if no attached agent had it running.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The tool: by its name, as its create or its connect gave it,
     /// or by its template and its index, which name a created tool

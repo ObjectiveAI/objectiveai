@@ -12,6 +12,7 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 /// every provider it is reachable through; a connection to it is opened
 /// through any one whose provider this daemon is connected to.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Link {
     /// The provider, as this daemon names one: see [`Identity`]. One of
     /// the caller's, outgoing or incoming, on record.

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// is tagged with, as a value of its own to narrow a list by. Snake
 /// case on the wire, as the tag is: `"created"`, `"connected"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
     /// A tool the daemon made from a template and runs.

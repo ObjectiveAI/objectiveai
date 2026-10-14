@@ -12,6 +12,7 @@ use crate::daemon::key;
 /// snake case: `{"record":{…}}` or `{"dependency":{…}}`, beside the
 /// creator's own `type`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Tool {
     /// A tool the client made from a template.

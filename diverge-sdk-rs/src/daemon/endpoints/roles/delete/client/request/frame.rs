@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 /// not deleted, and the daemon says so with a variant of its own: take
 /// it from the accounts, and ask again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The role's name.
     pub name: String,

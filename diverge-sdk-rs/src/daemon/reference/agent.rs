@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 /// one object either way; an object with members of both variants does
 /// not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Agent {
     /// By name: `{"name":…}`.

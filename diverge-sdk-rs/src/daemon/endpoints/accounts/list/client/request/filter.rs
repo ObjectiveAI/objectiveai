@@ -19,6 +19,7 @@ use crate::daemon::creator::Creator;
 /// that carries any one of them. An empty list is absent, and matches
 /// every account.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these names.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

@@ -17,6 +17,7 @@ use crate::wire::encode::{Encode, Writer};
 /// agents depend on and none of which runs are deleted, and the
 /// agents depend on them no more.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The template's id, as its tools' list items carry it.
     pub id: String,

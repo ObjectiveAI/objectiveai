@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 /// the identity it names. One a provider is connected through is not
 /// taken out, and the daemon says so with a variant of its own.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The identity the credential names.
     pub identity: String,

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 /// report, and what a list narrows by. Snake case on the wire:
 /// `"unbrokered"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
     /// [`Mode::Unbrokered`](super::Mode::Unbrokered).

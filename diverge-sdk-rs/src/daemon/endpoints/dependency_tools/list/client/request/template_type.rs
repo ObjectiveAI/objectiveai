@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 /// with, as a value of its own to narrow a list by. Snake case on the
 /// wire, as the tag is: `"transient"`, `"service"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Type {
     /// A template deployed for each declaring agent's run, and ended

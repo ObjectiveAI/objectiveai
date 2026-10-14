@@ -24,6 +24,7 @@ use crate::wire::encode::{Encode, Writer};
 /// runs nothing of the caller's: a request naming either for one is
 /// refused as not owned, and only its name changes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The tool: by its name, as its create or its connect gave it,
     /// or by its template and its index, which name a created tool

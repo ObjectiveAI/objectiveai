@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 /// is there so that it can land beside these two without moving
 /// either.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "kind")]
 pub enum Identity {
     /// The daemon dialled the provider. `kind: "outgoing"`.

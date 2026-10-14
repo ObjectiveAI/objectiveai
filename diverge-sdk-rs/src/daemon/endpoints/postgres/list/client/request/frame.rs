@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 /// so there is nothing to name and nothing to narrow: the request is
 /// `{}` on the wire.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {}
 
 /// This frame's tag among the scope-opening requests.

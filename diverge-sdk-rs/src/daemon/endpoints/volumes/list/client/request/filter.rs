@@ -18,6 +18,7 @@ use crate::provider::endpoints::volumes::Mode;
 /// them, or is held by any one of them. An empty list is absent, and
 /// matches every volume.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Held by any one of these providers: see [`Identity`].
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

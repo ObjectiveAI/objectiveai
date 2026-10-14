@@ -17,6 +17,7 @@ use super::{agents, agents_templates, standalone_tools, standalone_tools_templat
 /// [`shared::permission::Grant`](crate::shared::permission::Grant),
 /// which this is built of.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Grant {
     /// Over agents: see [`agents::Permission`].

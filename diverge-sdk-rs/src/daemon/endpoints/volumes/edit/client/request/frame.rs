@@ -13,6 +13,7 @@ use crate::provider::endpoints::volumes::Mode;
 /// away, so there is no `delete` here and each is a plain option. A
 /// request with both absent changes nothing and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The volume: see [`reference::Volume`].
     pub volume: reference::Volume,

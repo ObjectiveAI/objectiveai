@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 /// daemon says so with a variant of its own, because a caller acts on
 /// it differently from a failure: delete the tools, and ask again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The daemon's name, as its add gave it.
     pub name: String,

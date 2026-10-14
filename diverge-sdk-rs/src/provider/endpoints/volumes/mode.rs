@@ -46,6 +46,7 @@ use serde::{Deserialize, Serialize};
 /// only — wherever a volume frame carries it; the strings
 /// `persistent`, `ephemeral` and `read_only` as JSON.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
     /// Every change is kept. Discriminant `0`.

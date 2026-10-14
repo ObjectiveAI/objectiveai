@@ -11,6 +11,7 @@ use crate::daemon::endpoints::accounts::Definition;
 /// the daemon mints and answers. A name or an identity that is an
 /// account's already is refused; so is a role the daemon does not have.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// A name, a credential, or both: see [`Definition`]. Flattened, so
     /// its members are this object's own.

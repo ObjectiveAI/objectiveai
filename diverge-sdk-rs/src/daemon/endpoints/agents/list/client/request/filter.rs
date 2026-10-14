@@ -18,6 +18,7 @@ use crate::daemon::creator::Creator;
 /// carries every one of them, `any_tags` one that carries any one of
 /// them. An empty list is absent, and matches every agent.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these names, as a create gave them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

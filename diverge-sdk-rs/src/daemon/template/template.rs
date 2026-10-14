@@ -41,6 +41,7 @@ use crate::daemon::endpoints::agents::create::client::request::Image;
 /// here either: it is the create's, so that one template makes
 /// containers of different standing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Template<Type> {
     /// What the template is for: the one value the family's type
     /// admits, `agent` or `tool`. Inside the hash, so the two kinds

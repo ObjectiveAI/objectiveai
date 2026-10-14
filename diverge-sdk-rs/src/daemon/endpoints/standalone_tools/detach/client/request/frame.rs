@@ -19,6 +19,7 @@ use crate::wire::encode::{Encode, Writer};
 /// from a failure: wait for the loop to end, and ask again. A tool
 /// detached from its last active agent has its container stopped.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The tool: by its name, as its create or its connect gave it,
     /// or by its template and its index, which name a created tool

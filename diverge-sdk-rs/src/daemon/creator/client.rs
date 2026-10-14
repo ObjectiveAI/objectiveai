@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 /// every agent and tool of the client's descends from, one maker at
 /// a time.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Client {
     /// The account the create was served for, as
     /// [`accounts`](crate::daemon::endpoints::accounts) states the

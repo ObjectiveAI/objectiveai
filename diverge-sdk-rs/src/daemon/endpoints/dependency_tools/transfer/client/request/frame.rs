@@ -10,6 +10,7 @@ use crate::daemon::transfer::Destination;
 /// dependency tool's container to a destination: see [`Destination`] for what lands
 /// where.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The dependency tool: see [`reference::Dependency`].
     pub dependency: reference::Dependency,
