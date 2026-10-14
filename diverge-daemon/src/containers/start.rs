@@ -265,7 +265,10 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     .ok_or_else(|| StartError::NoDaemon(name.clone()))?
             };
             let peer = daemons::connect(daemon, &record, account).await.map_err(StartError::Daemon)?;
-            let request = connect_request::Frame { tool: remote.clone() };
+            let request = connect_request::Frame {
+                tool: remote.clone(),
+                relay: None,
+            };
             let connected = tools_connect::execute(&peer.connected.handle, &request)
                 .await
                 .map_err(|error| StartError::Run(connect_failed(&error)))?;

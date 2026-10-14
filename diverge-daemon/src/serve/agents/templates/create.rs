@@ -33,10 +33,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::agents_templates::create(&standing) {
         return Ok(Frame::Forbidden);
     }
-    let id = hash::template_id(&frame.0.hashed()).map_err(store::Error::Json)?;
+    let id = hash::template_id(&frame.template.hashed()).map_err(store::Error::Json)?;
     let new = agents_templates::New {
         id: id.clone(),
-        template: frame.0,
+        template: frame.template,
         creator: Creator::Client(Client {
             identity: standing.identity.clone(),
         }),

@@ -16,8 +16,9 @@
 //! [`roles`], [`providers`], [`agents`], [`standalone_tools`],
 //! [`dependency_tools`],
 //! [`volumes`] and [`postgres`] have one per request, every request
-//! of the wire served; what the file operations of every family
-//! share is [`files`]. A credential that admits a provider rather
+//! of the wire served — or, when the request carries `relay`, by
+//! [`relay`], this daemon as a conduit to another; what the file
+//! operations of every family share is [`files`]. A credential that admits a provider rather
 //! than a client hands the socket to [`providers`](crate::providers)
 //! instead, where the daemon is the caller. A connection carried
 //! inside the process — a container's `/daemon` pair, or another
@@ -65,6 +66,7 @@ pub mod files;
 pub mod inner;
 pub mod postgres;
 pub mod providers;
+pub mod relay;
 pub mod roles;
 pub mod stream;
 pub mod standalone_tools;

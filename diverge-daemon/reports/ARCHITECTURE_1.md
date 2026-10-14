@@ -279,6 +279,23 @@ Two populations, kept apart by type and by fate:
   The dependency template's `kind` member, tagged `type`, is `mode`,
   tagged `mode`, flat; the daemon's templates flatten their family
   type, `{"type":"tool","mode":…}`. (2026-10-14.)
+- **Every request may be relayed; the daemon is then a conduit.** Every
+  request of the wire carries an optional `relay` — `{daemon, account}`,
+  a daemon record and one of its accounts. `serve::relay::peel` finds
+  it in the bytes before any handler and takes it out; the caller is
+  judged by the daemons grant's `relay` action over the record as
+  that account; the connection as that account is taken or opened;
+  and `serve::relay::conduit` puts the stripped request on it and
+  carries every frame both ways — responses, channels either side
+  opens, their responses, finishes — byte for byte, reading only the
+  headers, each side minting its own scope and channel numbers and
+  the conduit holding the pairs in the tasks that carry them. The
+  remote sees an ordinary request from that account; a refusal is
+  the request's own `forbidden` or `error`
+  (`ClientRequest::forbidden`/`error`, the one answer every endpoint
+  has); with the member taken out nothing is relayed twice. A client
+  gone mid-relay leaves the remote scope to its own end, as a client
+  gone leaves a local handler to its. (2026-10-14.)
 - **Dependencies are deployed then and there, for the agent's life.**
   An AGENT declares its dependencies when it registers, each a
   dependency tool template — image, limits, arguments, the agent's

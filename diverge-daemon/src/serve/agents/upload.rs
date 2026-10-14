@@ -34,8 +34,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// files landed before it staying.
 async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let (reference, path, what) = match &frame {
-        request::Frame::File { agent, path } => (agent, path, What::File),
-        request::Frame::Directory { agent, path, files } => (agent, path, What::Directory(files)),
+        request::Frame::File { agent, path, .. } => (agent, path, What::File),
+        request::Frame::Directory { agent, path, files, .. } => (agent, path, What::Directory(files)),
     };
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {

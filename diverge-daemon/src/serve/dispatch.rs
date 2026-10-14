@@ -6,12 +6,15 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, dependency_tools, postgres, providers, roles, standalone_tools, volumes};
+use super::{accounts, agents, dependency_tools, postgres, providers, relay, roles, standalone_tools, volumes};
 use crate::daemon::Daemon;
 use crate::judge::Who;
 
 /// Read `payload` as the request that opened `scope` and hand it to
-/// its handler, which answers and finishes the scope.
+/// its handler, which answers and finishes the scope — or, when it
+/// carries `relay`, to the [`relay`] conduit, which serves it on the
+/// daemon named as the account named and carries the answers, the
+/// member taken out of what goes on.
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
@@ -19,7 +22,11 @@ use crate::judge::Who;
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
-    match ClientRequest::decode(payload).unwrap_or_else(|never| match never {}) {
+    let request = ClientRequest::decode(payload).unwrap_or_else(|never| match never {});
+    if let Some((relay, bytes)) = relay::peel(payload) {
+        return relay::serve(scope, &request, bytes, relay, who, daemon).await;
+    }
+    match request {
         ClientRequest::AgentsCreate(frame) => agents::create::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsGet(frame) => agents::get::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsDelete(frame) => agents::delete::handle(scope, frame, who, daemon).await,

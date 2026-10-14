@@ -35,8 +35,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// staying; the container released after.
 async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let (reference, path, what) = match &frame {
-        request::Frame::File { tool, path } => (tool, path, What::File),
-        request::Frame::Directory { tool, path, files } => (tool, path, What::Directory(files)),
+        request::Frame::File { tool, path, .. } => (tool, path, What::File),
+        request::Frame::Directory { tool, path, files, .. } => (tool, path, What::Directory(files)),
     };
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {

@@ -34,8 +34,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// error is the `Error`, files landed before it staying.
 async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let (volume, path, what) = match &frame {
-        request::Frame::File { volume, path } => (volume, path, What::File),
-        request::Frame::Directory { volume, path, files } => (volume, path, What::Directory(files)),
+        request::Frame::File { volume, path, .. } => (volume, path, What::File),
+        request::Frame::Directory { volume, path, files, .. } => (volume, path, What::Directory(files)),
     };
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {

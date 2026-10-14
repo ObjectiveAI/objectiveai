@@ -36,8 +36,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// is started, and nothing is released after.
 async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let (reference, path, what) = match &frame {
-        request::Frame::File { dependency, path } => (dependency, path, What::File),
-        request::Frame::Directory { dependency, path, files } => (dependency, path, What::Directory(files)),
+        request::Frame::File { dependency, path, .. } => (dependency, path, What::File),
+        request::Frame::Directory { dependency, path, files, .. } => (dependency, path, What::Directory(files)),
     };
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
