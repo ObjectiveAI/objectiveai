@@ -3,22 +3,19 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::key;
-use crate::daemon::reference;
 use crate::shared::containers::request::Image;
 
 /// A tool, as the daemon attests it on the `_meta` of everything its
 /// server answers: the result of each of the four exchanges, each
 /// tool of a tools list, each resource of a resources list, each
-/// notification. Tagged `kind`, three kinds, each with the image the
-/// tool's container was made from, and nothing said twice: what the
-/// tool's reference — the tool as a request of this daemon names it
-/// once and for all — already says is said there alone. A created
-/// tool this daemon ran: its image is the run request's, and its
-/// reference, `{"template":…,"index":…}`, holds its template and its
-/// index. A connected tool another daemon runs: its reference is the
-/// daemon it is on and the tool as that daemon names it, and its
-/// image and its template are what that daemon told in the
-/// `Connected` answer that opened the connect, once, as the scope
+/// notification. Tagged `kind`, three kinds, flat — each with the
+/// image the tool's container was made from and the template it was
+/// made from. A created tool and a connected tool are one shape told
+/// apart by the kind, the connected one naming the daemon it is on
+/// besides. A created tool this daemon ran, and its image and its
+/// template are the run request's. A connected tool another daemon
+/// runs, and its image and its template are what that daemon told in
+/// the `Connected` answer that opened the connect, once, as the scope
 /// opened — this daemon's stamp, not that daemon's, which is
 /// replaced. A dependency tool this daemon ran from a template an
 /// agent's program declared.
@@ -31,16 +28,14 @@ pub enum Tool {
     Created {
         /// The image it was made from.
         image: Image,
+        /// The template it was made from, by id.
+        template: String,
+        /// Its number among all tools of the caller's ever made from
+        /// that template, as its list item carries it.
+        index: u64,
         /// Its name, as its create gave it, if it gave one.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         name: Option<String>,
-        /// The tool as a request of this daemon names it once and for
-        /// all — `{"template":…,"index":…}`, the template it was made
-        /// from and its number among all tools of the caller's ever
-        /// made from it — a name being given or taken while this never
-        /// changes. The template and the index are here and nowhere
-        /// else beside.
-        tool: reference::Tool,
     },
     /// A tool on record, registered from another daemon's tool, which
     /// runs it.
@@ -49,8 +44,7 @@ pub enum Tool {
         /// on the connect.
         image: Image,
         /// The template it was made from, by id, as the daemon that
-        /// runs it told on the connect: that daemon's, which the
-        /// reference does not name.
+        /// runs it told on the connect.
         template: String,
         /// Its number among all tools of the caller's ever registered
         /// from that daemon's tool, as its list item carries it.
@@ -61,11 +55,6 @@ pub enum Tool {
         /// The daemon that runs it, by the name of its record, as the
         /// register named it.
         daemon: String,
-        /// The tool, as that daemon names it, as the register named
-        /// it. With the daemon, the tool as a request of this daemon
-        /// names it once and for all — `{"daemon":…,"tool":…}` — a
-        /// name being given or taken while this never changes.
-        tool: reference::Tool,
     },
     /// A dependency tool, run by this daemon from a template an
     /// agent's program declared.
