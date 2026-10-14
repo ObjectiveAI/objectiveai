@@ -43,14 +43,15 @@ pub struct Agent {
     /// and the whole structure absent is everything off. (The
     /// caller's MCP tools ride beside these regardless, and the tool
     /// containers the agent asks for are
-    /// [`mcp_tools`](Self::mcp_tools).) See [`Toolsets`].
+    /// [`dependencies`](Self::dependencies).) See [`Toolsets`].
     #[serde(default)]
     pub toolsets: Toolsets,
     /// The tool containers this agent depends on, each a dependency
     /// tool template the caller deploys and serves to it as an MCP
-    /// server, in the form the provider's wire defines. Passed back
-    /// whole as the registration's answer, which is how the caller
-    /// learns of them. Absent is none.
+    /// server, exactly as the SDK's [`Template`] states one: that
+    /// type's JSON Schema is what `GET /schema` states for this member,
+    /// and this list, unchanged, is what the registration answers —
+    /// one schema, from the one type, at both. Absent is none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<Template>,
 }

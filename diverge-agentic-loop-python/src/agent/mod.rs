@@ -6,8 +6,10 @@
 //! can say so — [`schemars::schema_for!`] over [`Agent`] is the
 //! whole answer. One member is not this image's to define:
 //! `dependencies`, the tool containers the agent depends on, each a
-//! dependency tool template in the form the provider's wire gives one,
-//! passed back whole as the registration's answer.
+//! dependency tool template exactly as the SDK's
+//! `shared::containers::dependencies::Template` states one — its
+//! schema at `GET /schema`, the list itself as the registration's
+//! answer.
 //!
 //! No model. The agent IS the source: every turn runs it against the
 //! whole conversation, and what its last expression evaluates to is

@@ -13,9 +13,9 @@ use super::{Effort, Tools};
 /// the sampling decisions OpenRouter exposes are made inside it.
 /// What it does expose is its tools: [`tools`](Self::tools) is the
 /// exact set of built-ins the model is given, every switch stated,
-/// passed to Claude Code as `--tools`; [`mcp_tools`](Self::mcp_tools)
-/// is the other kind, the tool containers the agent asks the caller
-/// to run for it.
+/// passed to Claude Code as `--tools`;
+/// [`dependencies`](Self::dependencies) is the other kind, the tool
+/// containers the agent asks the caller to run for it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Agent {
     /// The model to run.
@@ -34,9 +34,10 @@ pub struct Agent {
     pub effort: Option<Effort>,
     /// The tool containers this agent depends on, each a dependency
     /// tool template the caller deploys and serves to it as an MCP
-    /// server, in the form the provider's wire defines. Passed back
-    /// whole as the registration's answer, which is how the caller
-    /// learns of them. Absent is none.
+    /// server, exactly as the SDK's [`Template`] states one: that
+    /// type's JSON Schema is what `GET /schema` states for this member,
+    /// and this list, unchanged, is what the registration answers —
+    /// one schema, from the one type, at both. Absent is none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<Template>,
 }

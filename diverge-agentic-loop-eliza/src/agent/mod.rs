@@ -5,8 +5,10 @@
 //! can say so — [`schemars::schema_for!`] over [`Agent`] is the
 //! whole answer. One member is not this image's to define:
 //! `dependencies`, the tool containers the agent depends on, each a
-//! dependency tool template in the form the provider's wire gives one,
-//! passed back whole as the registration's answer.
+//! dependency tool template exactly as the SDK's
+//! `shared::containers::dependencies::Template` states one — its
+//! schema at `GET /schema`, the list itself as the registration's
+//! answer.
 //!
 //! Eliza (elizaOS, the TypeScript agent framework) is a LIBRARY the
 //! harness drives from an entry of its own: one `AgentRuntime` per
