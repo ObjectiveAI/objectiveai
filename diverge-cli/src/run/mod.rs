@@ -19,7 +19,8 @@
 //! [`body`] as the SDK's own request type and puts it
 //! through the [`shape`] its exchange has, printing every answer
 //! frame through the [`Emitter`] as one compact JSON line, each
-//! through the jq filter when there is one. Nothing stays open past
+//! through the jq filter when there is one, and each the moment it
+//! is had — nothing is collected and printed later. Nothing stays open past
 //! its answer: a list ends at its `listed` frame, a filetree at its
 //! first snapshot, a logs request where it asked to, and a connect
 //! once the one MCP exchange its subcommand names is answered. A
@@ -124,7 +125,7 @@ pub enum Command {
 /// — dialling the daemon if its command line puts a request, and
 /// every answer printed.
 pub async fn run(selected: &Selected<'_>, run: Run) -> Result<(), Error> {
-    let mut emitter = Emitter::new(run.jq);
+    let mut emitter = Emitter::new(run.jq)?;
     let target = Target {
         address: &selected.daemon.address,
         key: &selected.account.key,
