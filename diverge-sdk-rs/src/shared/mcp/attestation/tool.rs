@@ -12,14 +12,16 @@ use crate::shared::containers::request::Image;
 /// notification. Tagged `kind`, three kinds, each with the image the
 /// tool's container was made from and the template it was made from.
 /// A created tool and a connected tool are one shape told apart by
-/// the kind alone: image, template, index, name, and the tool as a
-/// request of this daemon names it. A created tool this daemon ran,
-/// and the image and the template are the run request's; a
-/// connected tool another daemon runs, and the image and the
-/// template are what that daemon told in the `Connected` answer that
-/// opened the connect, once, as the scope opened — this daemon's
-/// stamp, not that daemon's, which is replaced. A dependency tool
-/// this daemon ran from a template an agent's program declared.
+/// the kind alone — image, template, index, name, and the tool as a
+/// request of this daemon names it — a connected tool's reference
+/// being the daemon it is on and the tool as that daemon names it. A
+/// created tool this daemon ran, and the image and the template are
+/// the run request's; a connected tool another daemon runs, and the
+/// image and the template are what that daemon told in the
+/// `Connected` answer that opened the connect, once, as the scope
+/// opened — this daemon's stamp, not that daemon's, which is
+/// replaced. A dependency tool this daemon ran from a template an
+/// agent's program declared.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -57,8 +59,12 @@ pub enum Tool {
         /// Its name, as its register gave it, if it gave one.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         name: Option<String>,
-        /// The tool as a request of this daemon names it once and for
-        /// all — `{"daemon":…,"tool":…}`, as the register named it — a
+        /// The daemon that runs it, by the name of its record, as the
+        /// register named it.
+        daemon: String,
+        /// The tool, as that daemon names it, as the register named
+        /// it. With the daemon, the tool as a request of this daemon
+        /// names it once and for all — `{"daemon":…,"tool":…}` — a
         /// name being given or taken while this never changes.
         tool: reference::Tool,
     },
