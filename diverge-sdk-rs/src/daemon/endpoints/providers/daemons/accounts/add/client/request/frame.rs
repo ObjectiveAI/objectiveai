@@ -1,0 +1,103 @@
+//! What a client's request frame carries for an accounts add.
+
+use crate::wire::decode::Decode;
+use crate::wire::encode::{Encode, Writer};
+use serde::{Deserialize, Serialize};
+
+use crate::daemon::endpoints::providers::outgoing::Mode;
+
+/// Ask the daemon to add an account to a daemon record: a name of the
+/// caller's choosing, unique among the record's accounts, and the mode
+/// this daemon authenticates to the remote in as that account — the
+/// same modes as an outgoing provider's, the credential one the
+/// remote daemon was told to expect, an incoming credential of its
+/// own. A name the record has an account under already is refused.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
+pub struct Frame {
+    /// The daemon's name, as its add gave it.
+    pub daemon: String,
+    /// The account's name, of the caller's choosing: unique among the
+    /// record's accounts, and what a connected tool and a relayed
+    /// request name the account by. Compared and not read.
+    pub name: String,
+    /// How to authenticate there as this account, by the mode's name:
+    /// see [`Mode`].
+    pub mode: Mode,
+}
+
+/// This frame's tag among the scope-opening requests.
+///
+/// One byte at the front of the payload, which is what tells a reader
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// is one type carrying bytes — so the distinction has to be in the
+/// bytes, and each request owns the value that names it.
+///
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
+const TAG: u8 = 98;
+
+/// JSON, as every request of the daemon's is.
+impl Encode for Frame {
+    /// The ordinary JSON failure. The tag cannot fail.
+    type Error = serde_json::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        out.extend_from_slice(&[TAG]);
+        serde_json::to_writer(out, self)
+    }
+}
+
+impl Decode<'_> for Frame {
+    /// Three ways to fail, and only one of them is JSON.
+    type Error = FrameError;
+
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
+        if *tag != TAG {
+            return Err(FrameError::UnexpectedTag(*tag));
+        }
+        serde_json::from_slice(rest).map_err(FrameError::Body)
+    }
+}
+
+/// A providers daemons accounts add request frame that could not be read.
+#[derive(Debug)]
+pub enum FrameError {
+    /// No bytes at all, so not even a tag.
+    Empty,
+    /// A tag naming some other request.
+    ///
+    /// A reader that dispatched on the tag will not see this. One that
+    /// assumed which request it held, and was wrong, will — which is
+    /// the point of checking a tag rather than skipping it.
+    UnexpectedTag(u8),
+    /// The request did not parse.
+    Body(serde_json::Error),
+}
+
+impl std::fmt::Display for FrameError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FrameError::Empty => f.write_str("providers daemons accounts add request frame is empty"),
+            FrameError::UnexpectedTag(tag) => {
+                write!(f, "expected providers daemons accounts add request tag {TAG}, found {tag}")
+            }
+            FrameError::Body(error) => {
+                write!(f, "providers daemons accounts add request did not parse: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Body(error) => Some(error),
+            FrameError::Empty | FrameError::UnexpectedTag(_) => None,
+        }
+    }
+}

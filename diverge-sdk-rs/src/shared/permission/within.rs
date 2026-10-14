@@ -20,6 +20,20 @@ pub enum Within<T> {
     Only(T),
 }
 
+impl<T> Within<T> {
+    /// Whether this is `"any"`: what a member left absent means.
+    pub fn is_any(&self) -> bool {
+        matches!(self, Within::Any)
+    }
+}
+
+impl<T> Default for Within<T> {
+    /// `"any"`: a member left absent reaches everything.
+    fn default() -> Self {
+        Within::Any
+    }
+}
+
 impl<T: Serialize> Serialize for Within<T> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {

@@ -55,6 +55,9 @@ pub enum Tool {
         /// The daemon that runs it, by the name of its record, as the
         /// register named it.
         daemon: String,
+        /// The account on that daemon it is reached as, as the register
+        /// named it.
+        account: String,
     },
     /// A dependency tool, run by this daemon from a template an
     /// agent's program declared.

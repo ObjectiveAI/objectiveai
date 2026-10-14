@@ -28,6 +28,10 @@ pub enum Permission {
         actions: Vec<Over>,
         /// How far: `"any"`, or the filter as a test.
         within: Within<Filter>,
+        /// Which accounts, for `connect` and `relay`: `"any"`, or only
+        /// the account names listed. Absent is `"any"`.
+        #[serde(default, skip_serializing_if = "Within::is_any")]
+        accounts: Within<Vec<String>>,
     },
     /// Tagging daemons: putting tags on, taking them off, or both,
     /// reaching every one or only those the [`Filter`] lets through,

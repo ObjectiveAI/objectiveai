@@ -28,8 +28,12 @@ pub struct Filter {
     /// them: a daemon one of whose links names the provider.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<Identity>,
-    /// Whether this daemon holds a connection to it now: `true`, or
-    /// not, `false`; absent, either.
+    /// Holding an account under any one of these names. Absent when
+    /// empty, and then any accounts, or none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub accounts: Vec<String>,
+    /// Whether this daemon holds a connection to it now, as any of its
+    /// accounts: `true`, or not, `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connected: Option<bool>,
     /// Made by any one of these, directly: see

@@ -25,6 +25,9 @@ pub enum Origin {
         /// The daemon the tool is on, by the name of its record, as
         /// the register named it.
         daemon: String,
+        /// The account on that daemon the tool is reached as, as the
+        /// register named it.
+        account: String,
         /// The tool, as that daemon names it and as the register
         /// named it: see [`reference::Tool`].
         tool: Box<reference::Tool>,

@@ -1,10 +1,10 @@
 //! Naming a daemon to connect to. One request, one answer. A client
-//! gives a name, a mode and links; the daemon answers that the daemon
+//! gives a name and links; the daemon answers that the daemon
 //! is added, that the name is a daemon's already, that a link names a
 //! provider the caller has no record of, or that it failed, and the
-//! scope finishes. From then on a connected tool may name the daemon,
-//! and this daemon connects to it, through its links and in that mode,
-//! for whatever a connected tool needs of it.
+//! scope finishes. From then on accounts may be added to it, and a
+//! connected tool or a relayed request may name the daemon and one of
+//! them, which this daemon connects to it as, through its links.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

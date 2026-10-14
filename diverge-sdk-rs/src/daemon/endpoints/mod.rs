@@ -122,8 +122,11 @@
 //! | `95` | [`dependency_tools::download`] |
 //! | `96` | [`dependency_tools::upload`] |
 //! | `97` | [`dependency_tools::transfer`] |
+//! | `98` | [`providers::daemons::accounts::add`] |
+//! | `99` | [`providers::daemons::accounts::edit`] |
+//! | `100` | [`providers::daemons::accounts::delete`] |
 //!
-//! Ninety-eight, so far. Tags are handed out in the order scopes are defined
+//! One hundred and one, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

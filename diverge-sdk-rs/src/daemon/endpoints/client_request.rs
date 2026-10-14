@@ -225,6 +225,12 @@ pub enum ClientRequest<'a> {
     /// Tag `97`. Transfer out of a running dependency tool's
     /// container.
     DependencyToolsTransfer(dependency_tools::transfer::client::request::Frame),
+    /// Tag `98`. Add an account to a daemon record.
+    ProvidersDaemonsAccountsAdd(providers::daemons::accounts::add::client::request::Frame),
+    /// Tag `99`. Replace an account's mode on a daemon record.
+    ProvidersDaemonsAccountsEdit(providers::daemons::accounts::edit::client::request::Frame),
+    /// Tag `100`. Forget an account on a daemon record.
+    ProvidersDaemonsAccountsDelete(providers::daemons::accounts::delete::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -334,6 +340,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsEdit(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsTag(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsUntag(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsAccountsAdd(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsAccountsEdit(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsAccountsDelete(frame) => frame.encode(out),
             ClientRequest::DependencyToolsList(frame) => frame.encode(out),
             ClientRequest::DependencyToolsGet(frame) => frame.encode(out),
             ClientRequest::DependencyToolsDelete(frame) => frame.encode(out),
@@ -661,6 +670,15 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             97 => dependency_tools::transfer::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DependencyToolsTransfer)
                 .ok(),
+            98 => providers::daemons::accounts::add::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsAccountsAdd)
+                .ok(),
+            99 => providers::daemons::accounts::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsAccountsEdit)
+                .ok(),
+            100 => providers::daemons::accounts::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsAccountsDelete)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -759,6 +777,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsEdit(_) => f.write_str("providers daemons edit"),
             ClientRequest::ProvidersDaemonsTag(_) => f.write_str("providers daemons tag"),
             ClientRequest::ProvidersDaemonsUntag(_) => f.write_str("providers daemons untag"),
+            ClientRequest::ProvidersDaemonsAccountsAdd(_) => f.write_str("providers daemons accounts add"),
+            ClientRequest::ProvidersDaemonsAccountsEdit(_) => f.write_str("providers daemons accounts edit"),
+            ClientRequest::ProvidersDaemonsAccountsDelete(_) => f.write_str("providers daemons accounts delete"),
             ClientRequest::DependencyToolsList(_) => f.write_str("dependency tools list"),
             ClientRequest::DependencyToolsGet(_) => f.write_str("dependency tools get"),
             ClientRequest::DependencyToolsDelete(_) => f.write_str("dependency tools delete"),
@@ -878,6 +899,9 @@ pub fn tag(path: &str) -> Option<u8> {
         "dependency_tools/download" => Some(95),
         "dependency_tools/upload" => Some(96),
         "dependency_tools/transfer" => Some(97),
+        "providers/daemons/accounts/add" => Some(98),
+        "providers/daemons/accounts/edit" => Some(99),
+        "providers/daemons/accounts/delete" => Some(100),
         _ => None,
     }
 }
@@ -976,6 +1000,9 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsEdit(_) => "providers/daemons/edit",
             ClientRequest::ProvidersDaemonsTag(_) => "providers/daemons/tag",
             ClientRequest::ProvidersDaemonsUntag(_) => "providers/daemons/untag",
+            ClientRequest::ProvidersDaemonsAccountsAdd(_) => "providers/daemons/accounts/add",
+            ClientRequest::ProvidersDaemonsAccountsEdit(_) => "providers/daemons/accounts/edit",
+            ClientRequest::ProvidersDaemonsAccountsDelete(_) => "providers/daemons/accounts/delete",
             ClientRequest::DependencyToolsList(_) => "dependency_tools/list",
             ClientRequest::DependencyToolsGet(_) => "dependency_tools/get",
             ClientRequest::DependencyToolsDelete(_) => "dependency_tools/delete",

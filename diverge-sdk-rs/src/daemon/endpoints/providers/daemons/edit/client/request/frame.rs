@@ -5,23 +5,18 @@ use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::providers::daemons::Link;
-use crate::daemon::endpoints::providers::outgoing::Mode;
 
-/// Ask the daemon to change a daemon record, by name: its mode, its
-/// links, or both, each replaced whole. There is nothing to take away
-/// from a mode, so there is no `delete`, and a mode given is the new
-/// mode entire; the links given are the new links entire, and an empty
-/// list leaves the daemon reached through nothing. A request giving
-/// neither changes nothing and is not a failure.
+/// Ask the daemon to change a daemon record, by name: its links,
+/// replaced whole — the links given are the new links entire, and an
+/// empty list leaves the daemon reached through nothing. Its accounts
+/// are changed one by one, by
+/// [`accounts::edit`](crate::daemon::endpoints::providers::daemons::accounts::edit).
+/// A request giving no links changes nothing and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The daemon's name, as its add gave it.
     pub name: String,
-    /// How to authenticate there from now on: see [`Mode`]. Absent, the
-    /// mode is as it was.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mode: Option<Mode>,
     /// The providers it is reached through from now on, whole: see
     /// [`Link`]. Each link's provider is one of the caller's on record.
     /// Absent, the links are as they were.

@@ -8,9 +8,11 @@ use crate::daemon::reference;
 
 /// Ask the daemon to hold, under a name, a tool another daemon holds.
 ///
-/// Two things name the tool — the daemon it is on, by a record of
+/// Three things name the tool — the daemon it is on, by a record of
 /// [`providers::daemons`](crate::daemon::endpoints::providers::daemons),
-/// and the tool as that daemon names it — and the name it is held
+/// the account on it this daemon reaches the tool as, by the record's
+/// name for it, and the tool as that daemon names it — and the name
+/// it is held
 /// under here from then on. Nothing here is what the container is made
 /// from: its image, its limits, its mounts and its arguments are the
 /// other daemon's, stated in its own
@@ -51,6 +53,10 @@ pub struct Frame {
     /// [`providers::daemons`](crate::daemon::endpoints::providers::daemons).
     /// A name no record of the caller's has is the register's error.
     pub daemon: String,
+    /// The account on that daemon this daemon reaches the tool as, by
+    /// the name the record's accounts give it. The caller must hold a
+    /// `connect` grant over the record as that account.
+    pub account: String,
     /// The tool, as that daemon names it: by its name there, or by its
     /// template and its index there. See [`reference::Tool`]. Compared
     /// by this daemon, and read by that one.

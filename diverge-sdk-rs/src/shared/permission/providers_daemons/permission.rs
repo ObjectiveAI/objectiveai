@@ -8,11 +8,13 @@ use super::{Make, Over};
 /// What one grant over daemons allows, in one of three shapes told
 /// apart on the wire by their very form, as
 /// [`permission`](crate::shared::permission) states them: a bare array
-/// of [`Make`] actions; an object of [`Over`] actions and how far they
-/// reach, by tags; or an object of tagging actions, how far they reach,
-/// and which tags. An object that is none of these — an action of one
-/// shape among another's, a member missing, a `within` that is not
-/// `"any"` or a [`Tags`] — does not decode.
+/// of [`Make`] actions; an object of [`Over`] actions, how far they
+/// reach, by tags, and which of the records' accounts the two actions
+/// done as an account — `connect`, `relay` — may act as; or an object
+/// of tagging actions, how far they reach, and which tags. An object
+/// that is none of these — an action of one shape among another's, a
+/// member missing, a `within` that is not `"any"` or a [`Tags`] — does
+/// not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
@@ -28,6 +30,12 @@ pub enum Permission {
         actions: Vec<Over>,
         /// How far: `"any"`, or the tags as a test.
         within: Within<Tags>,
+        /// Which accounts, for `connect` and `relay`: `"any"`, or only
+        /// the account names listed, on whichever record `within`
+        /// reaches. Absent is `"any"`. The other actions are over the
+        /// record and read no account.
+        #[serde(default, skip_serializing_if = "Within::is_any")]
+        accounts: Within<Vec<String>>,
     },
     /// Tagging daemons: putting tags on, taking them off, or both,
     /// reaching every one or only those the [`Tags`] let through, and

@@ -52,8 +52,8 @@ pub enum Frame {
     /// No daemon of the caller's has the name; nothing changed. Tag
     /// `1`.
     NotFound,
-    /// A connected tool of the caller's names the daemon; nothing
-    /// changed. Tag `2`.
+    /// A connected tool of the caller's names an account of the
+    /// daemon; nothing changed. Tag `2`.
     InUse,
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `3`.

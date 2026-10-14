@@ -4,26 +4,29 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
-use crate::daemon::endpoints::providers::daemons::Link;
-use crate::daemon::endpoints::providers::outgoing::Kind;
+use crate::daemon::endpoints::providers::daemons::{Account, Link};
 
-/// One daemon of the caller's: its name, the kind of its mode without
-/// the credential, its links, whether this daemon holds a connection to
-/// it now, when it was added and by whom, and its tags.
+/// One daemon of the caller's: its name, its links, its accounts by
+/// name and the kind of their mode without the credential, which of
+/// them this daemon holds a connection as now, when it was added and
+/// by whom, and its tags.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Daemon {
     /// The name, as the add gave it: the daemon's identity here.
     pub name: String,
-    /// Which mode this daemon authenticates to it in, without the
-    /// credential. See [`Kind`].
-    pub kind: Kind,
     /// The providers it is reached through, each with the identity it
     /// is known by there: see [`Link`]. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub links: Vec<Link>,
-    /// Whether this daemon holds a connection to it now, through one of
-    /// its links.
-    pub connected: bool,
+    /// The accounts this daemon holds on it, in the order they were
+    /// added: see [`Account`]. Absent when empty, and then nothing can
+    /// act as this daemon there.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub accounts: Vec<Account>,
+    /// The accounts this daemon holds a connection as now, by name,
+    /// each through one of the links. Absent when none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub connected: Vec<String>,
     /// When the add made it. On the wire an RFC 3339 timestamp in UTC.
     pub created: DateTime<Utc>,
     /// Who added it: the client, over an endpoint, or the agent or the

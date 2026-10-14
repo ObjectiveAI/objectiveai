@@ -5,13 +5,14 @@ use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::providers::daemons::Link;
-use crate::daemon::endpoints::providers::outgoing::Mode;
 
-/// Ask the daemon to add a daemon: another daemon the caller holds an
-/// account on, under a name of the caller's choosing, with the mode
-/// this daemon authenticates to it in and the links it is reached
-/// through. A name the caller has given a daemon already is refused; so
-/// is a link naming a provider the caller has no record of.
+/// Ask the daemon to add a daemon: another daemon the caller holds
+/// accounts on, under a name of the caller's choosing, with the links
+/// it is reached through. Its accounts — each a name and the mode this
+/// daemon authenticates to it in — are added one by one afterwards,
+/// by [`accounts::add`](crate::daemon::endpoints::providers::daemons::accounts::add).
+/// A name the caller has given a daemon already is refused; so is a
+/// link naming a provider the caller has no record of.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
@@ -19,11 +20,6 @@ pub struct Frame {
     /// this daemon from then on, unique among the caller's daemons, and
     /// what a connected tool names it by. Compared and not read.
     pub name: String,
-    /// How to authenticate there, by the mode's name: see [`Mode`]. The
-    /// same modes as an outgoing provider's; the credential is one the
-    /// remote daemon was told to expect, an incoming credential of its
-    /// own.
-    pub mode: Mode,
     /// The providers the daemon is reached through, each with the
     /// identity it is known by there: see [`Link`]. Each link's
     /// provider is one of the caller's, outgoing or incoming, on
