@@ -24,7 +24,7 @@ axum = { version = "0.8.9" }
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The agent's JSON Schema, derived from the agent types for
 # `GET /schema`.
-schemars = { version = "1.2.1" }
+schemars = { version = "1.2.2" }
 # The continuation's outbound stream, as a generator.
 async-stream = { version = "0.3.6" }
 # `Stream` and its combinators, for the chunk stream the response is.

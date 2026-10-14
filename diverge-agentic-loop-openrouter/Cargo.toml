@@ -28,7 +28,7 @@ futures-util = { version = "0.3.33", default-features = false, features = ["std"
 rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
 # The agent's JSON Schema, derived from the agent types for
 # `GET /schema`; `indexmap2` for the `logit_bias` map.
-schemars = { version = "1.2.1", features = ["indexmap2"] }
+schemars = { version = "1.2.2", features = ["indexmap2"] }
 # The map types the OpenRouter shapes carry: ordered, so the same
 # request always serializes identically.
 indexmap = { version = "2.14.0", features = ["serde"] }
