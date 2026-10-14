@@ -222,8 +222,6 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     key: Key::Tool(ToolKey::Record(tool.id)),
                     caller: Attestation::Tool(attestation::Tool::Created {
                         image: image.clone(),
-                        template: template.clone(),
-                        index: tool.index,
                         name: tool.name.clone(),
                         tool: reference::Tool::TemplateIndex {
                             template: template.clone(),
@@ -254,8 +252,6 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
             };
             let attestation = attestation::Tool::Created {
                 image,
-                template: template.clone(),
-                index: tool.index,
                 name: tool.name.clone(),
                 tool: reference::Tool::TemplateIndex {
                     template: template.clone(),

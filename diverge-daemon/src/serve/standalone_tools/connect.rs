@@ -73,10 +73,11 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    if tool.is_connected() {
+    let Some(template) = tool.template() else {
         reply::reply(scope, &Frame::Error(reply::failure(&CONNECTED))).await;
         return Ok(());
-    }
+    };
+    let template = template.to_string();
     let user = User::Connection(daemon.live.mint_connection().await);
     let run = match containers::use_tool(daemon, &tool, user).await {
         Ok(run) => run,
@@ -89,7 +90,7 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
         scope,
         &Frame::Connected {
             image: run.attestation.image().clone(),
-            template: run.attestation.template().to_string(),
+            template,
         },
     )
     .await;
