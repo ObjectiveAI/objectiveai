@@ -3,8 +3,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::creator::Creator;
 use super::Kind;
+use crate::daemon::creator::Creator;
+use crate::daemon::endpoints::standalone_tools::templates::Mode;
 
 /// The filter over tools: every member optional, and every one given a
 /// condition a tool passes or does not. In a [list
@@ -39,6 +40,12 @@ pub struct Filter {
     /// is tagged with, see [`Kind`]; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kind: Option<Kind>,
+    /// Made from a template whose `mode` is any one of these,
+    /// transient or a service: see [`Mode`]. A connected tool has no
+    /// mode here — it runs by another daemon's template — and passes
+    /// none. Absent when empty, and then either.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modes: Vec<Mode>,
     /// Whether active — its container running, or its connect scope
     /// held — `true`, or not, `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
