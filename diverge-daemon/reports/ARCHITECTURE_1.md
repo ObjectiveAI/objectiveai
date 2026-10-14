@@ -207,7 +207,8 @@ Two populations, kept apart by type and by fate:
   resource of a list, each notification — the tool as it relays the
   answer back: `created`, `connected` or `dependency`, each with the
   tool's image and template — `created` and `connected` one shape
-  (image, template, index, name, and the tool as a request names it),
+  (image, template, index, name, and the tool as a request names it —
+  a connected tool's as the daemon it is on and the tool there),
   a connected tool's image and template as the daemon that runs it
   told in its `Connected` answer, re-stamped as this daemon's own in
   place of that daemon's stamp, which is not trusted; on every chunk

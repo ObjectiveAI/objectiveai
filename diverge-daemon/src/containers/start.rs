@@ -282,10 +282,8 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 template: connected.template().to_string(),
                 index: tool.index,
                 name: tool.name.clone(),
-                tool: reference::Tool::Connected {
-                    daemon: name.clone(),
-                    tool: Box::new(remote.clone()),
-                },
+                daemon: name.clone(),
+                tool: remote.clone(),
             };
             (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation)
         }
