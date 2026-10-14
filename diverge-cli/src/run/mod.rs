@@ -13,6 +13,10 @@
 //! Beneath every request that takes a body is `request-schema`,
 //! which prints the JSON Schema of that body as the SDK states it
 //! and dials nothing: see [`request_schema()`].
+//! Every body may carry `relay`, naming a daemon record and an
+//! account on it: the daemon dialled then serves the request on that
+//! daemon as that account, a conduit, and the answers come back as
+//! the request's own.
 //!
 //! The selected daemon is the [`Target`], [`dial`]ed as the selected
 //! account by the leaf that puts a request; the leaf decodes its

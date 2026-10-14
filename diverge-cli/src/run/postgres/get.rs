@@ -5,21 +5,33 @@
 use clap::Args;
 use diverge_sdk::daemon::endpoints::postgres::get::{client::request, server::response};
 
-use crate::run::{Emitter, Error, Target, shape};
+use crate::run::{Below, Emitter, Error, Target, body, request_schema, shape};
 
-/// Reading which database the daemon serves. There is exactly one,
-/// so the request names nothing and takes no body: it is `{}` on the
-/// wire.
+/// Reading which database the daemon serves.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
-pub struct Arguments {}
+#[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
+pub struct Arguments {
+    /// What the request carries, as a JSON object: see
+    /// [`request::Frame`]; `relay` among its members has another daemon
+    /// serve it, as an account held there. Absent, `{}`.
+    #[arg(value_name = "BODY")]
+    pub body: Option<String>,
+    /// What is beneath the request: `request-schema`, the JSON Schema
+    /// of the body it takes, printed in place of putting any request.
+    #[command(subcommand)]
+    pub below: Option<Below>,
+}
 
 /// The request put, its one answer printed.
 pub async fn run(
-    Arguments {}: Arguments,
+    arguments: Arguments,
     target: &Target<'_>,
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
-    let request = request::Frame {};
+    if let Some(Below::RequestSchema(_)) = arguments.below {
+        return request_schema::<request::Frame>("diverge run postgres get", emitter).await;
+    }
+    let request: request::Frame = body(arguments.body.as_deref())?;
     let handle = target.dial().await?;
     shape::one_shot::<_, response::Frame, _>(&handle, &request, emitter).await
 }

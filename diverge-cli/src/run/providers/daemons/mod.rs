@@ -7,6 +7,7 @@ use clap::Subcommand;
 
 use crate::run::{Emitter, Error, Target};
 
+pub mod accounts;
 pub mod add;
 pub mod delete;
 pub mod edit;
@@ -18,6 +19,9 @@ pub mod untag;
 /// The requests over daemon records.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Daemons {
+    /// The requests over the accounts on daemon records.
+    #[command(subcommand)]
+    Accounts(accounts::Accounts),
     /// Naming a daemon to connect to.
     Add(add::Arguments),
     /// Forgetting a daemon.
@@ -41,6 +45,7 @@ pub async fn run(
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
     match command {
+        Daemons::Accounts(command) => accounts::run(command, target, emitter).await,
         Daemons::Add(arguments) => add::run(arguments, target, emitter).await,
         Daemons::Delete(arguments) => delete::run(arguments, target, emitter).await,
         Daemons::Edit(arguments) => edit::run(arguments, target, emitter).await,

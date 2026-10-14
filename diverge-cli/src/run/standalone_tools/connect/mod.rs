@@ -9,6 +9,8 @@
 //! stream is no exchange of a command line's and is not among them.
 //! Beneath each is `request-schema`: the JSON Schema of the connect
 //! request, which is the body every one of them takes.
+//! Beneath each is `request-schema`: the JSON Schema of the connect
+//! request, which is the body every one of them takes.
 //! One file per exchange: the tree of files is the tree of
 //! subcommands.
 

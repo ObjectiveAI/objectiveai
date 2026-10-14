@@ -16,7 +16,8 @@ use crate::run::{Below, Emitter, Error, Target, body, request_schema, shape};
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
-    /// [`request::Frame`]. Absent, `{}`.
+    /// [`request::Frame`]; `relay` among its members has another daemon
+    /// serve it, as an account held there. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
     /// What is beneath the request: `request-schema`, the JSON Schema
