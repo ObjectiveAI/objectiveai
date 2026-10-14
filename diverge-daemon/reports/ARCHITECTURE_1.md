@@ -205,15 +205,20 @@ Two populations, kept apart by type and by fate:
   image, template, index, name) before it forwards the call; on
   everything a tool's server answers — the result, each tool and
   resource of a list, each notification — the tool as it relays the
-  answer back: `created` or `dependency` with its image, since the
-  daemon ran it, or `connected` without one, since another daemon
-  runs it and attested it — the image's absence is the kind's, not a
-  key's; on every chunk an agent says, the agent, as it keeps the chunk
-  in the log. The proxy and the provider set nothing under `_meta` and
-  send it as sent; the begin request carries no image.
-  `diverge_sdk::shared::mcp` writes it (`attest`) and reads it back
-  (`attestation::request` for tool containers, `attestation::response`
-  for agent containers). (2026-10-13; three keys 2026-10-08.)
+  answer back: `created`, `connected` or `dependency`, each with the
+  tool's image and template — `created` and `connected` one shape
+  (image, template, index, name, and the tool as a request names it),
+  a connected tool's image and template as the daemon that runs it
+  told in its `Connected` answer, re-stamped as this daemon's own in
+  place of that daemon's stamp, which is not trusted; on every chunk
+  an agent says, the agent, as it keeps the chunk in the log. A
+  request arriving over a connect from another daemon's agent is not
+  stamped: it goes to the tool as sent. The proxy and the provider set
+  nothing under `_meta` and send it as sent; the begin request carries
+  no image. `diverge_sdk::shared::mcp` writes it (`attest`) and reads
+  it back (`attestation::request` for tool containers,
+  `attestation::response` for agent containers). (2026-10-14; one key
+  2026-10-13; three keys 2026-10-08.)
 - **A provider's volumes are mirrored for the connection.** The daemon
   opens one `volumes::list` on every provider as it attaches and keeps
   it for the connection's life; what the provider's volumes are is read

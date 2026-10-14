@@ -224,7 +224,7 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
         };
         let run = Arc::new(ToolRun {
             id: key,
-            attestation: Attestation::Tool(attestation.clone()),
+            attestation: attestation.clone(),
             sender: sender.clone(),
             account: None,
             provider: identity,

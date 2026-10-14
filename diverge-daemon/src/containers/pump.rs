@@ -9,6 +9,8 @@ use diverge_sdk::provider::endpoints::containers::agents::run::server::response:
 use futures_util::{StreamExt as _, future};
 
 use super::mcp::{self, Context};
+use diverge_sdk::shared::mcp::attestation::Attestation;
+
 use super::{AgentRun, Key, User, stop, tools};
 use crate::daemon::{Daemon, Kind};
 use crate::logs;
@@ -24,7 +26,7 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
     let context = Context {
         daemon: Arc::clone(&daemon),
         user: Key::Agent(run.id),
-        caller: run.attestation.clone(),
+        caller: Attestation::Agent(run.attestation.clone()),
         served: Arc::clone(&run.served),
     };
     while let Some(event) = stream.next().await {

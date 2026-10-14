@@ -42,13 +42,17 @@ const CONNECTED: &str = "a connected tool is another daemon's, and is served the
 /// tool, which is another daemon's; the container started, or
 /// touched if it runs, as a user
 /// of the scope's own, which failing is the `Error`; else exactly one
-/// `Connected`, and then the scope held until the run ends or the
-/// client disconnects: every channel the client opens is one of the
-/// five MCP exchanges, answered by the tool's server on a task of its
-/// own, each answer attested as the daemon's own containers' answers
-/// are, or the disconnect; a channel request that does not decode is
-/// finished with nothing. On either end the tasks are ended and the
-/// scope lets the tool go.
+/// `Connected`, telling the tool's image and template for the other
+/// daemon to attest with, and then the scope held until the run ends
+/// or the client disconnects: every channel the client opens is one
+/// of the five MCP exchanges, put to the tool with its `_meta` as the
+/// other daemon sent it — this daemon stamps nothing on an external
+/// connector's requests, there being no point — and answered by the
+/// tool's server on a task of its own, each answer attested as this
+/// daemon's own tool, in place of anything the tool's server put; or
+/// the disconnect; a channel request that does not decode is finished
+/// with nothing. On either end the tasks are ended and the scope lets
+/// the tool go.
 async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -81,7 +85,14 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
             return Ok(());
         }
     };
-    reply::reply(scope, &Frame::Connected).await;
+    reply::reply(
+        scope,
+        &Frame::Connected {
+            image: run.attestation.image().clone(),
+            template: run.attestation.template().to_string(),
+        },
+    )
+    .await;
     let mut tasks = JoinSet::new();
     let mut ended = run.ended.subscribe();
     loop {
@@ -119,7 +130,7 @@ async fn over(ended: &mut tokio::sync::watch::Receiver<bool>) {
 }
 
 /// One channel, answered: the exchange put to the tool, its answer
-/// attested by the rule of [`ToolRun::attests`], sent as one channel
+/// attested as this daemon's own tool, sent as one channel
 /// response and the finish — or, for the notifications, one per
 /// notification until the tool's stream ends. A disconnect never
 /// reaches here. Every exchange is a use of the tool.

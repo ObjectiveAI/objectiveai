@@ -87,7 +87,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         };
         let run = Arc::new(ToolRun {
             id: key,
-            attestation: Attestation::Tool(attestation.clone()),
+            attestation: attestation.clone(),
             sender: sender.clone(),
             account: None,
             provider: identity,
