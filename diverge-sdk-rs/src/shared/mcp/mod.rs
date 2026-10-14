@@ -49,7 +49,9 @@
 //! set under those keys and leaves every other key as it was sent;
 //! the proxy and the provider's server set nothing under `_meta` and
 //! relay all of it as sent. The keys' form is MCP's own rule for
-//! `_meta` names: a prefix of dotted labels, a slash, a name.
+//! `_meta` names: a prefix of dotted labels, a slash, a name. The
+//! side that receives them reads them back as types through
+//! [`attested`]: a tool reads a request's, an agent an answer's.
 //!
 //! # What is not here
 //!
@@ -67,6 +69,7 @@ mod meta;
 pub use frame_error::*;
 pub use meta::*;
 
+pub mod attested;
 pub mod call_tool;
 pub mod list_resources;
 pub mod list_tools;
