@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::agents::logs::server::response::Provider;
+use crate::daemon::endpoints::standalone_tools::templates::Mode;
 use crate::daemon::reference;
 
 /// The two ways a tool comes to be, and what the daemon knows of
@@ -33,6 +34,10 @@ pub enum Origin {
         /// Its number among all tools of the caller's ever made from
         /// that template, deleted ones included.
         index: u64,
+        /// How the tool is kept running, as its template's `mode` says:
+        /// transient, run while used, or a service, kept while any
+        /// agent is attached or any connect is open. See [`Mode`].
+        mode: Mode,
         /// The provider the container runs on, if it runs, or last
         /// ran on; absent for a tool that has never run. See
         /// [`Provider`].
