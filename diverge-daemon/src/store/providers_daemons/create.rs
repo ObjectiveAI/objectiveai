@@ -2,40 +2,36 @@
 
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::providers::daemons::Link;
-use diverge_sdk::daemon::endpoints::providers::outgoing::Mode;
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
 use crate::store::{DaemonId, Error};
 
-/// What a new daemon record is made of: every link's provider checked
-/// by the caller to be on record.
+/// What an add writes: the name, the links, and who added it. The
+/// accounts come after, one by one.
 #[derive(Debug, Clone)]
 pub struct New {
-    /// The name, as given.
+    /// The name.
     pub name: String,
-    /// How this daemon authenticates there.
-    pub mode: Mode,
-    /// The providers it is reached through.
+    /// The links.
     pub links: Vec<Link>,
-    /// Who added it.
+    /// Who adds it.
     pub creator: Creator,
 }
 
-/// What an add came to.
+/// An add's outcome: the record made, or the name taken already.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Created {
-    /// The record, added.
+    /// Made, with its row.
     Created(DaemonId),
-    /// The name is another record's already; nothing was added.
+    /// The name is a record's already; nothing was made.
     Exists,
 }
 
-/// Insert the record.
+/// Insert the record, holding no account and no tag yet.
 pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error> {
-    let inserted = sqlx::query("INSERT INTO diverge.providers_daemons (name, mode, links, creator) VALUES ($1, $2, $3, $4) RETURNING id")
+    let inserted = sqlx::query("INSERT INTO diverge.providers_daemons (name, links, creator) VALUES ($1, $2, $3) RETURNING id")
         .bind(&new.name)
-        .bind(Json(&new.mode))
         .bind(Json(&new.links))
         .bind(Json(&new.creator))
         .fetch_one(&mut *conn)

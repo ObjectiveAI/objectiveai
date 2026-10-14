@@ -46,7 +46,7 @@ One list is not over records, and has no filter and no count:
 | 54 | `roles list` | `Role` | names, accounts, creators, all_tags, any_tags, created_from, created_to | —; a stream since 2026-10-08 |
 | 33 | `providers outgoing list` | `Outgoing` | addresses, kinds, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-07 |
 | 40 | `providers incoming list` | `Incoming` | identities, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-07 |
-| 84 | `providers daemons list` | `Daemon` | names, providers, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-10 |
+| 84 | `providers daemons list` | `Daemon` | names, providers, accounts, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-10 |
 | 11 | `agents templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
 | 28 | `tools templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
 | 5 | `agents list` | `Agent` | names, templates, creators, active, all_tags, any_tags, created_from, created_to | `active`, `logs_index`; a stream since 2026-10-08 |

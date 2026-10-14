@@ -15,7 +15,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// ninety-eight has a handler. A payload that is no request at all is
+/// hundred and one has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -109,6 +109,9 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ProvidersDaemonsEdit(frame) => providers::daemons::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersDaemonsTag(frame) => providers::daemons::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersDaemonsUntag(frame) => providers::daemons::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsAccountsAdd(frame) => providers::daemons::accounts::add::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsAccountsEdit(frame) => providers::daemons::accounts::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsAccountsDelete(frame) => providers::daemons::accounts::delete::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsList(frame) => dependency_tools::list::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsGet(frame) => dependency_tools::get::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsDelete(frame) => dependency_tools::delete::handle(scope, frame, who, daemon).await,

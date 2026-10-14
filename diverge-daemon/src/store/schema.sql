@@ -71,22 +71,32 @@ CREATE TABLE IF NOT EXISTS diverge.providers_outgoing (
     creator        JSONB NOT NULL
 );
 
--- Another daemon the caller holds an account on, reached through a
--- provider both are connected to and never otherwise: the mode this
--- daemon authenticates to it in, credential and all, and the links it
+-- Another daemon the caller holds accounts on, reached through a
+-- provider both are connected to and never otherwise: the links it
 -- is reached through, each a provider of the caller's and the identity
--- the remote is known by there.
+-- the remote is known by there. Its accounts are the rows below.
 CREATE TABLE IF NOT EXISTS diverge.providers_daemons (
     id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     -- One record per name.
     name    TEXT NOT NULL UNIQUE,
-    -- The wire's Mode, as JSON. Never answered whole.
-    mode    JSONB NOT NULL,
     -- The wire's links, as a JSON array.
     links   JSONB NOT NULL DEFAULT '[]',
     tags    TEXT[] NOT NULL DEFAULT '{}',
     created TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator JSONB NOT NULL
+);
+
+-- One account this daemon holds on a daemon record: a name of the
+-- caller's choosing, unique on that record, and the mode this daemon
+-- authenticates to the remote in as it, credential and all. Never
+-- answered whole. Goes with the record.
+CREATE TABLE IF NOT EXISTS diverge.providers_daemons_accounts (
+    daemon  BIGINT NOT NULL REFERENCES diverge.providers_daemons(id) ON DELETE CASCADE,
+    name    TEXT NOT NULL,
+    -- The wire's Mode, as JSON.
+    mode    JSONB NOT NULL,
+    created TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (daemon, name)
 );
 
 CREATE TABLE IF NOT EXISTS diverge.providers_incoming (
@@ -162,6 +172,7 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
     template              TEXT,
     provider              JSONB,
     connected_daemon      TEXT,
+    connected_account     TEXT,
     connected_tool        JSONB,
     index                 BIGINT NOT NULL,
     name                  TEXT UNIQUE,
@@ -177,7 +188,8 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
         (kind = 'created' AND template IS NOT NULL
             AND connected_daemon IS NULL AND connected_tool IS NULL)
         OR (kind = 'connected' AND template IS NULL AND provider IS NULL
-            AND connected_daemon IS NOT NULL AND connected_tool IS NOT NULL)
+            AND connected_daemon IS NOT NULL AND connected_account IS NOT NULL
+            AND connected_tool IS NOT NULL)
     )
 );
 CREATE UNIQUE INDEX IF NOT EXISTS tools_created_index
@@ -274,6 +286,9 @@ DROP TABLE IF EXISTS diverge.service_owners, diverge.service_attachments, diverg
 ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS tags;
 ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS created;
 ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS creator;
+-- A daemon record's credential moved to its accounts (2026-10-14).
+ALTER TABLE diverge.providers_daemons DROP COLUMN IF EXISTS mode;
+ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS connected_account TEXT;
 ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS deleted;
 -- A connected tool names a daemon record and a tool, not a provider,
 -- an id and an authorization: a tool joined the old way joins nothing

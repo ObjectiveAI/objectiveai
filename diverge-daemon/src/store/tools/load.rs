@@ -44,9 +44,10 @@ pub async fn by_reference(conn: &mut PgConnection, reference: &reference::Tool, 
                 .fetch_optional(&mut *conn)
                 .await?
         }
-        reference::Tool::Connected { daemon, tool } => {
-            sqlx::query("SELECT id FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1 AND connected_tool = $2 ORDER BY index LIMIT 1")
+        reference::Tool::Connected { daemon, account, tool } => {
+            sqlx::query("SELECT id FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1 AND connected_account = $2 AND connected_tool = $3 ORDER BY index LIMIT 1")
                 .bind(daemon)
+                .bind(account)
                 .bind(Json(tool))
                 .fetch_optional(&mut *conn)
                 .await?

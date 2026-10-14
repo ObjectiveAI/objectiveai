@@ -72,9 +72,10 @@ pub struct Live {
     changes: Changes,
     /// Each connected provider's volumes, as its listing streams them.
     volumes: Mutex<HashMap<Identity, Arc<Mirror>>>,
-    /// The daemons connected to now, by record name, each through
-    /// one provider: what a connected tool's expose rides.
-    daemons: Mutex<HashMap<String, Arc<Peer>>>,
+    /// The daemons connected to now, by record name and account name,
+    /// each through one provider: what a connected tool's exchanges
+    /// and a relayed request ride.
+    daemons: Mutex<HashMap<(String, String), Arc<Peer>>>,
     /// The next number for a connect scope another daemon opens.
     next_connect: Mutex<u64>,
     /// Which providers are known to hold which image, by digest: what
@@ -526,25 +527,27 @@ impl Live {
         self.operations.lock().await.remove(volume);
     }
 
-    /// The connection to the daemon record, if one is held.
-    pub async fn daemon_peer(&self, name: &str) -> Option<Arc<Peer>> {
-        self.daemons.lock().await.get(name).cloned()
+    /// The connection to the daemon record as the account, if one is
+    /// held.
+    pub async fn daemon_peer(&self, daemon: &str, account: &str) -> Option<Arc<Peer>> {
+        self.daemons.lock().await.get(&(daemon.to_string(), account.to_string())).cloned()
     }
 
-    /// A connection to a daemon is open: held under its record's name,
-    /// replacing one that ended.
+    /// A connection to a daemon as an account is open: held under the
+    /// record's name and the account's, replacing one that ended.
     pub async fn insert_daemon(&self, peer: Arc<Peer>) {
-        self.daemons.lock().await.insert(peer.name.clone(), peer);
+        self.daemons.lock().await.insert((peer.daemon.clone(), peer.account.clone()), peer);
         self.changes.changed(Kind::ProvidersDaemons);
     }
 
     /// The peer's connection ended: forgotten, unless a newer one has
-    /// taken its name.
+    /// taken its place.
     pub async fn remove_peer(&self, peer: &Arc<Peer>) {
+        let key = (peer.daemon.clone(), peer.account.clone());
         let removed = {
             let mut daemons = self.daemons.lock().await;
-            match daemons.get(&peer.name) {
-                Some(held) if Arc::ptr_eq(held, peer) => daemons.remove(&peer.name).is_some(),
+            match daemons.get(&key) {
+                Some(held) if Arc::ptr_eq(held, peer) => daemons.remove(&key).is_some(),
                 _ => false,
             }
         };
@@ -553,28 +556,58 @@ impl Live {
         }
     }
 
-    /// The record is deleted: whatever connection it had is let go.
+    /// The record is deleted: whatever connections it had, as any
+    /// account, are let go.
     pub async fn remove_daemon(&self, name: &str) {
-        if self.daemons.lock().await.remove(name).is_some() {
+        let mut daemons = self.daemons.lock().await;
+        let before = daemons.len();
+        daemons.retain(|(daemon, _), _| daemon != name);
+        if daemons.len() != before {
+            self.changes.changed(Kind::ProvidersDaemons);
+        }
+    }
+
+    /// The account is edited or deleted: the connection held as it, if
+    /// any, is let go, so the next one presents the credential as it
+    /// is now, or none.
+    pub async fn remove_account(&self, daemon: &str, account: &str) {
+        if self.daemons.lock().await.remove(&(daemon.to_string(), account.to_string())).is_some() {
             self.changes.changed(Kind::ProvidersDaemons);
         }
     }
 
     /// Whether this daemon holds a connection to the daemon record
-    /// now, one that has not ended.
+    /// now, as any of its accounts, one that has not ended.
     pub async fn is_daemon_connected(&self, name: &str) -> bool {
-        self.daemons.lock().await.get(name).is_some_and(|peer| !peer.connected.is_ended())
-    }
-
-    /// Every daemon record connected to now: one snapshot, for a list.
-    pub async fn connected_daemons(&self) -> HashSet<String> {
         self.daemons
             .lock()
             .await
             .iter()
-            .filter(|(_, peer)| !peer.connected.is_ended())
-            .map(|(name, _)| name.clone())
+            .any(|((daemon, _), peer)| daemon == name && !peer.connected.is_ended())
+    }
+
+    /// The accounts this daemon holds a connection to the record as
+    /// now, by name, in no order.
+    pub async fn connected_accounts(&self, name: &str) -> Vec<String> {
+        self.daemons
+            .lock()
+            .await
+            .iter()
+            .filter(|((daemon, _), peer)| daemon == name && !peer.connected.is_ended())
+            .map(|((_, account), _)| account.clone())
             .collect()
+    }
+
+    /// Every daemon record connected to now, with the accounts it is
+    /// connected as: one snapshot, for a list.
+    pub async fn connected_daemons(&self) -> HashMap<String, Vec<String>> {
+        let mut connected: HashMap<String, Vec<String>> = HashMap::new();
+        for ((daemon, account), peer) in self.daemons.lock().await.iter() {
+            if !peer.connected.is_ended() {
+                connected.entry(daemon.clone()).or_default().push(account.clone());
+            }
+        }
+        connected
     }
 
     /// A number for a connect scope another daemon is opening, never

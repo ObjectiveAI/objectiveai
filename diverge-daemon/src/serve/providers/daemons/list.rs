@@ -73,12 +73,12 @@ impl Source for Listed<'_> {
                 let mut conn = self.daemon.store.acquire().await?;
                 providers_daemons::all(&mut conn).await?
             };
-            let connected = self.daemon.live.connected_daemons().await;
+            let mut connected = self.daemon.live.connected_daemons().await;
             Ok(all
                 .iter()
-                .map(|record| (record, connected.contains(&record.name)))
-                .filter(|(record, connected)| judge::providers_daemons::over(self.standing, Over::List, record, *connected))
-                .filter(|(record, connected)| filter::providers_daemons::test(self.filter, record, *connected))
+                .map(|record| (record, connected.remove(&record.name).unwrap_or_default()))
+                .filter(|(record, connected)| judge::providers_daemons::over(self.standing, Over::List, record, !connected.is_empty()))
+                .filter(|(record, connected)| filter::providers_daemons::test(self.filter, record, !connected.is_empty()))
                 .map(|(record, connected)| (record.name.clone(), record.report(connected)))
                 .collect())
         }

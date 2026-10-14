@@ -34,8 +34,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(record) = providers_daemons::by_name(&mut conn, &frame.name, false).await? else {
         return Ok(Frame::NotFound);
     };
-    let connected = daemon.live.is_daemon_connected(&record.name).await;
-    if !judge::providers_daemons::over(&standing, Over::Get, &record, connected) {
+    let connected = daemon.live.connected_accounts(&record.name).await;
+    if !judge::providers_daemons::over(&standing, Over::Get, &record, !connected.is_empty()) {
         return Ok(Frame::Forbidden);
     }
     Ok(Frame::Found(record.report(connected)))

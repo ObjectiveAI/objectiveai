@@ -19,7 +19,7 @@ imports; nothing here is hand-edited.
 |---|---|---|---|
 | 33 | [`providers outgoing list`](#providers-outgoing-list) | `diverge_sdk::daemon::endpoints::providers::outgoing::list::server::response::Outgoing` | 7 types |
 | 40 | [`providers incoming list`](#providers-incoming-list) | `diverge_sdk::daemon::endpoints::providers::incoming::list::server::response::Incoming` | 7 types |
-| 84 | [`providers daemons list`](#providers-daemons-list) | `diverge_sdk::daemon::endpoints::providers::daemons::list::server::response::Daemon` | 9 types |
+| 84 | [`providers daemons list`](#providers-daemons-list) | `diverge_sdk::daemon::endpoints::providers::daemons::list::server::response::Daemon` | 10 types |
 | 80 | [`postgres list`](#postgres-list) | `diverge_sdk::daemon::endpoints::postgres::Connection` | 5 types |
 | 67 | [`volumes list`](#volumes-list) | `diverge_sdk::daemon::endpoints::volumes::list::server::response::Volume` | 7 types |
 | 5 | [`agents list`](#agents-list) | `diverge_sdk::daemon::endpoints::agents::list::server::response::Agent` | 11 types |
@@ -351,23 +351,27 @@ Item: `diverge_sdk::daemon::endpoints::providers::daemons::list::server::respons
 `diverge-sdk-rs/src/daemon/endpoints/providers/daemons/list/server/response/daemon.rs`
 
 ```rust
-/// One daemon of the caller's: its name, the kind of its mode without
-/// the credential, its links, whether this daemon holds a connection to
-/// it now, when it was added and by whom, and its tags.
+/// One daemon of the caller's: its name, its links, its accounts by
+/// name and the kind of their mode without the credential, which of
+/// them this daemon holds a connection as now, when it was added and
+/// by whom, and its tags.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Daemon {
     /// The name, as the add gave it: the daemon's identity here.
     pub name: String,
-    /// Which mode this daemon authenticates to it in, without the
-    /// credential. See [`Kind`].
-    pub kind: Kind,
     /// The providers it is reached through, each with the identity it
     /// is known by there: see [`Link`]. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub links: Vec<Link>,
-    /// Whether this daemon holds a connection to it now, through one of
-    /// its links.
-    pub connected: bool,
+    /// The accounts this daemon holds on it, in the order they were
+    /// added: see [`Account`]. Absent when empty, and then nothing can
+    /// act as this daemon there.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub accounts: Vec<Account>,
+    /// The accounts this daemon holds a connection as now, by name,
+    /// each through one of the links. Absent when none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub connected: Vec<String>,
     /// When the add made it. On the wire an RFC 3339 timestamp in UTC.
     pub created: DateTime<Utc>,
     /// Who added it: the client, over an endpoint, or the agent or the
@@ -379,6 +383,27 @@ pub struct Daemon {
     /// them. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+}
+```
+
+### `diverge_sdk::daemon::endpoints::providers::daemons::Account`
+
+`diverge-sdk-rs/src/daemon/endpoints/providers/daemons/account.rs`
+
+```rust
+/// One account on a daemon record: its name, of the caller's
+/// choosing, and the kind of its mode without the credential, which
+/// the wire never answers. What a connected tool and a relayed
+/// request name the daemon by, beside the record's name.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
+pub struct Account {
+    /// The name, as its add gave it: unique among the record's
+    /// accounts. Compared and not read.
+    pub name: String,
+    /// Which mode this daemon authenticates to it in, without the
+    /// credential. See [`Kind`].
+    pub kind: Kind,
 }
 ```
 
@@ -624,12 +649,15 @@ pub enum Tool {
         /// from that template, as its list item carries it.
         index: u64,
     },
-    /// By what it is registered from: `{"daemon":…,"tool":…}`. A
+    /// By what it is registered from: `{"daemon":…,"account":…,"tool":…}`. A
     /// connected tool only, which has no template; the pair names it
     /// once and for all, as the register named it.
     Connected {
         /// The daemon the tool is on, by the name of its record.
         daemon: String,
+        /// The account on that daemon the tool is reached as, by the
+        /// name the record's accounts give it.
+        account: String,
         /// The tool, as that daemon names it: any of these, read by
         /// that daemon and compared by this one.
         tool: Box<Tool>,
@@ -853,6 +881,9 @@ pub enum Origin {
         /// The daemon the tool is on, by the name of its record, as
         /// the register named it.
         daemon: String,
+        /// The account on that daemon the tool is reached as, as the
+        /// register named it.
+        account: String,
         /// The tool, as that daemon names it and as the register
         /// named it: see [`reference::Tool`].
         tool: Box<reference::Tool>,
@@ -1078,6 +1109,9 @@ pub enum Origin {
         /// The daemon the tool is on, by the name of its record, as
         /// the register named it.
         daemon: String,
+        /// The account on that daemon the tool is reached as, as the
+        /// register named it.
+        account: String,
         /// The tool, as that daemon names it and as the register
         /// named it: see [`reference::Tool`].
         tool: reference::Tool,
@@ -1837,6 +1871,10 @@ pub enum Permission {
         actions: Vec<Over>,
         /// How far: `"any"`, or the filter as a test.
         within: Within<Filter>,
+        /// Which accounts, for `connect` and `relay`: `"any"`, or only
+        /// the account names listed. Absent is `"any"`.
+        #[serde(default, skip_serializing_if = "Within::is_any")]
+        accounts: Within<Vec<String>>,
     },
     /// Tagging daemons: putting tags on, taking them off, or both,
     /// reaching every one or only those the [`Filter`] lets through,
@@ -2384,8 +2422,12 @@ pub struct Filter {
     /// them: a daemon one of whose links names the provider.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<Identity>,
-    /// Whether this daemon holds a connection to it now: `true`, or
-    /// not, `false`; absent, either.
+    /// Holding an account under any one of these names. Absent when
+    /// empty, and then any accounts, or none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub accounts: Vec<String>,
+    /// Whether this daemon holds a connection to it now, as any of its
+    /// accounts: `true`, or not, `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connected: Option<bool>,
     /// Made by any one of these, directly: see
@@ -3362,11 +3404,13 @@ pub struct Permission(pub Vec<Action>);
 /// What one grant over daemons allows, in one of three shapes told
 /// apart on the wire by their very form, as
 /// [`permission`](crate::shared::permission) states them: a bare array
-/// of [`Make`] actions; an object of [`Over`] actions and how far they
-/// reach, by tags; or an object of tagging actions, how far they reach,
-/// and which tags. An object that is none of these — an action of one
-/// shape among another's, a member missing, a `within` that is not
-/// `"any"` or a [`Tags`] — does not decode.
+/// of [`Make`] actions; an object of [`Over`] actions, how far they
+/// reach, by tags, and which of the records' accounts the two actions
+/// done as an account — `connect`, `relay` — may act as; or an object
+/// of tagging actions, how far they reach, and which tags. An object
+/// that is none of these — an action of one shape among another's, a
+/// member missing, a `within` that is not `"any"` or a [`Tags`] — does
+/// not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
@@ -3382,6 +3426,12 @@ pub enum Permission {
         actions: Vec<Over>,
         /// How far: `"any"`, or the tags as a test.
         within: Within<Tags>,
+        /// Which accounts, for `connect` and `relay`: `"any"`, or only
+        /// the account names listed, on whichever record `within`
+        /// reaches. Absent is `"any"`. The other actions are over the
+        /// record and read no account.
+        #[serde(default, skip_serializing_if = "Within::is_any")]
+        accounts: Within<Vec<String>>,
     },
     /// Tagging daemons: putting tags on, taking them off, or both,
     /// reaching every one or only those the [`Tags`] let through, and
@@ -4065,8 +4115,9 @@ pub enum Make {
 
 ```rust
 /// The actions over daemons that exist, which a grant reaches as far as
-/// its `within` says. Snake case on the wire: `"get"`, `"list"`,
-/// `"delete"`, `"edit"`.
+/// its `within` says — and, for the two done AS one of the record's
+/// accounts, as far as its `accounts` says. Snake case on the wire:
+/// `"get"`, `"list"`, `"delete"`, `"edit"`, `"connect"`, `"relay"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -4083,10 +4134,23 @@ pub enum Over {
     /// [`providers::daemons::delete`](crate::daemon::endpoints::providers::daemons::delete)
     /// does.
     Delete,
-    /// Replace one's mode or its links, as
+    /// Replace one's links, as
     /// [`providers::daemons::edit`](crate::daemon::endpoints::providers::daemons::edit)
+    /// does; and add, rotate and forget its accounts, as
+    /// [`providers::daemons::accounts`](crate::daemon::endpoints::providers::daemons::accounts)
     /// does.
     Edit,
+    /// Reach a tool of the daemon's as one of the record's accounts,
+    /// as
+    /// [`standalone_tools::register`](crate::daemon::endpoints::standalone_tools::register)
+    /// names one and the connected tool's use opens it. Judged against
+    /// the grant's `accounts` as well as its `within`.
+    Connect,
+    /// Put a request to the daemon as one of the record's accounts —
+    /// any request of the wire carrying a `relay` naming the record
+    /// and the account. Judged against the grant's `accounts` as well
+    /// as its `within`.
+    Relay,
 }
 ```
 

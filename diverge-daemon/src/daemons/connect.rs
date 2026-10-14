@@ -1,4 +1,5 @@
-//! The one connection to a daemon: held, or opened now.
+//! The one connection to a daemon as one of its accounts: held, or
+//! opened now.
 
 use std::sync::Arc;
 
@@ -12,22 +13,27 @@ use super::{Fail, Peer};
 use crate::daemon::Daemon;
 use crate::store::providers_daemons::Record;
 
-/// The connection to the daemon the record names: the one held, while
-/// it has not ended; else one opened now through the record's links
-/// whose providers are connected, in random order — so that a daemon
-/// reachable through several providers is reached through any of
-/// them — the first that answers kept until it ends, and a watcher
-/// forgetting it then. A link whose provider is not connected is
+/// The connection to the daemon the record names, as the account of
+/// `account`: the one held, while it has not ended; else one opened
+/// now through the record's links whose providers are connected, in
+/// random order — so that a daemon reachable through several
+/// providers is reached through any of them — presenting the
+/// account's credential, the first that answers kept until it ends,
+/// and a watcher forgetting it then. No account of the name is
+/// [`Fail::NoAccount`]; a link whose provider is not connected is
 /// skipped; none connected is [`Fail::NoProvider`]; every one tried
 /// and refused is [`Fail::Refused`] with the last refusal.
-pub async fn connect(daemon: &Arc<Daemon>, record: &Record) -> Result<Arc<Peer>, Fail> {
-    if let Some(peer) = daemon.live.daemon_peer(&record.name).await {
+pub async fn connect(daemon: &Arc<Daemon>, record: &Record, account: &str) -> Result<Arc<Peer>, Fail> {
+    if let Some(peer) = daemon.live.daemon_peer(&record.name, account).await {
         if !peer.connected.is_ended() {
             return Ok(peer);
         }
         daemon.live.remove_peer(&peer).await;
     }
-    let Mode::Unbrokered { authorization } = &record.mode;
+    let Some(held) = record.account(account) else {
+        return Err(Fail::NoAccount);
+    };
+    let Mode::Unbrokered { authorization } = &held.mode;
     let mut links: Vec<&Link> = record.links.iter().collect();
     links.shuffle(&mut rand::rng());
     let mut last = None;
@@ -44,7 +50,8 @@ pub async fn connect(daemon: &Arc<Daemon>, record: &Record) -> Result<Arc<Peer>,
         match daemons_connect::execute(&handle, &request).await {
             Ok(connected) => {
                 let peer = Arc::new(Peer {
-                    name: record.name.clone(),
+                    daemon: record.name.clone(),
+                    account: account.to_string(),
                     link: link.clone(),
                     connected,
                 });

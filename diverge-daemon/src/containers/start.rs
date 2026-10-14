@@ -253,14 +253,18 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
             let service = record.template.r#type.mode == Mode::Service;
             (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service)
         }
-        Origin::Connected { daemon: name, tool: remote } => {
+        Origin::Connected {
+            daemon: name,
+            account,
+            tool: remote,
+        } => {
             let record = {
                 let mut conn = daemon.store.acquire().await?;
                 providers_daemons::by_name(&mut conn, name, false)
                     .await?
                     .ok_or_else(|| StartError::NoDaemon(name.clone()))?
             };
-            let peer = daemons::connect(daemon, &record).await.map_err(StartError::Daemon)?;
+            let peer = daemons::connect(daemon, &record, account).await.map_err(StartError::Daemon)?;
             let request = connect_request::Frame { tool: remote.clone() };
             let connected = tools_connect::execute(&peer.connected.handle, &request)
                 .await
@@ -272,6 +276,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 index: tool.index,
                 name: tool.name.clone(),
                 daemon: name.clone(),
+                account: account.clone(),
             };
             (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation, false)
         }

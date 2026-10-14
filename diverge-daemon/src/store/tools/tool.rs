@@ -26,6 +26,8 @@ pub enum Origin {
     Connected {
         /// The daemon the tool is on, by the name of its record.
         daemon: String,
+        /// The account on that daemon the tool is reached as, by name.
+        account: String,
         /// The tool, as that daemon names it.
         tool: reference::Tool,
     },
@@ -83,8 +85,9 @@ impl Tool {
             Origin::Created { template, .. } => key::Origin::Created {
                 template: template.clone(),
             },
-            Origin::Connected { daemon, tool } => key::Origin::Connected {
+            Origin::Connected { daemon, account, tool } => key::Origin::Connected {
                 daemon: daemon.clone(),
+                account: account.clone(),
                 tool: Box::new(tool.clone()),
             },
         };
@@ -118,8 +121,9 @@ impl Tool {
                 provider: self.last_provider.clone().map(|identity| logs::Provider { identity }),
                 id: running,
             },
-            Origin::Connected { daemon, tool } => response::Origin::Connected {
+            Origin::Connected { daemon, account, tool } => response::Origin::Connected {
                 daemon: daemon.clone(),
+                account: account.clone(),
                 tool: tool.clone(),
                 index: self.index,
             },

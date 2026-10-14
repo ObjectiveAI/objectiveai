@@ -3,8 +3,9 @@
 //! and what daemon records hold: the providers their links name.
 //!
 //! A template is in use while a container made from it exists; an
-//! account while a tool names it; a daemon record while a
-//! connected tool names it; a provider while a daemon record links
+//! account while a tool names it; a daemon record, and an account on
+//! it, while a connected tool names it; a provider while a daemon
+//! record links
 //! through it. All are facts of the records, not of what runs, so
 //! they survive a restart as the records do.
 
@@ -35,10 +36,21 @@ pub async fn account(conn: &mut PgConnection, id: AccountId) -> Result<bool, Err
     Ok(row.try_get("held")?)
 }
 
-/// Whether some connected tool names the daemon record.
+/// Whether some connected tool names the daemon record, as any of its
+/// accounts.
 pub async fn daemon(conn: &mut PgConnection, name: &str) -> Result<bool, Error> {
     let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1) AS held")
         .bind(name)
+        .fetch_one(&mut *conn)
+        .await?;
+    Ok(row.try_get("held")?)
+}
+
+/// Whether some connected tool names the account on the daemon record.
+pub async fn daemon_account(conn: &mut PgConnection, daemon: &str, account: &str) -> Result<bool, Error> {
+    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1 AND connected_account = $2) AS held")
+        .bind(daemon)
+        .bind(account)
         .fetch_one(&mut *conn)
         .await?;
     Ok(row.try_get("held")?)

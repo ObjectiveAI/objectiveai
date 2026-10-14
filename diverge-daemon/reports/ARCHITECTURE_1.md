@@ -109,13 +109,19 @@ Two populations, kept apart by type and by fate:
   identity and by credential. (Ruling of 2026-10-07.)
 - **Daemons reach one another through providers, and accept by
   default.** A daemon holds, under `providers::daemons`, the other
-  daemons it has an account on — a name here, the mode it
-  authenticates to the remote in, and one link per provider the remote
-  is reachable through, each a provider of the caller's and the
-  identity the remote is known by there — and reaches each only
-  through a provider both are connected to: the provider protocol's
-  `daemons::connect`, the remote judging the credential as it judges
-  any client's. On every provider connection it holds, a daemon opens
+  daemons it has accounts on — a name here, one link per provider the
+  remote is reachable through, each a provider of the caller's and the
+  identity the remote is known by there, and its ACCOUNTS, each a name
+  and the mode it authenticates to the remote in as that account
+  (`providers daemons accounts add|edit|delete`, tags 98–100; one
+  connection per (daemon, account), 2026-10-14) — and reaches each
+  only through a provider both are connected to: the provider
+  protocol's `daemons::connect`, the remote judging the credential as
+  it judges any client's. Whatever acts as this daemon on the remote
+  names the record AND the account, and the caller must hold the
+  daemons grant's `connect` or `relay` action over the record with the
+  account among the grant's `accounts` (or `any`). On every provider
+  connection it holds, a daemon opens
   one `daemons::accept` scope, unless `daemon: accept_daemons: false`
   in `daemon.yaml`, and is known there by the identity the provider
   answers; each connection the provider announces is judged by the
@@ -152,8 +158,9 @@ Two populations, kept apart by type and by fate:
   the disconnect, on the tool's run ending, or on the client going.
   (Expose and admissions gone 2026-10-10.)
 - **A connected tool is another daemon's tool, reached over the
-  daemon connection.** `tools::register` names a daemon record and a
-  tool as that daemon names it. While an attached agent uses the
+  daemon connection.** `tools::register` names a daemon record, an
+  account on it, and a tool as that daemon names it, judged by the
+  daemons grant's `connect` as that account. While an attached agent uses the
   tool, the daemon connects to that daemon through a linked provider —
   the one connection reused while it lasts, opened through the
   connected links in random order when none is held — and opens that

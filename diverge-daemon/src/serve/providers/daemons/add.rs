@@ -40,7 +40,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     let new = providers_daemons::New {
         name: frame.name,
-        mode: frame.mode,
         links: frame.links,
         creator: Creator::Client(Client {
             identity: standing.identity.clone(),

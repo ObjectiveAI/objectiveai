@@ -5,8 +5,11 @@
 //! that holds it and whose `within` reaches the record — `any`, or the
 //! daemons list filter as [`filter::providers_daemons::test`] reads it,
 //! with whether this daemon holds a connection to the daemon now, which
-//! the caller knows; a tagging action by a grant that holds it, reaches
-//! the record, and covers every tag named.
+//! the caller knows; an action done AS one of the record's accounts —
+//! `connect`, `relay` — by a grant that holds it, reaches the record,
+//! and names the account among its `accounts` or says `any`; a tagging
+//! action by a grant that holds it, reaches the record, and covers
+//! every tag named.
 
 use diverge_sdk::daemon::endpoints::providers::daemons::list::client::request::Filter;
 use diverge_sdk::daemon::grant::providers_daemons::{Make, Over, Permission};
@@ -34,7 +37,19 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
 /// daemon holds a connection to it now.
 pub fn over(standing: &Standing, action: Over, record: &Record, connected: bool) -> bool {
     standing.providers_daemons().any(|permission| match permission {
-        Permission::Over { actions, within } => actions.contains(&action) && reaches(within, record, connected),
+        Permission::Over { actions, within, .. } => actions.contains(&action) && reaches(within, record, connected),
+        _ => false,
+    })
+}
+
+/// Whether the standing may do `action` to `record` AS its account
+/// `account` — `connect` and `relay`, the two actions done as one —
+/// given whether this daemon holds a connection to the record now: one
+/// grant must hold the action, reach the record, and name the account
+/// among its `accounts` or say `any`.
+pub fn through(standing: &Standing, action: Over, record: &Record, connected: bool, account: &str) -> bool {
+    standing.providers_daemons().any(|permission| match permission {
+        Permission::Over { actions, within, accounts } => actions.contains(&action) && reaches(within, record, connected) && names(accounts, account),
         _ => false,
     })
 }
@@ -66,6 +81,14 @@ fn reaches(within: &Within<Filter>, record: &Record, connected: bool) -> bool {
     match within {
         Within::Any => true,
         Within::Only(filter) => filter::providers_daemons::test(filter, record, connected),
+    }
+}
+
+/// Whether a grant's `accounts` names the account, or says `any`.
+fn names(accounts: &Within<Vec<String>>, account: &str) -> bool {
+    match accounts {
+        Within::Any => true,
+        Within::Only(names) => names.iter().any(|named| named == account),
     }
 }
 

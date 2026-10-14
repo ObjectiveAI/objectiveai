@@ -47,9 +47,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     {
         return Ok(Frame::NoProvider);
     }
-    let mode = frame.mode.unwrap_or(record.mode);
     let links = frame.links.unwrap_or(record.links);
-    providers_daemons::update(&mut tx, record.id, &mode, &links).await?;
+    providers_daemons::update(&mut tx, record.id, &links).await?;
     tx.commit().await?;
     daemon.live.changed(Kind::ProvidersDaemons);
     Ok(Frame::Edited)

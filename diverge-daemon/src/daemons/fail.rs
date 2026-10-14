@@ -6,6 +6,9 @@ use std::fmt;
 /// everything tried refused.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Fail {
+    /// The record has no account of the name, so there is nothing to
+    /// connect as.
+    NoAccount,
     /// No link's provider is connected now, so there is nothing to
     /// connect through.
     NoProvider,
@@ -18,6 +21,7 @@ pub enum Fail {
 impl fmt::Display for Fail {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Fail::NoAccount => f.write_str("the daemon record has no account of the name"),
             Fail::NoProvider => f.write_str("no provider the daemon is linked through is connected"),
             Fail::Refused(error) => write!(f, "no provider the daemon is linked through opened a connection to it: {error}"),
         }

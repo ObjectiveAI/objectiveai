@@ -10,6 +10,7 @@ use crate::store::providers_daemons::Record;
 pub fn test(filter: &Filter, record: &Record, connected: bool) -> bool {
     (filter.names.is_empty() || filter.names.contains(&record.name))
         && (filter.providers.is_empty() || record.links.iter().any(|link| filter.providers.contains(&link.provider)))
+        && (filter.accounts.is_empty() || record.accounts.iter().any(|account| filter.accounts.contains(&account.name)))
         && filter.connected.is_none_or(|wanted| connected == wanted)
         && (filter.creators.is_empty() || filter.creators.contains(&record.creator))
         && filter.all_tags.iter().all(|tag| record.tags.contains(tag))

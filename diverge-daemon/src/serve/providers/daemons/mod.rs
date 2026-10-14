@@ -1,5 +1,6 @@
 //! The seven requests over daemon records, served.
 
+pub mod accounts;
 pub mod add;
 pub mod delete;
 pub mod edit;

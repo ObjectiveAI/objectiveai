@@ -177,8 +177,9 @@ pub fn every_grant() -> Vec<Grant> {
         }),
         Grant::ProvidersDaemons(pd::Permission::Make(vec![pd::Make::Add])),
         Grant::ProvidersDaemons(pd::Permission::Over {
-            actions: vec![pd::Over::Get, pd::Over::List, pd::Over::Delete, pd::Over::Edit],
+            actions: vec![pd::Over::Get, pd::Over::List, pd::Over::Delete, pd::Over::Edit, pd::Over::Connect, pd::Over::Relay],
             within: Within::Any,
+            accounts: Within::Any,
         }),
         Grant::ProvidersDaemons(pd::Permission::Tags {
             actions: tagging.clone(),
