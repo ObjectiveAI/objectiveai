@@ -103,7 +103,7 @@ impl Source for Listed<'_> {
                     continue;
                 }
                 let running = states.get(&key).cloned().flatten();
-                listed.push((key, tool.report(active, running, attached.clone())));
+                listed.push((key, tool.report(active, running, attached.clone(), mode)));
             }
             Ok(listed)
         }

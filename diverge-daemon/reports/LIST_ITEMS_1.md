@@ -23,11 +23,11 @@ imports; nothing here is hand-edited.
 | 80 | [`postgres list`](#postgres-list) | `diverge_sdk::daemon::endpoints::postgres::Connection` | 5 types |
 | 67 | [`volumes list`](#volumes-list) | `diverge_sdk::daemon::endpoints::volumes::list::server::response::Volume` | 7 types |
 | 5 | [`agents list`](#agents-list) | `diverge_sdk::daemon::endpoints::agents::list::server::response::Agent` | 11 types |
-| 22 | [`standalone tools list`](#standalone-tools-list) | `diverge_sdk::daemon::endpoints::standalone_tools::list::server::response::Tool` | 10 types |
+| 22 | [`standalone tools list`](#standalone-tools-list) | `diverge_sdk::daemon::endpoints::standalone_tools::list::server::response::Tool` | 11 types |
 | 11 | [`agents templates list`](#agents-templates-list) | `diverge_sdk::daemon::endpoints::agents::templates::list::server::response::Listed` | 11 types |
-| 27 | [`standalone tools templates list`](#standalone-tools-templates-list) | `diverge_sdk::daemon::endpoints::standalone_tools::templates::list::server::response::Listed` | 11 types |
+| 27 | [`standalone tools templates list`](#standalone-tools-templates-list) | `diverge_sdk::daemon::endpoints::standalone_tools::templates::list::server::response::Listed` | 12 types |
 | 47 | [`accounts list`](#accounts-list) | `diverge_sdk::daemon::endpoints::accounts::list::server::response::Account` | 7 types |
-| 54 | [`roles list`](#roles-list) | `diverge_sdk::daemon::endpoints::roles::list::server::response::Role` | 38 types |
+| 54 | [`roles list`](#roles-list) | `diverge_sdk::daemon::endpoints::roles::list::server::response::Role` | 39 types |
 | 89 | [`dependency tools list`](#dependency-tools-list) | `diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::Listed` | 54 types |
 
 The identities the items name one another by, which is where the
@@ -103,6 +103,7 @@ pub struct Outgoing {
 /// an agent or a tool of the client's. JSON-tagged by `type`,
 /// `client`, `agent` or `tool`, beside the variant's own members.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Creator {
     /// The client itself, over an endpoint. See [`Client`].
@@ -124,6 +125,7 @@ pub enum Creator {
 /// report, and what a list narrows by. Snake case on the wire:
 /// `"unbrokered"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
     /// [`Mode::Unbrokered`](super::Mode::Unbrokered).
@@ -140,6 +142,7 @@ pub enum Kind {
 /// all by its template and its index, and by its name as it was
 /// called.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Agent {
     /// The template the agent was made from, by id.
     pub template: String,
@@ -165,6 +168,7 @@ pub struct Agent {
 /// every agent and tool of the client's descends from, one maker at
 /// a time.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Client {
     /// The account the create was served for, as
     /// [`accounts`](crate::daemon::endpoints::accounts) states the
@@ -188,6 +192,7 @@ pub struct Client {
 /// snake case: `{"record":{…}}` or `{"dependency":{…}}`, beside the
 /// creator's own `type`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Tool {
     /// A tool the client made from a template.
@@ -228,6 +233,7 @@ pub enum Tool {
 /// wire, snake case: `{"agent":{"template":…,"index":…}}`,
 /// `{"agent_template":{"template":…}}`, or the string `"global"`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Owner {
     /// The one agent, once and for all: a transient tool's, or a
@@ -253,6 +259,7 @@ pub enum Owner {
 /// One agent of the caller's, by its template and its index, with
 /// its name beside when it has one.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Agent {
     /// The template it was made from, by id.
     pub template: String,
@@ -319,6 +326,7 @@ pub struct Incoming {
 /// it by the key alone. One credential per identity. One JSON object,
 /// `{"identity":…}` with an `address` if any.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Credential {
     /// Who a provider presenting the key is: its identity from then on,
     /// as
@@ -386,6 +394,7 @@ pub struct Daemon {
 /// every provider it is reachable through; a connection to it is opened
 /// through any one whose provider this daemon is connected to.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Link {
     /// The provider, as this daemon names one: see [`Identity`]. One of
     /// the caller's, outgoing or incoming, on record.
@@ -422,6 +431,7 @@ pub struct Link {
 /// is there so that it can land beside these two without moving
 /// either.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "kind")]
 pub enum Identity {
     /// The daemon dialled the provider. `kind: "outgoing"`.
@@ -539,6 +549,7 @@ pub enum Container {
 /// one object either way; an object with members of both variants does
 /// not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Agent {
     /// By name: `{"name":…}`.
@@ -573,6 +584,7 @@ pub enum Agent {
 /// and so, for an operation on the tool's container, is a tool that
 /// does not run. One JSON object: `{"template":…,"owner":…}`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Dependency {
     /// The dependency template, by id: the hash of its canonical
     /// bytes, as the [`dependency_tools`](crate::daemon::endpoints::dependency_tools)
@@ -595,6 +607,7 @@ pub struct Dependency {
 /// variant does not decode. A dependency tool is none of these: see
 /// [`Dependency`](super::Dependency).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Tool {
     /// By name: `{"name":…}`.
@@ -641,6 +654,7 @@ pub enum Tool {
 /// The daemon answers the once-and-for-all form, as
 /// [`key::Owner`](crate::daemon::key::Owner).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Owner {
     /// The one agent: a transient tool's, or a service's whose
@@ -753,6 +767,7 @@ pub struct Volume {
 /// only — wherever a volume frame carries it; the strings
 /// `persistent`, `ephemeral` and `read_only` as JSON.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
     /// Every change is kept. Discriminant `0`.
@@ -1041,6 +1056,10 @@ pub enum Origin {
         /// Its number among all tools of the caller's ever made from
         /// that template, deleted ones included.
         index: u64,
+        /// How the tool is kept running, as its template's `mode` says:
+        /// transient, run while used, or a service, kept while any
+        /// agent is attached or any connect is open. See [`Mode`].
+        mode: Mode,
         /// The provider the container runs on, if it runs, or last
         /// ran on; absent for a tool that has never run. See
         /// [`Provider`].
@@ -1066,6 +1085,47 @@ pub enum Origin {
         /// that daemon's tool, deleted ones included.
         index: u64,
     },
+}
+```
+
+### `diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode`
+
+`diverge-sdk-rs/src/daemon/endpoints/standalone_tools/templates/mode.rs`
+
+```rust
+/// Transient or a service: the `mode` a tool template says beside its
+/// `type`, which every tool made from it runs by. Snake case on the
+/// wire: `"transient"`, `"service"`; absent is transient.
+///
+/// # A transient tool runs while it is used
+///
+/// Its container is started for the first thing that uses it — an
+/// agent it is attached to beginning a loop, a connect scope opened
+/// on it, a file operation — and stopped when the last leaves. A
+/// connected tool, another daemon's, is whatever that daemon's
+/// template says.
+///
+/// # A service is kept while anything holds it
+///
+/// Its container is kept running for as long as any agent is attached
+/// to it or any connect scope is open on it — started at the attach
+/// or the connect that first holds it, started again whenever its run
+/// ends, and started at every boot of the daemon's while an agent is
+/// attached — and once nothing holds it its idle clock runs, and
+/// `idle_seconds` after the last hold left with none since it is
+/// retired: its run stopped, its record kept, to be kept up again by
+/// the next attach or connect. This is the service a dependency
+/// template declares, for a tool a caller makes by hand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Mode {
+    /// Run while used, stopped when the last user leaves: the default.
+    #[default]
+    Transient,
+    /// Kept running while any agent is attached or any connect scope
+    /// is open, retired `idle_seconds` after the last leaves.
+    Service,
 }
 ```
 
@@ -1129,17 +1189,15 @@ pub type Template = crate::daemon::template::Template<AgentType>;
 `diverge-sdk-rs/src/daemon/endpoints/agents/templates/agent_type.rs`
 
 ```rust
-/// `"agent"`, and nothing else: the `type` of an agent template,
-/// which is what tells it from a tool template with the same image,
-/// limits, mounts and arguments. A template whose `type` is anything
-/// else does not decode as an agent template.
+/// `"type":"agent"`, and nothing beside it: what tells an agent
+/// template from a tool template with the same image, limits, mounts
+/// and arguments. Flat among the template's members: a template
+/// whose `type` is anything else does not decode as an agent
+/// template.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentType {
-    /// The only value.
-    #[default]
-    Agent,
-}
+#[derive(schemars::JsonSchema)]
+#[serde(tag = "type", rename = "agent")]
+pub struct AgentType {}
 ```
 
 ### `diverge_sdk::daemon::template::Template`
@@ -1157,13 +1215,14 @@ pub enum AgentType {
 ///
 /// # One shape, typed
 ///
-/// `Type` is the family's own single-value enum —
-/// [`AgentType`](crate::daemon::endpoints::agents::templates::AgentType)
-/// or
-/// [`ToolType`](crate::daemon::endpoints::standalone_tools::templates::ToolType) —
-/// so an agent template is `{"type":"agent",…}` and a tool template
-/// `{"type":"tool",…}`, neither decoding as the other, and the two
-/// hashing apart however alike the rest.
+/// `Type` is what the family says of itself, flat among the members —
+/// [`AgentType`](crate::daemon::endpoints::agents::templates::AgentType),
+/// which is `"type":"agent"` and nothing beside it, or
+/// [`ToolType`](crate::daemon::endpoints::standalone_tools::templates::ToolType),
+/// which is `"type":"tool"` and the `mode` its tools are kept by — so
+/// an agent template is `{"type":"agent",…}` and a tool template
+/// `{"type":"tool","mode":…,…}`, neither decoding as the other, and
+/// the two hashing apart however alike the rest.
 ///
 /// # No provider, so that it travels
 ///
@@ -1182,10 +1241,12 @@ pub enum AgentType {
 /// here either: it is the create's, so that one template makes
 /// containers of different standing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Template<Type> {
-    /// What the template is for: the one value the family's type
-    /// admits, `agent` or `tool`. Inside the hash, so the two kinds
-    /// never hash the same.
+    /// What the family says of itself, flat among the members: its
+    /// `type`, `agent` or `tool`, and for a tool the `mode` beside it.
+    /// Inside the hash, so the two kinds never hash the same.
+    #[serde(flatten)]
     pub r#type: Type,
     /// How to make a container from this, in words, for whoever does:
     /// what the create has to supply that a template cannot name — the
@@ -1261,6 +1322,7 @@ pub struct Template<Type> {
 /// where, is between them, and a caller learns only whether the agent
 /// runs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Image {
     /// The manifest digest, `<algorithm>:<hex>`.
     ///
@@ -1288,6 +1350,7 @@ pub struct Image {
 /// and the provider asks a referenced registry only where its own
 /// policy lists that registry.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Reference {
     /// The registry's host, as a reference names it before its first
     /// `/`: `docker.io`, `ghcr.io`, `registry.example.com:5000`. No
@@ -1360,20 +1423,24 @@ pub type Template = crate::daemon::template::Template<ToolType>;
 `diverge-sdk-rs/src/daemon/endpoints/standalone_tools/templates/tool_type.rs`
 
 ```rust
-/// `"tool"`, and nothing else: the `type` of a tool template, which
-/// is what tells it from an agent template with the same image,
-/// limits, mounts and arguments. A template whose `type` is anything
-/// else does not decode as a tool template.
+/// `"type":"tool"`, and the `mode` beside it: what tells a tool
+/// template from an agent template with the same image, limits,
+/// mounts and arguments, and how every tool made from it is kept —
+/// see [`Mode`]. Flat among the template's members: a template whose
+/// `type` is anything else does not decode as a tool template, and
+/// one that says no `mode` is transient.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ToolType {
-    /// The only value.
-    #[default]
-    Tool,
+#[derive(schemars::JsonSchema)]
+#[serde(tag = "type", rename = "tool")]
+pub struct ToolType {
+    /// How a tool made from the template is kept running: see
+    /// [`Mode`]. Absent is transient.
+    #[serde(default)]
+    pub mode: Mode,
 }
 ```
 
-Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::template::Template` (under `agents templates list`), `diverge_sdk::daemon::key::Owner` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::agents::create::client::request::Image` (under `agents templates list`), `diverge_sdk::daemon::key::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::agents::create::client::request::Reference` (under `agents templates list`).
+Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::template::Template` (under `agents templates list`), `diverge_sdk::daemon::key::Owner` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode` (under `standalone tools list`), `diverge_sdk::daemon::endpoints::agents::create::client::request::Image` (under `agents templates list`), `diverge_sdk::daemon::key::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::agents::create::client::request::Reference` (under `agents templates list`).
 
 ## `accounts list` (tag 47)
 
@@ -1440,6 +1507,7 @@ pub struct Account {
 /// alone. One credential per identity. One JSON object,
 /// `{"identity":…}` with an `address` if any.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Credential {
     /// Who a client presenting the key is: the identity it is served
     /// under from then on, unless the account has a name, which is then
@@ -1518,6 +1586,7 @@ pub struct Role {
 /// [`shared::permission::Grant`](crate::shared::permission::Grant),
 /// which this is built of.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Grant {
     /// Over agents: see [`agents::Permission`].
@@ -1560,6 +1629,7 @@ pub enum Grant {
 /// exactly one, and a named account with a credential is named by
 /// either.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Reference {
     /// By name.
@@ -1588,6 +1658,7 @@ pub enum Reference {
 /// which tags. An object that is none of these — an action of one shape
 /// among another's, a member missing — does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is
@@ -1629,6 +1700,7 @@ pub enum Permission {
 /// action of one shape among another's, a member missing — does not
 /// decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is
@@ -1670,6 +1742,7 @@ pub enum Permission {
 /// which tags. An object that is none of these — an action of one shape
 /// among another's, a member missing — does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is
@@ -1711,6 +1784,7 @@ pub enum Permission {
 /// action of one shape among the other's, a member missing — does not
 /// decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// Over dependency templates that exist: the [`Over`] actions
@@ -1749,6 +1823,7 @@ pub enum Permission {
 /// which tags. An object that is none of these — an action of one shape
 /// among another's, a member missing — does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is
@@ -1790,6 +1865,7 @@ pub enum Permission {
 /// which tags. An object that is none of these — an action of one
 /// shape among another's, a member missing — does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is
@@ -1831,6 +1907,7 @@ pub enum Permission {
 /// which tags. An object that is none of these — an action of one
 /// shape among another's, a member missing — does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is
@@ -1872,6 +1949,7 @@ pub enum Permission {
 /// action of one shape among another's, a member missing — does not
 /// decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is
@@ -1913,6 +1991,7 @@ pub enum Permission {
 /// action of one shape among another's, a member missing — does not
 /// decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is
@@ -1954,6 +2033,7 @@ pub enum Permission {
 /// which tags. An object that is none of these — an action of one shape
 /// among another's, a member missing — does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is
@@ -1995,6 +2075,7 @@ pub enum Permission {
 /// of these — an action of one shape among another's, a member missing —
 /// does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Permission {
     /// To make: the [`Make`] actions held, as a bare array. Nothing is
@@ -2042,6 +2123,7 @@ pub enum Permission {
 /// that carries any one of them. An empty list is absent, and matches
 /// every account.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these names.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2106,6 +2188,7 @@ pub struct Filter {
 /// carries every one of them, `any_tags` one that carries any one of
 /// them. An empty list is absent, and matches every agent.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these names, as a create gave them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2159,6 +2242,7 @@ pub struct Filter {
 /// carries every one of them, `any_tags` one that carries any one of
 /// them. An empty list is absent, and matches every template.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these ids.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2208,11 +2292,12 @@ pub struct Filter {
 ///
 /// A member that lists candidates matches a tool that is of any one
 /// of them, owned by any one of them, was made by any one of them, or
-/// is of any one of their types or scopes; `agents` a tool every one
+/// is of any one of their modes or scopes; `agents` a tool every one
 /// of them depends on; `all_tags` a tool that carries every one of
 /// them, `any_tags` one that carries any one of them. An empty list is
 /// absent, and matches every tool.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Of any one of these templates, by id.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2228,10 +2313,10 @@ pub struct Filter {
     /// made by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
-    /// Of any one of these types, transient or a service: see
-    /// [`Type`]. Absent when empty, and then either.
+    /// Of any one of these modes, transient or a service: see
+    /// [`Mode`]. Absent when empty, and then either.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub types: Vec<Type>,
+    pub modes: Vec<Mode>,
     /// A service whose `scope` is any one of these: see [`Scope`]. A
     /// transient tool has no scope and matches none of them. Absent
     /// when empty, and then any scope, or none.
@@ -2290,6 +2375,7 @@ pub struct Filter {
 /// them, is linked through any one of them, or was made by any one of
 /// them. An empty list is absent, and matches every daemon.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these names.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2344,6 +2430,7 @@ pub struct Filter {
 /// of them, or was added by any one of them. An empty list is absent,
 /// and matches every credential.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Naming any one of these identities.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2393,6 +2480,7 @@ pub struct Filter {
 /// them, or was made by any one of them. An empty list is absent, and
 /// matches every provider.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these addresses.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2447,6 +2535,7 @@ pub struct Filter {
 /// that carries any one of them. An empty list is absent, and matches
 /// every role.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these names.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2497,6 +2586,7 @@ pub struct Filter {
 /// every one of them, `any_tags` one that carries any one of them. An
 /// empty list is absent, and matches every tool.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these names, as a create or a connect gave them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2516,6 +2606,12 @@ pub struct Filter {
     /// is tagged with, see [`Kind`]; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kind: Option<Kind>,
+    /// Made from a template whose `mode` is any one of these,
+    /// transient or a service: see [`Mode`]. A connected tool has no
+    /// mode here — it runs by another daemon's template — and passes
+    /// none. Absent when empty, and then either.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modes: Vec<Mode>,
     /// Whether active — its container running, or its connect scope
     /// held — `true`, or not, `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2561,6 +2657,7 @@ pub struct Filter {
 /// carries every one of them, `any_tags` one that carries any one of
 /// them. An empty list is absent, and matches every template.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these ids.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2612,6 +2709,7 @@ pub struct Filter {
 /// them, or is held by any one of them. An empty list is absent, and
 /// matches every volume.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Held by any one of these providers: see [`Identity`].
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2644,6 +2742,28 @@ pub struct Filter {
     /// The latest `created` to list, inclusive; absent, no latest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_to: Option<DateTime<Utc>>,
+}
+```
+
+### `diverge_sdk::daemon::endpoints::dependency_tools::list::client::request::Mode`
+
+`diverge-sdk-rs/src/daemon/endpoints/dependency_tools/list/client/request/mode.rs`
+
+```rust
+/// Transient or a service: the `mode` a dependency template's
+/// [`Mode`](crate::shared::containers::dependencies::Mode) is tagged
+/// with, as a value of its own to narrow a list by. Snake case on the
+/// wire, as the tag is: `"transient"`, `"service"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Mode {
+    /// A template deployed for each declaring agent's run, and ended
+    /// with it.
+    Transient,
+    /// A template kept as a service under the scope its `scope`
+    /// names, for as long as any agent is attached to it.
+    Service,
 }
 ```
 
@@ -2681,27 +2801,6 @@ pub enum Scope {
 }
 ```
 
-### `diverge_sdk::daemon::endpoints::dependency_tools::list::client::request::Type`
-
-`diverge-sdk-rs/src/daemon/endpoints/dependency_tools/list/client/request/template_type.rs`
-
-```rust
-/// Transient or a service: the `type` a dependency template's
-/// [`Kind`](crate::shared::containers::dependencies::Kind) is tagged
-/// with, as a value of its own to narrow a list by. Snake case on the
-/// wire, as the tag is: `"transient"`, `"service"`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Type {
-    /// A template deployed for each declaring agent's run, and ended
-    /// with it.
-    Transient,
-    /// A template kept as a service under the scope its `scope`
-    /// names, for as long as any agent is attached to it.
-    Service,
-}
-```
-
 ### `diverge_sdk::daemon::endpoints::standalone_tools::list::client::request::Kind`
 
 `diverge-sdk-rs/src/daemon/endpoints/standalone_tools/list/client/request/kind.rs`
@@ -2713,6 +2812,7 @@ pub enum Type {
 /// is tagged with, as a value of its own to narrow a list by. Snake
 /// case on the wire, as the tag is: `"created"`, `"connected"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
     /// A tool the daemon made from a template and runs.
@@ -2722,7 +2822,7 @@ pub enum Kind {
 }
 ```
 
-Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::key::Owner` (under `providers outgoing list`), `diverge_sdk::daemon::key::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::reference::Owner` (under `postgres list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity` (under `providers daemons list`), `diverge_sdk::daemon::endpoints::providers::outgoing::Kind` (under `providers outgoing list`), `diverge_sdk::provider::endpoints::volumes::Mode` (under `volumes list`), `diverge_sdk::daemon::reference::Agent` (under `postgres list`).
+Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::key::Owner` (under `providers outgoing list`), `diverge_sdk::daemon::key::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::reference::Owner` (under `postgres list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity` (under `providers daemons list`), `diverge_sdk::daemon::endpoints::providers::outgoing::Kind` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode` (under `standalone tools list`), `diverge_sdk::provider::endpoints::volumes::Mode` (under `volumes list`), `diverge_sdk::daemon::reference::Agent` (under `postgres list`).
 
 Not placed: `postgres::Permission`, `Make`, `Over`, `Tagging`, `Within`.
 
@@ -2844,10 +2944,10 @@ pub struct Run {
 /// and directories, each a path in the agent container served live at
 /// a path in the tool container: the caller serves the agent
 /// container, a `containers::serve` of the path, and mounts the tool,
-/// a `fuse::mount` answered from it. [`kind`](Self::kind) says which
-/// of the two kinds the dependency is — a transient tool of the
+/// a `fuse::mount` answered from it. [`mode`](Self::mode) says which
+/// of the two modes the dependency is — a transient tool of the
 /// agent's run, with those mounts, or a service the caller keeps,
-/// with a scope — see [`Kind`]; and [`permissions`](Self::permissions)
+/// with a scope — see [`Mode`]; and [`permissions`](Self::permissions)
 /// what its account may do — grants that name nothing, so the
 /// template is the same on every daemon it reaches, and among them
 /// the word `self`, which reaches the agent a transient tool is the
@@ -2864,7 +2964,7 @@ pub struct Run {
 /// hexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)
 /// bytes — this template as compact JSON, absent members omitted,
 /// the image's `references` absent too, every object key sorted at
-/// every depth, the `arguments` included, the kind's `type` and its
+/// every depth, the `arguments` included, the `mode` and its
 /// members among the keys — sixty-four characters, which the caller
 /// computes over [`hashed`](Self::hashed). Two declarations with one
 /// id are one dependency, and a list that declares one twice is
@@ -2887,11 +2987,11 @@ pub struct Template {
     /// The arguments the tool container is registered with — the
     /// `arguments` of the run request that makes it, verbatim.
     pub arguments: Value,
-    /// Which kind of dependency this is, with that kind's own members
-    /// flat beside the `type` that names it: a transient tool's
-    /// mounts, or a service's scope. See [`Kind`].
+    /// Which mode of dependency this is, with that mode's own members
+    /// flat beside the `mode` that names it: a transient tool's
+    /// mounts, or a service's scope. See [`Mode`].
     #[serde(flatten)]
-    pub kind: Kind,
+    pub mode: Mode,
     /// What the tool's account may do, as grants that name nothing:
     /// see [`Grant`]. The caller gives the tool an account holding
     /// exactly these. Absent when empty, and then the tool may do
@@ -3002,15 +3102,15 @@ pub struct Image {
 }
 ```
 
-### `diverge_sdk::shared::containers::dependencies::Kind`
+### `diverge_sdk::shared::containers::dependencies::Mode`
 
-`diverge-sdk-rs/src/shared/containers/dependencies/kind.rs`
+`diverge-sdk-rs/src/shared/containers/dependencies/mode.rs`
 
 ```rust
 /// A transient tool, or a service: the two things a dependency can be,
-/// told apart on the wire by the `type` member beside the template's
+/// told apart on the wire by the `mode` member beside the template's
 /// other members — `"transient"` or `"service"` — with the members of
-/// that kind flat beside it, and no member of the other.
+/// that mode flat beside it, and no member of the other.
 ///
 /// # A transient tool is the agent's run's
 ///
@@ -3041,9 +3141,9 @@ pub struct Image {
 /// ever attached.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum Kind {
-    /// A tool for the agent's run: `"type":"transient"`.
+#[serde(tag = "mode", rename_all = "snake_case")]
+pub enum Mode {
+    /// A tool for the agent's run: `"mode":"transient"`.
     Transient {
         /// Files of the agent container served live into the tool
         /// container, one each over FUSE: see [`Mount`]. The agent's
@@ -3059,7 +3159,7 @@ pub enum Kind {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         fuse_directory_mounts: Vec<Mount>,
     },
-    /// A service the caller keeps: `"type":"service"`.
+    /// A service the caller keeps: `"mode":"service"`.
     Service {
         /// How far the service is shared, and its database with it:
         /// see [`Scope`].

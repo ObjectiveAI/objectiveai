@@ -5,12 +5,13 @@ use sqlx::PgConnection;
 
 use super::{active, agents_of, running};
 use crate::daemon::Daemon;
-use crate::store::tools::Tool;
 use crate::store;
+use crate::store::tools::{self, Tool};
 
-/// The record as a list reports it: its attachments loaded now, and
-/// whether it is active now.
+/// The record as a list reports it: its attachments and its
+/// template's mode loaded now, and whether it is active now.
 pub async fn report(conn: &mut PgConnection, daemon: &Daemon, tool: &Tool) -> Result<response::Tool, store::Error> {
     let agents = agents_of(conn, tool.id).await?;
-    Ok(tool.report(active(daemon, tool.id).await, running(daemon, tool.id).await, agents))
+    let mode = tools::mode(conn, tool).await?;
+    Ok(tool.report(active(daemon, tool.id).await, running(daemon, tool.id).await, agents, mode))
 }

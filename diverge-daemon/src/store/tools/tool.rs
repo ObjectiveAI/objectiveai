@@ -5,6 +5,7 @@ use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as logs, Identity};
 use diverge_sdk::daemon::endpoints::standalone_tools::list::server::response;
+use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::reference;
 
@@ -104,15 +105,16 @@ impl Tool {
         })
     }
 
-    /// The tool as a list reports it, given whether its container
-    /// runs or its connect scope is held now, the container's id
-    /// while it runs, and the agents it is attached to in attach
-    /// order.
-    pub fn report(&self, active: bool, running: Option<String>, agents: Vec<key::Agent>) -> response::Tool {
+    /// The record as a list reports it, given whether it is active now,
+    /// its container's id while it runs, the agents it is attached to,
+    /// and its template's mode — a created tool's, which the list
+    /// item carries on its origin; a connected tool's is not asked.
+    pub fn report(&self, active: bool, running: Option<String>, agents: Vec<key::Agent>, mode: Option<Mode>) -> response::Tool {
         let origin = match &self.origin {
             Origin::Created { template, .. } => response::Origin::Created {
                 template: template.clone(),
                 index: self.index,
+                mode: mode.unwrap_or_default(),
                 provider: self.last_provider.clone().map(|identity| logs::Provider { identity }),
                 id: running,
             },
