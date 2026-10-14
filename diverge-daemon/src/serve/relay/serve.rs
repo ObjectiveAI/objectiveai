@@ -20,10 +20,11 @@ use crate::store::providers_daemons;
 /// request's own words, with no standing, or with no `relay` grant
 /// over the record as that account; the request's own `Error` for a
 /// record or an account that is none on record, a store that cannot
-/// be read, a connection that could not be opened, or a request the
-/// connection would not take; else the conduit, to the remote's
-/// finish. An invalid request has no words and is finished with
-/// nothing, as it would have been.
+/// be read, or a connection that could not be opened; else the
+/// conduit, to the remote's finish — or, the connection ending at any
+/// frame before that, the one [`LOST`] error, then the finish. An
+/// invalid request has no words and is finished with nothing, as it
+/// would have been.
 pub async fn serve(scope: ScopeHandle, request: &ClientRequest<'_>, bytes: Vec<u8>, relay: Relay, who: Who, daemon: &Arc<Daemon>) {
     let scope = Arc::new(scope);
     let outcome = judge_and_connect(&relay, who, daemon).await;
@@ -38,10 +39,17 @@ pub async fn serve(scope: ScopeHandle, request: &ClientRequest<'_>, bytes: Vec<u
             return;
         }
     };
-    if conduit::run(Arc::clone(&scope), &handle, &bytes).await.is_err() {
-        answer(&scope, request.error(reply::failure(&"the connection to the daemon would not take the request"))).await;
+    match conduit::run(Arc::clone(&scope), &handle, &bytes).await {
+        Ok(conduit::End::Finished) => {}
+        Ok(conduit::End::Lost) | Err(_) => answer(&scope, request.error(reply::failure(&LOST))).await,
     }
 }
+
+/// The one error a relay ends with when the connection to the daemon
+/// ends before the remote finishes the request — refused at the
+/// first frame, or lost at any frame after: the same words either
+/// way, as the request's own `error`, then the finish.
+pub const LOST: &str = "the connection to the daemon ended before the request was answered";
 
 /// Why a relay was not made.
 enum Refusal {

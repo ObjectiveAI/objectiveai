@@ -22,9 +22,12 @@ use tokio::task::JoinSet;
 /// number. Each side minted its own numbers, and each pair lives in
 /// the task that carries that channel. The client's finish is sent
 /// when the remote's arrives, and every task still carrying ends
-/// then. `Err` only when the connection would not take the request:
-/// nothing was sent to the client.
-pub async fn run(scope: Arc<ScopeHandle>, handle: &Handle, bytes: &[u8]) -> Result<(), SendError> {
+/// then: [`End::Finished`]. A connection that ends before the
+/// remote's finish is [`End::Lost`], and the scope is left open for
+/// the caller to answer with the one error that says so; `Err` is
+/// the same thing a frame earlier, the connection not taking the
+/// request at all. Nothing is sent to the client in either case.
+pub async fn run(scope: Arc<ScopeHandle>, handle: &Handle, bytes: &[u8]) -> Result<End, SendError> {
     let mut remote = handle.send_request(bytes).await?;
     let tasks = Arc::new(Mutex::new(JoinSet::new()));
     {
@@ -32,16 +35,32 @@ pub async fn run(scope: Arc<ScopeHandle>, handle: &Handle, bytes: &[u8]) -> Resu
         set.spawn(client_to_remote(Arc::clone(&scope), handle.clone(), remote.scope, Arc::clone(&tasks)));
         set.spawn(remote_to_client(Arc::clone(&scope), handle.clone(), remote.scope, remote.request_receiver, Arc::clone(&tasks)));
     }
+    let mut end = End::Lost;
     while let Some(frame) = remote.response_receiver.recv().await {
         match ServerFrame::decode(&frame) {
             Ok(ServerFrame::Response { payload, .. }) => scope.send_response(payload).await,
-            Ok(ServerFrame::ResponseFinish { .. }) => break,
+            Ok(ServerFrame::ResponseFinish { .. }) => {
+                end = End::Finished;
+                break;
+            }
             _ => {}
         }
     }
     tasks.lock().await.abort_all();
-    scope.send_response_finish().await;
-    Ok(())
+    if let End::Finished = end {
+        scope.send_response_finish().await;
+    }
+    Ok(end)
+}
+
+/// How a conduit ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum End {
+    /// The remote finished the scope, and the client's is finished.
+    Finished,
+    /// The connection to the remote ended first: the client's scope is
+    /// still open, with no finish sent.
+    Lost,
 }
 
 /// Every channel the client opens on its scope, opened on the remote's
