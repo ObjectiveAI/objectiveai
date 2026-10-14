@@ -6,26 +6,23 @@ use clap::Args;
 use diverge_sdk::daemon::endpoints::postgres::list::{client::request, server::response};
 use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error, body, shape};
+use crate::run::{Emitter, Error, shape};
 
-/// Listing the container connections open through the database, and
-/// keeping the list.
+/// Listing the container connections open through the database.
+/// There is exactly one database and the list is whole, so the
+/// request names nothing, narrows nothing, and takes no body: it is
+/// `{}` on the wire.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
-pub struct Arguments {
-    /// What the request carries, as a JSON object: see
-    /// [`request::Frame`]. Absent, `{}`.
-    #[arg(value_name = "BODY")]
-    pub body: Option<String>,
-}
+pub struct Arguments {}
 
 /// The request put, every item printed as it comes, through the
 /// word that the list is whole; the changes after it are not this
 /// command's.
 pub async fn run(
-    arguments: Arguments,
+    Arguments {}: Arguments,
     handle: &Handle,
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
-    let request: request::Frame = body(arguments.body.as_deref())?;
+    let request = request::Frame {};
     shape::stream::<_, response::Frame, _>(handle, &request, emitter, shape::at_listed).await
 }
