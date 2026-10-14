@@ -3,6 +3,7 @@
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
+use crate::shared::relay::Relay;
 
 use crate::daemon::endpoints::providers::incoming::Credential;
 /// Ask the daemon to replace a credential of incoming providers with
@@ -17,6 +18,10 @@ pub struct Frame {
     /// The credential as it is to be, without its key: see
     /// [`Credential`].
     pub set: Credential,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
 }
 
 /// This frame's tag among the scope-opening requests.

@@ -1,6 +1,7 @@
 //! What a client's request frame carries for a delete.
 
 use serde::{Deserialize, Serialize};
+use crate::shared::relay::Relay;
 
 use crate::daemon::reference;
 
@@ -22,6 +23,10 @@ pub struct Frame {
     /// or by its template and its index, which name a created tool
     /// once and for all. See [`reference::Tool`].
     pub tool: reference::Tool,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
 }
 
 /// This frame's tag among the scope-opening requests.

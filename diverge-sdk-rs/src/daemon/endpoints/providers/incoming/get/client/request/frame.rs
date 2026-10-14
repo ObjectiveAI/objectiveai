@@ -4,6 +4,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::relay::Relay;
+
 
 /// Ask the daemon for one credential of incoming providers, by the
 /// identity it names.
@@ -12,6 +14,10 @@ use serde::{Deserialize, Serialize};
 pub struct Frame {
     /// The identity the credential names.
     pub identity: String,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
 }
 
 /// This frame's tag among the scope-opening requests.

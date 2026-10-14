@@ -3,6 +3,7 @@
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
+use crate::shared::relay::Relay;
 
 use crate::daemon::create::Inner;
 
@@ -50,6 +51,10 @@ pub struct Frame {
     /// agent has none, and is reached once and for all only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
 }
 
 /// This frame's tag among the scope-opening requests.

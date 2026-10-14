@@ -1,6 +1,7 @@
 //! What a client's request frame carries for an edit.
 
 use serde::{Deserialize, Serialize};
+use crate::shared::relay::Relay;
 
 use crate::daemon::reference;
 
@@ -44,6 +45,10 @@ pub struct Frame {
     /// answered `Forbidden` from then on. Changes live.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<Change<String>>,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
 }
 
 /// This frame's tag among the scope-opening requests.

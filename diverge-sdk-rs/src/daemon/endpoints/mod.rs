@@ -126,7 +126,11 @@
 //! | `99` | [`providers::daemons::accounts::edit`] |
 //! | `100` | [`providers::daemons::accounts::delete`] |
 //!
-//! One hundred and one, so far. Tags are handed out in the order scopes are defined
+//! One hundred and one, so far. Every one of them carries the optional
+//! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
+//! which a daemon serves it on another daemon, as an account it holds
+//! there, as a conduit; the member is taken out before the request
+//! goes on, so it is never relayed twice. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,
@@ -166,6 +170,7 @@
 //! means nothing on the provider's wire, nor the other way round.
 
 mod client_request;
+mod refusal;
 
 pub use client_request::*;
 

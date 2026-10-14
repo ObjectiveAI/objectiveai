@@ -4,13 +4,20 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::relay::Relay;
+
 /// Ask the daemon which container connections are open through its
 /// database now. There is exactly one database and the list is whole,
 /// so there is nothing to name and nothing to narrow: the request is
 /// `{}` on the wire.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
-pub struct Frame {}
+pub struct Frame {
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
+}
 
 /// This frame's tag among the scope-opening requests.
 ///

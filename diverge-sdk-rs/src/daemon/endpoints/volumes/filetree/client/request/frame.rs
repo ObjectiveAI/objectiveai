@@ -3,6 +3,7 @@
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
+use crate::shared::relay::Relay;
 
 use crate::daemon::reference;
 /// Ask the daemon for one snapshot of a volume's tree, at a subtree of
@@ -17,6 +18,10 @@ pub struct Frame {
     /// is has no tree. Each component a name: not empty, not `.` or
     /// `..`, holding no `/` and no NUL.
     pub path: Vec<String>,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
 }
 
 /// This frame's tag among the scope-opening requests.

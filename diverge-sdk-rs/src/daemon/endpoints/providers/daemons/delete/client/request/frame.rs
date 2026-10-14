@@ -4,6 +4,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::relay::Relay;
+
 /// Ask the daemon to forget a daemon, by name. A daemon in use — a
 /// connected tool of the caller's naming it — is not forgotten, and the
 /// daemon says so with a variant of its own, because a caller acts on
@@ -13,6 +15,10 @@ use serde::{Deserialize, Serialize};
 pub struct Frame {
     /// The daemon's name, as its add gave it.
     pub name: String,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
 }
 
 /// This frame's tag among the scope-opening requests.

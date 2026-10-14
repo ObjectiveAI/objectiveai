@@ -52,3 +52,4 @@ pub mod error;
 pub mod filetree;
 pub mod mcp;
 pub mod permission;
+pub mod relay;
