@@ -20,6 +20,7 @@ use crate::provider::endpoints::containers::agents::run::server::response::Agent
 /// no sender: the daemon knows who sent from the scope the request
 /// arrived on, and keeps it here. Nothing but a user part has a sender.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct User {
     /// Who sent the message this part is of: one
     /// [`Creator`](crate::daemon::creator::Creator).

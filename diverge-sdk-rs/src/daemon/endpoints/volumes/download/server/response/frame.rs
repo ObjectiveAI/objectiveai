@@ -2,11 +2,14 @@
 
 use serde::ser::SerializeMap as _;
 use serde::{Serialize, Serializer};
+use std::borrow::Cow;
 use std::fmt;
+
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::daemon::download::{Chunk, ChunkError};
+use crate::daemon::download::{self, Chunk, ChunkError};
 use crate::shared::error::Error;
 
 /// A download's answer: one chunk, nothing is the one named, the volume
@@ -178,6 +181,22 @@ impl std::error::Error for FrameError {
 /// variant, snake case, over its payload — a chunk as [`Chunk`]
 /// writes itself, its path and its size and not its body — and a bare
 /// variant the string alone.
+/// The schema of what `Serialize` writes: see
+/// [`download::answer_schema`].
+impl JsonSchema for Frame<'_> {
+    fn schema_name() -> Cow<'static, str> {
+        "VolumesDownloadFrame".into()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        "diverge_sdk::daemon::endpoints::volumes::download::server::response::Frame".into()
+    }
+
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        download::answer_schema(generator, true)
+    }
+}
+
 impl Serialize for Frame<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {

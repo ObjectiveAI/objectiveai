@@ -46,6 +46,7 @@ use crate::daemon::endpoints::agents::templates::list::server::response::Listed;
 /// a bare variant the string alone — `"not_found"`. The wire is the
 /// tag byte and the payload, never this.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// The template, as the list reports it. Tag `0`.

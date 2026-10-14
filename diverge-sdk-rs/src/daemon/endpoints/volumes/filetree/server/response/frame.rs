@@ -61,6 +61,7 @@ use crate::shared::filetree::response::Node;
 /// tagged, as [`json`](crate::shared::filetree::response::json) writes
 /// them: `{"tree":[{"type":"directory",…}]}`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// The tree: the entries beneath the path, each with everything

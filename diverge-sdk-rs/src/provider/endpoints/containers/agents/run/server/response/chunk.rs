@@ -63,6 +63,7 @@ use crate::shared::mcp::attestation::Caller;
 /// speaking agent, with its image. The proxy and the
 /// provider relay each chunk as the agent's server produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum AgenticLoopChunk {
     /// The model's reasoning. See [`AssistantReasoningChunk`].

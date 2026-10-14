@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// reports them, as of the moment of the walk: how much of it is used,
 /// and the hash of its content.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Stat {
     /// How much of the volume is in use, in bytes, as of the walk.
     pub bytes_used: u64,

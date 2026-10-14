@@ -11,6 +11,7 @@ use crate::daemon::endpoints::providers::outgoing::Kind;
 /// daemon holds a connection to it now, when it last did, when it was
 /// added and by whom, and its tags.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Outgoing {
     /// The address, as the add gave it: the provider's identity.
     pub address: String,

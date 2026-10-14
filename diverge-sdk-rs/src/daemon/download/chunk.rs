@@ -2,7 +2,10 @@
 
 use serde::ser::SerializeStruct as _;
 use serde::{Serialize, Serializer};
+use std::borrow::Cow;
 use std::fmt;
+
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 
 use serde::ser::Error as _;
 
@@ -44,6 +47,53 @@ pub struct Chunk<'a> {
     /// appended to the pieces of the same file before it. Empty for a
     /// zero-byte file's one chunk.
     pub body: &'a [u8],
+}
+
+/// A chunk as JSON writes it: the path, and how many bytes, never
+/// the bytes — what [`Chunk`]'s `Serialize` writes, as a type the
+/// schema is stated from.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[derive(schemars::JsonSchema)]
+pub struct ChunkJson {
+    /// The file's path, as components.
+    pub path: Vec<String>,
+    /// How many bytes the piece carried.
+    pub bytes: u64,
+}
+
+/// The schema of what `Serialize` writes: [`ChunkJson`]'s.
+impl JsonSchema for Chunk<'_> {
+    fn schema_name() -> Cow<'static, str> {
+        "Chunk".into()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        "diverge_sdk::daemon::download::Chunk".into()
+    }
+
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        ChunkJson::json_schema(generator)
+    }
+}
+
+/// The schema of a download's answer as JSON writes it — the shape
+/// the four download response frames and the four download items
+/// share: `"not_found"`, `"forbidden"`, `{"error":…}`, or
+/// `{"chunk":{"path":…,"bytes":…}}` — and, for a volume's, which may
+/// be `held`, `"held"` among them.
+pub fn answer_schema(generator: &mut SchemaGenerator, held: bool) -> Schema {
+    let error = generator.subschema_for::<crate::shared::error::Error>();
+    let chunk = generator.subschema_for::<ChunkJson>();
+    let mut any_of = vec![
+        serde_json::json!({ "type": "string", "const": "not_found" }),
+        serde_json::json!({ "type": "string", "const": "forbidden" }),
+    ];
+    if held {
+        any_of.push(serde_json::json!({ "type": "string", "const": "held" }));
+    }
+    any_of.push(serde_json::json!({ "type": "object", "properties": { "error": error }, "required": ["error"], "additionalProperties": false }));
+    any_of.push(serde_json::json!({ "type": "object", "properties": { "chunk": chunk }, "required": ["chunk"], "additionalProperties": false }));
+    schemars::json_schema!({ "anyOf": any_of })
 }
 
 impl Encode for Chunk<'_> {

@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 /// to return it and the model would use to say it — one content
 /// model across the whole loop rather than one per direction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct UserAudioContentChunk {
     /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: UserAudioContentChunkType,
@@ -33,6 +34,7 @@ pub struct UserAudioContentChunk {
 
 /// [`UserAudioContentChunk`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum UserAudioContentChunkType {
     #[serde(rename = "user_audio_content")]
     #[default]

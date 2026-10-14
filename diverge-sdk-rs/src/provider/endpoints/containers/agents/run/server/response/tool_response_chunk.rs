@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 /// structured content, `isError` and `_meta` included — rather than
 /// being re-encoded into a shape of ours that would lose some of it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct ToolResponseChunk {
     /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: ToolResponseChunkType,
@@ -36,6 +37,7 @@ pub struct ToolResponseChunk {
 
 /// [`ToolResponseChunk`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum ToolResponseChunkType {
     #[serde(rename = "tool_response")]
     #[default]

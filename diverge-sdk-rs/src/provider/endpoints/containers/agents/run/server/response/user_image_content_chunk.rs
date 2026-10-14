@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 /// to return it and the model would use to say it — one content
 /// model across the whole loop rather than one per direction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct UserImageContentChunk {
     /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: UserImageContentChunkType,
@@ -33,6 +34,7 @@ pub struct UserImageContentChunk {
 
 /// [`UserImageContentChunk`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum UserImageContentChunkType {
     #[serde(rename = "user_image_content")]
     #[default]

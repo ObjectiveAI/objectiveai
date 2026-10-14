@@ -10,6 +10,7 @@ use super::Container;
 /// several is listed once per connection. A list sends them oldest
 /// opened first.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Connection {
     /// The container holding it: see [`Container`].
     pub container: Container,

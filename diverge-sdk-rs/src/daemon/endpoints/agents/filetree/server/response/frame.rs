@@ -62,6 +62,7 @@ use crate::shared::filetree;
 /// written tagged, as [`json`](crate::shared::filetree::response::json)
 /// writes it: `{"filetree":{"type":"snapshot",…}}`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// One change on the container's tree: the snapshot first, then one

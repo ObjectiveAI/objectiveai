@@ -12,6 +12,7 @@ use crate::daemon::endpoints::accounts::Credential;
 /// as it now, its tags, when it was created and by whom. A list sends
 /// them oldest created first.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Account {
     /// The name, if the account has one: what a container's `account`
     /// names. Absent, none, and the account dials in alone.

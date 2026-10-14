@@ -25,6 +25,7 @@ use super::{Active, Error, Inactive, User};
 ///
 /// [`type`]: crate::daemon::endpoints::agents::logs::client::request::Frame::type
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Item {
     /// One user part of a message that landed, with who sent the

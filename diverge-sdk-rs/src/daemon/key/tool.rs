@@ -19,6 +19,7 @@ use super::{Origin, Owner};
 /// service whose template's `scope` is `instance`; the agent template
 /// or everyone for the other two scopes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Tool {
     /// A tool on record: made by a create, or joined by a connect.

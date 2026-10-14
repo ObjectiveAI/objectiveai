@@ -10,6 +10,7 @@ use crate::daemon::endpoints::agents::logs::server::response::Provider;
 /// its container is down: a service held between runs has no run
 /// until it runs again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Run {
     /// The provider the container runs on. See [`Provider`].
     pub provider: Provider,

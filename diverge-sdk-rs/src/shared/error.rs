@@ -42,6 +42,7 @@ use crate::wire::encode::{Encode, Writer};
 /// what a decoder returns when it cannot read one. Giving both the
 /// same trait would blur two ideas that share only a name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub struct Error(
     /// Whatever the provider had to say.
     ///

@@ -16,6 +16,7 @@ use crate::daemon::endpoints::agents::logs::server::response::Provider;
 /// separately; what it was made from is its template's, named by id,
 /// and its mounts are the create's, and neither is repeated here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Agent {
     /// The name, as its create gave it, if it gave one; absent for an
     /// agent made with none, which is reached by its template and its

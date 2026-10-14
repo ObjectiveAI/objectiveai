@@ -13,6 +13,7 @@ use crate::daemon::reference;
 /// is. A tool's index counts among the tools ever made with the same
 /// one of these.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Origin {
     /// Made by a create, from a template.

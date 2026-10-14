@@ -14,6 +14,7 @@ use super::{Attached, Run};
 /// its container is up. The tags are the tool's and not the
 /// template's: not in it, and not in its hash.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Listed {
     /// The template, by id: the lowercase hexadecimal SHA-256 of its
     /// canonical bytes, as

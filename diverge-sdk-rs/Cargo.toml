@@ -48,8 +48,9 @@ rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
 # a tool container and its image — so an image's `GET /schema` can
 # state them; and on every request frame of the daemon's wire, and
 # what those carry, so a client can state what a request takes.
-# `chrono04`: the list filters' times.
-schemars = { version = "1.2.2", features = ["chrono04"] }
+# `chrono04`: the list filters' times; `rust_decimal1`: a chunk's
+# logprobs.
+schemars = { version = "1.2.2", features = ["chrono04", "rust_decimal1"] }
 serde = { version = "1.0.229", features = ["derive"] }
 # `preserve_order`: what is relayed keeps the order it arrived in.
 # `raw_value`: MCP bodies pass through byte-identical.

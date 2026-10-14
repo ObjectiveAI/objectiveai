@@ -2,13 +2,17 @@
 
 use serde::ser::SerializeMap as _;
 use serde::{Serialize, Serializer};
+use std::borrow::Cow;
+
 use bytes::Bytes;
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 
 use super::super::request;
 use super::super::super::server::response;
 use crate::daemon::client::stream;
 use crate::wire::client::handle::Handle;
 use crate::wire::decode::Decode as _;
+use crate::daemon::download;
 use crate::shared::error::Error;
 
 /// A download that did not open.
@@ -64,6 +68,22 @@ fn decode(bytes: &Bytes, payload: &[u8]) -> Result<Item, response::FrameError> {
 
 /// As JSON, as the [`response::Frame`] is: the variant, snake case,
 /// over its payload, a chunk by its path and its size.
+/// The schema of what `Serialize` writes: see
+/// [`download::answer_schema`].
+impl JsonSchema for Item {
+    fn schema_name() -> Cow<'static, str> {
+        "VolumesDownloadItem".into()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        "diverge_sdk::daemon::endpoints::volumes::download::client::execute::Item".into()
+    }
+
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        download::answer_schema(generator, true)
+    }
+}
+
 impl Serialize for Item {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {

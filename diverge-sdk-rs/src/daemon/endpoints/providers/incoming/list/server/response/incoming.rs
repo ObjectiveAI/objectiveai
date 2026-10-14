@@ -11,6 +11,7 @@ use crate::daemon::endpoints::providers::incoming::Credential;
 /// now, when it was added and by whom, and its tags. A list sends them
 /// oldest added first.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Incoming {
     /// The credential, which carries no key: see [`Credential`].
     /// Flattened, so its members are this object's own.

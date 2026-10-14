@@ -11,6 +11,7 @@ use crate::daemon::grant::Grant;
 /// hold it, its tags, when it was created and by whom. A list sends
 /// them oldest created first.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Role {
     /// The name.
     pub name: String,

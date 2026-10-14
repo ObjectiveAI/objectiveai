@@ -10,6 +10,7 @@ use crate::daemon::endpoints::agents::templates::Template;
 /// its tags, and the template whole. The tags are the caller's and not
 /// the template's: not in it, and not in its hash.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Listed {
     /// The id: the template's hash, as
     /// [`templates`](crate::daemon::endpoints::agents::templates)

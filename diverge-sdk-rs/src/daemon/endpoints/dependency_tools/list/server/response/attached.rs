@@ -10,6 +10,7 @@ use crate::daemon::key;
 /// a per-template tool the agents of its agent template that declare
 /// it; a global tool every agent that does.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Attached {
     /// The agent, by its [`key`](crate::daemon::key): its template and
     /// its index, with its name beside when it has one.

@@ -15,6 +15,7 @@ use super::Item;
 /// response carry an `id` of their own, and flattening would put the
 /// two in one object. `created` is nobody else's.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct ItemWrapper {
     /// The item's index: counts up by one per item of the agent's
     /// log, from `1`, and never repeats. What the request's

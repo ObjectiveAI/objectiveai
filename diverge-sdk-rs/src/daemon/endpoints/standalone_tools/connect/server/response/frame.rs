@@ -60,6 +60,7 @@ use crate::wire::encode::{Encode, Writer};
 /// `"not_found"`. The wire is the tag byte and the payload, never
 /// this.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// The tool is connected: its container runs, and its channels

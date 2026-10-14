@@ -23,6 +23,7 @@ use crate::daemon::reference;
 /// [`dependency_tools`](crate::daemon::endpoints::dependency_tools) list, and
 /// nowhere here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Origin {
     /// Made by this caller's create: the daemon runs its container.

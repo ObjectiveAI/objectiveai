@@ -35,6 +35,7 @@ use crate::daemon::reference;
 /// an agent's own by none — an agent's delete and an agent template's
 /// drop no scope.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Container {
     /// An agent, as [`reference::Agent`] names one.

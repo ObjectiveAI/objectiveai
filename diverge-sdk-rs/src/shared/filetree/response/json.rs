@@ -10,6 +10,9 @@
 //! serializers an answer names for its filetree members; [`FrameJson`]
 //! and [`NodeJson`] the shapes they write.
 
+use std::borrow::Cow;
+
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::{Serialize, Serializer};
 
 use super::{Frame, Node};
@@ -17,6 +20,7 @@ use super::{Frame, Node};
 /// A frame as JSON: `type` is `snapshot`, `inserted`, `modified` or
 /// `removed`, the members the frame's own, nodes as [`NodeJson`].
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum FrameJson<'a> {
     /// The whole tree.
@@ -48,6 +52,7 @@ pub enum FrameJson<'a> {
 /// A node as JSON: `type` is `file`, `directory` or `symlink`, the
 /// members the node's own, a directory's children as these.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NodeJson<'a> {
     /// A regular file.
@@ -152,4 +157,37 @@ pub fn frame<S: Serializer>(frame: &Frame, serializer: S) -> Result<S::Ok, S::Er
 /// Serialize nodes as [`NodeJson`]s: for `serialize_with`.
 pub fn nodes<S: Serializer>(nodes: &[Node], serializer: S) -> Result<S::Ok, S::Error> {
     nodes.iter().map(Node::json).collect::<Vec<_>>().serialize(serializer)
+}
+
+/// The schema of a frame as JSON writes it: [`FrameJson`]'s. The
+/// postcard type carries no tag, so its own derive would state a
+/// shape no reader of JSON ever sees.
+impl JsonSchema for Frame {
+    fn schema_name() -> Cow<'static, str> {
+        "FiletreeFrame".into()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        "diverge_sdk::shared::filetree::response::Frame".into()
+    }
+
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        FrameJson::json_schema(generator)
+    }
+}
+
+/// The schema of a node as JSON writes it: [`NodeJson`]'s, for the
+/// same reason.
+impl JsonSchema for Node {
+    fn schema_name() -> Cow<'static, str> {
+        "FiletreeNode".into()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        "diverge_sdk::shared::filetree::response::Node".into()
+    }
+
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        NodeJson::json_schema(generator)
+    }
 }

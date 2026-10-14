@@ -15,6 +15,7 @@ use crate::provider::endpoints::volumes::Mode;
 /// used, and the hash of its content, cost the provider a walk, and
 /// are a [`stat`](crate::daemon::endpoints::volumes::stat)'s.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Volume {
     /// The provider that holds it: see [`Identity`].
     pub provider: Identity,

@@ -15,6 +15,7 @@ use super::Origin;
 /// create's, and neither is repeated here; what a connected tool is
 /// made from is the other daemon's, and unknown here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Tool {
     /// The name, as its create or its connect gave it, if it gave
     /// one; absent for a tool made with none, which is reached by its

@@ -11,6 +11,7 @@ use crate::daemon::endpoints::providers::daemons::{Account, Link};
 /// them this daemon holds a connection as now, when it was added and
 /// by whom, and its tags.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Daemon {
     /// The name, as the add gave it: the daemon's identity here.
     pub name: String,

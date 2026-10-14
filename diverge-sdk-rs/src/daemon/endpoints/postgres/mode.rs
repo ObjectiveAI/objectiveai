@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 /// the wire one object naming its kind: `{"kind":"local"}`, or
 /// `{"kind":"remote","url":…}`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Mode {
     /// A Postgres the daemon runs itself, beside it, on its own
