@@ -5,7 +5,6 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use chrono::Utc;
-use diverge_sdk::daemon::reference;
 use diverge_sdk::shared::mcp::attestation::{self, Attestation};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::{execute as tools_connect, request as connect_request};
@@ -222,11 +221,9 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     key: Key::Tool(ToolKey::Record(tool.id)),
                     caller: Attestation::Tool(attestation::Tool::Created {
                         image: image.clone(),
+                        template: template.clone(),
+                        index: tool.index,
                         name: tool.name.clone(),
-                        tool: reference::Tool::TemplateIndex {
-                            template: template.clone(),
-                            index: tool.index,
-                        },
                     }),
                     sender: sender_of_tool(tool),
                     account: tool.account,
@@ -252,11 +249,9 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
             };
             let attestation = attestation::Tool::Created {
                 image,
+                template: template.clone(),
+                index: tool.index,
                 name: tool.name.clone(),
-                tool: reference::Tool::TemplateIndex {
-                    template: template.clone(),
-                    index: tool.index,
-                },
             };
             (identity, Some(id), ToolHandle::Run(handle), mounts, attestation)
         }
@@ -279,7 +274,6 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 index: tool.index,
                 name: tool.name.clone(),
                 daemon: name.clone(),
-                tool: remote.clone(),
             };
             (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation)
         }
