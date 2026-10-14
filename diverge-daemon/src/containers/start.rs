@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use chrono::Utc;
-use diverge_sdk::shared::mcp::attestation::{self, Attestation};
+use diverge_sdk::shared::mcp::attestation;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::{execute as tools_connect, request as connect_request};
 use diverge_sdk::provider::endpoints::containers::agents::run::client::{execute as agents_run, request as agents_request};
@@ -101,7 +101,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         let answerer = Arc::new(Answerer {
             daemon: Arc::clone(daemon),
             key: Key::Agent(agent.id),
-            caller: Attestation::Agent(attestation::Agent {
+            caller: Some(attestation::Agent {
                 image: image.clone(),
                 key: agent.key(),
             }),
@@ -219,12 +219,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 let answerer = Arc::new(Answerer {
                     daemon: Arc::clone(daemon),
                     key: Key::Tool(ToolKey::Record(tool.id)),
-                    caller: Attestation::Tool(attestation::Tool::Created {
-                        image: image.clone(),
-                        template: template.clone(),
-                        index: tool.index,
-                        name: tool.name.clone(),
-                    }),
+                    caller: None,
                     sender: sender_of_tool(tool),
                     account: tool.account,
                     dependent: None,

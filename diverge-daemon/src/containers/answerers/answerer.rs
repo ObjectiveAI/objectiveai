@@ -10,7 +10,7 @@ use tokio::sync::{Mutex, watch};
 
 use crate::containers::fuse::Mounts;
 use crate::containers::mcp::Served;
-use diverge_sdk::shared::mcp::attestation::Attestation;
+use diverge_sdk::shared::mcp::attestation;
 
 use crate::containers::{Inflight, Key};
 use crate::daemon::Daemon;
@@ -23,10 +23,10 @@ pub struct Answerer {
     pub daemon: Arc<Daemon>,
     /// The container the run is.
     pub key: Key,
-    /// Who the run is, as the daemon attests it under `_meta` on every
-    /// MCP call it sends outward for it: the agent with its image, or
-    /// the tool.
-    pub caller: Attestation,
+    /// The agent the run is, as the daemon attests it under `_meta` on
+    /// every MCP call it sends outward for it. None for a tool's run,
+    /// which serves no tool and calls nothing outward.
+    pub caller: Option<attestation::Agent>,
     /// The container as a sender.
     pub sender: Creator,
     /// The account it runs under, if any: who its `/daemon`

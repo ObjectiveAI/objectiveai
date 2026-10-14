@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
 
-use diverge_sdk::shared::mcp::attestation::{self, Attestation};
+use diverge_sdk::shared::mcp::attestation;
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::grant::Converted;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
@@ -67,7 +67,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         let answerer = Arc::new(Answerer {
             daemon: Arc::clone(daemon),
             key: Key::Tool(key),
-            caller: Attestation::Tool(attestation.clone()),
+            caller: None,
             sender: sender.clone(),
             account: None,
             dependent: Some(dependent.clone()),

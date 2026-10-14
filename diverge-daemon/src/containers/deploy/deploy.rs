@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
 
-use diverge_sdk::shared::mcp::attestation::{self, Attestation};
+use diverge_sdk::shared::mcp::attestation;
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::grant::Converted;
 use diverge_sdk::daemon::key;
@@ -44,7 +44,7 @@ use crate::store::{self, AgentId, DependencyToolId, hash};
 /// tried — is the error, naming the dependency by its id where there
 /// is one, and every transient tool started is stopped.
 pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -> Result<(), Error> {
-    let (Key::Agent(agent), Attestation::Agent(caller)) = (answerer.key, &answerer.caller) else {
+    let (Key::Agent(agent), Some(caller)) = (answerer.key, &answerer.caller) else {
         return Err(error("", "a tool container declares no dependencies"));
     };
     let agent_key = &caller.key;
@@ -203,7 +203,7 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
         let run_answerer = Arc::new(Answerer {
             daemon: Arc::clone(daemon),
             key: Key::Tool(key),
-            caller: Attestation::Tool(attestation.clone()),
+            caller: None,
             sender: sender.clone(),
             account: None,
             dependent: dependent.clone(),

@@ -5,7 +5,8 @@ use std::sync::Arc;
 
 use futures_util::{Stream, StreamExt as _, stream};
 use diverge_sdk::shared::mcp::attest_request;
-use diverge_sdk::shared::mcp::attestation::Attestation;
+use diverge_sdk::shared::mcp::attestation;
+use rmcp::model::RequestParamsMeta;
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, ErrorData, GetMeta as _, ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
     ReadResourceResult, ServerNotification,
@@ -29,8 +30,10 @@ pub struct Context {
     pub daemon: Arc<Daemon>,
     /// The container.
     pub user: Key,
-    /// Who the container is, as the daemon attests it.
-    pub caller: Attestation,
+    /// The agent the container is, as the daemon attests it on what
+    /// it sends outward; none for a tool container, which sends
+    /// nothing outward.
+    pub caller: Option<attestation::Agent>,
     /// The served set.
     pub served: Arc<Mutex<Served>>,
 }
@@ -83,6 +86,14 @@ pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, St
     Ok(run)
 }
 
+/// The caller stamped on `params`: the agent, when the run is one. A
+/// tool's run calls nothing outward, and stamps nothing.
+fn attest<P: RequestParamsMeta>(context: &Context, params: &mut P) {
+    if let Some(agent) = &context.caller {
+        attest_request(params, agent);
+    }
+}
+
 /// Every idle served tool started: what a loop beginning does, so its
 /// calls find their containers up.
 pub async fn start_all(context: &Context) {
@@ -105,7 +116,7 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
             continue;
         };
         let mut params = PaginatedRequestParams::default();
-        attest_request(&mut params, &context.caller);
+        attest(context, &mut params);
         if let Ok(result) = run.handle.list_tools(Some(params)).await {
             run.touch();
             for mut tool in result.tools {
@@ -127,7 +138,7 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
             continue;
         };
         let mut params = PaginatedRequestParams::default();
-        attest_request(&mut params, &context.caller);
+        attest(context, &mut params);
         if let Ok(result) = run.handle.list_resources(Some(params)).await {
             run.touch();
             for mut resource in result.resources {
@@ -151,7 +162,7 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     let name = name.to_string();
     let run = running(context, key).await.map_err(|error| ErrorData::internal_error(error, None))?;
     params.name = name.into();
-    attest_request(&mut params, &context.caller);
+    attest(context, &mut params);
     run.touch();
     let mut result = run
         .handle
@@ -164,7 +175,7 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
 
 /// The read, from the first served tool that answers it.
 pub async fn read_resource(context: &Context, mut params: ReadResourceRequestParams) -> Result<ReadResourceResult, ErrorData> {
-    attest_request(&mut params, &context.caller);
+    attest(context, &mut params);
     let keys = context.served.lock().await.keys();
     let mut last = None;
     for key in keys {
