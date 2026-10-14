@@ -16,13 +16,14 @@ use crate::daemon::endpoints::agents::create::client::request::Image;
 ///
 /// # One shape, typed
 ///
-/// `Type` is the family's own single-value enum —
-/// [`AgentType`](crate::daemon::endpoints::agents::templates::AgentType)
-/// or
-/// [`ToolType`](crate::daemon::endpoints::standalone_tools::templates::ToolType) —
-/// so an agent template is `{"type":"agent",…}` and a tool template
-/// `{"type":"tool",…}`, neither decoding as the other, and the two
-/// hashing apart however alike the rest.
+/// `Type` is what the family says of itself, flat among the members —
+/// [`AgentType`](crate::daemon::endpoints::agents::templates::AgentType),
+/// which is `"type":"agent"` and nothing beside it, or
+/// [`ToolType`](crate::daemon::endpoints::standalone_tools::templates::ToolType),
+/// which is `"type":"tool"` and the `mode` its tools are kept by — so
+/// an agent template is `{"type":"agent",…}` and a tool template
+/// `{"type":"tool","mode":…,…}`, neither decoding as the other, and
+/// the two hashing apart however alike the rest.
 ///
 /// # No provider, so that it travels
 ///
@@ -43,9 +44,10 @@ use crate::daemon::endpoints::agents::create::client::request::Image;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Template<Type> {
-    /// What the template is for: the one value the family's type
-    /// admits, `agent` or `tool`. Inside the hash, so the two kinds
-    /// never hash the same.
+    /// What the family says of itself, flat among the members: its
+    /// `type`, `agent` or `tool`, and for a tool the `mode` beside it.
+    /// Inside the hash, so the two kinds never hash the same.
+    #[serde(flatten)]
     pub r#type: Type,
     /// How to make a container from this, in words, for whoever does:
     /// what the create has to supply that a template cannot name — the

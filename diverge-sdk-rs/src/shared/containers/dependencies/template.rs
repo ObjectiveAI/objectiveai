@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::Kind;
+use super::Mode;
 use super::super::request::Image;
 use crate::shared::permission::Grant;
 
@@ -20,10 +20,10 @@ use crate::shared::permission::Grant;
 /// and directories, each a path in the agent container served live at
 /// a path in the tool container: the caller serves the agent
 /// container, a `containers::serve` of the path, and mounts the tool,
-/// a `fuse::mount` answered from it. [`kind`](Self::kind) says which
-/// of the two kinds the dependency is — a transient tool of the
+/// a `fuse::mount` answered from it. [`mode`](Self::mode) says which
+/// of the two modes the dependency is — a transient tool of the
 /// agent's run, with those mounts, or a service the caller keeps,
-/// with a scope — see [`Kind`]; and [`permissions`](Self::permissions)
+/// with a scope — see [`Mode`]; and [`permissions`](Self::permissions)
 /// what its account may do — grants that name nothing, so the
 /// template is the same on every daemon it reaches, and among them
 /// the word `self`, which reaches the agent a transient tool is the
@@ -40,7 +40,7 @@ use crate::shared::permission::Grant;
 /// hexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)
 /// bytes — this template as compact JSON, absent members omitted,
 /// the image's `references` absent too, every object key sorted at
-/// every depth, the `arguments` included, the kind's `type` and its
+/// every depth, the `arguments` included, the `mode` and its
 /// members among the keys — sixty-four characters, which the caller
 /// computes over [`hashed`](Self::hashed). Two declarations with one
 /// id are one dependency, and a list that declares one twice is
@@ -63,11 +63,11 @@ pub struct Template {
     /// The arguments the tool container is registered with — the
     /// `arguments` of the run request that makes it, verbatim.
     pub arguments: Value,
-    /// Which kind of dependency this is, with that kind's own members
-    /// flat beside the `type` that names it: a transient tool's
-    /// mounts, or a service's scope. See [`Kind`].
+    /// Which mode of dependency this is, with that mode's own members
+    /// flat beside the `mode` that names it: a transient tool's
+    /// mounts, or a service's scope. See [`Mode`].
     #[serde(flatten)]
-    pub kind: Kind,
+    pub mode: Mode,
     /// What the tool's account may do, as grants that name nothing:
     /// see [`Grant`]. The caller gives the tool an account holding
     /// exactly these. Absent when empty, and then the tool may do

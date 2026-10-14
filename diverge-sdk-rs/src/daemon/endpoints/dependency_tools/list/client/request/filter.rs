@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::daemon::creator::Creator;
 use crate::daemon::reference;
 use crate::shared::containers::dependencies::Scope;
-use super::Type;
+use super::Mode;
 
 /// The filter over dependency tools: every member optional, and every
 /// one given a condition a tool passes or does not. In a [list
@@ -18,7 +18,7 @@ use super::Type;
 ///
 /// A member that lists candidates matches a tool that is of any one
 /// of them, owned by any one of them, was made by any one of them, or
-/// is of any one of their types or scopes; `agents` a tool every one
+/// is of any one of their modes or scopes; `agents` a tool every one
 /// of them depends on; `all_tags` a tool that carries every one of
 /// them, `any_tags` one that carries any one of them. An empty list is
 /// absent, and matches every tool.
@@ -39,10 +39,10 @@ pub struct Filter {
     /// made by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
-    /// Of any one of these types, transient or a service: see
-    /// [`Type`]. Absent when empty, and then either.
+    /// Of any one of these modes, transient or a service: see
+    /// [`Mode`]. Absent when empty, and then either.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub types: Vec<Type>,
+    pub modes: Vec<Mode>,
     /// A service whose `scope` is any one of these: see [`Scope`]. A
     /// transient tool has no scope and matches none of them. Absent
     /// when empty, and then any scope, or none.

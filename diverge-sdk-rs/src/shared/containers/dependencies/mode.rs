@@ -1,13 +1,13 @@
-//! Which of the two kinds of dependency a template declares.
+//! Which of the two modes a dependency template declares.
 
 use serde::{Deserialize, Serialize};
 
 use super::{Mount, Scope};
 
 /// A transient tool, or a service: the two things a dependency can be,
-/// told apart on the wire by the `type` member beside the template's
+/// told apart on the wire by the `mode` member beside the template's
 /// other members — `"transient"` or `"service"` — with the members of
-/// that kind flat beside it, and no member of the other.
+/// that mode flat beside it, and no member of the other.
 ///
 /// # A transient tool is the agent's run's
 ///
@@ -38,9 +38,9 @@ use super::{Mount, Scope};
 /// ever attached.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum Kind {
-    /// A tool for the agent's run: `"type":"transient"`.
+#[serde(tag = "mode", rename_all = "snake_case")]
+pub enum Mode {
+    /// A tool for the agent's run: `"mode":"transient"`.
     Transient {
         /// Files of the agent container served live into the tool
         /// container, one each over FUSE: see [`Mount`]. The agent's
@@ -56,7 +56,7 @@ pub enum Kind {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         fuse_directory_mounts: Vec<Mount>,
     },
-    /// A service the caller keeps: `"type":"service"`.
+    /// A service the caller keeps: `"mode":"service"`.
     Service {
         /// How far the service is shared, and its database with it:
         /// see [`Scope`].

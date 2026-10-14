@@ -4,9 +4,9 @@
 //! An AGENT container's program answers its registration with the
 //! tools it depends on — each a [`Template`]: a tool container the
 //! caller runs, by its image — a digest, and where its bytes may be
-//! fetched — its limits and its arguments; which of two kinds it is,
+//! fetched — its limits and its arguments; which of two modes it is,
 //! a transient tool of the agent's run or a service the caller keeps,
-//! with the kind's own members — the agent's files and directories
+//! with the mode's own members — the agent's files and directories
 //! the caller serves live into a transient tool, how far a service is
 //! shared; the grants its account holds — and named by its id, the
 //! hash of its canonical bytes, which the caller serves it to the
@@ -30,7 +30,7 @@
 //! between a dependency tool template and the tool templates a daemon
 //! keeps for itself, and why one travels inside an image.
 
-mod kind;
+mod mode;
 mod mount;
 mod scope;
 mod template;
@@ -38,7 +38,7 @@ mod template;
 pub mod request;
 pub mod response;
 
-pub use kind::*;
+pub use mode::*;
 pub use mount::*;
 pub use scope::*;
 pub use template::*;
