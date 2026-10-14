@@ -118,5 +118,5 @@ Three visual rules carry the distinctions, and every pane obeys them:
 ## Footer
 
 A line of fine print along the bottom in the manner of a 1950s
-guarantee: "Every tool answers the daemon's word on who is calling and
-who answered. Templates are shareable; what a tool is given is yours."
+guarantee: "Fully guaranteed by the Daemon. Not sold in stores. Batteries
+not included. Ask your agent about templates today!"
