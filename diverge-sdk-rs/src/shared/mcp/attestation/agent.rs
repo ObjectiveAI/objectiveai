@@ -1,18 +1,18 @@
-//! The agent on the other side.
+//! The agent inside the harness.
 
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::key;
 use crate::shared::containers::request::Image;
 
-/// An agent, as the daemon attests it: on the `_meta` of every
-/// request it sends outward, and of every chunk it says. Written
-/// `{"kind":"agent","image":{…},"template":…,"index":…,"name":…}`.
-/// An agent is always run from its image, so the image is always
-/// here.
+/// An agent of this daemon's, as the daemon attests it: the `agent`
+/// kind of a [`Caller`](super::Caller), on the `_meta` of every
+/// request its container sends outward, and what every chunk it says
+/// is stamped with. Its image and its key, flat beside the kind:
+/// `"image":{…},"template":…,"index":…,"name":…`. An agent is always
+/// run from its image, so the image is always here.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
-#[serde(tag = "kind", rename = "agent")]
 pub struct Agent {
     /// The image the agent was made from.
     pub image: Image,

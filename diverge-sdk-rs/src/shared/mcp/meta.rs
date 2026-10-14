@@ -1,15 +1,18 @@
 //! The one key the daemon sets under `_meta`: who is on the other
 //! side.
 //!
-//! One key, [`KEY`], one JSON object — the agent, or the tool — set
-//! by [`attest`] on a `_meta` the daemon forwards or relays. An agent's
-//! calls outward carry the agent, with its image; a tool's answers
-//! carry the tool, with its image and its template — a tool this
-//! daemon runs as the run request made it, a tool another daemon
-//! runs as that daemon told on the connect; an agent's chunks carry
-//! the agent. The daemon's stamp replaces whatever an answer arrived
-//! with: a stamp from outside is not trusted. Who sets it, and where,
-//! is stated in [`mcp`](super); what each kind carries, in
+//! One key, [`KEY`], one JSON object — the caller, or the tool — set
+//! by [`attest`] on a `_meta` the daemon forwards or relays. A
+//! request carries the caller: an agent of this daemon's, with its
+//! image, when its container sent the call; the identity this daemon
+//! authorized, and nothing more, when the call came over a connect
+//! from outside. An answer carries the tool, with its image and its
+//! template — a tool this daemon runs as the run request made it, a
+//! tool another daemon runs as that daemon told on the connect. An
+//! agent's chunks carry the agent, as the caller it is. The daemon's
+//! stamp replaces whatever arrived, either way: a stamp from outside
+//! is not trusted. Who sets it, and where, is stated in
+//! [`mcp`](super); what each kind carries, in
 //! [`attestation`](super::attestation).
 
 use rmcp::model::{MetaObject, RequestParamsMeta};
@@ -17,13 +20,13 @@ use rmcp::model::{MetaObject, RequestParamsMeta};
 use super::attestation::Attested;
 
 /// `diverge.network`: the one key, whose value is the
-/// [`Agent`](super::attestation::Agent) on a request and the
+/// [`Caller`](super::attestation::Caller) on a request and the
 /// [`Tool`](super::attestation::Tool) on an answer —
 /// `{"kind":…,"image":…,…}`, the kind naming which of the four it
 /// is, and the image a member of every kind.
 pub const KEY: &str = "diverge.network";
 
-/// Set [`KEY`] on `meta` to `attestation` — the agent or the tool,
+/// Set [`KEY`] on `meta` to `attestation` — the caller or the tool,
 /// see [`Attested`]. A value already under it is replaced, so that
 /// nothing under it attests what the daemon did not; every other key
 /// stays as it was sent.

@@ -11,7 +11,7 @@ use super::{
     UserResourceLinkChunk, UserTextContentChunk,
 };
 use crate::shared::mcp::attest;
-use crate::shared::mcp::attestation::Agent;
+use crate::shared::mcp::attestation::Caller;
 
 /// One chunk of a streaming agentic loop.
 ///
@@ -102,9 +102,10 @@ pub enum AgenticLoopChunk {
 impl AgenticLoopChunk {
     /// Set the key of [`shared::mcp`](crate::shared::mcp) on this
     /// chunk's `_meta`, whichever kind it is — made when the chunk
-    /// carried none: the speaking agent, with its image, in place of
-    /// whatever was under the key and beside everything else.
-    pub fn attest(&mut self, agent: &Agent) {
+    /// carried none: the speaking agent, as the caller it is, with its
+    /// image, in place of whatever was under the key and beside
+    /// everything else.
+    pub fn attest(&mut self, agent: &Caller) {
         let meta: &mut MetaObject = match self {
             AgenticLoopChunk::AssistantReasoning(chunk) => chunk.inner.meta.get_or_insert_default(),
             AgenticLoopChunk::AssistantTextContent(chunk) => chunk.inner.meta.get_or_insert_default(),

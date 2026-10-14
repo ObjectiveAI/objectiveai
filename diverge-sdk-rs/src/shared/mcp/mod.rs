@@ -35,13 +35,17 @@
 //! proxy, and the caller merges its servers into one list. So the
 //! caller says who is which, under one `_meta` key — [`KEY`],
 //! `diverge.network` — whose value is one object tagged `kind`, the
-//! [`Agent`](attestation::Agent) on a request and the
+//! [`Caller`](attestation::Caller) on a request and the
 //! [`Tool`](attestation::Tool) on an answer, set by [`attest`]; and
-//! the caller is the daemon. On the
-//! four requests an agent's program sends outward the daemon sets the
-//! agent — `kind` `agent`: its image, its template, its index, its
-//! name — on the params before it forwards the call, so a tool
-//! container that receives it knows which agent is calling. On what
+//! the one that says so is the daemon. On the four requests an
+//! agent's program sends outward the daemon sets the caller — `kind`
+//! `agent`: the agent's image, template, index and name — on the
+//! params before it forwards the call, so a tool container that
+//! receives it knows which agent is calling; and on the four an
+//! outside client puts over a connect, the serving daemon sets the
+//! caller too — `kind` `unbrokered`: the identity it authorized the
+//! connection as, and nothing the client said of itself — before the
+//! exchange reaches the tool. On what
 //! a tool container's own server answers — the result of each of the
 //! four, each tool and each resource of a list, and each notification
 //! — the daemon sets the tool as it relays the answer back, so a
@@ -53,14 +57,12 @@
 //! which is not MCP but has the same `_meta` at its top level, the
 //! daemon sets the agent as it keeps the chunk, so a reader of the
 //! log knows which agent spoke. The daemon replaces a value set under
-//! the key and leaves every other key as it was sent — and sets
-//! nothing on a request that arrives over a connect from another
-//! daemon's agent, which goes to the tool as sent; the proxy and
+//! the key and leaves every other key as it was sent; the proxy and
 //! the provider's server set nothing under `_meta` and relay all of
 //! it as sent. The key's form is MCP's own rule for `_meta` names: a
 //! prefix of dotted labels — here the prefix alone. The side that
 //! receives it reads it back as its type through [`attestation`]: a
-//! tool reads a request's agent, an agent an answer's tool.
+//! tool reads a request's caller, an agent an answer's tool.
 //!
 //! # What is not here
 //!
