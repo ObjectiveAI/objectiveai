@@ -3,11 +3,17 @@
 //!
 //! One object under [`KEY`](super::KEY), an [`Attestation`], tagged
 //! `kind`: an [`Agent`] (`agent`), or a [`Tool`] — `created`,
-//! `connected` or `dependency`. The image is a member of every kind
-//! but `connected`: a connected tool runs on another daemon, which
-//! attested it, and this daemon never saw its image. So a reader that
-//! holds the type holds the image, and needs no key to be missing to
-//! learn it is not there.
+//! `connected` or `dependency`. Every kind carries the image its
+//! container was made from, and every tool kind the template too: a
+//! reader that holds the type holds them. A created tool and a
+//! connected tool are one shape, told apart by the kind alone; what
+//! this daemon cannot see of a connected tool — its image, its
+//! template — the daemon that runs it told once, in the answer that
+//! opened the connect, and this daemon attests it as its own stamp,
+//! replacing whatever that daemon stamped: a stamp from outside is
+//! not trusted. The other way, a request that arrives over a connect
+//! from another daemon's agent is put to the tool as that daemon sent
+//! it — this daemon stamps nothing on it, there being no point.
 //!
 //! The two sides read differently. A tool container receives the
 //! four requests, each carrying the calling agent: [`request`] reads

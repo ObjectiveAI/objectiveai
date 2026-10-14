@@ -45,13 +45,16 @@
 //! four, each tool and each resource of a list, and each notification
 //! — the daemon sets the tool as it relays the answer back, so a
 //! program that reads a merged list knows which tool serves each:
-//! `kind` `created` or `dependency` with the tool's image, since the
-//! daemon ran it, or `kind` `connected` without one, since another
-//! daemon runs it and attested it. And on every chunk an agent says,
+//! `kind` `created`, `connected` or `dependency`, each with the
+//! tool's image and template — a connected tool's as the daemon that
+//! runs it told on the connect, this daemon's stamp replacing that
+//! daemon's, which is not trusted. And on every chunk an agent says,
 //! which is not MCP but has the same `_meta` at its top level, the
 //! daemon sets the agent as it keeps the chunk, so a reader of the
 //! log knows which agent spoke. The daemon replaces a value set under
-//! the key and leaves every other key as it was sent; the proxy and
+//! the key and leaves every other key as it was sent — and sets
+//! nothing on a request that arrives over a connect from another
+//! daemon's agent, which goes to the tool as sent; the proxy and
 //! the provider's server set nothing under `_meta` and relay all of
 //! it as sent. The key's form is MCP's own rule for `_meta` names: a
 //! prefix of dotted labels — here the prefix alone. The side that

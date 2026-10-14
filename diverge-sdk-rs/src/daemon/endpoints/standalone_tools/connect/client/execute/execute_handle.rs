@@ -13,6 +13,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use super::super::channel_request;
 use crate::provider::endpoints::containers::client::answered::{McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource};
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError, unary};
+use crate::shared::containers::request::Image;
 use crate::shared::mcp;
 use crate::wire::client::handle::Handle;
 use crate::wire::encode::{Encode, Writer};
@@ -39,6 +40,8 @@ pub struct ExecuteHandle {
     handle: Handle,
     scope: u32,
     main: Mutex<UnboundedReceiver<Bytes>>,
+    image: Image,
+    template: String,
 }
 
 /// One channel request of this scope, as its bytes.
@@ -49,12 +52,27 @@ fn payload(frame: &channel_request::Frame) -> Result<Vec<u8>, serde_json::Error>
 }
 
 impl ExecuteHandle {
-    pub(super) fn new(handle: Handle, scope: u32, main: UnboundedReceiver<Bytes>) -> Self {
+    pub(super) fn new(handle: Handle, scope: u32, main: UnboundedReceiver<Bytes>, image: Image, template: String) -> Self {
         ExecuteHandle {
             handle,
             scope,
             main: Mutex::new(main),
+            image,
+            template,
         }
+    }
+
+    /// The image the tool's container was made from, as the daemon
+    /// told it on the connect: what a connecting daemon attests on the
+    /// tool's answers.
+    pub fn image(&self) -> &Image {
+        &self.image
+    }
+
+    /// The template the tool was made from, by id, as the daemon told
+    /// it on the connect: likewise attested.
+    pub fn template(&self) -> &str {
+        &self.template
     }
 
     /// The scope's number, as this end minted it.

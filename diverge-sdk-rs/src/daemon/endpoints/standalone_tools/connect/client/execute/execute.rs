@@ -12,7 +12,9 @@ use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame;
 
 /// Open a connect on `handle` and read the daemon's one answer: the
-/// [`ExecuteHandle`] when the tool is connected, else why it is not.
+/// [`ExecuteHandle`] when the tool is connected — holding what the
+/// daemon told of the tool, its image and its template — else why it
+/// is not.
 /// The scope's request stream is dropped unread: the daemon opens no
 /// channel of its own on a connect.
 pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<ExecuteHandle, ExecuteError> {
@@ -26,13 +28,13 @@ pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<Execut
         frame::server::ServerFrame::ResponseFinish { .. } => return Err(ExecuteError::Unanswered),
         _ => return Err(ExecuteError::Misrouted),
     };
-    match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
-        response::Frame::Connected => {}
+    let (image, template) = match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
+        response::Frame::Connected { image, template } => (image, template),
         response::Frame::NotFound => return Err(ExecuteError::NotFound),
         response::Frame::Forbidden => return Err(ExecuteError::Forbidden),
         response::Frame::Error(error) => return Err(ExecuteError::Daemon(error)),
-    }
-    Ok(ExecuteHandle::new(handle.clone(), scope.scope, scope.response_receiver))
+    };
+    Ok(ExecuteHandle::new(handle.clone(), scope.scope, scope.response_receiver, image, template))
 }
 
 /// A connect that did not connect.

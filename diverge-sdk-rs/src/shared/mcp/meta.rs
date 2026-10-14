@@ -4,25 +4,30 @@
 //! One key, [`KEY`], one JSON object, an [`Attestation`]: set by
 //! [`attest`] on a `_meta` the daemon forwards or relays. An agent's
 //! calls outward carry the agent, with its image; a tool's answers
-//! carry the tool — with its image when the daemon ran it, and
-//! without when the tool is another daemon's, joined through a
-//! connect; an agent's chunks carry the agent. Who sets it, and
-//! where, is stated in [`mcp`](super); what each kind carries, in
+//! carry the tool, with its image and its template — a tool this
+//! daemon runs as the run request made it, a tool another daemon
+//! runs as that daemon told on the connect; an agent's chunks carry
+//! the agent. The daemon's stamp replaces whatever an answer arrived
+//! with: a stamp from outside is not trusted. Who sets it, and where,
+//! is stated in [`mcp`](super); what each kind carries, in
 //! [`attestation`](super::attestation).
 
 use rmcp::model::{MetaObject, RequestParamsMeta};
 
-use super::attestation::Attestation;
+use super::attestation::Attested;
 
 /// `diverge.network`: the one key, whose value is an
-/// [`Attestation`] — `{"kind":…,…}`, the kind naming which of the
-/// four it is, and the image a member of every kind but `connected`.
+/// [`Attestation`](super::attestation::Attestation) —
+/// `{"kind":…,"image":…,…}`, the kind naming which of the four it
+/// is, and the image a member of every kind.
 pub const KEY: &str = "diverge.network";
 
-/// Set [`KEY`] on `meta` to `attestation`. A value already under it
-/// is replaced, so that nothing under it attests what the daemon did
+/// Set [`KEY`] on `meta` to `attestation` — an
+/// [`Attestation`](super::attestation::Attestation), or
+/// either half of one, see [`Attested`]. A value already under it is
+/// replaced, so that nothing under it attests what the daemon did
 /// not; every other key stays as it was sent.
-pub fn attest(meta: &mut MetaObject, attestation: &Attestation) {
+pub fn attest<A: Attested>(meta: &mut MetaObject, attestation: &A) {
     if let Ok(value) = serde_json::to_value(attestation) {
         meta.insert(KEY.to_string(), value);
     }
@@ -30,6 +35,6 @@ pub fn attest(meta: &mut MetaObject, attestation: &Attestation) {
 
 /// [`attest`] on a request's params, whose `_meta` is made when the
 /// request carried none.
-pub fn attest_request<P: RequestParamsMeta>(params: &mut P, attestation: &Attestation) {
+pub fn attest_request<P: RequestParamsMeta, A: Attested>(params: &mut P, attestation: &A) {
     attest(params.meta_or_default(), attestation);
 }

@@ -1,11 +1,12 @@
 //! What a server's response frame carries for a connect.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
+use crate::shared::containers::request::Image;
+use crate::shared::error::Error;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::error::Error;
 
 /// A connect's answer: the tool is connected, no tool is the one
 /// named, forbidden, or a failure.
@@ -18,8 +19,18 @@ use crate::shared::error::Error;
 /// [`NotFound`](Self::NotFound), [`Forbidden`](Self::Forbidden) or
 /// [`Error`](Self::Error), then the finish. A payload leads with one
 /// byte saying which — `0` for `Connected`, `1` for `NotFound`, `2`
-/// for `Forbidden`, `3` for `Error` — and only the error carries
-/// anything after it.
+/// for `Forbidden`, `3` for `Error` — and `Connected` and the error
+/// carry JSON after it.
+///
+/// # What `Connected` tells
+///
+/// What the connecting daemon cannot see of the tool, since the
+/// daemon that answers ran its container and the connecting daemon
+/// did not: the image the container was made from, and the template
+/// the tool was made from. The connecting daemon attests both on
+/// everything the tool answers its agents, as its own `connected`
+/// stamp — see [`attestation`](crate::shared::mcp::attestation) —
+/// in place of whatever the answering daemon stamped.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -44,15 +55,21 @@ use crate::shared::error::Error;
 /// # As JSON
 ///
 /// For a client that prints what the daemon answered: the variant,
-/// snake case, over its payload — `{"found":…}`, `{"error":…}` — and
-/// a bare variant the string alone — `"not_found"`. The wire is the
-/// tag byte and the payload, never this.
+/// snake case, over its payload — `{"connected":{"image":…,"template":…}}`,
+/// `{"error":…}` — and a bare variant the string alone —
+/// `"not_found"`. The wire is the tag byte and the payload, never
+/// this.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// The tool is connected: its container runs, and its channels
-    /// answer. Tag `0`, once, first.
-    Connected,
+    /// answer. Tag `0`, once, first, then `{"image":…,"template":…}`.
+    Connected {
+        /// The image the tool's container was made from.
+        image: Image,
+        /// The template the tool was made from, by id.
+        template: String,
+    },
     /// No tool of the caller's is the one named; nothing changed. Tag
     /// `1`.
     NotFound,
@@ -88,9 +105,9 @@ impl Encode for Frame {
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Connected => {
+            Frame::Connected { image, template } => {
                 out.extend_from_slice(&[CONNECTED]);
-                Ok(())
+                serde_json::to_writer(out, &Connected { image, template })
             }
             Frame::NotFound => {
                 out.extend_from_slice(&[NOT_FOUND]);
@@ -116,13 +133,29 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            CONNECTED => Ok(Frame::Connected),
+            CONNECTED => serde_json::from_slice::<Connected<Image, String>>(rest)
+                .map(|told| Frame::Connected {
+                    image: told.image,
+                    template: told.template,
+                })
+                .map_err(FrameError::Connected),
             NOT_FOUND => Ok(Frame::NotFound),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
+}
+
+/// What follows the `Connected` tag, as JSON: the one shape on the
+/// wire, written from the frame's borrowed members and read into
+/// owned ones.
+#[derive(Serialize, Deserialize)]
+struct Connected<I, T> {
+    /// The image.
+    image: I,
+    /// The template, by id.
+    template: T,
 }
 
 /// A connect response frame that could not be read.
@@ -132,6 +165,8 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's four.
     UnknownTag(u8),
+    /// What `Connected` tells did not parse.
+    Connected(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -141,6 +176,7 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("standalone tools connect response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown standalone tools connect response frame tag {tag}"),
+            FrameError::Connected(error) => write!(f, "standalone tools connect's connected did not parse: {error}"),
             FrameError::Error(error) => write!(f, "standalone tools connect error did not parse: {error}"),
         }
     }
@@ -149,7 +185,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Error(error) => Some(error),
+            FrameError::Connected(error) | FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

@@ -23,12 +23,24 @@ pub enum Attestation {
 }
 
 impl Attestation {
-    /// The image of the container on the other side: an agent's
-    /// always, a tool's but a connected one's.
-    pub fn image(&self) -> Option<&Image> {
+    /// The image the container on the other side was made from: every
+    /// kind's.
+    pub fn image(&self) -> &Image {
         match self {
-            Attestation::Agent(agent) => Some(&agent.image),
+            Attestation::Agent(agent) => &agent.image,
             Attestation::Tool(tool) => tool.image(),
         }
     }
 }
+
+/// What [`attest`](crate::shared::mcp::attest) writes: an
+/// [`Attestation`], or either half of one — the halves write the same
+/// JSON the whole does, since the whole is untagged — so a run that
+/// holds its own half stamps with it as it is.
+pub trait Attested: Serialize {}
+
+impl Attested for Attestation {}
+
+impl Attested for Agent {}
+
+impl Attested for Tool {}
