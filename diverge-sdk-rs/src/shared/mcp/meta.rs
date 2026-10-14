@@ -1,8 +1,8 @@
 //! The one key the daemon sets under `_meta`: who is on the other
 //! side.
 //!
-//! One key, [`KEY`], one JSON object, an [`Attestation`]: set by
-//! [`attest`] on a `_meta` the daemon forwards or relays. An agent's
+//! One key, [`KEY`], one JSON object — the agent, or the tool — set
+//! by [`attest`] on a `_meta` the daemon forwards or relays. An agent's
 //! calls outward carry the agent, with its image; a tool's answers
 //! carry the tool, with its image and its template — a tool this
 //! daemon runs as the run request made it, a tool another daemon
@@ -16,17 +16,17 @@ use rmcp::model::{MetaObject, RequestParamsMeta};
 
 use super::attestation::Attested;
 
-/// `diverge.network`: the one key, whose value is an
-/// [`Attestation`](super::attestation::Attestation) —
+/// `diverge.network`: the one key, whose value is the
+/// [`Agent`](super::attestation::Agent) on a request and the
+/// [`Tool`](super::attestation::Tool) on an answer —
 /// `{"kind":…,"image":…,…}`, the kind naming which of the four it
 /// is, and the image a member of every kind.
 pub const KEY: &str = "diverge.network";
 
-/// Set [`KEY`] on `meta` to `attestation` — an
-/// [`Attestation`](super::attestation::Attestation), or
-/// either half of one, see [`Attested`]. A value already under it is
-/// replaced, so that nothing under it attests what the daemon did
-/// not; every other key stays as it was sent.
+/// Set [`KEY`] on `meta` to `attestation` — the agent or the tool,
+/// see [`Attested`]. A value already under it is replaced, so that
+/// nothing under it attests what the daemon did not; every other key
+/// stays as it was sent.
 pub fn attest<A: Attested>(meta: &mut MetaObject, attestation: &A) {
     if let Ok(value) = serde_json::to_value(attestation) {
         meta.insert(KEY.to_string(), value);

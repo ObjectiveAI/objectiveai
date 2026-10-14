@@ -1,9 +1,11 @@
 //! What the daemon attests under `_meta`, as types: written by the
 //! daemon, read by the container on the other side.
 //!
-//! One object under [`KEY`](super::KEY), an [`Attestation`], tagged
-//! `kind`: an [`Agent`] (`agent`), or a [`Tool`] — `created`,
-//! `connected` or `dependency`. Every kind carries the image its
+//! One object under [`KEY`](super::KEY), tagged `kind`: the
+//! [`Agent`] (`agent`) on a request, the [`Tool`] (`created`,
+//! `connected` or `dependency`) on an answer — one or the other, which
+//! side the `_meta` is on saying which, so there is no union to read
+//! and no ambiguity. Every kind carries the image its
 //! container was made from, and every tool kind the template too: a
 //! reader that holds the type holds them. A created tool and a
 //! connected tool are one shape, told apart by the kind alone; what
@@ -29,14 +31,14 @@
 //! through this module and not through the file it lives in.
 
 mod agent;
-mod attestation;
+mod attested;
 mod error;
 mod request;
 mod response;
 mod tool;
 
 pub use agent::*;
-pub use attestation::*;
+pub use attested::*;
 pub use error::*;
 pub use request::*;
 pub use response::*;

@@ -34,9 +34,10 @@
 //! A container never addresses one server over another: it sees its
 //! proxy, and the caller merges its servers into one list. So the
 //! caller says who is which, under one `_meta` key — [`KEY`],
-//! `diverge.network` — whose value is an
-//! [`Attestation`](attestation::Attestation), one object tagged
-//! `kind`, set by [`attest`]; and the caller is the daemon. On the
+//! `diverge.network` — whose value is one object tagged `kind`, the
+//! [`Agent`](attestation::Agent) on a request and the
+//! [`Tool`](attestation::Tool) on an answer, set by [`attest`]; and
+//! the caller is the daemon. On the
 //! four requests an agent's program sends outward the daemon sets the
 //! agent — `kind` `agent`: its image, its template, its index, its
 //! name — on the params before it forwards the call, so a tool
