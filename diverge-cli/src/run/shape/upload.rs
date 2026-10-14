@@ -7,7 +7,7 @@ use bytes::Bytes;
 use diverge_sdk::shared::error::Error as Refusal;
 use diverge_sdk::wire::client::handle::Handle;
 use futures_util::stream::{self, Once};
-use serde_json::Value;
+use serde::Serialize;
 
 use crate::run::{Emitter, Error};
 
@@ -16,15 +16,17 @@ use crate::run::{Emitter, Error};
 pub type Content = Once<std::pin::Pin<Box<dyn Future<Output = Result<Bytes, Refusal>> + Send>>>;
 
 /// An upload's request: its endpoint's executor, one implementation
-/// per endpoint, answering the response as JSON.
+/// per endpoint, answering the endpoint's own response frame.
 pub trait Upload {
+    /// The answer: the endpoint's own response frame.
+    type Answer: Serialize;
     /// The request put with `source` answering the daemon's asks: the
-    /// endpoint's own `execute`, its answer as JSON.
+    /// endpoint's own `execute`, its answer.
     fn execute<F>(
         &self,
         handle: &Handle,
         source: F,
-    ) -> impl Future<Output = Result<Value, Error>> + Send
+    ) -> impl Future<Output = Result<Self::Answer, Error>> + Send
     where
         F: FnMut(Option<String>) -> Option<Content> + Send;
 }
@@ -55,7 +57,7 @@ pub async fn upload<Q: Upload>(
             >))
     };
     let answer = request.execute(handle, source).await?;
-    emitter.emit_value(answer).await?;
+    emitter.emit(&answer).await?;
     Ok(())
 }
 

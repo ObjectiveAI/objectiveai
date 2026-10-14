@@ -4,9 +4,9 @@
 
 use clap::Args;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::request;
-use rmcp::model::ReadResourceRequestParams;
+use rmcp::model::{ReadResourceRequestParams, ReadResourceResult};
 
-use crate::run::{Below, Emitter, Error, Target, body, request_schema, shape};
+use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
 /// One read of one of the tool's MCP resources, by URI.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
@@ -20,8 +20,9 @@ pub struct Arguments {
     #[arg(long, value_name = "URI")]
     pub uri: String,
     /// What is beneath the exchange: `request-schema`, the JSON Schema
-    /// of the connect request every exchange takes as its body, printed
-    /// in place of connecting.
+    /// of the connect request every exchange takes as its body, or
+    /// `response-schema`, the JSON Schema of every line it prints —
+    /// printed in place of connecting.
     #[command(subcommand)]
     pub below: Option<Below>,
 }
@@ -33,9 +34,22 @@ pub async fn run(
     target: &Target<'_>,
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
-    if let Some(Below::RequestSchema(_)) = arguments.below {
-        return request_schema::<request::Frame>("diverge run standalone-tools connect", emitter)
+    match arguments.below {
+        Some(Below::RequestSchema(_)) => {
+            return request_schema::<request::Frame>(
+                "diverge run standalone-tools connect",
+                emitter,
+            )
             .await;
+        }
+        Some(Below::ResponseSchema(_)) => {
+            return response_schema::<shape::mcp::Line<ReadResourceResult>>(
+                "diverge run standalone-tools connect read-resource",
+                emitter,
+            )
+            .await;
+        }
+        None => {}
     }
     let request: request::Frame = body(arguments.body.as_deref())?;
     let handle = target.dial().await?;

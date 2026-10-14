@@ -5,8 +5,8 @@
 //! stream, a pending answer, an upload with content channels, and the
 //! MCP connect scope — and every endpoint is one of them.
 //! [`one_shot`], [`stream`] (with a [`Stop`] that ends a list at its
-//! `listed` and a filetree at its snapshot), [`pending`], [`download`],
-//! [`upload`] and [`mcp`] (the leaf naming the exchange the scope is
+//! `listed` and a filetree at its snapshot), [`pending`], [`download()`],
+//! [`upload`] and [`mcp()`] (the leaf naming the exchange the scope is
 //! held for) put a request of that shape — decoded
 //! already as the endpoint's own type, by the leaf that owns it — and
 //! print its answers as the endpoint's own frames. The two shapes that carry
@@ -20,17 +20,19 @@
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
-mod download;
-mod mcp;
+mod answer;
 mod one_shot;
 mod pending;
 mod stream;
 mod upload;
 
+pub mod download;
 pub mod exchange;
+pub mod mcp;
 
-pub use download::*;
-pub use mcp::*;
+pub use answer::*;
+pub use download::{Download, Downloaded, download};
+pub use mcp::mcp;
 pub use one_shot::*;
 pub use pending::*;
 pub use stream::*;

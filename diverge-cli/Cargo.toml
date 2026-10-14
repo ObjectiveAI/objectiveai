@@ -58,7 +58,7 @@ futures-util = { version = "0.3.33", default-features = false, features = ["std"
 # The bytes of a download's chunk and an upload's piece.
 bytes = "1.11.1"
 # The MCP request and result types of the one exchange a connect
-# run puts.
-rmcp = { version = "3.1.2", default-features = false }
+# run puts; `schemars`: the result's schema, for `response-schema`.
+rmcp = { version = "3.1.2", default-features = false, features = ["schemars"] }
 # The JSON Schema of a request's body, as `request-schema` prints it.
 schemars = "1.2.2"

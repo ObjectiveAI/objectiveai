@@ -6,12 +6,13 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::dependency_tools::upload::{client::execute, client::request};
+use diverge_sdk::daemon::endpoints::dependency_tools::upload::{
+    client::execute, client::request, server::response,
+};
 use diverge_sdk::wire::client::handle::Handle;
-use serde_json::Value;
 
 use crate::run::shape::{Content, Upload};
-use crate::run::{Below, Emitter, Error, Target, body, request_schema, shape};
+use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
 /// Uploading files into a dependency tool's container.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
@@ -27,7 +28,8 @@ pub struct Arguments {
     #[arg(long = "path", value_name = "LOCAL")]
     pub local: PathBuf,
     /// What is beneath the request: `request-schema`, the JSON Schema
-    /// of the body it takes, printed in place of putting any request.
+    /// of the body it takes, or `response-schema`, the JSON Schema of
+    /// every line it prints — printed in place of putting any request.
     #[command(subcommand)]
     pub below: Option<Below>,
 }
@@ -39,9 +41,22 @@ pub async fn run(
     target: &Target<'_>,
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
-    if let Some(Below::RequestSchema(_)) = arguments.below {
-        return request_schema::<request::Frame>("diverge run dependency-tools upload", emitter)
+    match arguments.below {
+        Some(Below::RequestSchema(_)) => {
+            return request_schema::<request::Frame>(
+                "diverge run dependency-tools upload",
+                emitter,
+            )
             .await;
+        }
+        Some(Below::ResponseSchema(_)) => {
+            return response_schema::<response::Frame>(
+                "diverge run dependency-tools upload",
+                emitter,
+            )
+            .await;
+        }
+        None => {}
     }
     let request: request::Frame = body(arguments.body.as_deref())?;
     let handle = target.dial().await?;
@@ -49,13 +64,14 @@ pub async fn run(
 }
 
 impl Upload for request::Frame {
-    async fn execute<F>(&self, handle: &Handle, source: F) -> Result<Value, Error>
+    type Answer = response::Frame;
+
+    async fn execute<F>(&self, handle: &Handle, source: F) -> Result<response::Frame, Error>
     where
         F: FnMut(Option<String>) -> Option<Content> + Send,
     {
-        let answer = execute::execute(handle, self, source)
+        execute::execute(handle, self, source)
             .await
-            .map_err(shape::exchange::upload)?;
-        serde_json::to_value(&answer).map_err(Error::Json)
+            .map_err(shape::exchange::upload)
     }
 }

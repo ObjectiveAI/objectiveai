@@ -4,7 +4,7 @@
 use clap::Args;
 use diverge_sdk::daemon::endpoints::agents::edit::{client::request, server::response};
 
-use crate::run::{Below, Emitter, Error, Target, body, request_schema, shape};
+use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
 /// Editing an agent: its name, its mounts.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
@@ -16,7 +16,8 @@ pub struct Arguments {
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
     /// What is beneath the request: `request-schema`, the JSON Schema
-    /// of the body it takes, printed in place of putting any request.
+    /// of the body it takes, or `response-schema`, the JSON Schema of
+    /// every line it prints — printed in place of putting any request.
     #[command(subcommand)]
     pub below: Option<Below>,
 }
@@ -27,8 +28,14 @@ pub async fn run(
     target: &Target<'_>,
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
-    if let Some(Below::RequestSchema(_)) = arguments.below {
-        return request_schema::<request::Frame>("diverge run agents edit", emitter).await;
+    match arguments.below {
+        Some(Below::RequestSchema(_)) => {
+            return request_schema::<request::Frame>("diverge run agents edit", emitter).await;
+        }
+        Some(Below::ResponseSchema(_)) => {
+            return response_schema::<response::Frame>("diverge run agents edit", emitter).await;
+        }
+        None => {}
     }
     let request: request::Frame = body(arguments.body.as_deref())?;
     let handle = target.dial().await?;

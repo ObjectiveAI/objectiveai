@@ -10,9 +10,12 @@
 //! write files take `--path`, the connect holds its scope for the
 //! one MCP exchange its own subcommand names; nothing is
 //! checked at run time that the command line did not already shape.
-//! Beneath every request that takes a body is `request-schema`,
-//! which prints the JSON Schema of that body as the SDK states it
-//! and dials nothing: see [`request_schema()`].
+//! Beneath every request are `request-schema`, which prints the JSON
+//! Schema of the body it takes as the SDK states it, and
+//! `response-schema`, which prints the one JSON Schema of every line
+//! the request can print — the endpoint's own frames, and the lines the
+//! command prints itself — before any jq; neither dials: see
+//! [`request_schema()`] and [`response_schema()`], and [`Below`].
 //! Every body may carry `relay`, naming a daemon record and an
 //! account on it: the daemon dialled then serves the request on that
 //! daemon as that account, a conduit, and the answers come back as
@@ -40,12 +43,14 @@ use clap::{Args, Subcommand};
 
 use crate::config::Selected;
 
+mod below;
 mod body;
 mod dial;
 mod emit;
 mod error;
 mod refusing;
 mod request_schema;
+mod response_schema;
 mod target;
 
 pub mod shape;
@@ -59,12 +64,14 @@ pub mod roles;
 pub mod standalone_tools;
 pub mod volumes;
 
+pub use below::*;
 pub use body::*;
 pub use dial::*;
 pub use emit::*;
 pub use error::*;
 pub use refusing::*;
 pub use request_schema::*;
+pub use response_schema::*;
 pub use target::*;
 
 /// The command: which daemon, as whom, how the answers are printed,

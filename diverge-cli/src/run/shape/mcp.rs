@@ -8,16 +8,30 @@ use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::request;
 use diverge_sdk::wire::client::handle::Handle;
 use serde::Serialize;
-use serde_json::Value;
 
+use super::Answer;
 use crate::run::{Emitter, Error};
 
+/// What a connect leaf prints, one line: the connect's own answer when
+/// the daemon refuses it, or the exchange's result as the MCP result's
+/// own JSON, bare — untagged, so the line is the one or the other as
+/// it is.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum Line<T> {
+    /// The connect refused: see [`Answer`].
+    Answer(Answer),
+    /// The exchange's result.
+    Result(T),
+}
+
 /// The tool connected to, the one `exchange` put through the scope,
-/// its result printed as the MCP result's own JSON, and the scope
-/// disconnected and waited to its end. A connect the daemon refuses —
-/// no such tool, forbidden, or its own error — is printed as the
-/// answer it is, and the run ends there. Which exchange, and with
-/// what, is the leaf's: the shape holds the scope around it.
+/// its result printed as a [`Line`], and the scope disconnected and
+/// waited to its end. A connect the daemon refuses — no such tool,
+/// forbidden, or its own error — is printed as the answer it is, and
+/// the run ends there. Which exchange, and with what, is the leaf's:
+/// the shape holds the scope around it.
 pub async fn mcp<F, T, E>(
     handle: &Handle,
     connect: &request::Frame,
@@ -31,24 +45,26 @@ where
 {
     let tool = match execute::execute(handle, connect).await {
         Ok(tool) => tool,
-        Err(ExecuteError::NotFound) => return emitter.emit_value(Value::from("not_found")).await,
-        Err(ExecuteError::Forbidden) => return emitter.emit_value(Value::from("forbidden")).await,
+        Err(ExecuteError::NotFound) => {
+            return emit(emitter, Line::<T>::Answer(Answer::NotFound)).await;
+        }
+        Err(ExecuteError::Forbidden) => {
+            return emit(emitter, Line::<T>::Answer(Answer::Forbidden)).await;
+        }
         Err(ExecuteError::Daemon(error)) => {
-            return emitter
-                .emit_value(serde_json::json!({ "error": error }))
-                .await;
+            return emit(emitter, Line::<T>::Answer(Answer::Error(error))).await;
         }
         Err(ExecuteError::Closed | ExecuteError::Send(_)) => return Err(Error::Rejected),
         Err(error) => return Err(Error::Exchange(error.to_string())),
     };
-    let outcome = answer(exchange(&tool).await);
+    let outcome = exchange(&tool).await;
     let _ = tool.disconnect().await;
     tool.wait().await;
-    emitter.emit_value(outcome?).await
+    let result = outcome.map_err(|error| Error::Exchange(error.to_string()))?;
+    emit(emitter, Line::Result(result)).await
 }
 
-/// The exchange's result as JSON, or its failure in the SDK's words.
-fn answer<T: Serialize, E: Display>(outcome: Result<T, E>) -> Result<Value, Error> {
-    let result = outcome.map_err(|error| Error::Exchange(error.to_string()))?;
-    serde_json::to_value(result).map_err(Error::Json)
+/// One line printed.
+async fn emit<T: Serialize>(emitter: &mut Emitter, line: Line<T>) -> Result<(), Error> {
+    emitter.emit(&line).await.map(|_| ())
 }

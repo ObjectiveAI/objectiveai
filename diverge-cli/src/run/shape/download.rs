@@ -32,11 +32,34 @@ pub trait Download {
 
 /// A download's item: a chunk, taken apart, or an answer printed as
 /// it is.
-pub trait Downloaded: Serialize {
-    /// The chunk's path and body, or the item back when it is none.
-    fn chunk(self) -> Result<(Vec<String>, Bytes), Self>
-    where
-        Self: Sized;
+pub trait Downloaded {
+    /// The answer the item is when it is no chunk: the three every
+    /// download has, or a volume's four.
+    type Answer: Serialize;
+    /// The chunk's path and body, or the answer the item is when it is
+    /// no chunk.
+    fn chunk(self) -> Result<(Vec<String>, Bytes), Self::Answer>;
+}
+
+/// What a download leaf prints, one line: an answer of the daemon's,
+/// `A`, as it comes, or — once the stream has finished — one file
+/// written, its path and its size. Untagged, so the line is the one
+/// or the other as it is: `"not_found"`, `{"error":…}`,
+/// `{"path":[…],"bytes":N}`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum Line<A> {
+    /// An answer that is no chunk: the endpoint's own, see
+    /// [`Answer`](super::Answer) for the three every download has.
+    Answer(A),
+    /// One file written under the local path.
+    Written {
+        /// The file's path, as components, as the daemon named it.
+        path: Vec<String>,
+        /// How many bytes it holds.
+        bytes: u64,
+    },
 }
 
 /// The request put, every chunk appended to its file under `into` —
@@ -44,7 +67,7 @@ pub trait Downloaded: Serialize {
 /// for each file of a directory's, every parent made, each file
 /// truncated at its first chunk — every other answer emitted as it
 /// comes, and, once the stream has finished, one line per file
-/// written: its path and its size.
+/// written: its path and its size — each a [`Line`].
 pub async fn download<Q: Download>(
     handle: &Handle,
     request: &Q,
@@ -59,7 +82,7 @@ pub async fn download<Q: Download>(
         let (path, body) = match item.chunk() {
             Ok(chunk) => chunk,
             Err(answer) => {
-                emitter.emit(&answer).await?;
+                emitter.emit(&Line::Answer(answer)).await?;
                 continue;
             }
         };
@@ -101,7 +124,7 @@ pub async fn download<Q: Download>(
     }
     for (path, bytes) in written {
         emitter
-            .emit_value(serde_json::json!({ "path": path, "bytes": bytes }))
+            .emit(&Line::<<Q::Item as Downloaded>::Answer>::Written { path, bytes })
             .await?;
     }
     Ok(())
