@@ -8,6 +8,7 @@ use chrono::Utc;
 use diverge_sdk::shared::mcp::attestation;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::{execute as tools_connect, request as connect_request};
+use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::{execute as agents_run, request as agents_request};
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
 use tokio::sync::{Mutex, watch};
@@ -188,13 +189,14 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
 /// the container's run, or the connect scope, which the other daemon
 /// finishes when the tool's run ends there and this daemon's idle
 /// clock lets go after `idle_seconds` unused. A tool declares no
-/// dependencies, so nothing is served to it.
+/// dependencies, so nothing is served to it. Whether the tool is a
+/// service is its template's mode, read here for the run.
 pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, StartError> {
     if let Some(run) = daemon.live.tool_run(ToolKey::Record(tool.id)).await {
         return Ok(run);
     }
     let touched = watch::channel(Instant::now()).0;
-    let (identity, container, handle, mounts, attestation) = match &tool.origin {
+    let (identity, container, handle, mounts, attestation, service) = match &tool.origin {
         Origin::Created { template, provider: pinned } => {
             let record = {
                 let mut conn = daemon.store.acquire().await?;
@@ -248,7 +250,8 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 index: tool.index,
                 name: tool.name.clone(),
             };
-            (identity, Some(id), ToolHandle::Run(handle), mounts, attestation)
+            let service = record.template.r#type.mode == Mode::Service;
+            (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service)
         }
         Origin::Connected { daemon: name, tool: remote } => {
             let record = {
@@ -270,7 +273,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 name: tool.name.clone(),
                 daemon: name.clone(),
             };
-            (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation)
+            (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation, false)
         }
     };
     let run = Arc::new(ToolRun {
@@ -281,6 +284,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         provider: identity.clone(),
         container,
         handle,
+        service,
         users: Mutex::new(HashSet::new()),
         held: watch::channel(false).0,
         touched,

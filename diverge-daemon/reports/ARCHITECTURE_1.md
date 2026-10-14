@@ -262,6 +262,16 @@ Two populations, kept apart by type and by fate:
   use starts it again from the record and its continuation. Nothing a
   client holds — a logs watch, a filetree watch — counts as use, so a
   watcher never keeps a container alive.
+- **A tool template has a `mode`, transient or service, and a service
+  on record is kept like a dependency service.** A standalone tool
+  made from a template whose `mode` is `service` is kept running while
+  any agent is attached to it OR any connect scope is open on it —
+  `services` keyed by `ToolKey`, one machinery for both kinds — and
+  retired `idle_seconds` after the last hold leaves; `transient`, the
+  default, runs while used and stops with the last user, as before.
+  The dependency template's `kind` member, tagged `type`, is `mode`,
+  tagged `mode`, flat; the daemon's templates flatten their family
+  type, `{"type":"tool","mode":…}`. (2026-10-14.)
 - **Dependencies are deployed then and there, for the agent's life.**
   An AGENT declares its dependencies when it registers, each a
   dependency tool template — image, limits, arguments, the agent's

@@ -5,9 +5,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::{State, start};
-use crate::containers::stop;
+use crate::containers::{ToolKey, ToolRun, stop};
 use crate::daemon::Daemon;
-use crate::store::{DependencyToolId, dependency_tools};
+use crate::store::{DependencyToolId, ToolId, dependency_tools, tools};
 
 /// How long a supervisor waits after a start that failed before it
 /// tries again: long enough not to hammer a provider that is down,
@@ -22,7 +22,7 @@ const RETRY: Duration = Duration::from_secs(5);
 /// that is gone is a service deleted, and the supervisor ends. The
 /// run's end is taken down here as well as by its waiter, so that the
 /// next start does not find the old run still live.
-pub async fn supervise(daemon: Arc<Daemon>, id: DependencyToolId, state: Arc<State>) {
+pub async fn supervise(daemon: Arc<Daemon>, key: ToolKey, state: Arc<State>) {
     let mut held = state.held.subscribe();
     loop {
         if !*held.borrow_and_update() {
@@ -31,24 +31,60 @@ pub async fn supervise(daemon: Arc<Daemon>, id: DependencyToolId, state: Arc<Sta
             }
             continue;
         }
-        let service = match daemon.store.acquire().await {
-            Ok(mut conn) => dependency_tools::by_id(&mut conn, id, false).await,
-            Err(error) => Err(error),
+        let started = match key {
+            ToolKey::Record(id) => record(&daemon, id).await,
+            ToolKey::Dependency(id) => dependency(&daemon, id).await,
         };
-        let service = match service {
-            Ok(Some(service)) => service,
-            Ok(None) => return,
-            Err(_) => {
-                tokio::time::sleep(RETRY).await;
-                continue;
-            }
-        };
-        match start(&daemon, &service).await {
-            Ok(run) => {
+        match started {
+            Started::Gone => return,
+            Started::Run(run) => {
                 run.handle.wait().await;
                 stop::ended_tool(&daemon, run).await;
             }
-            Err(_) => tokio::time::sleep(RETRY).await,
+            Started::Failed => tokio::time::sleep(RETRY).await,
         }
+    }
+}
+
+/// One start's outcome, as the supervisor acts on it.
+enum Started {
+    /// The run, up, to be waited on.
+    Run(Arc<ToolRun>),
+    /// The row is gone: the service is deleted.
+    Gone,
+    /// The store could not be read, or the container would not start:
+    /// tried again after `RETRY`.
+    Failed,
+}
+
+/// One start of a tool on record's container.
+async fn record(daemon: &Arc<Daemon>, id: ToolId) -> Started {
+    let tool = match daemon.store.acquire().await {
+        Ok(mut conn) => tools::by_id(&mut conn, id, false).await,
+        Err(error) => Err(error),
+    };
+    match tool {
+        Ok(Some(tool)) => match crate::containers::start::tool(daemon, &tool).await {
+            Ok(run) => Started::Run(run),
+            Err(_) => Started::Failed,
+        },
+        Ok(None) => Started::Gone,
+        Err(_) => Started::Failed,
+    }
+}
+
+/// One start of a dependency service's container.
+async fn dependency(daemon: &Arc<Daemon>, id: DependencyToolId) -> Started {
+    let service = match daemon.store.acquire().await {
+        Ok(mut conn) => dependency_tools::by_id(&mut conn, id, false).await,
+        Err(error) => Err(error),
+    };
+    match service {
+        Ok(Some(service)) => match start(daemon, &service).await {
+            Ok(run) => Started::Run(run),
+            Err(_) => Started::Failed,
+        },
+        Ok(None) => Started::Gone,
+        Err(_) => Started::Failed,
     }
 }

@@ -1,10 +1,10 @@
 //! The dependency tools filter, as a test.
 
-use diverge_sdk::daemon::endpoints::dependency_tools::list::client::request::{Filter, Type};
+use diverge_sdk::daemon::endpoints::dependency_tools::list::client::request::{Filter, Mode as Which};
 use diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::{Attached, Run};
 use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::reference;
-use diverge_sdk::shared::containers::dependencies::Kind;
+use diverge_sdk::shared::containers::dependencies::Mode;
 
 use crate::store::dependency_tools::DependencyTool;
 
@@ -30,14 +30,14 @@ pub struct Facts<'a> {
 /// runs.
 pub fn test(filter: &Filter, facts: &Facts<'_>) -> bool {
     let tool = facts.tool;
-    let (kind, scope) = match &tool.declared.kind {
-        Kind::Transient { .. } => (Type::Transient, None),
-        Kind::Service { scope } => (Type::Service, Some(*scope)),
+    let (mode, scope) = match &tool.declared.mode {
+        Mode::Transient { .. } => (Which::Transient, None),
+        Mode::Service { scope } => (Which::Service, Some(*scope)),
     };
     (filter.ids.is_empty() || filter.ids.contains(&tool.template))
         && (filter.owners.is_empty() || filter.owners.iter().any(|wanted| owned_by(facts.owner, wanted)))
         && (filter.creators.is_empty() || filter.creators.contains(&tool.creator))
-        && (filter.types.is_empty() || filter.types.contains(&kind))
+        && (filter.modes.is_empty() || filter.modes.contains(&mode))
         && (filter.scopes.is_empty() || scope.is_some_and(|scope| filter.scopes.contains(&scope)))
         && filter.depended.is_none_or(|wanted| !facts.attached.is_empty() == wanted)
         && filter

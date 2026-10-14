@@ -230,6 +230,11 @@ pub struct ToolRun {
     pub container: Option<String>,
     /// The scope.
     pub handle: ToolHandle,
+    /// Whether the tool is a service: a tool on record whose template's
+    /// mode is, or a dependency tool whose template is. A service is
+    /// held by its attachments and its connect scopes and retired by
+    /// its clock, never stopped for want of users.
+    pub service: bool,
     /// The containers using it now, and the connect scopes holding it.
     /// A transient dependency tool has one user for its life, its
     /// agent, and is stopped with it.

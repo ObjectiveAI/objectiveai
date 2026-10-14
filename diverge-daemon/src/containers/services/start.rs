@@ -93,6 +93,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
             provider: identity,
             container: Some(id.id),
             handle: ToolHandle::Run(handle),
+            service: true,
             users: Mutex::new(HashSet::new()),
             held: watch::channel(true).0,
             touched: touched.clone(),

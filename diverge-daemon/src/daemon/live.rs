@@ -18,7 +18,7 @@ use crate::containers::services::State;
 use crate::containers::{AgentRun, ConnectionId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
 use crate::database::Scope;
-use crate::store::{AccountId, AgentId, DependencyToolId};
+use crate::store::{AccountId, AgentId};
 use crate::volumes::Mirror;
 
 /// The live state of the daemon: which accounts have a client
@@ -49,10 +49,11 @@ pub struct Live {
     agents: Mutex<HashMap<AgentId, Arc<AgentRun>>>,
     /// The tools running now, or joined: records and dependency tools.
     tools: Mutex<HashMap<ToolKey, Arc<ToolRun>>>,
-    /// Every service kept since the start, run or no run, by its
-    /// dependency tool's row: whether it is held, and its supervisor
-    /// and its clock.
-    services: Mutex<HashMap<DependencyToolId, Arc<State>>>,
+    /// Every service kept since the start, run or no run, by its tool
+    /// — a record whose template's mode is a service, or a dependency
+    /// tool's row whose template is one: whether it is held, and its
+    /// supervisor and its clock.
+    services: Mutex<HashMap<ToolKey, Arc<State>>>,
     /// Every container's database scope touched since the start: its
     /// password, in memory only.
     scopes: Mutex<HashMap<Key, Arc<Scope>>>,
@@ -404,24 +405,24 @@ impl Live {
     }
 
     /// The service's state, if it is kept.
-    pub async fn service_state(&self, id: DependencyToolId) -> Option<Arc<State>> {
-        self.services.lock().await.get(&id).cloned()
+    pub async fn service_state(&self, key: ToolKey) -> Option<Arc<State>> {
+        self.services.lock().await.get(&key).cloned()
     }
 
     /// Keep `state` for the service, unless one is kept already: the
     /// one kept, and whether it is the one handed in.
-    pub async fn keep_service_state(&self, id: DependencyToolId, state: Arc<State>) -> (Arc<State>, bool) {
+    pub async fn keep_service_state(&self, key: ToolKey, state: Arc<State>) -> (Arc<State>, bool) {
         let mut services = self.services.lock().await;
-        if let Some(kept) = services.get(&id) {
+        if let Some(kept) = services.get(&key) {
             return (Arc::clone(kept), false);
         }
-        services.insert(id, Arc::clone(&state));
+        services.insert(key, Arc::clone(&state));
         (state, true)
     }
 
     /// The service is retired: its state, once.
-    pub async fn remove_service_state(&self, id: DependencyToolId) -> Option<Arc<State>> {
-        self.services.lock().await.remove(&id)
+    pub async fn remove_service_state(&self, key: ToolKey) -> Option<Arc<State>> {
+        self.services.lock().await.remove(&key)
     }
 
     /// Every service's state.

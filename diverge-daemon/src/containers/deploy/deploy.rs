@@ -87,13 +87,13 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
     let mut kept = Vec::new();
     for tool in &tools {
         if tool.is_service() {
-            services::keep(daemon, tool.id).await;
-            services::held(daemon, tool.id).await;
+            services::keep(daemon, ToolKey::Dependency(tool.id)).await;
+            services::held(daemon, ToolKey::Dependency(tool.id)).await;
             kept.push(tool.id);
         }
     }
     for id in left {
-        services::held(daemon, id).await;
+        services::held(daemon, ToolKey::Dependency(id)).await;
     }
     *answerer.services.lock().await = Some(kept);
     let mut served = answerer.served.lock().await;
@@ -132,9 +132,9 @@ async fn record(
         store::dependencies::create(&mut tx, template_id, template)
             .await
             .map_err(|error| error.to_string())?;
-        let scope = match &template.kind {
-            dependencies::Kind::Transient { .. } => Scope::Instance,
-            dependencies::Kind::Service { scope } => *scope,
+        let scope = match &template.mode {
+            dependencies::Mode::Transient { .. } => Scope::Instance,
+            dependencies::Mode::Service { scope } => *scope,
         };
         let tool = dependency_tools::find_or_create(
             &mut tx,
@@ -169,10 +169,10 @@ async fn record(
 /// sentence.
 async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agent_container: &str, tool: &DependencyTool) -> Result<Arc<ToolRun>, String> {
     let daemon = &answerer.daemon;
-    let dependencies::Kind::Transient {
+    let dependencies::Mode::Transient {
         fuse_file_mounts,
         fuse_directory_mounts,
-    } = &tool.declared.kind
+    } = &tool.declared.mode
     else {
         return Err("a service is kept, not started here".to_string());
     };
@@ -230,6 +230,7 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
             provider: identity,
             container: Some(container_id.id),
             handle: ToolHandle::Run(handle),
+            service: false,
             users: Mutex::new(HashSet::from([User::Container(Key::Agent(agent))])),
             held: watch::channel(true).0,
             touched: touched.clone(),

@@ -4,14 +4,15 @@
 use std::sync::Arc;
 
 use super::held;
+use crate::containers::ToolKey;
 use crate::daemon::{Daemon, Kind};
 use crate::store::{AgentId, dependency_tools};
 
 /// The agent's container is up and its registration asked the daemon
 /// for no deploy at all: the agent depends on nothing — detached from
 /// every dependency tool, as a registration that declared none would
-/// detach it — and each left is told its attachments changed. A store
-/// that cannot be written leaves the attachments as they were.
+/// detach it — and each left is told its hold changed. A store that
+/// cannot be written leaves the attachments as they were.
 pub async fn settle(daemon: &Arc<Daemon>, agent: AgentId) {
     let left = {
         let Ok(mut tx) = daemon.store.begin().await else {
@@ -29,7 +30,7 @@ pub async fn settle(daemon: &Arc<Daemon>, agent: AgentId) {
         return;
     }
     for id in left {
-        held(daemon, id).await;
+        held(daemon, ToolKey::Dependency(id)).await;
     }
     daemon.live.changed(Kind::DependencyTools);
 }

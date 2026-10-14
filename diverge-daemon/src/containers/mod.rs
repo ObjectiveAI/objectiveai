@@ -23,7 +23,9 @@
 //! dependency tools under their owners and deploys them then and there
 //! — a transient tool of the agent's own for the agent's run, a
 //! service kept by [`services`] for as long as any agent is attached
-//! to it and stopped after;
+//! to it and stopped after, as a tool on record whose template's mode
+//! is a service is kept while any agent is attached or any connect
+//! is open;
 //! [`fuse`] serves the mounts — another provider's volume bridged, or
 //! an agent's path into its dependency; [`images`] answers a
 //! provider's image asks from the other providers connected. [`Key`]

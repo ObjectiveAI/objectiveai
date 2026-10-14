@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::{Attached, Listed, Run};
 use diverge_sdk::daemon::key;
-use diverge_sdk::shared::containers::dependencies::{Kind, Scope, Template};
+use diverge_sdk::shared::containers::dependencies::{Mode, Scope, Template};
 
 use crate::store::agents::Agent;
 use crate::store::{AgentId, DependencyToolId};
@@ -38,7 +38,7 @@ impl DependencyTool {
     /// Whether it is a service, kept by the daemon, rather than a
     /// transient tool of its agent's run.
     pub fn is_service(&self) -> bool {
-        matches!(self.declared.kind, Kind::Service { .. })
+        matches!(self.declared.mode, Mode::Service { .. })
     }
 
     /// Whose it is, as the wire names it: the owner agent, handed in

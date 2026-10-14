@@ -14,7 +14,7 @@ use crate::judge::{self, Standing, Who};
 use crate::logs;
 use crate::serve::reply;
 use crate::database;
-use crate::store::{agents, dependency_tools};
+use crate::store::{agents, dependency_tools, tools};
 
 /// Answer the delete and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
@@ -31,7 +31,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// in it; else the agent gone — its container stopped if it was up,
 /// its attachments with it, the dependency tools it owns gone with
 /// their database scopes and their every table, each service among
-/// them retired, every other dependency tool it was attached to told,
+/// them retired, every other dependency tool and every tool on record
+/// it was attached to told,
 /// its name free, every watch on its log ended and the log removed.
 /// Its own database scope stays: nothing drops an agent's own.
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, Failure> {
@@ -53,6 +54,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         return Ok(Frame::Active);
     }
     let attached = dependency_tools::of_agent(&mut tx, agent.id).await?;
+    let detached = tools::attachments::of_agent(&mut tx, agent.id).await?;
     for tool in dependency_tools::of_owner_agent(&mut tx, agent.id).await? {
         if let Some(container) = database::container_of_dependency_tool(&tool, Some(&agent)) {
             database::provision::drop(&mut tx, &database::role_of(&container)).await?;
@@ -68,7 +70,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         .filter(|tool| !removed.iter().any(|gone| gone.id == tool.id))
         .map(|tool| tool.id)
         .collect();
-    containers::services::agent_deleted(daemon, removed, left).await;
+    containers::services::agent_deleted(daemon, removed, left, detached).await;
     daemon.live.end_log(agent.id).await;
     logs::remove(&daemon.logs, agent.id).await?;
     daemon.live.changed(Kind::Agents);
