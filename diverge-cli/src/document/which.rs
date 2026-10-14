@@ -42,8 +42,12 @@ impl Which {
     /// [`Error::Invalid`], with the path to what was wrong.
     pub fn validate(self, value: Value) -> Result<String, Error> {
         let yaml = match self {
-            Which::Daemon => serde_yaml_ng::to_string(&typed::<diverge_daemon::config::Config>(value)?),
-            Which::Provider => serde_yaml_ng::to_string(&typed::<diverge_provider::config::Config>(value)?),
+            Which::Daemon => {
+                serde_yaml_ng::to_string(&typed::<diverge_daemon::config::Config>(value)?)
+            }
+            Which::Provider => {
+                serde_yaml_ng::to_string(&typed::<diverge_provider::config::Config>(value)?)
+            }
             Which::Cli => serde_yaml_ng::to_string(&typed::<crate::config::Config>(value)?),
         };
         yaml.map_err(Error::Serialize)

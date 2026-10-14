@@ -15,8 +15,10 @@ const FILE: &str = "cli.yaml";
 pub async fn load(root: &Path) -> Result<Config, Error> {
     let file = root.join(FILE);
     match tokio::fs::read(&file).await {
-        Ok(bytes) => serde_path_to_error::deserialize(serde_yaml_ng::Deserializer::from_slice(&bytes))
-            .map_err(|source| Error::Parse { path: file, source }),
+        Ok(bytes) => {
+            serde_path_to_error::deserialize(serde_yaml_ng::Deserializer::from_slice(&bytes))
+                .map_err(|source| Error::Parse { path: file, source })
+        }
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(Config::default()),
         Err(source) => Err(Error::Io { path: file, source }),
     }

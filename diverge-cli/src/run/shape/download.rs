@@ -7,23 +7,27 @@ use std::path::{Path, PathBuf};
 use bytes::Bytes;
 use diverge_sdk::daemon::client::stream::{ExecuteStream, OpenError};
 use diverge_sdk::wire::client::handle::Handle;
-use diverge_sdk::wire::decode::Decode;
 use futures_util::StreamExt as _;
 use serde::Serialize;
 use tokio::io::AsyncWriteExt as _;
 
-use super::{exchange, request};
+use super::exchange;
 use crate::run::{Emitter, Error};
 
 /// A download's request: what its endpoint's executor yields, one
 /// implementation per endpoint.
-pub trait Download: for<'a> Decode<'a> {
+pub trait Download {
     /// The stream's item: a chunk, or one of the answers.
     type Item: Downloaded + Unpin;
     /// Why an item could not be read.
     type Failure: std::error::Error + Send + Sync + Unpin + 'static;
     /// The request put: the endpoint's own `execute`.
-    fn execute(&self, handle: &Handle) -> impl Future<Output = Result<ExecuteStream<Self::Item, Self::Failure>, OpenError<serde_json::Error>>> + Send;
+    fn execute(
+        &self,
+        handle: &Handle,
+    ) -> impl Future<
+        Output = Result<ExecuteStream<Self::Item, Self::Failure>, OpenError<serde_json::Error>>,
+    > + Send;
 }
 
 /// A download's item: a chunk, taken apart, or an answer printed as
@@ -41,8 +45,12 @@ pub trait Downloaded: Serialize {
 /// truncated at its first chunk — every other answer emitted as it
 /// comes, and, once the stream has finished, one line per file
 /// written: its path and its size.
-pub async fn download<Q: Download>(handle: &Handle, bytes: &[u8], into: &Path, emitter: &mut Emitter) -> Result<(), Error> {
-    let request: Q = request(bytes)?;
+pub async fn download<Q: Download>(
+    handle: &Handle,
+    request: &Q,
+    into: &Path,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
     let mut items = request.execute(handle).await.map_err(exchange::open)?;
     let mut written: Vec<(Vec<String>, u64)> = Vec::new();
     let mut files: HashMap<Vec<String>, tokio::fs::File> = HashMap::new();
@@ -60,12 +68,19 @@ pub async fn download<Q: Download>(handle: &Handle, bytes: &[u8], into: &Path, e
             None => {
                 let local = local(into, &path);
                 if let Some(parent) = local.parent() {
-                    tokio::fs::create_dir_all(parent).await.map_err(|source| Error::Io {
-                        path: parent.to_path_buf(),
+                    tokio::fs::create_dir_all(parent)
+                        .await
+                        .map_err(|source| Error::Io {
+                            path: parent.to_path_buf(),
+                            source,
+                        })?;
+                }
+                let file = tokio::fs::File::create(&local)
+                    .await
+                    .map_err(|source| Error::Io {
+                        path: local,
                         source,
                     })?;
-                }
-                let file = tokio::fs::File::create(&local).await.map_err(|source| Error::Io { path: local, source })?;
                 written.push((path.clone(), 0));
                 files.entry(path.clone()).or_insert(file)
             }
@@ -85,7 +100,9 @@ pub async fn download<Q: Download>(handle: &Handle, bytes: &[u8], into: &Path, e
         })?;
     }
     for (path, bytes) in written {
-        emitter.emit_value(serde_json::json!({ "path": path, "bytes": bytes })).await?;
+        emitter
+            .emit_value(serde_json::json!({ "path": path, "bytes": bytes }))
+            .await?;
     }
     Ok(())
 }

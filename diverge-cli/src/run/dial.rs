@@ -24,7 +24,9 @@ use super::{Error, Refusing};
 /// answers the credential with nothing, admitting or closing, so a
 /// key it refuses is seen as the first request's scope closing.
 pub async fn dial(address: &str, key: &str) -> Result<Handle, Error> {
-    let (socket, _) = connect_async(url(address)).await.map_err(|error| Error::Dial(error.to_string()))?;
+    let (socket, _) = connect_async(url(address))
+        .await
+        .map_err(|error| Error::Dial(error.to_string()))?;
     let peer = peer_ip(&socket);
     let presented = Authorization::<Refusing>::Outgoing {
         auth: Auth::Unbrokered(key.to_string()),

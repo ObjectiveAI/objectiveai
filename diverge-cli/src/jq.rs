@@ -15,18 +15,35 @@ use serde_json::Value;
 /// the [`Error`], in jaq's own words; values it yielded before a
 /// failure are not returned.
 pub fn run(filter: &str, input: Value, value: Option<Value>) -> Result<Vec<Value>, Error> {
-    let program = load::File { code: filter, path: () };
+    let program = load::File {
+        code: filter,
+        path: (),
+    };
     let loader = load::Loader::new(jaq_std::defs().chain(jaq_json::defs()));
     let arena = load::Arena::default();
-    let modules = loader
-        .load(&arena, program)
-        .map_err(|errors| Error(errors.into_iter().map(|error| format!("{error:?}")).collect::<Vec<_>>().join(", ")))?;
+    let modules = loader.load(&arena, program).map_err(|errors| {
+        Error(
+            errors
+                .into_iter()
+                .map(|error| format!("{error:?}"))
+                .collect::<Vec<_>>()
+                .join(", "),
+        )
+    })?;
     let globals: Vec<&str> = value.iter().map(|_| "$value").collect();
     let compiled = Compiler::default()
         .with_funs(jaq_std::funs().chain(jaq_json::funs()))
         .with_global_vars(globals)
         .compile(modules)
-        .map_err(|errors| Error(errors.into_iter().map(|error| format!("{error:?}")).collect::<Vec<_>>().join(", ")))?;
+        .map_err(|errors| {
+            Error(
+                errors
+                    .into_iter()
+                    .map(|error| format!("{error:?}"))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )
+        })?;
     let inputs = RcIter::new(core::iter::empty());
     let mut values = Vec::new();
     let vars: Vec<Val> = value.into_iter().map(Val::from).collect();

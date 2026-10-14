@@ -6,30 +6,18 @@ use std::path::PathBuf;
 
 use crate::jq;
 
-/// What [`run`](super::run) fails with.
+/// What [`run`](super::run) fails with. What a request takes and
+/// which arguments it has are the command line's, refused by clap
+/// before any of these.
 #[derive(Debug)]
 pub enum Error {
-    /// No request has the name.
-    NoSuchRequest(String),
-    /// The body is not JSON.
-    Body(serde_json::Error),
-    /// The body is JSON, and not an object.
-    NotAnObject,
-    /// `--mcp` was given to a request that is no connect, or not
-    /// given to the connect.
-    Mcp {
-        /// The request.
-        path: String,
-        /// Whether it was given.
-        given: bool,
-    },
+    /// The body is not JSON, or not what the request takes: where in
+    /// it, and what was wrong.
+    Body(serde_path_to_error::Error<serde_json::Error>),
     /// `--mcp-request` is not the method's params.
     McpRequest(serde_json::Error),
     /// `--mcp-request` was not given, and the method takes one.
     McpRequestMissing,
-    /// The body is not what the request takes, in the request's own
-    /// words.
-    Request(Box<dyn std::error::Error + Send + Sync>),
     /// The daemon could not be dialled.
     Dial(String),
     /// The credential could not be presented.
@@ -41,14 +29,6 @@ pub enum Error {
     /// The exchange failed: the scope could not be opened, a frame
     /// could not be read.
     Exchange(String),
-    /// `--path` was given to a request that takes none, or not given
-    /// to one that needs it.
-    Path {
-        /// The request.
-        path: String,
-        /// Whether it was given.
-        given: bool,
-    },
     /// A local file could not be read, written, or made.
     Io {
         /// What could not be.
@@ -70,25 +50,29 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::NoSuchRequest(path) => write!(f, "no request is named `{path}`"),
-            Error::Body(error) => write!(f, "the body is not JSON: {error}"),
-            Error::NotAnObject => write!(f, "the body is JSON, and not an object"),
-            Error::Mcp { path, given: true } => write!(f, "`{path}` takes no `--mcp`"),
-            Error::Mcp { path, given: false } => write!(f, "`{path}` needs `--mcp`, the MCP exchange to put"),
-            Error::McpRequest(error) => write!(f, "`--mcp-request` is not the method's params: {error}"),
-            Error::McpRequestMissing => write!(f, "`--mcp-request` was not given, and the method takes one"),
-            Error::Request(error) => write!(f, "the body is not what the request takes: {error}"),
+            Error::Body(error) => write!(f, "the body is not what the request takes: {error}"),
+            Error::McpRequest(error) => {
+                write!(f, "`--mcp-request` is not the method's params: {error}")
+            }
+            Error::McpRequestMissing => {
+                write!(f, "`--mcp-request` was not given, and the method takes one")
+            }
             Error::Dial(error) => write!(f, "the daemon could not be dialled: {error}"),
             Error::Authorize(error) => write!(f, "the credential could not be presented: {error}"),
-            Error::Rejected => write!(f, "the daemon closed the connection without answering: the account's key may have been rejected"),
+            Error::Rejected => write!(
+                f,
+                "the daemon closed the connection without answering: the account's key may have been rejected"
+            ),
             Error::Exchange(error) => write!(f, "the exchange failed: {error}"),
-            Error::Path { path, given: true } => write!(f, "`{path}` takes no `--path`"),
-            Error::Path { path, given: false } => write!(f, "`{path}` needs `--path`, the local file or directory"),
-            Error::Io { path, source } => write!(f, "`{}` could not be used: {source}", path.display()),
+            Error::Io { path, source } => {
+                write!(f, "`{}` could not be used: {source}", path.display())
+            }
             Error::Json(error) => write!(f, "a frame could not be written as JSON: {error}"),
             Error::Jq(error) => write!(f, "{error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
-            Error::Timeout(seconds) => write!(f, "the request was not complete within {seconds} seconds"),
+            Error::Timeout(seconds) => {
+                write!(f, "the request was not complete within {seconds} seconds")
+            }
         }
     }
 }
@@ -96,20 +80,16 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Body(error) | Error::Json(error) | Error::McpRequest(error) => Some(error),
-            Error::Request(error) => Some(error.as_ref()),
+            Error::Body(error) => Some(error),
+            Error::Json(error) | Error::McpRequest(error) => Some(error),
             Error::Io { source, .. } => Some(source),
             Error::Jq(error) => Some(error),
             Error::Stdout(error) => Some(error),
-            Error::NoSuchRequest(_)
-            | Error::NotAnObject
-            | Error::Rejected
-            | Error::Mcp { .. }
+            Error::Rejected
             | Error::McpRequestMissing
             | Error::Dial(_)
             | Error::Authorize(_)
             | Error::Exchange(_)
-            | Error::Path { .. }
             | Error::Timeout(_) => None,
         }
     }

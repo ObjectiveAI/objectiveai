@@ -14,11 +14,11 @@
 //! `root` with the key a fresh daemon seeds.
 //!
 //! [`arguments`] is the command line; [`cli`] runs it. Every request of
-//! the daemon's wire is reached under the one command `run` — the
-//! daemon and the account by name, else the defaults, the request by
-//! its path on the wire, and its body as JSON — which this cut takes
-//! and does not yet serve: it selects the daemon and the account and
-//! ends. The other command, `config`, reads, rewrites and edits the
+//! the daemon's wire is reached under the one command `run`, as a
+//! subcommand under its family — `run agents create`, `run
+//! standalone-tools templates list` — with the daemon and the account
+//! by name, else the defaults, and the body as JSON; see [`run`]. The
+//! other command, `config`, reads, rewrites and edits the
 //! three documents in the root — the daemon's, the provider's and the
 //! CLI's own — through jq, as JSON on this side, an edit being one
 //! place set or deleted by a jq path; see [`document`].

@@ -20,7 +20,11 @@ pub struct Selected<'a> {
 /// account `account` names under it, else the daemon's default. A
 /// name the document does not have is [`Error::NoDaemon`] or
 /// [`Error::NoAccount`].
-pub fn select<'a>(config: &'a Config, daemon: Option<&'a str>, account: Option<&'a str>) -> Result<Selected<'a>, Error> {
+pub fn select<'a>(
+    config: &'a Config,
+    daemon: Option<&'a str>,
+    account: Option<&'a str>,
+) -> Result<Selected<'a>, Error> {
     let daemon_name = daemon.unwrap_or(&config.default);
     let Some(daemon) = config.daemons.get(daemon_name) else {
         return Err(Error::NoDaemon(daemon_name.to_string()));

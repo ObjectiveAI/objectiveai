@@ -15,8 +15,10 @@ use super::{Error, Which};
 pub async fn read(root: &Path, which: Which) -> Result<Value, Error> {
     let file = root.join(which.file());
     match tokio::fs::read(&file).await {
-        Ok(bytes) => serde_path_to_error::deserialize(serde_yaml_ng::Deserializer::from_slice(&bytes))
-            .map_err(|source| Error::Parse { path: file, source }),
+        Ok(bytes) => {
+            serde_path_to_error::deserialize(serde_yaml_ng::Deserializer::from_slice(&bytes))
+                .map_err(|source| Error::Parse { path: file, source })
+        }
         Err(error) if error.kind() == io::ErrorKind::NotFound => which.default(),
         Err(source) => Err(Error::Io { path: file, source }),
     }

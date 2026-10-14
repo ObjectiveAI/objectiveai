@@ -22,5 +22,6 @@ pub fn program(selector: &str, delete: bool) -> String {
 /// YAML — as JSON for the program. Text that is not YAML is
 /// [`Error::Value`].
 pub fn value(text: &str) -> Result<Value, Error> {
-    serde_path_to_error::deserialize(serde_yaml_ng::Deserializer::from_str(text)).map_err(Error::Value)
+    serde_path_to_error::deserialize(serde_yaml_ng::Deserializer::from_str(text))
+        .map_err(Error::Value)
 }

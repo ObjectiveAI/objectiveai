@@ -44,10 +44,16 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Home => write!(f, "no root was named and the host has no home directory"),
-            Error::Io { path, source } => write!(f, "`{}` could not be used: {source}", path.display()),
-            Error::Parse { path, source } => write!(f, "`{}` could not be read: {source}", path.display()),
+            Error::Io { path, source } => {
+                write!(f, "`{}` could not be used: {source}", path.display())
+            }
+            Error::Parse { path, source } => {
+                write!(f, "`{}` could not be read: {source}", path.display())
+            }
             Error::NoDaemon(name) => write!(f, "no daemon is named `{name}`"),
-            Error::NoAccount { daemon, account } => write!(f, "the daemon `{daemon}` has no account named `{account}`"),
+            Error::NoAccount { daemon, account } => {
+                write!(f, "the daemon `{daemon}` has no account named `{account}`")
+            }
         }
     }
 }

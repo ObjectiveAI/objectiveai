@@ -46,13 +46,27 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Io { path, source } => write!(f, "`{}` could not be used: {source}", path.display()),
-            Error::Parse { path, source } => write!(f, "`{}` could not be read: {source}", path.display()),
-            Error::Invalid(error) => write!(f, "the document is not one its program takes: {error}"),
-            Error::Json(error) => write!(f, "the default document could not be written as JSON: {error}"),
-            Error::Serialize(error) => write!(f, "the document could not be written as YAML: {error}"),
+            Error::Io { path, source } => {
+                write!(f, "`{}` could not be used: {source}", path.display())
+            }
+            Error::Parse { path, source } => {
+                write!(f, "`{}` could not be read: {source}", path.display())
+            }
+            Error::Invalid(error) => {
+                write!(f, "the document is not one its program takes: {error}")
+            }
+            Error::Json(error) => write!(
+                f,
+                "the default document could not be written as JSON: {error}"
+            ),
+            Error::Serialize(error) => {
+                write!(f, "the document could not be written as YAML: {error}")
+            }
             Error::Jq(error) => write!(f, "{error}"),
-            Error::NotOne(count) => write!(f, "the jq program yielded {count} values, and a document is one"),
+            Error::NotOne(count) => write!(
+                f,
+                "the jq program yielded {count} values, and a document is one"
+            ),
             Error::Value(error) => write!(f, "the value is not YAML: {error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
         }

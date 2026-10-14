@@ -35,10 +35,12 @@ pub async fn root(given: Option<PathBuf>) -> Result<PathBuf, Error> {
         path: root.clone(),
         source,
     })?;
-    tokio::fs::create_dir_all(&root).await.map_err(|source| Error::Io {
-        path: root.clone(),
-        source,
-    })?;
+    tokio::fs::create_dir_all(&root)
+        .await
+        .map_err(|source| Error::Io {
+            path: root.clone(),
+            source,
+        })?;
     Ok(root)
 }
 
@@ -53,7 +55,10 @@ async fn local() -> Result<Option<PathBuf>, Error> {
         Ok(metadata) if metadata.is_dir() => Ok(Some(local)),
         Ok(_) => Ok(None),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(source) => Err(Error::Io { path: local, source }),
+        Err(source) => Err(Error::Io {
+            path: local,
+            source,
+        }),
     }
 }
 

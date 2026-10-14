@@ -1,8 +1,8 @@
 //! One run of the program.
 
+use super::Error;
 use crate::arguments::{Arguments, Command};
 use crate::config;
-use super::Error;
 
 /// Run `diverge` as told: the root found; then, for `run`, `cli.yaml`
 /// read, the daemon and the account selected, and the request put —

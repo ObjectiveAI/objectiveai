@@ -75,7 +75,11 @@ pub enum Action {
         /// number, `true` a bool, `root` a string, `"15000"` a string
         /// meant as one, `{kind: remote, url: "…"}` an object. JSON is
         /// YAML. Required unless `--delete`.
-        #[arg(value_name = "VALUE", required_unless_present = "delete", conflicts_with = "delete")]
+        #[arg(
+            value_name = "VALUE",
+            required_unless_present = "delete",
+            conflicts_with = "delete"
+        )]
         value: Option<String>,
         /// Delete what the selector names, instead of setting it.
         #[arg(long)]

@@ -8,7 +8,7 @@ use futures_util::StreamExt as _;
 use serde::Serialize;
 use serde_json::Value;
 
-use super::{exchange, request};
+use super::exchange;
 use crate::run::{Emitter, Error};
 
 /// Where a stream is cut: a frame, as JSON, after which the scope is
@@ -31,22 +31,31 @@ pub fn at_listed(value: &Value) -> bool {
 /// At the first snapshot: a filetree is whole, and the changes after
 /// it are not this command's.
 pub fn at_snapshot(value: &Value) -> bool {
-    value.get("filetree").and_then(|frame| frame.get("type")).and_then(Value::as_str) == Some("snapshot")
+    value
+        .get("filetree")
+        .and_then(|frame| frame.get("type"))
+        .and_then(Value::as_str)
+        == Some("snapshot")
 }
 
 /// The request put, every answer emitted as it comes, until the
 /// finish or until `stop` says a frame was the last, when the scope
 /// is cancelled.
-pub async fn stream<Q, A, E>(handle: &Handle, bytes: &[u8], emitter: &mut Emitter, stop: Stop) -> Result<(), Error>
+pub async fn stream<Q, A, E>(
+    handle: &Handle,
+    request: &Q,
+    emitter: &mut Emitter,
+    stop: Stop,
+) -> Result<(), Error>
 where
-    Q: Encode + for<'a> Decode<'a>,
+    Q: Encode,
     A: for<'a> Decode<'a, Error = E> + Serialize + Unpin,
     E: std::error::Error + Send + Sync + Unpin + 'static,
 {
-    let request: Q = request(bytes)?;
-    let (mut answers, cancel) = stream::execute_cancellable::<Q, A, E>(handle, &request, |_, payload| A::decode(payload))
-        .await
-        .map_err(exchange::open)?;
+    let (mut answers, cancel) =
+        stream::execute_cancellable::<Q, A, E>(handle, request, |_, payload| A::decode(payload))
+            .await
+            .map_err(exchange::open)?;
     while let Some(item) = answers.next().await {
         let answer = item.map_err(exchange::stream)?;
         let value = emitter.emit(&answer).await?;
