@@ -50,7 +50,7 @@ One list is not over records, and has no filter and no count:
 | 11 | `agents templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
 | 28 | `tools templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
 | 5 | `agents list` | `Agent` | names, templates, creators, active, all_tags, any_tags, created_from, created_to | `active`, `logs_index`; a stream since 2026-10-08 |
-| 22 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active`; every dependency tool running now, as an item of its own while it runs (2026-10-09); a stream since 2026-10-08 |
+| 22 | `tools list` | `Tool` | names, templates, creators, kind, modes, active, agents, all_tags, any_tags, created_from, created_to | `active`; every dependency tool running now, as an item of its own while it runs (2026-10-09); a stream since 2026-10-08 |
 | 68 | `volumes list` | `Volume` | providers, names, modes, mounted, all_tags, any_tags, created_from, created_to | `mounted` (filter only); a stream since 2026-10-08, over the daemon's mirror of each connected provider's listing |
 | 80 | `postgres list` | `Connection` | none | all of it; a stream since 2026-10-08 |
 

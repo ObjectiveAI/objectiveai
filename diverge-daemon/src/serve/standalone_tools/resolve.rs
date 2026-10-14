@@ -20,8 +20,10 @@ pub async fn resolve(conn: &mut PgConnection, reference: &reference::Tool, lock:
 }
 
 /// Whether the standing may do `action` to the record: whether it is
-/// active now and what it is attached to, loaded here.
+/// active now, what it is attached to and its template's mode, loaded
+/// here.
 pub async fn reaches(conn: &mut PgConnection, daemon: &Daemon, standing: &Standing, action: Over, tool: &Tool) -> Result<bool, store::Error> {
     let attached = agents_of(conn, tool.id).await?;
-    Ok(judge::standalone_tools::over(standing, action, &Facts::record(tool, active(daemon, tool.id).await, &attached)))
+    let mode = tools::mode(conn, tool).await?;
+    Ok(judge::standalone_tools::over(standing, action, &Facts::record(tool, active(daemon, tool.id).await, &attached, mode)))
 }

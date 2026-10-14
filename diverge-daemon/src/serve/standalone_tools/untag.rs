@@ -37,7 +37,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::NotFound);
     };
     let attached = agents_of(&mut tx, tool.id).await?;
-    if !judge::standalone_tools::tagging(&standing, Tagging::Untag, &Facts::record(&tool, active(daemon, tool.id).await, &attached), &frame.tags) {
+    let mode = tools::mode(&mut tx, &tool).await?;
+    if !judge::standalone_tools::tagging(&standing, Tagging::Untag, &Facts::record(&tool, active(daemon, tool.id).await, &attached, mode), &frame.tags) {
         return Ok(Frame::Forbidden);
     }
     tools::set_tags(&mut tx, tool.id, &tags::without(&tool.tags, &frame.tags)).await?;

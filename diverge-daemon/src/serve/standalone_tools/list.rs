@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::future::Future;
 
+use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::daemon::endpoints::standalone_tools::list::client::request::{self, Filter};
 use diverge_sdk::daemon::endpoints::standalone_tools::list::server::response::{Frame, Tool};
 use diverge_sdk::daemon::grant::standalone_tools::Over;
@@ -15,7 +16,7 @@ use crate::judge::filter::standalone_tools::Facts;
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Change, Source};
 use crate::serve::reply;
-use crate::store::{self, ToolId, agents, tools};
+use crate::store::{self, ToolId, agents, tools, tools_templates};
 
 /// Send the list and its changes, then finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -76,6 +77,11 @@ impl Source for Listed<'_> {
         async move {
             let mut conn = self.daemon.store.acquire().await?;
             let all = tools::all(&mut conn).await?;
+            let modes: HashMap<String, Mode> = tools_templates::all(&mut conn)
+                .await?
+                .into_iter()
+                .map(|record| (record.id, record.template.r#type.mode))
+                .collect();
             let keys: HashMap<_, _> = agents::all(&mut conn).await?.into_iter().map(|agent| (agent.id, agent.key())).collect();
             let mut attached: HashMap<ToolId, Vec<key::Agent>> = HashMap::new();
             for attachment in tools::attachments::all(&mut conn).await? {
@@ -91,7 +97,8 @@ impl Source for Listed<'_> {
                 let key = ToolKey::Record(tool.id);
                 let active = states.contains_key(&key);
                 let attached = attached.get(&tool.id).unwrap_or(&empty);
-                let facts = Facts::record(tool, active, attached);
+                let mode = tool.template().and_then(|template| modes.get(template).copied());
+                let facts = Facts::record(tool, active, attached, mode);
                 if !judge::standalone_tools::over(self.standing, Over::List, &facts) || !filter::standalone_tools::test(self.filter, &facts) {
                     continue;
                 }
