@@ -99,7 +99,7 @@ export function CardEditor(props: { name: string }) {
   return (
     <Section title={t.profile.card.title} note={t.profile.card.note}>
       <p className="muted small">{t.profile.card.starting}</p>
-      {view.from_room ? <div className="banner banner-quiet">{t.profile.card.fromRoom}</div> : null}
+      {view.from_room ? <div className="banner banner-quiet"><span className="banner-text">{t.profile.card.fromRoom}</span></div> : null}
 
       <div className="card-part">
         <div className="card-part-head"><strong>{t.profile.card.picture}</strong><WhoSees value={card.picture_who} onChange={(w) => set({ picture_who: w })} /></div>
@@ -110,7 +110,7 @@ export function CardEditor(props: { name: string }) {
           onDrop={(e) => { e.preventDefault(); setDropping(false); take(e.dataTransfer.files[0]); }}
         >
           {card.picture ? <img className="profile-card-picture" src={card.picture} alt="" /> : <span className="profile-card-picture profile-card-initial" aria-hidden>{props.name.slice(0, 1).toUpperCase()}</span>}
-          <input ref={picker} className="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" tabIndex={-1} onChange={(e) => { take(e.target.files?.[0]); e.target.value = ""; }} />
+          <input ref={picker} hidden type="file" accept="image/png,image/jpeg,image/webp" tabIndex={-1} onChange={(e) => { take(e.target.files?.[0]); e.target.value = ""; }} />
           <Button small kind="secondary" onClick={() => picker.current?.click()}>{t.profile.card.choosePicture}</Button>
           <span className="muted small">{t.profile.card.dropPicture}</span>
           {card.picture ? <Button small kind="tertiary" onClick={() => set({ picture: "" })}>{t.profile.card.removePicture}</Button> : null}

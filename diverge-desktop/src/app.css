@@ -67,6 +67,9 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 .nav-row { width: 100%; min-height: var(--hit-min); border: 0; background: none; color: var(--text); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3); border-radius: var(--radius-sm); text-align: left; cursor: pointer; }
 .nav-row:hover { background: var(--surface-3); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-hover); }
 .nav-row.on, .nav-row.on:hover { background: var(--surface-2); color: var(--text); font-weight: 600; box-shadow: inset var(--mark) 0 0 var(--here); }
+/* Focus wins over the hover edge; on a picked row the ring joins its bar. */
+.nav-row:focus-visible { box-shadow: var(--focus); }
+.nav-row.on:focus-visible { box-shadow: var(--focus), inset var(--mark) 0 0 var(--here); }
 
 /* Section heads. The small form heads a list inside a column or a section; a room's rules toggle looks the same. */
 .section-head { display: flex; align-items: flex-start; gap: var(--space-3); }
@@ -117,8 +120,8 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 .dot-never { border: 1.5px solid var(--text-3); }
 .dot-bad { background: var(--bad); border-radius: 0; width: 9px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 @keyframes pulse { 50% { opacity: 0.55; } }
-.segmented { align-self: flex-start; display: inline-flex; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: var(--space-1); gap: var(--space-1); flex-wrap: wrap; }
-.segmented button { border: 0; background: none; padding: var(--space-1) var(--space-3); min-height: calc(var(--hit-min) - var(--space-1)); line-height: 1.2; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-2); font-size: var(--text-sm); }
+.segmented { align-self: flex-start; display: inline-flex; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: 0; gap: var(--space-1); flex-wrap: wrap; }
+.segmented button { border: 0; background: none; padding: var(--space-1) var(--space-3); min-height: var(--hit-min); line-height: 1.2; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-2); font-size: var(--text-sm); }
 .segmented button:hover { background: var(--surface-3); color: var(--text); box-shadow: 0 0 0 1px var(--line-hover); }
 .segmented button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow), 0 0 0 1px var(--line-strong); }
 .segmented button.on:focus-visible { box-shadow: var(--focus); }
