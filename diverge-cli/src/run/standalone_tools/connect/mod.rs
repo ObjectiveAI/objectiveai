@@ -7,13 +7,14 @@
 //! is the subcommand: the tool connected to, the exchange put, its
 //! result printed, and the scope disconnected. The notifications
 //! stream is no exchange of a command line's and is not among them.
+//! Beneath each is `request-schema`: the JSON Schema of the connect
+//! request, which is the body every one of them takes.
 //! One file per exchange: the tree of files is the tree of
 //! subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod call_tool;
 pub mod list_resources;
@@ -35,11 +36,15 @@ pub enum Connect {
 }
 
 /// The exchange put, by its subcommand.
-pub async fn run(command: Connect, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+pub async fn run(
+    command: Connect,
+    target: &Target<'_>,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
     match command {
-        Connect::CallTool(arguments) => call_tool::run(arguments, handle, emitter).await,
-        Connect::ListResources(arguments) => list_resources::run(arguments, handle, emitter).await,
-        Connect::ListTools(arguments) => list_tools::run(arguments, handle, emitter).await,
-        Connect::ReadResource(arguments) => read_resource::run(arguments, handle, emitter).await,
+        Connect::CallTool(arguments) => call_tool::run(arguments, target, emitter).await,
+        Connect::ListResources(arguments) => list_resources::run(arguments, target, emitter).await,
+        Connect::ListTools(arguments) => list_tools::run(arguments, target, emitter).await,
+        Connect::ReadResource(arguments) => read_resource::run(arguments, target, emitter).await,
     }
 }

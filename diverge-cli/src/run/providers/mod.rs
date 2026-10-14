@@ -5,9 +5,8 @@
 //! family within: the tree of files is the tree of subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod daemons;
 pub mod incoming;
@@ -29,10 +28,14 @@ pub enum Providers {
 }
 
 /// The request put, by its subcommand.
-pub async fn run(command: Providers, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+pub async fn run(
+    command: Providers,
+    target: &Target<'_>,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
     match command {
-        Providers::Daemons(command) => daemons::run(command, handle, emitter).await,
-        Providers::Incoming(command) => incoming::run(command, handle, emitter).await,
-        Providers::Outgoing(command) => outgoing::run(command, handle, emitter).await,
+        Providers::Daemons(command) => daemons::run(command, target, emitter).await,
+        Providers::Incoming(command) => incoming::run(command, target, emitter).await,
+        Providers::Outgoing(command) => outgoing::run(command, target, emitter).await,
     }
 }

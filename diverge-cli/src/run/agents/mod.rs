@@ -5,9 +5,8 @@
 //! subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod create;
 pub mod delete;
@@ -47,6 +46,9 @@ pub enum Agents {
     Message(message::Arguments),
     /// Putting tags on an agent.
     Tag(tag::Arguments),
+    /// The requests over agent templates.
+    #[command(subcommand)]
+    Templates(templates::Templates),
     /// Copying a file or a directory out of an agent's container into
     /// an agent, a tool, a dependency tool or a volume, without the
     /// client in between.
@@ -55,27 +57,24 @@ pub enum Agents {
     Untag(untag::Arguments),
     /// Uploading files into an agent's container.
     Upload(upload::Arguments),
-    /// The requests over agent templates.
-    #[command(subcommand)]
-    Templates(templates::Templates),
 }
 
 /// The request put, by its subcommand.
-pub async fn run(command: Agents, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+pub async fn run(command: Agents, target: &Target<'_>, emitter: &mut Emitter) -> Result<(), Error> {
     match command {
-        Agents::Create(arguments) => create::run(arguments, handle, emitter).await,
-        Agents::Delete(arguments) => delete::run(arguments, handle, emitter).await,
-        Agents::Download(arguments) => download::run(arguments, handle, emitter).await,
-        Agents::Edit(arguments) => edit::run(arguments, handle, emitter).await,
-        Agents::Filetree(arguments) => filetree::run(arguments, handle, emitter).await,
-        Agents::Get(arguments) => get::run(arguments, handle, emitter).await,
-        Agents::List(arguments) => list::run(arguments, handle, emitter).await,
-        Agents::Logs(arguments) => logs::run(arguments, handle, emitter).await,
-        Agents::Message(arguments) => message::run(arguments, handle, emitter).await,
-        Agents::Tag(arguments) => tag::run(arguments, handle, emitter).await,
-        Agents::Transfer(arguments) => transfer::run(arguments, handle, emitter).await,
-        Agents::Untag(arguments) => untag::run(arguments, handle, emitter).await,
-        Agents::Upload(arguments) => upload::run(arguments, handle, emitter).await,
-        Agents::Templates(command) => templates::run(command, handle, emitter).await,
+        Agents::Create(arguments) => create::run(arguments, target, emitter).await,
+        Agents::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        Agents::Download(arguments) => download::run(arguments, target, emitter).await,
+        Agents::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        Agents::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
+        Agents::Get(arguments) => get::run(arguments, target, emitter).await,
+        Agents::List(arguments) => list::run(arguments, target, emitter).await,
+        Agents::Logs(arguments) => logs::run(arguments, target, emitter).await,
+        Agents::Message(arguments) => message::run(arguments, target, emitter).await,
+        Agents::Tag(arguments) => tag::run(arguments, target, emitter).await,
+        Agents::Templates(command) => templates::run(command, target, emitter).await,
+        Agents::Transfer(arguments) => transfer::run(arguments, target, emitter).await,
+        Agents::Untag(arguments) => untag::run(arguments, target, emitter).await,
+        Agents::Upload(arguments) => upload::run(arguments, target, emitter).await,
     }
 }

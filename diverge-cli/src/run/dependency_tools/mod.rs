@@ -4,9 +4,8 @@
 //! per family within: the tree of files is the tree of subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod delete;
 pub mod download;
@@ -46,18 +45,18 @@ pub enum DependencyTools {
 /// The request put, by its subcommand.
 pub async fn run(
     command: DependencyTools,
-    handle: &Handle,
+    target: &Target<'_>,
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
     match command {
-        DependencyTools::Delete(arguments) => delete::run(arguments, handle, emitter).await,
-        DependencyTools::Download(arguments) => download::run(arguments, handle, emitter).await,
-        DependencyTools::Filetree(arguments) => filetree::run(arguments, handle, emitter).await,
-        DependencyTools::Get(arguments) => get::run(arguments, handle, emitter).await,
-        DependencyTools::List(arguments) => list::run(arguments, handle, emitter).await,
-        DependencyTools::Tag(arguments) => tag::run(arguments, handle, emitter).await,
-        DependencyTools::Transfer(arguments) => transfer::run(arguments, handle, emitter).await,
-        DependencyTools::Untag(arguments) => untag::run(arguments, handle, emitter).await,
-        DependencyTools::Upload(arguments) => upload::run(arguments, handle, emitter).await,
+        DependencyTools::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        DependencyTools::Download(arguments) => download::run(arguments, target, emitter).await,
+        DependencyTools::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
+        DependencyTools::Get(arguments) => get::run(arguments, target, emitter).await,
+        DependencyTools::List(arguments) => list::run(arguments, target, emitter).await,
+        DependencyTools::Tag(arguments) => tag::run(arguments, target, emitter).await,
+        DependencyTools::Transfer(arguments) => transfer::run(arguments, target, emitter).await,
+        DependencyTools::Untag(arguments) => untag::run(arguments, target, emitter).await,
+        DependencyTools::Upload(arguments) => upload::run(arguments, target, emitter).await,
     }
 }

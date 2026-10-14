@@ -17,7 +17,8 @@
 //! the daemon's wire is reached under the one command `run`, as a
 //! subcommand under its family — `run agents create`, `run
 //! standalone-tools templates list` — with the daemon and the account
-//! by name, else the defaults, and the body as JSON; see [`run`]. The
+//! by name, else the defaults, and the body as JSON, whose schema
+//! `request-schema` beneath the request prints; see [`run`]. The
 //! other command, `config`, reads, rewrites and edits the
 //! three documents in the root — the daemon's, the provider's and the
 //! CLI's own — through jq, as JSON on this side, an edit being one

@@ -5,9 +5,8 @@
 //! tree of subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod attach;
 pub mod connect;
@@ -56,6 +55,9 @@ pub enum StandaloneTools {
     Register(register::Arguments),
     /// Putting tags on a tool.
     Tag(tag::Arguments),
+    /// The requests over standalone tool templates.
+    #[command(subcommand)]
+    Templates(templates::Templates),
     /// Copying a file or a directory out of a tool's container into an
     /// agent, a tool, a dependency tool or a volume, without the client
     /// in between.
@@ -64,33 +66,30 @@ pub enum StandaloneTools {
     Untag(untag::Arguments),
     /// Uploading files into a tool's container.
     Upload(upload::Arguments),
-    /// The requests over standalone tool templates.
-    #[command(subcommand)]
-    Templates(templates::Templates),
 }
 
 /// The request put, by its subcommand.
 pub async fn run(
     command: StandaloneTools,
-    handle: &Handle,
+    target: &Target<'_>,
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
     match command {
-        StandaloneTools::Attach(arguments) => attach::run(arguments, handle, emitter).await,
-        StandaloneTools::Connect(command) => connect::run(command, handle, emitter).await,
-        StandaloneTools::Create(arguments) => create::run(arguments, handle, emitter).await,
-        StandaloneTools::Delete(arguments) => delete::run(arguments, handle, emitter).await,
-        StandaloneTools::Detach(arguments) => detach::run(arguments, handle, emitter).await,
-        StandaloneTools::Download(arguments) => download::run(arguments, handle, emitter).await,
-        StandaloneTools::Edit(arguments) => edit::run(arguments, handle, emitter).await,
-        StandaloneTools::Filetree(arguments) => filetree::run(arguments, handle, emitter).await,
-        StandaloneTools::Get(arguments) => get::run(arguments, handle, emitter).await,
-        StandaloneTools::List(arguments) => list::run(arguments, handle, emitter).await,
-        StandaloneTools::Register(arguments) => register::run(arguments, handle, emitter).await,
-        StandaloneTools::Tag(arguments) => tag::run(arguments, handle, emitter).await,
-        StandaloneTools::Transfer(arguments) => transfer::run(arguments, handle, emitter).await,
-        StandaloneTools::Untag(arguments) => untag::run(arguments, handle, emitter).await,
-        StandaloneTools::Upload(arguments) => upload::run(arguments, handle, emitter).await,
-        StandaloneTools::Templates(command) => templates::run(command, handle, emitter).await,
+        StandaloneTools::Attach(arguments) => attach::run(arguments, target, emitter).await,
+        StandaloneTools::Connect(command) => connect::run(command, target, emitter).await,
+        StandaloneTools::Create(arguments) => create::run(arguments, target, emitter).await,
+        StandaloneTools::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        StandaloneTools::Detach(arguments) => detach::run(arguments, target, emitter).await,
+        StandaloneTools::Download(arguments) => download::run(arguments, target, emitter).await,
+        StandaloneTools::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        StandaloneTools::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
+        StandaloneTools::Get(arguments) => get::run(arguments, target, emitter).await,
+        StandaloneTools::List(arguments) => list::run(arguments, target, emitter).await,
+        StandaloneTools::Register(arguments) => register::run(arguments, target, emitter).await,
+        StandaloneTools::Tag(arguments) => tag::run(arguments, target, emitter).await,
+        StandaloneTools::Templates(command) => templates::run(command, target, emitter).await,
+        StandaloneTools::Transfer(arguments) => transfer::run(arguments, target, emitter).await,
+        StandaloneTools::Untag(arguments) => untag::run(arguments, target, emitter).await,
+        StandaloneTools::Upload(arguments) => upload::run(arguments, target, emitter).await,
     }
 }

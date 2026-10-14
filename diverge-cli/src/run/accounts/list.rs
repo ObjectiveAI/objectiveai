@@ -3,17 +3,21 @@
 
 use clap::Args;
 use diverge_sdk::daemon::endpoints::accounts::list::{client::request, server::response};
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error, body, shape};
+use crate::run::{Below, Emitter, Error, Target, body, request_schema, shape};
 
 /// Listing accounts.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
+#[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
+    /// What is beneath the request: `request-schema`, the JSON Schema
+    /// of the body it takes, printed in place of putting any request.
+    #[command(subcommand)]
+    pub below: Option<Below>,
 }
 
 /// The request put, every item printed as it comes, through the
@@ -21,9 +25,13 @@ pub struct Arguments {
 /// command's.
 pub async fn run(
     arguments: Arguments,
-    handle: &Handle,
+    target: &Target<'_>,
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
+    if let Some(Below::RequestSchema(_)) = arguments.below {
+        return request_schema::<request::Frame>("diverge run accounts list", emitter).await;
+    }
     let request: request::Frame = body(arguments.body.as_deref())?;
-    shape::stream::<_, response::Frame, _>(handle, &request, emitter, shape::at_listed).await
+    let handle = target.dial().await?;
+    shape::stream::<_, response::Frame, _>(&handle, &request, emitter, shape::at_listed).await
 }

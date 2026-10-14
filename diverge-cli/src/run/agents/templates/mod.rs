@@ -4,9 +4,8 @@
 //! per family within: the tree of files is the tree of subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod create;
 pub mod delete;
@@ -33,13 +32,17 @@ pub enum Templates {
 }
 
 /// The request put, by its subcommand.
-pub async fn run(command: Templates, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+pub async fn run(
+    command: Templates,
+    target: &Target<'_>,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
     match command {
-        Templates::Create(arguments) => create::run(arguments, handle, emitter).await,
-        Templates::Delete(arguments) => delete::run(arguments, handle, emitter).await,
-        Templates::Get(arguments) => get::run(arguments, handle, emitter).await,
-        Templates::List(arguments) => list::run(arguments, handle, emitter).await,
-        Templates::Tag(arguments) => tag::run(arguments, handle, emitter).await,
-        Templates::Untag(arguments) => untag::run(arguments, handle, emitter).await,
+        Templates::Create(arguments) => create::run(arguments, target, emitter).await,
+        Templates::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        Templates::Get(arguments) => get::run(arguments, target, emitter).await,
+        Templates::List(arguments) => list::run(arguments, target, emitter).await,
+        Templates::Tag(arguments) => tag::run(arguments, target, emitter).await,
+        Templates::Untag(arguments) => untag::run(arguments, target, emitter).await,
     }
 }

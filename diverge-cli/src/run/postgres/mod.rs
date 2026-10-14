@@ -4,9 +4,8 @@
 //! family within: the tree of files is the tree of subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod get;
 pub mod list;
@@ -22,9 +21,13 @@ pub enum Postgres {
 }
 
 /// The request put, by its subcommand.
-pub async fn run(command: Postgres, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+pub async fn run(
+    command: Postgres,
+    target: &Target<'_>,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
     match command {
-        Postgres::Get(arguments) => get::run(arguments, handle, emitter).await,
-        Postgres::List(arguments) => list::run(arguments, handle, emitter).await,
+        Postgres::Get(arguments) => get::run(arguments, target, emitter).await,
+        Postgres::List(arguments) => list::run(arguments, target, emitter).await,
     }
 }

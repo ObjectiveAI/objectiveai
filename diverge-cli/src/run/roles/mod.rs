@@ -4,9 +4,8 @@
 //! within: the tree of files is the tree of subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod create;
 pub mod delete;
@@ -36,14 +35,14 @@ pub enum Roles {
 }
 
 /// The request put, by its subcommand.
-pub async fn run(command: Roles, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+pub async fn run(command: Roles, target: &Target<'_>, emitter: &mut Emitter) -> Result<(), Error> {
     match command {
-        Roles::Create(arguments) => create::run(arguments, handle, emitter).await,
-        Roles::Delete(arguments) => delete::run(arguments, handle, emitter).await,
-        Roles::Edit(arguments) => edit::run(arguments, handle, emitter).await,
-        Roles::Get(arguments) => get::run(arguments, handle, emitter).await,
-        Roles::List(arguments) => list::run(arguments, handle, emitter).await,
-        Roles::Tag(arguments) => tag::run(arguments, handle, emitter).await,
-        Roles::Untag(arguments) => untag::run(arguments, handle, emitter).await,
+        Roles::Create(arguments) => create::run(arguments, target, emitter).await,
+        Roles::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        Roles::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        Roles::Get(arguments) => get::run(arguments, target, emitter).await,
+        Roles::List(arguments) => list::run(arguments, target, emitter).await,
+        Roles::Tag(arguments) => tag::run(arguments, target, emitter).await,
+        Roles::Untag(arguments) => untag::run(arguments, target, emitter).await,
     }
 }

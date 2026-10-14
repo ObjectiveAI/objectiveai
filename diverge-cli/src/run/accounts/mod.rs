@@ -4,9 +4,8 @@
 //! family within: the tree of files is the tree of subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod create;
 pub mod delete;
@@ -36,14 +35,18 @@ pub enum Accounts {
 }
 
 /// The request put, by its subcommand.
-pub async fn run(command: Accounts, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+pub async fn run(
+    command: Accounts,
+    target: &Target<'_>,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
     match command {
-        Accounts::Create(arguments) => create::run(arguments, handle, emitter).await,
-        Accounts::Delete(arguments) => delete::run(arguments, handle, emitter).await,
-        Accounts::Edit(arguments) => edit::run(arguments, handle, emitter).await,
-        Accounts::Get(arguments) => get::run(arguments, handle, emitter).await,
-        Accounts::List(arguments) => list::run(arguments, handle, emitter).await,
-        Accounts::Tag(arguments) => tag::run(arguments, handle, emitter).await,
-        Accounts::Untag(arguments) => untag::run(arguments, handle, emitter).await,
+        Accounts::Create(arguments) => create::run(arguments, target, emitter).await,
+        Accounts::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        Accounts::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        Accounts::Get(arguments) => get::run(arguments, target, emitter).await,
+        Accounts::List(arguments) => list::run(arguments, target, emitter).await,
+        Accounts::Tag(arguments) => tag::run(arguments, target, emitter).await,
+        Accounts::Untag(arguments) => untag::run(arguments, target, emitter).await,
     }
 }

@@ -5,9 +5,8 @@
 //! subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod add;
 pub mod delete;
@@ -37,14 +36,18 @@ pub enum Outgoing {
 }
 
 /// The request put, by its subcommand.
-pub async fn run(command: Outgoing, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+pub async fn run(
+    command: Outgoing,
+    target: &Target<'_>,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
     match command {
-        Outgoing::Add(arguments) => add::run(arguments, handle, emitter).await,
-        Outgoing::Delete(arguments) => delete::run(arguments, handle, emitter).await,
-        Outgoing::Edit(arguments) => edit::run(arguments, handle, emitter).await,
-        Outgoing::Get(arguments) => get::run(arguments, handle, emitter).await,
-        Outgoing::List(arguments) => list::run(arguments, handle, emitter).await,
-        Outgoing::Tag(arguments) => tag::run(arguments, handle, emitter).await,
-        Outgoing::Untag(arguments) => untag::run(arguments, handle, emitter).await,
+        Outgoing::Add(arguments) => add::run(arguments, target, emitter).await,
+        Outgoing::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        Outgoing::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        Outgoing::Get(arguments) => get::run(arguments, target, emitter).await,
+        Outgoing::List(arguments) => list::run(arguments, target, emitter).await,
+        Outgoing::Tag(arguments) => tag::run(arguments, target, emitter).await,
+        Outgoing::Untag(arguments) => untag::run(arguments, target, emitter).await,
     }
 }

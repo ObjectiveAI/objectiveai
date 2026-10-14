@@ -60,3 +60,5 @@ bytes = "1.11.1"
 # The MCP request and result types of the one exchange a connect
 # run puts.
 rmcp = { version = "3.1.2", default-features = false }
+# The JSON Schema of a request's body, as `request-schema` prints it.
+schemars = "1.2.2"

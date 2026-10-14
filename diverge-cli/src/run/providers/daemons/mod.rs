@@ -4,9 +4,8 @@
 //! per family within: the tree of files is the tree of subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod add;
 pub mod delete;
@@ -36,14 +35,18 @@ pub enum Daemons {
 }
 
 /// The request put, by its subcommand.
-pub async fn run(command: Daemons, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+pub async fn run(
+    command: Daemons,
+    target: &Target<'_>,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
     match command {
-        Daemons::Add(arguments) => add::run(arguments, handle, emitter).await,
-        Daemons::Delete(arguments) => delete::run(arguments, handle, emitter).await,
-        Daemons::Edit(arguments) => edit::run(arguments, handle, emitter).await,
-        Daemons::Get(arguments) => get::run(arguments, handle, emitter).await,
-        Daemons::List(arguments) => list::run(arguments, handle, emitter).await,
-        Daemons::Tag(arguments) => tag::run(arguments, handle, emitter).await,
-        Daemons::Untag(arguments) => untag::run(arguments, handle, emitter).await,
+        Daemons::Add(arguments) => add::run(arguments, target, emitter).await,
+        Daemons::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        Daemons::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        Daemons::Get(arguments) => get::run(arguments, target, emitter).await,
+        Daemons::List(arguments) => list::run(arguments, target, emitter).await,
+        Daemons::Tag(arguments) => tag::run(arguments, target, emitter).await,
+        Daemons::Untag(arguments) => untag::run(arguments, target, emitter).await,
     }
 }

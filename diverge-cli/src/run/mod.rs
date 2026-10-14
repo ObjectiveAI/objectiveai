@@ -10,9 +10,13 @@
 //! write files take `--path`, the connect holds its scope for the
 //! one MCP exchange its own subcommand names; nothing is
 //! checked at run time that the command line did not already shape.
+//! Beneath every request that takes a body is `request-schema`,
+//! which prints the JSON Schema of that body as the SDK states it
+//! and dials nothing: see [`request_schema()`].
 //!
-//! The selected daemon is [`dial`]ed as the selected account; the
-//! leaf decodes its [`body`] as the SDK's own request type and puts it
+//! The selected daemon is the [`Target`], [`dial`]ed as the selected
+//! account by the leaf that puts a request; the leaf decodes its
+//! [`body`] as the SDK's own request type and puts it
 //! through the [`shape`] its exchange has, printing every answer
 //! frame through the [`Emitter`] as one compact JSON line, each
 //! through the jq filter when there is one. Nothing stays open past
@@ -28,7 +32,6 @@
 use std::time::Duration;
 
 use clap::{Args, Subcommand};
-use diverge_sdk::wire::client::handle::Handle;
 
 use crate::config::Selected;
 
@@ -37,6 +40,8 @@ mod dial;
 mod emit;
 mod error;
 mod refusing;
+mod request_schema;
+mod target;
 
 pub mod shape;
 
@@ -54,6 +59,8 @@ pub use dial::*;
 pub use emit::*;
 pub use error::*;
 pub use refusing::*;
+pub use request_schema::*;
+pub use target::*;
 
 /// The command: which daemon, as whom, how the answers are printed,
 /// how long it may take, and the request.
@@ -113,14 +120,16 @@ pub enum Command {
 }
 
 /// Put the request `run` names to the daemon `selected` names, as
-/// its account: the daemon dialled, the leaf run — within
-/// `--timeout`, when one is given — and every answer printed.
+/// its account: the leaf run — within `--timeout`, when one is given
+/// — dialling the daemon if its command line puts a request, and
+/// every answer printed.
 pub async fn run(selected: &Selected<'_>, run: Run) -> Result<(), Error> {
     let mut emitter = Emitter::new(run.jq);
-    let exchange = async {
-        let handle = dial(&selected.daemon.address, &selected.account.key).await?;
-        dispatch(run.command, &handle, &mut emitter).await
+    let target = Target {
+        address: &selected.daemon.address,
+        key: &selected.account.key,
     };
+    let exchange = async { dispatch(run.command, &target, &mut emitter).await };
     match run.timeout {
         None => exchange.await,
         Some(seconds) => match tokio::time::timeout(Duration::from_secs(seconds), exchange).await {
@@ -131,15 +140,19 @@ pub async fn run(selected: &Selected<'_>, run: Run) -> Result<(), Error> {
 }
 
 /// The request put, by its family.
-async fn dispatch(command: Command, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+async fn dispatch(
+    command: Command,
+    target: &Target<'_>,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
     match command {
-        Command::Accounts(command) => accounts::run(command, handle, emitter).await,
-        Command::Agents(command) => agents::run(command, handle, emitter).await,
-        Command::DependencyTools(command) => dependency_tools::run(command, handle, emitter).await,
-        Command::Postgres(command) => postgres::run(command, handle, emitter).await,
-        Command::Providers(command) => providers::run(command, handle, emitter).await,
-        Command::Roles(command) => roles::run(command, handle, emitter).await,
-        Command::StandaloneTools(command) => standalone_tools::run(command, handle, emitter).await,
-        Command::Volumes(command) => volumes::run(command, handle, emitter).await,
+        Command::Accounts(command) => accounts::run(command, target, emitter).await,
+        Command::Agents(command) => agents::run(command, target, emitter).await,
+        Command::DependencyTools(command) => dependency_tools::run(command, target, emitter).await,
+        Command::Postgres(command) => postgres::run(command, target, emitter).await,
+        Command::Providers(command) => providers::run(command, target, emitter).await,
+        Command::Roles(command) => roles::run(command, target, emitter).await,
+        Command::StandaloneTools(command) => standalone_tools::run(command, target, emitter).await,
+        Command::Volumes(command) => volumes::run(command, target, emitter).await,
     }
 }

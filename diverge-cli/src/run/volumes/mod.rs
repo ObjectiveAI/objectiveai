@@ -4,9 +4,8 @@
 //! family within: the tree of files is the tree of subcommands.
 
 use clap::Subcommand;
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error};
+use crate::run::{Emitter, Error, Target};
 
 pub mod create;
 pub mod delete;
@@ -55,19 +54,23 @@ pub enum Volumes {
 }
 
 /// The request put, by its subcommand.
-pub async fn run(command: Volumes, handle: &Handle, emitter: &mut Emitter) -> Result<(), Error> {
+pub async fn run(
+    command: Volumes,
+    target: &Target<'_>,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
     match command {
-        Volumes::Create(arguments) => create::run(arguments, handle, emitter).await,
-        Volumes::Delete(arguments) => delete::run(arguments, handle, emitter).await,
-        Volumes::Download(arguments) => download::run(arguments, handle, emitter).await,
-        Volumes::Edit(arguments) => edit::run(arguments, handle, emitter).await,
-        Volumes::Filetree(arguments) => filetree::run(arguments, handle, emitter).await,
-        Volumes::Get(arguments) => get::run(arguments, handle, emitter).await,
-        Volumes::List(arguments) => list::run(arguments, handle, emitter).await,
-        Volumes::Stat(arguments) => stat::run(arguments, handle, emitter).await,
-        Volumes::Tag(arguments) => tag::run(arguments, handle, emitter).await,
-        Volumes::Transfer(arguments) => transfer::run(arguments, handle, emitter).await,
-        Volumes::Untag(arguments) => untag::run(arguments, handle, emitter).await,
-        Volumes::Upload(arguments) => upload::run(arguments, handle, emitter).await,
+        Volumes::Create(arguments) => create::run(arguments, target, emitter).await,
+        Volumes::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        Volumes::Download(arguments) => download::run(arguments, target, emitter).await,
+        Volumes::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        Volumes::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
+        Volumes::Get(arguments) => get::run(arguments, target, emitter).await,
+        Volumes::List(arguments) => list::run(arguments, target, emitter).await,
+        Volumes::Stat(arguments) => stat::run(arguments, target, emitter).await,
+        Volumes::Tag(arguments) => tag::run(arguments, target, emitter).await,
+        Volumes::Transfer(arguments) => transfer::run(arguments, target, emitter).await,
+        Volumes::Untag(arguments) => untag::run(arguments, target, emitter).await,
+        Volumes::Upload(arguments) => upload::run(arguments, target, emitter).await,
     }
 }

@@ -4,9 +4,8 @@
 
 use clap::Args;
 use diverge_sdk::daemon::endpoints::postgres::list::{client::request, server::response};
-use diverge_sdk::wire::client::handle::Handle;
 
-use crate::run::{Emitter, Error, shape};
+use crate::run::{Emitter, Error, Target, shape};
 
 /// Listing the container connections open through the database.
 /// There is exactly one database and the list is whole, so the
@@ -20,9 +19,10 @@ pub struct Arguments {}
 /// command's.
 pub async fn run(
     Arguments {}: Arguments,
-    handle: &Handle,
+    target: &Target<'_>,
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
     let request = request::Frame {};
-    shape::stream::<_, response::Frame, _>(handle, &request, emitter, shape::at_listed).await
+    let handle = target.dial().await?;
+    shape::stream::<_, response::Frame, _>(&handle, &request, emitter, shape::at_listed).await
 }

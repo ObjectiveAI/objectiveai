@@ -11,10 +11,11 @@ use diverge_sdk::wire::client::handle::Handle;
 use serde_json::Value;
 
 use crate::run::shape::{Content, Upload};
-use crate::run::{Emitter, Error, body, shape};
+use crate::run::{Below, Emitter, Error, Target, body, request_schema, shape};
 
 /// Uploading files into a dependency tool's container.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
+#[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]. Absent, `{}`.
@@ -24,17 +25,26 @@ pub struct Arguments {
     /// directory upload reads each named file under.
     #[arg(long = "path", value_name = "LOCAL")]
     pub local: PathBuf,
+    /// What is beneath the request: `request-schema`, the JSON Schema
+    /// of the body it takes, printed in place of putting any request.
+    #[command(subcommand)]
+    pub below: Option<Below>,
 }
 
 /// The request put, every file the daemon asks for read from under
 /// the local path, and the answer printed.
 pub async fn run(
     arguments: Arguments,
-    handle: &Handle,
+    target: &Target<'_>,
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
+    if let Some(Below::RequestSchema(_)) = arguments.below {
+        return request_schema::<request::Frame>("diverge run dependency-tools upload", emitter)
+            .await;
+    }
     let request: request::Frame = body(arguments.body.as_deref())?;
-    shape::upload(handle, &request, &arguments.local, emitter).await
+    let handle = target.dial().await?;
+    shape::upload(&handle, &request, &arguments.local, emitter).await
 }
 
 impl Upload for request::Frame {
