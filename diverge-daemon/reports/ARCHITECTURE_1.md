@@ -201,8 +201,12 @@ Two populations, kept apart by type and by fate:
   it. (2026-10-08.)
 - **The daemon attests under `_meta`; the proxy and the provider relay.**
   One key, `diverge.network`, one object tagged `kind`. On every MCP
-  call an agent sends outward the daemon sets the agent (`agent`: its
-  image, template, index, name) before it forwards the call; on
+  call an agent sends outward the daemon sets the caller (`agent`: its
+  image, template, index, name) before it forwards the call, and on
+  every exchange an outside client puts over a connect the serving
+  daemon sets the caller too (`unbrokered`: the identity it authorized
+  the connection as, nothing the client said of itself) before it
+  reaches the tool; on
   everything a tool's server answers — the result, each tool and
   resource of a list, each notification — the tool as it relays the
   answer back: `created`, `connected` or `dependency`, each with the
@@ -212,9 +216,8 @@ Two populations, kept apart by type and by fate:
   template as the daemon that runs it
   told in its `Connected` answer, re-stamped as this daemon's own in
   place of that daemon's stamp, which is not trusted; on every chunk
-  an agent says, the agent, as it keeps the chunk in the log. A
-  request arriving over a connect from another daemon's agent is not
-  stamped: it goes to the tool as sent. The proxy and the provider set
+  an agent says, the agent, as it keeps the chunk in the log. A stamp
+  from outside is never trusted, either way. The proxy and the provider set
   nothing under `_meta` and send it as sent; the begin request carries
   no image. `diverge_sdk::shared::mcp` writes it (`attest`) and reads
   it back (`attestation::request` for tool containers,

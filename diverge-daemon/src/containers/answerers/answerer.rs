@@ -24,9 +24,10 @@ pub struct Answerer {
     /// The container the run is.
     pub key: Key,
     /// The agent the run is, as the daemon attests it under `_meta` on
-    /// every MCP call it sends outward for it. None for a tool's run,
-    /// which serves no tool and calls nothing outward.
-    pub caller: Option<attestation::Agent>,
+    /// every MCP call it sends outward for it: a caller of the agent
+    /// kind. None for a tool's run, which serves no tool and calls
+    /// nothing outward.
+    pub caller: Option<attestation::Caller>,
     /// The container as a sender.
     pub sender: Creator,
     /// The account it runs under, if any: who its `/daemon`

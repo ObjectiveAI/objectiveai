@@ -35,9 +35,10 @@ pub struct AgentRun {
     /// The record.
     pub id: AgentId,
     /// The agent as the daemon attests it under `_meta`, on every call
-    /// it sends outward and every chunk it says: the agent — template,
-    /// index, name — with the image it was made from.
-    pub attestation: attestation::Agent,
+    /// it sends outward and every chunk it says: the caller of the
+    /// agent kind — template, index, name — with the image it was
+    /// made from.
+    pub attestation: attestation::Caller,
     /// The agent as a sender and a maker.
     pub sender: Creator,
     /// The provider it runs on.

@@ -33,7 +33,7 @@ pub struct Context {
     /// The agent the container is, as the daemon attests it on what
     /// it sends outward; none for a tool container, which sends
     /// nothing outward.
-    pub caller: Option<attestation::Agent>,
+    pub caller: Option<attestation::Caller>,
     /// The served set.
     pub served: Arc<Mutex<Served>>,
 }

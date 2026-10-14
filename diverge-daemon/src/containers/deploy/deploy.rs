@@ -44,7 +44,7 @@ use crate::store::{self, AgentId, DependencyToolId, hash};
 /// tried — is the error, naming the dependency by its id where there
 /// is one, and every transient tool started is stopped.
 pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -> Result<(), Error> {
-    let (Key::Agent(agent), Some(caller)) = (answerer.key, &answerer.caller) else {
+    let (Key::Agent(agent), Some(attestation::Caller::Agent(caller))) = (answerer.key, &answerer.caller) else {
         return Err(error("", "a tool container declares no dependencies"));
     };
     let agent_key = &caller.key;

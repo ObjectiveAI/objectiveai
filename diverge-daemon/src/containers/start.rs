@@ -101,10 +101,10 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         let answerer = Arc::new(Answerer {
             daemon: Arc::clone(daemon),
             key: Key::Agent(agent.id),
-            caller: Some(attestation::Agent {
+            caller: Some(attestation::Caller::Agent(attestation::Agent {
                 image: image.clone(),
                 key: agent.key(),
-            }),
+            })),
             sender: sender_of_agent(agent),
             account: None,
             dependent: None,
@@ -138,10 +138,10 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         }
         let run = Arc::new(AgentRun {
             id: agent.id,
-            attestation: attestation::Agent {
+            attestation: attestation::Caller::Agent(attestation::Agent {
                 image,
                 key: agent.key(),
-            },
+            }),
             sender: sender_of_agent(agent),
             provider: identity.clone(),
             container: id.id,

@@ -7,7 +7,8 @@ use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::channel_r
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::request;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::server::response::Frame;
 use diverge_sdk::daemon::grant::standalone_tools::Over;
-use diverge_sdk::shared::mcp;
+use diverge_sdk::shared::mcp::attestation::Caller;
+use diverge_sdk::shared::mcp::{self, attest_request};
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::frame::client::ClientFrame;
@@ -45,20 +46,23 @@ const CONNECTED: &str = "a connected tool is another daemon's, and is served the
 /// `Connected`, telling the tool's image and template for the other
 /// daemon to attest with, and then the scope held until the run ends
 /// or the client disconnects: every channel the client opens is one
-/// of the five MCP exchanges, put to the tool with its `_meta` as the
-/// other daemon sent it — this daemon stamps nothing on an external
-/// connector's requests, there being no point — and answered by the
-/// tool's server on a task of its own, each answer attested as this
-/// daemon's own tool, in place of anything the tool's server put; or
-/// the disconnect; a channel request that does not decode is finished
-/// with nothing. On either end the tasks are ended and the scope lets
-/// the tool go.
+/// of the five MCP exchanges, put to the tool stamped with the caller
+/// as this daemon authorized the connection — its identity,
+/// unbrokered, and nothing the client said of itself, in place of
+/// anything the client stamped — and answered by the tool's server on
+/// a task of its own, each answer attested as this daemon's own tool,
+/// in place of anything the tool's server put; or the disconnect; a
+/// channel request that does not decode is finished with nothing. On
+/// either end the tasks are ended and the scope lets the tool go.
 async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     };
+    let caller = Arc::new(Caller::Unbrokered {
+        identity: standing.identity.clone(),
+    });
     if !judge::standalone_tools::holds(&standing, Over::Connect) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
@@ -108,7 +112,7 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
                 match channel_request::Frame::decode(payload) {
                     Ok(channel_request::Frame::Disconnect) => break,
                     Ok(ask) => {
-                        tasks.spawn(answer(Arc::clone(scope), Arc::clone(&run), channel, ask));
+                        tasks.spawn(answer(Arc::clone(scope), Arc::clone(&run), Arc::clone(&caller), channel, ask));
                     }
                     Err(_) => scope.send_channel_response_finish(channel).await,
                 }
@@ -130,17 +134,20 @@ async fn over(ended: &mut tokio::sync::watch::Receiver<bool>) {
     }
 }
 
-/// One channel, answered: the exchange put to the tool, its answer
-/// attested as this daemon's own tool, sent as one channel
-/// response and the finish — or, for the notifications, one per
-/// notification until the tool's stream ends. A disconnect never
+/// One channel, answered: the exchange put to the tool stamped with
+/// `caller`, this daemon's word on who is asking, its answer attested
+/// as this daemon's own tool, sent as one channel response and the
+/// finish — or, for the notifications, which carry no request, one
+/// per notification until the tool's stream ends. A disconnect never
 /// reaches here. Every exchange is a use of the tool.
-async fn answer(scope: Arc<ScopeHandle>, run: Arc<ToolRun>, channel: u32, ask: channel_request::Frame) {
+async fn answer(scope: Arc<ScopeHandle>, run: Arc<ToolRun>, caller: Arc<Caller>, channel: u32, ask: channel_request::Frame) {
     run.touch();
     match ask {
         channel_request::Frame::Disconnect => {}
         channel_request::Frame::McpListTools(request) => {
-            let frame = match run.handle.list_tools(request.0).await {
+            let mut params = request.0.unwrap_or_default();
+            attest_request(&mut params, &*caller);
+            let frame = match run.handle.list_tools(Some(params)).await {
                 Ok(mut result) => {
                     for tool in &mut result.tools {
                         run.attest(tool.meta.get_or_insert_default());
@@ -152,7 +159,9 @@ async fn answer(scope: Arc<ScopeHandle>, run: Arc<ToolRun>, channel: u32, ask: c
             respond(&scope, channel, &frame).await;
         }
         channel_request::Frame::McpListResources(request) => {
-            let frame = match run.handle.list_resources(request.0).await {
+            let mut params = request.0.unwrap_or_default();
+            attest_request(&mut params, &*caller);
+            let frame = match run.handle.list_resources(Some(params)).await {
                 Ok(mut result) => {
                     for resource in &mut result.resources {
                         run.attest(resource.meta.get_or_insert_default());
@@ -164,7 +173,9 @@ async fn answer(scope: Arc<ScopeHandle>, run: Arc<ToolRun>, channel: u32, ask: c
             respond(&scope, channel, &frame).await;
         }
         channel_request::Frame::McpCallTool(request) => {
-            let frame = match run.handle.call_tool(request.0).await {
+            let mut params = request.0;
+            attest_request(&mut params, &*caller);
+            let frame = match run.handle.call_tool(params).await {
                 Ok(mut result) => {
                     run.attest(result.meta.get_or_insert_default());
                     mcp::call_tool::response::Frame::Result(result)
@@ -174,7 +185,9 @@ async fn answer(scope: Arc<ScopeHandle>, run: Arc<ToolRun>, channel: u32, ask: c
             respond(&scope, channel, &frame).await;
         }
         channel_request::Frame::McpReadResource(request) => {
-            let frame = match run.handle.read_resource(request.0).await {
+            let mut params = request.0;
+            attest_request(&mut params, &*caller);
+            let frame = match run.handle.read_resource(params).await {
                 Ok(mut result) => {
                     run.attest(result.meta.get_or_insert_default());
                     mcp::read_resource::response::Frame::Result(result)
