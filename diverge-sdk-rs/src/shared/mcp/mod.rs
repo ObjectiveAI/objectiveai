@@ -33,25 +33,30 @@
 //!
 //! A container never addresses one server over another: it sees its
 //! proxy, and the caller merges its servers into one list. So the
-//! caller says who is which, under three `_meta` keys — [`IMAGE`],
-//! [`AGENT`], [`TOOL`], set by [`attest`] — and the caller is the
-//! daemon. On the four requests an agent's program sends outward the daemon
-//! sets them on the params before it forwards the call, so a tool
-//! container that receives it knows which agent is calling: its
-//! image, its template and its index. On what a tool container's own
-//! server answers — the result of each of the four, each tool and
-//! each resource of a list, and each notification — the daemon sets
-//! them as it relays the answer back, so a program that reads a
-//! merged list knows which tool serves each entry. And on every chunk
-//! an agent says, which is not MCP but has the same `_meta` at its
-//! top level, the daemon sets them as it keeps the chunk, so a reader
-//! of the log knows which agent spoke. The daemon replaces a value
-//! set under those keys and leaves every other key as it was sent;
-//! the proxy and the provider's server set nothing under `_meta` and
-//! relay all of it as sent. The keys' form is MCP's own rule for
-//! `_meta` names: a prefix of dotted labels, a slash, a name. The
-//! side that receives them reads them back as types through
-//! [`attested`]: a tool reads a request's, an agent an answer's.
+//! caller says who is which, under one `_meta` key — [`KEY`],
+//! `diverge.network` — whose value is an
+//! [`Attestation`](attestation::Attestation), one object tagged
+//! `kind`, set by [`attest`]; and the caller is the daemon. On the
+//! four requests an agent's program sends outward the daemon sets the
+//! agent — `kind` `agent`: its image, its template, its index, its
+//! name — on the params before it forwards the call, so a tool
+//! container that receives it knows which agent is calling. On what
+//! a tool container's own server answers — the result of each of the
+//! four, each tool and each resource of a list, and each notification
+//! — the daemon sets the tool as it relays the answer back, so a
+//! program that reads a merged list knows which tool serves each:
+//! `kind` `created` or `dependency` with the tool's image, since the
+//! daemon ran it, or `kind` `connected` without one, since another
+//! daemon runs it and attested it. And on every chunk an agent says,
+//! which is not MCP but has the same `_meta` at its top level, the
+//! daemon sets the agent as it keeps the chunk, so a reader of the
+//! log knows which agent spoke. The daemon replaces a value set under
+//! the key and leaves every other key as it was sent; the proxy and
+//! the provider's server set nothing under `_meta` and relay all of
+//! it as sent. The key's form is MCP's own rule for `_meta` names: a
+//! prefix of dotted labels — here the prefix alone. The side that
+//! receives it reads it back as its type through [`attestation`]: a
+//! tool reads a request's agent, an agent an answer's tool.
 //!
 //! # What is not here
 //!
@@ -69,7 +74,7 @@ mod meta;
 pub use frame_error::*;
 pub use meta::*;
 
-pub mod attested;
+pub mod attestation;
 pub mod call_tool;
 pub mod list_resources;
 pub mod list_tools;

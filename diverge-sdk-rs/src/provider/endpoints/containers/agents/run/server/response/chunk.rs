@@ -10,8 +10,8 @@ use super::{
     ToolResponseChunk, UsageChunk, UserAudioContentChunk, UserImageContentChunk, UserResourceChunk,
     UserResourceLinkChunk, UserTextContentChunk,
 };
-use crate::shared::containers::request::Image;
-use crate::shared::mcp::{Who, attest};
+use crate::shared::mcp::attest;
+use crate::shared::mcp::attestation::Attestation;
 
 /// One chunk of a streaming agentic loop.
 ///
@@ -58,9 +58,9 @@ use crate::shared::mcp::{Who, attest};
 ///
 /// Every kind of chunk has a `_meta` at its top level — MCP's own on
 /// the flattened content and results, this crate's on the rest — and
-/// the daemon sets the keys of [`shared::mcp`](crate::shared::mcp)
+/// the daemon sets the key of [`shared::mcp`](crate::shared::mcp)
 /// on each as it keeps the stream, by [`attest`](Self::attest): the
-/// speaking agent's image, template and index. The proxy and the
+/// speaking agent, with its image. The proxy and the
 /// provider relay each chunk as the agent's server produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -100,11 +100,11 @@ pub enum AgenticLoopChunk {
 }
 
 impl AgenticLoopChunk {
-    /// Set the keys of [`shared::mcp`](crate::shared::mcp) on this
+    /// Set the key of [`shared::mcp`](crate::shared::mcp) on this
     /// chunk's `_meta`, whichever kind it is — made when the chunk
-    /// carried none: the speaking agent's image and key, in place of
-    /// whatever was under those keys and beside everything else.
-    pub fn attest(&mut self, image: Option<&Image>, who: Who<'_>) {
+    /// carried none: the speaking agent, with its image, in place of
+    /// whatever was under the key and beside everything else.
+    pub fn attest(&mut self, attestation: &Attestation) {
         let meta: &mut MetaObject = match self {
             AgenticLoopChunk::AssistantReasoning(chunk) => chunk.inner.meta.get_or_insert_default(),
             AgenticLoopChunk::AssistantTextContent(chunk) => chunk.inner.meta.get_or_insert_default(),
@@ -121,6 +121,6 @@ impl AgenticLoopChunk {
             AgenticLoopChunk::Usage(chunk) => chunk.meta.get_or_insert_default(),
             AgenticLoopChunk::Notification(chunk) => chunk.meta.get_or_insert_default(),
         };
-        attest(meta, image, who);
+        attest(meta, attestation);
     }
 }
