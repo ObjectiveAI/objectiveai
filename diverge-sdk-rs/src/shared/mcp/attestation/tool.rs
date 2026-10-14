@@ -16,7 +16,8 @@ use crate::shared::containers::request::Image;
 /// image nor the container. The kinds are the daemon's own
 /// [`key::Tool`] laid flat, the image beside: [`key`](Self::key)
 /// gives that key back.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Tool {
     /// A tool on record, made by a create from a template, run by

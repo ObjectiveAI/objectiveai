@@ -12,7 +12,8 @@ use crate::shared::containers::request::Image;
 /// reads the agent alone through [`request`](super::request), an
 /// agent container the tool alone through
 /// [`response`](super::response).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Attestation {
     /// An agent: `kind` is `agent`.

@@ -10,7 +10,8 @@ use crate::shared::containers::request::Image;
 /// `{"kind":"agent","image":{…},"template":…,"index":…,"name":…}`.
 /// An agent is always run from its image, so the image is always
 /// here.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "kind", rename = "agent")]
 pub struct Agent {
     /// The image the agent was made from.
