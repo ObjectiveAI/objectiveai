@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use chrono::Utc;
+use diverge_sdk::shared::mcp::attestation::{self, Attestation};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::{execute as tools_connect, request as connect_request};
 use diverge_sdk::provider::endpoints::containers::agents::run::client::{execute as agents_run, request as agents_request};
@@ -14,7 +15,7 @@ use tokio::sync::{Mutex, watch};
 use super::answerers::Answerer;
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{AgentRun, Caller, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, services, stop};
+use super::{AgentRun, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, services, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::daemons;
 use crate::store::agents::Agent;
@@ -100,10 +101,10 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         let answerer = Arc::new(Answerer {
             daemon: Arc::clone(daemon),
             key: Key::Agent(agent.id),
-            caller: Caller::Agent {
-                key: agent.key(),
+            caller: Attestation::Agent(attestation::Agent {
                 image: image.clone(),
-            },
+                key: agent.key(),
+            }),
             sender: sender_of_agent(agent),
             account: None,
             dependent: None,
@@ -137,8 +138,10 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         }
         let run = Arc::new(AgentRun {
             id: agent.id,
-            key: agent.key(),
-            image,
+            attestation: Attestation::Agent(attestation::Agent {
+                image,
+                key: agent.key(),
+            }),
             sender: sender_of_agent(agent),
             provider: identity.clone(),
             container: id.id,
@@ -191,7 +194,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         return Ok(run);
     }
     let touched = watch::channel(Instant::now()).0;
-    let (identity, container, handle, mounts, image) = match &tool.origin {
+    let (identity, container, handle, mounts, attestation) = match &tool.origin {
         Origin::Created { template, provider: pinned } => {
             let record = {
                 let mut conn = daemon.store.acquire().await?;
@@ -216,10 +219,12 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 let answerer = Arc::new(Answerer {
                     daemon: Arc::clone(daemon),
                     key: Key::Tool(ToolKey::Record(tool.id)),
-                    caller: Caller::Tool {
-                        key: tool.key(),
-                        image: Some(image.clone()),
-                    },
+                    caller: Attestation::Tool(attestation::Tool::Created {
+                        image: image.clone(),
+                        template: template.clone(),
+                        index: tool.index,
+                        name: tool.name.clone(),
+                    }),
                     sender: sender_of_tool(tool),
                     account: tool.account,
                     dependent: None,
@@ -242,7 +247,13 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 mounts.stop().await;
                 return Err(StartError::Run(last));
             };
-            (identity, Some(id), ToolHandle::Run(handle), mounts, Some(image))
+            let attestation = attestation::Tool::Created {
+                image,
+                template: template.clone(),
+                index: tool.index,
+                name: tool.name.clone(),
+            };
+            (identity, Some(id), ToolHandle::Run(handle), mounts, attestation)
         }
         Origin::Connected { daemon: name, tool: remote } => {
             let record = {
@@ -257,13 +268,18 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 .await
                 .map_err(|error| StartError::Run(connect_failed(&error)))?;
             let mounts = Arc::new(Mounts::empty());
-            (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, None)
+            let attestation = attestation::Tool::Connected {
+                daemon: name.clone(),
+                tool: Box::new(remote.clone()),
+                index: tool.index,
+                name: tool.name.clone(),
+            };
+            (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation)
         }
     };
     let run = Arc::new(ToolRun {
         id: ToolKey::Record(tool.id),
-        key: tool.key(),
-        image,
+        attestation: Attestation::Tool(attestation),
         sender: sender_of_tool(tool),
         account: tool.account,
         provider: identity.clone(),

@@ -4,9 +4,9 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
 
+use diverge_sdk::shared::mcp::attestation::{self, Attestation};
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::grant::Converted;
-use diverge_sdk::daemon::key;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
 use tokio::sync::{Mutex, watch};
 
@@ -14,7 +14,7 @@ use crate::containers::answerers::Answerer;
 use crate::containers::deploy::short;
 use crate::containers::fuse::Mounts;
 use crate::containers::mcp::Served;
-use crate::containers::{Caller, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, provider, stop};
+use crate::containers::{Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, provider, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{Dependent, Fixed};
 use crate::store::agents;
@@ -42,17 +42,17 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
     let Some(owner) = tool.owner(owner.as_ref()) else {
         return Err(StartError::Run("the service's agent is gone".to_string()));
     };
-    let tool_key = key::Tool::Dependency {
-        template: tool.template.clone(),
-        owner: owner.clone(),
-    };
     let sender = Creator::Tool(creator::Tool::Dependency {
         template: tool.template.clone(),
-        owner,
+        owner: owner.clone(),
     });
     let candidates = provider::candidates(daemon, None).await.map_err(StartError::Provider)?;
     let container = build::service(&tool.template, &tool.declared);
-    let image = container.image.clone();
+    let attestation = attestation::Tool::Dependency {
+        image: container.image.clone(),
+        template: tool.template.clone(),
+        owner,
+    };
     let dependent = Dependent {
         fixed: Arc::new(Fixed::new(
             format!("service/{}", short(&tool.template)),
@@ -67,10 +67,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         let answerer = Arc::new(Answerer {
             daemon: Arc::clone(daemon),
             key: Key::Tool(key),
-            caller: Caller::Tool {
-                key: tool_key.clone(),
-                image: Some(image.clone()),
-            },
+            caller: Attestation::Tool(attestation.clone()),
             sender: sender.clone(),
             account: None,
             dependent: Some(dependent.clone()),
@@ -90,8 +87,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         };
         let run = Arc::new(ToolRun {
             id: key,
-            key: tool_key.clone(),
-            image: Some(image.clone()),
+            attestation: Attestation::Tool(attestation.clone()),
             sender: sender.clone(),
             account: None,
             provider: identity,

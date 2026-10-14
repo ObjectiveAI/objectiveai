@@ -200,16 +200,20 @@ Two populations, kept apart by type and by fate:
   nothing is announced per log line. `STREAMS_1.md` is the whole of
   it. (2026-10-08.)
 - **The daemon attests under `_meta`; the proxy and the provider relay.**
-  On every MCP call an agent sends outward the daemon sets the agent's
-  image and key (`diverge.network/image`, `diverge.network/agent`)
-  before it forwards the call; on everything a tool's server answers —
-  the result, each tool and resource of a list, each notification — the
-  tool's key (`diverge.network/tool`) and its image when the daemon ran
-  it, as it relays the answer back; on every chunk an agent says, the
-  agent's, as it keeps the chunk in the log. The proxy and the
-  provider set nothing under `_meta` and send it as sent; the begin
-  request carries no image. `diverge_sdk::shared::mcp` is the whole
-  of it. (2026-10-08.)
+  One key, `diverge.network`, one object tagged `kind`. On every MCP
+  call an agent sends outward the daemon sets the agent (`agent`: its
+  image, template, index, name) before it forwards the call; on
+  everything a tool's server answers — the result, each tool and
+  resource of a list, each notification — the tool as it relays the
+  answer back: `created` or `dependency` with its image, since the
+  daemon ran it, or `connected` without one, since another daemon
+  runs it and attested it — the image's absence is the kind's, not a
+  key's; on every chunk an agent says, the agent, as it keeps the chunk
+  in the log. The proxy and the provider set nothing under `_meta` and
+  send it as sent; the begin request carries no image.
+  `diverge_sdk::shared::mcp` writes it (`attest`) and reads it back
+  (`attestation::request` for tool containers, `attestation::response`
+  for agent containers). (2026-10-13; three keys 2026-10-08.)
 - **A provider's volumes are mirrored for the connection.** The daemon
   opens one `volumes::list` on every provider as it attaches and keeps
   it for the connection's life; what the provider's volumes are is read

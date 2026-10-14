@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
 
+use diverge_sdk::shared::mcp::attestation::{self, Attestation};
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::grant::Converted;
 use diverge_sdk::daemon::key;
@@ -19,7 +20,7 @@ use crate::containers::answerers::Answerer;
 use crate::containers::fuse::Mounts;
 use crate::containers::mcp::Served;
 use crate::containers::services;
-use crate::containers::{Caller, Key, ToolHandle, ToolKey, ToolRun, User, build, provider, stop};
+use crate::containers::{Key, ToolHandle, ToolKey, ToolRun, User, build, provider, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{Dependent, Fixed};
 use crate::store::dependency_tools::{self, DependencyTool};
@@ -43,9 +44,10 @@ use crate::store::{self, AgentId, DependencyToolId, hash};
 /// tried — is the error, naming the dependency by its id where there
 /// is one, and every transient tool started is stopped.
 pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -> Result<(), Error> {
-    let (Key::Agent(agent), Caller::Agent { key: agent_key, .. }) = (answerer.key, &answerer.caller) else {
+    let (Key::Agent(agent), Attestation::Agent(caller)) = (answerer.key, &answerer.caller) else {
         return Err(error("", "a tool container declares no dependencies"));
     };
+    let agent_key = &caller.key;
     let creator = Creator::Agent(creator::Agent {
         template: agent_key.template.clone(),
         index: agent_key.index,
@@ -182,7 +184,8 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
     let mounts = Arc::new(Mounts::build_dependency(daemon, &answerer.provider, agent_container, fuse_file_mounts, fuse_directory_mounts).await?);
     let container = build::dependency(&tool.template, &tool.declared, &mounts);
     let image = container.image.clone();
-    let tool_key = key::Tool::Dependency {
+    let attestation = attestation::Tool::Dependency {
+        image: image.clone(),
         template: tool.template.clone(),
         owner: key::Owner::Agent(agent_key.clone()),
     };
@@ -200,10 +203,7 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
         let run_answerer = Arc::new(Answerer {
             daemon: Arc::clone(daemon),
             key: Key::Tool(key),
-            caller: Caller::Tool {
-                key: tool_key.clone(),
-                image: Some(image.clone()),
-            },
+            caller: Attestation::Tool(attestation.clone()),
             sender: sender.clone(),
             account: None,
             dependent: dependent.clone(),
@@ -224,8 +224,7 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
         };
         let run = Arc::new(ToolRun {
             id: key,
-            key: tool_key.clone(),
-            image: Some(image.clone()),
+            attestation: Attestation::Tool(attestation.clone()),
             sender: sender.clone(),
             account: None,
             provider: identity,

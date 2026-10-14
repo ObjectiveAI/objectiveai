@@ -39,7 +39,6 @@
 //! through this module and not through the file it lives in.
 
 mod build;
-mod caller;
 mod error;
 mod idle;
 mod inflight;
@@ -64,7 +63,6 @@ pub mod message;
 pub mod services;
 
 pub use build::*;
-pub use caller::*;
 pub use error::*;
 pub use idle::*;
 pub use inflight::*;

@@ -6,13 +6,12 @@ use std::time::Instant;
 
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::ExecuteHandle as ConnectHandle;
-use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
-use diverge_sdk::shared::containers::request::Image;
-use diverge_sdk::shared::mcp::{Who, attest};
+use diverge_sdk::shared::mcp::attest;
+use diverge_sdk::shared::mcp::attestation::Attestation;
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt as _};
 use rmcp::model::{
@@ -36,10 +35,10 @@ pub struct AgentRun {
     /// The record.
     pub id: AgentId,
     /// The agent as the daemon attests it under `_meta`, on every call
-    /// it sends outward and every chunk it says: template, index, name.
-    pub key: key::Agent,
-    /// The image it was made from, attested beside the key.
-    pub image: Image,
+    /// it sends outward and every chunk it says: the agent — template,
+    /// index, name — with the image it was made from. Always the
+    /// agent kind.
+    pub attestation: Attestation,
     /// The agent as a sender and a maker.
     pub sender: Creator,
     /// The provider it runs on.
@@ -216,11 +215,10 @@ pub struct ToolRun {
     /// The record, or the dependency tool's row.
     pub id: ToolKey,
     /// The tool as the daemon attests it under `_meta`, on everything
-    /// its server answers.
-    pub key: key::Tool,
-    /// The image it was made from, attested beside the key; none for
-    /// a connected tool, whose image the daemon never sees.
-    pub image: Option<Image>,
+    /// its server answers: created or dependency, with the image it
+    /// was made from, or connected, without one, since the daemon
+    /// never sees a connected tool's image. Always the tool kind.
+    pub attestation: Attestation,
     /// The tool as a sender and a maker.
     pub sender: Creator,
     /// The account it runs under, if any.
@@ -276,8 +274,8 @@ impl ToolRun {
 
     /// Whether this daemon attests what the tool answers under `_meta`.
     /// The rule: the daemon attests what its own containers answer —
-    /// its image and its key put on every result, resource, tool and
-    /// notification — and passes through what another daemon attested,
+    /// the tool, with its image, put on every result, resource, tool
+    /// and notification — and passes through what another daemon attested,
     /// since a connected tool's answers come attested by the daemon
     /// that runs it, and this one saw neither the image nor the
     /// container.
@@ -289,7 +287,7 @@ impl ToolRun {
     /// [`attests`](Self::attests) says to; else leave it as it came.
     pub fn attest(&self, meta: &mut MetaObject) {
         if self.attests() {
-            attest(meta, self.image.as_ref(), Who::Tool(&self.key));
+            attest(meta, &self.attestation);
         }
     }
 }

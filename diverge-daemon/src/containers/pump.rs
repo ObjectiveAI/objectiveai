@@ -6,11 +6,10 @@ use std::sync::Arc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item};
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::{Event, ExecuteStream};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
-use diverge_sdk::shared::mcp::Who;
 use futures_util::{StreamExt as _, future};
 
 use super::mcp::{self, Context};
-use super::{AgentRun, Caller, Key, User, stop, tools};
+use super::{AgentRun, Key, User, stop, tools};
 use crate::daemon::{Daemon, Kind};
 use crate::logs;
 use crate::store::AgentId;
@@ -25,16 +24,13 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
     let context = Context {
         daemon: Arc::clone(&daemon),
         user: Key::Agent(run.id),
-        caller: Caller::Agent {
-            key: run.key.clone(),
-            image: run.image.clone(),
-        },
+        caller: run.attestation.clone(),
         served: Arc::clone(&run.served),
     };
     while let Some(event) = stream.next().await {
         match event {
             Ok(Event::Chunk(mut chunk)) => {
-                chunk.attest(Some(&run.image), Who::Agent(&run.key));
+                chunk.attest(&run.attestation);
                 let item = match user_key(&chunk) {
                     Some(key) => match run.messages.lock().await.get(key).cloned() {
                         Some(sender) => Item::User(log::User { sender, chunk }),
