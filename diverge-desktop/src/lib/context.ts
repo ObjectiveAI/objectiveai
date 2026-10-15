@@ -4,6 +4,7 @@ import type { AppInfo } from "../bindings/AppInfo";
 import type { CardView } from "../bindings/CardView";
 import type { KnockView } from "../bindings/KnockView";
 import type { ListState } from "../bindings/ListState";
+import type { MapNode } from "../bindings/MapNode";
 import type { SpaceSummary } from "../bindings/SpaceSummary";
 import type { TabKind } from "../bindings/TabKind";
 
@@ -12,6 +13,8 @@ export type Shared = {
   agents: AgentView[];
   /** Where that list stands: waiting on the daemon, live, refused, or failed (and asked again). */
   agentsState: ListState;
+  /** The same agents as who made whom, with each one's cards waiting on you (Rust builds it). */
+  tree: MapNode[];
   info: AppInfo | null;
   spaces: SpaceSummary[];
   homeId: string | null;

@@ -416,6 +416,35 @@ pub struct AgentsSnapshot {
     pub state: ListState,
     /// In the list's order: oldest made first.
     pub agents: Vec<AgentView>,
+    /// The same agents, as who made whom (see [`crate::fleet::tree`]).
+    pub tree: Vec<MapNode>,
+}
+
+/// One place in the map of who made whom: an agent, a tool of yours that
+/// made agents, or the agents whose maker isn't in your list.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct MapNode {
+    /// Unique in the map: `agent:<its key>`, `tool:<what names it>`, or `elsewhere`.
+    pub key: String,
+    pub what: MapWhat,
+    /// Whether it, or anything under it, is working now.
+    pub working: bool,
+    /// What it made, in the map's order: working first, then the most
+    /// recently active, then those that haven't run.
+    pub children: Vec<MapNode>,
+}
+
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum MapWhat {
+    /// One of your agents, and how many of its cards wait on you.
+    Agent { agent: AgentView, cards: u32 },
+    /// A tool of yours that made agents, as the daemon names it as their maker.
+    Tool { maker: CreatorView },
+    /// Agents made by an agent that isn't in your list.
+    Elsewhere,
 }
 
 /// What the screen sends to make an agent.

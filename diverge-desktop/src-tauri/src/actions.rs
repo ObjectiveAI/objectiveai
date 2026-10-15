@@ -126,7 +126,7 @@ impl AppState {
                 let absent = Arc::new(crate::absent::Absent::saying(says));
                 let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
                 let state = Self::assemble(data, identity, seams, folder);
-                state.fleet.start(state.daemon.clone());
+                state.fleet.start(state.daemon.clone(), state.door.clone());
                 return state;
             }
             None => {
@@ -143,7 +143,7 @@ impl AppState {
                 state
             }
         };
-        state.fleet.start(state.daemon.clone());
+        state.fleet.start(state.daemon.clone(), state.door.clone());
         crate::reporter::spawn(state.daemon.clone(), state.spaces.clone(), state.identity.clone());
         crate::hires::spawn(state.daemon.clone(), state.spaces.clone(), state.identity.clone(), state.door.clone());
         state
@@ -271,7 +271,8 @@ impl AppState {
 /// The registry, by name. Keep in step with `handlers()` in main.rs.
 pub const REGISTRY: &[(&str, &str)] = &[
     ("agents_list", "List every agent"),
-    ("agents_watch", "Your agents, whole, now and again on every change (a run starting or ending, an edit, tags, tools)"),
+    ("agents_watch", "Your agents, whole, now and again on every change (a run starting or ending, an edit, tags, tools), with who made whom"),
+    ("agents_tree", "Who made whom among your agents: the ones you made at the top, each agent under the agent or tool that made it, working first, with the cards each has waiting on you"),
     ("agents_create", "Make an agent from an image, settings, limits and mounts"),
     ("agents_delete", "Remove an agent (the daemon refuses while it is running)"),
     ("agents_edit", "Change what an agent mounts (the daemon refuses while it is running)"),
@@ -468,6 +469,12 @@ pub fn agents_watch(state: State<'_, AppState>, on_event: Channel<AgentsSnapshot
         }
     });
     scope
+}
+
+/// Who made whom among your agents, from the live list, as it is now.
+#[tauri::command]
+pub fn agents_tree(state: State<'_, AppState>) -> Vec<MapNode> {
+    state.fleet.snapshot().tree
 }
 
 #[tauri::command]
@@ -2626,7 +2633,7 @@ mod tests {
         let seams = Seams { daemon: daemon.clone(), machines: daemon, spaces: absent, stand_in_host: None, network: true, first_mounts: HashMap::new() };
         let folder = store::hold(&data);
         let state = AppState::assemble(data, identity, seams, folder);
-        state.fleet.start(state.daemon.clone());
+        state.fleet.start(state.daemon.clone(), state.door.clone());
         state
     }
 
@@ -2665,7 +2672,7 @@ mod tests {
         assert!(!about.network && !about.stand_in);
         assert!(agents_listed(state.daemon.as_ref()).await.agents.is_empty(), "no agents made up");
         // The live list says the same, and is whole.
-        state.fleet.start(state.daemon.clone());
+        state.fleet.start(state.daemon.clone(), state.door.clone());
         let live = live_until(&state, |s| s.state == ListState::Live).await;
         assert!(live.agents.is_empty(), "no agents made up");
         assert_eq!(tag(&state, "anyone", vec!["x".into()]).await, TagOutcome::Error { message: crate::absent::NOT_YET.into() });

@@ -32,7 +32,7 @@ import { t } from "./strings";
 const RELIST_MS = 2500;
 
 export function App() {
-  const [listed, setListed] = useState<AgentsSnapshot>({ generation: 0, state: { state: "waiting" }, agents: [] });
+  const [listed, setListed] = useState<AgentsSnapshot>({ generation: 0, state: { state: "waiting" }, agents: [], tree: [] });
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [tabs, setTabs] = useState<TabsSnapshot>({ generation: 0, tabs: [], focused: null });
   const [spaces, setSpaces] = useState<SpaceSummary[]>([]);
@@ -166,7 +166,7 @@ export function App() {
   }, []);
 
   const shared = useMemo(
-    () => ({ agents: listed.agents, agentsState: listed.state, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard }),
+    () => ({ agents: listed.agents, agentsState: listed.state, tree: listed.tree, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard }),
     [listed, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard],
   );
 

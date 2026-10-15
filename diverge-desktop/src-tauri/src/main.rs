@@ -65,6 +65,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             actions::agents_list,
             actions::agents_watch,
+            actions::agents_tree,
             actions::agents_create,
             actions::agents_delete,
             actions::agents_edit,

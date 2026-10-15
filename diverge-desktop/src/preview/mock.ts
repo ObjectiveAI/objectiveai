@@ -6,6 +6,7 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import type { AgentView } from "../bindings/AgentView";
+import type { MapNode } from "../bindings/MapNode";
 import type { FileNode } from "../bindings/FileNode";
 import type { MountsView } from "../bindings/MountsView";
 import type { VolumeStat } from "../bindings/VolumeStat";
@@ -92,12 +93,26 @@ export function installPreview() {
     for (const w of spaceWatches.values()) if (w.id === id) w.ch.onmessage({ event: "updated", uri: "space://feed" });
   };
   const watches = new Map<string, { name: string; ch: Chan }>();
-  // The live agents list: the whole snapshot again on every change, as the app sends it.
+  // The live agents list: the whole snapshot again on every change, as the app sends it. The tree is
+  // the snapshot's, kept in step here: an agent's node shows it as it is now, a removed one's makes go up
+  // a level, and one made here is one of yours, at the top.
   const agentsChs = new Map<string, Chan>();
   let agentsGeneration = 0;
+  let tree = structuredClone(fixture.tree) as MapNode[];
+  const refit = (nodes: MapNode[]): MapNode[] =>
+    nodes.flatMap((n) => {
+      if (n.what.kind !== "agent") return [{ ...n, children: refit(n.children) }];
+      const key = n.what.agent.key;
+      const now = agents.find((a) => a.key === key);
+      if (!now) return refit(n.children);
+      return [{ ...n, what: { kind: "agent" as const, agent: now, cards: cards.filter((c) => c.agent === key).length }, children: refit(n.children) }];
+    });
   const sendAgents = () => {
     agentsGeneration++;
-    for (const ch of agentsChs.values()) ch.onmessage({ generation: agentsGeneration, state: { state: "live" }, agents: structuredClone(agents) });
+    const keys = (nodes: MapNode[]): string[] => nodes.flatMap((n) => [n.key, ...keys(n.children)]);
+    const placed = new Set(keys(tree));
+    tree = [...refit(tree), ...agents.filter((a) => !placed.has(`agent:${a.key}`)).map((a) => ({ key: `agent:${a.key}`, what: { kind: "agent" as const, agent: a, cards: 0 }, working: a.active, children: [] }))];
+    for (const ch of agentsChs.values()) ch.onmessage({ generation: agentsGeneration, state: { state: "live" }, agents: structuredClone(agents), tree: structuredClone(tree) });
   };
   const pending = new Map<string, { resolve: (v: unknown) => void; timer: number }>();
   let tabs: TabView[] = [];
@@ -135,6 +150,8 @@ export function installPreview() {
           return null;
         case "agents_list":
           return { agents, errors: [], forbidden: false };
+        case "agents_tree":
+          return tree;
         case "agents_watch": {
           const id = `agents-${++scope}`;
           agentsChs.set(id, args.onEvent as Chan);
@@ -592,6 +609,7 @@ export function installPreview() {
           if (at < 0) throw "that card was already answered";
           cards.splice(at, 1);
           cardCh?.onmessage({ event: "answered", id: args.id });
+          sendAgents();
           return null;
         }
         case "door_tools":
