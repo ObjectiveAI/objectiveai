@@ -92,6 +92,28 @@ pub async fn agents_listed(daemon: &dyn Daemon) -> Vec<agents::list::server::res
     out
 }
 
+/// Your tools, read once as [`agents_listed`] reads agents: up to `Listed`
+/// (or the refusal or failure that ends it), then the scope is cancelled.
+pub async fn tools_listed(daemon: &dyn Daemon) -> Vec<standalone_tools::list::server::response::Frame> {
+    use standalone_tools::list::server::response::Frame;
+    let cancel = CancellationToken::new();
+    let request = standalone_tools::list::client::request::Frame { filter: Default::default(), count: None, relay: None };
+    let mut frames = daemon.standalone_tools_list(request, cancel.clone());
+    let mut out = Vec::new();
+    while let Some(frame) = frames.next().await {
+        let done = match &frame {
+            Frame::Added(_) | Frame::Changed(_) | Frame::Removed(_) => false,
+            Frame::Listed | Frame::Forbidden | Frame::Error(_) => true,
+        };
+        out.push(frame);
+        if done {
+            break;
+        }
+    }
+    cancel.cancel();
+    out
+}
+
 /// A machine the daemon can run agents on. Ours until the wire has it.
 #[derive(Debug, Clone)]
 pub struct ProviderEntry {
@@ -179,7 +201,8 @@ pub trait Daemon: Send + Sync + 'static {
 
     // The tools verbs. The app reaches no room through them: a tool the
     // daemon attaches bypasses the app, which seals agents' calls and asks
-    // the person first. Only the stand-in's own tests call them yet.
+    // the person first. The app lists your tools and attaches one to an
+    // agent, or takes it back, when you do so on the Agents map.
 
     /// Tag 25. Hold a template tools are made from; answers its id.
     #[allow(dead_code)]
@@ -202,14 +225,13 @@ pub trait Daemon: Send + Sync + 'static {
     async fn standalone_tools_register(&self, request: standalone_tools::register::client::request::Frame) -> standalone_tools::register::server::response::Frame;
 
     /// Tag 19. Put a tool among the MCP servers one agent's calls reach.
-    #[allow(dead_code)]
+    /// The Agents map attaches one of your tools to one of your agents.
     async fn standalone_tools_attach_agent_instance(
         &self,
         request: standalone_tools::attach_agent_instance::client::request::Frame,
     ) -> standalone_tools::attach_agent_instance::server::response::Frame;
 
     /// Tag 20. Take it back from that agent.
-    #[allow(dead_code)]
     async fn standalone_tools_detach_agent_instance(
         &self,
         request: standalone_tools::detach_agent_instance::client::request::Frame,
@@ -234,7 +256,7 @@ pub trait Daemon: Send + Sync + 'static {
     async fn standalone_tools_delete(&self, request: standalone_tools::delete::client::request::Frame) -> standalone_tools::delete::server::response::Frame;
 
     /// Tag 22. The caller's tools, `Added` each then `Listed`, open until `cancel` fires.
-    #[allow(dead_code)]
+    /// [`tools_listed`] reads it once.
     fn standalone_tools_list(
         &self,
         request: standalone_tools::list::client::request::Frame,

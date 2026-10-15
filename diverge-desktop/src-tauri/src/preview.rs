@@ -218,6 +218,7 @@ mod tests {
             "actions": crate::actions::actions_list(),
             "catalog": crate::actions::catalog_images(),
             "agents": listed.agents,
+            "tools": ToolsListed::from(crate::daemon::tools_listed(&daemon).await).tools,
             // Who made whom, as the live list sends it, with each agent's cards waiting.
             "tree": crate::fleet::tree(&listed.agents, &cards.iter().fold(std::collections::HashMap::new(), |mut n, c| {
                 *n.entry(c.agent.clone()).or_insert(0) += 1;

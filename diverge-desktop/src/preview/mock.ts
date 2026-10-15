@@ -7,6 +7,7 @@ import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import type { AgentView } from "../bindings/AgentView";
 import type { MapNode } from "../bindings/MapNode";
+import type { ToolItemView } from "../bindings/ToolItemView";
 import type { FileNode } from "../bindings/FileNode";
 import type { MountsView } from "../bindings/MountsView";
 import type { VolumeStat } from "../bindings/VolumeStat";
@@ -47,6 +48,8 @@ function encodeInvite(invite: Invite): string {
 }
 
 export function installPreview() {
+  // Your tools, as the stand-in lists them.
+  const tools = structuredClone(fixture.tools) as ToolItemView[];
   // Preview only: add ?no-agents to the address to see the app before you've made any.
   const none = new URLSearchParams(location.search).has("no-agents");
   const agents: AgentView[] = none ? [] : (structuredClone(fixture.agents) as AgentView[]);
@@ -154,6 +157,20 @@ export function installPreview() {
           return { agents, errors: [], forbidden: false };
         case "agents_tree":
           return tree;
+        case "standalone_tools_list":
+          return { tools, errors: [], forbidden: false };
+        case "standalone_tools_attach":
+        case "standalone_tools_detach": {
+          const tool = tools.find((x) => x.key === args.tool);
+          const a = agents.find((x) => x.key === args.name);
+          if (!tool) return { outcome: "no_tool" };
+          if (!a) return { outcome: "no_agent" };
+          const on = cmd === "standalone_tools_attach";
+          tool.agents = on ? [...new Set([...tool.agents, a.key])] : tool.agents.filter((k) => k !== a.key);
+          a.tools = on ? [...new Set([...a.tools, tool.key])] : a.tools.filter((k) => k !== tool.key || tool.templates.includes(a.template));
+          sendAgents();
+          return { outcome: "done" };
+        }
         case "agents_watch": {
           const id = `agents-${++scope}`;
           agentsChs.set(id, args.onEvent as Chan);

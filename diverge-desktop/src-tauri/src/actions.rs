@@ -279,6 +279,9 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("agents_mounts", "What this app last stated an agent mounts"),
     ("agents_tag", "Put tags on an agent (one it has already stays)"),
     ("agents_untag", "Take tags off an agent"),
+    ("standalone_tools_list", "Your tools: each by name, whether it's another daemon's, and the agents and templates it's attached to"),
+    ("standalone_tools_attach", "Attach one of your tools to one of your agents"),
+    ("standalone_tools_detach", "Take one of your tools back from an agent it was attached to"),
     ("agents_message", "Send an agent a message; resolves when delivered"),
     ("agents_message_take_back", "Take back a message that has not been delivered yet"),
     ("logs_open", "Read an agent's log — filtered by kind and span, perhaps watched"),
@@ -540,6 +543,45 @@ pub async fn agents_untag(state: State<'_, AppState>, name: String, tags: Vec<St
 
 async fn untag(state: &AppState, name: &str, tags: Vec<String>) -> TagOutcome {
     state.daemon.agents_untag(agents::untag::client::request::Frame { agent: crate::daemon::reference_of(name), tags, relay: None }).await.into()
+}
+
+/// Your tools, read once.
+#[tauri::command]
+pub async fn standalone_tools_list(state: State<'_, AppState>) -> Result<ToolsListed, String> {
+    Ok(crate::daemon::tools_listed(state.daemon.as_ref()).await.into())
+}
+
+/// One of your tools on the list, by the words that name it, as the request's reference.
+async fn your_tool(state: &AppState, key: &str) -> Option<diverge_sdk::daemon::reference::Tool> {
+    use diverge_sdk::daemon::endpoints::standalone_tools::list::server::response::Frame;
+    crate::daemon::tools_listed(state.daemon.as_ref()).await.into_iter().find_map(|frame| match frame {
+        Frame::Added(tool) | Frame::Changed(tool) if tool_item_words(&tool) == key => Some(tool_reference(&tool)),
+        Frame::Added(_) | Frame::Changed(_) | Frame::Removed(_) | Frame::Listed | Frame::Forbidden | Frame::Error(_) => None,
+    })
+}
+
+/// Attach one of your tools (by the words that name it) to one of your agents (by its key).
+#[tauri::command]
+pub async fn standalone_tools_attach(state: State<'_, AppState>, name: String, tool: String) -> Result<AttachOutcome, String> {
+    Ok(attach_tool(&state, &name, &tool).await)
+}
+
+async fn attach_tool(state: &AppState, name: &str, tool: &str) -> AttachOutcome {
+    use diverge_sdk::daemon::endpoints::standalone_tools::attach_agent_instance::client::request::Frame;
+    let Some(tool) = your_tool(state, tool).await else { return AttachOutcome::NoTool };
+    state.daemon.standalone_tools_attach_agent_instance(Frame { tool, agent: crate::daemon::reference_of(name), relay: None }).await.into()
+}
+
+/// Take one of your tools back from an agent it was attached to.
+#[tauri::command]
+pub async fn standalone_tools_detach(state: State<'_, AppState>, name: String, tool: String) -> Result<AttachOutcome, String> {
+    Ok(detach_tool(&state, &name, &tool).await)
+}
+
+async fn detach_tool(state: &AppState, name: &str, tool: &str) -> AttachOutcome {
+    use diverge_sdk::daemon::endpoints::standalone_tools::detach_agent_instance::client::request::Frame;
+    let Some(tool) = your_tool(state, tool).await else { return AttachOutcome::NoTool };
+    state.daemon.standalone_tools_detach_agent_instance(Frame { tool, agent: crate::daemon::reference_of(name), relay: None }).await.into()
 }
 
 /// What this app last stated the agent mounts; none if it was made elsewhere.
@@ -2658,6 +2700,37 @@ mod tests {
         assert_eq!(untag(&state, "broken-loop", vec!["urgent".into()]).await, TagOutcome::Done);
         live_until(&state, |s| s.agents.iter().any(|a| a.key == "broken-loop" && a.tags == ["reading"])).await;
         assert_eq!(tag(&state, "nobody", vec!["x".into()]).await, TagOutcome::NotFound);
+    }
+
+    /// One of your tools, attached to an agent by the words that name it and
+    /// taken back, as the live list and the tools list both say; and an
+    /// agent at work is not removed.
+    #[cfg(feature = "stand-in")]
+    #[tokio::test]
+    async fn your_tools_attach_to_an_agent_and_come_back() {
+        use diverge_sdk::daemon::endpoints::standalone_tools as tools;
+        let state = app_over_stand_in("actions-live-tools");
+        let template = tools::templates::Template { r#type: Default::default(), description: None, image: catalog::Kind::Python.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({}) };
+        let tools::templates::create::server::response::Frame::Created(id) = state.daemon.standalone_tools_templates_create(tools::templates::create::client::request::Frame { template, relay: None }).await else { panic!("made") };
+        let made = diverge_sdk::daemon::create::Inner { template: id, provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() };
+        state.daemon.standalone_tools_create(tools::create::client::request::Frame { inner: made, account: None, name: Some("labels".into()), relay: None }).await;
+        live_until(&state, |s| s.state == ListState::Live).await;
+        let listed: ToolsListed = crate::daemon::tools_listed(state.daemon.as_ref()).await.into();
+        let labels = listed.tools.iter().find(|t| t.key == "labels").expect("listed");
+        assert!(labels.agents.is_empty() && !labels.connected);
+
+        assert_eq!(attach_tool(&state, "broken-loop", "labels").await, AttachOutcome::Done);
+        live_until(&state, |s| s.agents.iter().any(|a| a.key == "broken-loop" && a.tools == ["labels"])).await;
+        let listed: ToolsListed = crate::daemon::tools_listed(state.daemon.as_ref()).await.into();
+        assert_eq!(listed.tools.iter().find(|t| t.key == "labels").unwrap().agents, ["broken-loop"]);
+        assert_eq!(attach_tool(&state, "broken-loop", "no-such-tool").await, AttachOutcome::NoTool);
+        assert_eq!(attach_tool(&state, "nobody", "labels").await, AttachOutcome::NoAgent);
+
+        assert_eq!(detach_tool(&state, "broken-loop", "labels").await, AttachOutcome::Done);
+        live_until(&state, |s| s.agents.iter().any(|a| a.key == "broken-loop" && a.tools.is_empty())).await;
+        // site-fixes is mid-run: the daemon won't remove it, and nothing stops it.
+        let removed: DeleteOutcome = state.daemon.agents_delete(agents::delete::client::request::Frame { agent: crate::daemon::reference_of("site-fixes"), relay: None }).await.into();
+        assert!(matches!(removed, DeleteOutcome::Active));
     }
 
     #[tokio::test]

@@ -8,6 +8,7 @@ import { SharedContext, type Shared } from "../lib/context";
 import { AgentsMap } from "../screens/AgentsMap";
 import { t } from "../strings";
 import { AgentMap } from "./AgentMap";
+import { More } from "./MapActions";
 
 const agent = (key: string, over: Partial<AgentView> = {}): AgentView => ({
   key, name: key, template: "t", index: 1, creator: { kind: "client", identity: "you" }, tags: [], image_name: "diverge-agentic-loop-cc", digest: "",
@@ -77,5 +78,31 @@ describe("the Agents map's layout", () => {
     expect(html).toContain(t.map.emptyTitle);
     expect(html).toContain(t.rail.newAgent);
     expect(html).not.toContain('role="tree"');
+  });
+});
+
+describe("a card's own actions", () => {
+  it("open on a row under the card, from a button that says whether it's open", () => {
+    const html = render(shared({}));
+    expect(html.match(new RegExp(`aria-expanded="false"[^>]*>${t.map.more}<`, "g"))).toHaveLength(3);
+  });
+
+  it("put and take off tags, each its own button named for the tag", () => {
+    const html = renderToStaticMarkup(createElement(More, { agent: site }));
+    expect(html).toContain(`aria-label="${t.map.untag} website"`);
+    expect(html).toContain(`aria-label="${t.map.tagLabel}"`);
+    expect(html).toContain(t.map.addTag);
+    expect(html).toContain(t.map.tagsNote);
+    expect(html).toContain(t.map.toolsNote);
+  });
+
+  it("offer no way to remove a working agent, and say why; an idle one can be removed", () => {
+    const working = renderToStaticMarkup(createElement(More, { agent: site }));
+    const esc = (words: string) => words.replace(/'/g, "&#x27;");
+    expect(working).toContain(esc(t.map.removeWhileWorking));
+    expect(working).not.toContain(`>${t.convo.remove}<`);
+    const idle = renderToStaticMarkup(createElement(More, { agent: links }));
+    expect(idle).toContain(`>${t.convo.remove}<`);
+    expect(idle).not.toContain(esc(t.map.removeWhileWorking));
   });
 });

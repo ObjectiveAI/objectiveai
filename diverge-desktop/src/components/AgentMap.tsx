@@ -8,12 +8,13 @@ import { opens } from "../lib/keys";
 import { doing, places, step, tailFrom, type Layout } from "../lib/map";
 import { tails } from "../lib/tails";
 import { t } from "../strings";
+import { MapActions } from "./MapActions";
 import { Chip, Dot, Row } from "./ui";
 
 /** The map of who made whom: an org chart drawn top-down or across, panned by dragging with the mouse
  *  (the window's own zoom keys make it bigger or smaller). A tree to the keyboard: Tab reaches one card and
  *  every control on every card; arrow keys move between cards; Enter opens a card's conversation. */
-export function AgentMap(props: { tree: MapNode[]; layout: Layout; onOpen: (agent: AgentView) => void; actions?: (agent: AgentView) => ReactNode }) {
+export function AgentMap(props: { tree: MapNode[]; layout: Layout; onOpen: (agent: AgentView) => void }) {
   const canvas = useRef<HTMLDivElement>(null);
   const [rover, setRover] = useState<string | null>(null);
   const { order } = useMemo(() => places(props.tree), [props.tree]);
@@ -56,7 +57,7 @@ export function AgentMap(props: { tree: MapNode[]; layout: Layout; onOpen: (agen
           onFocus={() => setRover(n.key)}
         >
           {n.what.kind === "agent" ? (
-            <AgentCard agent={n.what.agent} cards={n.what.cards} canvas={canvas} onOpen={() => props.onOpen((n.what as { agent: AgentView }).agent)} panned={pan.moved} actions={props.actions} />
+            <AgentCard agent={n.what.agent} cards={n.what.cards} canvas={canvas} onOpen={() => props.onOpen((n.what as { agent: AgentView }).agent)} panned={pan.moved} />
           ) : (
             <GroupCard node={n} />
           )}
@@ -143,7 +144,7 @@ function GroupCard({ node }: { node: MapNode }) {
 
 /** One agent: its state as the rail shows it, its machine, when it last ran, what it's doing (or last said),
  *  its helpers while it works, its tools and tags, and what waits on you. */
-function AgentCard(props: { agent: AgentView; cards: number; canvas: RefObject<HTMLDivElement | null>; onOpen: () => void; panned: () => boolean; actions?: (agent: AgentView) => ReactNode }) {
+function AgentCard(props: { agent: AgentView; cards: number; canvas: RefObject<HTMLDivElement | null>; onOpen: () => void; panned: () => boolean }) {
   const a = props.agent;
   const self = useRef<HTMLDivElement>(null);
   const seen = useOnScreen(self, props.canvas);
@@ -152,8 +153,9 @@ function AgentCard(props: { agent: AgentView; cards: number; canvas: RefObject<H
   const state = a.active ? "working" : a.last_active ? "idle" : "never";
   const working = a.active;
   return (
-    // A click anywhere on the card opens it too, but not one that ends a drag, lands on a control, or selects words.
-    <div ref={self} className="map-agent" onClick={(e) => { if (!props.panned() && !(e.target as Element).closest("button, a, input, select, textarea, .selectable")) props.onOpen(); }}>
+    // A click anywhere on the card opens it too, but not one that ends a drag, lands on a control or the row
+    // under it, or selects words.
+    <div ref={self} className="map-agent" onClick={(e) => { if (!props.panned() && !(e.target as Element).closest("button, a, input, select, textarea, label, .selectable, .map-more")) props.onOpen(); }}>
       <Row className="map-card-head" onClick={props.onOpen} title={`${t.map.open} ${agentLabel(a)}`}>
         <Dot state={state} />
         <span className="map-name">{agentLabel(a)}</span>
@@ -182,7 +184,7 @@ function AgentCard(props: { agent: AgentView; cards: number; canvas: RefObject<H
           {a.tags.map((x) => <Chip key={`tag-${x}`} title={t.map.tags}>{t.map.tagMark}{x}</Chip>)}
         </div>
       ) : null}
-      {props.actions?.(a)}
+      <MapActions agent={a} />
       {working && now && now.helpers.length ? (
         <ul className="map-helpers" aria-label={`${now.helpers.length} ${now.helpers.length > 1 ? t.map.helpers : t.map.helperOne}`}>
           {now.helpers.map((h) => (

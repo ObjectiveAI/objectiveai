@@ -13,7 +13,7 @@ use ts_rs::TS;
 
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::edit::{Change, Edit};
-use diverge_sdk::daemon::endpoints::agents;
+use diverge_sdk::daemon::endpoints::{agents, standalone_tools};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Identity, Item, ItemWrapper};
 use diverge_sdk::daemon::endpoints::agents::templates::{AgentType, Template as AgentTemplate};
 use diverge_sdk::daemon::key;
@@ -643,6 +643,132 @@ impl From<agents::delete::server::response::Frame> for DeleteOutcome {
             Frame::Active => DeleteOutcome::Active,
             Frame::Forbidden => DeleteOutcome::Forbidden,
             Frame::Error(error) => DeleteOutcome::Error { message: error_text(&error) },
+        }
+    }
+}
+
+// --- your tools, for the Agents map --------------------------------------------
+
+/// One of your tools, to attach to an agent or take back.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ToolItemView {
+    /// What names it, as an agent's tools name it: its name, or what names it for good.
+    pub key: String,
+    pub name: Option<String>,
+    /// Another daemon's tool, registered here; otherwise one made from a template of yours.
+    pub connected: bool,
+    pub active: bool,
+    /// The agents it's attached to, by the app's key for each.
+    pub agents: Vec<String>,
+    /// The agent templates it's attached to, by id: every agent made from one has it.
+    pub templates: Vec<String>,
+}
+
+/// What names a tool on the tools list, the same words an agent's list item uses for it.
+pub fn tool_item_words(tool: &standalone_tools::list::server::response::Tool) -> String {
+    use standalone_tools::list::server::response::Origin;
+    match (&tool.name, &tool.origin) {
+        (Some(name), _) => name.clone(),
+        (None, Origin::Created { template, index, mode: _, provider: _, id: _ }) => format!("{template}#{index}"),
+        (None, Origin::Connected { daemon, account, tool: _, index }) => format!("{account}@{daemon}#{index}"),
+    }
+}
+
+/// The reference a request takes for a tool on the list: its name, or what names it for good.
+pub fn tool_reference(tool: &standalone_tools::list::server::response::Tool) -> diverge_sdk::daemon::reference::Tool {
+    use diverge_sdk::daemon::reference::Tool as Reference;
+    use standalone_tools::list::server::response::Origin;
+    match (&tool.name, &tool.origin) {
+        (Some(name), _) => Reference::Name { name: name.clone() },
+        (None, Origin::Created { template, index, mode: _, provider: _, id: _ }) => Reference::TemplateIndex { template: template.clone(), index: *index },
+        (None, Origin::Connected { daemon, account, tool, index: _ }) => Reference::Connected { daemon: daemon.clone(), account: account.clone(), tool: Box::new(tool.clone()) },
+    }
+}
+
+impl From<&standalone_tools::list::server::response::Tool> for ToolItemView {
+    fn from(tool: &standalone_tools::list::server::response::Tool) -> Self {
+        use standalone_tools::list::server::response::Origin;
+        ToolItemView {
+            key: tool_item_words(tool),
+            name: tool.name.clone(),
+            connected: match tool.origin {
+                Origin::Created { .. } => false,
+                Origin::Connected { .. } => true,
+            },
+            active: tool.active,
+            agents: tool.attached_agent_instances.iter().map(|a| crate::daemon::agent_key(a.name.as_deref(), &a.template, a.index)).collect(),
+            templates: tool.attached_agent_templates.clone(),
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug, Default)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ToolsListed {
+    pub tools: Vec<ToolItemView>,
+    pub errors: Vec<String>,
+    /// The daemon refused: the account you're served as may not list tools.
+    pub forbidden: bool,
+}
+
+impl From<Vec<standalone_tools::list::server::response::Frame>> for ToolsListed {
+    fn from(frames: Vec<standalone_tools::list::server::response::Frame>) -> Self {
+        use standalone_tools::list::server::response::Frame;
+        let mut out = ToolsListed::default();
+        for frame in frames {
+            match frame {
+                Frame::Added(tool) | Frame::Changed(tool) => {
+                    let view = ToolItemView::from(&tool);
+                    match out.tools.iter_mut().find(|t| t.key == view.key) {
+                        Some(was) => *was = view,
+                        None => out.tools.push(view),
+                    }
+                }
+                Frame::Removed(tool) => out.tools.retain(|t| t.key != tool_item_words(&tool)),
+                Frame::Listed => {}
+                Frame::Forbidden => out.forbidden = true,
+                Frame::Error(error) => out.errors.push(error_text(&error)),
+            }
+        }
+        out
+    }
+}
+
+/// What attaching one of your tools to an agent, or taking it back, came to.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum AttachOutcome {
+    Done,
+    NoTool,
+    NoAgent,
+    Forbidden,
+    Error { message: String },
+}
+
+impl From<standalone_tools::attach_agent_instance::server::response::Frame> for AttachOutcome {
+    fn from(frame: standalone_tools::attach_agent_instance::server::response::Frame) -> Self {
+        use standalone_tools::attach_agent_instance::server::response::Frame;
+        match frame {
+            Frame::Attached => AttachOutcome::Done,
+            Frame::NoTool => AttachOutcome::NoTool,
+            Frame::NoAgent => AttachOutcome::NoAgent,
+            Frame::Forbidden => AttachOutcome::Forbidden,
+            Frame::Error(error) => AttachOutcome::Error { message: error_text(&error) },
+        }
+    }
+}
+
+impl From<standalone_tools::detach_agent_instance::server::response::Frame> for AttachOutcome {
+    fn from(frame: standalone_tools::detach_agent_instance::server::response::Frame) -> Self {
+        use standalone_tools::detach_agent_instance::server::response::Frame;
+        match frame {
+            Frame::Detached => AttachOutcome::Done,
+            Frame::NoTool => AttachOutcome::NoTool,
+            Frame::NoAgent => AttachOutcome::NoAgent,
+            Frame::Forbidden => AttachOutcome::Forbidden,
+            Frame::Error(error) => AttachOutcome::Error { message: error_text(&error) },
         }
     }
 }
