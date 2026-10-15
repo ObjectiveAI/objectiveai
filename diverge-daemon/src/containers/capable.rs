@@ -6,8 +6,9 @@
 //! mount needs, is judged here first, against the provider's
 //! capabilities as it answered them, and a provider that lacks one is
 //! passed over — or, pinned, refused — without being asked. The
-//! image is judged the same way, from the capabilities and from what
-//! the daemon knows of who holds it: see [`image`].
+//! image is judged the same way, from the capabilities first — see
+//! [`registry`] — and from who holds it only when no registry will
+//! do.
 
 use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;
 use diverge_sdk::provider::endpoints::volumes::Mode;
@@ -29,7 +30,7 @@ pub struct Needs {
     pub volume_modes: Vec<Mode>,
     /// The image the container is made from, its digest and its
     /// references, which the provider must be able to source: see
-    /// [`image`]. `None` asks nothing of the image.
+    /// [`registry`]. `None` asks nothing of the image.
     pub image: Option<Image>,
 }
 
@@ -48,46 +49,37 @@ pub fn check(info: &Info, needs: &Needs) -> Result<(), String> {
     Ok(())
 }
 
-/// `Ok` when the provider answering `info` can obtain `image` for a
-/// run; else why not, in a sentence.
+/// `Ok` when the provider answering `info` lists a registry that a
+/// reference of `image` names, from which it can pull the image for
+/// a run; else why not, in a sentence.
 ///
 /// # Where a run's image may come from
 ///
 /// The protocol has a provider obtain a run's image from what it
 /// holds, from the caller, or from a registry its capabilities list
 /// that a reference of the image names — and from no other registry.
-/// So the provider can source the image when either:
-///
-/// - a reference's `registry` is in its `images_registries`; or
-/// - `held`: some connected provider whose capabilities keep a client
-///   image store holds the image's digest — this provider itself,
-///   which then runs it from its own store, or another, from which
-///   the daemon supplies it over the run's OCI channels, as it
-///   answers the provider's ask on the run.
-///
-/// What the provider merely caches from an earlier run is not
-/// counted: no check can ask a provider about its cache, so the
-/// daemon does not know it, and a provider with nothing but a cached
-/// copy is passed over. `held` is asked once per start, of every
-/// store-keeping provider at once, before the candidates are judged:
-/// see [`candidates`](super::provider::candidates).
-pub fn image(info: &Info, image: &Image, held: bool) -> Result<(), String> {
-    if held {
-        return Ok(());
+/// This is the registry test alone, answered from the cached info
+/// and nothing else, so it costs no ask. Whether the image is held —
+/// in some connected provider's client image store, this provider's
+/// own or another's from which the daemon supplies it over the run's
+/// OCI channels — is the chooser's to ask, and it asks only when no
+/// candidate passes this test: see
+/// [`candidates`](super::provider::candidates). What a provider
+/// merely caches from an earlier run is counted nowhere, since no
+/// check can ask a provider about its cache.
+pub fn registry(info: &Info, image: &Image) -> Result<(), String> {
+    if image.references.is_empty() {
+        return Err("the image names no registry".to_string());
     }
     let listed = image
         .references
         .iter()
         .any(|reference| info.capabilities.images_registries.contains(&reference.registry));
     if listed {
-        return Ok(());
-    }
-    let registries = if image.references.is_empty() {
-        "the image names no registry".to_string()
+        Ok(())
     } else {
-        "the provider pulls from no registry the image's references name".to_string()
-    };
-    Err(format!("{registries}, and no connected provider holds the image {}", image.digest))
+        Err("the provider pulls from no registry the image's references name".to_string())
+    }
 }
 
 /// `Ok` when `info` holds out a FUSE serve of a volume whose mode is

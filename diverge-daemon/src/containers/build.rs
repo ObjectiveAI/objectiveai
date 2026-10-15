@@ -75,7 +75,7 @@ pub fn service(template_id: &str, template: &dependencies::Template) -> request:
 /// A template's image as a run names it: the digest and every
 /// reference, which the chooser judges a provider by before the
 /// container is built — see
-/// [`capable::image`](super::capable::image).
+/// [`capable::registry`](super::capable::registry).
 pub fn image(image: &TemplateImage) -> request::Image {
     request::Image {
         digest: image.digest.clone(),

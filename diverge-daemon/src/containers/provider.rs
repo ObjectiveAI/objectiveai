@@ -5,6 +5,7 @@ use std::sync::Arc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::wire::client::handle::Handle;
 use rand::seq::SliceRandom as _;
+use tokio::task::JoinHandle;
 
 use super::capable::{self, Needs};
 use super::images;
@@ -29,7 +30,7 @@ pub enum NoProvider {
     NoneCapable(String),
     /// The provider cannot source the run's image — pinned to it, or
     /// pinned to nothing and no capable provider can: why, in a
-    /// sentence, see [`capable::image`].
+    /// sentence, see [`capable::registry`] and [`candidates`].
     NoSource {
         /// The provider the record pins the container to, where it
         /// does; `None` where every capable provider was judged.
@@ -94,42 +95,58 @@ impl std::fmt::Display for NoProvider {
 /// capabilities must hold out what the run `needs`, and which must be
 /// able to source the run's image, and no other; or, pinned to none,
 /// every provider on record that is connected now and passes the
-/// same two judgements, in random order — so that unpinned
-/// containers spread over the providers rather than piling onto the
-/// first — and a start that fails on one goes on to the next.
+/// same judgements, in random order — so that unpinned containers
+/// spread over the providers rather than piling onto the first — and
+/// a start that fails on one goes on to the next.
 ///
-/// # The order of judgement
+/// # Registries before the store, and nothing waited for needlessly
 ///
-/// Where `needs` names an image, whether any connected provider
-/// holds it is asked ONCE, of every store-keeping provider at once
-/// ([`images::locate`] with nobody left out), before any candidate is
-/// judged. Then each provider — the pinned one too, since it is asked
-/// nothing it cannot do — is judged by its capabilities first
-/// ([`capable::check`]) and by the image second ([`capable::image`]),
-/// so that a provider that cannot run the container at all is never
-/// reported as merely unable to source the image. A pinned provider
-/// that fails the first is [`NoProvider::Unsupported`], the second
-/// [`NoProvider::NoSource`]. Unpinned, nothing connected is
-/// [`NoProvider::None`]; nothing left once every provider is judged
+/// A provider sources the image from a listed registry a reference
+/// names, which the cached info answers at once, or from a client
+/// image store that holds it — its own, or another's the daemon
+/// supplies from — which only an ask of every store-keeping provider
+/// answers. So the ask is SPAWNED first, before any judging, and
+/// AWAITED only when it is needed: every connected provider is judged
+/// by its capabilities ([`capable::check`]) and then by the registry
+/// test ([`capable::registry`]), and when any capable provider
+/// passes the registry test, the candidates are exactly those and
+/// the ask is left to run out on its own — its answers still fill
+/// the daemon's memory of who holds what. Only when no capable
+/// provider lists a registry does the chooser wait for the ask, and
+/// then every capable provider is a candidate when some store holds
+/// the image, or none is. A provider with the image in its own store
+/// loses nothing by this: chosen on its registry, it still runs the
+/// image from the store, since the provider looks there first.
+///
+/// # What is refused, and why
+///
+/// A pinned provider is judged the same way, since it is asked
+/// nothing it cannot do: failing its capabilities is
+/// [`NoProvider::Unsupported`]; listing no registry, and the ask
+/// finding no store with the image, [`NoProvider::NoSource`].
+/// Unpinned, nothing connected is [`NoProvider::None`]; nothing left
 /// is [`NoProvider::NoSource`] when some capable provider was stopped
 /// by the image alone, else [`NoProvider::NoneCapable`].
 pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: &Needs) -> Result<Vec<(Identity, Handle)>, NoProvider> {
-    let held = match &needs.image {
-        Some(image) => images::locate(daemon, &image.digest, None).await.is_some(),
-        None => false,
-    };
+    let asked = needs.image.as_ref().map(|image| {
+        let daemon = Arc::clone(daemon);
+        let digest = image.digest.clone();
+        tokio::spawn(async move { images::locate(&daemon, &digest, None).await.is_some() })
+    });
     if let Some(identity) = pinned {
         let Some(handle) = daemon.live.provider(identity).await else {
             return Err(NoProvider::NotConnected(identity.clone()));
         };
-        match judge(daemon, identity, needs, held).await {
+        match judge(daemon, identity, needs).await {
             Judged::Fit => {}
             Judged::Lacks(what) => return Err(NoProvider::Unsupported(identity.clone(), what)),
-            Judged::Unsourced(what) => {
-                return Err(NoProvider::NoSource {
-                    pinned: Some(identity.clone()),
-                    what,
-                });
+            Judged::Unlisted(reason) => {
+                if !held(asked).await {
+                    return Err(NoProvider::NoSource {
+                        pinned: Some(identity.clone()),
+                        what: no_source(&reason, needs),
+                    });
+                }
             }
         }
         return Ok(vec![(identity.clone(), handle)]);
@@ -138,47 +155,62 @@ pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: 
         Ok(on_record) => on_record,
         Err(_) => Vec::new(),
     };
-    let mut connected = Vec::with_capacity(on_record.len());
+    let mut listed = Vec::with_capacity(on_record.len());
+    let mut unlisted = Vec::new();
     let mut lacked = None;
-    let mut unsourced = None;
+    let mut reason = None;
     for identity in on_record {
         let Some(handle) = daemon.live.provider(&identity).await else {
             continue;
         };
-        match judge(daemon, &identity, needs, held).await {
-            Judged::Fit => connected.push((identity, handle)),
+        match judge(daemon, &identity, needs).await {
+            Judged::Fit => listed.push((identity, handle)),
             Judged::Lacks(what) => lacked = Some(what),
-            Judged::Unsourced(what) => unsourced = Some(what),
+            Judged::Unlisted(why) => {
+                reason = Some(why);
+                unlisted.push((identity, handle));
+            }
         }
     }
-    if connected.is_empty() {
-        return Err(match (unsourced, lacked) {
-            (Some(what), _) => NoProvider::NoSource { pinned: None, what },
+    let mut candidates = if !listed.is_empty() {
+        listed
+    } else if !unlisted.is_empty() && held(asked).await {
+        unlisted
+    } else {
+        Vec::new()
+    };
+    if candidates.is_empty() {
+        return Err(match (reason, lacked) {
+            (Some(reason), _) => NoProvider::NoSource {
+                pinned: None,
+                what: no_source(&reason, needs),
+            },
             (None, Some(what)) => NoProvider::NoneCapable(what),
             (None, None) => NoProvider::None,
         });
     }
-    connected.shuffle(&mut rand::rng());
-    Ok(connected)
+    candidates.shuffle(&mut rand::rng());
+    Ok(candidates)
 }
 
 /// What one connected provider's judgement came to.
 enum Judged {
-    /// It holds out everything the run needs and can source the
-    /// image.
+    /// It holds out everything the run needs and lists a registry
+    /// the image's references name — or the run names no image.
     Fit,
     /// Its capabilities lack something the run needs: what.
     Lacks(String),
-    /// It holds out everything the run needs, and cannot source the
-    /// image: why.
-    Unsourced(String),
+    /// It holds out everything the run needs, and lists no registry
+    /// the image's references name: why, as [`capable::registry`]
+    /// says it. Whether a store holds the image decides it.
+    Unlisted(String),
 }
 
-/// One provider judged, capabilities first and the image second,
+/// One provider judged, capabilities first and the registry second,
 /// from its cached info; a provider whose info the daemon has not
 /// cached — not connected, read between two looks — is judged fit
 /// and refused by the run instead.
-async fn judge(daemon: &Daemon, identity: &Identity, needs: &Needs, held: bool) -> Judged {
+async fn judge(daemon: &Daemon, identity: &Identity, needs: &Needs) -> Judged {
     let Some(info) = daemon.live.capabilities(identity).await else {
         return Judged::Fit;
     };
@@ -186,11 +218,29 @@ async fn judge(daemon: &Daemon, identity: &Identity, needs: &Needs, held: bool) 
         return Judged::Lacks(what);
     }
     if let Some(image) = &needs.image {
-        if let Err(what) = capable::image(&info, image, held) {
-            return Judged::Unsourced(what);
+        if let Err(why) = capable::registry(&info, image) {
+            return Judged::Unlisted(why);
         }
     }
     Judged::Fit
+}
+
+/// Whether some connected provider's client image store holds the
+/// image: the ask spawned at the chooser's start, waited for here
+/// and nowhere else. No ask — the run names no image — and an ask
+/// whose task ended without answering are both no.
+async fn held(asked: Option<JoinHandle<bool>>) -> bool {
+    match asked {
+        Some(task) => task.await.unwrap_or(false),
+        None => false,
+    }
+}
+
+/// Why the image cannot be sourced: the registry test's reason, and
+/// that no store holds it.
+fn no_source(reason: &str, needs: &Needs) -> String {
+    let digest = needs.image.as_ref().map(|image| image.digest.as_str()).unwrap_or_default();
+    format!("{reason}, and no connected provider holds the image {digest}")
 }
 
 /// Every provider on record, outgoing first, each oldest first.
