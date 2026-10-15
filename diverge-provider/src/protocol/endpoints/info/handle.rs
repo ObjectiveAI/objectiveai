@@ -16,10 +16,12 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Answer with the version and the capabilities, and end the scope.
 ///
-/// The one handler that asks a provider for a value and nothing
-/// else: the [`Capabilities`] it holds out, which the dispatch was
-/// built with and which every other handler enforces. The version is
-/// the protocol's, compiled in.
+/// One of the two handlers that ask a provider for a value and
+/// nothing else — the other is
+/// [`capacity`](crate::protocol::endpoints::capacity): here, the
+/// [`Capabilities`] it holds out, which the dispatch was built with
+/// and which every other handler enforces. The version is the
+/// protocol's, compiled in.
 ///
 /// # A provider that wants to answer another version does not call this
 ///

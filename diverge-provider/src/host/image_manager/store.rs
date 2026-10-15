@@ -242,6 +242,13 @@ impl Store {
         Ok(())
     }
 
+    /// How many bytes a build could still add, as of now: the
+    /// capacity less what every pool holds together, never below
+    /// `0`. A fact about an instant, measured by a walk of the pools.
+    pub async fn room(&self) -> Result<u64, Error> {
+        Ok(self.capacity.saturating_sub(self.used().await?))
+    }
+
     /// How many bytes every pool holds together: every blob under
     /// `<images>/*/blobs/`, each counted once however many records
     /// name it. What the capacity is measured against.

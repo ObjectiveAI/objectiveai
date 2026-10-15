@@ -4,7 +4,7 @@
 //! request, and serves every endpoint; what it cannot supply is what a
 //! provider IS — a place to run containers, a store of volumes, a
 //! registry, and a judgment about who may connect — and this module
-//! supplies those, as the protocol's eight provider-side traits:
+//! supplies those, as the protocol's nine provider-side traits:
 //!
 //! | trait | supplies |
 //! |-------|----------|
@@ -15,6 +15,7 @@
 //! | `ImageChecker` | whether an image can be had without the caller, and without the cache |
 //! | `ImageManager` | the images every identity built on this provider, in a pool of their own |
 //! | `OciStore` | what the provider holds of an image for a caller — its client images, from its pool — served to the caller's pull |
+//! | `CapacityReporter` | how much a caller may still use: the stores' room and what remains of the two caps |
 //! | `UnbrokeredAuthorizer` | the identity a credential establishes |
 //!
 //! This is ONE provider, not the only one. The specification binds any
@@ -24,8 +25,8 @@
 //!
 //! Here is where the implementation goes; [`container_deployer`], [`volume_manager`],
 //! [`image_checker`], [`image_manager`], [`image_registry`],
-//! [`oci_store`] and [`unbrokered_authorizer`] supply the eight, every
-//! method of each written. [`tools`] is every program the provider runs — podman,
+//! [`oci_store`], [`capacity_reporter`] and [`unbrokered_authorizer`]
+//! supply the nine, every method of each written. [`tools`] is every program the provider runs — podman,
 //! and e2fsprogs, `mount` and `ssh` through it or beside it — and
 //! the one way it runs them. [`watch`] is a directory of this host
 //! walked and watched, the filetree of a fixed volume, one module
@@ -42,6 +43,7 @@ mod limit;
 
 pub use limit::*;
 
+pub mod capacity_reporter;
 pub mod container_deployer;
 pub mod hook;
 pub mod image_checker;

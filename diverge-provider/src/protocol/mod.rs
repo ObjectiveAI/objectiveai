@@ -25,9 +25,10 @@
 //!
 //! Ten of the [`volumes`](diverge_sdk::provider::endpoints::volumes),
 //! [`images::check`](diverge_sdk::provider::endpoints::images::check),
-//! the image store's stat and delete and
-//! [`info`](diverge_sdk::provider::endpoints::info) answer and finish, which is
-//! the whole of what those endpoints do; the two listings stay open
+//! the image store's stat and delete,
+//! [`info`](diverge_sdk::provider::endpoints::info) and
+//! [`capacity`](diverge_sdk::provider::endpoints::capacity) answer and
+//! finish, which is the whole of what those endpoints do; the two listings stay open
 //! until the caller stops, and a build until the build ends. The two
 //! [`containers`](diverge_sdk::provider::endpoints::containers) runs serve for as
 //! long as their containers run: each brings its container up,
@@ -37,7 +38,7 @@
 //!
 //! # And what a provider supplies
 //!
-//! Eight traits and three types, which are what this half asks FOR
+//! Nine traits and three types, which are what this half asks FOR
 //! rather than provides. They mirror the ones [`client`](diverge_sdk::wire::client)
 //! supplies: something a provider implements, so that the parts this
 //! crate cannot know are somebody else's.
@@ -164,6 +165,12 @@
 //! capability is absent and judging every hold on a volume by what
 //! the capability for its mode allows, through [`hold`].
 //!
+//! [`capacity`](diverge_sdk::provider::endpoints::capacity) asks for
+//! four numbers, through a [`capacity_reporter`]: how much the caller
+//! may still use of the volume stores, the client image store, the
+//! memory cap and the overlay cap, as of now — what the provider
+//! counts, which this crate cannot.
+//!
 //! [`proxy`] faces the other way: not something a provider supplies,
 //! but the one thing this crate dials — the proxy inside a container,
 //! at the address a deployer reported. What comes back is the
@@ -182,6 +189,7 @@
 
 pub mod acceptors;
 pub mod caller;
+pub mod capacity_reporter;
 pub mod changes;
 pub mod container;
 pub mod container_deployer;

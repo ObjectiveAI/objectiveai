@@ -4,6 +4,7 @@
 //! takes as the traits of [`protocol`](super). The dispatch in
 //! [`handle`](super::handle) is what calls them.
 
+pub mod capacity;
 pub mod containers;
 pub mod daemons;
 pub mod images;

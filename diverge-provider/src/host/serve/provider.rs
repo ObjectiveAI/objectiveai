@@ -22,6 +22,7 @@ use crate::config::auth::Auth;
 use crate::config::volumes::Volumes;
 
 use super::{Error, Peers};
+use crate::host::capacity_reporter::CapacityReporter;
 use crate::host::container_deployer::ContainerDeployer;
 use crate::host::image_checker::ImageChecker;
 use crate::host::image_manager::{ImageManager, Store};
@@ -72,6 +73,9 @@ pub struct Provider {
     /// What this provider holds out, answered by `info` and enforced
     /// by every handler: read off the configuration once.
     capabilities: Arc<Capabilities>,
+    /// How much a caller may still use, answered by `capacity`: the
+    /// stores and the deployer's caps, asked as of each answer.
+    capacity: Arc<CapacityReporter>,
 }
 
 impl Provider {
@@ -88,9 +92,11 @@ impl Provider {
     /// volumes; the deployer, which
     /// brings the machine up, sweeps an earlier life away, writes the
     /// auth file and opens the tunnel; the image checker, given that
-    /// auth file; the image manager, given the deployer; and the
-    /// directory. The store is handed to the registry, the deployer,
-    /// the checker, the OCI store and the manager.
+    /// auth file; the image manager, given the deployer; the capacity
+    /// reporter, given the volumes, the store and the deployer; and
+    /// the directory. The store is handed to the registry, the
+    /// deployer, the checker, the OCI store, the reporter and the
+    /// manager.
     pub async fn start(config: Config, dir: PathBuf) -> Result<Self, Error> {
         ready(&config, &dir).await?;
         let capabilities = Arc::new(capabilities(&config));
@@ -114,6 +120,7 @@ impl Provider {
         );
         let checker = Arc::new(ImageChecker::new(store.clone(), &registries, deployer.auth_file().to_path_buf()));
         let oci = Arc::new(OciStore::new(store.clone()));
+        let capacity = Arc::new(CapacityReporter::new(Arc::clone(&volumes), store.clone(), Arc::clone(&deployer)));
         let images = Arc::new(ImageManager::new(store, Arc::clone(&volumes), Arc::clone(&deployer)));
         Ok(Provider {
             auth: config.auth,
@@ -130,6 +137,7 @@ impl Provider {
             volume_changes: Arc::new(Changes::new()),
             image_changes: Arc::new(Changes::new()),
             capabilities,
+            capacity,
         })
     }
 
@@ -168,6 +176,7 @@ impl Provider {
             Arc::clone(&self.images),
             Arc::clone(&self.oci),
             Arc::clone(&self.registry),
+            Arc::clone(&self.capacity),
             Arc::clone(&self.directory),
             Arc::clone(&self.volume_changes),
             Arc::clone(&self.image_changes),

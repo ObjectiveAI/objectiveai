@@ -45,6 +45,14 @@ impl Limit {
         }
     }
 
+    /// What is not taken, in BYTES, as of now: the room a take could
+    /// still have. Exact, since the cap was floored and every take
+    /// ceiled to whole units. A fact about an instant — another take
+    /// may have it before the asker does.
+    pub fn room(&self) -> u64 {
+        u64::try_from(self.permits.available_permits()).unwrap_or(u64::MAX).saturating_mul(UNIT)
+    }
+
     /// Take `bytes`, rounded up to whole units: `Some` is the bytes
     /// held until the [`Held`] is dropped; `None` is a cap that would
     /// be passed, or a take too large to count at once, and nothing

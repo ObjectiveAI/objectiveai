@@ -9,6 +9,7 @@ use futures_util::StreamExt as _;
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use diverge_sdk::wire::server::authorization::{self, Authorization};
 use super::acceptors::Acceptors;
+use super::capacity_reporter::CapacityReporter;
 use super::container_deployer::ContainerDeployer;
 use super::directory::Directory;
 use super::changes::Changes;
@@ -48,9 +49,10 @@ use diverge_sdk::shared::error::Error;
 ///
 /// The rest are what the provider supplies, shared because scopes run
 /// concurrently and the traits — returning `impl Future` — cannot be
-/// boxed behind one pointer; the [`Capabilities`] it holds out, which
-/// `info` answers and every handler that serves an optional part of
-/// the protocol enforces — the image store, the registries, the FUSE
+/// boxed behind one pointer — the [`CapacityReporter`] among them,
+/// which `capacity` asks for the caller's room; the [`Capabilities`]
+/// it holds out, which `info` answers and every handler that serves
+/// an optional part of the protocol enforces — the image store, the registries, the FUSE
 /// mounts and serves, the volume modes and what may hold a volume of
 /// each; the [`Directory`], one per provider,
 /// through which a FUSE serve or a transfer on this connection finds a run
@@ -99,7 +101,7 @@ use diverge_sdk::shared::error::Error;
 /// [`ClientRequest::decode`] cannot fail; what it cannot read it
 /// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
 /// one is a finish with nothing in front. There is no other honest
-/// answer — twenty-three endpoints have twenty-three error vocabularies, and an
+/// answer — twenty-four endpoints have twenty-four error vocabularies, and an
 /// invalid request names none of them — and a bare finish is already
 /// what the wire means by a request that could not be served. Every
 /// executor reads it as its own "unanswered".
@@ -116,7 +118,7 @@ use diverge_sdk::shared::error::Error;
 /// every one of those teardowns — and it would end runs a caller had
 /// already paid for, which is the wrong way round: the work was real,
 /// and a caller that leaves does not un-spend it.
-pub async fn handle<D, V, I, M, O, U, R>(
+pub async fn handle<D, V, I, M, O, U, R, C>(
     mut session: Session,
     authorization: Authorization<U>,
     address: IpAddr,
@@ -126,6 +128,7 @@ pub async fn handle<D, V, I, M, O, U, R>(
     image_manager: Arc<M>,
     oci_store: Arc<O>,
     image_registry: Arc<R>,
+    capacity: Arc<C>,
     directory: Arc<Directory>,
     volume_changes: Arc<Changes>,
     image_changes: Arc<Changes>,
@@ -145,6 +148,7 @@ where
     U: UnbrokeredAuthorizer,
     R: ImageRegistry + 'static,
     R::Error: Into<Error>,
+    C: CapacityReporter + 'static,
 {
     // The handshake, before anything else. What comes out of it is the
     // identity everything downstream receives — shared rather than
@@ -446,6 +450,13 @@ where
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::info::handle(scope, &capabilities).await;
+                });
+            }
+            ClientRequest::Capacity(_) => {
+                let identity = Arc::clone(&client_identity);
+                let reporter = Arc::clone(&capacity);
+                scopes.spawn(async move {
+                    endpoints::capacity::handle(scope, &identity, &*reporter).await;
                 });
             }
             ClientRequest::DaemonsAccept(_) => {

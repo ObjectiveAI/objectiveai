@@ -165,6 +165,22 @@ impl ContainerDeployer {
     pub fn registry_port(&self) -> u16 {
         self.registry_port
     }
+
+    /// What remains of the `memory` cap, in BYTES, as of now: what a
+    /// run's `memory` could still be, reckoned against what the
+    /// running containers reserved and not against the host's free
+    /// memory.
+    pub fn memory_room(&self) -> u64 {
+        self.shared.memory.room()
+    }
+
+    /// What remains of the `container_overlay_disk` cap, in BYTES, as
+    /// of now: what a run's `disk` could still be. The cap is the one
+    /// the ephemeral FUSE serves' scratch counts against too, so what
+    /// they hold is not room either.
+    pub fn disk_room(&self) -> u64 {
+        self.shared.disk.room()
+    }
 }
 
 impl container_deployer::ContainerDeployer for ContainerDeployer {
