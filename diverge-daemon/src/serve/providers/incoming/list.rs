@@ -3,15 +3,13 @@
 use std::future::Future;
 
 use diverge_sdk::daemon::endpoints::providers::incoming::list::client::request::{self, Filter};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
-use diverge_sdk::daemon::endpoints::providers::incoming::list::server::response::{Frame, Incoming, Swap};
-use diverge_sdk::provider::endpoints::capacity;
+use diverge_sdk::daemon::endpoints::providers::incoming::list::server::response::{Frame, Incoming};
 use diverge_sdk::daemon::grant::providers_incoming::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
-use crate::serve::stream::{self, Change, Patch, Source};
+use crate::serve::stream::{self, Change, Source};
 use crate::serve::reply;
 use crate::store::{self, providers_incoming};
 
@@ -48,43 +46,13 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing_patched(
-        scope,
-        daemon,
-        &[Kind::ProvidersIncoming],
-        frame.count,
-        &source,
-        |change| match change {
-            Change::Added(credential) => Frame::Added(credential),
-            Change::Changed(credential) => Frame::Changed(credential),
-            Change::Removed(credential) => Frame::Removed(credential),
-            Change::Listed => Frame::Listed,
-        },
-        &Swaps,
-    )
+    stream::listing(scope, daemon, &[Kind::ProvidersIncoming], frame.count, &source, |change| match change {
+        Change::Added(credential) => Frame::Added(credential),
+        Change::Changed(credential) => Frame::Changed(credential),
+        Change::Removed(credential) => Frame::Removed(credential),
+        Change::Listed => Frame::Listed,
+    })
     .await
-}
-
-/// A capacity swap, taken: the provider's identity is the key, the
-/// item's `capacity` is the new answer, and the client is told the
-/// swap alone.
-struct Swaps;
-
-impl Patch<String, Incoming, Frame> for Swaps {
-    fn key(&self, identity: &Identity) -> Option<String> {
-        match identity {
-            Identity::IncomingUnbrokered { identity } => Some(identity.clone()),
-            Identity::Outgoing { .. } => None,
-        }
-    }
-
-    fn apply(&self, item: &mut Incoming, capacity: &capacity::server::response::Frame) -> Option<Frame> {
-        item.capacity = Some(capacity.clone());
-        Some(Frame::Capacity(Swap {
-            identity: item.credential.identity.clone(),
-            capacity: capacity.clone(),
-        }))
-    }
 }
 
 /// The credentials as the caller may list them now.

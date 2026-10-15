@@ -7,7 +7,7 @@ use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::provider::endpoints::capacity::client::execute;
 use diverge_sdk::wire::client::handle::Handle;
 
-use crate::daemon::{Capacity, Daemon};
+use crate::daemon::{Capacity, Daemon, Kind};
 
 /// Ask the provider on `handle` its capacity, swap the answer into
 /// `cell`, wait, and ask again, until the connection ends.
@@ -23,8 +23,10 @@ use crate::daemon::{Capacity, Daemon};
 ///
 /// # What is said, and what is not
 ///
-/// An answer that differs from the last is told to the provider
-/// lists kept open; the same answer again is nothing. A provider
+/// An answer that differs from the last is the word that the
+/// provider's kind changed, on which a list kept open reads the
+/// items again and sends the item as changed; the same answer again
+/// is nothing. A provider
 /// that did not answer — the scope finished bare, or the answer did
 /// not parse — leaves the last answer standing. The connection gone
 /// — the request not sent, or the connection closed before the
@@ -33,8 +35,8 @@ pub async fn poll_capacity(daemon: Arc<Daemon>, identity: Identity, handle: Hand
     loop {
         match execute::execute(&handle).await {
             Ok(frame) => {
-                if let Some(swapped) = cell.swap(frame) {
-                    daemon.live.capacity_changed(identity.clone(), swapped);
+                if cell.swap(frame) {
+                    daemon.live.changed(Kind::of_provider(&identity));
                 }
             }
             Err(execute::ExecuteError::Send(_) | execute::ExecuteError::Closed) => return,

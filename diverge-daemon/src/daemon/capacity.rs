@@ -48,14 +48,13 @@ impl Capacity {
         self.latest.load_full()
     }
 
-    /// The answer swapped in: `Some` of it when it differs from what
-    /// was there, for whoever tells the listings; `None` when the
-    /// provider answered the same again, and nothing need be said.
-    pub fn swap(&self, frame: Frame) -> Option<Arc<Frame>> {
+    /// The answer swapped in: whether it differs from what was there,
+    /// for whoever tells the listings; the same answer again is
+    /// nothing to say.
+    pub fn swap(&self, frame: Frame) -> bool {
         let same = self.latest.load().as_deref() == Some(&frame);
-        let frame = Arc::new(frame);
-        self.latest.store(Some(Arc::clone(&frame)));
-        if same { None } else { Some(frame) }
+        self.latest.store(Some(Arc::new(frame)));
+        !same
     }
 
     /// Ask again, now.

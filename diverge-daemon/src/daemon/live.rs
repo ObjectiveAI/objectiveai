@@ -17,7 +17,7 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::images::oci::client::execute;
 
-use super::{Capacity, CapacityChange, CapacityChanges, Changes, Kind, Peers, Standing};
+use super::{Capacity, Changes, Kind, Peers, Standing};
 use crate::containers::services::State;
 use crate::containers::{AgentRun, ConnectionId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
@@ -97,9 +97,6 @@ pub struct Live {
     /// disconnects, so a reader looks a cell up under no lock at any
     /// time. The cell itself is read the same way: see [`Capacity`].
     capacities: ArcSwap<HashMap<Identity, Arc<Capacity>>>,
-    /// The word that a capacity was swapped, for the provider lists
-    /// kept open.
-    swaps: CapacityChanges,
 }
 
 impl std::fmt::Debug for Live {
@@ -390,16 +387,6 @@ impl Live {
         }
     }
 
-    /// The provider's poller swapped a new answer in: the word to the
-    /// provider lists kept open, with the answer.
-    pub fn capacity_changed(&self, identity: Identity, capacity: Arc<CapacityFrame>) {
-        self.swaps.changed(CapacityChange { identity, capacity });
-    }
-
-    /// Every capacity swap from now on, for a provider listing.
-    pub fn capacity_changes(&self) -> tokio::sync::broadcast::Receiver<CapacityChange> {
-        self.swaps.subscribe()
-    }
 
     /// Keep the dial task for the address, ending any earlier one for
     /// the same address first, so one address is dialled by one task.
