@@ -32,7 +32,7 @@ pub struct Outgoing {
     /// status is not `connected`. The daemon asks again every
     /// `capacity_poll_seconds` of its configuration and after every
     /// act of its own that changes the answer; a list kept open hears
-    /// each new answer as a `capacity` frame. A member the provider's
+    /// each new answer as the item changed. A member the provider's
     /// capabilities exclude is not read, as the provider wire has it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capacity: Option<capacity::server::response::Frame>,

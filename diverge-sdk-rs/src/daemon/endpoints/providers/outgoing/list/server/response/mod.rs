@@ -5,9 +5,7 @@
 //! forbidden, or a failure. [`Outgoing`] is what one is.
 
 mod frame;
-mod swap;
 mod outgoing;
 
 pub use frame::*;
-pub use swap::*;
 pub use outgoing::*;

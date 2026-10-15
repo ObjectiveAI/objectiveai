@@ -35,9 +35,7 @@
 //! exclude, and counts it connected only once the answer is cached.
 //! Beside the status, an item carries the provider's latest
 //! `capacity` answer, which the daemon polls for and caches; a list
-//! kept open hears each new answer as a `capacity` frame naming the
-//! item's key, since the capacity moves far more often than anything
-//! else in the item.
+//! kept open hears each new answer as the item changed.
 //!
 //! # And the daemons beyond them
 //!
