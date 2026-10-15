@@ -69,7 +69,6 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         })
     })
     .await;
-    files::close(daemon, &opened).await;
     match outcome {
         Ok(()) => {}
         Err(Fail::NotFound) => reply::reply(scope, &Frame::NotFound).await,

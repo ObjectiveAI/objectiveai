@@ -6,10 +6,10 @@ use std::sync::Arc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item};
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::{Event, ExecuteStream};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
-use futures_util::{StreamExt as _, future};
+use futures_util::StreamExt as _;
 
 use super::mcp::{self, Context};
-use super::{AgentRun, Key, User, stop, tools};
+use super::{AgentRun, Key, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::logs;
 use crate::store::AgentId;
@@ -17,9 +17,10 @@ use crate::store::AgentId;
 /// Read the run's stream to its end: every chunk kept, the agent
 /// attested under its `_meta` — a user part as its sender's, by the
 /// key the message was enqueued under — the loop's begin and end kept
-/// as whether a loop runs, the attached tools started on the begin
-/// and released on the end — the dependencies run on, for the
-/// agent's life — and the stream's end or error the run over.
+/// as whether a loop runs, the served tools started on the begin so
+/// its calls find them up — each held up by its own use from then on,
+/// and the dependencies run on for the agent's life — and the
+/// stream's end or error the run over.
 pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteStream) {
     let context = Context {
         daemon: Arc::clone(&daemon),
@@ -50,12 +51,6 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                 run.loop_active.send_replace(false);
                 daemon.live.changed(Kind::Agents);
                 run.touch();
-                let attached = run.served.lock().await.attached_running();
-                future::join_all(attached.iter().map(|key| tools::release(&daemon, *key, User::Container(Key::Agent(run.id))))).await;
-                let mut served = run.served.lock().await;
-                for key in attached {
-                    served.idle(key);
-                }
             }
             Err(error) => {
                 let _ = append(

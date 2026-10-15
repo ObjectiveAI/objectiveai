@@ -1,5 +1,6 @@
 //! The five MCP exchanges over a run's served tools.
 
+use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -12,9 +13,10 @@ use rmcp::model::{
     ReadResourceResult, ServerNotification,
 };
 use tokio::sync::{Mutex, mpsc};
+use tokio::task::AbortHandle;
 
 use super::{Entry, Served, exposed, split};
-use crate::containers::{Key, ToolKey, ToolRun, User, tools};
+use crate::containers::{Key, ToolKey, ToolRun, tools};
 use crate::daemon::Daemon;
 use crate::store::DependencyToolId;
 use crate::store::tools::Tool;
@@ -43,8 +45,8 @@ pub struct Context {
 enum Next {
     /// A run this set holds.
     Run(Arc<ToolRun>),
-    /// An attached tool with no run.
-    Idle(Tool),
+    /// An attached tool, whose run is the live set's to find.
+    Attached(Tool),
     /// A service, whose run the live set holds.
     Service(DependencyToolId),
     /// Nothing is served under the key.
@@ -52,21 +54,20 @@ enum Next {
 }
 
 /// The served tool's run: a transient dependency tool's; an attached
-/// tool's, started now if it was idle; or a service's as the live set
-/// holds it now, which is an error while the service's container is
-/// not up.
+/// tool's as the live set holds it now, started now if it holds none;
+/// or a service's as the live set holds it now, which is an error
+/// while the service's container is not up.
 pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, String> {
     let next = {
         let served = context.served.lock().await;
         match served.entry(key) {
             Some(Entry::Transient(run)) => Next::Run(Arc::clone(run)),
-            Some(Entry::Attached { run: Some(run), .. }) => Next::Run(Arc::clone(run)),
-            Some(Entry::Attached { tool, run: None }) => Next::Idle(tool.clone()),
+            Some(Entry::Attached { tool }) => Next::Attached(tool.clone()),
             Some(Entry::Service { id, .. }) => Next::Service(*id),
             None => Next::Missing,
         }
     };
-    let idle = match next {
+    let tool = match next {
         Next::Run(run) => return Ok(run),
         Next::Service(id) => {
             return context
@@ -77,13 +78,32 @@ pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, St
                 .ok_or_else(|| "the service is not running now".to_string());
         }
         Next::Missing => return Err("no tool is served under that prefix".to_string()),
-        Next::Idle(tool) => tool,
+        Next::Attached(tool) => tool,
     };
-    let run = tools::use_tool(&context.daemon, &idle, User::Container(context.user))
-        .await
-        .map_err(|error| error.to_string())?;
-    context.served.lock().await.running(key, Arc::clone(&run));
+    if let Some(run) = context.daemon.live.tool_run(key).await {
+        return Ok(run);
+    }
+    let run = tools::use_tool(&context.daemon, &tool).await.map_err(|error| error.to_string())?;
+    context.served.lock().await.started();
     Ok(run)
+}
+
+/// The served tool's run as the live set holds it now, for the relay
+/// of its notifications: a transient dependency tool's own, an
+/// attached tool's or a service's by key; `None` while it has none.
+async fn relayed(served: &Mutex<Served>, daemon: &Daemon, key: ToolKey) -> Option<Arc<ToolRun>> {
+    let next = {
+        let served = served.lock().await;
+        match served.entry(key) {
+            Some(Entry::Transient(run)) => return Some(Arc::clone(run)),
+            Some(Entry::Attached { .. }) | Some(Entry::Service { .. }) => true,
+            None => false,
+        }
+    };
+    if !next {
+        return None;
+    }
+    daemon.live.tool_run(key).await
 }
 
 /// The caller stamped on `params`: the agent, when the run is one. A
@@ -104,7 +124,9 @@ pub async fn start_all(context: &Context) {
 }
 
 /// The union of every served tool's tools, each name under its
-/// prefix. A tool that does not answer lists nothing.
+/// prefix: every tool served as of this moment asked, and every one
+/// waited for. A tool that does not answer lists nothing. Each ask is
+/// in flight into its tool for as long as it takes.
 pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) -> Result<ListToolsResult, ErrorData> {
     let keys = context.served.lock().await.keys();
     let mut tools = Vec::new();
@@ -117,6 +139,7 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
         };
         let mut params = PaginatedRequestParams::default();
         attest(context, &mut params);
+        let _flying = run.inflight.enter();
         if let Ok(result) = run.handle.list_tools(Some(params)).await {
             run.touch();
             for mut tool in result.tools {
@@ -139,6 +162,7 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
         };
         let mut params = PaginatedRequestParams::default();
         attest(context, &mut params);
+        let _flying = run.inflight.enter();
         if let Ok(result) = run.handle.list_resources(Some(params)).await {
             run.touch();
             for mut resource in result.resources {
@@ -151,7 +175,9 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
 }
 
 /// The call, to the tool its prefix names, by the name that tool
-/// knows.
+/// knows: in flight into the tool from the ask to the answer, which
+/// holds the tool's run up — a detach meanwhile serves the tool no
+/// more from that instant, and this call is answered still.
 pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
     let Some((prefix, name)) = split(&params.name) else {
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
@@ -164,6 +190,7 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     params.name = name.into();
     attest(context, &mut params);
     run.touch();
+    let _flying = run.inflight.enter();
     let mut result = run
         .handle
         .call_tool(params)
@@ -182,6 +209,7 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
         let Ok(run) = running(context, key).await else {
             continue;
         };
+        let _flying = run.inflight.enter();
         match run.handle.read_resource(params.clone()).await {
             Ok(mut result) => {
                 run.touch();
@@ -197,43 +225,79 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
     ))
 }
 
-/// Every served tool's notifications, forwarded for as long as its
-/// scope lives, and the set's own changes.
+/// Every served tool's notifications, forwarded for as long as the
+/// set serves it and its run lives, and the set's own word that it
+/// changed: a relay per served tool, started when the tool is served
+/// and its run is up, ended when it leaves the set or its run ends,
+/// kept in step at every change of the set and every start of a
+/// served tool's run — so a tool attached while the stream is open
+/// has its notifications forwarded too, a tool list changed among
+/// them, and a tool detached has them forwarded no more.
 pub async fn notifications(context: &Context) -> Notifications {
     let (sender, receiver) = mpsc::unbounded_channel::<Result<ServerNotification, ErrorData>>();
-    let (mut runs, services, mut changes) = {
+    let (mut changes, mut generation) = {
         let served = context.served.lock().await;
-        (served.runs(), served.services(), served.subscribe())
+        (served.subscribe(), served.generation())
     };
-    for id in services {
-        if let Some(run) = context.daemon.live.tool_run(ToolKey::Dependency(id)).await {
-            runs.push(run);
-        }
-    }
-    for run in runs {
-        if let Ok(mut stream) = run.handle.notifications().await {
-            let sender = sender.clone();
-            tokio::spawn(async move {
-                while let Some(item) = stream.next().await {
-                    let forwarded = match item {
-                        Ok(mut notification) => {
-                            run.attest(notification.get_meta_mut());
-                            Ok(notification)
-                        }
-                        Err(error) => Err(ErrorData::internal_error(format!("{error:?}"), None)),
-                    };
-                    if sender.send(forwarded).is_err() {
-                        break;
-                    }
+    {
+        let sender = sender.clone();
+        tokio::spawn(async move {
+            while let Ok(notification) = changes.recv().await {
+                if sender.send(Ok(notification)).is_err() {
+                    break;
                 }
-            });
-        }
+            }
+        });
     }
+    let daemon = Arc::clone(&context.daemon);
+    let served = Arc::clone(&context.served);
     tokio::spawn(async move {
-        while let Ok(notification) = changes.recv().await {
-            if sender.send(Ok(notification)).is_err() {
+        let mut relays: HashMap<ToolKey, AbortHandle> = HashMap::new();
+        loop {
+            if sender.is_closed() {
                 break;
             }
+            let keys = served.lock().await.keys();
+            relays.retain(|key, relay| {
+                let kept = keys.contains(key) && !relay.is_finished();
+                if !kept {
+                    relay.abort();
+                }
+                kept
+            });
+            for key in keys {
+                if relays.contains_key(&key) {
+                    continue;
+                }
+                let Some(run) = relayed(&served, &daemon, key).await else {
+                    continue;
+                };
+                let Ok(mut stream) = run.handle.notifications().await else {
+                    continue;
+                };
+                let sender = sender.clone();
+                let relay = tokio::spawn(async move {
+                    while let Some(item) = stream.next().await {
+                        let forwarded = match item {
+                            Ok(mut notification) => {
+                                run.attest(notification.get_meta_mut());
+                                Ok(notification)
+                            }
+                            Err(error) => Err(ErrorData::internal_error(format!("{error:?}"), None)),
+                        };
+                        if sender.send(forwarded).is_err() {
+                            break;
+                        }
+                    }
+                });
+                relays.insert(key, relay.abort_handle());
+            }
+            if generation.changed().await.is_err() {
+                break;
+            }
+        }
+        for relay in relays.into_values() {
+            relay.abort();
         }
     });
     Box::pin(stream::unfold(receiver, |mut receiver| async move {

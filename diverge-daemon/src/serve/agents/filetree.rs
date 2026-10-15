@@ -60,7 +60,6 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         })
     })
     .await;
-    files::close(daemon, &opened).await;
     if let Err(error) = outcome {
         reply::reply(scope, &Frame::Error(reply::failure(&error))).await;
     }

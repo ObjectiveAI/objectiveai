@@ -1,4 +1,5 @@
-//! Tools attached to agents, in the order they were attached.
+//! Tools attached to agents directly — one agent each — in the order
+//! they were attached; a template's are [`template_attachments`](super::template_attachments).
 
 use sqlx::{PgConnection, Row as _};
 

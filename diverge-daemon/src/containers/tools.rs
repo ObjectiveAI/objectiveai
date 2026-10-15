@@ -1,20 +1,23 @@
-//! One container per tool on record: started for the first container
-//! or connect scope that uses it, stopped when nothing holds it — or,
-//! a service, kept while anything holds it and retired by its clock.
+//! One container per tool on record: started for the first thing that
+//! uses it, held up by what is in flight into it and the connect
+//! scopes on it, and — a transient tool — stopped by its idle clock
+//! `idle_seconds` after the last of those left; a service is kept
+//! while anything is attached to it and retired by its own clock.
 
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use super::{StartError, ToolHandle, ToolKey, ToolRun, User, services, start};
+use super::{ConnectionId, StartError, ToolKey, ToolRun, services, start};
 use crate::daemon::Daemon;
 use crate::store::tools::Tool;
 
-/// The tool's run, with `user` among its users: started now if it was
-/// not running, and touched if it was. A service's run is kept from
-/// here on — its supervisor and its clock started if they were not —
-/// and told what holds it, since a connect scope among the users is
-/// a hold.
-pub async fn use_tool(daemon: &Arc<Daemon>, tool: &Tool, user: User) -> Result<Arc<ToolRun>, StartError> {
+/// The tool's run: started now if it was not running, and touched if
+/// it was. Nothing is held by this: whoever uses the run takes an
+/// [`Inflight`](super::Inflight) guard for the use, and a connect
+/// scope [`connect`]s. A service's run is kept from here on — its
+/// supervisor and its clock started if they were not — and told what
+/// holds it.
+pub async fn use_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, StartError> {
     let run = match daemon.live.tool_run(ToolKey::Record(tool.id)).await {
         Some(run) => {
             run.touch();
@@ -22,11 +25,6 @@ pub async fn use_tool(daemon: &Arc<Daemon>, tool: &Tool, user: User) -> Result<A
         }
         None => start::tool(daemon, tool).await?,
     };
-    {
-        let mut users = run.users.lock().await;
-        users.insert(user);
-        held(&run, &users);
-    }
     if run.service {
         services::keep(daemon, run.id).await;
         services::held(daemon, run.id).await;
@@ -34,50 +32,31 @@ pub async fn use_tool(daemon: &Arc<Daemon>, tool: &Tool, user: User) -> Result<A
     Ok(run)
 }
 
-/// `user` is done with the tool: a record's container is stopped when
-/// it was the last user, unless the tool is a service, which is held
-/// by its attachments and its connect scopes and retired by its clock
-/// — it is told what holds it instead; a connected tool's connection
-/// is left to its idle clock. A dependency tool is nobody's to
-/// release: a transient one is stopped with its agent's run and a
-/// service is held by its attachments, and this does nothing for
-/// either.
-pub async fn release(daemon: &Daemon, tool: ToolKey, user: User) {
-    if let ToolKey::Dependency(_) = tool {
-        return;
-    }
-    let Some(run) = daemon.live.tool_run(tool).await else {
-        return;
-    };
+/// A connect scope of another daemon's holds the run from now on,
+/// until [`disconnect`]: the run is told it is held.
+pub async fn connect(run: &ToolRun, connection: ConnectionId) {
+    let mut connections = run.connections.lock().await;
+    connections.insert(connection);
+    held(run, &connections);
+}
+
+/// The connect scope is over: the run is told whether anything holds
+/// it still, and a service told its hold changed. A transient tool
+/// whose last scope left is the idle clock's: stopped `idle_seconds`
+/// after its last use, unless something uses it meanwhile.
+pub async fn disconnect(daemon: &Daemon, run: &ToolRun, connection: ConnectionId) {
     {
-        let mut users = run.users.lock().await;
-        users.remove(&user);
-        held(&run, &users);
-        if !run.service {
-            stop_if_unheld(&run, &users).await;
-        }
+        let mut connections = run.connections.lock().await;
+        connections.remove(&connection);
+        held(run, &connections);
     }
     if run.service {
         services::held(daemon, run.id).await;
     }
 }
 
-/// The word that something uses the run, or nothing does, kept in
-/// step with `users` under its lock.
-fn held(run: &ToolRun, users: &HashSet<User>) {
-    run.held.send_replace(run.is_held(users));
-}
-
-/// Stop a container the daemon runs unless something holds it: the one
-/// test the last user and the last connect scope leaving both come
-/// to, under the users lock so that a user arriving between the test
-/// and the stop is not lost. A connected tool is not stopped here: its
-/// connection is let go by its idle clock, `idle_seconds` after the
-/// last use.
-async fn stop_if_unheld(run: &ToolRun, users: &HashSet<User>) {
-    if let ToolHandle::Run(_) = run.handle
-        && !run.is_held(users)
-    {
-        run.handle.stop().await;
-    }
+/// The word that a connect scope holds the run, or none does, kept in
+/// step with `connections` under its lock.
+fn held(run: &ToolRun, connections: &HashSet<ConnectionId>) {
+    run.held.send_replace(!connections.is_empty());
 }

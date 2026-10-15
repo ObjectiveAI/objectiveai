@@ -64,7 +64,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     };
     opened.touch();
     let outcome = transfers::copy(daemon, Source::Opened(opened.clone()), &frame.path, frame.to).await;
-    files::close(daemon, &opened).await;
     Ok(match outcome {
         Ok(()) => Frame::Transferred,
         Err(Fail::NotFound) => Frame::NotFound,

@@ -50,7 +50,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let opened = Opened::Tool(run);
+    let opened = Opened::Tool(run, None);
     let outcome = files::watch(scope, &opened, &|scope, frame| {
         Box::pin(async move {
             reply::reply(scope, &Frame::Filetree(frame)).await;

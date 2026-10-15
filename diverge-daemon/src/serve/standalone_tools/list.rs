@@ -89,21 +89,27 @@ impl Source for Listed<'_> {
                     attached.entry(attachment.tool).or_default().push(key.clone());
                 }
             }
+            let mut templates: HashMap<ToolId, Vec<String>> = HashMap::new();
+            for attachment in tools::template_attachments::all(&mut conn).await? {
+                templates.entry(attachment.tool).or_default().push(attachment.template);
+            }
             drop(conn);
             let states = self.daemon.live.active_tools().await;
             let empty = Vec::new();
+            let no_templates = Vec::new();
             let mut listed = Vec::new();
             for tool in &all {
                 let key = ToolKey::Record(tool.id);
                 let active = states.contains_key(&key);
                 let attached = attached.get(&tool.id).unwrap_or(&empty);
+                let attached_templates = templates.get(&tool.id).unwrap_or(&no_templates);
                 let mode = tool.template().and_then(|template| modes.get(template).copied());
-                let facts = Facts::record(tool, active, attached, mode);
+                let facts = Facts::record(tool, active, attached, attached_templates, mode);
                 if !judge::standalone_tools::over(self.standing, Over::List, &facts) || !filter::standalone_tools::test(self.filter, &facts) {
                     continue;
                 }
                 let running = states.get(&key).cloned().flatten();
-                listed.push((key, tool.report(active, running, attached.clone(), mode)));
+                listed.push((key, tool.report(active, running, attached.clone(), attached_templates.clone(), mode)));
             }
             Ok(listed)
         }

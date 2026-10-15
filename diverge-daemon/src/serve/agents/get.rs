@@ -40,7 +40,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::agents::over(&standing, Over::Get, &agent, active) {
         return Ok(Frame::Forbidden);
     }
-    let tools = tools_of(&mut conn, agent.id).await?;
+    let tools = tools_of(&mut conn, &agent).await?;
     drop(conn);
     let logs_index = logs::count(&daemon.logs, agent.id).await?;
     Ok(Frame::Found(agent.report(active, tools, logs_index)))

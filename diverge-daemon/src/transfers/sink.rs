@@ -6,15 +6,16 @@ use diverge_sdk::daemon::reference;
 use diverge_sdk::daemon::transfer::Destination;
 
 use super::Fail;
-use crate::containers::{self, Key, Opened, ToolKey, User, running_dependency};
+use crate::containers::{self, Opened, running_dependency};
 use crate::daemon::Daemon;
 use crate::store::{agents, tools};
 use crate::volumes;
 
 /// The destination as something that takes files.
 pub enum Sink {
-    /// A path in a container, opened for the operation; a tool is
-    /// released after.
+    /// A path in a container, opened for the operation; a tool on
+    /// record has the operation in flight into it for as long as this
+    /// lives.
     Opened {
         /// The container.
         opened: Opened,
@@ -64,11 +65,10 @@ impl Sink {
                 let Some(record) = record else {
                     return Err(Fail::NoDestination);
                 };
-                let run = containers::use_tool(daemon, &record, User::Container(Key::Tool(ToolKey::Record(record.id))))
-                    .await
-                    .map_err(|error| Fail::Error(error.to_string()))?;
+                let run = containers::use_tool(daemon, &record).await.map_err(|error| Fail::Error(error.to_string()))?;
+                let flying = Arc::new(run.inflight.enter());
                 Ok(Sink::Opened {
-                    opened: Opened::Tool(run),
+                    opened: Opened::Tool(run, Some(flying)),
                     path,
                 })
             }
@@ -83,7 +83,7 @@ impl Sink {
                     return Err(Fail::NoDestination);
                 };
                 Ok(Sink::Opened {
-                    opened: Opened::Tool(run),
+                    opened: Opened::Tool(run, None),
                     path,
                 })
             }
@@ -103,18 +103,6 @@ impl Sink {
         match self {
             Sink::Volume { volume, .. } => Some(volume),
             _ => None,
-        }
-    }
-
-    /// The operation is over: a tool opened for it is released; a
-    /// dependency tool's run, which the release passes over, is left
-    /// running.
-    pub async fn close(&self, daemon: &Daemon) {
-        if let Sink::Opened {
-            opened: Opened::Tool(run), ..
-        } = self
-        {
-            containers::release(daemon, run.id, User::Container(Key::Tool(run.id))).await;
         }
     }
 }

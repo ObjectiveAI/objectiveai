@@ -9,8 +9,8 @@ use crate::containers::ToolKey;
 use crate::daemon::Daemon;
 use crate::store::{self, dependency_tools, tools};
 
-/// At the daemon's start: every service on record with an agent
-/// attached is kept — its supervisor starts its container — a
+/// At the daemon's start: every service on record with an agent or an
+/// agent template attached is kept — its supervisor starts its container — a
 /// dependency tool whose template is a service, and a tool on record
 /// whose template's mode is. One with none attached is left as it is:
 /// nothing holds it, and the next attach or connect that holds it
@@ -25,7 +25,8 @@ pub async fn boot(daemon: &Arc<Daemon>) -> Result<(), store::Error> {
             }
         }
         for tool in tools::all(&mut conn).await? {
-            if tools::mode(&mut conn, &tool).await? == Some(Mode::Service) && !tools::attachments::of_tool(&mut conn, tool.id).await?.is_empty() {
+            let attached = !tools::attachments::of_tool(&mut conn, tool.id).await?.is_empty() || !tools::template_attachments::of_tool(&mut conn, tool.id).await?.is_empty();
+            if tools::mode(&mut conn, &tool).await? == Some(Mode::Service) && attached {
                 kept.push(ToolKey::Record(tool.id));
             }
         }

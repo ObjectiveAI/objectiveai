@@ -6,7 +6,7 @@ use chrono::Utc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
 use futures_util::future;
 
-use super::{AgentRun, Key, ToolHandle, ToolKey, ToolRun, User, pump, services, tools};
+use super::{AgentRun, Key, ToolHandle, ToolKey, ToolRun, pump, services};
 use crate::daemon::{Daemon, Kind};
 use crate::store::{AgentId, agents, tools as tool_records};
 
@@ -19,12 +19,13 @@ pub async fn stop_agent(daemon: &Daemon, id: AgentId) {
 }
 
 /// The agent's run has ended, however it did: forgotten as live, its
-/// tasks ended, its transient dependencies stopped and its attached
-/// tools released — all at once, every container told at the same
-/// time; its services left to their attachments —
-/// its mounts let go, the log told it ceased on its provider, and the
-/// provider's capacity asked again, since the run's reservation is
-/// freed. Done once: a second call for one run does nothing.
+/// tasks ended, its transient dependencies stopped — all at once,
+/// every container told at the same time; its attached tools left to
+/// their own use and their idle clocks, its services to their
+/// attachments — its mounts let go, the log told it ceased on its
+/// provider, and the provider's capacity asked again, since the run's
+/// reservation is freed. Done once: a second call for one run does
+/// nothing.
 pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     if daemon.live.remove_agent(run.id).await.is_none() {
         return;
@@ -33,15 +34,8 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
     }
-    let (dependencies, attached) = {
-        let served = run.served.lock().await;
-        (served.transients(), served.attached_running())
-    };
-    future::join(
-        stop_dependencies(daemon, dependencies),
-        future::join_all(attached.into_iter().map(|key| tools::release(daemon, key, User::Container(Key::Agent(run.id))))),
-    )
-    .await;
+    let dependencies = run.served.lock().await.transients();
+    stop_dependencies(daemon, dependencies).await;
     run.mounts.stop().await;
     let _ = pump::append(
         daemon,

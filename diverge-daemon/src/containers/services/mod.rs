@@ -9,11 +9,13 @@
 //! container up is not any run: for either, the agents ATTACHED to it
 //! — a dependency tool's by the registrations that declare its
 //! template, a tool on record's by `attach` — and for a tool on
-//! record, as well, any connect scope open on it. While anything
+//! record, as well, any connect scope open on it; a tool on record is
+//! attached to an agent, or to an agent template, which attaches it
+//! to every agent made from the template. While anything
 //! holds it the container is kept running — started at the attach,
 //! the registration or the connect that first held it, started again
 //! whenever its run ends, and started at every boot of the daemon's
-//! while an agent is attached — and once nothing does, its idle clock
+//! while an agent or a template is attached — and once nothing does, its idle clock
 //! runs, and `idle_seconds` after the last hold left with none since
 //! it is RETIRED: its run stopped and its state let go, its record
 //! kept, to be kept up again by the next hold. A dependency tool's

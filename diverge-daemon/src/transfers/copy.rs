@@ -24,7 +24,6 @@ pub async fn copy(daemon: &Arc<Daemon>, source: Source, path: &[String], destina
             for held in &taken {
                 daemon.live.release_volume(held).await;
             }
-            sink.close(daemon).await;
             return Err(Fail::Held);
         }
         taken.push(volume.clone());
@@ -33,7 +32,6 @@ pub async fn copy(daemon: &Arc<Daemon>, source: Source, path: &[String], destina
     for held in &taken {
         daemon.live.release_volume(held).await;
     }
-    sink.close(daemon).await;
     outcome
 }
 

@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::templates::Template;
+use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::endpoints::agents::templates::list::server::response::Listed;
 
 /// A live agent template row: the template whole, its id, its tags,
@@ -22,13 +23,15 @@ pub struct Record {
 }
 
 impl Record {
-    /// The template as a list reports it.
-    pub fn report(&self) -> Listed {
+    /// The template as a list reports it, given the tools attached to
+    /// it in attach order.
+    pub fn report(&self, tools: Vec<key::Tool>) -> Listed {
         Listed {
             id: self.id.clone(),
             created: self.created,
             creator: self.creator.clone(),
             tags: self.tags.clone(),
+            tools,
             template: self.template.clone(),
         }
     }

@@ -69,8 +69,16 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         let template = agents_templates::by_id(&mut conn, &agent.template, false)
             .await?
             .ok_or_else(|| StartError::NoTemplate(agent.template.clone()))?;
+        // The agent's own attachments first, in attach order, then its
+        // template's, so the prefixes are the same at every run.
+        let mut ids = attachments::of_agent(&mut conn, agent.id).await?;
+        for id in tool_records::template_attachments::of_template(&mut conn, &agent.template).await? {
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
         let mut attached = Vec::new();
-        for id in attachments::of_agent(&mut conn, agent.id).await? {
+        for id in ids {
             if let Some(tool) = tool_records::by_id(&mut conn, id, false).await? {
                 attached.push(tool);
             }
@@ -196,10 +204,11 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
 /// which starts the container there and carries the tool's MCP
 /// exchanges from then on. A waiter takes the run down when it ends:
 /// the container's run, or the connect scope, which the other daemon
-/// finishes when the tool's run ends there and this daemon's idle
-/// clock lets go after `idle_seconds` unused. A tool declares no
-/// dependencies, so nothing is served to it. Whether the tool is a
-/// service is its template's mode, read here for the run.
+/// finishes when the tool's run ends there; a transient tool's idle
+/// clock ends either `idle_seconds` after the last use, nothing in
+/// flight and no connect open. A tool declares no dependencies, so
+/// nothing is served to it. Whether the tool is a service is its
+/// template's mode, read here for the run.
 pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, StartError> {
     if let Some(run) = daemon.live.tool_run(ToolKey::Record(tool.id)).await {
         return Ok(run);
@@ -309,8 +318,9 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         container,
         handle,
         service,
-        users: Mutex::new(HashSet::new()),
+        connections: Mutex::new(HashSet::new()),
         held: watch::channel(false).0,
+        inflight: Arc::new(Inflight::new()),
         touched,
         mounts,
         volumes: crate::volumes::of_tool(tool),
@@ -336,7 +346,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         })
     };
     let mut tasks = vec![waiter.abort_handle()];
-    if let ToolHandle::Connected(_) = run.handle {
+    if !run.service {
         tasks.push(tokio::spawn(idle::idle_tool(Arc::clone(daemon), Arc::clone(&run))).abort_handle());
     }
     run.tasks.lock().await.extend(tasks);

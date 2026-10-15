@@ -1,12 +1,12 @@
-//! The agents a tool is attached to.
+//! What a tool is attached to.
 
 use diverge_sdk::daemon::key;
 use sqlx::PgConnection;
 
 use crate::store::{self, ToolId, agents, tools};
 
-/// The agents the tool is attached to, as keys, in the order it was
-/// attached to them.
+/// The agents the tool is attached to directly, as keys, in the order
+/// it was attached to them.
 pub async fn agents_of(conn: &mut PgConnection, tool: ToolId) -> Result<Vec<key::Agent>, store::Error> {
     let mut keys = Vec::new();
     for id in tools::attachments::of_tool(conn, tool).await? {
@@ -15,4 +15,10 @@ pub async fn agents_of(conn: &mut PgConnection, tool: ToolId) -> Result<Vec<key:
         }
     }
     Ok(keys)
+}
+
+/// The agent templates the tool is attached to, by id, in the order
+/// it was attached to them.
+pub async fn templates_of(conn: &mut PgConnection, tool: ToolId) -> Result<Vec<String>, store::Error> {
+    tools::template_attachments::of_tool(conn, tool).await
 }

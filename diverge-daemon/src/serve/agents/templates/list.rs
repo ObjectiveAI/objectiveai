@@ -1,5 +1,6 @@
 //! Listing agent templates, and keeping the list.
 
+use std::collections::HashMap;
 use std::future::Future;
 
 use diverge_sdk::daemon::grant::agents_templates::Over;
@@ -11,7 +12,8 @@ use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Change, Source};
 use crate::serve::reply;
-use crate::store::{self, agents_templates};
+use crate::store::{self, agents_templates, tools};
+use diverge_sdk::daemon::key;
 use super::in_use;
 
 /// Send the list and its changes, then finish the scope.
@@ -46,7 +48,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing(scope, daemon, &[Kind::AgentsTemplates, Kind::Agents], frame.count, &source, |change| match change {
+    stream::listing(scope, daemon, &[Kind::AgentsTemplates, Kind::Agents, Kind::StandaloneTools], frame.count, &source, |change| match change {
         Change::Added(template) => Frame::Added(template),
         Change::Changed(template) => Frame::Changed(template),
         Change::Removed(template) => Frame::Removed(template),
@@ -69,16 +71,25 @@ impl Source for Templates<'_> {
 
     fn read(&self) -> impl Future<Output = Result<Vec<(String, Listed)>, store::Error>> + Send {
         async move {
-            let (all, held) = {
+            let (all, held, attached) = {
                 let mut conn = self.daemon.store.acquire().await?;
-                (agents_templates::all(&mut conn).await?, store::in_use::agents_templates(&mut conn).await?)
+                let all = agents_templates::all(&mut conn).await?;
+                let held = store::in_use::agents_templates(&mut conn).await?;
+                let keys: HashMap<_, _> = tools::all(&mut conn).await?.into_iter().map(|tool| (tool.id, tool.key())).collect();
+                let mut attached: HashMap<String, Vec<key::Tool>> = HashMap::new();
+                for attachment in tools::template_attachments::all(&mut conn).await? {
+                    if let Some(key) = keys.get(&attachment.tool) {
+                        attached.entry(attachment.template).or_default().push(key.clone());
+                    }
+                }
+                (all, held, attached)
             };
             Ok(all
                 .iter()
                 .map(|record| (record, in_use(&held, record)))
                 .filter(|(record, in_use)| judge::agents_templates::over(self.standing, Over::List, record, *in_use))
                 .filter(|(record, in_use)| filter::agents_templates::test(self.filter, record, *in_use))
-                .map(|(record, _)| (record.id.clone(), record.report()))
+                .map(|(record, _)| (record.id.clone(), record.report(attached.get(&record.id).cloned().unwrap_or_default())))
                 .collect())
         }
     }

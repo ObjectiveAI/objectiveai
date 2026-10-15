@@ -1,9 +1,9 @@
-//! Attaching a tool to an agent.
+//! Attaching a tool to one agent.
 
 use std::sync::Arc;
 
-use diverge_sdk::daemon::endpoints::standalone_tools::attach::client::request;
-use diverge_sdk::daemon::endpoints::standalone_tools::attach::server::response::Frame;
+use diverge_sdk::daemon::endpoints::standalone_tools::attach_agent_instance::client::request;
+use diverge_sdk::daemon::endpoints::standalone_tools::attach_agent_instance::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over as AgentsOver;
 use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::daemon::grant::standalone_tools::Over;
@@ -32,10 +32,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// over agents at all; `NoTool`; `NoAgent`; `Forbidden` for a tool or
 /// an agent the grants do not reach; else the tool attached, after
 /// every tool attached before it — on an active agent as well as an
-/// idle one, and one attached already left in its place. A tool
-/// whose template's mode is a service is kept from the attach on:
-/// its supervisor starts its container, and holds it while any agent
-/// is attached or any connect is open.
+/// idle one, whose proxy serves the tool from now on and tells the
+/// agent its tool list changed — and one attached already left in
+/// its place. A tool whose template's mode is a service is kept from
+/// the attach on: its supervisor starts its container, and holds it
+/// while any agent or template is attached or any connect is open.
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -64,9 +65,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         services::keep(daemon, ToolKey::Record(tool.id)).await;
         services::held(daemon, ToolKey::Record(tool.id)).await;
     }
-    if let Some(run) = daemon.live.agent_run(agent.id).await {
-        let name = containers::serve_name(&tool);
-        run.served.lock().await.insert(tool, &name);
-    }
+    containers::attached(daemon, &tool, &[agent.id]).await;
     Ok(Frame::Attached)
 }

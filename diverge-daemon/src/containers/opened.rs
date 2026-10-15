@@ -10,7 +10,7 @@ use diverge_sdk::shared::filetree::response::Frame;
 use futures_util::{Stream, StreamExt as _};
 
 use super::fuse::Mounts;
-use super::{AgentRun, Key, ToolRun};
+use super::{AgentRun, Guard, Key, ToolRun};
 use crate::content::Pieces;
 
 /// A container's tree as it is watched: a snapshot, then every
@@ -23,8 +23,11 @@ pub enum Opened {
     /// An agent's run.
     Agent(Arc<AgentRun>),
     /// A tool's run, or the connect scope held on another daemon's
-    /// tool, whose every file operation answers an error.
-    Tool(Arc<ToolRun>),
+    /// tool, whose every file operation answers an error; and, for a
+    /// tool on record, the operation in flight into it, which holds
+    /// the run up until this is dropped. A dependency tool's run is
+    /// nobody's to hold here.
+    Tool(Arc<ToolRun>, Option<Arc<Guard>>),
 }
 
 impl Opened {
@@ -32,7 +35,7 @@ impl Opened {
     pub fn key(&self) -> Key {
         match self {
             Opened::Agent(run) => Key::Agent(run.id),
-            Opened::Tool(run) => Key::Tool(run.id),
+            Opened::Tool(run, _) => Key::Tool(run.id),
         }
     }
 
@@ -40,7 +43,7 @@ impl Opened {
     pub fn mounts(&self) -> &Arc<Mounts> {
         match self {
             Opened::Agent(run) => &run.mounts,
-            Opened::Tool(run) => &run.mounts,
+            Opened::Tool(run, _) => &run.mounts,
         }
     }
 
@@ -48,7 +51,7 @@ impl Opened {
     pub fn provider(&self) -> &Identity {
         match self {
             Opened::Agent(run) => &run.provider,
-            Opened::Tool(run) => &run.provider,
+            Opened::Tool(run, _) => &run.provider,
         }
     }
 
@@ -58,7 +61,7 @@ impl Opened {
     pub fn container(&self) -> Option<&str> {
         match self {
             Opened::Agent(run) => Some(&run.container),
-            Opened::Tool(run) => run.container.as_deref(),
+            Opened::Tool(run, _) => run.container.as_deref(),
         }
     }
 
@@ -66,7 +69,7 @@ impl Opened {
     pub fn touch(&self) {
         match self {
             Opened::Agent(run) => run.touch(),
-            Opened::Tool(run) => run.touch(),
+            Opened::Tool(run, _) => run.touch(),
         }
     }
 
@@ -77,7 +80,7 @@ impl Opened {
                 let stream = run.handle.filetree().await.map_err(|error| error.to_string())?;
                 Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
             }
-            Opened::Tool(run) => run.handle.filetree().await,
+            Opened::Tool(run, _) => run.handle.filetree().await,
         }
     }
 
@@ -88,7 +91,7 @@ impl Opened {
                 let stream = run.handle.read(path).await.map_err(|error| error.to_string())?;
                 Ok(pieces_of(stream))
             }
-            Opened::Tool(run) => run.handle.read(path).await,
+            Opened::Tool(run, _) => run.handle.read(path).await,
         }
     }
 
@@ -97,7 +100,7 @@ impl Opened {
         let content = content.map(|piece| piece.map_err(Source));
         match self {
             Opened::Agent(run) => run.handle.write(path, content).await.map_err(|error| error.to_string()),
-            Opened::Tool(run) => run.handle.write(path, content).await,
+            Opened::Tool(run, _) => run.handle.write(path, content).await,
         }
     }
 
@@ -106,7 +109,7 @@ impl Opened {
     pub async fn transfer(&self, path: Vec<String>, id: String, destination: Vec<String>) -> Result<(), String> {
         match self {
             Opened::Agent(run) => run.handle.transfer(path, id, destination).await.map_err(|error| error.to_string()),
-            Opened::Tool(run) => run.handle.transfer(path, id, destination).await,
+            Opened::Tool(run, _) => run.handle.transfer(path, id, destination).await,
         }
     }
 }

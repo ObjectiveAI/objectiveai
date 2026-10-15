@@ -60,7 +60,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         Judged::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
     drop(conn);
-    let opened = Opened::Tool(run);
+    let opened = Opened::Tool(run, None);
     opened.touch();
     Ok(match transfers::copy(daemon, Source::Opened(opened), &frame.path, frame.to).await {
         Ok(()) => Frame::Transferred,

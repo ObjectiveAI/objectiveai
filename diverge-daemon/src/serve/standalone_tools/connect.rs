@@ -18,7 +18,7 @@ use rmcp::model::{ErrorData, GetMeta as _};
 use tokio::task::JoinSet;
 
 use super::{reaches, resolve};
-use crate::containers::{self, ToolRun, User};
+use crate::containers::{self, ToolRun};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
@@ -82,8 +82,8 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
         return Ok(());
     };
     let template = template.to_string();
-    let user = User::Connection(daemon.live.mint_connection().await);
-    let run = match containers::use_tool(daemon, &tool, user).await {
+    let connection = daemon.live.mint_connection().await;
+    let run = match containers::use_tool(daemon, &tool).await {
         Ok(run) => run,
         Err(error) => {
             let error = match (error.unsupported(), error.no_source()) {
@@ -95,6 +95,7 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
             return Ok(());
         }
     };
+    containers::connect(&run, connection).await;
     reply::reply(
         scope,
         &Frame::Connected {
@@ -126,7 +127,7 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
         }
     }
     tasks.abort_all();
-    containers::release(daemon, run.id, user).await;
+    containers::disconnect(daemon, &run, connection).await;
     Ok(())
 }
 
@@ -144,9 +145,11 @@ async fn over(ended: &mut tokio::sync::watch::Receiver<bool>) {
 /// as this daemon's own tool, sent as one channel response and the
 /// finish — or, for the notifications, which carry no request, one
 /// per notification until the tool's stream ends. A disconnect never
-/// reaches here. Every exchange is a use of the tool.
+/// reaches here. Every exchange is a use of the tool, in flight into
+/// it until it is answered.
 async fn answer(scope: Arc<ScopeHandle>, run: Arc<ToolRun>, caller: Arc<Caller>, channel: u32, ask: channel_request::Frame) {
     run.touch();
+    let _flying = run.inflight.enter();
     match ask {
         channel_request::Frame::Disconnect => {}
         channel_request::Frame::McpListTools(request) => {

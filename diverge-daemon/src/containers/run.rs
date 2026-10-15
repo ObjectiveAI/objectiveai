@@ -23,7 +23,7 @@ use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{Frames, Inflight, ToolKey, User};
+use super::{ConnectionId, Frames, Inflight, ToolKey};
 use crate::content::Pieces;
 use crate::store::dependency_tools::DependencyTool;
 use crate::store::{AccountId, AgentId};
@@ -207,10 +207,11 @@ impl ToolHandle {
     }
 }
 
-/// A running tool: the scope held on it, which containers and connect
-/// scopes use it, and what it mounts — a record's container, a
-/// connected tool's connection, or a dependency tool's container, a
-/// transient one's for its agent's run or one run of a service's.
+/// A running tool: the scope held on it, what holds it up — the
+/// connect scopes on it and the exchanges in flight into it — and what
+/// it mounts: a record's container, a connected tool's connection, or
+/// a dependency tool's container, a transient one's for its agent's
+/// run or one run of a service's.
 pub struct ToolRun {
     /// The record, or the dependency tool's row.
     pub id: ToolKey,
@@ -233,16 +234,20 @@ pub struct ToolRun {
     /// Whether the tool is a service: a tool on record whose template's
     /// mode is, or a dependency tool whose template is. A service is
     /// held by its attachments and its connect scopes and retired by
-    /// its clock, never stopped for want of users.
+    /// its clock, never stopped for want of use.
     pub service: bool,
-    /// The containers using it now, and the connect scopes holding it.
-    /// A transient dependency tool has one user for its life, its
-    /// agent, and is stopped with it.
-    pub users: Mutex<HashSet<User>>,
-    /// Whether anything uses it now: `true` while `users` is not
-    /// empty, kept in step under the users lock. What a connected
-    /// tool's idle clock waits on.
+    /// The connect scopes other daemons hold on it now: each a real
+    /// connection, holding the run up for the scope's life.
+    pub connections: Mutex<HashSet<ConnectionId>>,
+    /// Whether a connect scope holds it now: `true` while
+    /// `connections` is not empty, kept in step under their lock. What
+    /// the idle clock waits on, beside what is in flight.
     pub held: watch::Sender<bool>,
+    /// The exchanges in flight into it — an agent's MCP ask, a connect
+    /// scope's, a file operation — each a real use, holding the run up
+    /// until it is answered, however it ends. What a detach mid-call
+    /// leaves standing: the call is answered still.
+    pub inflight: Arc<Inflight>,
     /// When it was last used.
     pub touched: watch::Sender<Instant>,
     /// What it mounts, served by the daemon.
@@ -267,14 +272,14 @@ impl ToolRun {
         self.touched.send_replace(Instant::now());
     }
 
-    /// Whether anything holds the run up: a container of the daemon's
-    /// uses it, or a connect scope of another daemon's holds it. Exactly
-    /// those two; a record's container is stopped when neither holds,
-    /// and a connected tool's connection is let go by its idle clock
-    /// once neither has for `idle_seconds`. Asked under the users lock
-    /// by whoever lets go of either.
-    pub fn is_held(&self, users: &HashSet<User>) -> bool {
-        !users.is_empty()
+    /// Whether anything holds the run up: a connect scope another
+    /// daemon holds on it, or an exchange in flight into it. Exactly
+    /// those two — an attachment holds nothing, and an agent merely
+    /// mid-loop nothing — and a transient tool's idle clock ends the
+    /// run `idle_seconds` after both last became false. Asked under
+    /// the connections lock by whoever lets go of a scope.
+    pub fn held_now(&self, connections: &HashSet<ConnectionId>) -> bool {
+        !connections.is_empty() || self.inflight.is_busy()
     }
 
     /// Attest `meta` as this tool's: the daemon's own word on

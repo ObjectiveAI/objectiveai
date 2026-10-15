@@ -11,11 +11,14 @@
 //! end it; [`pump`] reads the agent's conversation off the run into
 //! its log and keeps whether a loop runs; [`idle`] is the clock,
 //! running only while the agent is not active — no loop, and nothing
-//! [`Inflight`] — and [`idle_tool`] a connected tool's, running only
-//! while nothing uses it; [`message`] is the one way into an agent;
-//! [`use_tool`] and [`release`] are "one container per tool", started
-//! for the first container or connect scope that uses it and stopped
-//! with the last, a [`User`] either way; [`running_dependency`] is
+//! [`Inflight`] — and [`idle_tool`] a transient tool's, running only
+//! while nothing holds it; [`message`] is the one way into an agent;
+//! [`use_tool`] is "one container per tool", started for the first
+//! thing that uses it and held up by what is in flight into it and
+//! the connect scopes on it — [`connect`] and [`disconnect`] — a
+//! transient one stopped by its clock `idle_seconds` after the last
+//! use; [`attached`] and [`detached`] keep running agents' served
+//! sets in step with the attachments; [`running_dependency`] is
 //! the dependency tool a reference names, found running or not at
 //! all, since one is started by nobody's request;
 //! [`mcp`] is the one tool list an agent sees and the routing of its
@@ -40,6 +43,7 @@
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
+mod attached;
 mod build;
 mod error;
 pub mod capable;
@@ -65,6 +69,7 @@ pub mod mcp;
 pub mod message;
 pub mod services;
 
+pub use attached::*;
 pub use build::*;
 pub use error::*;
 pub use idle::*;

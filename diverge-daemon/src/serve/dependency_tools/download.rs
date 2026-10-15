@@ -56,7 +56,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     }
-    let opened = Opened::Tool(run);
+    let opened = Opened::Tool(run, None);
     opened.touch();
     let source = Source::Opened(opened);
     let outcome = files::download(scope, daemon, &source, &frame.path, &|scope, path, body| {

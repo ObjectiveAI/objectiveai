@@ -84,6 +84,24 @@ impl Source for Listed<'_> {
                         attached.entry(attachment.agent).or_default().push(key.clone());
                     }
                 }
+                let mut by_template: HashMap<String, Vec<key::Tool>> = HashMap::new();
+                for attachment in tools::template_attachments::all(&mut conn).await? {
+                    if let Some(key) = keys.get(&attachment.tool) {
+                        by_template.entry(attachment.template).or_default().push(key.clone());
+                    }
+                }
+                // The template's after the agent's own, each once.
+                for agent in &all {
+                    let Some(through) = by_template.get(&agent.template) else {
+                        continue;
+                    };
+                    let tools = attached.entry(agent.id).or_default();
+                    for key in through {
+                        if !tools.contains(key) {
+                            tools.push(key.clone());
+                        }
+                    }
+                }
                 (all, attached)
             };
             let actives = self.daemon.live.active_agents().await;

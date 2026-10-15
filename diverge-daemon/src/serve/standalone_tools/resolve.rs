@@ -5,7 +5,7 @@ use diverge_sdk::daemon::grant::standalone_tools::Over;
 use diverge_sdk::daemon::reference;
 use sqlx::PgConnection;
 
-use super::{active, agents_of};
+use super::{active, agents_of, templates_of};
 use crate::daemon::Daemon;
 use crate::judge::filter::standalone_tools::Facts;
 use crate::judge::{self, Standing};
@@ -20,10 +20,11 @@ pub async fn resolve(conn: &mut PgConnection, reference: &reference::Tool, lock:
 }
 
 /// Whether the standing may do `action` to the record: whether it is
-/// active now, what it is attached to and its template's mode, loaded
-/// here.
+/// active now, what it is attached to — agents and agent templates —
+/// and its template's mode, loaded here.
 pub async fn reaches(conn: &mut PgConnection, daemon: &Daemon, standing: &Standing, action: Over, tool: &Tool) -> Result<bool, store::Error> {
-    let attached = agents_of(conn, tool.id).await?;
+    let agents = agents_of(conn, tool.id).await?;
+    let templates = templates_of(conn, tool.id).await?;
     let mode = tools::mode(conn, tool).await?;
-    Ok(judge::standalone_tools::over(standing, action, &Facts::record(tool, active(daemon, tool.id).await, &attached, mode)))
+    Ok(judge::standalone_tools::over(standing, action, &Facts::record(tool, active(daemon, tool.id).await, &agents, &templates, mode)))
 }

@@ -204,6 +204,17 @@ CREATE TABLE IF NOT EXISTS diverge.attachments (
 );
 CREATE INDEX IF NOT EXISTS attachments_agent ON diverge.attachments (agent);
 
+-- A tool attached to every agent of an agent template; `seq` is the
+-- order of attaching. A template's row stays through its delete, so
+-- the reference holds; the delete clears these rows itself.
+CREATE TABLE IF NOT EXISTS diverge.template_attachments (
+    tool        BIGINT NOT NULL REFERENCES diverge.tools(id) ON DELETE CASCADE,
+    template    TEXT NOT NULL REFERENCES diverge.agents_templates(id),
+    seq         BIGINT GENERATED ALWAYS AS IDENTITY,
+    PRIMARY KEY (tool, template)
+);
+CREATE INDEX IF NOT EXISTS template_attachments_template ON diverge.template_attachments (template);
+
 -- A dependency tool: a dependency template under one owner, as the
 -- template's scope decides — a transient template or an `instance`
 -- service one per agent, a `template` service one per agent template,

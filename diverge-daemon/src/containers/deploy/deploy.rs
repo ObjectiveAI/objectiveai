@@ -21,7 +21,7 @@ use crate::containers::fuse::Mounts;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
 use crate::containers::services;
-use crate::containers::{Key, ToolHandle, ToolKey, ToolRun, User, build, provider, stop};
+use crate::containers::{Inflight, Key, ToolHandle, ToolKey, ToolRun, build, provider, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{Dependent, Fixed};
 use crate::store::dependency_tools::{self, DependencyTool};
@@ -69,7 +69,7 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
         .map_err(|reason| error("", &reason))?;
     let id = id.as_str();
     let started = future::join_all(tools.iter().filter(|tool| !tool.is_service()).map(|tool| async move {
-        let outcome = start(answerer, agent, agent_key, id, tool).await;
+        let outcome = start(answerer, agent_key, id, tool).await;
         (tool.template.clone(), outcome)
     }))
     .await;
@@ -168,7 +168,7 @@ async fn record(
 /// under the row, from an agent run that ended without it, stopped
 /// first, since a row has one run. The reason it could not be, in a
 /// sentence.
-async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agent_container: &str, tool: &DependencyTool) -> Result<Arc<ToolRun>, String> {
+async fn start(answerer: &Answerer, agent_key: &key::Agent, agent_container: &str, tool: &DependencyTool) -> Result<Arc<ToolRun>, String> {
     let daemon = &answerer.daemon;
     let dependencies::Mode::Transient {
         fuse_file_mounts,
@@ -243,8 +243,9 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
             container: Some(container_id.id),
             handle: ToolHandle::Run(handle),
             service: false,
-            users: Mutex::new(HashSet::from([User::Container(Key::Agent(agent))])),
-            held: watch::channel(true).0,
+            connections: Mutex::new(HashSet::new()),
+            held: watch::channel(false).0,
+            inflight: Arc::new(Inflight::new()),
             touched: touched.clone(),
             mounts: Arc::clone(&mounts),
             volumes: Vec::new(),

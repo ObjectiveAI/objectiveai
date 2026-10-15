@@ -9,7 +9,7 @@ use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, agents_templates};
-use super::in_use;
+use super::{in_use, tools_of};
 
 /// Answer the get and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -39,5 +39,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::agents_templates::over(&standing, Over::Get, &record, in_use(&held, &record)) {
         return Ok(Frame::Forbidden);
     }
-    Ok(Frame::Found(record.report()))
+    let tools = tools_of(&mut conn, &record.id).await?;
+    Ok(Frame::Found(record.report(tools)))
 }

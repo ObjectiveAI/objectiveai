@@ -109,10 +109,11 @@ impl Tool {
     }
 
     /// The record as a list reports it, given whether it is active now,
-    /// its container's id while it runs, the agents it is attached to,
-    /// and its template's mode — a created tool's, which the list
-    /// item carries on its origin; a connected tool's is not asked.
-    pub fn report(&self, active: bool, running: Option<String>, agents: Vec<key::Agent>, mode: Option<Mode>) -> response::Tool {
+    /// its container's id while it runs, the agents and the agent
+    /// templates it is attached to, and its template's mode — a
+    /// created tool's, which the list item carries on its origin; a
+    /// connected tool's is not asked.
+    pub fn report(&self, active: bool, running: Option<String>, agents: Vec<key::Agent>, templates: Vec<String>, mode: Option<Mode>) -> response::Tool {
         let origin = match &self.origin {
             Origin::Created { template, .. } => response::Origin::Created {
                 template: template.clone(),
@@ -135,7 +136,8 @@ impl Tool {
             created: self.created,
             active,
             last_active: self.last_active,
-            agents,
+            attached_agent_instances: agents,
+            attached_agent_templates: templates,
             tags: self.tags.clone(),
         }
     }

@@ -4,26 +4,24 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use rmcp::model::ServerNotification;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, watch};
 
 use super::Registry;
 use crate::containers::{ToolKey, ToolRun};
 use crate::store::DependencyToolId;
 use crate::store::tools::Tool;
 
-/// One served tool: an attached record, with its run while it has
-/// one; a transient dependency tool, which runs for as long as it is
-/// served; or a service, by its row, whose run — up or not, and a
-/// new one after every end — is the live set's to find.
+/// One served tool: an attached record, whose run — up or not, and a
+/// new one after every end — is the live set's to find; a transient
+/// dependency tool, which runs for as long as it is served; or a
+/// service, by its row, whose run is the live set's likewise.
 pub enum Entry {
-    /// A tool attached to the agent: its record, and its run once
-    /// its container is needed — on the loop's begin or the first ask
-    /// — until the loop ends.
+    /// A tool the agent has, directly or through its template: its
+    /// record. Its run is looked up at every use and started at the
+    /// first that finds none.
     Attached {
         /// The record.
         tool: Tool,
-        /// The run, while there is one.
-        run: Option<Arc<ToolRun>>,
     },
     /// A transient dependency tool deployed for the agent: running for
     /// the agent's run.
@@ -38,12 +36,17 @@ pub enum Entry {
     },
 }
 
-/// The tools one run is served, each under its prefix, and the word
-/// to the program when the set changes.
+/// The tools one run is served, each under its prefix, the word to
+/// the program when the set changes, and the word to the daemon's own
+/// relay of the tools' notifications whenever the set or a served
+/// tool's run changed.
 pub struct Served {
     registry: Registry<ToolKey>,
     entries: HashMap<ToolKey, Entry>,
     changes: broadcast::Sender<ServerNotification>,
+    /// Bumped at every change of the set and every start of a served
+    /// tool's run: what the notifications relay keeps in step with.
+    generation: watch::Sender<u64>,
 }
 
 impl Default for Served {
@@ -59,6 +62,7 @@ impl Served {
             registry: Registry::new(),
             entries: HashMap::new(),
             changes: broadcast::channel(64).0,
+            generation: watch::channel(0).0,
         }
     }
 
@@ -68,7 +72,7 @@ impl Served {
     pub fn insert(&mut self, tool: Tool, serve_name: &str) -> String {
         let key = ToolKey::Record(tool.id);
         let prefix = self.registry.assign(key, serve_name);
-        self.entries.entry(key).or_insert(Entry::Attached { tool, run: None });
+        self.entries.entry(key).or_insert(Entry::Attached { tool });
         self.changed();
         prefix
     }
@@ -99,18 +103,10 @@ impl Served {
         prefix
     }
 
-    /// The attached tool's container is running.
-    pub fn running(&mut self, key: ToolKey, run: Arc<ToolRun>) {
-        if let Some(Entry::Attached { run: held, .. }) = self.entries.get_mut(&key) {
-            *held = Some(run);
-        }
-    }
-
-    /// The attached tool is idle again: its run ended.
-    pub fn idle(&mut self, key: ToolKey) {
-        if let Some(Entry::Attached { run, .. }) = self.entries.get_mut(&key) {
-            *run = None;
-        }
+    /// A served tool's run started: the relay of the tools'
+    /// notifications is told to look again.
+    pub fn started(&self) {
+        self.bump();
     }
 
     /// The tool leaves: its prefix is free.
@@ -131,32 +127,6 @@ impl Served {
     /// Every served tool, by key, in no order.
     pub fn keys(&self) -> Vec<ToolKey> {
         self.entries.keys().copied().collect()
-    }
-
-    /// Every running served tool this set holds the run of: attached
-    /// ones with a run, and every transient dependency tool. A service's
-    /// run is the live set's; see [`services`](Self::services).
-    pub fn runs(&self) -> Vec<Arc<ToolRun>> {
-        self.entries
-            .values()
-            .filter_map(|entry| match entry {
-                Entry::Attached { run, .. } => run.clone(),
-                Entry::Transient(run) => Some(Arc::clone(run)),
-                Entry::Service { .. } => None,
-            })
-            .collect()
-    }
-
-    /// Every attached tool whose container runs, by key, in no order:
-    /// what a loop's end releases.
-    pub fn attached_running(&self) -> Vec<ToolKey> {
-        self.entries
-            .iter()
-            .filter_map(|(key, entry)| match entry {
-                Entry::Attached { run: Some(_), .. } => Some(*key),
-                _ => None,
-            })
-            .collect()
     }
 
     /// Every transient dependency tool, in no order: what is stopped
@@ -197,8 +167,22 @@ impl Served {
         self.changes.subscribe()
     }
 
-    /// The set changed: tell every listener.
+    /// Every change of the set, and every start of a served tool's
+    /// run, from now on: what the relay of the tools' notifications
+    /// keeps in step with.
+    pub fn generation(&self) -> watch::Receiver<u64> {
+        self.generation.subscribe()
+    }
+
+    /// The set changed: tell every listener, the program and the
+    /// relay.
     fn changed(&self) {
         let _ = self.changes.send(ServerNotification::ToolListChangedNotification(Default::default()));
+        self.bump();
+    }
+
+    /// The relay is told to look again.
+    fn bump(&self) {
+        self.generation.send_modify(|generation| *generation = generation.wrapping_add(1));
     }
 }

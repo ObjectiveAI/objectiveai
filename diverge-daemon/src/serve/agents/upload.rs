@@ -56,7 +56,6 @@ async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon:
         Err(error) => return Ok(Frame::Error(reply::failure(&error))),
     };
     let outcome = files::upload(scope, daemon, Into::Opened(&opened), path, what).await;
-    files::close(daemon, &opened).await;
     Ok(match outcome {
         Ok(()) => Frame::Uploaded,
         Err(error) => Frame::Error(reply::failure(&error)),
