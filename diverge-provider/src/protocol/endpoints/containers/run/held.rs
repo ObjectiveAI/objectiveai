@@ -22,10 +22,10 @@ use diverge_sdk::shared::error::Error;
 /// the shared hold on each volume — see [`Volume::mount`] — is what
 /// "mounted in a running container" IS, so taking every hold is
 /// accepting the request and giving every one back is the run over.
-/// One run is one user of a volume: a run naming one volume at
-/// several paths holds it once, which is what lets a persistent
-/// volume — one user at a time — be mounted at two paths of one
-/// container while a second container is refused.
+/// One run is one holder of a volume: a run naming one volume at
+/// several paths holds it once, so that a mode the provider mounts
+/// once is mounted at two paths of one container while a second
+/// container is refused, and a count of holders counts containers.
 ///
 /// # Giving back is explicit
 ///

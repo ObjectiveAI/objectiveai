@@ -28,10 +28,13 @@
 //! the volume's image plainly when its mode is persistent; under
 //! podman's overlay option, its writes discarded with the container,
 //! when it is ephemeral; and read-only when it is read-only. A
-//! persistent volume has one user at a time — one container or one
-//! serve — so its image is under one writer, the kernel's or
-//! fstool's; an ephemeral or a read-only volume's image is loop-mounted
-//! read-only, so any number of containers and FUSE serves may hold it.
+//! persistent volume's image is loop-mounted once, read-write, and
+//! every container that has it binds that one directory, so any
+//! number of containers share one filesystem; it is FUSE served by
+//! one serve at a time and never beside a container, so the image is
+//! under one writer, the kernel's or fstool's; an ephemeral or a
+//! read-only volume's image is loop-mounted read-only, so any number
+//! of containers and FUSE serves may hold it.
 //! An ephemeral serve runs on an [`Overlay`]: the image read, a
 //! scratch file under `<containers.podman.storage_path>/ephemeral/`
 //! written, the scratch capped by the FUSE serve's `overlay_disk` and

@@ -14,9 +14,12 @@ use crate::config::Config;
 ///   mounts every FUSE mount a run names and serves every running
 ///   container's subtree, through the proxy it places in each.
 /// - The three volume modes, each kept, with the most the mode allows:
-///   a persistent volume one user at a time — mounted or FUSE served,
-///   never twice and never both — an ephemeral or a read-only one by
-///   any number of either at once.
+///   a persistent volume mounted by any number of containers at once
+///   — its image is loop-mounted once and every container binds that
+///   one directory — but FUSE served once and never beside a
+///   container, since a serve opens the image in userspace and the
+///   image bears one writer; an ephemeral or a read-only one by any
+///   number of either at once.
 pub fn capabilities(config: &Config) -> Capabilities {
     Capabilities {
         images_store: config.images.is_some(),
@@ -32,7 +35,7 @@ pub fn capabilities(config: &Config) -> Capabilities {
         volume_persistent: Some(VolumeCapabilities {
             mount: true,
             fuse_serve: true,
-            mount_many: false,
+            mount_many: true,
             fuse_serve_many: false,
             mount_and_fuse_serve: false,
         }),

@@ -35,8 +35,9 @@ use diverge_sdk::shared::filetree::response::{Frame, Node};
 /// [`Capabilities`](diverge_sdk::provider::endpoints::info::server::response::Capabilities):
 /// an ephemeral or a read-only volume may be mounted in any number of
 /// containers of its caller and served on any number of scopes at
-/// once, a persistent volume has one user at a time, and a provider
-/// may allow less than the mode does. Whatever the mode, nothing
+/// once, a persistent volume in any number of containers but on one
+/// scope and never both at once, and a provider may allow less than
+/// the mode does. Whatever the mode, nothing
 /// examines, reads, writes, walks, resizes or deletes a volume while
 /// anything holds it. Both rules are one hold with two kinds, taken
 /// by whoever is using the volume, and decided by
