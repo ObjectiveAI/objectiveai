@@ -25,8 +25,13 @@ finish follows the response, and no frame follows the finish.
   `persistent`, every change a container makes to the volume is in
   the volume when the container ends, every change a
   [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) makes is in
-  the volume, and the volume has at most one user at a time: one
-  running container or one FUSE serve. When it is `ephemeral`, the
+  the volume, any number of running containers may mount the volume
+  at once — every one of them mounts the one volume, a change any of
+  them makes is in the volume for every other as the volume's
+  filesystem makes it visible, and the order of changes made at once
+  is the filesystem's and is not prescribed — and at most one FUSE
+  serve holds the volume at a time, never beside a running container.
+  When it is `ephemeral`, the
   volume is as it was before each run when the container ends, every
   container sees the content of the volume as of that container's
   start, every FUSE serve changes a layer of its own that is

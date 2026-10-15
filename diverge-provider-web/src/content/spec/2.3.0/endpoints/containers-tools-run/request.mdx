@@ -43,7 +43,8 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   the strings `persistent`, `ephemeral` and `read_only`. A mount
   does not change the volume's mode: a volume whose mode differs
   from `mode` refuses the run, as the [response](/endpoints/containers-tools-run/response/) states. A request may name one
-  volume at several paths; it is one user of the volume, and it
+  volume at several paths; it is one running container holding the
+  volume, and it
   names one mode for it, a request naming it under two modes being
   refused the same way.
 - **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path

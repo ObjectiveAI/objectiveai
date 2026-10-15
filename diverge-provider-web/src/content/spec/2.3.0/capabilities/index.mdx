@@ -247,12 +247,14 @@ members, each optional, an absent member being `false`.
 
 - **The mode allows at most.** A mode allows at most what
   [volumes::create](/endpoints/volumes-create/) states for it: a
-  `persistent` volume has at most one user at a time, one running
-  container or one FUSE serve; an `ephemeral` or a `read_only`
-  volume may be held by any number of running containers and FUSE
-  serves at once. A server holds out no more than the mode allows:
-  the `volume_persistent` object has `mount_many`, `fuse_serve_many`
-  and `mount_and_fuse_serve` `false`, absent or present.
+  `persistent` volume may be mounted in any number of running
+  containers at once, is held by at most one FUSE serve at a time,
+  and is never held by a FUSE serve and a running container at once;
+  an `ephemeral` or a `read_only` volume may be held by any number of
+  running containers and FUSE serves at once. A server holds out no
+  more than the mode allows: the `volume_persistent` object has
+  `fuse_serve_many` and `mount_and_fuse_serve` `false`, absent or
+  present.
 - **Consistency.** A server that sends `mount_many` `true` sends
   `mount` `true`. A server that sends `fuse_serve_many` `true` sends
   `fuse_serve` `true`. A server that sends `mount_and_fuse_serve`

@@ -53,8 +53,9 @@ follows it, and no channel is served.
 - **Who may hold a served volume.** The volume's `mode`, as the
   listing reports it, says at most: an `ephemeral` or a `read_only`
   volume may be held by any number of FUSE serves and any number of
-  running containers at once, and a `persistent` volume has exactly
-  one user at a time. What this server allows for each mode is the
+  running containers at once, and a `persistent` volume by one FUSE
+  serve at a time, never beside a running container. What this
+  server allows for each mode is the
   [mode object](/capabilities/#the-mode-object) it holds out:
   `fuse_serve`, `fuse_serve_many` and `mount_and_fuse_serve`. A
   volume of a mode the server holds out no mode object for, or whose

@@ -147,10 +147,12 @@ about the client, which may open any channel at any time.
 
 - **Who may mount a volume.** A volume whose `mode` is `ephemeral`
   or `read_only` may be mounted in any number of containers of its
-  client at once; a volume whose `mode` is `persistent` has one user
-  at a time, one running container, which may name it at several
-  paths, or one [volumes::fuse_serve](/endpoints/volumes-fuse-serve/)
-  scope. That is the most a mode allows; what this server allows for
+  client at once, as may a volume whose `mode` is `persistent`, each
+  container naming it at several paths if it likes, every container
+  mounting the one volume; a `persistent` volume is held by at most
+  one [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) scope at
+  a time, and never by a FUSE serve beside a running container. That
+  is the most a mode allows; what this server allows for
   each mode is the [mode object](/capabilities/#the-mode-object) it
   holds out — `mount`, `mount_many`, `mount_and_fuse_serve` — and
   the server refuses a request naming a volume that it does not

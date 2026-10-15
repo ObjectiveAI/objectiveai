@@ -42,8 +42,9 @@ frame follows the finish.
   [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) scopes, as
   its `mode` allows at most — a volume whose `mode` is `ephemeral`
   or `read_only` in any number of containers and FUSE serves at
-  once, a volume whose `mode` is `persistent` in one running
-  container or on one FUSE serve at a time — and as the
+  once, a volume whose `mode` is `persistent` in any number of
+  containers at once or on one FUSE serve at a time, never both — and
+  as the
   [mode object](/capabilities/#the-mode-object) the server holds
   out for the mode allows: `mount`, `fuse_serve`, `mount_many`,
   `fuse_serve_many`, `mount_and_fuse_serve`. The listing contains

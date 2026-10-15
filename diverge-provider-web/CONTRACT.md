@@ -163,8 +163,9 @@ mode, `persistent`, `ephemeral` or `read_only`, stated at its
 creation and changed only by `volumes::edit`, which governs what
 becomes of a change a Container or a FUSE serve makes to it — kept,
 discarded afterwards, or refused — and who may hold it at once, at
-most: a `persistent` Volume one running Container or one FUSE serve
-at a time, an `ephemeral` or a `read_only` Volume any number of each.
+most: a `persistent` Volume any number of running Containers at once
+or one FUSE serve at a time, never both; an `ephemeral` or a
+`read_only` Volume any number of each, beside one another.
 Whether the Provider keeps Volumes of a mode at all, and how much of
 what the mode allows the Provider allows, is the Capability the
 Provider holds out for the mode.
@@ -489,7 +490,7 @@ Capabilities layer tabulates for it, alone — `volumes::list`,
 (e) **The mode objects.** For every Volume mode the Provider holds
 out, the Provider shall send a mode object that holds out no more
 than the mode allows — the `volume_persistent` object with
-`mount_many`, `fuse_serve_many` and `mount_and_fuse_serve` `false` —
+`fuse_serve_many` and `mount_and_fuse_serve` `false` —
 that sends `mount` `true` wherever it sends `mount_many` `true`,
 `fuse_serve` `true` wherever it sends `fuse_serve_many` `true`, and
 both wherever it sends `mount_and_fuse_serve` `true`; shall list to
