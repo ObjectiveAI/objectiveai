@@ -28,9 +28,19 @@ use crate::provider::endpoints::volumes::Mode;
 /// only what it does. A member a reader does not know is ignored:
 /// see [`Frame`](super::Frame).
 ///
+/// # No mode is no volumes
+///
+/// A provider with none of the three volume modes keeps no volumes,
+/// and every endpoint of
+/// [`volumes`](crate::provider::endpoints::volumes) — the eleven —
+/// answers `Unsupported`: nothing is listed, nothing is made, and
+/// there is no volume for a run or a build to name. [`volumes`](Self::volumes)
+/// is that test.
+///
 /// # What is not here
 ///
-/// The volume endpoints themselves, which every provider serves;
+/// The volume endpoints themselves, which every provider that keeps
+/// volumes serves;
 /// [`daemons`](crate::provider::endpoints::daemons), which is the
 /// provider's configuration and refused as such; and every quantity
 /// — how many containers, how much disk — which is a limit, not a
@@ -97,6 +107,13 @@ pub struct Capabilities {
 }
 
 impl Capabilities {
+    /// Whether the provider keeps volumes at all: any mode among the
+    /// three. `false` is every volume endpoint answering
+    /// `Unsupported`.
+    pub fn volumes(&self) -> bool {
+        self.volume_persistent.is_some() || self.volume_ephemeral.is_some() || self.volume_read_only.is_some()
+    }
+
     /// What may be done with a volume of `mode` here: `None` for a
     /// mode the provider keeps no volumes in.
     pub fn volume(&self, mode: Mode) -> Option<&VolumeCapabilities> {

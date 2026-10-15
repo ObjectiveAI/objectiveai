@@ -14,8 +14,9 @@ use crate::shared::error::Error;
 /// [`Created`](Self::Created), `1` for
 /// [`InsufficientCapacity`](Self::InsufficientCapacity), `2` for
 /// [`ModeUnsupported`](Self::ModeUnsupported), `3` for
-/// [`Error`](Self::Error) — and for the first three there is nothing
-/// after it, because saying so IS the whole message.
+/// [`Unsupported`](Self::Unsupported), `4` for [`Error`](Self::Error)
+/// — and for the first four there is nothing after it, because saying
+/// so IS the whole message.
 ///
 /// | the scope ends with | means |
 /// |----------------------|-------|
@@ -71,7 +72,14 @@ pub enum Frame {
     /// The provider has no volumes of the mode asked for, and nothing
     /// exists. Tag `2`.
     ModeUnsupported,
-    /// A failure. Tag `3`.
+    /// The provider keeps no volumes: no mode is among its capabilities,
+    /// see [`info`](crate::provider::endpoints::info), and every volume
+    /// endpoint answers this. Tag `3`.
+    ///
+    /// Carries nothing. Nothing exists; a caller asks another
+    /// provider.
+    Unsupported,
+    /// A failure. Tag `4`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -87,8 +95,11 @@ const INSUFFICIENT_CAPACITY: u8 = 1;
 /// Tag for [`Frame::ModeUnsupported`].
 const MODE_UNSUPPORTED: u8 = 2;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 3;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 3;
+const ERROR: u8 = 4;
 
 /// A tag, and for a failure the JSON after it. Postcard encodes the
 /// rest of [`volumes`](crate::provider::endpoints::volumes) and encodes nothing
@@ -121,6 +132,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[MODE_UNSUPPORTED]);
                 Ok(())
             }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -140,6 +155,7 @@ impl Decode<'_> for Frame {
             CREATED => Ok(Frame::Created),
             INSUFFICIENT_CAPACITY => Ok(Frame::InsufficientCapacity),
             MODE_UNSUPPORTED => Ok(Frame::ModeUnsupported),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
@@ -153,7 +169,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

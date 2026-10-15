@@ -39,6 +39,8 @@ pub enum ExecuteError {
     /// edit or a delete — has the volume to itself, and nothing was
     /// written.
     Held,
+    /// The provider keeps no volumes, and nothing was written.
+    Unsupported,
     /// The file did not land, and nothing partial did: the provider's
     /// own words.
     Refused(crate::shared::error::Error),
@@ -79,6 +81,7 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Held => {
                 f.write_str("another operation has the volume to itself and nothing was written")
             }
+            ExecuteError::Unsupported => f.write_str("the provider keeps no volumes"),
             ExecuteError::Refused(_) => f.write_str("the provider refused the volume write"),
             ExecuteError::Source(_) => {
                 f.write_str("the content ended in an error before the write was whole")
@@ -101,6 +104,7 @@ impl std::error::Error for ExecuteError {
             | ExecuteError::Mounted
             | ExecuteError::FuseServed
             | ExecuteError::Held
+            | ExecuteError::Unsupported
             | ExecuteError::Refused(_)
             | ExecuteError::Source(_) => None,
         }

@@ -64,7 +64,9 @@ pub enum Frame {
     VolumeMode(VolumeMode),
     /// The provider does not FUSE serve a volume of the mode the
     /// volume is in — its `fuse_serve` for the mode is `false`, see
-    /// [`info`](crate::provider::endpoints::info). Tag `5`.
+    /// [`info`](crate::provider::endpoints::info) — or keeps no
+    /// volumes at all, no mode being among its capabilities, which
+    /// every volume endpoint answers so. Tag `5`.
     ///
     /// Nothing is held and nothing changed; a caller asks another
     /// provider, or has the volume edited into a mode this one

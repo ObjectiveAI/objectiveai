@@ -71,6 +71,7 @@ impl Stream for ExecuteStream {
             Ok(response::Frame::Mounted) => self.end(ExecuteStreamError::Mounted),
             Ok(response::Frame::FuseServed) => self.end(ExecuteStreamError::FuseServed),
             Ok(response::Frame::Held) => self.end(ExecuteStreamError::Held),
+            Ok(response::Frame::Unsupported) => self.end(ExecuteStreamError::Unsupported),
             Ok(response::Frame::Error(error)) => {
                 self.end(ExecuteStreamError::Refused(error))
             }
@@ -99,6 +100,8 @@ pub enum ExecuteStreamError {
     /// edit or a delete — has the volume to itself, and nothing was
     /// read.
     Held,
+    /// The provider keeps no volumes, and nothing was read.
+    Unsupported,
     /// The file was not read, or not all of it: the provider's own
     /// words. A volume the caller cannot see, a path that names no
     /// file.
@@ -127,6 +130,7 @@ impl fmt::Display for ExecuteStreamError {
             ExecuteStreamError::Held => {
                 f.write_str("another operation has the volume to itself and nothing was read")
             }
+            ExecuteStreamError::Unsupported => f.write_str("the provider keeps no volumes"),
             ExecuteStreamError::Refused(_) => {
                 f.write_str("the provider ended the volume read with an error")
             }
@@ -144,6 +148,7 @@ impl std::error::Error for ExecuteStreamError {
             | ExecuteStreamError::Mounted
             | ExecuteStreamError::FuseServed
             | ExecuteStreamError::Held
+            | ExecuteStreamError::Unsupported
             | ExecuteStreamError::Refused(_) => None,
         }
     }

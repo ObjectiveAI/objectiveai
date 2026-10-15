@@ -21,8 +21,10 @@ use crate::shared::error::Error;
 /// [`Error`](Self::Error), and nothing else: a caller with no volume
 /// is listed as `Listed` at once, and watched. A payload leads with
 /// one byte saying which — `0` for `Added`, `1` for `Changed`, `2`
-/// for `Removed`, `3` for `Listed`, `4` for `Error` — and the rest is
-/// that variant's own bytes; `Listed` carries nothing.
+/// for `Removed`, `3` for `Listed`, `4` for `Unsupported`, `5` for
+/// `Error` — and the rest is that variant's own bytes; `Listed` and
+/// `Unsupported` carry nothing. A provider that keeps no volumes
+/// sends `Unsupported` first and alone, and the finish follows it.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -56,7 +58,14 @@ pub enum Frame {
     /// Carries nothing — the variant is bare. A caller that wants the
     /// listing once stops here; one that watches reads on.
     Listed,
-    /// A failure. Tag `4`.
+    /// The provider keeps no volumes: no mode is among its capabilities,
+    /// see [`info`](crate::provider::endpoints::info), and every volume
+    /// endpoint answers this. Tag `4`.
+    ///
+    /// Carries nothing. Nothing is listed; a caller asks another
+    /// provider.
+    Unsupported,
+    /// A failure. Tag `5`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -75,8 +84,11 @@ const REMOVED: u8 = 2;
 /// Tag for [`Frame::Listed`].
 const LISTED: u8 = 3;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 4;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 5;
 
 /// Two formats, and the tag chooses between them.
 ///
@@ -115,6 +127,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[LISTED]);
                 Ok(())
             }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out).map_err(FrameEncodeError::Error)
@@ -135,6 +151,7 @@ impl Decode<'_> for Frame {
             CHANGED => postcard::from_bytes(rest).map(Frame::Changed).map_err(FrameDecodeError::Volume),
             REMOVED => postcard::from_bytes(rest).map(Frame::Removed).map_err(FrameDecodeError::Volume),
             LISTED => Ok(Frame::Listed),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameDecodeError::Error),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
         }
@@ -173,7 +190,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The volume did not parse.
     Volume(postcard::Error),

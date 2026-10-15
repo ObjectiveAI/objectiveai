@@ -13,8 +13,9 @@ use crate::shared::filetree::response::Node;
 /// leads with one byte saying which — `0` for [`Tree`](Self::Tree),
 /// `1` for [`Mounted`](Self::Mounted), `2` for
 /// [`FuseServed`](Self::FuseServed), `3` for [`Held`](Self::Held),
-/// `4` for [`Error`](Self::Error) — and the rest is that variant's
-/// own bytes, of which the three refusals have none.
+/// `4` for [`Unsupported`](Self::Unsupported), `5` for
+/// [`Error`](Self::Error) — and the rest is that variant's own bytes,
+/// of which the four refusals have none.
 ///
 /// # Mounted, FUSE served and held are answers, not errors
 ///
@@ -56,7 +57,14 @@ pub enum Frame {
     /// Nothing was changed; a caller waits for it to end and asks
     /// again.
     Held,
-    /// A failure. Tag `4`.
+    /// The provider keeps no volumes: no mode is among its capabilities,
+    /// see [`info`](crate::provider::endpoints::info), and every volume
+    /// endpoint answers this. Tag `4`.
+    ///
+    /// Carries nothing. Nothing was looked at; a caller asks another
+    /// provider.
+    Unsupported,
+    /// A failure. Tag `5`.
     ///
     /// A volume the caller cannot see is one, and so is a path that
     /// names no directory, and a walk the provider could not finish. See
@@ -77,8 +85,11 @@ const FUSE_SERVED: u8 = 2;
 /// Tag for [`Frame::Held`].
 const HELD: u8 = 3;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 4;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 5;
 
 /// Two variants, two formats, and the tag chooses between them.
 ///
@@ -120,6 +131,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[HELD]);
                 Ok(())
             }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out).map_err(FrameEncodeError::Error)
@@ -142,6 +157,7 @@ impl Decode<'_> for Frame {
             MOUNTED => Ok(Frame::Mounted),
             FUSE_SERVED => Ok(Frame::FuseServed),
             HELD => Ok(Frame::Held),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameDecodeError::Error),
@@ -186,7 +202,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The tree did not parse.
     Tree(postcard::Error),

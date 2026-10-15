@@ -15,9 +15,10 @@ use crate::shared::error::Error;
 /// for [`ContentTooLarge`](Self::ContentTooLarge), `3` for
 /// [`ModeUnsupported`](Self::ModeUnsupported), `4` for
 /// [`Mounted`](Self::Mounted), `5` for [`FuseServed`](Self::FuseServed),
-/// `6` for [`Held`](Self::Held), `7` for [`Error`](Self::Error) — and
-/// for all but the last there is nothing after it, because saying so
-/// IS the whole message.
+/// `6` for [`Held`](Self::Held), `7` for
+/// [`Unsupported`](Self::Unsupported), `8` for [`Error`](Self::Error)
+/// — and for all but the last there is nothing after it, because
+/// saying so IS the whole message.
 ///
 /// | the scope ends with | means |
 /// |----------------------|-------|
@@ -80,7 +81,14 @@ pub enum Frame {
     /// Nothing was changed; a caller waits for it to end and asks
     /// again.
     Held,
-    /// A failure. Tag `7`.
+    /// The provider keeps no volumes: no mode is among its capabilities,
+    /// see [`info`](crate::provider::endpoints::info), and every volume
+    /// endpoint answers this. Tag `7`.
+    ///
+    /// Carries nothing. Nothing was looked at; a caller asks another
+    /// provider.
+    Unsupported,
+    /// A failure. Tag `8`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -108,8 +116,11 @@ const FUSE_SERVED: u8 = 5;
 /// Tag for [`Frame::Held`].
 const HELD: u8 = 6;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 7;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 7;
+const ERROR: u8 = 8;
 
 /// A tag, and for a failure the JSON after it. Postcard encodes the
 /// rest of [`volumes`](crate::provider::endpoints::volumes) and encodes nothing
@@ -158,6 +169,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[HELD]);
                 Ok(())
             }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -181,6 +196,7 @@ impl Decode<'_> for Frame {
             MOUNTED => Ok(Frame::Mounted),
             FUSE_SERVED => Ok(Frame::FuseServed),
             HELD => Ok(Frame::Held),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
@@ -194,7 +210,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's eight.
+    /// A tag that is none of this frame's nine.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

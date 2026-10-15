@@ -156,6 +156,7 @@ fn answer(bytes: &[u8]) -> Result<(), ExecuteError> {
         response::Frame::Mounted => Err(ExecuteError::Mounted),
         response::Frame::FuseServed => Err(ExecuteError::FuseServed),
         response::Frame::Held => Err(ExecuteError::Held),
+        response::Frame::Unsupported => Err(ExecuteError::Unsupported),
         response::Frame::Error(error) => Err(ExecuteError::Refused(error)),
     }
 }

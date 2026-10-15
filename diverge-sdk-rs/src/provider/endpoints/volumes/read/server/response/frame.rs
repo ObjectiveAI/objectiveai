@@ -12,8 +12,9 @@ use crate::shared::error::Error;
 /// A payload leads with one byte saying which — `0` for
 /// [`Body`](Self::Body), `1` for [`Mounted`](Self::Mounted), `2` for
 /// [`FuseServed`](Self::FuseServed), `3` for [`Held`](Self::Held),
-/// `4` for [`Error`](Self::Error) — and the rest is that variant's
-/// own bytes, of which the three refusals have none.
+/// `4` for [`Unsupported`](Self::Unsupported), `5` for
+/// [`Error`](Self::Error) — and the rest is that variant's own bytes,
+/// of which the four refusals have none.
 ///
 /// # How it ends
 ///
@@ -73,7 +74,14 @@ pub enum Frame<'a> {
     /// Nothing was changed; a caller waits for it to end and asks
     /// again.
     Held,
-    /// A failure. Tag `4`.
+    /// The provider keeps no volumes: no mode is among its capabilities,
+    /// see [`info`](crate::provider::endpoints::info), and every volume
+    /// endpoint answers this. Tag `4`.
+    ///
+    /// Carries nothing. Nothing was looked at; a caller asks another
+    /// provider.
+    Unsupported,
+    /// A failure. Tag `5`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -92,8 +100,11 @@ const FUSE_SERVED: u8 = 2;
 /// Tag for [`Frame::Held`].
 const HELD: u8 = 3;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 4;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 5;
 
 impl Encode for Frame<'_> {
     /// The ordinary JSON failure, from the half that has one. The
@@ -125,6 +136,10 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[HELD]);
                 Ok(())
             }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -147,6 +162,7 @@ impl<'a> Decode<'a> for Frame<'a> {
             MOUNTED => Ok(Frame::Mounted),
             FUSE_SERVED => Ok(Frame::FuseServed),
             HELD => Ok(Frame::Held),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
@@ -163,7 +179,7 @@ pub enum FrameError {
     /// Distinct from a zero-length body, which is a tag followed by
     /// nothing and is a file.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

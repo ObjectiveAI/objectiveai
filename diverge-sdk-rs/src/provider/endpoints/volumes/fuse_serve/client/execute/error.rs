@@ -41,7 +41,7 @@ pub enum ExecuteError {
     /// the request means it to have, and this is the mode it is in.
     VolumeMode(VolumeMode),
     /// The provider refused to serve: it does not FUSE serve a volume
-    /// of the mode the volume is in.
+    /// of the mode the volume is in, or keeps no volumes at all.
     Unsupported,
     /// The provider refused to serve: a volume the caller cannot see,
     /// one it could not open.
