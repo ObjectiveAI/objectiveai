@@ -61,7 +61,7 @@ the response finish follows, and no frame follows the finish.
 5. **The server ends the scope.** When the server receives the
    client's [stop](/endpoints/images-list/client/stop/), or the
    client's connection ends, the server sends the response finish.
-   When the server cannot list, it sends the byte `3` followed by an
+   When the server cannot list, it sends the byte `4` followed by an
    error and the response finish.
 
 ## The rules that hold throughout
@@ -83,3 +83,10 @@ the response finish follows, and no frame follows the finish.
   client's images from the moment it is sent. Responses sent before
   the error were sent as the listing stood. An error is not an empty
   listing.
+- **No image store.** A server that holds out no
+  [`images_store`](/capabilities/#images_store) capability keeps no
+  client image and answers every request of this endpoint with
+  exactly one response, the byte `3` alone, and the response
+  finish, before anything is looked up; it sends no image, no byte `2` and
+  serves no channel. Every other requirement of
+  this page holds for a server that holds the capability out.

@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the volume has what the change stated, exactly the byte 1 when the server has insufficient capacity for it, exactly the byte 2 when the content of the volume exceeds it, or the byte 3 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the volume has what the change stated; exactly the byte 1 when the server has insufficient capacity for it; exactly the byte 2 when the content of the volume exceeds it; exactly the byte 3 when the server keeps no volume of the mode stated; exactly the byte 4, 5 or 6 when a running container, a FUSE serve or an operation holds the volume; exactly the byte 7 when the server keeps no volume; or the byte 8 followed by an error as one JSON value; and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -9,10 +9,15 @@ The server sends exactly one response on the scope. The response
 finish follows the response, and no frame follows the finish.
 
 ```text
-[0]
-[1]
-[2]
-[3][error JSON …]
+[0]                  edited
+[1]                  not edited: insufficient capacity
+[2]                  not edited: the content exceeds the size
+[3]                  not edited: the server keeps no volume of the mode stated
+[4]                  not edited: a running container holds the volume
+[5]                  not edited: a FUSE serve holds the volume
+[6]                  not edited: another operation holds the volume
+[7]                  not edited: the server keeps no volume
+[8][error JSON …]    not edited
 ```
 
 - **The sequence.** Exactly one response precedes the response
@@ -28,36 +33,67 @@ finish follows the response, and no frame follows the finish.
   the client opens or a `volumes::stat` request the client makes
   after receiving it reports the size as `bytes` and the mode as
   `mode`, and a list scope the client holds open is sent the volume
-  as changed.
-  The server sends nothing after the byte `0`, and a client ignores
-  every byte that follows it.
+  as changed. The server sends nothing after the byte `0`, and a
+  client ignores every byte that follows it.
 - **Insufficient capacity.** A payload whose first byte is `1` states
   that the server cannot reserve the size stated and did not change
   the size. The volume has the size it had before the request, and,
   for a change that stated a mode too, the mode it had before the
-  request. The server sends nothing after the byte
-  `1`, and a client ignores every byte that follows it. The server
-  does not send the byte `1` for a change that states no size.
+  request. The server sends nothing after the byte `1`, and a client
+  ignores every byte that follows it. The server does not send the
+  byte `1` for a change that states no size.
 - **Content too large.** A payload whose first byte is `2` states
   that the content of the volume exceeds the size stated, so the
   volume cannot be shrunk to it, and that the size was not changed.
   The volume has the size it had before the request, and, for a
-  change that stated a mode too, the mode it had before the
-  request; its content is as it was. The server sends
-  nothing after the byte `2`, and a client ignores every byte that
-  follows it. The server does not send the byte `2` for a change
-  that states no size.
-- **The error.** A payload whose first byte is `3` carries an error
+  change that stated a mode too, the mode it had before the request;
+  its content is as it was. The server sends nothing after the byte
+  `2`, and a client ignores every byte that follows it. The server
+  does not send the byte `2` for a change that states no size.
+- **Mode unsupported.** A payload that is the byte `3` and nothing
+  else states that the change states a mode — as `Mode`, or as
+  `Both` — for which the server holds out no
+  [mode object](/capabilities/#the-mode-object), and that nothing was
+  changed: the volume has the size and the mode it had before the
+  request. The server sends it after it has found the volume in the
+  client's listing and before it holds the volume, and does not send
+  it for a change that states no mode.
+- **The hold refusals, and their order.** The server decides the
+  bytes `4`, `5` and `6` in the order
+  [Capabilities](/capabilities/#the-hold) states for an operation,
+  the first rule that applies deciding. On a server that keeps no
+  volume, the byte `7` is the only response, sent before anything is
+  looked up. Every refusal states that nothing was changed: the
+  volume has the size and the mode it had before the request. A
+  client ignores every byte that follows the byte `3`, `4`, `5`, `6`
+  or `7`.
+- **Mounted.** A payload that is the byte `4` and nothing else states
+  that a running container of the client holds the volume at the
+  time of the request.
+- **FUSE served.** A payload that is the byte `5` and nothing else
+  states that a [volumes::fuse_serve](/endpoints/volumes-fuse-serve/)
+  of the client holds the volume at the time of the request.
+- **Held.** A payload that is the byte `6` and nothing else states
+  that the volume is under a [volumes::stat](/endpoints/volumes-stat/),
+  a [volumes::read](/endpoints/volumes-read/), a
+  [volumes::write](/endpoints/volumes-write/), a
+  [volumes::filetree](/endpoints/volumes-filetree/), another
+  `volumes::edit` or a [volumes::delete](/endpoints/volumes-delete/)
+  at the time of the request.
+- **Unsupported.** A payload that is the byte `7` and nothing else
+  states that the server holds out none of the three mode objects
+  and keeps no volume, as [Capabilities](/capabilities/#the-volume-modes)
+  provides.
+- **The error.** A payload whose first byte is `8` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content. The error
-  states that the volume has the size and the mode it had before
-  the request, and that the reason is neither capacity nor
-  content.
+  states that the volume has the size and the mode it had before the
+  request, and that the reason is none of the refusals above.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0`, `1`, `2` and `3`, and a payload whose bytes after
-  `3` are not one JSON value are malformed.
+  is none of `0` to `8`, and a payload whose bytes after `8` are not
+  one JSON value are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/edit/server/response/frame.rs`:
 

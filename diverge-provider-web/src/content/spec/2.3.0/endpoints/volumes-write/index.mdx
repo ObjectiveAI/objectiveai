@@ -25,7 +25,11 @@ error, and ends the scope by the response finish.
 
 1. **The server reads the request.** A request whose payload does not
    decode is answered by a response finish that no response precedes,
-   as [Endpoints](/endpoints/) provides. A name that is not in the
+   as [Endpoints](/endpoints/) provides. On a server that holds out
+   none of the three mode objects of
+   [Capabilities](/capabilities/#the-volume-modes), the request is
+   answered by exactly one response, the byte `4` alone, and the
+   finish, and nothing below is done. A name that is not in the
    client's listing, resolved as [Authorization](/authorization/)
    provides, is answered by exactly one error response and the finish.
    A path that has no component, or that has a component that is
@@ -33,15 +37,18 @@ error, and ends the scope by the response finish.
    one error response and the finish. The content is not asked for in
    either case.
 2. **The server takes the volume.** The server holds the volume to
-   itself from this moment until the finish. A volume that is mounted
-   in any running container, or served on any
-   [volumes::serve](/endpoints/volumes-serve/) scope, at the time of
-   the request — a volume may be mounted or served in several at once
-   — or that is under a stat, a read,
-   another write, a filetree, an edit or a delete, is answered by
-   exactly one error response and the finish, and the content is not
-   asked for. A run naming the volume is refused for as long as the
-   server holds it.
+   itself from this moment until the finish. A volume that a running
+   container of the client holds, that a
+   [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) of the
+   client holds, or that is under a stat, a read, another write, a
+   filetree, an edit or a delete, at the time of the request, is
+   answered by exactly one response — `Mounted`, `FuseServed` or
+   `Held`, as the [response](/endpoints/volumes-write/response/)
+   states, decided in the order
+   [Capabilities](/capabilities/#the-hold) states for an operation —
+   and the finish, and the content is not asked for. A run, a FUSE
+   serve or another operation naming the volume is refused for as
+   long as the server holds it.
 3. **The server makes the parents.** Every directory on the path
    above the file that does not exist is created. A path component
    above the file at which what exists is not a directory is answered

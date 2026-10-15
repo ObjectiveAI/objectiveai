@@ -1,24 +1,41 @@
 ---
 title: 'Response'
-summary: 'The server sends no response on the scope; the response finish follows the last answer when the client disconnects or its connection ends, and a response finish the client did not ask for states that the scope is not served.'
+summary: 'The server sends no response on the scope, unless it keeps no client image, in which case it sends exactly one, the byte 0 alone, and the response finish; otherwise the response finish follows the last answer when the client disconnects or its connection ends, and a response finish the client did not ask for states that the scope is not served.'
 order: 2
 draft: false
 ---
 
-The server sends no response on the scope. Every answer comes on the
-channel of the ask it answers.
+A server that holds out the [`images_store`](/capabilities/#images_store)
+capability sends no response on the scope: every answer comes on the
+channel of the ask it answers. A server that does not sends exactly
+one response, the byte `0` alone, and the response finish.
 
 ```text
-(nothing)      the main stream carries no response
+(nothing)      the main stream carries no response: the pull is served
+[0]            once, alone: the server keeps no client image, and serves no channel
 ```
 
-- **The sequence.** No response. The response finish follows the
-  last answer of every channel still open when the server receives
-  the client's [disconnect](/endpoints/images-oci/client/disconnect/)
-  or the client's connection ends; no frame follows the finish.
+- **The sequence.** On a server that keeps client images, no
+  response: the response finish follows the last answer of every
+  channel still open when the server receives the client's
+  [disconnect](/endpoints/images-oci/client/disconnect/) or the
+  client's connection ends, and no frame follows the finish. On a
+  server that keeps none, exactly one response, the byte `0` and
+  nothing else, then the response finish; the server answers no
+  channel, before the response or after it.
+- **Unsupported.** A payload that is the byte `0` and nothing else
+  states that the server holds out no `images_store` capability and
+  holds no image for the client, as [Capabilities](/capabilities/#images_store)
+  provides. Bytes after it are not read.
 - **Not served.** A response finish that the client did not ask for
-  by a disconnect states that the server will not serve the pull, as
-  [Endpoints](/endpoints/) provides for a request not served. The
-  server serves no channel after it.
-- **Malformed.** A response on the main stream of a pull scope is
-  malformed; a client ignores it.
+  by a disconnect, and that no response precedes, states that the
+  server will not serve the pull, as [Endpoints](/endpoints/)
+  provides for a request not served. The server serves no channel
+  after it.
+- **Malformed.** A payload with no byte, and a payload whose first
+  byte is not `0`, are malformed; a client ignores them.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/images/oci/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/oci/server/response/frame.rs
+```

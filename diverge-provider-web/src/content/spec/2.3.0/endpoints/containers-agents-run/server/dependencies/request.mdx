@@ -13,17 +13,17 @@ draft: false
   for, as the server minted it and as the response carries it after
   the channel has ended. The server has entered the container among
   those it runs when it sends this, so a
-  [containers::serve](/endpoints/containers-serve/) naming the id is
+  [containers::fuse_serve](/endpoints/containers-fuse-serve/) naming the id is
   answered while the channel is open.
 - **`dependencies`.** An array of dependency tool templates, in the
   order the program declared them. Each is an object of five members,
-  the members of its kind, and one that may be absent: `image`, an
+  the members of its mode, and one that may be absent: `image`, an
   object of `digest` and `references` as the
   [request](/endpoints/containers-tools-run/request/) of a tools run
   names one; `memory` and `disk`, limits in bytes as that request
   states them; `arguments`, any JSON value, the `arguments` of that
-  request; `type`, the string `transient` or `service`, which kind
-  of dependency it is, with that kind's own members flat beside it;
+  request; `mode`, the string `transient` or `service`, which mode
+  the dependency is in, with that mode's own members flat beside it;
   and `permissions`, an array of grants in the forms
   `shared::permission` defines — each one object with one member
   named for a kind, whose value is a bare array of making actions, an
@@ -40,7 +40,7 @@ draft: false
   file or a directory of the agent container the client serves live
   at a path of the tool container, each absent when empty. A
   transient tool's database scope is the agent's it is deployed for,
-  and the template says so by its kind alone.
+  and the template says so by its mode alone.
 - **A service's members.** `scope`, the string `instance`,
   `template` or `global`: how far the service is shared,
   and its database scope with it — one service and one scope per
@@ -80,9 +80,9 @@ and by `diverge-sdk-rs/src/shared/containers/dependencies/mount.rs`:
 ```rust include=diverge-sdk-rs/src/shared/containers/dependencies/mount.rs
 ```
 
-and by `diverge-sdk-rs/src/shared/containers/dependencies/kind.rs`:
+and by `diverge-sdk-rs/src/shared/containers/dependencies/mode.rs`:
 
-```rust include=diverge-sdk-rs/src/shared/containers/dependencies/kind.rs
+```rust include=diverge-sdk-rs/src/shared/containers/dependencies/mode.rs
 ```
 
 and by `diverge-sdk-rs/src/shared/containers/dependencies/scope.rs`:

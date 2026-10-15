@@ -9,8 +9,9 @@ A client opens the scope with a request whose payload is the tag byte
 `17` followed by the name, the Containerfile, and the context of the
 build. The server sends zero or more responses, each one line of the
 build's output, then exactly one response which states that the
-image exists, that the server has insufficient capacity for it, or
-an error. The response finish follows that response, and no frame
+image exists, that the server has insufficient capacity for it,
+that something holds the context volume, that the server keeps no
+client image, or an error. The response finish follows that response, and no frame
 follows the finish.
 
 - **The request.** The request carries a name the client chooses, the
@@ -30,12 +31,16 @@ follows the finish.
   provides, and `volume_relative_path` against that volume as a
   [volume mount](/endpoints/containers-tools-run/request/) resolves
   its path. The server holds the volume for the duration of the build
-  as a running container that mounts it holds it: a volume whose
-  `mode` is `persistent` is held by one container, one serve or one
-  build at a time, and a volume whose `mode` is `ephemeral` or
-  `read_only` by any number. A request naming a volume not in the
-  client's listing, a path with a component that is empty, `.` or
-  `..`, or a volume the server cannot hold is answered with an error,
+  as a running container that mounts it holds it, under the
+  [mode object](/capabilities/#the-mode-object) the server holds
+  out for the volume's mode, as [Capabilities](/capabilities/#the-hold)
+  states for a build's context. A request naming a volume not in the
+  client's listing, and a path with a component that is empty, `.`
+  or `..`, are each answered with an error, and nothing is built. A
+  volume the server cannot hold — one an operation holds, one a
+  running container holds beyond what `mount_many` allows, one a
+  FUSE serve holds beyond what `mount_and_fuse_serve` allows — is
+  answered with `ContextHeld`, the byte `3`, which is not an error,
   and nothing is built. The hold ends when the scope ends.
 - **The output.** The server sends each line the build's tool writes
   as one response, as a string, as the tool writes it. This
@@ -72,8 +77,15 @@ follows the finish.
   image its store cannot hold. Whether the server determines this
   before the build or after is the server's own.
 - **The error.** An error states that the image was not built, for a
-  reason other than capacity — a build that failed, a name refused or
+  reason other than capacity or the context's hold — a build that failed, a name refused or
   taken, a context refused: no image exists by that name as a result
   of the request, and the client's listing is as it was before the
   request. The output sent before the error states what the build
   said.
+- **No image store.** A server that holds out no
+  [`images_store`](/capabilities/#images_store) capability keeps no
+  client image and answers every request of this endpoint with
+  exactly one response, the byte `4` alone, and the response
+  finish, before anything is looked up; it sends no line of output,
+  holds no volume and builds nothing. Every other requirement of
+  this page holds for a server that holds the capability out.

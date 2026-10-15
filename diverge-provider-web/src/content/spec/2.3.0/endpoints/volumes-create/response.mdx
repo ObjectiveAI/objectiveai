@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the volume exists, exactly the byte 1 when the server has insufficient capacity for it, or the byte 2 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the volume exists, exactly the byte 1 when the server has insufficient capacity for it, exactly the byte 2 when the server keeps no volume of the mode stated, exactly the byte 3 when the server keeps no volume, or the byte 4 followed by an error as one JSON value, and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -9,9 +9,11 @@ The server sends exactly one response on the scope. The response
 finish follows the response, and no frame follows the finish.
 
 ```text
-[0]
-[1]
-[2][error JSON …]
+[0]                  created
+[1]                  not created: insufficient capacity
+[2]                  not created: the server keeps no volume of the mode stated
+[3]                  not created: the server keeps no volume
+[4][error JSON …]    not created
 ```
 
 - **The sequence.** Exactly one response precedes the response
@@ -31,16 +33,28 @@ finish follows the response, and no frame follows the finish.
   the volume. No volume exists by that name as a result of the
   request. The server sends nothing after the byte `1`, and a client
   ignores every byte that follows it.
-- **The error.** A payload whose first byte is `2` carries an error
+- **Mode unsupported.** A payload that is the byte `2` and nothing
+  else states that the server holds out no
+  [mode object](/capabilities/#the-mode-object) for the `mode` the
+  request states, and did not create the volume. No volume exists by
+  that name as a result of the request. The server sends it before it
+  reserves anything, and a client ignores every byte that follows
+  it.
+- **Unsupported.** A payload that is the byte `3` and nothing else
+  states that the server holds out none of the three mode objects
+  and keeps no volume, as [Capabilities](/capabilities/#the-volume-modes)
+  provides. It is the only response, sent before anything is looked
+  up; a client ignores every byte that follows it.
+- **The error.** A payload whose first byte is `4` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content. The error
   states that the volume does not exist as a result of the request,
-  and that the reason is not capacity.
+  and that the reason is neither capacity nor the mode.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0`, `1` and `2`, and a payload whose bytes after `2` are
-  not one JSON value are malformed.
+  is none of `0`, `1`, `2`, `3` and `4`, and a payload whose bytes
+  after `4` are not one JSON value are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/create/server/response/frame.rs`:
 

@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'Responses of the byte 0, 1 or 2 followed by one volume in the postcard wire format, added, changed or removed; the byte 3, once, when the listing is whole; or the byte 4 followed by an error as one JSON value, last; and the response finish.'
+summary: 'Responses of the byte 0, 1 or 2 followed by one volume in the postcard wire format, added, changed or removed; the byte 3, once, when the listing is whole; the byte 4, alone and first, when the server keeps no volume; or the byte 5 followed by an error as one JSON value, last; and the response finish.'
 order: 2
 draft: false
 ---
@@ -10,7 +10,8 @@ draft: false
 [1][volume, postcard …]   per volume changed, after it was added
 [2][volume, postcard …]   per volume removed, after it was added
 [3]                       once, when the listing is whole
-[4][error JSON …]         at most once, last
+[4]                       once, alone: the server keeps no volume
+[5][error JSON …]         at most once, last
 ```
 
 - **The sequence.** Zero or more responses of the byte `0` followed
@@ -20,9 +21,11 @@ draft: false
   followed by one volume, as volumes are created, edited and deleted;
   the response finish follows the last of them, when the client stops
   or the client's connection ends. Or: the responses sent so far,
-  exactly one response of the byte `4` followed by an error, and the
-  response finish. No response follows the error. The server sends no
-  response of the byte `1` or `2` before the byte `3`.
+  exactly one response of the byte `5` followed by an error, and the
+  response finish. Or: exactly one response of the byte `4` and
+  nothing else, and the response finish. No response follows the
+  error. The server sends no response of the byte `1` or `2` before
+  the byte `3`.
 - **The volume.** A payload whose first byte is `0`, `1` or `2`
   carries one volume after that byte, running to the end of the
   payload. The volume is the `Volume` defined below, encoded as the
@@ -73,24 +76,34 @@ draft: false
   [volumes::edit](/endpoints/volumes-edit/) request; for another
   volume, the mode is the server's to determine. What each mode means
   for a container that mounts the volume, for a
-  [volumes::serve](/endpoints/volumes-serve/) of it, and for how many
-  may hold it at once, [volumes::create](/endpoints/volumes-create/)
-  states. Every container the client mounts the volume in and every
-  serve of it is bound under this mode. A byte other than `0`, `1` and
+  [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) of it, and
+  for how many may hold it at once at most,
+  [volumes::create](/endpoints/volumes-create/) states; how many this
+  server lets hold it at once is the
+  [mode object](/capabilities/#the-mode-object) the server holds out
+  for the mode, and the listing contains no volume of a mode the
+  server holds out no mode object for. Every container the client
+  mounts the volume in and every FUSE serve of it is bound under this
+  mode. A byte other than `0`, `1` and
   `2` does not decode.
 - **Order.** The order of the volumes is not prescribed. A client
   reads nothing into the position of a volume.
 - **A finish with nothing before it.** The request was not served, as
   [Endpoints](/endpoints/) provides, or the client stopped before the
   server had sent anything. The server does not say which.
-- **The error.** A payload whose first byte is `4` carries an error
+- **Unsupported.** A payload that is the byte `4` and nothing else
+  states that the server holds out none of the three mode objects
+  and keeps no volume, as [Capabilities](/capabilities/#the-volume-modes)
+  provides. It is the only response of the scope, sent before
+  anything is looked up; bytes after it are not read.
+- **The error.** A payload whose first byte is `5` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value. This revision prescribes nothing about its
   content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0`, `1`, `2`, `3` and `4`, a payload whose bytes after
-  `0`, `1` or `2` do not decode as one volume, and a payload whose
-  bytes after `4` are not one JSON value are malformed.
+  is none of `0` to `5`, a payload whose bytes after `0`, `1` or `2`
+  do not decode as one volume, and a payload whose bytes after `5`
+  are not one JSON value are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/list/server/response/frame.rs`:
 

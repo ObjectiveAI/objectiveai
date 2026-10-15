@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the answer, with the byte 1 followed by an error, or is the byte 2 alone when no source was asked, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the answer, with the byte 1 followed by an error, or is the byte 2 alone when the request named no source the server has, and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -25,8 +25,9 @@ finish follows the response, and no frame follows the finish.
   for has the image, at the time of the answer, for a container
   request naming the requested digest: the client's own images, built
   on the server by [images::build](/endpoints/images-build/) and no
-  other client's, where `client` was asked; a referenced registry the
-  server's policy lists, where `registries` was asked. The server
+  other client's, where `client` was asked and the server holds out
+  the `images_store` capability; a referenced registry in the
+  server's `images_registries`, where `registries` was asked. The server
   does not answer available on account of an image it holds on its
   own account.
   It reserves nothing, and a later container request naming the
@@ -41,9 +42,13 @@ finish follows the response, and no frame follows the finish.
   answer the question and that nothing was determined about the
   image. An error is not an unavailable answer.
 - **No source.** A payload that is the byte `2` and nothing else
-  states that the request asked for neither of the two sources, that
-  the server looked nowhere, and that nothing is determined about
-  the image. A payload whose first byte is `2` is read by that byte
+  states that the request asked for no source the server has — it
+  asked for neither source, or only for `client` on a server that
+  holds out no [`images_store`](/capabilities/#images_store)
+  capability, or only for `registries` on a server whose
+  [`images_registries`](/capabilities/#images_registries) is empty,
+  or for both on a server that has neither — that the server looked
+  nowhere, and that nothing is determined about the image. A payload whose first byte is `2` is read by that byte
   alone; bytes after it are not read.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is none of `0`, `1` and `2`, and a payload whose bytes after `0` or

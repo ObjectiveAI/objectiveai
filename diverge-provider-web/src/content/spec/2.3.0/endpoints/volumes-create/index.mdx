@@ -8,7 +8,9 @@ draft: false
 A client opens the scope with a request whose payload is the tag byte
 `10` followed by the name, the size and the mode of the volume. The server sends
 exactly one response, which states that the volume exists, that the
-server has insufficient capacity for it, or an error. The response
+server has insufficient capacity for it, that the server keeps no
+volume of the mode stated, that the server keeps no volume, or an
+error. The response
 finish follows the response, and no frame follows the finish.
 
 - **The request.** The request carries a name the client chooses, a
@@ -22,19 +24,29 @@ finish follows the response, and no frame follows the finish.
   client holds open reports a change to it. When it is
   `persistent`, every change a container makes to the volume is in
   the volume when the container ends, every change a
-  [volumes::serve](/endpoints/volumes-serve/) makes is in the volume,
-  and the volume has one user at a time: one running container or one
-  serve. When it is `ephemeral`, the volume is as it was before each
-  run when the container ends, every container sees the content of
-  the volume as of that container's start, every serve changes a
-  layer of its own that is discarded at its finish, and any number of
-  containers and serves may hold the volume at once. When it is
-  `read_only`, no container and no serve changes the volume, and any
-  number of them may hold it at once. Whatever the mode, a
+  [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) makes is in
+  the volume, and the volume has at most one user at a time: one
+  running container or one FUSE serve. When it is `ephemeral`, the
+  volume is as it was before each run when the container ends, every
+  container sees the content of the volume as of that container's
+  start, every FUSE serve changes a layer of its own that is
+  discarded at its finish, and any number of containers and FUSE
+  serves may hold the volume at once. When it is `read_only`, no
+  container and no FUSE serve changes the volume, and any number of
+  them may hold it at once. What a mode allows is the most any
+  server allows; what this server allows for a mode, and whether it
+  keeps volumes of the mode at all, is the
+  [mode object](/capabilities/#the-mode-object) it holds out for
+  the mode. Whatever the mode, a
   [volumes::write](/endpoints/volumes-write/) request of the client
   puts a file in the volume. The mode is the volume's and is the same
-  for every container that mounts it and every serve of it; neither
-  states anything about it.
+  for every container that mounts it and every FUSE serve of it;
+  neither states anything about it.
+- **A mode the server does not keep.** A request whose `mode` is one
+  the server holds out no mode object for is answered with
+  `ModeUnsupported`, the byte `2`, before anything is reserved; no
+  volume, and no part of one, exists by that name as a result of the
+  request, and the client's listing is as it was.
 - **The volume.** When the server sends the byte `0`, the volume
   exists. From that moment, every
   [volumes::list](/endpoints/volumes-list/) scope the client opens
@@ -73,6 +85,12 @@ finish follows the response, and no frame follows the finish.
   The largest size the server can reserve at a given time is reported
   by [volumes::create_capacity](/endpoints/volumes-create-capacity/).
 - **The error.** An error states that the volume was not created, for
-  a reason other than capacity: no volume, and no part of one, exists
+  a reason other than capacity or the mode: no volume, and no part of one, exists
   by that name as a result of the request, and the client's listing
   is as it was before the request.
+- **No volume at all.** A server that holds out none of the three
+  mode objects of [Capabilities](/capabilities/#the-volume-modes)
+  keeps no volume and answers every request of this endpoint with
+  exactly one response, the byte `3` alone, and the response
+  finish, before anything is looked up. Every other requirement of
+  this page holds for a server that keeps volumes.

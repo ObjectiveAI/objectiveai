@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the stat in the postcard wire format or with the byte 1 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the stat in the postcard wire format, is the byte 1 alone when the server keeps no client image, or begins with the byte 2 followed by an error as one JSON value, and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -9,8 +9,9 @@ The server sends exactly one response on the scope. The response
 finish follows the response, and no frame follows the finish.
 
 ```text
-[0][stat, postcard …]
-[1][error JSON …]
+[0][stat, postcard …]    the image, examined
+[1]                      not examined: the server keeps no client image
+[2][error JSON …]        not examined
 ```
 
 - **The sequence.** Exactly one response precedes the response
@@ -31,14 +32,20 @@ finish follows the response, and no frame follows the finish.
 - **`containerfile`.** The Containerfile the image was built from,
   UTF-8: the `containerfile` of the client's
   [images::build](/endpoints/images-build/) request, verbatim.
-- **The error.** A payload whose first byte is `1` carries an error
+- **Unsupported.** A payload that is the byte `1` and nothing else
+  states that the server holds out no
+  [`images_store`](/capabilities/#images_store) capability and keeps
+  no client image, as [Capabilities](/capabilities/) provides. It is
+  the only response of the scope, sent before anything is looked up;
+  bytes after it are not read.
+- **The error.** A payload whose first byte is `2` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, a payload whose bytes after `0` do not
-  decode as the stat, and a payload whose bytes after `1` are not one
+  is none of `0`, `1` and `2`, a payload whose bytes after `0` do not
+  decode as the stat, and a payload whose bytes after `2` are not one
   JSON value are malformed.
 
 The response frame is defined by `diverge-sdk-rs/src/provider/endpoints/images/stat/server/response/frame.rs`:

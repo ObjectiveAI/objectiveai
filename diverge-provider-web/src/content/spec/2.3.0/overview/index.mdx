@@ -53,9 +53,10 @@ more.
 | [WebSocket](/websocket/) | the transport: version 13, binary frames, the handshake |
 | [Frames](/frames/) | the frame, the scope, the channel, and what ends each |
 | [Authorization](/authorization/) | the credential that precedes every connection of the Protocol |
+| [Capabilities](/capabilities/) | the parts of the Endpoints layer a server holds out, and what it answers past them |
 | [Container Proxy](/container-proxy/) | the one connection between the provider's server and the proxy inside a container |
 | [Container Proxy Endpoints](/container-proxy-endpoints/) | the seven scopes on that connection |
-| [Endpoints](/endpoints/) | the twenty-three scopes a client opens on the Protocol |
+| [Endpoints](/endpoints/) | the twenty-three scopes a client opens on the Protocol, served as the server's capabilities state |
 
 The reference crate, [`diverge-sdk`](https://docs.rs/diverge-sdk),
 defines the protocol — its wire, its frames and its client half — and

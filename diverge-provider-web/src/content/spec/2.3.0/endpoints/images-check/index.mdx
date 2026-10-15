@@ -41,9 +41,15 @@ finish.
   the image and the server obtains it from the client, or where a
   source not asked has it. Neither answer states which source.
   [Response](/endpoints/images-check/response/) states their form.
-- **No source.** A request that asks for neither of the two sources
-  is answered with the byte `2` alone. The server looks nowhere, and
-  nothing is determined about the image.
+- **No source.** A source the server has is `client` where the
+  server holds out the [`images_store`](/capabilities/#images_store)
+  capability, and `registries` where its
+  [`images_registries`](/capabilities/#images_registries) is not
+  empty. A request that asks for neither source, or that asks only
+  for sources the server has not, is answered with the byte `2`
+  alone. The server looks nowhere, and nothing is determined about
+  the image. A request that asks for a source the server has and a
+  source it has not is answered from the source it has alone.
 - **The error.** An error states that the server did not answer the
   question, and that nothing was determined about the image. An
   error is not an unavailable answer.

@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'Responses of the byte 0 or 1 followed by one image in the postcard wire format, added or removed; the byte 2, once, when the listing is whole; or the byte 3 followed by an error as one JSON value, last; and the response finish.'
+summary: 'Responses of the byte 0 or 1 followed by one image in the postcard wire format, added or removed; the byte 2, once, when the listing is whole; the byte 3, alone and first, when the server keeps no client image; or the byte 4 followed by an error as one JSON value, last; and the response finish.'
 order: 2
 draft: false
 ---
@@ -9,7 +9,8 @@ draft: false
 [0][image, postcard …]   per image added
 [1][image, postcard …]   per image removed, after it was added
 [2]                      once, when the listing is whole
-[3][error JSON …]        at most once, last
+[3]                      once, alone: the server keeps no client image
+[4][error JSON …]        at most once, last
 ```
 
 - **The sequence.** Zero or more responses of the byte `0` followed
@@ -19,9 +20,10 @@ draft: false
   image, as images are built and deleted; the response finish follows
   the last of them, when the client stops or the client's connection
   ends. Or: the responses sent so far, exactly one response of the
-  byte `3` followed by an error, and the response finish. No response
-  follows the error. The server sends no response of the byte `1`
-  before the byte `2`.
+  byte `4` followed by an error, and the response finish. Or: exactly
+  one response of the byte `3` and nothing else, and the response
+  finish. No response follows the error. The server sends no
+  response of the byte `1` before the byte `2`.
 - **The image.** A payload whose first byte is `0` or `1` carries one
   image after that byte, running to the end of the payload. The image
   is the `Image` defined below, encoded as the postcard reading of
@@ -67,15 +69,21 @@ draft: false
 - **A finish with nothing before it.** The request was not served, as
   [Endpoints](/endpoints/) provides, or the client stopped before the
   server had sent anything. The server does not say which.
-- **The error.** A payload whose first byte is `3` carries an error
+- **Unsupported.** A payload that is the byte `3` and nothing else
+  states that the server holds out no
+  [`images_store`](/capabilities/#images_store) capability and keeps
+  no client image, as [Capabilities](/capabilities/) provides. It is
+  the only response of the scope, sent before anything is looked up;
+  bytes after it are not read.
+- **The error.** A payload whose first byte is `4` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0`, `1`, `2` and `3`, a payload whose bytes after `0`
-  or `1` do not decode as one image, and a payload whose bytes after
-  `3` are not one JSON value are malformed.
+  is none of `0` to `4`, a payload whose bytes after `0` or `1` do
+  not decode as one image, and a payload whose bytes after `4` are
+  not one JSON value are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/images/list/server/response/frame.rs`:
 

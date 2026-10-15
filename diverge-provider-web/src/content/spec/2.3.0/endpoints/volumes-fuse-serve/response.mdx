@@ -1,0 +1,86 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response: the byte 0 alone, Serving, after which the scope stays open until the client stops it; the byte 1, 2 or 3 alone when a running container, another FUSE serve or an operation holds the volume; the byte 4 followed by the volume and the mode it is in as JSON, when the request meant another; the byte 5 alone when the server does not FUSE serve a volume of its mode, or keeps no volume; or the byte 6 followed by an error as one JSON value; every refusal and an error are followed by the response finish.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope, and sends it
+before it serves any channel.
+
+```text
+[0]                      serving: the volume is held, and the asks are answered
+[1]                      not served: a running container holds the volume
+[2]                      not served: another FUSE serve holds the volume
+[3]                      not served: an operation holds the volume
+[4][volume-mode JSON …]  not served: the volume is not in the mode the request means
+[5]                      not served: the server does not FUSE serve a volume of its mode, or keeps no volume
+[6][error JSON …]        not served
+```
+
+- **The sequence.** Exactly one response, first. After a response
+  whose payload is exactly the one byte `0`, the scope stays open:
+  the server sends no other response on the scope, answers every
+  channel the client opens as [Client Channels](/endpoints/volumes-fuse-serve/client/) states,
+  and sends the response finish after the last answer when the client
+  stops. After a response whose first byte is `1` to `6`, the
+  response finish follows the response, and no frame follows the
+  finish. A response finish that no response precedes states that
+  the request was not served, as [Endpoints](/endpoints/) provides.
+- **The refusals, and their order.** The server decides the bytes
+  `1` to `5` for the volume the request names in the order
+  [Capabilities](/capabilities/#the-hold) states for a FUSE serve,
+  the first rule that applies deciding; on a server that keeps no
+  volume at all, the byte `5` is the only response, sent before
+  anything is looked up. Every refusal states that the volume is not
+  served, that nothing is held, and that nothing changed.
+- **Mounted.** A payload that is the byte `1` and nothing else states
+  that a running container of the client holds the volume at the
+  time of the request, on a server whose
+  [mode object](/capabilities/#the-mode-object) for the volume's
+  mode has `mount_and_fuse_serve` `false`.
+- **FUSE served.** A payload that is the byte `2` and nothing else
+  states that another FUSE serve of the client holds the volume at
+  the time of the request, on a server whose mode object for the
+  volume's mode has `fuse_serve_many` `false`.
+- **Held.** A payload that is the byte `3` and nothing else states
+  that the volume is under a [volumes::stat](/endpoints/volumes-stat/),
+  [volumes::read](/endpoints/volumes-read/),
+  [volumes::write](/endpoints/volumes-write/),
+  [volumes::filetree](/endpoints/volumes-filetree/),
+  [volumes::edit](/endpoints/volumes-edit/) or
+  [volumes::delete](/endpoints/volumes-delete/) at the time of the
+  request.
+- **Volume mode.** A payload whose first byte is `4` carries, after
+  that byte as JSON, an object with the members `name`, a string, and
+  `mode`, a string: the name the request gave, and the mode the
+  volume is in, as the client's listing reports it, one of
+  `persistent`, `ephemeral` and `read_only`. The server sends it when
+  the request's `mode` is not the volume's; the volume is not served
+  and is as it was.
+- **Unsupported.** A payload that is the byte `5` and nothing else
+  states that the server holds out no mode object for the volume's
+  mode, or one whose `fuse_serve` is `false`; or that the server
+  holds out none of the three mode objects and keeps no volume, as
+  [Capabilities](/capabilities/#the-volume-modes) provides.
+- **The error.** A payload whose first byte is `6` carries an error
+  after that byte, running to the end of the payload. The error is
+  exactly one JSON value, in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  This revision prescribes nothing about its content.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is none of `0` to `6`, a payload whose bytes after `4` do not parse
+  as the refusal, and a payload whose bytes after `6` are not one
+  JSON value are malformed. A payload whose first byte is `0`, `1`,
+  `2`, `3` or `5` is read by that byte alone; bytes after it are not
+  read.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/fuse_serve/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/fuse_serve/server/response/frame.rs
+```
+
+and the volume mode by `diverge-sdk-rs/src/shared/containers/response/volume_mode.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/response/volume_mode.rs
+```

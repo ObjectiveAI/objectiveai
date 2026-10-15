@@ -97,13 +97,13 @@ Finish that no Channel Response precedes.
 1.9 **"Endpoint"** means one of the twenty-three scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
-`containers::serve`, `3` `volumes::list`, `4` `volumes::stat`, `5`
+`containers::fuse_serve`, `3` `volumes::list`, `4` `volumes::stat`, `5`
 `volumes::read`, `6` `volumes::write`, `7` `volumes::filetree`, `8`
-`volumes::serve`, `9` `volumes::create_capacity`, `10`
+`volumes::fuse_serve`, `9` `volumes::create_capacity`, `10`
 `volumes::create`, `11` `volumes::edit_capacity`, `12` `volumes::edit`,
 `13` `volumes::delete`, `14` `images::check`, `15` `images::list`,
 `16` `images::stat`, `17` `images::build`, `18` `images::delete`,
-`19` `images::oci`, `20` `version`, `21` `daemons::accept`, `22`
+`19` `images::oci`, `20` `info`, `21` `daemons::accept`, `22`
 `daemons::connect`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
@@ -161,10 +161,13 @@ endpoints define: created by `volumes::create`, listed by
 `volumes::list`, and ended only by `volumes::delete`. A Volume has a
 mode, `persistent`, `ephemeral` or `read_only`, stated at its
 creation and changed only by `volumes::edit`, which governs what
-becomes of a change a Container or a serve makes to it — kept,
-discarded afterwards, or refused — and who may hold it at once: a
-`persistent` Volume one running Container or one serve at a time, an
-`ephemeral` or a `read_only` Volume any number of each.
+becomes of a change a Container or a FUSE serve makes to it — kept,
+discarded afterwards, or refused — and who may hold it at once, at
+most: a `persistent` Volume one running Container or one FUSE serve
+at a time, an `ephemeral` or a `read_only` Volume any number of each.
+Whether the Provider keeps Volumes of a mode at all, and how much of
+what the mode allows the Provider allows, is the Capability the
+Provider holds out for the mode.
 
 1.16 **"Client Image"** means an image the Provider holds under a name
 for one Identity, built by the Provider from a Containerfile that
@@ -185,7 +188,7 @@ Protocol,
 including image manifests and blobs, the bytes of writes, reads and
 transfers, filesystem trees, database traffic, commands and
 their items, vault keys and values, FUSE asks and their answers on a
-mount and on a `volumes::serve`, MCP exchanges, prompts, arguments,
+mount and on a `volumes::fuse_serve`, MCP exchanges, prompts, arguments,
 dependency declarations, and loop chunks.
 
 1.19 **"Relayed Exchange"** means any exchange the Specification
@@ -212,6 +215,15 @@ Specification under Article 2.
 1.22 **"Conforming"** describes conduct of the Provider that satisfies
 every Obligation applicable to it. **"Non-Conformance"** means any
 failure to satisfy an Obligation.
+
+1.23 **"Capability"** means one of the parts of the Specification's
+Endpoints layer that a Server holds out or does not, as the
+Specification's Capabilities layer defines them — the client image
+store, the registries pulled from, FUSE Mounts, the FUSE serve of a
+Container, and each Volume mode with what may hold a Volume of it —
+stated in the `capabilities` object of every `info` Response the
+Server sends, which object the Specification calls the Server's
+capabilities.
 
 ## ARTICLE 2. INCORPORATION AND READING OF THE SPECIFICATION
 
@@ -423,35 +435,103 @@ byte the Specification does not require.
 that follow a request, the Provider shall ignore them and shall not
 treat the request as malformed on their account.
 
-### 5.5 `version` (tag 20)
+### 5.5 `info` (tag 20) and the Capabilities
 
-The Provider shall answer every `version` request with exactly one
-Response whose payload is the string `2.3.0` encoded as UTF-8 with no
-tag and no length prefix, followed by the Response Finish. The
-Provider shall not send any other string, shall not send an empty
-string, and shall not send an error on this Endpoint.
+(a) **The answer.** The Provider shall answer every `info` request
+with exactly one Response whose payload is one JSON object with
+exactly two members — `version`, the string `2.3.0`, and
+`capabilities`, the object the Specification's Capabilities layer
+defines — with no tag and no length prefix, followed by the Response
+Finish. The Provider shall not send any other `version` string, shall
+not send an empty string, shall not send a member this revision does
+not define, and shall not send an error or a refusal on this
+Endpoint.
+
+(b) **One object.** The Provider shall send the same `capabilities`
+object in every `info` Response it sends, on every Connection, for
+as long as the Server runs, and shall serve every request on every
+Connection as that object states. The object shall not depend on the
+Identity, on the request, or on the time.
+
+(c) **What is held out is served.** For every Capability the
+`capabilities` object holds out, the Provider shall serve the
+Endpoints the Capability governs in full as the Specification states
+them, and shall not send any Response the Specification defines for
+that Capability's absence.
+
+(d) **What is not held out is refused as defined.** For every
+Capability the `capabilities` object does not hold out, the Provider
+shall answer every request past it with exactly the Response the
+Specification's Capabilities layer names for that Endpoint, as the
+first and only Response on the Scope, followed by the Response Finish;
+shall serve no Channel on the Scope; and shall look up nothing, hold
+nothing, obtain nothing, deploy nothing and change nothing for the
+request. In particular the Provider shall answer: every
+`images::list`, `images::stat`, `images::build`, `images::delete` and
+`images::oci` request, where `images_store` is not held out, by the
+byte `4`, `1`, `4`, `2` and `0` respectively, alone; every container
+run request naming a FUSE Mount, where `containers_fuse_mount` is not
+held out, by the byte `6` alone, after the refusals of Section 5.9(a)
+that precede it and before any Volume is held; every
+`containers::fuse_serve` request, where `containers_fuse_serve` is
+not held out, by the byte `1` alone; every `volumes::create` request
+stating a mode the Provider holds out no mode object for by the byte
+`2` alone, and every `volumes::edit` request naming a Volume in the
+Identity's listing and stating such a mode by the byte `3` alone; and,
+where the Provider holds out none of the three mode objects, every
+request of the eleven Volume Endpoints by the byte the Specification's
+Capabilities layer tabulates for it, alone — `volumes::list`,
+`volumes::stat`, `volumes::read`, `volumes::write`,
+`volumes::filetree` and `volumes::delete` `4`, `volumes::fuse_serve`
+`5`, `volumes::create_capacity` and `volumes::edit_capacity` `1`,
+`volumes::create` `3`, `volumes::edit` `7`.
+
+(e) **The mode objects.** For every Volume mode the Provider holds
+out, the Provider shall send a mode object that holds out no more
+than the mode allows — the `volume_persistent` object with
+`mount_many`, `fuse_serve_many` and `mount_and_fuse_serve` `false` —
+that sends `mount` `true` wherever it sends `mount_many` `true`,
+`fuse_serve` `true` wherever it sends `fuse_serve_many` `true`, and
+both wherever it sends `mount_and_fuse_serve` `true`; shall list to
+no Identity a Volume of a mode it holds out no mode object for; and
+shall decide every hold of a Volume by the mode object for the
+Volume's mode, in the order the Specification's Capabilities layer
+states for a run's Volume Mount, for a FUSE serve, for an operation
+and for a build's context, the first rule that applies deciding, the
+decision and the hold being one act.
 
 ### 5.6 `images::check` (tag 14)
 
 The Provider shall answer every `images::check` request with exactly
-one Response and the Response Finish: the byte `2` alone when the
-request asks for neither of the sources `client` and `registries`,
-and then the Provider shall look nowhere; otherwise the byte `0`
-followed by exactly `{"type":"available"}` when, at the time of the
-answer, at least one source the request asks for has the image the
+one Response and the Response Finish. The sources the Provider has
+are `client`, where it holds out the `images_store` Capability, and
+`registries`, where its `images_registries` is not empty; the
+Provider shall answer the byte `2` alone when the request asks for no
+source the Provider has — neither source, or only sources it has
+not — and then the Provider shall look nowhere. Otherwise the
+Provider shall answer the byte `0` followed by exactly
+`{"type":"available"}` when, at the time of the answer, at least one
+source the request asks for and the Provider has holds the image the
 digest names — `client` being the Client Images of the Identity and
-no other Identity's, and `registries` the referenced registries the
-Provider's policy lists, asked by each reference's name — for a
-container request naming it; the byte `0` followed by exactly
-`{"type":"unavailable"}` when no source asked has it; or the byte `1`
-followed by an error when it did not determine the answer. The
-Provider shall not answer available on account of a source the
-request did not ask for, shall not answer available on account of a
-Client Image of another Identity, and shall not answer available on
+no other Identity's, and `registries` the registries in the
+Provider's `images_registries` that a reference of the request names,
+asked by each reference's name — for a container request naming it;
+the byte `0` followed by exactly `{"type":"unavailable"}` when no such
+source has it; or the byte `1` followed by an error when it did not
+determine the answer. The Provider shall not answer available on
+account of a source the request did not ask for or the Provider has
+not, shall not answer available on account of a Client Image of
+another Identity, shall not consult a registry its
+`images_registries` does not list, and shall not answer available on
 account of an image it holds on its own account, which no request
 can ask for. An available answer reserves nothing.
 
 ### 5.7 Volumes
+
+Every covenant of this Section binds a Provider that holds out at
+least one Volume mode object; a Provider that holds out none shall
+answer every request of the eleven Volume Endpoints as Section 5.5(d)
+provides and is bound by nothing else in this Section.
 
 (a) **Listing.** The Provider shall answer every `volumes::list`
 request with a Scope kept open: first, for every Volume available to
@@ -466,206 +546,213 @@ available as the byte `2` followed by the Volume as the Provider last
 sent it, each sent after the Provider has sent the byte `0` of the
 request that made the change; and the Response Finish when the
 Provider receives the Identity's `stop` Channel request or the
-Identity's Connection ends, or the byte `4` followed by an error and
+Identity's Connection ends, or the byte `5` followed by an error and
 the Response Finish when the Provider cannot list. The listing shall
 contain every Volume the Identity created by `volumes::create` and
 has not deleted by `volumes::delete`; it may contain other Volumes at
 the Provider's discretion, reported as the Provider learns of them;
-every Volume it contains shall be available to the Identity to mount;
-no two Volumes listed at once shall share a name. The Provider shall
-send a Volume as added exactly once while it is listed, as changed
-only while it is listed and only when its `bytes` or `mode` differ
-from what the Provider last sent for it, and as removed exactly once
-and only after it sent the Volume as added; shall report for each
-Volume its `name`, its `bytes`, its `created` and its `mode` as the
-Specification defines them, and nothing more; and shall not end the
-Scope because the Identity has no Volume.
+every Volume it contains shall be available to the Identity to mount
+as the mode object for its mode allows; it shall contain no Volume of
+a mode the Provider holds out no mode object for; no two Volumes
+listed at once shall share a name. The Provider shall send a Volume
+as added exactly once while it is listed, as changed only while it is
+listed and only when its `bytes` or `mode` differ from what the
+Provider last sent for it, and as removed exactly once and only after
+it sent the Volume as added; shall report for each Volume its `name`,
+its `bytes`, its `created` and its `mode` as the Specification
+defines them, and nothing more; and shall not end the Scope because
+the Identity has no Volume.
 
-(b) **Stat.** The Provider shall answer every `volumes::stat` request
-naming a Volume in the Identity's listing with exactly one Response
-carrying the Volume's `name`, `bytes`, `created` and `mode`, its
-`bytes_used`, and its `dirhash` as the Specification defines each, as
-of the time of the Response; and shall answer a name not in the
-listing, or a Volume mounted in a running Container or served under a
-`volumes::serve` or under another `volumes::stat`, a `volumes::read`,
-a `volumes::write`, a `volumes::filetree`, a `volumes::edit` or a
-`volumes::delete` at the time of the request, with an error. The
-Provider shall not examine a Volume that is mounted in a running
-Container or served under a `volumes::serve` at the time of the
-request.
-
-(c) **Reading.** The Provider shall answer every `volumes::read`
-request naming a Volume in the Identity's listing and a path of one
-file in it with the bytes of that file as Responses whose first byte
-is `0`, each of at most `CHUNK_SIZE` bytes, in order, and the Response
-Finish, a file of zero bytes being exactly one such Response of zero
-bytes; or with the Responses sent so far, exactly one Response whose
-first byte is `1` followed by an error, and the Response Finish. The
-Provider shall hold the Volume to itself from the moment it accepts
-the request until the Response Finish, shall refuse every run naming
-the Volume for as long as it holds it, and shall answer a request
-naming a Volume mounted in a running Container or served under a
-`volumes::serve` or held by another `volumes::stat`, `volumes::read`,
-`volumes::write`, `volumes::filetree`, `volumes::edit` or
-`volumes::delete` at the time of the request with an error and nothing
-read. The Provider shall answer a path that is not of the form the
-Specification states, and a path that names no regular file, with an
-error.
-
-(d) **Writing.** The Provider shall answer every `volumes::write`
-request naming a Volume in the Identity's listing and a path of one
-file in it by holding the Volume to itself from the moment it accepts
-the request until the Response Finish, creating every missing
-directory above the file, opening exactly one Channel for the content,
-writing the content the Identity sends on it, putting the file in
-place whole, and answering with exactly one Response, the byte `0`
-only after the file is at the path, or the byte `1` followed by an
-error, and the Response Finish. The Provider shall refuse every run
-naming the Volume for as long as it holds it, and shall answer a
-request naming a Volume mounted in a running Container or served under
-a `volumes::serve` or held by another `volumes::stat`,
+(b) **The hold of an operation.** For every `volumes::stat`,
 `volumes::read`, `volumes::write`, `volumes::filetree`,
-`volumes::edit` or `volumes::delete` at the time of the request with
-the byte `1` followed by an error, opening no Channel. The Provider
-shall leave at the destination either what was there or the whole new
-file, and never a part of the new file, and shall leave the
-destination as it was on any failure, a content Channel that ends in
-an error included. From the moment the Provider sends the byte `0`,
-every `volumes::stat` Response the Provider sends the Identity shall
-report the Volume with the file in place.
-
-(e) **Filetree.** The Provider shall answer every `volumes::filetree`
-request naming a Volume in the Identity's listing and a path of a
-directory in it, the root included, with exactly one Response: the
-byte `0` followed by the entries of that directory, each with
-everything beneath it, as the nodes the Specification's filetree
-defines, every `Directory` with `changes` `0`; or the byte `1`
-followed by an error. The Provider shall hold the Volume to itself
-from the moment it accepts the request until the Response Finish,
-shall refuse every run naming the Volume for as long as it holds it,
-shall send no change after the Response, and shall answer a request
-naming a Volume mounted in a running Container or served under a
-`volumes::serve` or held by another `volumes::stat`, `volumes::read`,
-`volumes::write`, `volumes::filetree`, `volumes::edit` or
-`volumes::delete` at the time of the request, a path that is not of
-the form the Specification states, or a path that names no directory,
+`volumes::edit` and `volumes::delete` request naming a Volume in the
+Identity's listing, the Provider shall hold the Volume to itself from
+the moment it accepts the request until the Response Finish, a
+deletion never giving the hold back; shall refuse every run, every
+FUSE serve and every other operation naming the Volume for as long
+as it holds it; and shall answer a request naming a Volume that is
+held at the time of the request with exactly one Response, alone,
+and the Response Finish, deciding in the order the Specification's
+Capabilities layer states for an operation: the Endpoint's `Held`
+byte where another operation holds the Volume, its `Mounted` byte
+where a running Container holds it, its `FuseServed` byte where a
+FUSE serve holds it — `1`, `2` and `3` respectively for `Mounted`,
+`FuseServed` and `Held` on `volumes::stat`, `volumes::read`,
+`volumes::write`, `volumes::filetree` and `volumes::delete`, and
+`4`, `5` and `6` on `volumes::edit` — changing nothing and, for a
+write, asking for no content. The Provider shall not answer a hold
 with an error.
 
-(f) **Serving.** The Provider shall answer every `volumes::serve`
-request naming a Volume in the Identity's listing with exactly one
-Response: the byte `0` only after it holds the Volume as a running
-Container that mounts it holds it; the byte `1` followed by the name
-of the Volume and the mode it is in as JSON, when the request's
-`mode` is not the Volume's, after holding the Volume and releasing
-it, changing nothing; or the byte `2` followed by an error. The
-Provider shall hold the Volume so from the byte `0` until the
-Response Finish; shall permit any number of `volumes::serve` Scopes
-and running Containers to hold one `ephemeral` or `read_only` Volume
-at once; shall refuse, by the byte `2` followed by an error, a serve
-of a `persistent` Volume that any running Container mounts or
-another serve holds at the time of the request; shall answer a
-`volumes::stat`, `volumes::read`, `volumes::write`,
-`volumes::filetree`, `volumes::edit` or `volumes::delete` naming the
-Volume with an error for as long as it holds it; and shall answer a
-request naming a Volume under one of those six at the time of the
-request with the byte `2` followed by an error. After the byte `0`
-the Provider shall answer every Channel the Client opens on the Scope
-carrying one of the nine FUSE asks, in the form the Specification
-states for a mount's ask of the same tag, with exactly one Channel
-Response and the Channel Response Finish, the answer being what the
-Specification defines for that ask, determined from the Volume as it
-is at the time of the answer: a read of a piece at an offset, a write
-of a piece in place before the answer `ok`, a stat carrying the kind,
-size, mode, owner, group and times the Volume records. The Provider
-shall buffer no content of the Volume on the Client's behalf. For a
-`persistent` Volume the Provider shall make every change it answers
-`ok` in the Volume. For an `ephemeral` Volume the Provider shall set
-aside the request's `overlay_disk` bytes for the serve's life,
-refusing the serve by the byte `2` followed by an error when it
-cannot; shall make every change it answers `ok` in a layer of that
-serve alone, which every later ask of the same serve sees and no
-other serve, Container or request sees; shall keep the layer within
-`overlay_disk` bytes, answering a change that would need more with an
-error and leaving the Volume and the layer as they were while the
-serve continues; and shall discard the layer at the Response Finish,
-leaving the Volume as it was before the serve. For a `read_only`
-Volume the Provider shall answer every write, truncate, setattr,
-removal, rename and mkdir with the byte `2` and shall not change the
-Volume, and shall answer every stat, read and listing as for any
-Volume. On the Client's stop the Provider
-shall answer every ask still open, send the Response Finish, and
-release the Volume; on the close of the Connection it shall release
-the Volume. The Provider shall send nothing on the stop's Channel.
+(c) **Stat.** The Provider shall answer every `volumes::stat` request
+naming a Volume in the Identity's listing that nothing holds with
+exactly one Response carrying the Volume's `name`, `bytes`, `created`
+and `mode`, its `bytes_used`, and its `dirhash` as the Specification
+defines each, as of the time of the Response, after the byte `0`; and
+shall answer a name not in the listing with the byte `5` followed by
+an error.
 
-(g) **Capacity.** The Provider shall answer every
+(d) **Reading.** The Provider shall answer every `volumes::read`
+request naming a Volume in the Identity's listing that nothing holds
+and a path of one file in it with the bytes of that file as Responses
+whose first byte is `0`, each of at most `CHUNK_SIZE` bytes, in order,
+and the Response Finish, a file of zero bytes being exactly one such
+Response of zero bytes; or with the Responses sent so far, exactly one
+Response whose first byte is `5` followed by an error, and the
+Response Finish. The Provider shall answer a name not in the listing,
+a path that is not of the form the Specification states, and a path
+that names no regular file, with the byte `5` followed by an error.
+
+(e) **Writing.** The Provider shall answer every `volumes::write`
+request naming a Volume in the Identity's listing that nothing holds
+and a path of one file in it by creating every missing directory
+above the file, opening exactly one Channel for the content, writing
+the content the Identity sends on it, putting the file in place
+whole, and answering with exactly one Response, the byte `0` only
+after the file is at the path, or the byte `5` followed by an error,
+and the Response Finish. The Provider shall leave at the destination
+either what was there or the whole new file, and never a part of the
+new file, and shall leave the destination as it was on any failure, a
+content Channel that ends in an error included. From the moment the
+Provider sends the byte `0`, every `volumes::stat` Response the
+Provider sends the Identity shall report the Volume with the file in
+place. The Provider shall answer a name not in the listing and a path
+that is not of the form the Specification states with the byte `5`
+followed by an error, opening no Channel.
+
+(f) **Filetree.** The Provider shall answer every `volumes::filetree`
+request naming a Volume in the Identity's listing that nothing holds
+and a path of a directory in it, the root included, with exactly one
+Response: the byte `0` followed by the entries of that directory, each
+with everything beneath it, as the nodes the Specification's filetree
+defines, every `Directory` with `changes` `0`; or the byte `5`
+followed by an error. The Provider shall send no change after the
+Response, and shall answer a name not in the listing, a path that is
+not of the form the Specification states, and a path that names no
+directory, with the byte `5` followed by an error.
+
+(g) **FUSE serving.** The Provider shall answer every
+`volumes::fuse_serve` request naming a Volume in the Identity's
+listing with exactly one Response, deciding in the order the
+Specification's Capabilities layer states for a FUSE serve: the byte
+`4` followed by the name of the Volume and the mode it is in as JSON,
+when the request's `mode` is not the Volume's; the byte `5` alone,
+when the Provider holds out no mode object for the Volume's mode or
+one whose `fuse_serve` is `false`; the byte `3` alone, when an
+operation holds the Volume; the byte `2` alone, when another FUSE
+serve holds the Volume and the mode object's `fuse_serve_many` is
+`false`; the byte `1` alone, when a running Container holds the
+Volume and the mode object's `mount_and_fuse_serve` is `false`; the
+byte `0` alone, only after it holds the Volume as a running Container
+that mounts it holds it; or the byte `6` followed by an error — a
+name not in the listing, an `ephemeral` Volume whose `overlay_disk`
+the Provider cannot set aside, or a Volume it could not open. Every
+refusal changes nothing and holds nothing. The Provider shall hold
+the Volume from the byte `0` until the Response Finish; shall permit
+as many FUSE serves and running Containers to hold the Volume at
+once as the mode object for its mode allows and no more; shall answer
+a `volumes::stat`, `volumes::read`, `volumes::write`,
+`volumes::filetree`, `volumes::edit` or `volumes::delete` naming the
+Volume with that Endpoint's `FuseServed` byte for as long as it holds
+it. After the byte `0` the Provider shall answer every Channel the
+Client opens on the Scope carrying one of the nine FUSE asks, in the
+form the Specification states for a mount's ask of the same tag, with
+exactly one Channel Response and the Channel Response Finish, the
+answer being what the Specification defines for that ask, determined
+from the Volume as it is at the time of the answer: a read of a piece
+at an offset, a write of a piece in place before the answer `ok`, a
+stat carrying the kind, size, mode, owner, group and times the Volume
+records. The Provider shall buffer no content of the Volume on the
+Client's behalf. For a `persistent` Volume the Provider shall make
+every change it answers `ok` in the Volume. For an `ephemeral` Volume
+the Provider shall set aside the request's `overlay_disk` bytes for
+the FUSE serve's life, refusing the FUSE serve by the byte `6`
+followed by an error when it cannot; shall make every change it
+answers `ok` in a layer of that FUSE serve alone, which every later
+ask of the same FUSE serve sees and no other FUSE serve, Container or
+request sees; shall keep the layer within `overlay_disk` bytes,
+answering a change that would need more with an error and leaving the
+Volume and the layer as they were while the FUSE serve continues; and
+shall discard the layer at the Response Finish, leaving the Volume as
+it was before the FUSE serve. For a `read_only` Volume the Provider
+shall answer every write, truncate, setattr, removal, rename and mkdir
+with the byte `2` and shall not change the Volume, and shall answer
+every stat, read and listing as for any Volume. On the Client's stop
+the Provider shall answer every ask still open, send the Response
+Finish, and release the Volume; on the close of the Connection it
+shall release the Volume. The Provider shall send nothing on the
+stop's Channel.
+
+(h) **Capacity.** The Provider shall answer every
 `volumes::create_capacity` request with the largest size in bytes of a
 Volume the Identity could create at the time of the Response, and
 every `volumes::edit_capacity` request naming a Volume in the
 Identity's listing with the number of bytes by which that Volume's
 size could be increased at the time of the Response, each as a
-postcard varint after the byte `0`, or an error after the byte `1`.
+postcard varint after the byte `0`, or an error after the byte `2`.
 Neither answer reserves anything.
 
-(h) **Creation.** The Provider shall answer every `volumes::create`
-request with exactly one Response: the byte `0` only after a Volume
-of the stated name, size and mode exists for the Identity; the
-byte `1` when
-the Provider cannot reserve the size stated; or the byte `2` followed
-by an error for any other reason. From the moment the Provider sends
-the byte `0`, every listing the Provider opens for the Identity shall
-contain the Volume, and every listing it holds open for the Identity
-shall tell the Volume as added, until it is deleted. A Volume shall be created
-empty, and the Provider shall not write to, remove from, or otherwise
-alter the content of a Volume on its own account: only a Container in
-which the Identity mounts the Volume changes its content. The
-Provider shall refuse, by the byte `2`, a creation whose name is
-already in the Identity's listing.
+(i) **Creation.** The Provider shall answer every `volumes::create`
+request with exactly one Response: the byte `2` alone when it holds
+out no mode object for the request's `mode`, before anything is
+reserved; the byte `0` only after a Volume of the stated name, size
+and mode exists for the Identity; the byte `1` when the Provider
+cannot reserve the size stated; or the byte `4` followed by an error
+for any other reason. From the moment the Provider sends the byte
+`0`, every listing the Provider opens for the Identity shall contain
+the Volume, and every listing it holds open for the Identity shall
+tell the Volume as added, until it is deleted. A Volume shall be
+created empty, and the Provider shall not write to, remove from, or
+otherwise alter the content of a Volume on its own account: only a
+Container in which the Identity mounts the Volume changes its
+content. The Provider shall refuse, by the byte `4`, a creation whose
+name is already in the Identity's listing.
 
-(i) **Editing.** The Provider shall answer every `volumes::edit`
+(j) **Editing.** The Provider shall answer every `volumes::edit`
 request naming a Volume in the Identity's listing with exactly one
-Response: the byte `0` only after the Volume has what the request's
-change states, its size, its mode, or both; the byte `1` when
-the Provider cannot reserve the size stated; the byte `2` when the
-content of the Volume exceeds the size stated; or the byte `3`
-followed by an error for any other reason. A change that states a size
-and a mode is one edit: the Provider shall not change the mode of a
-Volume whose size it refuses. The Provider shall not change the size
-or the mode of a Volume that is mounted in a
-running Container or served under a `volumes::serve` at the time of
-the request, and shall answer a request naming one, or naming a Volume
-under a `volumes::stat`, another `volumes::edit` or a
-`volumes::delete` at the time of the request, with the byte `3`
-followed by an error. The size and the mode are the only properties
-an edit changes. From the moment the Provider sends the byte `0`,
-every listing the Provider opens for the Identity and every stat it
-sends the Identity shall report the new size and the new mode, every
+Response: the byte `3` alone when the request's change states a mode,
+as `Mode` or as `Both`, for which the Provider holds out no mode
+object, before the Volume is held; a hold as Section 5.7(b) provides;
+the byte `0` only after the Volume has what the request's change
+states, its size, its mode, or both; the byte `1` when the Provider
+cannot reserve the size stated; the byte `2` when the content of the
+Volume exceeds the size stated; or the byte `8` followed by an error
+for any other reason. A change that states a size and a mode is one
+edit: the Provider shall not change the mode of a Volume whose size
+it refuses. The size and the mode are the only properties an edit
+changes. From the moment the Provider sends the byte `0`, every
+listing the Provider opens for the Identity and every stat it sends
+the Identity shall report the new size and the new mode, every
 listing it holds open for the Identity shall tell the Volume as
-changed, and every Container in which
-the Identity mounts the Volume after that moment, and every serve of
-it after that moment, shall be bound under the new mode.
+changed, and every Container in which the Identity mounts the Volume
+after that moment, and every FUSE serve of it after that moment,
+shall be bound under the new mode.
 
-(j) **Deletion.** The Provider shall answer every `volumes::delete`
+(k) **Deletion.** The Provider shall answer every `volumes::delete`
 request naming a Volume in the Identity's listing with exactly one
-Response: the byte `0` only after the Volume no longer exists; the
-byte `1` when the Volume is mounted in a running Container or served
-under a `volumes::serve`, or under a `volumes::stat`, a
-`volumes::edit` or another `volumes::delete`, at the time of the
-request; or the byte `2` followed by an error for any other reason.
-The Provider shall not delete a Volume that is mounted in a running
-Container at the time of the request. From the moment the Provider
-sends the byte `0`, every listing the Provider opens for the Identity
-shall omit the Volume, every listing it holds open for the Identity
-that told the Volume as added shall tell it as removed, and no listing
-shall tell as available a Volume that has been deleted. An error shall
-leave the Volume, its content and the listing as they were.
+Response: a hold as Section 5.7(b) provides; the byte `0` only after
+the Volume no longer exists; or the byte `5` followed by an error for
+any other reason. The Provider shall not delete a Volume that
+anything holds at the time of the request. From the moment the
+Provider sends the byte `0`, every listing the Provider opens for the
+Identity shall omit the Volume, every listing it holds open for the
+Identity that told the Volume as added shall tell it as removed, and
+no listing shall tell as available a Volume that has been deleted. A
+refusal and an error shall leave the Volume, its content and the
+listing as they were.
 
-(k) **Identity of the Volume namespace.** The Provider shall resolve
+(l) **Identity of the Volume namespace.** The Provider shall resolve
 every Volume name against the Identity of the Connection on which it
 is named and against no other. A Client shall not be able to name,
-mount, stat, read, write, walk, serve, edit or delete a Volume of
-another Identity.
+mount, stat, read, write, walk, FUSE serve, edit or delete a Volume
+of another Identity.
 
 ### 5.8 Client Images
+
+Every covenant of this Section but (f) binds a Provider that holds out
+the `images_store` Capability; a Provider that does not shall answer
+every `images::list`, `images::stat`, `images::build`, `images::delete`
+and `images::oci` request as Section 5.5(d) provides, holds no Client
+Image for any Identity, and is bound by nothing else in this Section.
 
 (a) **Listing.** The Provider shall answer every `images::list`
 request with a Scope kept open: first, for every Client Image of the
@@ -677,7 +764,7 @@ Client Image the Identity builds, and exactly one Response of the
 byte `1` followed by each Client Image the Identity deletes, each
 after the Provider has answered the build or the deletion; and the
 Response Finish when the Identity's stop arrives, the Connection
-ends, or exactly one Response of the byte `3` followed by an error
+ends, or exactly one Response of the byte `4` followed by an error
 has been sent. The Provider shall not end the Scope because the
 Identity has no Client Image, and shall send no Response of the byte
 `1` before the byte `2`.
@@ -687,8 +774,8 @@ naming a Client Image of the Identity with exactly one Response and
 the Response Finish: the byte `0` followed by the image as the
 listing reports it and the Containerfile it was built from,
 verbatim, in the postcard form the Specification states; or the byte
-`1` followed by an error. It shall answer a request naming no Client
-Image of the Identity with the byte `1` followed by an error.
+`2` followed by an error. It shall answer a request naming no Client
+Image of the Identity with the byte `2` followed by an error.
 
 (c) **Build.** The Provider shall answer every `images::build`
 request with zero or more Responses of the byte `0`, each followed by
@@ -697,28 +784,32 @@ tool wrote them; then exactly one Response and the Response Finish:
 the byte `1` followed by the digest and the size of the image only
 after a Client Image of the stated name exists for the Identity; the
 byte `2` alone when the Provider's store has no room for the image,
-and then nothing exists; or the byte `3` followed by an error for any
+and then nothing exists; the byte `3` alone, with no output before
+it, when the Volume the request names as its context is held as the
+Specification's Capabilities layer states for a build's context, and
+then nothing exists; or the byte `5` followed by an error for any
 other reason, and then nothing exists. From the moment the Provider
 sends the byte `1`, every listing the Provider opens for the Identity
 shall contain the image, and every listing it holds open for the
 Identity shall tell the image as added, until it is deleted. The
-Provider shall refuse, by the byte `3`, a build whose name is already
+Provider shall refuse, by the byte `5`, a build whose name is already
 in the Identity's listing. Where the request names a context, the
 Provider shall resolve the Volume named against the Identity, shall
 hold it for the duration of the build as a running Container that
-mounts it holds it, shall read the directory named and write nothing
-into it, and shall refuse the build by the byte `3` where the Volume
-is not in the Identity's listing, where the path is not one of names,
-or where the hold cannot be taken. The Provider shall not remove a
-Client Image on its own account: a Client Image exists until the
-Identity deletes it.
+mounts it holds it, under the mode object the Provider holds out for
+the Volume's mode, shall read the directory named and write nothing
+into it, and shall refuse the build by the byte `5` where the Volume
+is not in the Identity's listing or where the path is not one of
+names, and by the byte `3` where the hold cannot be taken. The
+Provider shall not remove a Client Image on its own account: a Client
+Image exists until the Identity deletes it.
 
 (d) **Deletion.** The Provider shall answer every `images::delete`
 request naming a Client Image of the Identity with exactly one
 Response and the Response Finish: the byte `0` only after the image
 no longer exists; the byte `1` when a running Container of the
 Identity runs the image at the time of the request, and then nothing
-changed; or the byte `2` followed by an error for any other reason.
+changed; or the byte `3` followed by an error for any other reason.
 From the moment the Provider sends the byte `0`, every listing the
 Provider opens for the Identity shall omit the image, and every
 listing it holds open for the Identity that told the image as added
@@ -737,7 +828,8 @@ what the Provider holds under Section 5.9(b) — and shall not supply
 a Client Image to any other Identity under either Section, unless
 that Identity has itself built an image of the same digest.
 
-(f) **Pull.** The Provider shall serve every `images::oci` request
+(f) **Pull.** The Provider shall, where it holds out the
+`images_store` Capability, serve every `images::oci` request
 as a Scope kept open on which it sends no Response, and shall answer
 every Channel the Identity opens on it from what it holds for the
 Identity — the Client Images of the Identity, each byte for byte as
@@ -759,7 +851,10 @@ shall end the Scope by the Response Finish, after the last answer of
 every Channel still open, when it receives the Identity's
 `disconnect` and when the Identity's Connection ends, and shall send
 the Response Finish with no Response before it, serving no Channel,
-for a pull it will not serve.
+for a pull it will not serve. A Provider that does not hold out the
+`images_store` Capability shall answer every `images::oci` request
+with exactly one Response on the main stream, the byte `0` alone, and
+the Response Finish, and shall answer no Channel on the Scope.
 
 ### 5.9 Container Deployment — `containers::agents::run` (tag 0) and `containers::tools::run` (tag 1)
 
@@ -774,29 +869,31 @@ Finish, a request that names a Volume not in the Identity's listing;
 a mount whose path is the root of the Container; two mounts with one
 path; a mount inside another mount; two FUSE mounts with one
 `id`; a mount path with a component that is empty, `.` or `..`; or an
-image the Provider will not supply. The Provider shall
-hold every Volume a run request names in `volume_mounts` from the
-moment it accepts the request until the run ends, and shall answer a
-request that names a Volume under a `volumes::stat`, a `volumes::edit`
-or a `volumes::delete` at the time of the request by exactly one
-Response, the byte `1` followed by the name of that Volume as JSON,
-and the Response Finish, fetching nothing and deploying nothing for
-it. An `ephemeral` or a `read_only` Volume may be mounted in any
-number of Containers of its Identity at once. A `persistent` Volume
-has one user at a time: the Provider shall answer a request naming a
-`persistent` Volume that a running Container mounts or a
-`volumes::serve` holds at the time of the request as it answers one
-naming a Volume under a `volumes::stat`, by the byte `1` followed by
-the name. A request that names one Volume more than once mounts it at
-each path named and is one user of it. Every Volume Mount states the
-`mode` it means the Volume to have: the Provider shall, after holding
-a Volume, compare the Volume's mode with the `mode` of every mount
-naming it, and shall answer a request naming a Volume under a `mode`
-the Volume is not in, or under two modes, by exactly one Response,
-the byte `2` followed by the name of that Volume and the mode it is
-in as JSON, and the Response Finish, releasing every Volume held for
-the request, fetching nothing, deploying nothing, and changing no
-Volume's mode.
+image the Provider will not supply. It shall then answer by exactly
+one Response, the byte `6` alone, and the Response Finish, a request
+with an entry in `fuse_file_mounts` or `fuse_directory_mounts` where
+the Provider does not hold out the `containers_fuse_mount`
+Capability, holding no Volume. It shall then decide, for each distinct
+Volume the request names in `volume_mounts`, in the order first
+named and in the order the Specification's Capabilities layer states
+for a run's Volume Mount, the first rule that applies deciding, and
+shall answer by exactly one Response and the Response Finish — the
+byte `5` followed by the name of the Volume and the mode it is in as
+JSON, where the Volume's mode is not the `mode` of every mount naming
+it; the byte `4` followed by the name as JSON, where the Provider
+holds out no mode object for the Volume's mode or one whose `mount`
+is `false`; the byte `1` followed by the name as JSON, where an
+operation holds the Volume; the byte `2` followed by the name as
+JSON, where a running Container holds the Volume and the mode
+object's `mount_many` is `false`; the byte `3` followed by the name
+as JSON, where a FUSE serve holds the Volume and the mode object's
+`mount_and_fuse_serve` is `false` — releasing every Volume held for
+the request, fetching nothing, deploying nothing and changing no
+Volume's mode; and otherwise shall hold the Volume, as a running
+Container holds it, from that moment until the run ends. A request
+that names one Volume more than once mounts it at each path named
+and is one running Container holding it. The Provider shall not
+answer any refusal of this paragraph with an error.
 
 (b) **Obtain the image.** The Provider shall obtain the image the
 digest names, from what it holds — among which every Client Image of
@@ -846,7 +943,9 @@ Container that did not come up: the Provider shall stop the Container
 and treat the failure as the run's error. The Provider shall open no
 second connection to a Container.
 
-(e) **Make every FUSE Mount.** For each entry of `fuse_file_mounts`,
+(e) **Make every FUSE Mount.** Where the Provider holds out the
+`containers_fuse_mount` Capability — the only Provider that reaches
+this step with a FUSE Mount to make — for each entry of `fuse_file_mounts`,
 and after the last of them for each entry of `fuse_directory_mounts`,
 in the order of the request, the Provider shall open one mount Scope
 on the Proxy's connection, naming the path and the kind, and shall
@@ -884,7 +983,7 @@ error, and the Provider shall stop the Container.
 (h) **Deploy the dependencies.** On a `containers::agents::run`
 Scope, the Provider shall choose the id of (i) before this step and
 shall enter the Container among those it runs, so that a
-`containers::serve` request naming the id is answered from this step
+`containers::fuse_serve` request naming the id is answered from this step
 on; the Provider shall list the Container to nobody.
 When the Proxy's answer to the begin Scope carries one or more
 dependency tool templates, the Provider shall open exactly one
@@ -903,17 +1002,18 @@ dependencies, and its begin's answer carries none.
 among the Containers it is running and not derivable from the
 request, from the Identity, or from any other id, and the Provider
 shall send it as exactly one Response, the same id the `dependencies`
-Channel carried; a run refused for a held Volume has the byte `1`
-and the name as its only Response, and a run refused for a Volume in
-another mode has the byte `2`
-and the name as its only Response, and a run that fails has the error
-as its only Response. From that moment the Container is running for
-the Client and shall be findable by a `containers::serve` request of
+Channel carried; a run refused under paragraph (a) has the refusal
+there stated — the byte `1`, `2`, `3`, `4` or `5` followed by the name
+of the Volume, or the byte `6` alone — as its only Response, and a run
+that fails has the error, the byte `7` followed by it, as its only
+Response. From that moment the Container is running for
+the Client and shall be findable by a `containers::fuse_serve` request of
 the Client's naming the id. After the id the Provider shall send, for
 a tool container, no other Response; and, for an agent container,
 every chunk the Proxy sends on the begin Scope's main stream as one
-Response, the byte `4` followed by the chunk verbatim, in the order
-the Proxy sent them, and no other Response.
+Response, the byte `8` followed by the chunk verbatim, in the order
+the Proxy sent them, bracketed by the byte `9` before each loop and
+the byte `10` after it, and no other Response.
 
 (j) **Serve the Scope.** For as long as the Scope lives, and
 concurrently, the Provider shall relay every Channel the Proxy opens
@@ -991,25 +1091,28 @@ answer the Client's Channel with exactly one Channel Response,
 transferred or an error, after the named Container's Proxy has
 answered. The Provider shall send nothing of the file to the Client.
 
-### 5.11 `containers::serve` (tag 2)
+### 5.11 `containers::fuse_serve` (tag 2)
 
-For every serve request, the Provider shall, in order: (a) read the
-request and answer a payload that does not decode by a Bare Finish;
+For every FUSE serve request, the Provider shall, in order: (a) read
+the request and answer a payload that does not decode by a Bare
+Finish, and, where it does not hold out the `containers_fuse_serve`
+Capability, answer by exactly one Response, the byte `1` alone, and
+the Response Finish, looking nothing up and serving no Channel;
 (b) look the `id` up among the Containers it is running whose Runner
 is the Identity of the Connection, and answer an id that names none —
 no Container at all, or one the Identity does not run — by exactly
-one Response, the byte `1`
+one Response, the byte `2`
 followed by exactly `{"kind":"missing"}`, and the Response Finish;
-(c) open exactly one `filesystem::serve` Scope on the Container's
+(c) open exactly one `filesystem::fuse_serve` Scope on the Container's
 Proxy carrying the request's `path` verbatim, and answer the Proxy's
-error by exactly one Response, the byte `1` followed by that error
+error by exactly one Response, the byte `2` followed by that error
 verbatim, and the Response Finish, and a Proxy that cannot be reached
-by exactly one Response, the byte `1` followed by an error, and the
+by exactly one Response, the byte `2` followed by an error, and the
 Response Finish; (d) answer exactly one Response, the byte `0` and
 nothing else, only after the Proxy has answered its byte `0`; (e) for
 the life of the Scope, relay every Channel the Client opens on it —
 each of the nine asks, and each filetree — as exactly one Channel on
-the `filesystem::serve` Scope carrying the bytes of the Client's
+the `filesystem::fuse_serve` Scope carrying the bytes of the Client's
 Channel Request verbatim, and relay every Channel Response of the
 Proxy on that Channel as a Channel Response on the Client's Channel,
 byte for byte, in order, and the Proxy's Channel Response Finish as
@@ -1017,12 +1120,13 @@ the Client's Channel Response Finish, answering a Channel Request that
 does not decode by a Bare Finish; (f) end the Scope by the Response
 Finish, after the last answer, when it receives the Client's `stop`
 Channel request, when the Client's Connection ends, and when the run
-of the Container ends, stopping the `filesystem::serve` Scope on the
-Proxy and holding and releasing nothing of the Container. The Provider
-shall serve a Container of either family alike, shall serve any number
-of serve Scopes of one Container at once, shall hold no Volume and no
-mount on account of a serve, shall time nothing out, and shall send
-nothing on the main stream of a serve Scope after the byte `0`.
+of the Container ends, stopping the `filesystem::fuse_serve` Scope on
+the Proxy and holding and releasing nothing of the Container. The
+Provider shall serve a Container of either family alike, shall serve
+any number of FUSE serve Scopes of one Container at once, shall hold
+no Volume and no mount on account of a FUSE serve, shall time nothing
+out, and shall send nothing on the main stream of a FUSE serve Scope
+after the byte `0`.
 
 ### 5.12 Daemon connections — `daemons::accept` (tag 21) and `daemons::connect` (tag 22)
 
@@ -1087,9 +1191,9 @@ its own account, whether a change to a FUSE Mount is allowed being the
 Client's answer to that ask, and whether a change to a served
 Container is made being the Proxy's answer to that ask; (b) write to
 a Volume, a mount or a Container on its own account, a `volumes::write`
-request of the Identity, a write a `volumes::serve` ask of the
+request of the Identity, a write a `volumes::fuse_serve` ask of the
 Identity directs, a `write` the Identity opens on a run, and a write
-a `containers::serve` ask of the Identity directs, being
+a `containers::fuse_serve` ask of the Identity directs, being
 on the Identity's account; (c) send a second id on a run Scope; (d) send an error on
 the main stream of a run Scope after the id; (e) retry any ask; (f)
 read, inspect, parse, log the content of, or act upon the content of
@@ -1123,7 +1227,7 @@ Scope's mount before answering it and holds every mount for its life,
 asking for what the mount needs on channels of that Scope; that
 leaves out of every filetree the paths the tree Scope's request names
 and `/proc`, `/sys` and `/dev`; that serves a directory of the
-Container live on a `filesystem::serve` Scope, answering the nine
+Container live on a `filesystem::fuse_serve` Scope, answering the nine
 asks from the Container's filesystem, every change in place and none
 refused on its own account, and every filetree of the Scope with the
 directory's tree and every change in it, under `/proc`, `/sys` and

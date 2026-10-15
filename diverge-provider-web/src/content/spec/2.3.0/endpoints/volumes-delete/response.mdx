@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the volume no longer exists, exactly the byte 1 when the volume is mounted and was not deleted, or the byte 2 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the volume no longer exists; exactly the byte 1, 2 or 3 when a running container, a FUSE serve or an operation holds the volume and it was not deleted; exactly the byte 4 when the server keeps no volume; or the byte 5 followed by an error as one JSON value; and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -9,9 +9,12 @@ The server sends exactly one response on the scope. The response
 finish follows the response, and no frame follows the finish.
 
 ```text
-[0]
-[1]
-[2][error JSON …]
+[0]                  deleted
+[1]                  not deleted: a running container holds the volume
+[2]                  not deleted: a FUSE serve holds the volume
+[3]                  not deleted: another operation holds the volume
+[4]                  not deleted: the server keeps no volume
+[5][error JSON …]    not deleted
 ```
 
 - **The sequence.** Exactly one response precedes the response
@@ -27,27 +30,44 @@ finish follows the response, and no frame follows the finish.
   client holds open that was sent the volume as added is sent it as
   removed: a listing the client reads as whole after receiving the
   byte `0` never contains it, and no interval in which the volume is
-  deleted and still listed as available exists.
-  The server sends nothing
-  after the byte `0`, and a client ignores every byte that follows
-  it.
-- **Mounted.** A payload whose first byte is `1` states that the
-  volume is mounted in a running container, or is under a stat, an
-  edit or another delete, at the time of the request, and was not
-  deleted. The volume, its content, and the client's
-  listing are as they were before the request. The server sends
-  nothing after the byte `1`, and a client ignores every byte that
+  deleted and still listed as available exists. The server sends
+  nothing after the byte `0`, and a client ignores every byte that
   follows it.
-- **The error.** A payload whose first byte is `2` carries an error
+- **The refusals, and their order.** The server decides the bytes
+  `1`, `2` and `3` in the order [Capabilities](/capabilities/#the-hold)
+  states for an operation, the first rule that applies deciding. On
+  a server that keeps no volume, the byte `4` is the only response,
+  sent before anything is looked up. Every refusal states that the
+  volume was not deleted: the volume, its content, and the client's
+  listing are as they were before the request. A client ignores
+  every byte that follows the byte `1`, `2`, `3` or `4`.
+- **Mounted.** A payload that is the byte `1` and nothing else states
+  that a running container of the client holds the volume at the
+  time of the request.
+- **FUSE served.** A payload that is the byte `2` and nothing else
+  states that a [volumes::fuse_serve](/endpoints/volumes-fuse-serve/)
+  of the client holds the volume at the time of the request.
+- **Held.** A payload that is the byte `3` and nothing else states
+  that the volume is under a [volumes::stat](/endpoints/volumes-stat/),
+  a [volumes::read](/endpoints/volumes-read/), a
+  [volumes::write](/endpoints/volumes-write/), a
+  [volumes::filetree](/endpoints/volumes-filetree/), a
+  [volumes::edit](/endpoints/volumes-edit/) or another
+  `volumes::delete` at the time of the request.
+- **Unsupported.** A payload that is the byte `4` and nothing else
+  states that the server holds out none of the three mode objects
+  and keeps no volume, as [Capabilities](/capabilities/#the-volume-modes)
+  provides.
+- **The error.** A payload whose first byte is `5` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content. The error
   states that the volume exists as a result of the request, as it
-  did before it, and that the reason is not a mount.
+  did before it, and that the reason is none of the refusals above.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0`, `1` and `2`, and a payload whose bytes after `2` are
-  not one JSON value are malformed.
+  is none of `0` to `5`, and a payload whose bytes after `5` are not
+  one JSON value are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/delete/server/response/frame.rs`:
 

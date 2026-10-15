@@ -40,20 +40,33 @@ read scope.
   responses concatenated are the whole file as it was at the time of
   the request. [Response](/endpoints/volumes-read/response/) states
   the sequence.
-- **A mounted volume is not read.** The server does not read a file out of a
-  volume that is mounted in any running container, or served on any
-  [volumes::serve](/endpoints/volumes-serve/) scope, at the time of the request — a volume may be mounted or
-  served in several at once — or that is
-  under a stat, a read, a write, a filetree, an edit or a delete. A
-  request naming such a volume is answered with an error, and nothing is read. A
-  client that needs the file stops every container that has it, or
-  waits for their end, and sends another request. The server holds
-  the volume to itself from the moment it accepts the request until
-  the finish, and a run naming the volume is refused for as long as
-  it does.
+- **A held volume is not read.** The server does not read a file out of a
+  volume that a running container of the client holds, that a
+  [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) of the
+  client holds, or that is under a
+  [volumes::stat](/endpoints/volumes-stat/),
+  [volumes::read](/endpoints/volumes-read/),
+  [volumes::write](/endpoints/volumes-write/),
+  [volumes::filetree](/endpoints/volumes-filetree/),
+  [volumes::edit](/endpoints/volumes-edit/) or
+  [volumes::delete](/endpoints/volumes-delete/), at the time of the
+  request. A request naming such a volume is answered with the
+  refusal the [response](/endpoints/volumes-read/response/) states for who holds it —
+  `Mounted`, `FuseServed` or `Held` — decided in the order
+  [Capabilities](/capabilities/#the-hold) states for an operation,
+  and nothing is changed. The server holds the volume to itself from
+  the moment it accepts the request until the response finish, and
+  a run, a FUSE serve or another operation naming the volume is
+  refused for as long as it does.
 - **The error.** An error states that the file was not read, or not
-  all of it. A volume absent from the client's listing, a volume
-  mounted in a running container or served at the time of the
-  request, a path
-  that is not of the stated form, and a path that names no regular
-  file are each answered with an error.
+  all of it. A volume absent from the client's listing, a path that
+  is not of the stated form, and a path that names no regular file
+  are each answered with an error. A volume that something holds is
+  answered with the refusal the response states, which is not an
+  error.
+- **No volume at all.** A server that holds out none of the three
+  mode objects of [Capabilities](/capabilities/#the-volume-modes)
+  keeps no volume and answers every request of this endpoint with
+  exactly one response, the byte `4` alone, and the response
+  finish, before anything is looked up. Every other requirement of
+  this page holds for a server that keeps volumes.

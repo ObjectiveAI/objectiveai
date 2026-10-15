@@ -7,7 +7,8 @@ draft: false
 
 A client opens the scope with a request whose payload is the tag byte
 `16` followed by the name of an image. The server sends exactly one
-response, which is either the image examined or an error. The
+response, which is the image examined, the word that the server
+keeps no client image, or an error. The
 response finish follows the response, and no frame follows the
 finish.
 
@@ -25,3 +26,9 @@ finish.
 - **The error.** An error states that the image was not examined, and
   that nothing was determined about it. An image absent from the
   client's listing is answered with an error.
+- **No image store.** A server that holds out no
+  [`images_store`](/capabilities/#images_store) capability keeps no
+  client image and answers every request of this endpoint with
+  exactly one response, the byte `1` alone, and the response
+  finish, before anything is looked up. Every other requirement of
+  this page holds for a server that holds the capability out.

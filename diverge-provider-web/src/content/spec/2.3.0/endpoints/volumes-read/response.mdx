@@ -1,43 +1,70 @@
 ---
 title: 'Response'
-summary: 'The server sends the bytes of the file as responses whose first byte is 0, each at most CHUNK_SIZE bytes, and the finish; a file of zero bytes is one empty response; a response whose first byte is 1 carries an error and is the last.'
+summary: 'The server sends the bytes of the file as responses whose first byte is 0, each at most CHUNK_SIZE bytes, and the finish; a file of zero bytes is one empty response; the byte 1, 2 or 3 alone, when a running container, a FUSE serve or an operation holds the volume, or the byte 4 alone, when the server keeps no volume, is the only response; a response whose first byte is 5 carries an error and is the last.'
 order: 2
 draft: false
 ---
 
 ```text
 [0][bytes …]         a piece of the file
-[1][error JSON …]    the file was not read, or not all of it
+[1]                  not read: a running container holds the volume
+[2]                  not read: a FUSE serve holds the volume
+[3]                  not read: another operation holds the volume
+[4]                  not read: the server keeps no volume
+[5][error JSON …]    the file was not read, or not all of it
 ```
 
 - **The sequence.** Zero or more responses whose first byte is `0`,
   each a piece of the file in order, followed by the response finish;
   or the responses sent so far, exactly one response whose first byte
-  is `1`, and the response finish. A file of zero bytes is exactly
-  one response whose first byte is `0` and nothing after it. A
-  response finish that no response precedes states that the request
-  was not served, as [Endpoints](/endpoints/) provides.
+  is `5`, and the response finish; or exactly one response whose
+  payload is the byte `1`, `2`, `3` or `4` and nothing else, and the
+  response finish. A file of zero bytes is exactly one response whose
+  first byte is `0` and nothing after it. A response finish that no
+  response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides.
 - **The piece.** After the byte `0`, the bytes of the piece,
   verbatim, running to the end of the payload. Each piece is at most
   `CHUNK_SIZE` bytes, `2 * 1024 * 1024`, the constant
   `diverge-sdk-rs/src/lib.rs` defines; the pieces concatenated are the file, and a
   receiver measures none.
-- **The error.** A payload whose first byte is `1` carries an error
+- **The refusals, and their order.** The server decides the bytes
+  `1`, `2` and `3` in the order [Capabilities](/capabilities/#the-hold)
+  states for an operation, the first rule that applies deciding, and
+  sends the one that applies before any piece. On a server that
+  keeps no volume, the byte `4` is the only response, sent before
+  anything is looked up. Every refusal states that nothing was read
+  and that nothing changed. A client ignores every byte that follows
+  the byte `1`, `2`, `3` or `4`.
+- **Mounted.** A payload that is the byte `1` and nothing else states
+  that a running container of the client holds the volume at the
+  time of the request.
+- **FUSE served.** A payload that is the byte `2` and nothing else
+  states that a [volumes::fuse_serve](/endpoints/volumes-fuse-serve/)
+  of the client holds the volume at the time of the request.
+- **Held.** A payload that is the byte `3` and nothing else states
+  that the volume is under a [volumes::stat](/endpoints/volumes-stat/),
+  another `volumes::read`, a
+  [volumes::write](/endpoints/volumes-write/), a
+  [volumes::filetree](/endpoints/volumes-filetree/), a
+  [volumes::edit](/endpoints/volumes-edit/) or a
+  [volumes::delete](/endpoints/volumes-delete/) at the time of the
+  request.
+- **Unsupported.** A payload that is the byte `4` and nothing else
+  states that the server holds out none of the three mode objects
+  and keeps no volume, as [Capabilities](/capabilities/#the-volume-modes)
+  provides.
+- **The error.** A payload whose first byte is `5` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content. The error is
   the last response of the scope.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, and a payload whose bytes after `1` are not
+  is none of `0` to `5`, and a payload whose bytes after `5` are not
   one JSON value are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/read/server/response/frame.rs`:
 
 ```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/read/server/response/frame.rs
-```
-
-and by `diverge-sdk-rs/src/shared/containers/read/response/frame.rs`:
-
-```rust include=diverge-sdk-rs/src/shared/containers/read/response/frame.rs
 ```
