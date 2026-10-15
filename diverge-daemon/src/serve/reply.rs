@@ -48,3 +48,15 @@ pub fn no_source(what: &str) -> Error {
         "error": what,
     }))
 }
+
+/// The wire's error for a patch the daemon could not apply, or whose
+/// result is not what the record may be: one shape,
+/// `{"kind":"patch","error":…}`, naming the operation and the place,
+/// or the member the result got wrong. Nothing changed.
+pub fn patch(what: &str) -> Error {
+    Error(serde_json::json!({
+        "kind": "patch",
+        "error": what,
+    }))
+}
+

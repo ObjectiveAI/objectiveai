@@ -1,7 +1,6 @@
-//! Editing an agent.
+//! Editing an agent: a patch to its name and its mounts.
 
-use diverge_sdk::daemon::edit::Change;
-use diverge_sdk::daemon::endpoints::agents::edit::client::request;
+use diverge_sdk::daemon::endpoints::agents::edit::client::request::{self, Editable};
 use diverge_sdk::daemon::endpoints::agents::edit::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -24,11 +23,13 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `edit` grant at all; `NotFound`; `Forbidden`
-/// for an agent the grants do not reach; `Active` for a change of any
-/// mount list while a loop runs; the error for a provider that is not
+/// for an agent the grants do not reach; the `patch` error for a
+/// patch that could not be applied or a result that is not an agent's
+/// editable members; `Active` for a result differing in any mount
+/// list while a loop runs; the error for a provider that is not
 /// there, or volumes named on an agent pinned to no provider; `InUse`
-/// for a name another agent has; else the agent as the request
-/// states, whole or not at all.
+/// for a name another agent has; else the agent as the result states,
+/// whole or not at all.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -44,51 +45,41 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::agents::over(&standing, Over::Edit, &agent, active) {
         return Ok(Frame::Forbidden);
     }
-    let edit = frame.edit;
-    let mounts_named = edit.volume_mounts.is_some() || edit.fuse_file_mounts.is_some() || edit.fuse_directory_mounts.is_some();
-    if mounts_named && active {
+    let current = Editable {
+        name: agent.name.clone(),
+        volume_mounts: agent.provider.as_ref().map(|provider| provider.volume_mounts.clone()).unwrap_or_default(),
+        fuse_file_mounts: agent.fuse_file_mounts.clone(),
+        fuse_directory_mounts: agent.fuse_directory_mounts.clone(),
+    };
+    let result = match inner::patched(&current, &frame.patch) {
+        Ok(result) => result,
+        Err(what) => return Ok(Frame::Error(reply::patch(&what))),
+    };
+    let mounts_changed = result.volume_mounts != current.volume_mounts
+        || result.fuse_file_mounts != current.fuse_file_mounts
+        || result.fuse_directory_mounts != current.fuse_directory_mounts;
+    if mounts_changed && active {
         return Ok(Frame::Active);
     }
-    let name = match edit.name {
-        None => agent.name.clone(),
-        Some(Change::Delete) => None,
-        Some(Change::Set(name)) => Some(name),
-    };
-    let provider = match edit.volume_mounts {
-        None => agent.provider.clone(),
-        Some(change) => match agent.provider.clone() {
-            Some(mut provider) => {
-                provider.volume_mounts = match change {
-                    Change::Delete => Vec::new(),
-                    Change::Set(volume_mounts) => volume_mounts,
-                };
-                Some(provider)
+    let provider = match agent.provider.clone() {
+        Some(mut provider) => {
+            provider.volume_mounts = result.volume_mounts;
+            Some(provider)
+        }
+        None => {
+            if !result.volume_mounts.is_empty() {
+                return Ok(Frame::Error(reply::failure(&"the agent is pinned to no provider, so no volume of one can be mounted")));
             }
-            None => {
-                if matches!(change, Change::Set(ref mounts) if !mounts.is_empty()) {
-                    return Ok(Frame::Error(reply::failure(&"the agent is pinned to no provider, so no volume of one can be mounted")));
-                }
-                None
-            }
-        },
+            None
+        }
     };
-    let fuse_file_mounts = match edit.fuse_file_mounts {
-        None => agent.fuse_file_mounts.clone(),
-        Some(Change::Delete) => Vec::new(),
-        Some(Change::Set(mounts)) => mounts,
-    };
-    let fuse_directory_mounts = match edit.fuse_directory_mounts {
-        None => agent.fuse_directory_mounts.clone(),
-        Some(Change::Delete) => Vec::new(),
-        Some(Change::Set(mounts)) => mounts,
-    };
-    if mounts_named {
-        match inner::providers(&mut tx, provider.as_ref(), &fuse_file_mounts, &fuse_directory_mounts).await? {
+    if mounts_changed {
+        match inner::providers(&mut tx, provider.as_ref(), &result.fuse_file_mounts, &result.fuse_directory_mounts).await? {
             Checked::Ok(()) => {}
             Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
             Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
         }
-        match inner::mounts(&mut tx, &standing, daemon, provider.as_ref(), &fuse_file_mounts, &fuse_directory_mounts).await? {
+        match inner::mounts(&mut tx, &standing, daemon, provider.as_ref(), &result.fuse_file_mounts, &result.fuse_directory_mounts).await? {
             Mounted::Ok => {}
             Mounted::Forbidden => return Ok(Frame::Forbidden),
             Mounted::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
@@ -96,10 +87,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         }
     }
     let columns = agents::Columns {
-        name,
+        name: result.name,
         provider,
-        fuse_file_mounts,
-        fuse_directory_mounts,
+        fuse_file_mounts: result.fuse_file_mounts,
+        fuse_directory_mounts: result.fuse_directory_mounts,
     };
     if let agents::Updated::InUse = agents::update(&mut tx, agent.id, &columns).await? {
         return Ok(Frame::InUse);

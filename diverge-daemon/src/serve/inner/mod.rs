@@ -14,10 +14,12 @@ mod account;
 mod checked;
 mod mounted;
 mod mounts;
+mod patched;
 mod provider;
 
 pub use account::*;
 pub use checked::*;
 pub use mounted::*;
 pub use mounts::*;
+pub use patched::*;
 pub use provider::*;
