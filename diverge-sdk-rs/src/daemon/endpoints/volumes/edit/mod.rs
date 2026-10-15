@@ -1,7 +1,8 @@
-//! Changing a volume: how many bytes it reserves, its mode, or both.
-//! One request, one answer. A client names a volume and what is to
-//! change; the daemon asks the provider, and answers that the volume is
-//! as the request states, that no volume is the one named, that the
+//! Changing a volume: a patch to how many bytes it reserves and its
+//! mode. One request, one answer. A client names a volume and a patch
+//! — see [`patch`](crate::daemon::patch) — to the two; the daemon asks
+//! the provider for what differs, and answers that the volume is as
+//! the result states, that no volume is the one named, that the
 //! provider cannot reserve that many bytes, that the volume holds more
 //! than that, that it is held, forbidden, or that it failed, and the
 //! scope finishes. Both at once is one edit: a size the provider

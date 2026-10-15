@@ -1,29 +1,34 @@
 //! What a client's request frame carries for an edit.
 
+use serde::{Deserialize, Serialize};
+
+use crate::daemon::patch::Patch;
+use crate::shared::relay::Relay;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use serde::{Deserialize, Serialize};
-use crate::shared::relay::Relay;
 
-use crate::daemon::endpoints::providers::incoming::Credential;
-/// Ask the daemon to replace a credential of incoming providers with
-/// another, whole. The old key admits nothing from then on and the new
-/// one, answered once, admits the new identity. A new identity that
-/// another credential names already is refused.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Ask the daemon to change a credential of incoming providers, by
+/// the identity it names: a patch to its editable member, the
+/// credential without its key. The patch is applied to the
+/// [`Editable`](super::Editable) document, whole or not at all; the result's credential
+/// replaces the old whole, the old key admits nothing from then on,
+/// and the new one, answered once, admits the new identity — whether
+/// or not the patch changed anything, so an empty patch rotates the
+/// key. A new identity that another credential names already is
+/// refused.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The identity the credential to replace names.
     pub identity: String,
-    /// The credential as it is to be, without its key: see
-    /// [`Credential`].
-    pub set: Credential,
+    /// The patch: see [`Patch`], and [`Editable`](super::Editable) for the document it
+    /// is applied to. Empty, nothing changes.
+    pub patch: Patch,
     /// Served by another daemon, as one of the accounts this daemon
     /// holds on it: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }
-
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader

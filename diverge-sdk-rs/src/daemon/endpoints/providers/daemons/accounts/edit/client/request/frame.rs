@@ -1,32 +1,33 @@
 //! What a client's request frame carries for an accounts edit.
 
+use serde::{Deserialize, Serialize};
+
+use crate::daemon::patch::Patch;
+use crate::shared::relay::Relay;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use serde::{Deserialize, Serialize};
-use crate::shared::relay::Relay;
 
-use crate::daemon::endpoints::providers::outgoing::Mode;
-
-/// Ask the daemon to replace an account's mode on a daemon record, by
-/// the daemon's name and the account's. There is nothing to take away
-/// from a mode, so there is no `delete`, and the mode given is the new
-/// mode entire.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Ask the daemon to change an account's mode on a daemon record, by
+/// the daemon's name and the account's: a patch to the account's
+/// editable member, the mode. The patch is applied to the account's
+/// [`Editable`](super::Editable) document — whose mode is `null`, since the daemon
+/// answers a credential to nobody — so the one patch that changes
+/// anything gives the mode whole, which is how a credential rotates.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The daemon's name, as its add gave it.
     pub daemon: String,
     /// The account's name, as its add gave it.
     pub name: String,
-    /// How to authenticate there as this account from now on: see
-    /// [`Mode`].
-    pub mode: Mode,
+    /// The patch: see [`Patch`], and [`Editable`](super::Editable) for the document it
+    /// is applied to. Empty, nothing changes.
+    pub patch: Patch,
     /// Served by another daemon, as one of the accounts this daemon
     /// holds on it: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }
-
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
