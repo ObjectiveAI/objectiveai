@@ -4,7 +4,7 @@ import type { HomeMove } from "../bindings/HomeMove";
 import { Markdown } from "../components/Markdown";
 import { Button, Card, Chip, Dot, Row, SectionHead, Tabs } from "../components/ui";
 import { useShared } from "../lib/context";
-import { ago, kindTitle, providerName, time, spaceTitle } from "../lib/format";
+import { agentLabel, ago, kindTitle, providerName, time, spaceTitle } from "../lib/format";
 import { api } from "../lib/ipc";
 import { useEscape } from "../lib/keys";
 import { KnockCard } from "../components/Knock";
@@ -138,12 +138,12 @@ export function Home() {
           <SectionHead small title={t.home.fleet} />
           <ul className="fleet">
             {agents.map((a) => {
-              const asks = cards.some((c) => c.agent === a.name);
+              const asks = cards.some((c) => c.agent === a.key);
               return (
-                <li key={a.name}>
-                  <Row className="fleet-row" onClick={() => open({ kind: "agent", name: a.name })}>
+                <li key={a.key}>
+                  <Row className="fleet-row" onClick={() => open({ kind: "agent", name: a.key })}>
                     <Dot state={a.active ? "working" : a.last_active ? "idle" : "never"} />
-                    <span className="fleet-name">{a.name}</span>
+                    <span className="fleet-name">{agentLabel(a)}</span>
                     <span className="fleet-status muted small">{a.active ? `${t.home.working}${a.provider ? ` · ${providerName(a.provider)}` : ""}` : a.last_active ? `${t.home.idle} · ${ago(a.last_active)}` : t.home.never}</span>
                     {asks ? <span className="fleet-kind rail-count">{t.cards.railTag}</span> : <span className="fleet-kind muted small">{kindTitle(a.image_name)}</span>}
                   </Row>

@@ -3,15 +3,20 @@
 //!
 //! A Space is a *tool container* a host runs on their own provider
 //! (`containers::tools::run`) with a persistent volume. Another person
-//! joins it by id, presenting an invite (`containers::tools::connect`);
-//! the provider asks the host on the run's `authorize` channel, and the
-//! host's app answers yes or no. Inside, a member lists and calls the
-//! room's MCP tools, reads its resources and hears its notifications —
-//! the same exchanges an agent has with the caller's MCP.
+//! joins it by id, presenting an invite, and the host's app answers yes or
+//! no. Inside, a member lists and calls the room's MCP tools, reads its
+//! resources and hears its notifications — the same exchanges an agent has
+//! with the caller's MCP.
 //!
-//! The wire's types are the SDK's: `Container`, `Connect`, `Id`,
-//! `Authorize` and its answer, the filetree's `Node`, and `rmcp`'s MCP
-//! model at the version his workspace pins. What rides inside them is ours:
+//! Since `1371081c1` the provider wire has no join by id: its
+//! `containers::tools::connect` and the run's `authorize` channel are gone,
+//! and a tool is reached across daemons instead (the daemon's
+//! `standalone_tools::{register, connect}`). Until the app joins rooms that
+//! way, [`Authorize`] and [`Answer`] are ours, the shapes the wire had.
+//!
+//! The wire's types are the SDK's: `Container`, `Id`, the filetree's
+//! `Node`, and `rmcp`'s MCP model at the version his workspace pins. What
+//! rides inside them is ours:
 //! the room program (`diverge-desktop-room`), the seal on every call, the
 //! [`Knocking`] a joiner writes in the opaque authorization, and the
 //! [`Invite`] a host hands out.
@@ -29,7 +34,8 @@ use chrono::{DateTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
-pub use diverge_sdk::shared::containers::authorize::{request::Authorize, response::Frame as Answer};
+use std::net::IpAddr;
+
 pub use diverge_sdk::shared::containers::request::Container;
 pub use diverge_sdk::shared::containers::response::Id;
 use diverge_desktop_room::account::Proof;
@@ -57,6 +63,21 @@ pub struct SpaceEntry {
     pub mine: bool,
     /// A room is only as reachable as its host's connection.
     pub online: bool,
+}
+
+/// A joiner asking in: the address it called from and what it wrote. Ours,
+/// the shape the provider wire's `authorize` channel had until `1371081c1`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Authorize {
+    pub address: IpAddr,
+    pub authorization: String,
+}
+
+/// The host's answer to a joiner. Ours, as [`Authorize`] is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Answer {
+    Denied,
+    Authorized,
 }
 
 /// Someone at the door of a room this app hosts: what the provider
@@ -262,8 +283,9 @@ pub trait Spaces: Send + Sync + 'static {
     /// A knock still waiting at the door, without answering it.
     async fn pending(&self, knock_id: u64) -> Option<Knock>;
 
-    /// `containers::tools::connect` to a room someone else hosts, presenting
-    /// a [`Knocking`]. Resolves when the host answers.
+    /// Join a room someone else hosts, presenting a [`Knocking`] (the provider
+    /// wire's `containers::tools::connect` until `1371081c1`; see above).
+    /// Resolves when the host answers.
     async fn join(&self, invite: &Invite, knocking: &Knocking) -> Joined;
 
     /// The connect scope's `disconnect`; for a room this app hosts, the run ends.

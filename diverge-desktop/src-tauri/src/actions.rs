@@ -153,7 +153,7 @@ impl AppState {
         let daemon = Arc::new(StubDaemon::new(host.clone()));
         let stub = StubSpaces::new(identity.clone(), host.join("tables"));
         // On a first run, the stand-in's seeded agents count as made here.
-        let first_mounts = daemon.creates().iter().map(|c| (c.name.clone(), AgentMounts::of_create(c))).collect();
+        let first_mounts = daemon.creates().iter().map(|(key, c)| (key.clone(), AgentMounts::of_create(c))).collect();
         // The stand-in answers both seams: it knows every agent's mounts, so it keeps every machine's holds.
         let seams = Seams { daemon: daemon.clone(), machines: daemon.clone(), spaces: Arc::new(stub.clone()), stand_in_host: Some(host), network: true, first_mounts };
         let state = Self::assemble(data, identity, seams, folder);
@@ -271,7 +271,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("agents_mounts", "What this app last stated an agent mounts"),
     ("agents_message", "Send an agent a message; resolves when delivered"),
     ("agents_message_take_back", "Take back a message that has not been delivered yet"),
-    ("logs_open", "Read an agent's log — filtered, reshaped by jq, perhaps watched"),
+    ("logs_open", "Read an agent's log — filtered by kind and span, perhaps watched"),
     ("scope_close", "Stop watching something"),
     ("volumes_list", "List a machine's storage"),
     ("volumes_stat", "How full a volume is"),
@@ -436,8 +436,7 @@ pub fn catalog_check(kind: String, arguments: serde_json::Value) -> Result<(), S
 
 #[tauri::command]
 pub async fn agents_list(state: State<'_, AppState>) -> Result<AgentsListed, String> {
-    let frames = state.daemon.agents_list(agents::list::client::request::Frame {}).collect::<Vec<_>>().await;
-    Ok(listed(frames))
+    Ok(agents_listed(state.daemon.as_ref()).await)
 }
 
 #[tauri::command]
@@ -445,9 +444,17 @@ pub async fn agents_create(state: State<'_, AppState>, input: CreateAgentInput) 
     create_agent(&state, input).await
 }
 
+/// Make (or find) the template the form describes, then the agent from it.
 async fn create_agent(state: &AppState, input: CreateAgentInput) -> Result<CreateOutcome, String> {
-    let request = input.into_request()?;
-    let name = request.name.clone();
+    use agents::templates::create::server::response::Frame as Template;
+    let (template, mut request) = input.into_requests()?;
+    request.inner.template = match state.daemon.agents_templates_create(template).await {
+        Template::Created(id) | Template::Exists(id) => id,
+        Template::Forbidden => return Ok(CreateOutcome::Forbidden),
+        Template::Error(error) => return Ok(CreateOutcome::Error { message: error_text(&error) }),
+    };
+    // The screen asks for a name, so the agent is keyed by it.
+    let Some(name) = request.name.clone() else { return Err("an agent made here has a name".into()) };
     let mounts = AgentMounts::of_create(&request);
     let outcome: CreateOutcome = state.daemon.agents_create(request).await.into();
     if matches!(outcome, CreateOutcome::Created) {
@@ -464,12 +471,12 @@ async fn create_agent(state: &AppState, input: CreateAgentInput) -> Result<Creat
 
 #[tauri::command]
 pub async fn agents_edit(state: State<'_, AppState>, input: EditMountsInput) -> Result<EditOutcome, String> {
+    let name = input.name.clone();
     let request = input.into_request();
-    let Some(before) = state.agent_mounts.lock().unwrap().get(&request.name).cloned() else {
+    let Some(before) = state.agent_mounts.lock().unwrap().get(&name).cloned() else {
         return Err("this agent was made outside this app, so its mounts are not known here".into());
     };
     let after = before.edited(&request);
-    let name = request.name.clone();
     let outcome: EditOutcome = state.daemon.agents_edit(request).await.into();
     if matches!(outcome, EditOutcome::Edited) {
         state.remember_mounts(&name, Some(after));
@@ -485,7 +492,7 @@ pub fn agents_mounts(state: State<'_, AppState>, name: String) -> Option<MountsV
 
 #[tauri::command]
 pub async fn agents_delete(app: AppHandle, state: State<'_, AppState>, name: String) -> Result<DeleteOutcome, String> {
-    let outcome: DeleteOutcome = state.daemon.agents_delete(agents::delete::client::request::Frame { name: name.clone() }).await.into();
+    let outcome: DeleteOutcome = state.daemon.agents_delete(agents::delete::client::request::Frame { agent: crate::daemon::reference_of(&name), relay: None }).await.into();
     if matches!(outcome, DeleteOutcome::Deleted) {
         state.remember_mounts(&name, None);
         let snapshot = state.tabs.lock().unwrap().close(&crate::tabs::key_of(&TabKind::Agent { name }));
@@ -499,7 +506,7 @@ pub async fn agents_message(state: State<'_, AppState>, name: String, text: Stri
     let token = CancellationToken::new();
     state.scopes.lock().unwrap().insert(ticket.clone(), token.clone());
     let content = vec![serde_json::from_value(serde_json::json!({ "type": "text", "text": text })).map_err(|e| e.to_string())?];
-    let outcome = state.daemon.agents_message(agents::message::client::request::Frame { name, content }, token).await;
+    let outcome = state.daemon.agents_message(agents::message::client::request::Frame { agent: crate::daemon::reference_of(&name), content, relay: None }, token).await;
     state.scopes.lock().unwrap().remove(&ticket);
     Ok(outcome.into())
 }
@@ -535,7 +542,7 @@ pub fn scope_close(state: State<'_, AppState>, id: String) -> bool {
 
 #[tauri::command]
 pub async fn volumes_list(state: State<'_, AppState>, machine: ProviderView) -> Result<VolumesListed, String> {
-    Ok(state.machines.volumes_list(&(&machine).into()).await.into())
+    Ok(crate::machines::volumes_listed(state.machines.as_ref(), &(&machine).into()).await.into())
 }
 
 #[tauri::command]
@@ -559,6 +566,8 @@ pub async fn volumes_read(state: State<'_, AppState>, machine: ProviderView, nam
     while let Some(frame) = frames.next().await {
         match frame {
             ReadFrame::Body(body) => bytes.extend_from_slice(&body),
+            ReadFrame::Mounted | ReadFrame::FuseServed | ReadFrame::Held => return Ok(FileRead::InUse),
+            ReadFrame::Unsupported => return Ok(FileRead::Unsupported),
             ReadFrame::Error(error) => return Ok(FileRead::Error { message: error_text(&error) }),
         }
     }
@@ -760,6 +769,34 @@ async fn moves_of(state: &AppState, id: &spaces::Id) -> (Vec<MoveView>, bool) {
 
 /// A new room's container arguments: its settings signed as `host`, the key
 /// made for it (the program's alone), and the record it continues, if any.
+/// A room's container: the room program's image, a gigabyte each of memory
+/// and disk, and the room's own settings. It names the tool template those
+/// make, by the id the template would hash to: what the container is an
+/// instance of.
+fn room_container(arguments: serde_json::Value) -> crate::spaces::Container {
+    use diverge_sdk::daemon::endpoints::agents::create::client::request::Image as TemplateImage;
+    use diverge_sdk::daemon::endpoints::standalone_tools::templates::Template;
+    use diverge_sdk::shared::containers::request::{Image, Reference};
+    let template = Template {
+        r#type: Default::default(),
+        description: None,
+        image: TemplateImage { digest: catalog::UNBUILT_DIGEST.into(), references: Vec::new() },
+        memory: 1 << 30,
+        disk: 1 << 30,
+        arguments,
+    };
+    crate::spaces::Container {
+        image: Image { digest: catalog::UNBUILT_DIGEST.into(), references: vec![Reference { registry: catalog::UNPUBLISHED_REGISTRY.into(), name: "diverge-desktop-room".into() }] },
+        template: crate::daemon::template_id(&template),
+        memory: template.memory,
+        disk: template.disk,
+        volume_mounts: Vec::new(),
+        fuse_file_mounts: Vec::new(),
+        fuse_directory_mounts: Vec::new(),
+        arguments: template.arguments,
+    }
+}
+
 fn room_arguments(state: &AppState, mut args: diverge_desktop_room::Args, room_key: &diverge_desktop_room::Keypair, before: Option<diverge_desktop_room::Record>) -> Result<serde_json::Value, String> {
     args.sig = state.identity.state(&args.host_key, "room", args.body())?.sig;
     let mut arguments = serde_json::to_value(&args).map_err(|e| e.to_string())?;
@@ -870,7 +907,7 @@ pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, Stri
 }
 
 async fn profile_of(state: &AppState) -> Result<ProfileView, String> {
-    let agents = listed(state.daemon.agents_list(agents::list::client::request::Frame {}).collect::<Vec<_>>().await).agents;
+    let agents = agents_listed(state.daemon.as_ref()).await.agents;
     let mine = state.identity.personas();
     let home = state.spaces.home().await.map(|id| id.id);
     let profile = state.spaces.profile().await.map(|id| id.id);
@@ -1145,7 +1182,6 @@ pub async fn spaces_continue(state: State<'_, AppState>, id: String) -> Result<H
 }
 
 async fn continue_room(state: &AppState, id: &str) -> Result<HostOutcome, String> {
-    use diverge_sdk::shared::containers::request::{Container, Image};
     let copy = copy_of(state, id).ok_or("you hold no copy of that room")?;
     let old = diverge_desktop_room::Room::check(&copy)?;
     let you = state.identity.who_in(id)?;
@@ -1153,7 +1189,7 @@ async fn continue_room(state: &AppState, id: &str) -> Result<HostOutcome, String
     let continues = diverge_desktop_room::Continues { room: old.args.id.clone(), title: old.args.title.clone(), last: old.last_hash() };
     let args = new_room(state, &you, format!("{}, continued", old.args.title), old.args.kind, old.charter().to_owned(), old.args.open_door, Some(continues), &room_key)?;
     let arguments = room_arguments(state, args, &room_key, Some(copy))?;
-    let container = Container { image: Image { name: "diverge-desktop-room".into(), digest: catalog::UNBUILT_DIGEST.into() }, memory: 1 << 30, disk: 1 << 30, volume_mounts: Vec::new(), fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new(), arguments };
+    let container = room_container(arguments);
     Ok(match state.spaces.host(container).await {
         Ok(new) => {
             state.identity.set_room(&new.id, &you.id);
@@ -1196,21 +1232,12 @@ pub async fn spaces_host(state: State<'_, AppState>, input: HostSpaceInput) -> R
 }
 
 async fn host_space(state: &AppState, input: HostSpaceInput) -> Result<HostOutcome, String> {
-    use diverge_sdk::shared::containers::request::{Container, Image};
     let Some(kind) = diverge_desktop_room::Kind::parse(&input.kind) else { return Ok(HostOutcome::Error { message: "no such kind of Space".into() }) };
     let you = state.identity.usual()?;
     let room_key = diverge_desktop_room::Keypair::generate();
     let args = new_room(state, &you, input.title, kind, input.charter, input.open_door, None, &room_key)?;
     let arguments = room_arguments(state, args, &room_key, None)?;
-    let container = Container {
-        image: Image { name: "diverge-desktop-room".into(), digest: catalog::UNBUILT_DIGEST.into() },
-        memory: 1 << 30,
-        disk: 1 << 30,
-        volume_mounts: Vec::new(),
-        fuse_file_mounts: Vec::new(),
-        fuse_directory_mounts: Vec::new(),
-        arguments,
-    };
+    let container = room_container(arguments);
     Ok(match state.spaces.host(container).await {
         Ok(id) => {
             state.identity.set_room(&id.id, "usual");
@@ -1745,8 +1772,10 @@ async fn machines_with_volumes(state: &AppState) -> Vec<MachineView> {
     for entry in state.daemon.providers_list().await {
         let on: Identity = entry.identity.clone();
         let mut m = named(state, machine(entry));
-        match VolumesListed::from(state.machines.volumes_list(&on).await) {
+        match VolumesListed::from(crate::machines::volumes_listed(state.machines.as_ref(), &on).await) {
             VolumesListed::Volumes { volumes } => m.volumes = volumes,
+            // It keeps none: the screen says it has no storage.
+            VolumesListed::Unsupported => {}
             VolumesListed::Error { message } => m.volumes_problem = Some(message),
         }
         out.push(m);
@@ -2546,7 +2575,7 @@ mod tests {
         let state = AppState::assemble(data, identity, seams, folder);
         let about = info(&state);
         assert!(!about.network && !about.stand_in);
-        assert!(listed(state.daemon.agents_list(agents::list::client::request::Frame {}).collect().await).agents.is_empty(), "no agents made up");
+        assert!(agents_listed(state.daemon.as_ref()).await.agents.is_empty(), "no agents made up");
         assert!(state.daemon.providers_list().await.is_empty(), "no machines made up");
         assert!(state.spaces.list().await.is_empty(), "no rooms made up");
         match host_space(&state, HostSpaceInput { title: "Saturday Workshop".into(), kind: "board".into(), charter: String::new(), open_door: false }).await.unwrap() {

@@ -48,19 +48,19 @@ mod tests {
         // Let the long job get part of the way through (virtual time).
         tokio::time::sleep(Duration::from_secs(70)).await;
 
-        let listed = listed(daemon.agents_list(agents::list::client::request::Frame {}).collect().await);
+        let listed = agents_listed(&daemon).await;
         let mut logs = BTreeMap::new();
         for agent in &listed.agents {
             let request = agents::logs::client::request::Frame {
-                name: agent.name.clone(),
+                agent: crate::daemon::reference_of(&agent.key),
                 logs_index_from: None,
                 logs_index_to: None,
                 created_from: None,
                 created_to: None,
                 r#type: None,
-                jq: None,
                 count: None,
                 watch: None,
+                relay: None,
             };
             let entries: Vec<LogEntry> = daemon
                 .agents_logs(request, CancellationToken::new())
@@ -68,7 +68,7 @@ mod tests {
                 .filter_map(|e| async move { if let LogEvent::Entry { entry } = e { Some(entry) } else { None } })
                 .collect()
                 .await;
-            logs.insert(agent.name.clone(), entries);
+            logs.insert(agent.key.clone(), entries);
         }
 
         // Each machine's volumes, trees and files, keyed by the machine's
@@ -81,8 +81,9 @@ mod tests {
             let on = p.identity.clone();
             let identity: ProviderView = (&p.identity).into();
             let key = identity_key(&identity);
-            let (volumes, volumes_problem) = match VolumesListed::from(daemon.volumes_list(&on).await) {
+            let (volumes, volumes_problem) = match VolumesListed::from(crate::machines::volumes_listed(&daemon, &on).await) {
                 VolumesListed::Volumes { volumes } => (volumes, None),
+                VolumesListed::Unsupported => (Vec::new(), None),
                 VolumesListed::Error { message } => (Vec::new(), Some(message)),
             };
             let mut machine_trees = BTreeMap::new();
@@ -235,7 +236,7 @@ mod tests {
             },
             "trees": trees,
             "stats": stats,
-            "mounts": daemon.creates().iter().map(|c| (c.name.clone(), AgentMounts::of_create(c).view())).collect::<BTreeMap<_, _>>(),
+            "mounts": daemon.creates().iter().map(|(key, c)| (key.clone(), AgentMounts::of_create(c).view())).collect::<BTreeMap<_, _>>(),
             "files": texts,
         });
         let json = serde_json::to_string_pretty(&fixture).unwrap();

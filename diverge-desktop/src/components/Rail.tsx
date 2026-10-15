@@ -1,5 +1,5 @@
 import { useShared } from "../lib/context";
-import { kindTitle, providerName, spaceTitle } from "../lib/format";
+import { agentLabel, kindTitle, providerName, spaceTitle } from "../lib/format";
 import { t } from "../strings";
 import wordmark from "../assets/wordmark.svg";
 import { Button, Dot, Icon, Row } from "./ui";
@@ -37,11 +37,11 @@ export function Rail(props: { focused: string | null }) {
             {agents.map((a) => {
               const state = a.active ? "working" : a.last_active ? "idle" : "never";
               return (
-                <li key={a.name}>
-                  <Row className="rail-item" on={here(`agent:${a.name}`)} onClick={() => open({ kind: "agent", name: a.name })} title={a.provider ? `${kindTitle(a.image_name)} · ${providerName(a.provider)}` : kindTitle(a.image_name)}>
+                <li key={a.key}>
+                  <Row className="rail-item" on={here(`agent:${a.key}`)} onClick={() => open({ kind: "agent", name: a.key })} title={a.provider ? `${kindTitle(a.image_name)} · ${providerName(a.provider)}` : kindTitle(a.image_name)}>
                     <Dot state={state} />
-                    <span className="rail-item-name">{a.name}</span>
-                    {cards.some((c) => c.agent === a.name) ? <span className="rail-count">{t.cards.railTag}</span> : <span className="rail-item-kind">{kindTitle(a.image_name)}</span>}
+                    <span className="rail-item-name">{agentLabel(a)}</span>
+                    {cards.some((c) => c.agent === a.key) ? <span className="rail-count">{t.cards.railTag}</span> : <span className="rail-item-kind">{kindTitle(a.image_name)}</span>}
                   </Row>
                 </li>
               );

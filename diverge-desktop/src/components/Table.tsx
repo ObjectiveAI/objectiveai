@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FileNode } from "../bindings/FileNode";
 import type { SpaceSummary } from "../bindings/SpaceSummary";
-import { bytes as fmtBytes, spaceTitle } from "../lib/format";
+import { bytes as fmtBytes, refusalText, spaceTitle } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
 import { Button, Empty, Icon, Row } from "./ui";
@@ -26,7 +26,7 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
     if (out.outcome === "tree") {
       setNodes(out.nodes);
       setProblem(null);
-    } else setProblem(out.message);
+    } else setProblem(refusalText(out));
   }, [id]);
   useEffect(() => {
     refresh();
@@ -35,9 +35,9 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
   const open = async (path: string) => {
     setMoved(null);
     const read = await api.tableRead(id, path);
-    if (read.outcome === "error") setFile({ path, text: "", saved: "", binary: false, size: 0, state: "error", error: read.message });
+    if (read.outcome === "text") setFile({ path, text: read.text, saved: read.text, binary: false, size: read.bytes, state: "idle" });
     else if (read.outcome === "binary") setFile({ path, text: "", saved: "", binary: true, size: read.bytes, state: "idle" });
-    else setFile({ path, text: read.text, saved: read.text, binary: false, size: read.bytes, state: "idle" });
+    else setFile({ path, text: "", saved: "", binary: false, size: 0, state: "error", error: refusalText(read) });
   };
 
   const save = async () => {
@@ -45,7 +45,7 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
     setFile({ ...file, state: "saving" });
     try {
       const out = await api.tableWrite(id, file.path, file.text);
-      setFile((f) => f && (out.outcome === "written" ? { ...f, saved: f.text, state: "saved" } : { ...f, state: "error", error: out.message }));
+      setFile((f) => f && (out.outcome === "written" ? { ...f, saved: f.text, state: "saved" } : { ...f, state: "error", error: refusalText(out) }));
       refresh();
     } catch (e) {
       setFile((f) => f && { ...f, state: "error", error: errorText(e) });
@@ -70,7 +70,7 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
       setNewPath("");
       await refresh();
       open(path);
-    } else setProblem(out.message);
+    } else setProblem(refusalText(out));
   };
 
   const copy = async (replace = false) => {
@@ -85,7 +85,7 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
     }
     setReplacing(false);
     const out = await api.tableTransfer(id, file.path, moveTo);
-    setMoved(out.outcome === "written" ? t.spaces.copied2 : out.message);
+    setMoved(out.outcome === "written" ? t.spaces.copied2 : refusalText(out));
   };
 
   const toggle = (path: string) =>

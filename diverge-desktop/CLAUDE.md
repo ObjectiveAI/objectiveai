@@ -5,28 +5,45 @@ daemon seam. This file is committed so every session and worktree
 inherits it.
 
 ## The seams
-- `src-tauri/src/daemon/mod.rs` — `Daemon`, one method per daemon verb (`agents::{create, delete, message, logs,
-  list, edit}`, `tools::{create, edit, connect, attach, detach, delete, list}`). `StubDaemon` (feature `stand-in`) now;
-  `WireDaemon` when a daemon ships. The app doesn't use the tools verbs for rooms: a daemon-attached tool bypasses the app, which
-  seals agents' calls and asks the person first.
+- `src-tauri/src/daemon/mod.rs` — `Daemon`, one method per daemon verb the app uses (`agents::{templates::{create, get},
+  create, delete, message, logs, list, edit}`, `standalone_tools::{templates::create, create, edit, register,
+  attach_agent_instance, detach_agent_instance, attach_agent_template, detach_agent_template, delete, list}`). `StubDaemon`
+  (feature `stand-in`) now; `WireDaemon` when a daemon ships. The app doesn't use the tools verbs for rooms: a daemon-attached
+  tool bypasses the app, which seals agents' calls and asks the person first.
+  - **Agents come from templates.** New agent makes (or finds: same template, same id) the template the form describes
+    (image, memory, disk, settings) with `agents::templates::create`, then `agents::create` from its id (name, machine,
+    mounts). An agent's name is optional; it is named for good by its template and index. The app keys an agent by
+    `daemon::agent_key` (its name, else `<template>#<index>`) everywhere — tabs, rail, logs, messages, mounts, the door —
+    and `daemon::reference_of` turns a key back into the `reference::Agent` every request takes. `AgentView` carries
+    `template`, `index`, `creator` and `tags`; the screens don't show them yet. The image an agent runs is its template's
+    (`agents::templates::get`). No image is built yet, so each of the six has its own placeholder digest
+    (`Kind::digest`, since a template's id leaves the image's references out) and is named in a reference.
+  - **Lists stay open.** `agents::list` answers `Added`… `Listed` and then what changes; `daemon::agents_listed` reads it
+    once and cancels (so does `machines::volumes_listed` for a machine's volumes). Following it live is the next step.
+  - **Logs are typed.** No `jq` on the wire: a read is narrowed by kind (`type`), span and count, and every item comes
+    typed; a message's parts are `User` items carrying who sent them. Views' presets are kinds of item.
+  - A `Forbidden` answer (the daemon's grants) shows as the daemon refusing, in `common.forbidden`.
 - `src-tauri/src/machines.rs` — `Machines`: the provider protocol's volume verbs, addressed to one machine. Since
   `e28031bbd` a volume is its provider's own; the daemon has none. The wire doesn't say yet how the app reaches a machine's verbs.
   The stand-in daemon implements both seams (it knows every agent's mounts, so it keeps every machine's holds).
 - Meeting up with the real daemon = writing `WireDaemon` and `WireMachines`, nothing else.
 - Everything returns **the SDK's real `diverge_sdk` types** (one crate since `9b338da70`, no features). Every
   conversion to our view types is an exhaustive `match` (never `_ =>`) so a new variant from him fails our build.
-- The contract is `diverge-sdk-rs/src/{daemon,provider/endpoints/{volumes,containers/tools},shared,container_proxy/inside}/**` at `origin/p2p-provider-binary` —
+- The contract is `diverge-sdk-rs/src/{daemon,provider/endpoints/{volumes,containers/{tools,agents}},shared,container_proxy/inside}/**` at `origin/p2p-provider-binary` —
   never a doc. `CONTRACT_PIN` holds the commit we built against. Start every session with the drift check in it and
   say in one line whether anything moved.
 - `providers::{list, add, remove}` are **ours until the wire has them** (a product ruling: add a machine inside the app). Machine
   names are the app's (`machine_names.json`); the daemon's name stays underneath.
-- **Mounts are remembered by the app** (`agent_mounts.json`): the daemon never reports an agent's mounts and
-  `agents::edit` states them all anew, so the app offers "Mounts" only for agents it made.
+- **Mounts are remembered by the app** (`agent_mounts.json`, by agent key): the daemon never reports an agent's mounts
+  and the app's `agents::edit` states all three lists anew, so the app offers "Mounts" only for agents it made.
 - **Spaces** (`src-tauri/src/spaces/mod.rs`): the social layer on the provider protocol's tool rooms —
-  `containers::tools::run` (host), `tools::connect` (join by id), the run's `authorize` channel (the host's yes), the
-  MCP exchanges (a room's verbs, resources, notifications), the container's files (a room's table) and `transfer`.
-  the SDK's types on the wire; what rides inside them is ours (below). `StubSpaces` runs the real room program in
-  process until rooms are hosted on the wire.
+  `containers::tools::run` (host; a room's container names the tool template it is an instance of), joining by id with
+  the host's yes, the MCP exchanges (a room's verbs, resources, notifications), the container's files (a room's table)
+  and `transfer`. The SDK's types on the wire; what rides inside them is ours (below). Since `1371081c1` the provider
+  wire has no join by id (`containers::tools::connect` and the run's `authorize` channel are gone; a tool is reached
+  across daemons with `standalone_tools::{register, connect}`), so `spaces::{Authorize, Answer}` are ours, the shapes
+  the wire had, until the app joins rooms that way. `StubSpaces` runs the real room program in process until rooms are
+  hosted on the wire.
 - **The person layer is ours, not the SDK's** — the wire gives a room no way to tell members apart (a tool program sees
   one MCP client; a runner sees an address and an opaque string), and nothing on the wire names a person:
   - `diverge-desktop/room` (crate `diverge-desktop-room`): the room program.
@@ -117,10 +134,10 @@ inherits it.
   carries the whole call (`CardCall`, `CardHire`), worded by the screen from `src/strings.ts`. Cards wait on the
   person; nothing times out, but a card whose caller stops waiting (the call's cancellation) is withdrawn
   (`CardEvent::Withdrawn`) and a late answer does nothing.
-  - Two kinds of agent (`identity::AgentId`): the daemon's, by name, and local ones you already run yourself, added
+  - Two kinds of agent (`identity::AgentId`): the daemon's, by agent key, and local ones you already run yourself, added
     with an id (`Identity::add_local`, from Machines → "Agents you run yourself"). A removed local agent's keys stay,
-    marked removed: its past moves are still your agent's, it gets no new key, and its id is never reused. A slot names one agent: a daemon agent's name
-    (`daemon/<name>` if it starts like a slot), or `local/<id>`. Keys are found by kind, name and persona, never by an
+    marked removed: its past moves are still your agent's, it gets no new key, and its id is never reused. A slot names one agent: a daemon agent's key
+    (`daemon/<key>` if it starts like a slot), or `local/<id>`. Keys are found by kind, name and persona, never by an
     entry's name, so agents of two kinds never share a key.
   - The door answers only agents it knows (the daemon's list, asked again on a miss, and the local ones added) and
     refuses any other before a key could be made. An agent reads and acts only in rooms it's in, by the room's own
@@ -154,7 +171,10 @@ inherits it.
   while it runs; the system lets go when it exits, crash or not. A second copy on the same folder (or one that can't
   tell) reads your keys and files as they are, writes nothing, answers nothing, and the screens say why.
 - **The stand-in is a feature** (`stand-in`, on by default for now): `StubDaemon`, `StubSpaces`, their seeded past
-  and staged scenes. Built without it (`--no-default-features`), nothing answers the seams (`absent.rs`): every list
+  and staged scenes. `StubDaemon` behaves as the daemon does: templates held by hash, agents numbered per template,
+  lists that say `Listed` and stay open, `creator: Client` on what the app makes and `User` items for what you send.
+  Its seeded agents (research-notes, broken-loop, site-fixes) are made from templates, plus one site-fixes made,
+  with no name. Built without it (`--no-default-features`), nothing answers the seams (`absent.rs`): every list
   is empty, everything else says the network part isn't there yet, and so do the screens. A test checks the
   stand-in's own words are in the program only when the feature is on.
 - **Setup** is `AppState::open(data)` (actions.rs); main.rs builds the menu and picks the folder: the one
@@ -208,7 +228,8 @@ fresh each run / read only).
 ## Working on it
 Plain words, few of them, tl;dr first. Show screenshots, don't describe. Check the code before asking the product's owner
 anything; settle protocol and industry questions from the code, or make the call and note it. **GitHub: drafts live
-on the `user-experience` branch** of this public repo, kept current with main (merged in) and built against the SDK's branch at `CONTRACT_PIN`, and are pushed only when the product's owner
+on the `user-experience` branch** of this public repo, kept current with main (merged in) and with the SDK's branch
+(`origin/p2p-provider-binary`, merged in, never rebased onto), built against it at `CONTRACT_PIN`, and are pushed only when the product's owner
 says. Never push to the SDK's branches; no PRs or issues unless asked. **Nothing private enters this repo**, in files
 or commit messages: planning docs, lists of questions, quotes from outside conversations, and wording or ideas that
 came from them. Seed content is invented and everyday.

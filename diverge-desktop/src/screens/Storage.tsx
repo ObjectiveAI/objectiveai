@@ -5,7 +5,7 @@ import type { ProviderView } from "../bindings/ProviderView";
 import type { VolumeMode } from "../bindings/VolumeMode";
 import type { VolumeView } from "../bindings/VolumeView";
 import { Button, Chip, Empty, Escapes, Field, Icon, Row, SectionHead } from "../components/ui";
-import { bytes as fmtBytes, identityKey, providerName } from "../lib/format";
+import { bytes as fmtBytes, identityKey, providerName, refusalText } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
 
@@ -39,9 +39,9 @@ export function Storage() {
     if (!on) return;
     setProblem(null);
     const listed = await api.volumes(on);
-    if (listed.outcome === "error") {
+    if (listed.outcome !== "volumes") {
       setVolumes([]);
-      return setProblem(listed.message);
+      return setProblem(refusalText(listed));
     }
     setVolumes(listed.volumes);
     const room = await api.volumeRoom(on);
@@ -66,7 +66,7 @@ export function Storage() {
       setSelected(draft.name.trim());
       setDraft({ name: "", gb: 4, mode: "persistent" });
       load();
-    } else setProblem(out.outcome === "not_enough_room" ? t.storage.notEnoughRoom : out.outcome === "error" ? out.message : t.storage.inUse);
+    } else setProblem(out.outcome === "not_enough_room" ? t.storage.notEnoughRoom : out.outcome === "more_content_than_that" ? t.storage.moreContent : refusalText(out));
   };
 
   const volume = volumes.find((v) => v.name === selected);
@@ -142,26 +142,26 @@ function VolumePane(props: { on: ProviderView; volume: VolumeView; used: number 
     if (out.outcome === "tree") {
       setTree(out.nodes);
       setTreeProblem(null);
-    } else setTreeProblem(out.message);
+    } else setTreeProblem(refusalText(out));
   }, [on, volume.name]);
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  const say = (outcome: string, detail?: string) =>
-    setMessage(outcome === "done" ? null : outcome === "not_enough_room" ? t.storage.notEnoughRoom : outcome === "more_content_than_that" ? t.storage.moreContent : outcome === "in_use" ? t.storage.inUse : detail ?? null);
+  const say = (out: { outcome: string }) =>
+    setMessage(out.outcome === "done" ? null : out.outcome === "not_enough_room" ? t.storage.notEnoughRoom : out.outcome === "more_content_than_that" ? t.storage.moreContent : refusalText(out));
 
   const edit = async (bytes: number | null, mode: VolumeMode | null) => {
     const out = await api.volumeEdit(on, volume.name, bytes, mode);
-    say(out.outcome, out.outcome === "error" ? out.message : undefined);
+    say(out);
     props.onChanged();
   };
 
   const open = async (path: string) => {
     const read = await api.volumeRead(on, volume.name, path);
-    if (read.outcome === "error") setFile({ path, text: "", saved: "", size: 0, binary: false, state: "error", error: read.message });
+    if (read.outcome === "text") setFile({ path, text: read.text, saved: read.text, size: read.bytes, binary: false, state: "idle" });
     else if (read.outcome === "binary") setFile({ path, text: "", saved: "", size: read.bytes, binary: true, state: "idle" });
-    else setFile({ path, text: read.text, saved: read.text, size: read.bytes, binary: false, state: "idle" });
+    else setFile({ path, text: "", saved: "", size: 0, binary: false, state: "error", error: refusalText(read) });
   };
 
   const save = async () => {
@@ -169,7 +169,7 @@ function VolumePane(props: { on: ProviderView; volume: VolumeView; used: number 
     setFile({ ...file, state: "saving" });
     try {
       const out = await api.volumeWrite(on, volume.name, file.path, file.text);
-      setFile((f) => f && (out.outcome === "written" ? { ...f, saved: f.text, state: "saved", size: new TextEncoder().encode(f.text).length } : { ...f, state: "error", error: out.message }));
+      setFile((f) => f && (out.outcome === "written" ? { ...f, saved: f.text, state: "saved", size: new TextEncoder().encode(f.text).length } : { ...f, state: "error", error: refusalText(out) }));
       refresh();
       props.onChanged();
     } catch (e) {
@@ -184,7 +184,7 @@ function VolumePane(props: { on: ProviderView; volume: VolumeView; used: number 
       setNewPath("");
       await refresh();
       open(path);
-    } else setMessage(out.message);
+    } else setMessage(refusalText(out));
   };
 
   const toggle = (path: string) =>
@@ -239,7 +239,7 @@ function VolumePane(props: { on: ProviderView; volume: VolumeView; used: number 
           <Button small kind="tertiary" onClick={() => edit(Math.round(gb * GB), null)} disabled={Math.round(gb * GB) === volume.bytes}>{t.storage.resize}</Button>
           {confirm ? (
             <Escapes className="confirm-pair" onEscape={() => setConfirm(false)}>
-              <Button small kind="danger" onClick={async () => { const out = await api.volumeDelete(on, volume.name); say(out.outcome, out.outcome === "error" ? out.message : undefined); setConfirm(false); props.onChanged(); }}>{t.storage.deleteConfirm}</Button>
+              <Button small kind="danger" onClick={async () => { const out = await api.volumeDelete(on, volume.name); say(out); setConfirm(false); props.onChanged(); }}>{t.storage.deleteConfirm}</Button>
               <Button small kind="tertiary" onClick={() => setConfirm(false)}>{t.storage.keep}</Button>
             </Escapes>
           ) : (

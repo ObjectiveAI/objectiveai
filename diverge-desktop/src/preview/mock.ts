@@ -127,18 +127,19 @@ export function installPreview() {
         case "catalog_check":
           return null;
         case "agents_list":
-          return { agents, errors: [] };
+          return { agents, errors: [], forbidden: false };
         case "agents_create": {
           const input = args.input;
           if (agents.some((a) => a.name === input.name)) return { outcome: "in_use" };
-          agents.push({ name: input.name, image_name: `diverge-agentic-loop-${input.image_kind}`, digest: "unbuilt", created: new Date().toISOString(), active: false, last_active: null, provider: null, logs_index: 0, tools: [] });
+          // The preview hashes no template, so the new agent names none.
+          agents.push({ key: input.name, name: input.name, template: "", index: 0, creator: fixture.agents[0].creator as AgentView["creator"], tags: [], image_name: `diverge-agentic-loop-${input.image_kind}`, digest: `unbuilt-${input.image_kind}`, created: new Date().toISOString(), active: false, last_active: null, provider: null, logs_index: 0, tools: [] });
           logs[input.name] = [];
           const view = (m: { provider?: unknown; volume_name: string; volume_relative_path: string; volume_mode: string; container_path: string }) => ({ ...m, provider: m.provider ?? null });
           mounts[input.name] = { pinned: input.provider, volume_mounts: input.volume_mounts.map(view), fuse_file_mounts: input.fuse_file_mounts.map(view), fuse_directory_mounts: input.fuse_directory_mounts.map(view) } as MountsView;
           return { outcome: "created" };
         }
         case "agents_delete": {
-          const a = agents.find((x) => x.name === args.name);
+          const a = agents.find((x) => x.key === args.name);
           if (!a) return { outcome: "not_found" };
           if (a.active) return { outcome: "active" };
           agents.splice(agents.indexOf(a), 1);
@@ -151,7 +152,7 @@ export function installPreview() {
           return mounts[args.name] ?? null;
         case "agents_edit": {
           const input = args.input;
-          const a = agents.find((x) => x.name === input.name);
+          const a = agents.find((x) => x.key === input.name);
           if (!a) return { outcome: "not_found" };
           if (a.active) return { outcome: "active" };
           const before = mounts[input.name];
@@ -165,7 +166,7 @@ export function installPreview() {
             const timer = window.setTimeout(() => {
               pending.delete(args.ticket);
               const list = logs[args.name] ?? [];
-              push(args.name, { logs_index: (list[list.length - 1]?.logs_index ?? 0) + 1, created: new Date().toISOString(), item: { kind: "user_text", key: args.ticket, text: args.text } });
+              push(args.name, { logs_index: (list[list.length - 1]?.logs_index ?? 0) + 1, created: new Date().toISOString(), sender: { kind: "client", identity: "stand-in" }, item: { kind: "user_text", key: args.ticket, text: args.text } });
               resolve({ outcome: "delivered" });
             }, 2500);
             pending.set(args.ticket, { resolve, timer });
@@ -187,7 +188,7 @@ export function installPreview() {
               if (q.logs_index_from && entry.logs_index < q.logs_index_from) continue;
               if (q.logs_index_to && entry.logs_index > q.logs_index_to) continue;
               if (q.item_type && !matchesType(entry, q.item_type)) continue;
-              ch.onmessage(q.jq ? { event: "value", value: "(jq runs in the app, not the browser preview)" } : { event: "entry", entry });
+              ch.onmessage({ event: "entry", entry });
             }
             if (q.watch) watches.set(id, { name: q.name, ch });
             else ch.onmessage({ event: "end" });
@@ -203,14 +204,14 @@ export function installPreview() {
           const v = volumesOf(args.machine).find((x) => x.name === args.name);
           if (!v) return { outcome: "error", message: `no volume named "${args.name}"` };
           const known = stats[k]?.[args.name];
-          if (known && known.outcome === "error") return known;
+          if (known && known.outcome !== "stat") return known;
           const used = Object.entries(files[k] ?? {}).filter(([p]) => p.startsWith(`${args.name}:`)).reduce((n, [, text]) => n + new TextEncoder().encode(text).length, 0);
           return { outcome: "stat", volume: v, bytes_used: used };
         }
         case "volumes_tree": {
           const k = machineKey(args.machine);
           const held = stats[k]?.[args.name];
-          if (held && held.outcome === "error") return held;
+          if (held && held.outcome !== "stat") return held;
           return trees[k]?.[args.name] ? { outcome: "tree", nodes: trees[k][args.name] } : { outcome: "error", message: `no volume named "${args.name}"` };
         }
         case "volumes_read": {
@@ -241,7 +242,7 @@ export function installPreview() {
         }
         case "volumes_delete": {
           const k = machineKey(args.machine);
-          if (stats[k]?.[args.name]?.outcome === "error") return { outcome: "in_use" };
+          if (stats[k]?.[args.name] && stats[k][args.name].outcome !== "stat") return { outcome: "in_use" };
           const list = volumesOf(args.machine);
           list.splice(list.findIndex((x) => x.name === args.name), 1);
           return { outcome: "done" };

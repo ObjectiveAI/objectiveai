@@ -3,7 +3,7 @@ import type { MachineView } from "../bindings/MachineView";
 import { LocalAgents } from "../components/LocalAgents";
 import { Button, Chip, Escapes, Field, Icon, Segmented } from "../components/ui";
 import { useShared } from "../lib/context";
-import { ago, providerName, providerRaw, providerWay, setMachineNames } from "../lib/format";
+import { agentLabel, ago, providerName, providerRaw, providerWay, setMachineNames } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
 
@@ -71,7 +71,7 @@ export function Machines() {
                     <span className="muted small">{t.machines.storage}:</span>
                     {m.volumes.length ? m.volumes.map((v) => <Chip key={v.name} title={t.storage.modeNotes[v.mode]}>{v.name} · {t.storage.modes[v.mode]}</Chip>) : <span className="muted small">{m.volumes_problem ?? t.machines.noStorage}</span>}
                   </div>
-                  {here.length ? <div className="small ok">{here.map((a) => a.name).join(", ")} — {t.status.working.toLowerCase()}</div> : null}
+                  {here.length ? <div className="small ok">{here.map(agentLabel).join(", ")} — {t.status.working.toLowerCase()}</div> : null}
                 </div>
                 <div className="machine-actions">
                   {confirm === id ? (

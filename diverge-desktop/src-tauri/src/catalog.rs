@@ -31,6 +31,8 @@ mod python;
 
 use serde_json::Value;
 
+use diverge_sdk::daemon::endpoints::agents::create::client::request::{Image, Reference};
+
 /// Which of the six. The image name is `diverge-agentic-loop-<key>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -46,6 +48,10 @@ pub const ALL: [Kind; 6] = [Kind::Cc, Kind::Codex, Kind::Hermes, Kind::Openroute
 
 /// No image has been built or published yet, so there is no digest to name.
 pub const UNBUILT_DIGEST: &str = "unbuilt";
+
+/// Nor a registry to fetch one from: a reference still carries the image's
+/// name, which is how an agent's template says which of the six it is.
+pub const UNPUBLISHED_REGISTRY: &str = "unpublished";
 
 impl Kind {
     pub fn key(self) -> &'static str {
@@ -65,6 +71,23 @@ impl Kind {
 
     pub fn from_image_name(name: &str) -> Option<Kind> {
         ALL.into_iter().find(|kind| kind.image_name() == name)
+    }
+
+    /// Unbuilt, but one image apiece: a template's id leaves the image's
+    /// references out, so two of the six may not share a digest.
+    pub fn digest(self) -> String {
+        format!("{UNBUILT_DIGEST}-{}", self.key())
+    }
+
+    /// The image as an agent's template names it: its digest, and its name
+    /// in a reference.
+    pub fn image(self) -> Image {
+        Image { digest: self.digest(), references: vec![Reference { registry: UNPUBLISHED_REGISTRY.into(), name: self.image_name() }] }
+    }
+
+    /// Which of the six an image is, by the name a reference gives it.
+    pub fn of_image(image: &Image) -> Option<Kind> {
+        image.references.iter().find_map(|r| Kind::from_image_name(&r.name))
     }
 
     /// The JSON Schema of the image's `arguments`.

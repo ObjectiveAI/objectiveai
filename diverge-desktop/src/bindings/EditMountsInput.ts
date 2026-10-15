@@ -6,4 +6,8 @@ import type { VolumeMountInput } from "./VolumeMountInput";
  * What the screen sends to change an agent's mounts: all three lists,
  * stated anew.
  */
-export type EditMountsInput = { name: string, volume_mounts: Array<VolumeMountInput>, fuse_file_mounts: Array<FuseMountInput>, fuse_directory_mounts: Array<FuseMountInput>, };
+export type EditMountsInput = { 
+/**
+ * The agent's key.
+ */
+name: string, volume_mounts: Array<VolumeMountInput>, fuse_file_mounts: Array<FuseMountInput>, fuse_directory_mounts: Array<FuseMountInput>, };

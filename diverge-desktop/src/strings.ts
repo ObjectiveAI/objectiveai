@@ -240,6 +240,7 @@ export const t = {
     refreshed: "Listed just now",
     refreshNote: "The daemon's list isn't live, so this re-asks every few seconds.",
     empty: "No agents yet.",
+    unnamed: "Unnamed",
   },
   standIn: {
     label: "Stand-in daemon",
@@ -264,6 +265,7 @@ export const t = {
   },
   convo: {
     you: "You",
+    aTool: "A tool",
     thinking: "Thinking",
     tool: "Used",
     helper: "Helper's work",
@@ -413,6 +415,8 @@ export const t = {
     notEnoughRoom: "Not enough room on this machine.",
     moreContent: "It already holds more than that.",
     inUse: "Something has it mounted, so it can't be looked at or changed right now.",
+    unsupported: "This machine keeps no storage.",
+    modeUnsupported: "This machine keeps no volumes of that kind.",
     used: "used",
     of: "of",
     resize: "Resize",
@@ -483,15 +487,13 @@ export const t = {
   },
   views: {
     title: "Views",
-    note: "A View is a saved question to an agent's log: which kind of thing, reshaped how, and whether to keep watching.",
+    note: "A View is a saved question to an agent's log: which kind of thing, how much of it, and whether to keep watching.",
     new: "New View",
     untitled: "Untitled View",
     titleLabel: "Title",
     agent: "Agent",
     kind: "Only",
     everything: "Everything",
-    jq: "Reshape with jq",
-    jqPlaceholder: ".text",
     count: "At most",
     watch: "Keep watching",
     from: "From item",
@@ -919,5 +921,6 @@ export const t = {
     cancel: "Cancel",
     ok: "OK",
     error: "Something went wrong",
+    forbidden: "The daemon refused: the account it serves you as isn't allowed to do that.",
   },
 };

@@ -4,7 +4,7 @@
 //!
 //! | the proxy calls | the program answers |
 //! |-----------------|---------------------|
-//! | `POST /register` | the room's signed `Args`, its key, and any record (a restart's moves, a successor's `before`), once; `409` after |
+//! | `POST /register` | the template it runs as (unread), the room's signed `Args`, its key, and any record (a restart's moves, a successor's `before`), once; `409` after |
 //! | `GET /schema` | the JSON Schema of those arguments |
 //! | `/mcp` | MCP over Streamable HTTP: the room's verbs, resources and notifications |
 //!
@@ -163,7 +163,7 @@ async fn register_room(State(program): State<Shared>, Json(request): Json<regist
     match made {
         Ok(room) => {
             *guard = Some(room);
-            // A room deploys no tools of its own.
+            // A room declares no dependencies of its own.
             (StatusCode::OK, Json(serde_json::to_value(register::response::Response::default()).unwrap_or_default()))
         }
         Err(message) => (StatusCode::UNPROCESSABLE_ENTITY, Json(json!({ "message": message }))),
@@ -292,6 +292,9 @@ mod tests {
     use rmcp::model::ResourceContents;
     use rmcp::transport::StreamableHttpClientTransport;
 
+    /// What the provider hands a room as the template it runs as: the room doesn't read it.
+    const TEMPLATE: &str = "a room's tool template";
+
     struct TestHost(Keypair);
 
     impl Host for TestHost {
@@ -335,14 +338,14 @@ mod tests {
         damaged["room_secret"] = json!(room_key.secret_hex());
         damaged["moves"] = json!("not a record");
         args["room_secret"] = json!(room_key.secret_hex());
-        let refused = http.post(format!("http://{addr}/register")).json(&json!({ "arguments": damaged })).send().await.unwrap();
+        let refused = http.post(format!("http://{addr}/register")).json(&json!({ "arguments": damaged, "template": TEMPLATE })).send().await.unwrap();
         assert_eq!(refused.status(), StatusCode::UNPROCESSABLE_ENTITY, "a damaged record is refused, not taken as empty");
 
-        let first = http.post(format!("http://{addr}/register")).json(&json!({ "arguments": args })).send().await.unwrap();
+        let first = http.post(format!("http://{addr}/register")).json(&json!({ "arguments": args, "template": TEMPLATE })).send().await.unwrap();
         assert!(first.status().is_success());
         let body: register::response::Response = first.json().await.unwrap();
-        assert!(body.tools.is_empty(), "a room deploys no tools");
-        let second = http.post(format!("http://{addr}/register")).json(&json!({ "arguments": args })).send().await.unwrap();
+        assert!(body.dependencies.is_empty(), "a room declares no dependencies");
+        let second = http.post(format!("http://{addr}/register")).json(&json!({ "arguments": args, "template": TEMPLATE })).send().await.unwrap();
         assert_eq!(second.status(), StatusCode::CONFLICT);
         let schema: Value = http.get(format!("http://{addr}/schema")).send().await.unwrap().json().await.unwrap();
         assert_eq!(schema["properties"]["kind"]["enum"][1], "board");

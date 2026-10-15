@@ -5,7 +5,7 @@ import type { MountView } from "../bindings/MountView";
 import type { MountsView } from "../bindings/MountsView";
 import type { ProviderView } from "../bindings/ProviderView";
 import type { VolumeMountInput } from "../bindings/VolumeMountInput";
-import { identityKey, providerName } from "../lib/format";
+import { identityKey, providerName, refusalText } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
 import { Button, Field, SectionHead } from "./ui";
@@ -164,7 +164,7 @@ export function MountsPanel(props: { name: string; active: boolean; onClose: () 
     try {
       const out = await api.agentsEdit({ name: props.name, ...inputsOf(draft, machines, pinned) });
       if (out.outcome === "edited") setState({ kind: "saved", message: t.mounts.saved });
-      else setState({ kind: "problem", message: out.outcome === "active" ? t.mounts.active : out.outcome === "not_found" ? t.mounts.notFound : out.message });
+      else setState({ kind: "problem", message: out.outcome === "active" ? t.mounts.active : out.outcome === "not_found" ? t.mounts.notFound : out.outcome === "in_use" ? t.create.inUse : refusalText(out) });
     } catch (e) {
       setState({ kind: "problem", message: errorText(e) });
     }

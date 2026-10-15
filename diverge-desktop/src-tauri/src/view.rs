@@ -5,12 +5,18 @@
 //! `match` with no catch-all, so a variant the SDK adds fails this build
 //! instead of drifting past the screen.
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use ts_rs::TS;
 
+use diverge_sdk::daemon::creator::{self, Creator};
+use diverge_sdk::daemon::edit::{Change, Edit};
 use diverge_sdk::daemon::endpoints::agents;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Identity, Item, ItemWrapper};
+use diverge_sdk::daemon::endpoints::agents::templates::{AgentType, Template as AgentTemplate};
+use diverge_sdk::daemon::key;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use diverge_sdk::shared::error::Error as WireError;
 use diverge_sdk::shared::filetree::response::Node;
@@ -76,7 +82,20 @@ pub struct ImageKindView {
 #[derive(Serialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct AgentView {
-    pub name: String,
+    /// How the app keys it — tabs, rows, logs, messages: its name, or, for
+    /// an agent with none, its template and index (`daemon::agent_key`).
+    pub key: String,
+    /// Its name, if its create gave it one.
+    pub name: Option<String>,
+    /// The template it was made from, by id, and its number among the
+    /// agents made from that template: together they name it for good.
+    pub template: String,
+    #[ts(type = "number")]
+    pub index: u64,
+    /// Who made it: you, or one of your agents or tools.
+    pub creator: CreatorView,
+    pub tags: Vec<String>,
+    /// From its template; empty if the daemon wouldn't say.
     pub image_name: String,
     pub digest: String,
     pub created: String,
@@ -85,8 +104,75 @@ pub struct AgentView {
     pub provider: Option<ProviderView>,
     #[ts(type = "number")]
     pub logs_index: u64,
-    /// The daemon's tools attached to it.
+    /// The daemon's tools it has, each by its name or for good.
     pub tools: Vec<String>,
+}
+
+/// Who made something, as the daemon names its maker: once and for all,
+/// with the name it had beside.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum CreatorView {
+    /// You, over the app: the account the daemon serves you as.
+    Client { identity: String },
+    Agent {
+        template: String,
+        #[ts(type = "number")]
+        index: u64,
+        name: Option<String>,
+    },
+    Tool {
+        template: String,
+        #[ts(type = "number")]
+        index: u64,
+        name: Option<String>,
+    },
+    /// A dependency tool, running from a template an agent's program declared.
+    DependencyTool { template: String, owner: OwnerView },
+}
+
+/// Whose a dependency tool is.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum OwnerView {
+    Agent {
+        template: String,
+        #[ts(type = "number")]
+        index: u64,
+        name: Option<String>,
+    },
+    AgentTemplate { template: String },
+    Global,
+}
+
+impl From<&Creator> for CreatorView {
+    fn from(creator: &Creator) -> Self {
+        match creator {
+            Creator::Client(creator::Client { identity }) => CreatorView::Client { identity: identity.clone() },
+            Creator::Agent(creator::Agent { template, index, name }) => CreatorView::Agent { template: template.clone(), index: *index, name: name.clone() },
+            Creator::Tool(creator::Tool::Record { template, index, name }) => CreatorView::Tool { template: template.clone(), index: *index, name: name.clone() },
+            Creator::Tool(creator::Tool::Dependency { template, owner }) => {
+                let owner = match owner {
+                    key::Owner::Agent(key::Agent { template, index, name }) => OwnerView::Agent { template: template.clone(), index: *index, name: name.clone() },
+                    key::Owner::AgentTemplate { template } => OwnerView::AgentTemplate { template: template.clone() },
+                    key::Owner::Global => OwnerView::Global,
+                };
+                CreatorView::DependencyTool { template: template.clone(), owner }
+            }
+        }
+    }
+}
+
+/// A tool an agent has, as words: its name, or what names it for good.
+fn tool_words(tool: &key::Tool) -> String {
+    match tool {
+        key::Tool::Record { origin: _, index: _, name: Some(name) } => name.clone(),
+        key::Tool::Record { origin: key::Origin::Created { template }, index, name: None } => format!("{template}#{index}"),
+        key::Tool::Record { origin: key::Origin::Connected { daemon, account, tool: _ }, index, name: None } => format!("{account}@{daemon}#{index}"),
+        key::Tool::Dependency { template, owner: _ } => template.clone(),
+    }
 }
 
 /// What this app last stated an agent mounts, in the daemon's own shapes.
@@ -104,21 +190,30 @@ pub struct AgentMounts {
 
 impl AgentMounts {
     pub fn of_create(request: &agents::create::client::request::Frame) -> Self {
+        let made = &request.inner;
         AgentMounts {
-            pinned: request.provider.as_ref().map(|p| p.identity.clone()),
-            volume_mounts: request.provider.as_ref().map(|p| p.volume_mounts.clone()).unwrap_or_default(),
-            fuse_file_mounts: request.fuse_file_mounts.clone(),
-            fuse_directory_mounts: request.fuse_directory_mounts.clone(),
+            pinned: made.provider.as_ref().map(|p| p.identity.clone()),
+            volume_mounts: made.provider.as_ref().map(|p| p.volume_mounts.clone()).unwrap_or_default(),
+            fuse_file_mounts: made.fuse_file_mounts.clone(),
+            fuse_directory_mounts: made.fuse_directory_mounts.clone(),
         }
     }
 
-    /// The same machine; the three lists as the edit stated them.
+    /// The same machine; each list as the edit left it.
     pub fn edited(&self, request: &agents::edit::client::request::Frame) -> Self {
+        fn after<T: Clone>(now: &[T], change: &Option<Change<Vec<T>>>) -> Vec<T> {
+            match change {
+                None => now.to_vec(),
+                Some(Change::Delete) => Vec::new(),
+                Some(Change::Set(list)) => list.clone(),
+            }
+        }
+        let edit = &request.edit;
         AgentMounts {
             pinned: self.pinned.clone(),
-            volume_mounts: request.volume_mounts.clone(),
-            fuse_file_mounts: request.fuse_file_mounts.clone(),
-            fuse_directory_mounts: request.fuse_directory_mounts.clone(),
+            volume_mounts: after(&self.volume_mounts, &edit.volume_mounts),
+            fuse_file_mounts: after(&self.fuse_file_mounts, &edit.fuse_file_mounts),
+            fuse_directory_mounts: after(&self.fuse_directory_mounts, &edit.fuse_directory_mounts),
         }
     }
 
@@ -215,28 +310,75 @@ fn slashed(parts: &[String]) -> String {
 pub struct AgentsListed {
     pub agents: Vec<AgentView>,
     pub errors: Vec<String>,
+    /// The daemon refused: the account you're served as may not list agents.
+    pub forbidden: bool,
 }
 
-pub fn listed(frames: Vec<agents::list::server::response::Frame>) -> AgentsListed {
+/// A list's frames, applied in order, with each agent's template (by id)
+/// for what it was made from.
+pub fn listed(frames: Vec<agents::list::server::response::Frame>, templates: &HashMap<String, AgentTemplate>) -> AgentsListed {
     use agents::list::server::response::Frame;
+    let view = |agent: agents::list::server::response::Agent| {
+        let image = templates.get(&agent.template).map(|t| &t.image);
+        AgentView {
+            key: crate::daemon::agent_key(agent.name.as_deref(), &agent.template, agent.index),
+            image_name: image.and_then(|i| crate::catalog::Kind::of_image(i)).map(|k| k.image_name()).or_else(|| image.and_then(|i| i.references.first()).map(|r| r.name.clone())).unwrap_or_default(),
+            digest: image.map(|i| i.digest.clone()).unwrap_or_default(),
+            name: agent.name,
+            template: agent.template,
+            index: agent.index,
+            creator: (&agent.creator).into(),
+            tags: agent.tags,
+            created: agent.created.to_rfc3339(),
+            active: agent.active,
+            last_active: agent.last_active.map(|t| t.to_rfc3339()),
+            provider: agent.provider.as_ref().map(|p| (&p.identity).into()),
+            logs_index: agent.logs_index,
+            tools: agent.tools.iter().map(tool_words).collect(),
+        }
+    };
     let mut out = AgentsListed::default();
     for frame in frames {
         match frame {
-            Frame::Agent(agent) => out.agents.push(AgentView {
-                name: agent.name,
-                image_name: agent.image.name,
-                digest: agent.image.digest,
-                created: agent.created.to_rfc3339(),
-                active: agent.active,
-                last_active: agent.last_active.map(|t| t.to_rfc3339()),
-                provider: agent.provider.as_ref().map(|p| (&p.identity).into()),
-                logs_index: agent.logs_index,
-                tools: agent.tools,
-            }),
+            Frame::Added(agent) => out.agents.push(view(agent)),
+            Frame::Changed(agent) => {
+                let agent = view(agent);
+                match out.agents.iter_mut().find(|a| a.template == agent.template && a.index == agent.index) {
+                    Some(was) => *was = agent,
+                    None => out.agents.push(agent),
+                }
+            }
+            Frame::Removed(agent) => out.agents.retain(|a| !(a.template == agent.template && a.index == agent.index)),
+            Frame::Listed => {}
+            Frame::Forbidden => out.forbidden = true,
             Frame::Error(error) => out.errors.push(error_text(&error)),
         }
     }
     out
+}
+
+/// Every agent, read once, each with what its template says it is.
+pub async fn agents_listed(daemon: &dyn crate::daemon::Daemon) -> AgentsListed {
+    use agents::list::server::response::Frame;
+    use agents::templates::get::server::response::Frame as Got;
+    let frames = crate::daemon::agents_listed(daemon).await;
+    let mut templates = HashMap::new();
+    for frame in &frames {
+        let template = match frame {
+            Frame::Added(a) | Frame::Changed(a) => &a.template,
+            Frame::Removed(_) | Frame::Listed | Frame::Forbidden | Frame::Error(_) => continue,
+        };
+        if templates.contains_key(template) {
+            continue;
+        }
+        match daemon.agents_templates_get(agents::templates::get::client::request::Frame { id: template.clone(), relay: None }).await {
+            Got::Found(found) => {
+                templates.insert(template.clone(), found.template);
+            }
+            Got::NotFound | Got::Forbidden | Got::Error(_) => {}
+        }
+    }
+    listed(frames, &templates)
 }
 
 /// What the screen sends to make an agent.
@@ -310,28 +452,33 @@ fn components(path: &str) -> Vec<String> {
 }
 
 impl CreateAgentInput {
-    /// Into the daemon's own create. Every field named, so a field the SDK
-    /// adds fails this build.
-    pub fn into_request(self) -> Result<agents::create::client::request::Frame, String> {
-        use agents::create::client::request::{Frame, Image, Provider};
+    /// Into the daemon's own two asks: the template the form describes (the
+    /// image, the limits, the settings), and the create of an agent from it
+    /// (the name, the machine, the mounts). The create names the template by
+    /// the id the app computes; the caller puts the daemon's answer in its
+    /// place. Every field named, so a field the SDK adds fails this build.
+    pub fn into_requests(self) -> Result<(agents::templates::create::client::request::Frame, agents::create::client::request::Frame), String> {
+        use agents::create::client::request::{Frame, Provider};
         let kind = crate::catalog::ALL
             .into_iter()
             .find(|k| k.key() == self.image_kind)
             .ok_or_else(|| format!("no image called {}", self.image_kind))?;
+        let template = AgentTemplate { r#type: AgentType {}, description: None, image: kind.image(), memory: self.memory, disk: self.disk, arguments: self.arguments };
         let fuse = |mounts: Vec<FuseMountInput>| mounts.into_iter().map(FuseMountInput::into_wire).collect::<Vec<_>>();
-        Ok(Frame {
-            image: Image { name: kind.image_name(), digest: crate::catalog::UNBUILT_DIGEST.into() },
-            memory: self.memory,
-            disk: self.disk,
-            provider: self.provider.as_ref().map(|p| Provider {
-                identity: p.into(),
-                volume_mounts: self.volume_mounts.into_iter().map(VolumeMountInput::into_wire).collect(),
-            }),
-            fuse_file_mounts: fuse(self.fuse_file_mounts),
-            fuse_directory_mounts: fuse(self.fuse_directory_mounts),
-            arguments: self.arguments,
-            name: self.name,
-        })
+        let create = Frame {
+            inner: diverge_sdk::daemon::create::Inner {
+                template: crate::daemon::template_id(&template),
+                provider: self.provider.as_ref().map(|p| Provider {
+                    identity: p.into(),
+                    volume_mounts: self.volume_mounts.into_iter().map(VolumeMountInput::into_wire).collect(),
+                }),
+                fuse_file_mounts: fuse(self.fuse_file_mounts),
+                fuse_directory_mounts: fuse(self.fuse_directory_mounts),
+            },
+            name: Some(self.name).filter(|n| !n.trim().is_empty()),
+            relay: None,
+        };
+        Ok((agents::templates::create::client::request::Frame { template, relay: None }, create))
     }
 }
 
@@ -341,6 +488,8 @@ impl CreateAgentInput {
 pub enum CreateOutcome {
     Created,
     InUse,
+    /// The daemon refused: the account you're served as may not.
+    Forbidden,
     Error { message: String },
 }
 
@@ -349,6 +498,7 @@ pub enum CreateOutcome {
 #[derive(Deserialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct EditMountsInput {
+    /// The agent's key.
     pub name: String,
     pub volume_mounts: Vec<VolumeMountInput>,
     pub fuse_file_mounts: Vec<FuseMountInput>,
@@ -357,12 +507,13 @@ pub struct EditMountsInput {
 
 impl EditMountsInput {
     pub fn into_request(self) -> agents::edit::client::request::Frame {
-        agents::edit::client::request::Frame {
-            name: self.name,
-            volume_mounts: self.volume_mounts.into_iter().map(VolumeMountInput::into_wire).collect(),
-            fuse_file_mounts: self.fuse_file_mounts.into_iter().map(FuseMountInput::into_wire).collect(),
-            fuse_directory_mounts: self.fuse_directory_mounts.into_iter().map(FuseMountInput::into_wire).collect(),
-        }
+        let edit = Edit {
+            name: None,
+            volume_mounts: Some(Change::Set(self.volume_mounts.into_iter().map(VolumeMountInput::into_wire).collect())),
+            fuse_file_mounts: Some(Change::Set(self.fuse_file_mounts.into_iter().map(FuseMountInput::into_wire).collect())),
+            fuse_directory_mounts: Some(Change::Set(self.fuse_directory_mounts.into_iter().map(FuseMountInput::into_wire).collect())),
+        };
+        agents::edit::client::request::Frame { agent: crate::daemon::reference_of(&self.name), edit, relay: None }
     }
 }
 
@@ -374,6 +525,9 @@ pub enum EditOutcome {
     NotFound,
     /// It is working; ask again once it stops.
     Active,
+    /// The name asked for is another agent's.
+    InUse,
+    Forbidden,
     Error { message: String },
 }
 
@@ -384,6 +538,8 @@ impl From<agents::edit::server::response::Frame> for EditOutcome {
             Frame::Edited => EditOutcome::Edited,
             Frame::NotFound => EditOutcome::NotFound,
             Frame::Active => EditOutcome::Active,
+            Frame::InUse => EditOutcome::InUse,
+            Frame::Forbidden => EditOutcome::Forbidden,
             Frame::Error(error) => EditOutcome::Error { message: error_text(&error) },
         }
     }
@@ -395,6 +551,7 @@ impl From<agents::create::server::response::Frame> for CreateOutcome {
         match frame {
             Frame::Created => CreateOutcome::Created,
             Frame::InUse => CreateOutcome::InUse,
+            Frame::Forbidden => CreateOutcome::Forbidden,
             Frame::Error(error) => CreateOutcome::Error { message: error_text(&error) },
         }
     }
@@ -407,6 +564,7 @@ pub enum DeleteOutcome {
     Deleted,
     NotFound,
     Active,
+    Forbidden,
     Error { message: String },
 }
 
@@ -417,6 +575,7 @@ impl From<agents::delete::server::response::Frame> for DeleteOutcome {
             Frame::Deleted => DeleteOutcome::Deleted,
             Frame::NotFound => DeleteOutcome::NotFound,
             Frame::Active => DeleteOutcome::Active,
+            Frame::Forbidden => DeleteOutcome::Forbidden,
             Frame::Error(error) => DeleteOutcome::Error { message: error_text(&error) },
         }
     }
@@ -428,6 +587,7 @@ impl From<agents::delete::server::response::Frame> for DeleteOutcome {
 pub enum MessageOutcome {
     Delivered,
     Cancelled,
+    Forbidden,
     Error { message: String },
 }
 
@@ -437,6 +597,7 @@ impl From<agents::message::server::response::Frame> for MessageOutcome {
         match frame {
             Frame::Delivered => MessageOutcome::Delivered,
             Frame::Cancelled => MessageOutcome::Cancelled,
+            Frame::Forbidden => MessageOutcome::Forbidden,
             Frame::Error(error) => MessageOutcome::Error { message: error_text(&error) },
         }
     }
@@ -451,6 +612,8 @@ pub struct LogEntry {
     #[ts(type = "number")]
     pub logs_index: u64,
     pub created: String,
+    /// Who sent it, for a message's parts; none for what the agent's run wrote.
+    pub sender: Option<CreatorView>,
     pub item: LogItem,
 }
 
@@ -515,62 +678,65 @@ fn content_text(result: &Value) -> String {
         .unwrap_or_default()
 }
 
-impl From<&ItemWrapper> for LogEntry {
-    fn from(wrapper: &ItemWrapper) -> Self {
-        let item = match &wrapper.item {
-            Item::Chunk(chunk) => match chunk {
-                AgenticLoopChunk::AssistantReasoning(c) => LogItem::Reasoning { parent: c.parent_tool_call_id.clone(), text: field(&json(&c.inner), "text") },
-                AgenticLoopChunk::AssistantTextContent(c) => LogItem::Text { parent: c.parent_tool_call_id.clone(), text: field(&json(&c.inner), "text") },
-                AgenticLoopChunk::AssistantImageContent(c) => {
-                    let v = json(&c.inner);
-                    LogItem::Image { parent: c.parent_tool_call_id.clone(), mime_type: field(&v, "mimeType"), data: field(&v, "data") }
-                }
-                AgenticLoopChunk::AssistantAudioContent(c) => LogItem::Audio { parent: c.parent_tool_call_id.clone(), mime_type: field(&json(&c.inner), "mimeType") },
-                AgenticLoopChunk::AssistantToolCall(c) => LogItem::ToolCall { parent: c.parent_tool_call_id.clone(), id: c.id.clone(), name: c.name.clone(), arguments: c.arguments.clone() },
-                AgenticLoopChunk::AssistantRefusal(c) => LogItem::Refusal { parent: c.parent_tool_call_id.clone(), text: field(&json(&c.inner), "text") },
-                AgenticLoopChunk::ToolResponse(c) => {
-                    let v = json(&c.inner);
-                    LogItem::ToolResponse {
-                        parent: c.parent_tool_call_id.clone(),
-                        id: c.id.clone(),
-                        is_error: v.get("isError").and_then(Value::as_bool).unwrap_or(false),
-                        text: content_text(&v),
-                    }
-                }
-                AgenticLoopChunk::UserTextContent(c) => LogItem::UserText { key: c.key.clone(), text: field(&json(&c.inner), "text") },
-                AgenticLoopChunk::UserImageContent(c) => LogItem::UserImage { key: c.key.clone(), mime_type: field(&json(&c.inner), "mimeType") },
-                AgenticLoopChunk::UserAudioContent(c) => LogItem::UserAudio { key: c.key.clone(), mime_type: field(&json(&c.inner), "mimeType") },
-                AgenticLoopChunk::UserResource(c) => {
-                    let v = json(&c.inner);
-                    let uri = v.get("resource").map(|r| field(r, "uri")).unwrap_or_default();
-                    LogItem::UserResource { key: c.key.clone(), uri }
-                }
-                AgenticLoopChunk::UserResourceLink(c) => {
-                    let v = json(&c.inner);
-                    LogItem::UserResourceLink { key: c.key.clone(), uri: field(&v, "uri"), name: field(&v, "name") }
-                }
-                AgenticLoopChunk::Usage(c) => LogItem::Usage { prompt_tokens: c.prompt_tokens, completion_tokens: c.completion_tokens, total_tokens: c.total_tokens },
-                AgenticLoopChunk::Notification(c) => LogItem::Notification { fatal: c.is_fatal, message: c.message.clone() },
-            },
-            Item::Error(error) => LogItem::Error { message: error_text(&error.error) },
-            Item::Active(active) => LogItem::Active { provider: (&active.provider.identity).into() },
-            Item::Inactive(inactive) => LogItem::Inactive { provider: (&inactive.provider.identity).into() },
-        };
-        LogEntry { logs_index: wrapper.logs_index, created: wrapper.created.to_rfc3339(), item }
+/// One chunk, as the screen shows it.
+fn chunk_item(chunk: &AgenticLoopChunk) -> LogItem {
+    match chunk {
+        AgenticLoopChunk::AssistantReasoning(c) => LogItem::Reasoning { parent: c.parent_tool_call_id.clone(), text: field(&json(&c.inner), "text") },
+        AgenticLoopChunk::AssistantTextContent(c) => LogItem::Text { parent: c.parent_tool_call_id.clone(), text: field(&json(&c.inner), "text") },
+        AgenticLoopChunk::AssistantImageContent(c) => {
+            let v = json(&c.inner);
+            LogItem::Image { parent: c.parent_tool_call_id.clone(), mime_type: field(&v, "mimeType"), data: field(&v, "data") }
+        }
+        AgenticLoopChunk::AssistantAudioContent(c) => LogItem::Audio { parent: c.parent_tool_call_id.clone(), mime_type: field(&json(&c.inner), "mimeType") },
+        AgenticLoopChunk::AssistantToolCall(c) => LogItem::ToolCall { parent: c.parent_tool_call_id.clone(), id: c.id.clone(), name: c.name.clone(), arguments: c.arguments.clone() },
+        AgenticLoopChunk::AssistantRefusal(c) => LogItem::Refusal { parent: c.parent_tool_call_id.clone(), text: field(&json(&c.inner), "text") },
+        AgenticLoopChunk::ToolResponse(c) => {
+            let v = json(&c.inner);
+            LogItem::ToolResponse {
+                parent: c.parent_tool_call_id.clone(),
+                id: c.id.clone(),
+                is_error: v.get("isError").and_then(Value::as_bool).unwrap_or(false),
+                text: content_text(&v),
+            }
+        }
+        AgenticLoopChunk::UserTextContent(c) => LogItem::UserText { key: c.key.clone(), text: field(&json(&c.inner), "text") },
+        AgenticLoopChunk::UserImageContent(c) => LogItem::UserImage { key: c.key.clone(), mime_type: field(&json(&c.inner), "mimeType") },
+        AgenticLoopChunk::UserAudioContent(c) => LogItem::UserAudio { key: c.key.clone(), mime_type: field(&json(&c.inner), "mimeType") },
+        AgenticLoopChunk::UserResource(c) => {
+            let v = json(&c.inner);
+            let uri = v.get("resource").map(|r| field(r, "uri")).unwrap_or_default();
+            LogItem::UserResource { key: c.key.clone(), uri }
+        }
+        AgenticLoopChunk::UserResourceLink(c) => {
+            let v = json(&c.inner);
+            LogItem::UserResourceLink { key: c.key.clone(), uri: field(&v, "uri"), name: field(&v, "name") }
+        }
+        AgenticLoopChunk::Usage(c) => LogItem::Usage { prompt_tokens: c.prompt_tokens, completion_tokens: c.completion_tokens, total_tokens: c.total_tokens },
+        AgenticLoopChunk::Notification(c) => LogItem::Notification { fatal: c.is_fatal, message: c.message.clone() },
     }
 }
 
-/// One value a logs scope sent: an item as it is, or — when a `jq`
-/// program reshaped it — whatever the program yielded.
+impl From<&ItemWrapper> for LogEntry {
+    fn from(wrapper: &ItemWrapper) -> Self {
+        let (sender, item) = match &wrapper.item {
+            Item::User(user) => (Some((&user.sender).into()), chunk_item(&user.chunk)),
+            Item::Chunk(chunk) => (None, chunk_item(chunk)),
+            Item::Error(error) => (None, LogItem::Error { message: error_text(&error.error) }),
+            Item::Active(active) => (None, LogItem::Active { provider: (&active.provider.identity).into() }),
+            Item::Inactive(inactive) => (None, LogItem::Inactive { provider: (&inactive.provider.identity).into() }),
+        };
+        LogEntry { logs_index: wrapper.logs_index, created: wrapper.created.to_rfc3339(), sender, item }
+    }
+}
+
+/// What a logs scope sent: an item, typed, or why there are none.
 #[derive(Serialize, TS, Clone, Debug)]
 #[serde(tag = "event", rename_all = "snake_case")]
 #[ts(export, export_to = "../../src/bindings/")]
 pub enum LogEvent {
     Entry { entry: LogEntry },
-    Value {
-        #[ts(type = "unknown")]
-        value: Value,
-    },
+    /// The daemon refused: the account you're served as may not read this log.
+    Forbidden,
     Error { message: String },
     End,
 }
@@ -579,10 +745,8 @@ impl From<agents::logs::server::response::Frame> for LogEvent {
     fn from(frame: agents::logs::server::response::Frame) -> Self {
         use agents::logs::server::response::Frame;
         match frame {
-            Frame::Value(value) => match serde_json::from_value::<ItemWrapper>(value.clone()) {
-                Ok(wrapper) => LogEvent::Entry { entry: (&wrapper).into() },
-                Err(_) => LogEvent::Value { value },
-            },
+            Frame::Item(wrapper) => LogEvent::Entry { entry: (&wrapper).into() },
+            Frame::Forbidden => LogEvent::Forbidden,
             Frame::Error(error) => LogEvent::Error { message: error_text(&error) },
         }
     }
@@ -592,6 +756,7 @@ impl From<agents::logs::server::response::Frame> for LogEvent {
 #[derive(Deserialize, Serialize, TS, Clone, Debug, Default)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct LogsQuery {
+    /// The agent's key: its name, or its template and index.
     pub name: String,
     #[ts(type = "number | null")]
     pub logs_index_from: Option<u64>,
@@ -601,7 +766,6 @@ pub struct LogsQuery {
     pub created_to: Option<String>,
     /// One kind of item, by its wire name (e.g. "tool_response").
     pub item_type: Option<String>,
-    pub jq: Option<String>,
     #[ts(type = "number | null")]
     pub count: Option<u64>,
     pub watch: bool,
@@ -620,15 +784,15 @@ impl LogsQuery {
             .map(|t| serde_json::from_value(Value::String(t.clone())).map_err(|_| format!("no kind of item called \"{t}\"")))
             .transpose()?;
         Ok(agents::logs::client::request::Frame {
-            name: self.name,
+            agent: crate::daemon::reference_of(&self.name),
             logs_index_from: self.logs_index_from,
             logs_index_to: self.logs_index_to,
             created_from: time(self.created_from)?,
             created_to: time(self.created_to)?,
             r#type: item_type,
-            jq: self.jq.filter(|j| !j.trim().is_empty()),
             count: self.count,
             watch: Some(self.watch),
+            relay: None,
         })
     }
 }
@@ -692,16 +856,30 @@ impl From<&diverge_sdk::provider::endpoints::volumes::list::server::response::Vo
 #[ts(export, export_to = "../../src/bindings/")]
 pub enum VolumesListed {
     Volumes { volumes: Vec<VolumeView> },
+    /// The machine keeps no volumes.
+    Unsupported,
     Error { message: String },
 }
 
-impl From<volumes::list::server::response::Frame> for VolumesListed {
-    fn from(frame: volumes::list::server::response::Frame) -> Self {
+impl From<Vec<volumes::list::server::response::Frame>> for VolumesListed {
+    /// A list's frames, applied in order.
+    fn from(frames: Vec<volumes::list::server::response::Frame>) -> Self {
         use volumes::list::server::response::Frame;
-        match frame {
-            Frame::Volumes(list) => VolumesListed::Volumes { volumes: list.iter().map(Into::into).collect() },
-            Frame::Error(error) => VolumesListed::Error { message: error_text(&error) },
+        let mut volumes: Vec<VolumeView> = Vec::new();
+        for frame in frames {
+            match frame {
+                Frame::Added(v) => volumes.push((&v).into()),
+                Frame::Changed(v) => match volumes.iter_mut().find(|x| x.name == v.name) {
+                    Some(was) => *was = (&v).into(),
+                    None => volumes.push((&v).into()),
+                },
+                Frame::Removed(v) => volumes.retain(|x| x.name != v.name),
+                Frame::Listed => {}
+                Frame::Unsupported => return VolumesListed::Unsupported,
+                Frame::Error(error) => return VolumesListed::Error { message: error_text(&error) },
+            }
         }
+        VolumesListed::Volumes { volumes }
     }
 }
 
@@ -714,6 +892,9 @@ pub enum VolumeStat {
         #[ts(type = "number")]
         bytes_used: u64,
     },
+    /// Something holds it: a running agent, a live share, or another ask.
+    InUse,
+    Unsupported,
     Error { message: String },
 }
 
@@ -722,6 +903,8 @@ impl From<volumes::stat::server::response::Frame> for VolumeStat {
         use volumes::stat::server::response::Frame;
         match frame {
             Frame::Stat(stat) => VolumeStat::Stat { volume: (&stat.volume).into(), bytes_used: stat.bytes_used },
+            Frame::Mounted | Frame::FuseServed | Frame::Held => VolumeStat::InUse,
+            Frame::Unsupported => VolumeStat::Unsupported,
             Frame::Error(error) => VolumeStat::Error { message: error_text(&error) },
         }
     }
@@ -732,6 +915,8 @@ impl From<volumes::stat::server::response::Frame> for VolumeStat {
 #[ts(export, export_to = "../../src/bindings/")]
 pub enum VolumeTree {
     Tree { nodes: Vec<FileNode> },
+    InUse,
+    Unsupported,
     Error { message: String },
 }
 
@@ -740,6 +925,8 @@ impl From<volumes::filetree::server::response::Frame> for VolumeTree {
         use volumes::filetree::server::response::Frame;
         match frame {
             Frame::Tree(nodes) => VolumeTree::Tree { nodes: nodes.iter().map(Into::into).collect() },
+            Frame::Mounted | Frame::FuseServed | Frame::Held => VolumeTree::InUse,
+            Frame::Unsupported => VolumeTree::Unsupported,
             Frame::Error(error) => VolumeTree::Error { message: error_text(&error) },
         }
     }
@@ -754,6 +941,7 @@ pub enum Capacity {
         #[ts(type = "number")]
         bytes: u64,
     },
+    Unsupported,
     Error { message: String },
 }
 
@@ -762,6 +950,7 @@ impl From<volumes::create_capacity::server::response::Frame> for Capacity {
         use volumes::create_capacity::server::response::Frame;
         match frame {
             Frame::Capacity(bytes) => Capacity::Capacity { bytes },
+            Frame::Unsupported => Capacity::Unsupported,
             Frame::Error(error) => Capacity::Error { message: error_text(&error) },
         }
     }
@@ -772,6 +961,7 @@ impl From<volumes::edit_capacity::server::response::Frame> for Capacity {
         use volumes::edit_capacity::server::response::Frame;
         match frame {
             Frame::Capacity(bytes) => Capacity::Capacity { bytes },
+            Frame::Unsupported => Capacity::Unsupported,
             Frame::Error(error) => Capacity::Error { message: error_text(&error) },
         }
     }
@@ -786,6 +976,10 @@ pub enum VolumeChange {
     NotEnoughRoom,
     MoreContentThanThat,
     InUse,
+    /// The machine keeps no volumes of that mode.
+    ModeUnsupported,
+    /// The machine keeps no volumes.
+    Unsupported,
     Error { message: String },
 }
 
@@ -795,6 +989,8 @@ impl From<volumes::create::server::response::Frame> for VolumeChange {
         match frame {
             Frame::Created => VolumeChange::Done,
             Frame::InsufficientCapacity => VolumeChange::NotEnoughRoom,
+            Frame::ModeUnsupported => VolumeChange::ModeUnsupported,
+            Frame::Unsupported => VolumeChange::Unsupported,
             Frame::Error(error) => VolumeChange::Error { message: error_text(&error) },
         }
     }
@@ -807,6 +1003,9 @@ impl From<volumes::edit::server::response::Frame> for VolumeChange {
             Frame::Edited => VolumeChange::Done,
             Frame::InsufficientCapacity => VolumeChange::NotEnoughRoom,
             Frame::ContentTooLarge => VolumeChange::MoreContentThanThat,
+            Frame::ModeUnsupported => VolumeChange::ModeUnsupported,
+            Frame::Mounted | Frame::FuseServed | Frame::Held => VolumeChange::InUse,
+            Frame::Unsupported => VolumeChange::Unsupported,
             Frame::Error(error) => VolumeChange::Error { message: error_text(&error) },
         }
     }
@@ -817,7 +1016,8 @@ impl From<volumes::delete::server::response::Frame> for VolumeChange {
         use volumes::delete::server::response::Frame;
         match frame {
             Frame::Deleted => VolumeChange::Done,
-            Frame::Mounted => VolumeChange::InUse,
+            Frame::Mounted | Frame::FuseServed | Frame::Held => VolumeChange::InUse,
+            Frame::Unsupported => VolumeChange::Unsupported,
             Frame::Error(error) => VolumeChange::Error { message: error_text(&error) },
         }
     }
@@ -836,6 +1036,8 @@ pub enum FileRead {
         #[ts(type = "number")]
         bytes: u64,
     },
+    InUse,
+    Unsupported,
     Error { message: String },
 }
 
@@ -844,6 +1046,8 @@ pub enum FileRead {
 #[ts(export, export_to = "../../src/bindings/")]
 pub enum FileWritten {
     Written,
+    InUse,
+    Unsupported,
     Error { message: String },
 }
 
@@ -852,6 +1056,8 @@ impl From<volumes::write::server::response::Frame> for FileWritten {
         use volumes::write::server::response::Frame;
         match frame {
             Frame::Written(_) => FileWritten::Written,
+            Frame::Mounted | Frame::FuseServed | Frame::Held => FileWritten::InUse,
+            Frame::Unsupported => FileWritten::Unsupported,
             Frame::Error(error) => FileWritten::Error { message: error_text(&error) },
         }
     }

@@ -84,6 +84,7 @@ export function NewAgent(props: { tabKey: string }) {
         close(props.tabKey);
         if (first.trim()) api.agentsMessage(name.trim(), first.trim(), ticket()).then(refreshAgents);
       } else if (outcome.outcome === "in_use") setProblem(t.create.inUse);
+      else if (outcome.outcome === "forbidden") setProblem(t.common.forbidden);
       else setProblem(outcome.message);
     } catch (e) {
       setProblem(errorText(e));
