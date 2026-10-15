@@ -9,14 +9,14 @@ use diverge_sdk::wire::client::handle::Handle;
 
 /// Every container running under this provider, by the
 /// [`Id`](diverge_sdk::shared::containers::response::Id) its run was
-/// given — what a [`serve`](diverge_sdk::provider::endpoints::containers::serve)
+/// given — what a [`fuse_serve`](diverge_sdk::provider::endpoints::containers::fuse_serve)
 /// and a transfer have to find, on whatever connection they arrive.
 ///
 /// One per provider, shared across every connection's
-/// [`handle`](super::handle::handle): a serve names a container its
+/// [`handle`](super::handle::handle): a FUSE serve names a container its
 /// runner may have started from another socket entirely, so the map
 /// cannot live in a connection. A run handler inserts its container
-/// once the id is minted and removes it when the run ends; a serve
+/// once the id is minted and removes it when the run ends; a FUSE serve
 /// handler and a transfer look an id up — getting the connection to
 /// the container's proxy, which their scopes ride, and a signal for
 /// the run ending.
@@ -54,10 +54,10 @@ struct Entry {
     ended: watch::Sender<bool>,
 }
 
-/// What a serve or a transfer is handed for a container it named.
+/// What a FUSE serve or a transfer is handed for a container it named.
 #[derive(Debug, Clone)]
 pub struct Attached {
-    /// The one connection to the container's proxy, which a serve's
+    /// The one connection to the container's proxy, which a FUSE serve's
     /// asks and a transfer's write are opened on.
     pub proxy: Handle,
     /// `true` once the run is over. A receiver whose sender is gone
@@ -86,13 +86,13 @@ impl Directory {
         entries.insert(id, Entry { runner, proxy, ended });
     }
 
-    /// The run is over: nothing finds it any more, and every serve on
+    /// The run is over: nothing finds it any more, and every FUSE serve on
     /// it hears so.
     pub async fn remove(&self, id: &str) {
         let mut entries = self.entries.lock().await;
         if let Some(entry) = entries.remove(id) {
             // `send_replace`, not `send`: a value sent with no receiver
-            // is discarded, and a serve that looks later must still
+            // is discarded, and a FUSE serve that looks later must still
             // read the end.
             entry.ended.send_replace(true);
         }
@@ -101,7 +101,7 @@ impl Directory {
     /// Whether `identity` is running the container under `id`. `false`
     /// for an id under which nothing is running, indistinguishably:
     /// whether an id exists is not told to a caller that may not reach
-    /// it. What a serve of the container asks, and what a transfer into
+    /// it. What a FUSE serve of the container asks, and what a transfer into
     /// it asks.
     pub async fn runs(&self, id: &str, identity: &str) -> bool {
         self.entries

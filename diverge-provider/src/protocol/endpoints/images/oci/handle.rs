@@ -13,10 +13,15 @@ use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::oci_store::OciStore;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
+use diverge_sdk::provider::endpoints::images::oci::server::response;
 
 /// Answer every ask the caller opens, until it disconnects.
 ///
-/// Nothing is sent on the main stream: the scope is held, and each
+/// Nothing is sent on the main stream — but on a provider whose
+/// capabilities keep no image store, which sends
+/// [`Unsupported`](response::Frame::Unsupported) there and finishes,
+/// serving no channel. Otherwise the scope is held, and each
 /// channel the caller opens is answered on its own task — a has with
 /// one frame, the name or not held, then the finish; a manifest with
 /// at most one frame then the finish; a blob with its pieces, each
@@ -31,10 +36,19 @@ use crate::protocol::oci_store::OciStore;
 /// Because what the store holds for one caller is not what it holds
 /// for another, and the connection is what knows whose scope this
 /// is.
-pub async fn handle<O>(scope: ScopeHandle, client_identity: &str, store: Arc<O>)
+pub async fn handle<O>(scope: ScopeHandle, client_identity: &str, store: Arc<O>, capabilities: &Capabilities)
 where
     O: OciStore + 'static,
 {
+    if !capabilities.images_store {
+        let mut buffer = Vec::new();
+        response::Frame::Unsupported
+            .encode(&mut Writer::new(&mut buffer))
+            .unwrap_or_else(|error| match error {});
+        scope.send_response(&buffer).await;
+        scope.send_response_finish().await;
+        return;
+    }
     let scope = Arc::new(scope);
     let identity: Arc<str> = Arc::from(client_identity);
     let mut tasks = JoinSet::new();

@@ -17,7 +17,8 @@ use crate::protocol::image_registry::ImageRegistry;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume_manager::VolumeManager;
 use diverge_sdk::shared::containers::request::Container;
-use diverge_sdk::shared::containers::response::{Id, VolumeHeld};
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
+use diverge_sdk::shared::containers::response::{Id, VolumeFuseServed, VolumeHeld, VolumeMountUnsupported, VolumeMounted};
 use diverge_sdk::shared::error::Error;
 
 /// Run the container the request describes for as long as the scope
@@ -26,12 +27,16 @@ use diverge_sdk::shared::error::Error;
 /// In order:
 ///
 /// 0. The request's mounts are checked — see [`check`] — or the run
-///    is refused with the error, before anything is held.
-///    Then every volume the request names is found and held, shared —
-///    see [`Held`] — or the run is refused: with the name of a volume
-///    held exclusively, or with an error for a name that is not the
-///    caller's. Before anything is fetched or deployed. The holds are
-///    the `Held`'s and are given back at every ending below.
+///    is refused with the error, before anything is held; a request
+///    naming a FUSE mount on a provider whose capabilities mount none
+///    is refused with `FuseMountsUnsupported`. Then every volume the
+///    request names is found and held, shared — see [`Held`] — or
+///    the run is refused: with the name of a volume held, mounted,
+///    FUSE served or of a mode the provider does not mount, with the
+///    mode of one not in the mode its mount means, or with an error
+///    for a name that is not the caller's. Before anything is fetched
+///    or deployed. The holds are the `Held`'s and are given back at
+///    every ending below.
 /// 1. The container is brought up — see
 ///    [`setup::prepare`](super::setup::prepare): registry,
 ///    deploy, the proxy dialled, the family's begin, the id minted
@@ -58,6 +63,7 @@ pub(crate) async fn run<R, D, G, V>(
     deployer: &D,
     registry: &G,
     manager: &V,
+    capabilities: &Capabilities,
     directory: Arc<Directory>,
 ) where
     R: Runs,
@@ -76,11 +82,33 @@ pub(crate) async fn run<R, D, G, V>(
         return;
     }
 
+    let names_fuse = !request.fuse_file_mounts.is_empty() || !request.fuse_directory_mounts.is_empty();
+    if names_fuse && !capabilities.containers_fuse_mount {
+        send(&scope, R::fuse_mounts_unsupported()).await;
+        scope.send_response_finish().await;
+        return;
+    }
+
     let mounts = request.volume_mounts.iter().map(|mount| (mount.volume_name.as_str(), mount.mode));
-    let held = match Held::take(manager, client_identity, mounts).await {
+    let held = match Held::take(manager, client_identity, mounts, capabilities).await {
         Ok(held) => held,
         Err(Refused::Held(name)) => {
             send(&scope, R::volume_held(&VolumeHeld { name })).await;
+            scope.send_response_finish().await;
+            return;
+        }
+        Err(Refused::Mounted(name)) => {
+            send(&scope, R::volume_mounted(&VolumeMounted { name })).await;
+            scope.send_response_finish().await;
+            return;
+        }
+        Err(Refused::FuseServed(name)) => {
+            send(&scope, R::volume_fuse_served(&VolumeFuseServed { name })).await;
+            scope.send_response_finish().await;
+            return;
+        }
+        Err(Refused::MountUnsupported(name)) => {
+            send(&scope, R::volume_mount_unsupported(&VolumeMountUnsupported { name })).await;
             scope.send_response_finish().await;
             return;
         }

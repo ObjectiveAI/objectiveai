@@ -5,6 +5,7 @@ use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::provider::endpoints::volumes::edit_capacity::client::request;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume_manager::VolumeManager;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use diverge_sdk::shared::error::Error;
 
 /// Answer the question and end the scope.
@@ -35,10 +36,19 @@ pub async fn handle<M>(
     request: request::Frame,
     client_identity: &str,
     manager: &M,
+    capabilities: &Capabilities,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
+    if !capabilities.volumes() {
+        let mut buffer = Vec::new();
+        if response::Frame::Unsupported.encode(&mut Writer::new(&mut buffer)).is_ok() {
+            scope.send_response(&buffer).await;
+        }
+        scope.send_response_finish().await;
+        return;
+    }
     let frame = match manager
         .edit_capacity(client_identity, &request.name)
         .await

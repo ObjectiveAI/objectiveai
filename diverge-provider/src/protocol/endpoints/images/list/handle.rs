@@ -10,6 +10,7 @@ use diverge_sdk::provider::endpoints::images::list::server::response;
 use diverge_sdk::provider::endpoints::images::list::client::channel_request;
 use crate::protocol::changes::Changes;
 use crate::protocol::image_manager::ImageManager;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
@@ -21,6 +22,9 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///
 /// In order:
 ///
+/// 0. [`Unsupported`](response::Frame::Unsupported), then the finish,
+///    on a provider whose capabilities keep no image store; nothing
+///    is looked at.
 /// 1. The changes subscribed to, before anything is read, so nothing
 ///    that happens meanwhile is missed; then the manager asked which
 ///    images the caller has. A manager that will not answer is the
@@ -42,11 +46,21 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///
 /// A response that will not encode is the one failure with nowhere to
 /// go, and is not sent; the listing goes on without it.
-pub async fn handle<M>(scope: ScopeHandle, client_identity: &str, manager: &M, changes: Arc<Changes>)
-where
+pub async fn handle<M>(
+    scope: ScopeHandle,
+    client_identity: &str,
+    manager: &M,
+    changes: Arc<Changes>,
+    capabilities: &Capabilities,
+) where
     M: ImageManager,
     M::Error: Into<Error>,
 {
+    if !capabilities.images_store {
+        send(&scope, &response::Frame::Unsupported).await;
+        scope.send_response_finish().await;
+        return;
+    }
     let mut nudges = changes.subscribe();
     let mut known: HashMap<String, response::Image> = HashMap::new();
     match manager.list(client_identity).await {

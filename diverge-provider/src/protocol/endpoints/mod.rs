@@ -7,5 +7,5 @@
 pub mod containers;
 pub mod daemons;
 pub mod images;
-pub mod version;
+pub mod info;
 pub mod volumes;

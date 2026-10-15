@@ -7,13 +7,16 @@ use diverge_sdk::provider::endpoints::images::delete::server::response;
 use diverge_sdk::provider::endpoints::images::refusal;
 use crate::protocol::changes::Changes;
 use crate::protocol::image_manager::ImageManager;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 /// Remove the image and end the scope.
 ///
-/// The manager says what happened:
+/// A provider whose capabilities keep no image store answers
+/// [`Unsupported`](response::Frame::Unsupported) and asks nothing.
+/// Otherwise the manager says what happened:
 /// [`Deleted`](response::Deletion::Deleted) is the image gone, told to
 /// every listing open by name; [`InUse`](response::Deletion::InUse)
 /// is a running container of the caller running it, and the wire's
@@ -26,18 +29,23 @@ pub async fn handle<M>(
     client_identity: &str,
     manager: &M,
     changes: Arc<Changes>,
+    capabilities: &Capabilities,
 ) where
     M: ImageManager,
     M::Error: Into<Error>,
 {
-    let frame = match manager.delete(client_identity, &request.name).await {
-        Ok(Some(response::Deletion::Deleted)) => {
-            changes.changed(client_identity, &request.name);
-            response::Frame::Deleted
+    let frame = if !capabilities.images_store {
+        response::Frame::Unsupported
+    } else {
+        match manager.delete(client_identity, &request.name).await {
+            Ok(Some(response::Deletion::Deleted)) => {
+                changes.changed(client_identity, &request.name);
+                response::Frame::Deleted
+            }
+            Ok(Some(response::Deletion::InUse)) => response::Frame::InUse,
+            Ok(None) => response::Frame::Error(refusal::unknown(&request.name)),
+            Err(error) => response::Frame::Error(error.into()),
         }
-        Ok(Some(response::Deletion::InUse)) => response::Frame::InUse,
-        Ok(None) => response::Frame::Error(refusal::unknown(&request.name)),
-        Err(error) => response::Frame::Error(error.into()),
     };
 
     let mut buffer = Vec::new();

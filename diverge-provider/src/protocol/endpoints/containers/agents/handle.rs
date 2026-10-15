@@ -11,6 +11,7 @@ use crate::protocol::directory::Directory;
 use crate::protocol::image_registry::ImageRegistry;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume_manager::VolumeManager;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use diverge_sdk::shared::error::Error;
 
 /// Run the container the request describes and serve the scope for
@@ -30,6 +31,7 @@ pub async fn handle<D, G, V>(
     deployer: &D,
     registry: &G,
     manager: &V,
+    capabilities: &Capabilities,
     directory: Arc<Directory>,
 ) where
     D: ContainerDeployer,
@@ -47,6 +49,7 @@ pub async fn handle<D, G, V>(
         deployer,
         registry,
         manager,
+        capabilities,
         directory,
     )
     .await

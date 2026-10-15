@@ -65,7 +65,7 @@ pub enum Error {
     /// A write's content ended in the caller's own error before it was
     /// whole; the write was abandoned. The error is the caller's.
     Content(error::Error),
-    /// The serve's `overlay_disk` would take the containers' and
+    /// The FUSE serve's `overlay_disk` would take the containers' and
     /// serves' disk past `container_overlay_disk`.
     OverlayDisk(u64),
     /// An ephemeral fixed volume asked to be served, which this

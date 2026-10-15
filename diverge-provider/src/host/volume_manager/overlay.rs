@@ -1,5 +1,5 @@
 //! A stored volume's image under a scratch file: reads from the
-//! image, writes into the scratch, block by block, for a serve that
+//! image, writes into the scratch, block by block, for a FUSE serve that
 //! starts from the image and keeps nothing.
 
 use std::fs::File;
@@ -22,10 +22,10 @@ const BLOCK: u64 = 4096;
 /// block from whichever holds each; a write lands in the scratch,
 /// merged over the image's block where it covers only part of one
 /// not yet written. The blocks written are counted against the cap
-/// the serve was given, `overlay_disk`, and a write that needs a
+/// the FUSE serve was given, `overlay_disk`, and a write that needs a
 /// block past the cap is refused whole with nothing written, the
 /// blocks before it intact. The image's length is the device's, fixed
-/// at open: an image never changes length inside a serve, since a
+/// at open: an image never changes length inside a FUSE serve, since a
 /// resize takes the exclusive hold. The journal's replay writes
 /// through here like anything else, and counts.
 ///
@@ -95,7 +95,7 @@ impl Overlay {
     fn full(&self) -> fstool::Error {
         fstool::Error::Io(io::Error::new(
             io::ErrorKind::StorageFull,
-            format!("the serve's overlay disk of {} bytes is full", self.cap * BLOCK),
+            format!("the FUSE serve's overlay disk of {} bytes is full", self.cap * BLOCK),
         ))
     }
 }

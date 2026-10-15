@@ -24,7 +24,9 @@ use crate::protocol::endpoints::containers::run::serve::tool;
 use crate::protocol::endpoints::containers::run::{encoded::encoded, render};
 use diverge_sdk::container_proxy::outside::endpoints::tools::begin::client::execute as begin;
 use diverge_sdk::shared;
-use diverge_sdk::shared::containers::response::{Id, VolumeHeld, VolumeMode};
+use diverge_sdk::shared::containers::response::{
+    Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
+};
 use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, vault};
 use diverge_sdk::shared::containers::daemon;
 use diverge_sdk::shared::error::Error;
@@ -158,8 +160,24 @@ impl Runs for Tools {
         encoded(&response::Frame::VolumeHeld(refused.clone()))
     }
 
+    fn volume_mounted(refused: &VolumeMounted) -> Option<Vec<u8>> {
+        encoded(&response::Frame::VolumeMounted(refused.clone()))
+    }
+
+    fn volume_fuse_served(refused: &VolumeFuseServed) -> Option<Vec<u8>> {
+        encoded(&response::Frame::VolumeFuseServed(refused.clone()))
+    }
+
+    fn volume_mount_unsupported(refused: &VolumeMountUnsupported) -> Option<Vec<u8>> {
+        encoded(&response::Frame::VolumeMountUnsupported(refused.clone()))
+    }
+
     fn volume_mode(refused: &VolumeMode) -> Option<Vec<u8>> {
         encoded(&response::Frame::VolumeMode(refused.clone()))
+    }
+
+    fn fuse_mounts_unsupported() -> Option<Vec<u8>> {
+        encoded(&response::Frame::FuseMountsUnsupported)
     }
 }
 

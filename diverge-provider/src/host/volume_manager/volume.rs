@@ -12,6 +12,7 @@ use diverge_sdk::provider::endpoints::volumes::edit::client::request::Change;
 use diverge_sdk::provider::endpoints::volumes::edit::server::response::Edit;
 use diverge_sdk::provider::endpoints::volumes::list::server::response;
 use diverge_sdk::provider::endpoints::volumes::stat::server::response::Stat;
+use crate::protocol::hold::{self, Allow, Held, Holder, Refused};
 use crate::protocol::holders::Holders;
 use crate::protocol::volume;
 use diverge_sdk::shared::error;
@@ -59,15 +60,16 @@ pub enum Place {
 ///
 /// # The hold
 ///
-/// One atomic count: `0` is free, `n` is `n` containers mounting the
-/// volume, and `Holders::Locked` is the one stat, edit or delete that has it
-/// to itself. [`mount`](volume::Volume::mount) adds one unless it is
-/// locked, [`unmount`](volume::Volume::unmount) takes one away,
-/// [`lock`](volume::Volume::lock) goes from free to locked and
-/// [`unlock`](volume::Volume::unlock) back, each one compare-and-swap
-/// that never waits. The protocol takes the shared hold before a mount and
-/// the exclusive one before a stat, an edit or a delete, and gives
-/// each back after — see the trait for the rule.
+/// One [`Holders`] under a mutex: free, the runs and the FUSE serves
+/// that have the volume counted apart, or locked by the one stat,
+/// read, write, filetree, edit or delete that has it to itself. What
+/// each may do beside the others is the protocol's rule,
+/// [`hold`](crate::protocol::hold), applied here under the mutex with
+/// the mode read under it too, so a mount and a lock at once cannot
+/// both succeed and an edit cannot change the mode between the look
+/// and the answer. The protocol takes the shared hold before a mount
+/// and the exclusive one before a stat, an edit or a delete, and
+/// gives each back after — see the trait for the rule.
 ///
 /// # One loop mount, however many containers
 ///
@@ -88,7 +90,7 @@ struct Inner {
     place: Place,
     /// The volume's [`Mode`]: what its mode file holds, or the
     /// configuration declares for a fixed volume. Changed only under
-    /// the exclusive hold, so no container and no serve is bound while
+    /// the exclusive hold, so no container and no FUSE serve is bound while
     /// it moves.
     mode: Mutex<Mode>,
     /// The protocol's hold: free, some number of mounters, or locked.
@@ -434,53 +436,49 @@ impl volume::Volume for Volume {
         *self.inner.mode.lock().await
     }
 
-    /// One more mounter, unless the volume is locked — or, for a
-    /// persistent volume, held by anyone at all: a persistent volume
-    /// has one user at a time, one container or one serve, which is
-    /// what keeps its image under one writer. One step under the
-    /// lock, so a lock and a mount at once cannot both succeed.
-    async fn mount(&self) -> bool {
-        let one_user = self.mode().await == Mode::Persistent;
+    /// The mode read and the rule applied under the one mutex, so a
+    /// lock and a mount at once cannot both succeed, and no edit lands
+    /// between the look at the mode and the answer.
+    async fn mount(&self, holder: Holder, admit: impl Fn(Mode) -> Option<Allow> + Send) -> Result<Mode, Refused> {
         let mut holders = self.inner.holders.lock().await;
-        *holders = match *holders {
-            Holders::Locked => return false,
-            Holders::Free => Holders::Mounted(1),
-            Holders::Mounted(_) if one_user => return false,
-            Holders::Mounted(count) => Holders::Mounted(count + 1),
+        let mode = *self.inner.mode.lock().await;
+        let Some(allow) = admit(mode) else {
+            return Err(Refused::Declined(mode));
         };
-        true
+        *holders = hold::admit(*holders, holder, allow).map_err(Refused::Held)?;
+        Ok(mode)
     }
 
-    /// One mounter fewer; `false` is a volume with none, or locked.
-    async fn unmount(&self) -> bool {
+    /// One holder of the kind fewer; `false` is a volume with none.
+    async fn unmount(&self, holder: Holder) -> bool {
         let mut holders = self.inner.holders.lock().await;
-        *holders = match *holders {
-            Holders::Free | Holders::Locked => return false,
-            Holders::Mounted(1) => Holders::Free,
-            Holders::Mounted(count) => Holders::Mounted(count - 1),
-        };
-        true
-    }
-
-    /// Free to locked, and nothing else: a volume anyone has is
-    /// refused.
-    async fn lock(&self) -> bool {
-        let mut holders = self.inner.holders.lock().await;
-        if *holders != Holders::Free {
-            return false;
+        match hold::release(*holders, holder) {
+            Some(released) => {
+                *holders = released;
+                true
+            }
+            None => false,
         }
-        *holders = Holders::Locked;
-        true
+    }
+
+    /// Free to locked, and nothing else: a volume anyone has refuses,
+    /// saying who.
+    async fn lock(&self) -> Result<(), Held> {
+        let mut holders = self.inner.holders.lock().await;
+        *holders = hold::lock(*holders)?;
+        Ok(())
     }
 
     /// Locked to free; `false` is a volume that was not locked.
     async fn unlock(&self) -> bool {
         let mut holders = self.inner.holders.lock().await;
-        if *holders != Holders::Locked {
-            return false;
+        match hold::unlock(*holders) {
+            Some(unlocked) => {
+                *holders = unlocked;
+                true
+            }
+            None => false,
         }
-        *holders = Holders::Free;
-        true
     }
 
     async fn holders(&self) -> Holders {
@@ -579,8 +577,8 @@ impl volume::Volume for Volume {
     type Served = Served;
 
     /// The volume served: a stored volume's image opened once, the
-    /// journal replayed, for the serve's life — read-write for a
-    /// persistent volume, which this serve alone holds; read-only for
+    /// journal replayed, for the FUSE serve's life — read-write for a
+    /// persistent volume, which this FUSE serve alone holds; read-only for
     /// a read-only one; under a scratch layer of `overlay_disk` bytes
     /// for an ephemeral one, taken from the container overlay cap —
     /// or a fixed volume's directory as it is. Whatever a walk found

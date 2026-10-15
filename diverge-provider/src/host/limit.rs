@@ -17,7 +17,7 @@ const UNIT: u64 = 4096;
 /// A ceiling in BYTES and how much of it is held: `memory` against
 /// the running containers' `memory`, and `container_overlay_disk`
 /// against the running containers' `disk` and every ephemeral
-/// serve's `overlay_disk` together, since a serve's scratch lives
+/// FUSE serve's `overlay_disk` together, since a FUSE serve's scratch lives
 /// beside the containers' overlays. A take is a [`Held`], and the
 /// bytes go back when it is dropped — by whoever held it, however it
 /// ended — so nothing has to remember to give.

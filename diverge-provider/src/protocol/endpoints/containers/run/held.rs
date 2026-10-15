@@ -5,10 +5,12 @@ use std::sync::Arc;
 
 use futures_util::future;
 
-use diverge_sdk::provider::endpoints::volumes::Mode;
-use diverge_sdk::provider::endpoints::volumes::refusal;
+use crate::protocol::hold::{self, Allow, Holder};
 use crate::protocol::volume::Volume;
 use crate::protocol::volume_manager::VolumeManager;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
+use diverge_sdk::provider::endpoints::volumes::Mode;
+use diverge_sdk::provider::endpoints::volumes::refusal;
 use diverge_sdk::shared::containers::response::VolumeMode;
 use diverge_sdk::shared::error::Error;
 
@@ -46,18 +48,27 @@ pub(crate) struct Held<V: Volume> {
     volumes: Vec<Arc<V>>,
 }
 
-/// Why a request's volumes could not all be taken.
+/// Why a request's volumes could not all be taken: each the run's own
+/// response, naming the volume.
 pub(crate) enum Refused {
-    /// A volume the request names is held — exclusively, under a
-    /// stat, an edit or a delete in flight, or, a persistent one, by
-    /// any container or serve — and this is its name. The run's own
-    /// [`VolumeHeld`](diverge_sdk::shared::containers::response::VolumeHeld).
+    /// A volume the request names is under a stat, a read, a write,
+    /// a filetree, an edit or a delete. The run's `VolumeHeld`.
     Held(String),
+    /// A running container has a volume the request names, and the
+    /// provider mounts a volume of its mode once. The run's
+    /// `VolumeMounted`.
+    Mounted(String),
+    /// A FUSE serve has a volume the request names, and the provider
+    /// does not mount a volume of its mode beside one. The run's
+    /// `VolumeFuseServed`.
+    FuseServed(String),
+    /// The provider does not mount a volume of the mode a volume the
+    /// request names is in. The run's `VolumeMountUnsupported`.
+    MountUnsupported(String),
     /// A volume the request names is not in the mode its mount means
     /// it to have — or two mounts name it under two modes, one of
     /// which it is not in — and this is its name and the mode it is
-    /// in. The run's own
-    /// [`VolumeMode`](diverge_sdk::shared::containers::response::VolumeMode).
+    /// in. The run's `VolumeMode`.
     Mode(VolumeMode),
     /// A volume the request names is not the caller's, or the
     /// provider could not answer for one: the run's error.
@@ -66,7 +77,8 @@ pub(crate) enum Refused {
 
 impl<V: Volume> Held<V> {
     /// Hold every volume `mounts` names, once each, or none of them,
-    /// each in the mode its mounts mean.
+    /// each in the mode its mounts mean and as the provider's
+    /// `capabilities` for that mode allow.
     ///
     /// Every distinct name is [`got`](VolumeManager::get) beside
     /// every other — a lookup may run a provider's hook, a process,
@@ -78,16 +90,20 @@ impl<V: Volume> Held<V> {
     /// what was taken before it. A name the caller has no volume by
     /// is [`Refused::Error`] with [`refusal::unknown`]; a provider
     /// that will not answer a lookup is [`Refused::Error`] with its
-    /// error; both before anything is held. A volume that will not
-    /// take the hold is [`Refused::Held`], with the holds taken
-    /// before it given back. A volume that took the hold is read for
-    /// its [`mode`](Volume::mode) under it: one not in the mode every
-    /// mount naming it means is [`Refused::Mode`], its own hold and
-    /// every one before it given back.
+    /// error; both before anything is held. The mode each volume is
+    /// in is judged under its own lock, through the `admit` the
+    /// mount is given: a mode some mount naming the volume does not
+    /// mean is declined, [`Refused::Mode`]; a mode the capabilities
+    /// do not mount is declined, [`Refused::MountUnsupported`]; and
+    /// a volume a party the capabilities do not allow beside holds
+    /// is [`Refused::Held`], [`Refused::Mounted`] or
+    /// [`Refused::FuseServed`], as [`hold`] says — each with the
+    /// holds taken before it given back.
     pub async fn take<'a, M>(
         manager: &M,
         client_identity: &str,
         mounts: impl IntoIterator<Item = (&'a str, Mode)>,
+        capabilities: &Capabilities,
     ) -> Result<Self, Refused>
     where
         M: VolumeManager<Volume = V>,
@@ -119,18 +135,48 @@ impl<V: Volume> Held<V> {
         };
         let mut by_name: HashMap<&str, Arc<V>> = HashMap::with_capacity(distinct.len());
         for (name, volume) in distinct.iter().zip(volumes) {
-            if !volume.mount().await {
+            let meant: Vec<Mode> = mounts
+                .iter()
+                .filter(|(named, _)| named == name)
+                .map(|(_, mode)| *mode)
+                .collect();
+            let admit = |mode: Mode| -> Option<Allow> {
+                if meant.iter().any(|m| *m != mode) {
+                    return None;
+                }
+                let allowed = capabilities.volume(mode)?;
+                if !allowed.mount {
+                    return None;
+                }
+                Some(Allow {
+                    many: allowed.mount_many,
+                    beside: allowed.mount_and_fuse_serve,
+                })
+            };
+            let refused = match volume.mount(Holder::Run, admit).await {
+                Ok(_) => None,
+                Err(hold::Refused::Declined(mode)) if meant.iter().any(|m| *m != mode) => {
+                    Some(Refused::Mode(VolumeMode {
+                        name: name.to_string(),
+                        mode,
+                    }))
+                }
+                Err(hold::Refused::Declined(_)) => {
+                    Some(Refused::MountUnsupported(name.to_string()))
+                }
+                Err(hold::Refused::Held(hold::Held::Locked)) => {
+                    Some(Refused::Held(name.to_string()))
+                }
+                Err(hold::Refused::Held(hold::Held::Mounted)) => {
+                    Some(Refused::Mounted(name.to_string()))
+                }
+                Err(hold::Refused::Held(hold::Held::FuseServed)) => {
+                    Some(Refused::FuseServed(name.to_string()))
+                }
+            };
+            if let Some(refused) = refused {
                 held.give_back().await;
-                return Err(Refused::Held(name.to_string()));
-            }
-            let mode = volume.mode().await;
-            if mounts.iter().any(|(named, meant)| named == name && *meant != mode) {
-                volume.unmount().await;
-                held.give_back().await;
-                return Err(Refused::Mode(VolumeMode {
-                    name: name.to_string(),
-                    mode,
-                }));
+                return Err(refused);
             }
             let volume = Arc::new(volume);
             held.held.push(Arc::clone(&volume));
@@ -153,7 +199,7 @@ impl<V: Volume> Held<V> {
     /// Every hold given back, in the order taken: the run is over.
     pub(crate) async fn give_back(self) {
         for volume in &self.held {
-            volume.unmount().await;
+            volume.unmount(Holder::Run).await;
         }
     }
 }

@@ -31,10 +31,10 @@
 //! persistent volume has one user at a time — one container or one
 //! serve — so its image is under one writer, the kernel's or
 //! fstool's; an ephemeral or a read-only volume's image is loop-mounted
-//! read-only, so any number of containers and serves may hold it.
+//! read-only, so any number of containers and FUSE serves may hold it.
 //! An ephemeral serve runs on an [`Overlay`]: the image read, a
 //! scratch file under `<containers.podman.storage_path>/ephemeral/`
-//! written, the scratch capped by the serve's `overlay_disk` and
+//! written, the scratch capped by the FUSE serve's `overlay_disk` and
 //! counted against `container_overlay_disk` beside the containers —
 //! see [`Scratch`]. A fixed volume in ephemeral mode is not served,
 //! this provider having no scratch layer over a directory.
@@ -60,7 +60,7 @@
 //! directory and [`walk_image`] the walk of a stored volume's image;
 //! [`read_file`], [`write_file`] and [`tree`] read a file out of an
 //! image, write one in, and walk its subtree into a snapshot's nodes;
-//! [`Served`] is a volume answering the FUSE asks for a serve's life;
+//! [`Served`] is a volume answering the FUSE asks for a FUSE serve's life;
 //! [`reserve_image`] and [`format_image`] are how an image is made,
 //! at [`image_path`], and [`read_mode`] and [`write_mode`] read and
 //! write the [`Mode`](diverge_sdk::provider::endpoints::volumes::Mode) at [`mode_path`] beside it; the filesystem in

@@ -26,13 +26,13 @@
 //! Ten of the [`volumes`](diverge_sdk::provider::endpoints::volumes),
 //! [`images::check`](diverge_sdk::provider::endpoints::images::check),
 //! the image store's stat and delete and
-//! [`version`](diverge_sdk::provider::endpoints::version) answer and finish, which is
+//! [`info`](diverge_sdk::provider::endpoints::info) answer and finish, which is
 //! the whole of what those endpoints do; the two listings stay open
 //! until the caller stops, and a build until the build ends. The two
 //! [`containers`](diverge_sdk::provider::endpoints::containers) runs serve for as
 //! long as their containers run: each brings its container up,
 //! answers its id, and then carries the container's asks out and the
-//! caller's channels in until it ends; a serve reaches into a running
+//! caller's channels in until it ends; a FUSE serve reaches into a running
 //! one for its runner. Every endpoint is handled.
 //!
 //! # And what a provider supplies
@@ -128,7 +128,7 @@
 //! error vocabulary.
 //!
 //! [`directory`] is a type: every container the provider is running,
-//! by id, shared across connections — because a serve names a
+//! by id, shared across connections — because a FUSE serve names a
 //! container its runner may have started on another socket, and has
 //! to find the connection to its proxy.
 //! [`acceptors`] is its twin for daemons: every daemon accepting
@@ -148,14 +148,21 @@
 //! — for the volumes a request mounts, locked for the run — the
 //! [`volume_manager`] again by the two run handlers of
 //! [`containers`](diverge_sdk::provider::endpoints::containers)
-//! — the scopes that put a container somewhere. A serve handler
+//! — the scopes that put a container somewhere. A FUSE serve handler
 //! consumes none of those, because it deploys nothing — the container
 //! it serves already exists, and is stopped by whoever ran it — and
 //! reads the [`directory`] the run handlers write.
 //!
-//! [`version`](diverge_sdk::provider::endpoints::version) has a handler too and asks
-//! for nothing at all, its answer being a compile-time constant. It is
-//! the one request a provider can serve without supplying anything.
+//! [`info`](diverge_sdk::provider::endpoints::info) has a handler too and asks
+//! for one value: the
+//! [`Capabilities`](diverge_sdk::provider::endpoints::info::server::response::Capabilities)
+//! the provider holds out, which it answers beside a compile-time
+//! version and which every handler of an optional part of the
+//! protocol enforces — the image store's five and the check, the
+//! runs' FUSE mounts, the container FUSE serve, and the eleven volume
+//! endpoints, each answering the refusal the wire defines where the
+//! capability is absent and judging every hold on a volume by what
+//! the capability for its mode allows, through [`hold`].
 //!
 //! [`proxy`] faces the other way: not something a provider supplies,
 //! but the one thing this crate dials — the proxy inside a container,
@@ -183,6 +190,7 @@ pub mod deployment;
 pub mod directory;
 pub mod endpoints;
 pub mod handle;
+pub mod hold;
 pub mod holders;
 pub mod image_checker;
 pub mod image_manager;

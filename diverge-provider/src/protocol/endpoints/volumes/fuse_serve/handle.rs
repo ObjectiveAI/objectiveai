@@ -1,4 +1,4 @@
-//! Answering a serve, from a scope and a manager.
+//! Answering a FUSE serve, from a scope and a manager.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -7,13 +7,15 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::task::JoinSet;
 
-use diverge_sdk::provider::endpoints::volumes::serve::server::channel_response::filetree;
-use diverge_sdk::provider::endpoints::volumes::serve::server::response;
+use diverge_sdk::provider::endpoints::volumes::fuse_serve::server::channel_response::filetree;
+use diverge_sdk::provider::endpoints::volumes::fuse_serve::server::response;
 use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::client::execute::Ask;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::provider::endpoints::volumes::refusal;
-use diverge_sdk::provider::endpoints::volumes::serve::client::{channel_request, request};
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
+use crate::protocol::hold::{self, Allow, Holder};
+use diverge_sdk::provider::endpoints::volumes::fuse_serve::client::{channel_request, request};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::served::Served;
@@ -34,11 +36,21 @@ const CHANGES_BEHIND: usize = 256;
 /// # Under the shared hold
 ///
 /// The volume is [`got`](VolumeManager::get) and then
-/// [`mounted`](crate::protocol::volume::Volume::mount) — the shared
-/// hold a run takes — for the scope's life, so nothing examines,
-/// resizes or removes it meanwhile and other serves and runs may hold
-/// it beside this one. A volume held exclusively is the serve refused
-/// with [`refusal::mounted`]. The hold is given back after the finish.
+/// [`mounted`](crate::protocol::volume::Volume::mount) as a
+/// [`Holder::FuseServe`] — the shared hold a run takes — for the
+/// scope's life, so nothing examines, resizes or removes it
+/// meanwhile, and as many other FUSE serves and runs as the
+/// provider's capability for the volume's mode allows may hold it
+/// beside this one. The mode is judged under the volume's own lock:
+/// one not the request's is [`VolumeMode`](response::Frame::VolumeMode),
+/// one the capabilities do not FUSE serve is
+/// [`Unsupported`](response::Frame::Unsupported), and a holder the
+/// capabilities do not allow beside is
+/// [`Mounted`](response::Frame::Mounted),
+/// [`FuseServed`](response::Frame::FuseServed) or
+/// [`Held`](response::Frame::Held), as the rule says. A provider
+/// whose capabilities keep no volumes answers `Unsupported` first.
+/// The hold is given back after the finish.
 ///
 /// # Every ask is its own task
 ///
@@ -55,7 +67,7 @@ const CHANGES_BEHIND: usize = 256;
 ///
 /// A filetree channel is answered from the same [`Served`]: a walk of
 /// it by [`list`](Served::list) and [`stat`](Served::stat) for the
-/// snapshot, and then every change this serve's own asks make, which
+/// snapshot, and then every change this FUSE serve's own asks make, which
 /// the task answering a mutation reports once the volume answered it
 /// `ok`. The changes travel on a broadcast every filetree channel
 /// subscribes to; a channel that falls behind by more changes than
@@ -68,37 +80,59 @@ const CHANGES_BEHIND: usize = 256;
 ///
 /// [`server::handle`](crate::protocol::handle::handle) reads every
 /// request once to dispatch it, and hands the result here.
-pub async fn handle<M>(scope: ScopeHandle, request: request::Frame, client_identity: &str, manager: &M)
-where
+pub async fn handle<M>(
+    scope: ScopeHandle,
+    request: request::Frame,
+    client_identity: &str,
+    manager: &M,
+    capabilities: &Capabilities,
+) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
+    if !capabilities.volumes() {
+        return answer(scope, response::Frame::Unsupported).await;
+    }
     let volume = match manager.get(client_identity, &request.name).await {
         Ok(Some(volume)) => volume,
         Ok(None) => return refuse(scope, refusal::unknown(&request.name)).await,
         Err(error) => return refuse(scope, error.into()).await,
     };
-    if !volume.mount().await {
-        return refuse(scope, refusal::mounted(&request.name)).await;
-    }
-    let mode = volume.mode().await;
-    if mode != request.mode {
-        volume.unmount().await;
-        send(
-            &scope,
-            &response::Frame::VolumeMode(VolumeMode {
-                name: request.name.clone(),
-                mode,
-            }),
-        )
-        .await;
-        scope.send_response_finish().await;
-        return;
+    let meant = request.mode;
+    let admit = |mode| -> Option<Allow> {
+        if mode != meant {
+            return None;
+        }
+        let allowed = capabilities.volume(mode)?;
+        if !allowed.fuse_serve {
+            return None;
+        }
+        Some(Allow {
+            many: allowed.fuse_serve_many,
+            beside: allowed.mount_and_fuse_serve,
+        })
+    };
+    match volume.mount(Holder::FuseServe, admit).await {
+        Ok(_) => {}
+        Err(hold::Refused::Declined(mode)) if mode != meant => {
+            return answer(
+                scope,
+                response::Frame::VolumeMode(VolumeMode {
+                    name: request.name.clone(),
+                    mode,
+                }),
+            )
+            .await;
+        }
+        Err(hold::Refused::Declined(_)) => return answer(scope, response::Frame::Unsupported).await,
+        Err(hold::Refused::Held(hold::Held::Mounted)) => return answer(scope, response::Frame::Mounted).await,
+        Err(hold::Refused::Held(hold::Held::FuseServed)) => return answer(scope, response::Frame::FuseServed).await,
+        Err(hold::Refused::Held(hold::Held::Locked)) => return answer(scope, response::Frame::Held).await,
     }
     let served = match volume.serve(request.overlay_disk).await {
         Ok(served) => Arc::new(served),
         Err(error) => {
-            volume.unmount().await;
+            volume.unmount(Holder::FuseServe).await;
             return refuse(scope, error.into()).await;
         }
     };
@@ -128,12 +162,17 @@ where
     drop(changes);
     while tasks.join_next().await.is_some() {}
     scope.send_response_finish().await;
-    volume.unmount().await;
+    volume.unmount(Holder::FuseServe).await;
 }
 
-/// The one response a refused serve gets, then the finish.
+/// The one response a refused FUSE serve gets, then the finish.
 async fn refuse(scope: ScopeHandle, error: Error) {
-    send(&scope, &response::Frame::Error(error)).await;
+    answer(scope, response::Frame::Error(error)).await;
+}
+
+/// One response — a refusal of the FUSE serve — then the finish.
+async fn answer(scope: ScopeHandle, frame: response::Frame) {
+    send(&scope, &frame).await;
     scope.send_response_finish().await;
 }
 
@@ -300,8 +339,8 @@ async fn send_tree(scope: &ScopeHandle, channel: u32, frame: &Tree) {
 }
 
 /// The entries of the directory at `path`, each with everything
-/// beneath it, as the serve answers a list and a stat of each; an
-/// entry the serve could not describe is a file of unknown size.
+/// beneath it, as the FUSE serve answers a list and a stat of each; an
+/// entry the FUSE serve could not describe is a file of unknown size.
 fn walk<'a, V: Served>(served: &'a V, path: &'a str) -> Pin<Box<dyn Future<Output = Vec<Node>> + Send + 'a>> {
     Box::pin(async move {
         let Ok(Some(listed)) = served.list(path).await else {

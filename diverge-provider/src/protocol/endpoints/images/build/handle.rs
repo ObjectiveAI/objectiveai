@@ -15,6 +15,8 @@ use crate::protocol::image_manager::ImageManager;
 use crate::protocol::progress::Progress;
 use crate::protocol::volume::Volume as _;
 use crate::protocol::volume_manager::VolumeManager;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
+use crate::protocol::hold::{Allow, Holder};
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -23,14 +25,18 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///
 /// In order:
 ///
+/// 0. [`Unsupported`](response::Frame::Unsupported), then the finish,
+///    on a provider whose capabilities keep no image store; nothing
+///    is looked at.
 /// 1. The context, when the request names one, held: its path
 ///    checked to be one of names ([`volumes::path`] otherwise), the
 ///    volume [`got`](VolumeManager::get) ([`volumes::unknown`] for a
 ///    name the caller has no volume by), and its shared hold
-///    [`taken`](crate::protocol::volume::Volume::mount)
-///    ([`volumes::held`] when it cannot be — the volume is held
-///    exclusively, or is persistent and held at all). A refusal here
-///    is the one [`Error`](response::Frame::Error), and the scope
+///    [`taken`](crate::protocol::volume::Volume::mount) as a
+///    [`Holder::Run`] under what the capabilities allow a run of the
+///    volume's mode — [`ContextHeld`](response::Frame::ContextHeld)
+///    when it cannot be, whoever has it. An error here is the one
+///    [`Error`](response::Frame::Error); either way the scope
 ///    finishes with nothing built.
 /// 2. The manager asked to build, with the context as a
 ///    [`Context`] — the request's two fields and the caller's
@@ -52,18 +58,24 @@ pub async fn handle<M, V>(
     manager: &M,
     volume_manager: &V,
     changes: Arc<Changes>,
+    capabilities: &Capabilities,
 ) where
     M: ImageManager,
     M::Error: Into<Error>,
     V: VolumeManager,
     V::Error: Into<Error>,
 {
+    if !capabilities.images_store {
+        send(&scope, &response::Frame::Unsupported).await;
+        scope.send_response_finish().await;
+        return;
+    }
     let held = match &request.context {
         None => None,
-        Some(context) => match hold(volume_manager, client_identity, context).await {
+        Some(context) => match hold(volume_manager, client_identity, context, capabilities).await {
             Ok(volume) => Some(volume),
-            Err(error) => {
-                send(&scope, &response::Frame::Error(error)).await;
+            Err(frame) => {
+                send(&scope, &frame).await;
                 scope.send_response_finish().await;
                 return;
             }
@@ -105,30 +117,45 @@ pub async fn handle<M, V>(
         send(&scope, &response::Frame::Error(refusal::unfinished())).await;
     }
     if let Some(volume) = held {
-        volume.unmount().await;
+        volume.unmount(Holder::Run).await;
     }
     scope.send_response_finish().await;
 }
 
-/// The context's volume, found and held as a mount is; or the one
-/// error the endpoint answers with, whichever step refused.
-async fn hold<V>(volume_manager: &V, client_identity: &str, context: &request::Context) -> Result<V::Volume, Error>
+/// The context's volume, found and held as a run's mount is — under
+/// what the capabilities allow a run of the volume's mode, nothing
+/// where they keep no volumes in it — or the one refusal the
+/// endpoint answers with, whichever step refused: an error for a
+/// path or a name, `ContextHeld` for a hold not taken, whoever has
+/// the volume.
+async fn hold<V>(
+    volume_manager: &V,
+    client_identity: &str,
+    context: &request::Context,
+    capabilities: &Capabilities,
+) -> Result<V::Volume, response::Frame>
 where
     V: VolumeManager,
     V::Error: Into<Error>,
 {
     if !names::ok(&context.volume_relative_path) {
-        return Err(volumes::path(&context.volume_relative_path));
+        return Err(response::Frame::Error(volumes::path(&context.volume_relative_path)));
     }
-    let volume = volume_manager
-        .get(client_identity, &context.volume_name)
-        .await
-        .map_err(Into::into)?
-        .ok_or_else(|| volumes::unknown(&context.volume_name))?;
-    if !volume.mount().await {
-        return Err(volumes::held(&context.volume_name));
+    let volume = match volume_manager.get(client_identity, &context.volume_name).await {
+        Ok(Some(volume)) => volume,
+        Ok(None) => return Err(response::Frame::Error(volumes::unknown(&context.volume_name))),
+        Err(error) => return Err(response::Frame::Error(error.into())),
+    };
+    let admit = |mode| {
+        Some(capabilities.volume(mode).map_or(Allow::default(), |allowed| Allow {
+            many: allowed.mount_many,
+            beside: allowed.mount_and_fuse_serve,
+        }))
+    };
+    match volume.mount(Holder::Run, admit).await {
+        Ok(_) => Ok(volume),
+        Err(_) => Err(response::Frame::ContextHeld),
     }
-    Ok(volume)
 }
 
 /// One response on the scope, when it encoded.

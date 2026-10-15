@@ -19,7 +19,9 @@ use diverge_sdk::container_proxy::outside::client::Ask;
 use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::client::execute::Ask as MountAsk;
 use diverge_sdk::wire::decode::Decode;
 use diverge_sdk::wire::encode::Encode;
-use diverge_sdk::shared::containers::response::{Id, VolumeHeld, VolumeMode};
+use diverge_sdk::shared::containers::response::{
+    Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
+};
 use diverge_sdk::shared::containers::dependencies::Template;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
@@ -105,10 +107,21 @@ pub(crate) trait Runs: Family {
 
     /// The container's id, on channel `0`.
     fn id(id: &Id) -> Option<Vec<u8>>;
-    /// The run refused for a held volume, on channel `0`.
+    /// The run refused for a volume an operation has, on channel `0`.
     fn volume_held(refused: &VolumeHeld) -> Option<Vec<u8>>;
+    /// The run refused for a volume a running container has, on
+    /// channel `0`.
+    fn volume_mounted(refused: &VolumeMounted) -> Option<Vec<u8>>;
+    /// The run refused for a volume a FUSE serve has, on channel `0`.
+    fn volume_fuse_served(refused: &VolumeFuseServed) -> Option<Vec<u8>>;
+    /// The run refused for a volume of a mode the provider does not
+    /// mount, on channel `0`.
+    fn volume_mount_unsupported(refused: &VolumeMountUnsupported) -> Option<Vec<u8>>;
     /// The run refused for a volume in another mode, on channel `0`.
     fn volume_mode(refused: &VolumeMode) -> Option<Vec<u8>>;
+    /// The run refused for naming a FUSE mount the provider does not
+    /// make, on channel `0`.
+    fn fuse_mounts_unsupported() -> Option<Vec<u8>>;
 }
 
 /// What a caller opened, classified.

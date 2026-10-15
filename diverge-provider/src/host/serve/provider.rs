@@ -13,6 +13,8 @@ use crate::protocol::acceptors::Acceptors;
 use crate::protocol::directory::Directory;
 use crate::protocol::changes::Changes;
 use crate::protocol::handle::handle;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
+use super::capabilities::capabilities;
 use diverge_sdk::wire::server::session::Session;
 
 use crate::config::Config;
@@ -67,6 +69,9 @@ pub struct Provider {
     volume_changes: Arc<Changes>,
     /// Every change to any caller's images, for the listings open.
     image_changes: Arc<Changes>,
+    /// What this provider holds out, answered by `info` and enforced
+    /// by every handler: read off the configuration once.
+    capabilities: Arc<Capabilities>,
 }
 
 impl Provider {
@@ -88,6 +93,7 @@ impl Provider {
     /// the checker, the OCI store and the manager.
     pub async fn start(config: Config, dir: PathBuf) -> Result<Self, Error> {
         ready(&config, &dir).await?;
+        let capabilities = Arc::new(capabilities(&config));
         podman::configure(config.containers.podman.storage_path.clone());
         let hooks_dir = dir.join("hooks");
         let mut shares = config.volumes.as_ref().map(Volumes::paths).unwrap_or_default();
@@ -123,6 +129,7 @@ impl Provider {
             peers: Arc::new(Peers::default()),
             volume_changes: Arc::new(Changes::new()),
             image_changes: Arc::new(Changes::new()),
+            capabilities,
         })
     }
 
@@ -165,6 +172,7 @@ impl Provider {
             Arc::clone(&self.volume_changes),
             Arc::clone(&self.image_changes),
             Arc::clone(&self.acceptors),
+            Arc::clone(&self.capabilities),
         )
         .await;
     }

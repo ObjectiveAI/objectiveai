@@ -11,7 +11,7 @@ use diverge_sdk::shared::containers::fuse::{Attrs, Listed};
 /// What [`Volume::serve`](super::volume::Volume::serve) hands back: a
 /// volume answering the nine asks of
 /// [`fuse`](diverge_sdk::shared::containers::fuse) from its own content,
-/// for as long as a [`serve`](diverge_sdk::provider::endpoints::volumes::serve) scope
+/// for as long as a [`serve`](diverge_sdk::provider::endpoints::volumes::fuse_serve) scope
 /// lives.
 ///
 /// The caller's [`FuseServer`](diverge_sdk::provider::client::FuseServer) with the
@@ -22,16 +22,16 @@ use diverge_sdk::shared::containers::fuse::{Attrs, Listed};
 /// write lands one piece in place, and the volume changes as the asks
 /// arrive. Called under the SHARED hold, the one a run takes, so
 /// nothing examines, resizes or removes the volume meanwhile and any
-/// number of serves and runs may hold it at once.
+/// number of FUSE serves and runs may hold it at once.
 ///
 /// # The mode is the provider's to keep
 ///
 /// The handler does not know the volume's
 /// [`Mode`](diverge_sdk::provider::endpoints::volumes::Mode); what this returns does.
 /// A persistent volume changes in place. An ephemeral one takes
-/// every mutation into a layer of this serve's own, discarded when
+/// every mutation into a layer of this FUSE serve's own, discarded when
 /// this is dropped, and refuses with [`Refused::Error`] a mutation
-/// that would take the layer past the `overlay_disk` the serve was
+/// that would take the layer past the `overlay_disk` the FUSE serve was
 /// given. A read-only one answers every mutating method —
 /// [`write`](Self::write), [`truncate`](Self::truncate),
 /// [`setattr`](Self::setattr), [`remove`](Self::remove),

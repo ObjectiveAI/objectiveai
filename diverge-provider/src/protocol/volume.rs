@@ -5,6 +5,7 @@ use std::future::Future;
 use bytes::Bytes;
 use futures_util::Stream;
 
+use super::hold::{Allow, Held, Holder, Refused};
 use super::holders::Holders;
 use super::served::Served;
 use diverge_sdk::provider::endpoints::volumes::edit::client::request::Change;
@@ -29,36 +30,40 @@ use diverge_sdk::shared::filetree::response::{Frame, Node};
 ///
 /// # Two holds: many mounters, or one editor
 ///
-/// Who may hold a volume at once is its
-/// [`Mode`]: an ephemeral or a
-/// read-only volume may be mounted in any number of containers of its
-/// caller and served on any number of scopes at once; a persistent
-/// volume has one user at a time. Whatever the mode, nothing
+/// Who may hold a volume at once is its [`Mode`], as far as the
+/// provider's capability for the mode goes — see
+/// [`Capabilities`](diverge_sdk::provider::endpoints::info::server::response::Capabilities):
+/// an ephemeral or a read-only volume may be mounted in any number of
+/// containers of its caller and served on any number of scopes at
+/// once, a persistent volume has one user at a time, and a provider
+/// may allow less than the mode does. Whatever the mode, nothing
 /// examines, reads, writes, walks, resizes or deletes a volume while
 /// anything holds it. Both rules are one hold with two kinds, taken
-/// by whoever is using the volume:
+/// by whoever is using the volume, and decided by
+/// [`hold`](super::hold) — the one place the rule is written:
 ///
-/// - A run takes the SHARED hold, [`mount`](Self::mount), once on
-///   every distinct volume its request names, before it fetches or
-///   deploys anything, and keeps every one until the run ends — a
-///   stop, the container's own end, the caller going away. Every
-///   ending gives them back. A request naming one volume at several
-///   paths takes it once. A volume held exclusively when a run asks
-///   is the run refused,
-///   [`VolumeHeld`](diverge_sdk::shared::containers::response::VolumeHeld);
-///   so is a persistent volume already held shared by anyone. A
-///   [`serve`](diverge_sdk::provider::endpoints::volumes::serve) takes the same
-///   shared hold for its scope's life: a served volume is a mounted
-///   one, answering the mount's asks itself, and refused where a run
-///   is. The provider's [`mount`](Self::mount) knows the mode: for a
-///   persistent volume it answers `true` only when nobody holds the
-///   volume. A run's every mount and a serve's request state the
-///   mode they mean the volume to have, and the handler reads
-///   [`mode`](Self::mode) once the hold is taken: a volume in another
-///   mode has the hold given back and the request refused,
-///   [`VolumeMode`](diverge_sdk::shared::containers::response::VolumeMode),
-///   with the mode it is in — after the hold, so that an edit cannot
-///   land between the look and the answer.
+/// - A run takes the SHARED hold, [`mount`](Self::mount), as a
+///   [`Holder::Run`], once on every distinct volume its request names,
+///   before it fetches or deploys anything, and keeps every one until
+///   the run ends — a stop, the container's own end, the caller going
+///   away. Every ending gives them back. A request naming one volume
+///   at several paths takes it once. An image build takes it the
+///   same way for its context. A
+///   [`fuse_serve`](diverge_sdk::provider::endpoints::volumes::fuse_serve)
+///   takes it as a [`Holder::FuseServe`] for its scope's life: a
+///   served volume is a mounted one, answering the mount's asks
+///   itself. The asker says, through `admit`, what the mode it finds
+///   allows — the capability's `mount_many` or `fuse_serve_many` as
+///   [`Allow::many`], its `mount_and_fuse_serve` as
+///   [`Allow::beside`] — or declines the mode outright, and the hold
+///   is taken or refused under the volume's own lock, so that an
+///   edit cannot land between the look at the mode and the answer.
+///   A refusal says who holds the volume, [`Held`], or that the mode
+///   was declined, [`Refused::Declined`], and the handler answers the
+///   caller in the wire's words: the run's `VolumeHeld`,
+///   `VolumeMounted`, `VolumeFuseServed`, `VolumeMountUnsupported` or
+///   `VolumeMode`; the FUSE serve's `Held`, `Mounted`, `FuseServed`,
+///   `Unsupported` or `VolumeMode`.
 /// - A [`stat`](diverge_sdk::provider::endpoints::volumes::stat) takes the EXCLUSIVE
 ///   hold, [`lock`](Self::lock), for the length of the examination,
 ///   a [`read`](diverge_sdk::provider::endpoints::volumes::read) for the length of
@@ -69,10 +74,9 @@ use diverge_sdk::shared::filetree::response::{Frame, Node};
 ///   the length of the change, and a
 ///   [`delete`](diverge_sdk::provider::endpoints::volumes::delete) takes it and never
 ///   gives it back, the volume being gone. A volume held at all —
-///   mounted anywhere, or under another of the six — when any of
-///   them asks is that request refused: a delete with its own
-///   [`Mounted`](diverge_sdk::provider::endpoints::volumes::delete::server::response::Frame::Mounted),
-///   the others with the endpoint's error.
+///   mounted anywhere, served, or under another of the six — when any
+///   of them asks is that request refused, with the endpoint's own
+///   `Mounted`, `FuseServed` or `Held`, as the [`Held`] says.
 ///
 /// There is no verb on a volume that does not take one of the holds,
 /// and [`watch`](Self::watch) runs under the shared one: a volume the
@@ -88,8 +92,8 @@ use diverge_sdk::shared::filetree::response::{Frame, Node};
 /// methods are futures so a provider may keep the hold wherever it
 /// likes — one atomic, a table, a service — but what they await is
 /// the provider's own bookkeeping, never another holder. What a hold
-/// MEANS — refused, mounted, an error — is decided by the handlers,
-/// never by the provider, which is why
+/// MEANS — refused, mounted, an error — is decided by the handlers
+/// and by [`hold`](super::hold), never by the provider, which is why
 /// [`VolumeManager::delete`](super::volume_manager::VolumeManager::delete)
 /// answers nothing about mounts.
 ///
@@ -110,52 +114,68 @@ pub trait Volume: Send + Sync {
     /// for why it is the provider's own.
     type Error: Send + 'static;
 
-    /// Take a shared hold: `true` is taken, one more mounter, and the
-    /// caller keeps it until its [`unmount`](Self::unmount); `false`
-    /// is a volume held exclusively — or a persistent volume held at
-    /// all, since a persistent volume has one user — and nothing
-    /// changed.
+    /// Take a shared hold as `holder`, as the volume's mode allows.
+    ///
+    /// Under the provider's own lock on the volume's bookkeeping, in
+    /// this order: the mode read; `admit` asked what that mode allows
+    /// the holder — `None` is the mode declined, nothing taken, and
+    /// [`Refused::Declined`] with the mode; `Some` is
+    /// [`hold::admit`](super::hold::admit) asked with the holders as
+    /// they are, which either takes the hold — the holders become
+    /// what it returns, and the mode is the answer — or says who
+    /// refused, [`Refused::Held`]. The caller keeps a taken hold
+    /// until its [`unmount`](Self::unmount) of the same kind, and the
+    /// mode does not change meanwhile: an edit needs the exclusive
+    /// hold, which the shared one refuses.
     ///
     /// # It never waits
     ///
     /// The exclusive holder may be an edit that resizes for minutes,
     /// and a request that queued behind it would be a request that
-    /// never answered. So this answers at once, and what a `false`
+    /// never answered. So this answers at once, and what a refusal
     /// means is the handler's to decide; see the trait.
-    fn mount(&self) -> impl Future<Output = bool> + Send;
+    fn mount(
+        &self,
+        holder: Holder,
+        admit: impl Fn(Mode) -> Option<Allow> + Send,
+    ) -> impl Future<Output = Result<Mode, Refused>> + Send;
 
     /// The mode the volume is in now, as its listing reports it. Read
-    /// by the run and the serve handlers under the shared hold, which
-    /// is what keeps an edit from changing it meanwhile.
+    /// by the handlers under a hold, which is what keeps an edit from
+    /// changing it meanwhile.
     fn mode(&self) -> impl Future<Output = Mode> + Send;
 
-    /// Give one shared hold back: `true` is one mounter fewer, and
-    /// there was one; `false` is a volume with no shared hold to give
-    /// back, and nothing changed. Called only by a holder, once per
-    /// [`mount`](Self::mount) that answered `true`, and the handlers
-    /// keep that count, so a `false` here is a handler's mistake and
-    /// not a state a provider has to defend against.
-    fn unmount(&self) -> impl Future<Output = bool> + Send;
+    /// Give one shared hold of `holder`'s kind back, as
+    /// [`hold::release`](super::hold::release) decides: `true` is one
+    /// holder fewer, and there was one; `false` is a volume with no
+    /// such hold to give back, and nothing changed. Called only by a
+    /// holder, once per [`mount`](Self::mount) that was taken, and
+    /// the handlers keep that count, so a `false` here is a handler's
+    /// mistake and not a state a provider has to defend against.
+    fn unmount(&self, holder: Holder) -> impl Future<Output = bool> + Send;
 
-    /// Take the exclusive hold: `true` is taken, and the caller keeps
-    /// it until its [`unlock`](Self::unlock); `false` is a volume held
-    /// by anyone — mounted anywhere, or held exclusively — and nothing
-    /// changed. Never waits, as [`mount`](Self::mount) does not: the
-    /// holder may be a container that runs for hours.
-    fn lock(&self) -> impl Future<Output = bool> + Send;
+    /// Take the exclusive hold, as [`hold::lock`](super::hold::lock)
+    /// decides: `Ok` is taken, and the caller keeps it until its
+    /// [`unlock`](Self::unlock); `Err` is who has the volume —
+    /// a running container, a FUSE serve, or an operation — and
+    /// nothing changed. Never waits, as [`mount`](Self::mount) does
+    /// not: the holder may be a container that runs for hours.
+    fn lock(&self) -> impl Future<Output = Result<(), Held>> + Send;
 
-    /// Give the exclusive hold back: `true` is the hold released, and
-    /// it was held; `false` is a hold that was not held, and nothing
-    /// changed. Called only by the holder, once per
-    /// [`lock`](Self::lock) that answered `true`.
+    /// Give the exclusive hold back, as
+    /// [`hold::unlock`](super::hold::unlock) decides: `true` is the
+    /// hold released, and it was held; `false` is a hold that was not
+    /// held, and nothing changed. Called only by the holder, once per
+    /// [`lock`](Self::lock) that was taken.
     fn unlock(&self) -> impl Future<Output = bool> + Send;
 
-    /// Who holds the volume, as of now: nobody, some number of
-    /// mounters, or the one exclusive holder.
+    /// Who holds the volume, as of now: nobody, the running
+    /// containers and the FUSE serves that have it, or the one
+    /// exclusive holder.
     ///
     /// A fact about now and nothing more: [`Free`](Holders::Free) here
-    /// is not a promise that the [`lock`](Self::lock) after it answers
-    /// `true`. No handler asks it; it is for the provider's own use —
+    /// is not a promise that the [`lock`](Self::lock) after it is
+    /// taken. No handler asks it; it is for the provider's own use —
     /// a listing that wants to say which volumes are in use, a log.
     fn holders(&self) -> impl Future<Output = Holders> + Send;
 
@@ -280,10 +300,10 @@ pub trait Volume: Send + Sync {
     /// [`Mode`] is the provider's to
     /// keep in what it returns: a persistent volume changes in place;
     /// an ephemeral one takes every change into a layer of this
-    /// serve's own, discarded with what this returns, of at most
+    /// FUSE serve's own, discarded with what this returns, of at most
     /// `overlay_disk` bytes — a provider that cannot set that much
     /// aside answers an error here, and a change past it is refused
-    /// with an error while the serve continues; a read-only one
+    /// with an error while the FUSE serve continues; a read-only one
     /// answers every mutation
     /// [`ReadOnly`](diverge_sdk::shared::containers::fuse::ack::Refused::ReadOnly).
     /// What a [`stat`](Self::stat) reported before is stale after a

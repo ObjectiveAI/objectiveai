@@ -1,4 +1,4 @@
-//! Where an ephemeral serve's scratch lives, how one is made, and
+//! Where an ephemeral FUSE serve's scratch lives, how one is made, and
 //! how the leftovers of an earlier life are swept.
 
 use std::io;
@@ -16,7 +16,7 @@ use crate::host::{Held, Limit};
 /// The directory is `<containers.podman.storage_path>/ephemeral/`:
 /// the filesystem the containers' overlays are on, so that
 /// `container_overlay_disk`, which [`Limit`] enforces over the
-/// running containers' `disk`, is an honest cap over the serves'
+/// running containers' `disk`, is an honest cap over the FUSE serves'
 /// `overlay_disk` beside them.
 #[derive(Debug)]
 pub struct Scratch {
@@ -24,7 +24,7 @@ pub struct Scratch {
     disk: Arc<Limit>,
 }
 
-/// Bytes held against the cap for one serve; given back on drop,
+/// Bytes held against the cap for one FUSE serve; given back on drop,
 /// since that is what a [`Held`] does.
 #[derive(Debug)]
 pub struct Lease {
@@ -37,7 +37,7 @@ impl Scratch {
     }
 
     /// The directory made, and every leftover in it removed: what the
-    /// provider does once at start, before any serve. A file that
+    /// provider does once at start, before any FUSE serve. A file that
     /// will not go is left, as a mount that will not unmount is.
     pub async fn sweep(&self) -> io::Result<()> {
         fs::create_dir_all(&self.dir).await?;

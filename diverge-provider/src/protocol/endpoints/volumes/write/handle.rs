@@ -8,6 +8,8 @@ use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::provider::endpoints::volumes::write::client::{channel_response, request};
 use diverge_sdk::provider::endpoints::volumes::{names, refusal};
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
+use crate::protocol::hold::Held;
 use diverge_sdk::wire::server::answers::Answers;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume::Volume as _;
@@ -23,11 +25,14 @@ use diverge_sdk::shared::error::Error;
 /// The volume is [`got`](VolumeManager::get) and then
 /// [`locked`](crate::protocol::volume::Volume::lock) for the length of
 /// the write, so no container has the volume while the file lands,
-/// and none sees the half between. A volume held at all — mounted in
-/// a running container, or under another request — is the write
-/// refused with [`refusal::mounted`] before the content is asked for:
-/// the hold never waits, and the endpoint has no frame for it but the
-/// error. The hold is given back whatever the write answered.
+/// and none sees the half between. A volume held at all is the write
+/// refused before the content is asked for, with the endpoint's own
+/// word for who has it — [`Mounted`](response::Frame::Mounted),
+/// [`FuseServed`](response::Frame::FuseServed) or
+/// [`Held`](response::Frame::Held) — and the hold never waits. The
+/// hold is given back whatever the write answered. A provider whose
+/// capabilities keep no volumes answers
+/// [`Unsupported`](response::Frame::Unsupported) first.
 ///
 /// # The content is asked for, once the volume is held
 ///
@@ -59,13 +64,22 @@ pub async fn handle<M>(
     request: request::Frame,
     client_identity: &str,
     manager: &M,
+    capabilities: &Capabilities,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
+    if !capabilities.volumes() {
+        let mut buffer = Vec::new();
+        if response::Frame::Unsupported.encode(&mut Writer::new(&mut buffer)).is_ok() {
+            scope.send_response(&buffer).await;
+        }
+        scope.send_response_finish().await;
+        return;
+    }
     let frame = match write(&scope, manager, client_identity, &request).await {
         Ok(()) => response::Frame::Written(write_path::response::Frame),
-        Err(error) => response::Frame::Error(error),
+        Err(frame) => frame,
     };
 
     let mut buffer = Vec::new();
@@ -76,31 +90,35 @@ pub async fn handle<M>(
 }
 
 /// The path checked, the volume found and locked, the content asked
-/// for and written in, and the volume unlocked; or the one error the
-/// endpoint answers with, whichever step it came from.
+/// for and written in, and the volume unlocked; or the one refusal
+/// the endpoint answers with, whichever step it came from.
 async fn write<M>(
     scope: &ScopeHandle,
     manager: &M,
     client_identity: &str,
     request: &request::Frame,
-) -> Result<(), Error>
+) -> Result<(), response::Frame>
 where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
     if !names::ok(&request.path) {
-        return Err(refusal::path(&request.path));
+        return Err(response::Frame::Error(refusal::path(&request.path)));
     }
     if request.path.is_empty() {
-        return Err(refusal::root());
+        return Err(response::Frame::Error(refusal::root()));
     }
-    let volume = manager
-        .get(client_identity, &request.name)
-        .await
-        .map_err(Into::into)?
-        .ok_or_else(|| refusal::unknown(&request.name))?;
-    if !volume.lock().await {
-        return Err(refusal::mounted(&request.name));
+    let volume = match manager.get(client_identity, &request.name).await {
+        Ok(Some(volume)) => volume,
+        Ok(None) => return Err(response::Frame::Error(refusal::unknown(&request.name))),
+        Err(error) => return Err(response::Frame::Error(error.into())),
+    };
+    if let Err(held) = volume.lock().await {
+        return Err(match held {
+            Held::Mounted => response::Frame::Mounted,
+            Held::FuseServed => response::Frame::FuseServed,
+            Held::Locked => response::Frame::Held,
+        });
     }
     let mut ask = Vec::new();
     channel_request::Frame
@@ -116,5 +134,5 @@ where
     });
     let written = volume.write(&request.path, content).await;
     volume.unlock().await;
-    written.map_err(Into::into)
+    written.map_err(|error| response::Frame::Error(error.into()))
 }

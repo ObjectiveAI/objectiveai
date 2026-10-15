@@ -1,7 +1,7 @@
 //! A volume, served: the protocol's `Served`, answering the FUSE asks from
 //! a stored volume's image or a fixed volume's directory.
 //!
-//! A stored volume is opened once, when the serve begins — the image
+//! A stored volume is opened once, when the FUSE serve begins — the image
 //! as fstool's device and filesystem, the journal replayed — and every
 //! ask runs against that one filesystem on the blocking pool, one at a
 //! time, since the filesystem is `&mut`; a fixed volume answers from
@@ -10,12 +10,12 @@
 //! filesystem's metadata is flushed after every change.
 //!
 //! The volume's mode is kept here. A persistent volume's image is
-//! opened read-write, this serve being its one user. A read-only
+//! opened read-write, this FUSE serve being its one user. A read-only
 //! volume's image is opened read-only, and every mutation answers
 //! `ReadOnly` before touching it. An ephemeral volume's image is
 //! opened under an [`Overlay`]: reads come from the image, writes
-//! land in a scratch file of this serve's own that goes with it, and
-//! a write that would take the scratch past the serve's
+//! land in a scratch file of this FUSE serve's own that goes with it, and
+//! a write that would take the scratch past the FUSE serve's
 //! `overlay_disk` is refused for that ask alone. A mutation that
 //! fails part-way — the cap, or anything else — is followed by the
 //! filesystem being opened again over the same device, so nothing it
@@ -40,7 +40,7 @@ use super::{Error, Overlay, Scratch};
 
 /// A volume being served: where its content is, and its mode.
 pub enum Served {
-    /// A stored volume's image, open for the serve's life.
+    /// A stored volume's image, open for the FUSE serve's life.
     Stored {
         /// The device and the filesystem in it, one at a time.
         opened: Arc<Mutex<Opened>>,

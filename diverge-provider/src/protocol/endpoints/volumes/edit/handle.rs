@@ -6,6 +6,8 @@ use diverge_sdk::provider::endpoints::volumes::edit::server::response;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::provider::endpoints::volumes::edit::client::request;
 use diverge_sdk::provider::endpoints::volumes::refusal;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
+use crate::protocol::hold::Held;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume::Volume as _;
 use crate::protocol::changes::Changes;
@@ -25,11 +27,17 @@ use diverge_sdk::shared::error::Error;
 /// the change, so no container has it while its size or its mode
 /// changes — which is what makes the mode changeable at all, since
 /// a container is bound under one mode for its life. A volume held
-/// at all — mounted in a running container, or under another
-/// request — is the edit refused with [`refusal::mounted`] and the
-/// volume as it was: the hold never waits, and the endpoint has no
-/// frame for it but the error. The hold is given back whatever the
-/// change answered.
+/// at all is the edit refused, the volume as it was, with the
+/// endpoint's own word for who has it —
+/// [`Mounted`](response::Frame::Mounted),
+/// [`FuseServed`](response::Frame::FuseServed) or
+/// [`Held`](response::Frame::Held) — and the hold never waits. The
+/// hold is given back whatever the change answered. A provider whose
+/// capabilities keep no volumes answers
+/// [`Unsupported`](response::Frame::Unsupported) first, and one that
+/// keeps no volumes in the mode a change names answers
+/// [`ModeUnsupported`](response::Frame::ModeUnsupported) before the
+/// hold is asked.
 ///
 /// # The volume says why not
 ///
@@ -55,11 +63,28 @@ pub async fn handle<M>(
     client_identity: &str,
     manager: &M,
     changes: Arc<Changes>,
+    capabilities: &Capabilities,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let frame = match edit(manager, client_identity, &request.name, request.change).await {
+    if !capabilities.volumes() {
+        let mut buffer = Vec::new();
+        if response::Frame::Unsupported.encode(&mut Writer::new(&mut buffer)).is_ok() {
+            scope.send_response(&buffer).await;
+        }
+        scope.send_response_finish().await;
+        return;
+    }
+    let named = match request.change {
+        request::Change::Bytes(_) => None,
+        request::Change::Mode(mode) | request::Change::Both { mode, .. } => Some(mode),
+    };
+    let unsupported = match named {
+        Some(mode) => capabilities.volume(mode).is_none(),
+        None => false,
+    };
+    let frame = match edit(manager, client_identity, &request.name, request.change, unsupported).await {
         Ok(response::Edit::Edited) => {
             changes.changed(client_identity, &request.name);
             response::Frame::Edited
@@ -68,7 +93,7 @@ pub async fn handle<M>(
             response::Frame::InsufficientCapacity
         }
         Ok(response::Edit::ContentTooLarge) => response::Frame::ContentTooLarge,
-        Err(error) => response::Frame::Error(error),
+        Err(frame) => frame,
     };
 
     let mut buffer = Vec::new();
@@ -78,27 +103,38 @@ pub async fn handle<M>(
     scope.send_response_finish().await;
 }
 
-/// The volume found, locked, changed, and unlocked; or the one error
-/// the endpoint answers with, whichever step it came from.
+/// The volume found, locked, changed, and unlocked; or the one
+/// refusal the endpoint answers with, whichever step it came from.
+/// `mode_unsupported` is the handler's finding that the change names
+/// a mode the capabilities keep no volumes in, answered once the
+/// volume is known to be the caller's and before the hold is asked.
 async fn edit<M>(
     manager: &M,
     client_identity: &str,
     name: &str,
     change: request::Change,
-) -> Result<response::Edit, Error>
+    mode_unsupported: bool,
+) -> Result<response::Edit, response::Frame>
 where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let volume = manager
-        .get(client_identity, name)
-        .await
-        .map_err(Into::into)?
-        .ok_or_else(|| refusal::unknown(name))?;
-    if !volume.lock().await {
-        return Err(refusal::mounted(name));
+    let volume = match manager.get(client_identity, name).await {
+        Ok(Some(volume)) => volume,
+        Ok(None) => return Err(response::Frame::Error(refusal::unknown(name))),
+        Err(error) => return Err(response::Frame::Error(error.into())),
+    };
+    if mode_unsupported {
+        return Err(response::Frame::ModeUnsupported);
+    }
+    if let Err(held) = volume.lock().await {
+        return Err(match held {
+            Held::Mounted => response::Frame::Mounted,
+            Held::FuseServed => response::Frame::FuseServed,
+            Held::Locked => response::Frame::Held,
+        });
     }
     let edit = volume.edit(change).await;
     volume.unlock().await;
-    edit.map_err(Into::into)
+    edit.map_err(|error| response::Frame::Error(error.into()))
 }

@@ -136,7 +136,7 @@ pub trait VolumeManager: Send + Sync {
     /// has none by it.
     ///
     /// The lookup every verb on an existing volume starts with: a
-    /// stat, a read, a write, a filetree, a serve, an edit, a delete,
+    /// stat, a read, a write, a filetree, a FUSE serve, an edit, a delete,
     /// and a run that names the volume in a mount all ask this first
     /// and then act on what comes back. What comes back is the provider's own handle — see
     /// [`Volume`](volume::Volume) — and asking for it changes

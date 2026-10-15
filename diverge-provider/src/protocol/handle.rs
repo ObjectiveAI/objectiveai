@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use futures_util::StreamExt as _;
 
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use diverge_sdk::wire::server::authorization::{self, Authorization};
 use super::acceptors::Acceptors;
 use super::container_deployer::ContainerDeployer;
@@ -45,10 +46,14 @@ use diverge_sdk::shared::error::Error;
 /// announcement of a daemon connection to its acceptor. It is a signal
 /// rather than an identity.
 ///
-/// The rest are the provider's capabilities, shared because scopes run
+/// The rest are what the provider supplies, shared because scopes run
 /// concurrently and the traits — returning `impl Future` — cannot be
-/// boxed behind one pointer; the [`Directory`], one per provider,
-/// through which a serve or a transfer on this connection finds a run
+/// boxed behind one pointer; the [`Capabilities`] it holds out, which
+/// `info` answers and every handler that serves an optional part of
+/// the protocol enforces — the image store, the registries, the FUSE
+/// mounts and serves, the volume modes and what may hold a volume of
+/// each; the [`Directory`], one per provider,
+/// through which a FUSE serve or a transfer on this connection finds a run
 /// on any other of the same caller's; the two [`Changes`], one for
 /// volumes and one for images, through which a listing on this
 /// connection hears of a change made on any other; and the
@@ -125,6 +130,7 @@ pub async fn handle<D, V, I, M, O, U, R>(
     volume_changes: Arc<Changes>,
     image_changes: Arc<Changes>,
     acceptors: Arc<Acceptors>,
+    capabilities: Arc<Capabilities>,
 ) -> Result<(), HandleError<U::Error>>
 where
     D: ContainerDeployer + 'static,
@@ -223,9 +229,10 @@ where
                 let registry = Arc::clone(&image_registry);
                 let manager = Arc::clone(&volume_manager);
                 let directory = Arc::clone(&directory);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::containers::agents::handle(
-                        scope, frame, &identity, &*deployer, &*registry, &*manager, directory,
+                        scope, frame, &identity, &*deployer, &*registry, &*manager, &capabilities, directory,
                     )
                     .await;
                 });
@@ -236,19 +243,21 @@ where
                 let registry = Arc::clone(&image_registry);
                 let manager = Arc::clone(&volume_manager);
                 let directory = Arc::clone(&directory);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::containers::tools::handle(
-                        scope, frame, &identity, &*deployer, &*registry, &*manager, directory,
+                        scope, frame, &identity, &*deployer, &*registry, &*manager, &capabilities, directory,
                     )
                     .await;
                 });
             }
-            ClientRequest::ContainersServe(frame) => {
+            ClientRequest::ContainersFuseServe(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let directory = Arc::clone(&directory);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::containers::serve::handle(
-                        scope, frame, &identity, directory,
+                    endpoints::containers::fuse_serve::handle(
+                        scope, frame, &identity, directory, &capabilities,
                     )
                     .await;
                 });
@@ -257,9 +266,10 @@ where
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
                 let changes = Arc::clone(&volume_changes);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::volumes::list::handle(
-                        scope, &identity, &*manager, changes,
+                        scope, &identity, &*manager, changes, &capabilities,
                     )
                     .await;
                 });
@@ -267,9 +277,10 @@ where
             ClientRequest::VolumesStat(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::volumes::stat::handle(
-                        scope, frame, &identity, &*manager,
+                        scope, frame, &identity, &*manager, &capabilities,
                     )
                     .await;
                 });
@@ -277,9 +288,10 @@ where
             ClientRequest::VolumesRead(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::volumes::read::handle(
-                        scope, frame, &identity, &*manager,
+                        scope, frame, &identity, &*manager, &capabilities,
                     )
                     .await;
                 });
@@ -287,9 +299,10 @@ where
             ClientRequest::VolumesWrite(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::volumes::write::handle(
-                        scope, frame, &identity, &*manager,
+                        scope, frame, &identity, &*manager, &capabilities,
                     )
                     .await;
                 });
@@ -297,19 +310,21 @@ where
             ClientRequest::VolumesFiletree(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::volumes::filetree::handle(
-                        scope, frame, &identity, &*manager,
+                        scope, frame, &identity, &*manager, &capabilities,
                     )
                     .await;
                 });
             }
-            ClientRequest::VolumesServe(frame) => {
+            ClientRequest::VolumesFuseServe(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::volumes::serve::handle(
-                        scope, frame, &identity, &*manager,
+                    endpoints::volumes::fuse_serve::handle(
+                        scope, frame, &identity, &*manager, &capabilities,
                     )
                     .await;
                 });
@@ -317,9 +332,10 @@ where
             ClientRequest::VolumesCreateCapacity(_) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::volumes::create_capacity::handle(
-                        scope, &identity, &*manager,
+                        scope, &identity, &*manager, &capabilities,
                     )
                     .await;
                 });
@@ -328,9 +344,10 @@ where
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
                 let changes = Arc::clone(&volume_changes);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::volumes::create::handle(
-                        scope, frame, &identity, &*manager, changes,
+                        scope, frame, &identity, &*manager, changes, &capabilities,
                     )
                     .await;
                 });
@@ -338,9 +355,10 @@ where
             ClientRequest::VolumesEditCapacity(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::volumes::edit_capacity::handle(
-                        scope, frame, &identity, &*manager,
+                        scope, frame, &identity, &*manager, &capabilities,
                     )
                     .await;
                 });
@@ -349,9 +367,10 @@ where
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
                 let changes = Arc::clone(&volume_changes);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::volumes::edit::handle(
-                        scope, frame, &identity, &*manager, changes,
+                        scope, frame, &identity, &*manager, changes, &capabilities,
                     )
                     .await;
                 });
@@ -360,9 +379,10 @@ where
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
                 let changes = Arc::clone(&volume_changes);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::volumes::delete::handle(
-                        scope, frame, &identity, &*manager, changes,
+                        scope, frame, &identity, &*manager, changes, &capabilities,
                     )
                     .await;
                 });
@@ -370,9 +390,10 @@ where
             ClientRequest::ImagesCheck(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let checker = Arc::clone(&image_checker);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::images::check::handle(
-                        scope, frame, &identity, &*checker,
+                        scope, frame, &identity, &*checker, &capabilities,
                     )
                     .await;
                 });
@@ -381,15 +402,17 @@ where
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&image_manager);
                 let changes = Arc::clone(&image_changes);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::images::list::handle(scope, &identity, &*manager, changes).await;
+                    endpoints::images::list::handle(scope, &identity, &*manager, changes, &capabilities).await;
                 });
             }
             ClientRequest::ImagesStat(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&image_manager);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::images::stat::handle(scope, frame, &identity, &*manager).await;
+                    endpoints::images::stat::handle(scope, frame, &identity, &*manager, &capabilities).await;
                 });
             }
             ClientRequest::ImagesBuild(frame) => {
@@ -397,29 +420,33 @@ where
                 let manager = Arc::clone(&image_manager);
                 let volumes = Arc::clone(&volume_manager);
                 let changes = Arc::clone(&image_changes);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::images::build::handle(scope, frame, &identity, &*manager, &*volumes, changes).await;
+                    endpoints::images::build::handle(scope, frame, &identity, &*manager, &*volumes, changes, &capabilities).await;
                 });
             }
             ClientRequest::ImagesDelete(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&image_manager);
                 let changes = Arc::clone(&image_changes);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::images::delete::handle(scope, frame, &identity, &*manager, changes).await;
+                    endpoints::images::delete::handle(scope, frame, &identity, &*manager, changes, &capabilities).await;
                 });
             }
             ClientRequest::ImagesOci(_) => {
                 let identity = Arc::clone(&client_identity);
                 let store = Arc::clone(&oci_store);
+                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::images::oci::handle(scope, &identity, store).await;
+                    endpoints::images::oci::handle(scope, &identity, store, &capabilities).await;
                 });
             }
-            ClientRequest::Version(_) => {
-                scopes.spawn(
-                    endpoints::version::handle(scope),
-                );
+            ClientRequest::Info(_) => {
+                let capabilities = Arc::clone(&capabilities);
+                scopes.spawn(async move {
+                    endpoints::info::handle(scope, &capabilities).await;
+                });
             }
             ClientRequest::DaemonsAccept(_) => {
                 let identity = Arc::clone(&client_identity);

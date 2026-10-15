@@ -1,19 +1,20 @@
-//! Answering a container serve, from a scope and the directory.
+//! Answering a container FUSE serve, from a scope and the directory.
 
 use std::sync::Arc;
 
 use bytes::Bytes;
 use tokio::task::JoinSet;
 
-use diverge_sdk::provider::endpoints::containers::serve::server::response;
-use diverge_sdk::container_proxy::outside::endpoints::filesystem::serve::client::execute as proxy;
+use diverge_sdk::provider::endpoints::containers::fuse_serve::server::response;
+use diverge_sdk::container_proxy::outside::endpoints::filesystem::fuse_serve::client::execute as proxy;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
-use diverge_sdk::provider::endpoints::containers::serve::client::{channel_request, request};
+use diverge_sdk::provider::endpoints::containers::fuse_serve::client::{channel_request, request};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::frame::server::ServerFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::directory::Directory;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use diverge_sdk::shared::error::Error;
 
 /// Find the container, open the proxy's serve of the subtree, relay
@@ -21,18 +22,21 @@ use diverge_sdk::shared::error::Error;
 ///
 /// In order:
 ///
+/// 0. `Unsupported`, then the finish, on a provider whose
+///    capabilities do not FUSE serve containers; nothing is looked
+///    at.
 /// 1. The container, found in the [`Directory`] by its id and
 ///    checked to be the caller's own — the runner — or not, which is
 ///    the scope's one `Error`, `{"kind":"missing"}`
 ///    either way, then the finish.
-/// 2. A [`filesystem::serve`](diverge_sdk::container_proxy::outside::endpoints::filesystem::serve)
+/// 2. A [`filesystem::fuse_serve`](diverge_sdk::container_proxy::outside::endpoints::filesystem::fuse_serve)
 ///    scope opened on the container's proxy, carrying the path. The
 ///    proxy's refusal — a path that is not a directory, or one it
 ///    leaves out — is relayed as the scope's one `Error`, in the
 ///    proxy's own words, then the finish.
 /// 3. `Serving`, once the proxy said so.
 /// 4. Every channel the caller opens, relayed: an ask is one channel
-///    on the proxy's serve scope carrying the caller's payload as it
+///    on the proxy's FUSE serve scope carrying the caller's payload as it
 ///    came, and the proxy's one answer and finish come back on the
 ///    caller's channel as they came; a filetree is the proxy's
 ///    filetree channel, frame for frame, until the proxy finishes it.
@@ -56,7 +60,18 @@ use diverge_sdk::shared::error::Error;
 ///
 /// [`server::handle`](crate::protocol::handle::handle) reads every
 /// request once to dispatch it, and hands the result here.
-pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity: &str, directory: Arc<Directory>) {
+pub async fn handle(
+    scope: ScopeHandle,
+    request: request::Frame,
+    client_identity: &str,
+    directory: Arc<Directory>,
+    capabilities: &Capabilities,
+) {
+    if !capabilities.containers_fuse_serve {
+        send(&scope, &response::Frame::Unsupported).await;
+        scope.send_response_finish().await;
+        return;
+    }
     let Some(attached) = directory.lookup(&request.id).await else {
         return refuse(scope, missing()).await;
     };
@@ -97,7 +112,7 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
                 }
             }
             // The run over, or the directory gone with the provider:
-            // the serve ends either way.
+            // the FUSE serve ends either way.
             changed = ended.changed() => {
                 if changed.is_err() || *ended.borrow_and_update() {
                     break;

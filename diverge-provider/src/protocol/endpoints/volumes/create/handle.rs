@@ -9,6 +9,7 @@ use diverge_sdk::provider::endpoints::volumes::create::client::request;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::changes::Changes;
 use crate::protocol::volume_manager::VolumeManager;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use diverge_sdk::shared::error::Error;
 
 /// Make the volume and end the scope.
@@ -19,6 +20,14 @@ use diverge_sdk::shared::error::Error;
 /// a [`list`](diverge_sdk::provider::endpoints::volumes::list) would not describe
 /// better — and every listing open hears of it, by name, once the
 /// manager has made it.
+///
+/// # The capabilities say whether the mode is kept
+///
+/// A provider whose capabilities keep no volumes answers
+/// [`Unsupported`](response::Frame::Unsupported); one that keeps
+/// none in the mode asked for answers
+/// [`ModeUnsupported`](response::Frame::ModeUnsupported). Either is
+/// answered before the manager is asked, and nothing exists.
 ///
 /// # The manager says whether there was room
 ///
@@ -47,22 +56,33 @@ pub async fn handle<M>(
     client_identity: &str,
     manager: &M,
     changes: Arc<Changes>,
+    capabilities: &Capabilities,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let frame = match manager
-        .create(client_identity, &request.name, request.bytes, request.mode)
-        .await
-    {
-        Ok(response::Creation::Created) => {
-            changes.changed(client_identity, &request.name);
-            response::Frame::Created
+    if !capabilities.volumes() {
+        let mut buffer = Vec::new();
+        if response::Frame::Unsupported.encode(&mut Writer::new(&mut buffer)).is_ok() {
+            scope.send_response(&buffer).await;
         }
-        Ok(response::Creation::InsufficientCapacity) => {
-            response::Frame::InsufficientCapacity
+        scope.send_response_finish().await;
+        return;
+    }
+    let frame = if capabilities.volume(request.mode).is_none() {
+        response::Frame::ModeUnsupported
+    } else {
+        match manager
+            .create(client_identity, &request.name, request.bytes, request.mode)
+            .await
+        {
+            Ok(response::Creation::Created) => {
+                changes.changed(client_identity, &request.name);
+                response::Frame::Created
+            }
+            Ok(response::Creation::InsufficientCapacity) => response::Frame::InsufficientCapacity,
+            Err(error) => response::Frame::Error(error.into()),
         }
-        Err(error) => response::Frame::Error(error.into()),
     };
 
     let mut buffer = Vec::new();

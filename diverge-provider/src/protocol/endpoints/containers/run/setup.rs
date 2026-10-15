@@ -83,7 +83,7 @@ pub(crate) struct Mount {
 ///    container declared.
 /// 5. The id is minted and the container entered in the directory
 ///    under it — with its proxy connection and its begin scope — so
-///    that a `containers::serve` naming the id is answered from now,
+///    that a `containers::fuse_serve` naming the id is answered from now,
 ///    which is what lets the caller serve the container's own paths
 ///    into its dependencies. The id is not answered yet.
 /// 6. Beside each other: the caller is asked to deploy those

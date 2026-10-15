@@ -5,6 +5,7 @@ use diverge_sdk::provider::endpoints::images::check::server::response;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::provider::endpoints::images::check::client::request;
 use crate::protocol::image_checker::ImageChecker;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
 
@@ -25,10 +26,13 @@ use diverge_sdk::shared::error::Error;
 ///
 /// # No source is answered here
 ///
-/// A request asking for neither of the two sources is
+/// The sources asked are first narrowed to the ones the provider's
+/// capabilities have: `client` only with an image store,
+/// `registries` only with a registry listed. A request that leaves
+/// none — neither asked, or only sources this provider has not — is
 /// [`NoSource`](response::Frame::NoSource), and the checker is never
-/// asked: the question was empty, and the checker's contract is that
-/// at least one source is set.
+/// asked: the question was empty, for this provider, and the
+/// checker's contract is that at least one source it has is set.
 ///
 /// # The request arrives decoded
 ///
@@ -41,14 +45,19 @@ pub async fn handle<C>(
     request: request::Frame,
     client_identity: &str,
     checker: &C,
+    capabilities: &Capabilities,
 ) where
     C: ImageChecker,
     C::Error: Into<Error>,
 {
-    let frame = if !request.sources.any() {
+    let sources = request::Sources {
+        client: request.sources.client && capabilities.images_store,
+        registries: request.sources.registries && !capabilities.images_registries.is_empty(),
+    };
+    let frame = if !sources.any() {
         response::Frame::NoSource
     } else {
-        match checker.check(client_identity, &request.image, &request.sources).await {
+        match checker.check(client_identity, &request.image, &sources).await {
             Ok(response) => response::Frame::Response(response),
             Err(error) => response::Frame::Error(error.into()),
         }
