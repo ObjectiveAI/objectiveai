@@ -56,6 +56,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
         std::time::Duration::from_secs(config.idle_seconds),
         database,
         config.accept_daemons,
+        std::time::Duration::from_secs(config.capacity_poll_seconds),
     ));
     if let Err(error) = providers::dial_all(&daemon).await {
         postgres.stop().await;

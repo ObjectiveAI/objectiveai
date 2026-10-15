@@ -49,6 +49,8 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
     });
     let needs = Needs {
         image: Some(tool.declared.image.clone()),
+        memory: tool.declared.memory,
+        disk: tool.declared.disk,
         ..Needs::default()
     };
     let candidates = provider::candidates(daemon, None, &needs).await.map_err(StartError::Provider)?;
@@ -110,6 +112,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         });
         daemon.live.insert_tool(Arc::clone(&run)).await;
         daemon.live.changed(Kind::DependencyTools);
+        daemon.live.nudge_capacity(&run.provider);
         let waiter = {
             let daemon = Arc::clone(daemon);
             let run = Arc::clone(&run);

@@ -23,6 +23,7 @@
 //!   max_connections: 1024
 //! idle_seconds: 10
 //! accept_daemons: true
+//! capacity_poll_seconds: 10
 //! ```
 //!
 //! [`Error`] is why the root or the file could not be used.

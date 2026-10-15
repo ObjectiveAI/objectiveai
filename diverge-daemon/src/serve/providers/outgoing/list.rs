@@ -3,13 +3,15 @@
 use std::future::Future;
 
 use diverge_sdk::daemon::endpoints::providers::outgoing::list::client::request::{self, Filter};
-use diverge_sdk::daemon::endpoints::providers::outgoing::list::server::response::{Frame, Outgoing};
+use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::endpoints::providers::outgoing::list::server::response::{Frame, Outgoing, Swap};
+use diverge_sdk::provider::endpoints::capacity;
 use diverge_sdk::daemon::grant::providers_outgoing::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
-use crate::serve::stream::{self, Change, Source};
+use crate::serve::stream::{self, Change, Patch, Source};
 use crate::serve::reply;
 use crate::store::{self, providers_outgoing};
 
@@ -46,13 +48,43 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing(scope, daemon, &[Kind::ProvidersOutgoing], frame.count, &source, |change| match change {
-        Change::Added(provider) => Frame::Added(provider),
-        Change::Changed(provider) => Frame::Changed(provider),
-        Change::Removed(provider) => Frame::Removed(provider),
-        Change::Listed => Frame::Listed,
-    })
+    stream::listing_patched(
+        scope,
+        daemon,
+        &[Kind::ProvidersOutgoing],
+        frame.count,
+        &source,
+        |change| match change {
+            Change::Added(provider) => Frame::Added(provider),
+            Change::Changed(provider) => Frame::Changed(provider),
+            Change::Removed(provider) => Frame::Removed(provider),
+            Change::Listed => Frame::Listed,
+        },
+        &Swaps,
+    )
     .await
+}
+
+/// A capacity swap, taken: the provider's address is the key, the item's
+/// `capacity` is the new answer, and the client is told the swap
+/// alone.
+struct Swaps;
+
+impl Patch<String, Outgoing, Frame> for Swaps {
+    fn key(&self, identity: &Identity) -> Option<String> {
+        match identity {
+            Identity::Outgoing { address } => Some(address.clone()),
+            Identity::IncomingUnbrokered { .. } => None,
+        }
+    }
+
+    fn apply(&self, item: &mut Outgoing, capacity: &capacity::server::response::Frame) -> Option<Frame> {
+        item.capacity = Some(capacity.clone());
+        Some(Frame::Capacity(Swap {
+            address: item.address.clone(),
+            capacity: capacity.clone(),
+        }))
+    }
 }
 
 /// The outgoing providers as the caller may list them now.
@@ -76,6 +108,7 @@ impl Source for Listed<'_> {
             let mut listed = Vec::with_capacity(all.len());
             for provider in &all {
                 let status = self.daemon.live.provider_status(&provider.identity()).await;
+                let capacity = self.daemon.live.capacity(&provider.identity()).map(|frame| (*frame).clone());
                 let connected = status.connected();
                 if !judge::providers_outgoing::over(self.standing, Over::List, provider, connected) {
                     continue;
@@ -83,7 +116,7 @@ impl Source for Listed<'_> {
                 if !filter::providers_outgoing::test(self.filter, provider, connected) {
                     continue;
                 }
-                listed.push((provider.address.clone(), provider.report(status)));
+                listed.push((provider.address.clone(), provider.report(status, capacity)));
             }
             Ok(listed)
         }

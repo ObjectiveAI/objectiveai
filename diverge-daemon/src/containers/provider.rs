@@ -1,10 +1,10 @@
 //! The providers a container may run on.
 
+use std::cmp::Reverse;
 use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::wire::client::handle::Handle;
-use rand::seq::SliceRandom as _;
 use tokio::task::JoinHandle;
 
 use super::capable::{self, Needs};
@@ -95,9 +95,21 @@ impl std::fmt::Display for NoProvider {
 /// capabilities must hold out what the run `needs`, and which must be
 /// able to source the run's image, and no other; or, pinned to none,
 /// every provider on record that is connected now and passes the
-/// same judgements, in random order — so that unpinned containers
-/// spread over the providers rather than piling onto the first — and
-/// a start that fails on one goes on to the next.
+/// same judgements, the one with the most room for the run first —
+/// see below — and a start that fails on one goes on to the next.
+///
+/// # The most room first
+///
+/// Unpinned, the candidates are sorted by the room their last
+/// capacity answer holds for the run — [`capable::headroom`], the
+/// scarcer of memory and disk, in runs' worth — greatest first, so
+/// that runs land where they fit best and spread as room is used;
+/// the record's order breaks ties; a provider that has not answered
+/// its capacity yet comes last. A provider short of room by its last
+/// answer is sorted after every one with room and is STILL tried:
+/// the answer may be up to a poll old, and the provider's own refusal
+/// is the one that counts. The pinned path reads no capacity: the
+/// one provider is tried whatever its room.
 ///
 /// # Registries before the store, and nothing waited for needlessly
 ///
@@ -172,7 +184,7 @@ pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: 
             }
         }
     }
-    let mut candidates = if !listed.is_empty() {
+    let candidates = if !listed.is_empty() {
         listed
     } else if !unlisted.is_empty() && held(asked).await {
         unlisted
@@ -189,8 +201,19 @@ pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: 
             (None, None) => NoProvider::None,
         });
     }
-    candidates.shuffle(&mut rand::rng());
-    Ok(candidates)
+    let mut keyed: Vec<_> = candidates
+        .into_iter()
+        .map(|(identity, handle)| {
+            let key = match daemon.live.capacity(&identity) {
+                Some(capacity) => (false, Reverse(capable::headroom(&capacity, needs))),
+                None => (true, Reverse(0)),
+            };
+            (key, identity, handle)
+        })
+        .collect();
+    // Stable: the record's order stands among equals.
+    keyed.sort_by_key(|(key, _, _)| *key);
+    Ok(keyed.into_iter().map(|(_, identity, handle)| (identity, handle)).collect())
 }
 
 /// What one connected provider's judgement came to.

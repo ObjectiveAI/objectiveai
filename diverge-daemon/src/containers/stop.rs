@@ -6,7 +6,7 @@ use chrono::Utc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
 use futures_util::future;
 
-use super::{AgentRun, Key, ToolKey, ToolRun, User, pump, services, tools};
+use super::{AgentRun, Key, ToolHandle, ToolKey, ToolRun, User, pump, services, tools};
 use crate::daemon::{Daemon, Kind};
 use crate::store::{AgentId, agents, tools as tool_records};
 
@@ -22,8 +22,9 @@ pub async fn stop_agent(daemon: &Daemon, id: AgentId) {
 /// tasks ended, its transient dependencies stopped and its attached
 /// tools released — all at once, every container told at the same
 /// time; its services left to their attachments —
-/// its mounts let go, and the log told it ceased on its provider.
-/// Done once: a second call for one run does nothing.
+/// its mounts let go, the log told it ceased on its provider, and the
+/// provider's capacity asked again, since the run's reservation is
+/// freed. Done once: a second call for one run does nothing.
 pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     if daemon.live.remove_agent(run.id).await.is_none() {
         return;
@@ -57,6 +58,7 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
         let _ = agents::set_last(&mut conn, run.id, &run.provider, Utc::now()).await;
     }
     daemon.live.changed(Kind::Agents);
+    daemon.live.nudge_capacity(&run.provider);
 }
 
 /// Every transient dependency tool stopped at once: each told to stop,
@@ -107,6 +109,11 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     }
     daemon.live.changed(Kind::DependencyTools);
     daemon.live.changed(Kind::StandaloneTools);
+    // A connected tool ran on another daemon's provider: nothing of
+    // this daemon's was reserved there, and nothing is freed.
+    if let ToolHandle::Run(_) = run.handle {
+        daemon.live.nudge_capacity(&run.provider);
+    }
 }
 
 /// The daemon stops: every service's supervisor stilled first, so

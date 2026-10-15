@@ -35,9 +35,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::NotFound);
     };
     let status = daemon.live.provider_status(&credential.provider()).await;
+    let capacity = daemon.live.capacity(&credential.provider()).map(|frame| (*frame).clone());
     let connected = status.connected();
     if !judge::providers_incoming::over(&standing, Over::Get, &credential, connected) {
         return Ok(Frame::Forbidden);
     }
-    Ok(Frame::Found(credential.report(status)))
+    Ok(Frame::Found(credential.report(status, capacity)))
 }

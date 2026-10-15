@@ -11,11 +11,15 @@
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
+mod capacity;
+mod capacity_change;
 mod changes;
 mod daemon;
 mod live;
 mod peers;
 
+pub use capacity::*;
+pub use capacity_change::*;
 pub use changes::*;
 pub use daemon::*;
 pub use live::*;

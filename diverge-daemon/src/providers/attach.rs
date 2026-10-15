@@ -60,10 +60,11 @@ pub struct Attached {
 /// [`Error::Info`], the slot given back and the socket dropped. A
 /// provider that answers the daemon's own `VERSION` fills the slot
 /// as connected, with the handle and the answer cached for the
-/// connection's life: the daemon's accept of other daemons is opened
-/// on the connection when the configuration says so, and the
-/// provider's volumes listing is opened and kept, when its
-/// capabilities keep volumes at all. A provider that answers another
+/// connection's life: the provider's capacity is asked, and asked
+/// again for the connection's life; the daemon's accept of other
+/// daemons is opened on the connection when the configuration says
+/// so; and the provider's volumes listing is opened and kept, when
+/// its capabilities keep volumes at all. A provider that answers another
 /// version fills the slot as a different version — the handle kept so
 /// the socket stays open, and nothing opened on it, ever. Either way
 /// what comes back is the rest of the connection's life, to be
@@ -94,7 +95,8 @@ pub async fn attach(connection: Connection, identity: Identity, credential: Opti
         }
     };
     if answer.version == VERSION {
-        let info = daemon.live.connect_provider(&identity, handle.clone(), answer).await;
+        let (info, capacity) = daemon.live.connect_provider(&identity, handle.clone(), answer).await;
+        tokio::spawn(super::poll_capacity(Arc::clone(daemon), identity.clone(), handle.clone(), capacity));
         if daemon.accept_daemons {
             tokio::spawn(super::accept(Arc::clone(daemon), handle.clone()));
         }

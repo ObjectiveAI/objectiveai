@@ -1905,6 +1905,7 @@ dependencies = [
 name = "diverge-daemon"
 version = "2.3.0"
 dependencies = [
+ "arc-swap",
  "axum",
  "bytes",
  "chrono",

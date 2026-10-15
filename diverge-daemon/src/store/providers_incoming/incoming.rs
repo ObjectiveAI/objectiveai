@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::endpoints::providers::Status;
+use diverge_sdk::provider::endpoints::capacity;
 use diverge_sdk::daemon::endpoints::providers::incoming::Credential;
 use diverge_sdk::daemon::endpoints::providers::incoming::list::server::response;
 
@@ -50,10 +51,11 @@ impl Incoming {
 
     /// The credential as a list reports it, given where the daemon
     /// stands with the provider connected through it now.
-    pub fn report(&self, status: Status) -> response::Incoming {
+    pub fn report(&self, status: Status, capacity: Option<capacity::server::response::Frame>) -> response::Incoming {
         response::Incoming {
             credential: self.credential(),
             status,
+            capacity,
             created: self.created,
             creator: self.creator.clone(),
             tags: self.tags.clone(),

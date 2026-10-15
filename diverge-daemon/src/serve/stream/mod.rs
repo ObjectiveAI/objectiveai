@@ -7,7 +7,10 @@
 //! and the word that the listing is whole, and from then on reads the
 //! source again at every word and sends the [`diff`] — each
 //! [`Change`] as the endpoint's own frame — until the client cancels
-//! or its connection ends. The handler finishes the scope after.
+//! or its connection ends. The handler finishes the scope after. A
+//! listing of providers also hears every capacity swap and, through
+//! its [`Patch`], patches the one item named and tells the client the
+//! swap alone, reading nothing again.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -15,9 +18,11 @@
 mod change;
 mod diff;
 mod listing;
+mod patch;
 mod source;
 
 pub use change::*;
 pub use diff::*;
 pub use listing::*;
+pub use patch::*;
 pub use source::*;

@@ -185,6 +185,8 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
         fuse_mounts: !fuse_file_mounts.is_empty() || !fuse_directory_mounts.is_empty(),
         volume_modes: Vec::new(),
         image: Some(tool.declared.image.clone()),
+        memory: tool.declared.memory,
+        disk: tool.declared.disk,
     };
     let candidates = provider::candidates(daemon, None, &needs).await.map_err(|error| error.to_string())?;
     let mounts = Arc::new(
@@ -252,6 +254,7 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
         });
         daemon.live.insert_tool(Arc::clone(&run)).await;
         daemon.live.changed(Kind::DependencyTools);
+        daemon.live.nudge_capacity(&run.provider);
         let waiter = {
             let daemon = Arc::clone(daemon);
             let run = Arc::clone(&run);

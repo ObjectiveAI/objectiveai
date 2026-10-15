@@ -29,14 +29,19 @@ pub struct Daemon {
     /// through every provider it is connected to: `accept_daemons` of
     /// the configuration.
     pub accept_daemons: bool,
+    /// How long a provider's capacity poller waits, once it has
+    /// cached an answer, before it asks again: `capacity_poll_seconds`
+    /// of the configuration.
+    pub capacity_poll: Duration,
 }
 
 impl Daemon {
     /// A daemon on an open store, holding its agents' logs under
     /// `logs`, ending a run unused for `idle`, serving the database
-    /// `database`, accepting other daemons when `accept_daemons`, with
-    /// nothing live yet.
-    pub fn new(store: Store, logs: PathBuf, idle: Duration, database: Target, accept_daemons: bool) -> Self {
+    /// `database`, accepting other daemons when `accept_daemons`,
+    /// asking every provider's capacity again after `capacity_poll`,
+    /// with nothing live yet.
+    pub fn new(store: Store, logs: PathBuf, idle: Duration, database: Target, accept_daemons: bool, capacity_poll: Duration) -> Self {
         Daemon {
             store,
             live: Live::new(),
@@ -44,6 +49,7 @@ impl Daemon {
             idle,
             database,
             accept_daemons,
+            capacity_poll,
         }
     }
 }

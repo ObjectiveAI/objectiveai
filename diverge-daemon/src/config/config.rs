@@ -36,11 +36,20 @@ pub struct Config {
     /// it opens none, and no daemon reaches it or the tools it serves.
     /// Absent means `true`.
     pub accept_daemons: bool,
+    /// How many seconds the daemon waits, once it has cached a
+    /// connected provider's answer to its `capacity` ask, before it
+    /// asks again. The wait starts when the answer is cached, so a
+    /// slow provider stretches it; an act of the daemon's own that
+    /// changes the answer — a run started or ended, a volume made,
+    /// resized or dropped, a FUSE serve opened or closed — asks at
+    /// once, and nothing waits for the answer. Absent means ten.
+    pub capacity_poll_seconds: u64,
 }
 
 /// What a daemon runs on before it has written a line of
 /// configuration: the port one above the provider's, a Postgres of
-/// its own, ten seconds of idleness, and other daemons accepted.
+/// its own, ten seconds of idleness, other daemons accepted, and
+/// every provider's capacity asked every ten seconds.
 impl Default for Config {
     fn default() -> Self {
         Config {
@@ -48,6 +57,7 @@ impl Default for Config {
             postgres: Postgres::default(),
             idle_seconds: 10,
             accept_daemons: true,
+            capacity_poll_seconds: 10,
         }
     }
 }

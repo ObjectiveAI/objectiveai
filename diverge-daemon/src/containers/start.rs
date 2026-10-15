@@ -82,6 +82,8 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         fuse_mounts: !agent.fuse_file_mounts.is_empty() || !agent.fuse_directory_mounts.is_empty(),
         volume_modes: volumes.iter().map(|mount| mount.volume_mode).collect(),
         image: Some(build::image(&template.template.image)),
+        memory: template.template.memory,
+        disk: template.template.disk,
     };
     let candidates = provider::candidates(daemon, agent.provider.as_ref().map(|provider| &provider.identity), &needs)
         .await
@@ -177,6 +179,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         }
         daemon.live.insert_agent(Arc::clone(&run)).await;
         daemon.live.changed(Kind::Agents);
+        daemon.live.nudge_capacity(&run.provider);
         let pumping = tokio::spawn(pump::pump(Arc::clone(daemon), Arc::clone(&run), stream));
         let clock = tokio::spawn(idle::idle(Arc::clone(daemon), Arc::clone(&run)));
         run.tasks.lock().await.extend([pumping.abort_handle(), clock.abort_handle()]);
@@ -215,6 +218,8 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 fuse_mounts: !tool.fuse_file_mounts.is_empty() || !tool.fuse_directory_mounts.is_empty(),
                 volume_modes: volumes.iter().map(|mount| mount.volume_mode).collect(),
                 image: Some(build::image(&record.template.image)),
+                memory: record.template.memory,
+                disk: record.template.disk,
             };
             let candidates = provider::candidates(daemon, pinned.as_ref().map(|provider| &provider.identity), &needs)
                 .await
@@ -319,6 +324,9 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
     }
     daemon.live.insert_tool(Arc::clone(&run)).await;
     daemon.live.changed(Kind::StandaloneTools);
+    if let ToolHandle::Run(_) = run.handle {
+        daemon.live.nudge_capacity(&run.provider);
+    }
     let waiter = {
         let daemon = Arc::clone(daemon);
         let run = Arc::clone(&run);

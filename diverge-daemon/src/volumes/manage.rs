@@ -44,11 +44,17 @@ pub enum Dropped {
     Mounted,
 }
 
-/// A volume made on the provider.
+/// A volume made on the provider, and the provider's capacity asked
+/// again, since the volume took room. A write into a volume, by
+/// contrast, moves nothing a capacity counts: the room was taken at
+/// the create.
 pub async fn create(daemon: &Daemon, identity: &Identity, name: String, bytes: u64, mode: Mode) -> Result<Made, Fail> {
     let handle = provider::handle(daemon, identity).await?;
     match create_execute::execute(&handle, &create_request::Frame { name, bytes, mode }).await {
-        Ok(()) => Ok(Made::Created),
+        Ok(()) => {
+            daemon.live.nudge_capacity(identity);
+            Ok(Made::Created)
+        }
         Err(create_execute::ExecuteError::InsufficientCapacity) => Ok(Made::InsufficientCapacity),
         Err(create_execute::ExecuteError::ModeUnsupported) => Err(Fail::Unsupported("the provider keeps no volume of that mode".to_string())),
         Err(create_execute::ExecuteError::Unsupported) => Err(Fail::Unsupported("the provider keeps no volume".to_string())),
@@ -57,7 +63,8 @@ pub async fn create(daemon: &Daemon, identity: &Identity, name: String, bytes: u
     }
 }
 
-/// The volume's size, mode, or both changed.
+/// The volume's size, mode, or both changed, and the provider's
+/// capacity asked again.
 pub async fn edit(daemon: &Daemon, volume: &reference::Volume, change: Change) -> Result<Edited, Fail> {
     let handle = provider::handle(daemon, &volume.provider).await?;
     let request = edit_request::Frame {
@@ -65,7 +72,10 @@ pub async fn edit(daemon: &Daemon, volume: &reference::Volume, change: Change) -
         change,
     };
     match edit_execute::execute(&handle, &request).await {
-        Ok(()) => Ok(Edited::Edited),
+        Ok(()) => {
+            daemon.live.nudge_capacity(&volume.provider);
+            Ok(Edited::Edited)
+        }
         Err(edit_execute::ExecuteError::InsufficientCapacity) => Ok(Edited::InsufficientCapacity),
         Err(edit_execute::ExecuteError::ContentTooLarge) => Ok(Edited::ContentTooLarge),
         Err(edit_execute::ExecuteError::ModeUnsupported) => Err(Fail::Unsupported("the provider keeps no volume of that mode".to_string())),
@@ -76,14 +86,18 @@ pub async fn edit(daemon: &Daemon, volume: &reference::Volume, change: Change) -
     }
 }
 
-/// The volume dropped from its provider.
+/// The volume dropped from its provider, and the provider's capacity
+/// asked again.
 pub async fn delete(daemon: &Daemon, volume: &reference::Volume) -> Result<Dropped, Fail> {
     let handle = provider::handle(daemon, &volume.provider).await?;
     let request = delete_request::Frame {
         name: volume.name.clone(),
     };
     match delete_execute::execute(&handle, &request).await {
-        Ok(()) => Ok(Dropped::Deleted),
+        Ok(()) => {
+            daemon.live.nudge_capacity(&volume.provider);
+            Ok(Dropped::Deleted)
+        }
         Err(delete_execute::ExecuteError::Mounted | delete_execute::ExecuteError::FuseServed | delete_execute::ExecuteError::Held) => Ok(Dropped::Mounted),
         Err(delete_execute::ExecuteError::Unsupported) => Err(Fail::Unsupported("the provider keeps no volume".to_string())),
         Err(delete_execute::ExecuteError::Provider(error)) => Err(Fail::refusal(&error)),

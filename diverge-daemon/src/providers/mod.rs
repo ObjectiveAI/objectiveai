@@ -40,6 +40,7 @@
 mod accept;
 mod acceptor;
 mod attach;
+mod capacity;
 mod error;
 mod incoming;
 mod outgoing;
@@ -49,6 +50,7 @@ mod url;
 pub use accept::*;
 pub use acceptor::*;
 pub use attach::*;
+pub use capacity::*;
 pub use error::*;
 pub use incoming::*;
 pub use outgoing::*;

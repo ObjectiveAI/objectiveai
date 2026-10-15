@@ -1,6 +1,7 @@
 //! One run's mounts, built and asked.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use bytes::Bytes;
 use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::server::channel_request::Frame as Ask;
@@ -23,7 +24,7 @@ use tokio::task::AbortHandle;
 
 use super::{bridge, watch};
 use crate::containers::capable;
-use crate::daemon::Daemon;
+use crate::daemon::{Capacity, Daemon};
 
 /// The scope a mount's bytes come from: a volume served by its
 /// provider, or a subtree of a running container served by the
@@ -93,6 +94,11 @@ pub struct Served {
     /// served whole and the file's name for a file served with its
     /// directory.
     pub prefix: Vec<String>,
+    /// The serving provider's capacity cell, where the serve took
+    /// room there — a volume serve reserves its `overlay_disk` — so
+    /// that the stop can nudge it without the daemon in hand; `None`
+    /// for a container serve, which reserves nothing.
+    pub capacity: Option<Arc<Capacity>>,
 }
 
 /// The mounts of one run: what the provider is told to mount, and
@@ -127,8 +133,10 @@ impl Mounts {
     /// The mounts for a record's run: its cross-provider mounts, every
     /// volume's FUSE serve opened on its provider — a provider whose
     /// capabilities FUSE serve a volume of the mount's mode, else the
-    /// mount is unsupported and the provider is not asked. The first
-    /// that cannot be is the failure, and what was opened is let go.
+    /// mount is unsupported and the provider is not asked — and each
+    /// such provider nudged to say its capacity again, the serve
+    /// having taken its `overlay_disk`. The first that cannot be is
+    /// the failure, and what was opened is let go.
     pub async fn build(daemon: &Daemon, volume_files: &[VolumeFuseMount], volume_directories: &[VolumeFuseMount]) -> Result<Mounts, MountsError> {
         let mut mounts = Mounts::empty();
         let mut v = 0usize;
@@ -164,11 +172,16 @@ impl Mounts {
                     return Err(MountsError::Failed(format!("the volume {} could not be served: {error:?}", mount.volume_name)));
                 }
             };
+            let capacity = daemon.live.capacity_cell(&mount.provider);
+            if let Some(cell) = &capacity {
+                cell.nudge();
+            }
             mounts.sources.insert(
                 id.clone(),
                 Served {
                     serve: Mutex::new(Some(Serve::Volume(serve))),
                     prefix: mount.volume_relative_path.clone(),
+                    capacity,
                 },
             );
             let fuse = FuseMount {
@@ -190,8 +203,9 @@ impl Mounts {
     /// whole, a file with the directory holding it — and watched for
     /// every change, the agent's own included. An agent's provider
     /// whose capabilities FUSE serve no container is every such mount
-    /// unsupported, and is not asked. The first that cannot be served
-    /// is the failure, and what was opened is let go.
+    /// unsupported, and is not asked. A container serve reserves no
+    /// room, so no capacity is asked again for it. The first that
+    /// cannot be served is the failure, and what was opened is let go.
     pub async fn build_dependency(daemon: &Daemon, agent_provider: &Identity, agent_container: &str, files: &[Mount], directories: &[Mount]) -> Result<Mounts, MountsError> {
         let mut mounts = Mounts::empty();
         if files.is_empty() && directories.is_empty() {
@@ -255,6 +269,7 @@ impl Mounts {
                 Served {
                     serve: Mutex::new(Some(Serve::Container(serve))),
                     prefix,
+                    capacity: None,
                 },
             );
             let fuse = FuseMount {
@@ -270,7 +285,9 @@ impl Mounts {
         Ok(mounts)
     }
 
-    /// The run is over: every watch ended, every serve stopped.
+    /// The run is over: every watch ended, every serve stopped, and
+    /// every provider that served a volume nudged to say its capacity
+    /// again, the serve's room given back.
     pub async fn stop(&self) {
         for watcher in self.watchers.lock().await.drain(..) {
             watcher.abort();
@@ -278,6 +295,9 @@ impl Mounts {
         for served in self.sources.values() {
             if let Some(serve) = served.serve.lock().await.take() {
                 serve.stop().await;
+                if let Some(cell) = &served.capacity {
+                    cell.nudge();
+                }
             }
         }
     }
@@ -298,19 +318,19 @@ impl Mounts {
 
     /// What is at the path, if anything.
     pub async fn stat(&self, id: &str, path: &str) -> Result<Option<Stat>, String> {
-        let Served { serve, prefix } = self.source(id)?;
+        let Served { serve, prefix, .. } = self.source(id)?;
         bridge::stat(serve, prefix, path).await
     }
 
     /// A piece of the file at the path.
     pub async fn read(&self, id: &str, path: &str, offset: u64, length: u32) -> Result<Option<Bytes>, String> {
-        let Served { serve, prefix } = self.source(id)?;
+        let Served { serve, prefix, .. } = self.source(id)?;
         bridge::read(serve, prefix, path, offset, length).await
     }
 
     /// A piece written into the file at the path.
     pub async fn write(&self, id: &str, path: &str, offset: u64, bytes: Bytes) -> Result<(), Refused> {
-        let Served { serve, prefix } = self.source(id).map_err(Refused::Error)?;
+        let Served { serve, prefix, .. } = self.source(id).map_err(Refused::Error)?;
         bridge::write(serve, prefix, path, offset, &bytes).await?;
         if !self.streams(id).await {
             self.changed(id, path, false).await;
@@ -320,7 +340,7 @@ impl Mounts {
 
     /// The file at the path made `size` long.
     pub async fn truncate(&self, id: &str, path: &str, size: u64) -> Result<(), Refused> {
-        let Served { serve, prefix } = self.source(id).map_err(Refused::Error)?;
+        let Served { serve, prefix, .. } = self.source(id).map_err(Refused::Error)?;
         bridge::truncate(serve, prefix, path, size).await?;
         if !self.streams(id).await {
             self.changed(id, path, false).await;
@@ -330,19 +350,19 @@ impl Mounts {
 
     /// The attributes of what is at the path changed.
     pub async fn setattr(&self, id: &str, path: &str, attrs: Attrs) -> Result<(), Refused> {
-        let Served { serve, prefix } = self.source(id).map_err(Refused::Error)?;
+        let Served { serve, prefix, .. } = self.source(id).map_err(Refused::Error)?;
         bridge::setattr(serve, prefix, path, attrs).await
     }
 
     /// The entries of the directory at the path.
     pub async fn list(&self, id: &str, path: &str) -> Result<Option<Vec<Listed>>, String> {
-        let Served { serve, prefix } = self.source(id)?;
+        let Served { serve, prefix, .. } = self.source(id)?;
         bridge::list(serve, prefix, path).await
     }
 
     /// What is at the path removed.
     pub async fn remove(&self, id: &str, path: &str) -> Result<(), Refused> {
-        let Served { serve, prefix } = self.source(id).map_err(Refused::Error)?;
+        let Served { serve, prefix, .. } = self.source(id).map_err(Refused::Error)?;
         bridge::remove(serve, prefix, path).await?;
         if !self.streams(id).await {
             self.removed(id, path);
@@ -352,7 +372,7 @@ impl Mounts {
 
     /// What is at `from` moved to `to`.
     pub async fn rename(&self, id: &str, from: &str, to: &str) -> Result<(), Refused> {
-        let Served { serve, prefix } = self.source(id).map_err(Refused::Error)?;
+        let Served { serve, prefix, .. } = self.source(id).map_err(Refused::Error)?;
         bridge::rename(serve, prefix, from, to).await?;
         if !self.streams(id).await {
             self.removed(id, from);
@@ -363,7 +383,7 @@ impl Mounts {
 
     /// A directory made at the path.
     pub async fn mkdir(&self, id: &str, path: &str) -> Result<(), Refused> {
-        let Served { serve, prefix } = self.source(id).map_err(Refused::Error)?;
+        let Served { serve, prefix, .. } = self.source(id).map_err(Refused::Error)?;
         bridge::mkdir(serve, prefix, path).await?;
         if !self.streams(id).await {
             self.changed(id, path, true).await;

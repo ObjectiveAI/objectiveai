@@ -8,8 +8,11 @@
 //! passed over — or, pinned, refused — without being asked. The
 //! image is judged the same way, from the capabilities first — see
 //! [`registry`] — and from who holds it only when no registry will
-//! do.
+//! do. And among the providers that pass, the one with the most room
+//! for the run by its last capacity answer is tried first: see
+//! [`headroom`].
 
+use diverge_sdk::provider::endpoints::capacity::server::response::Frame as Capacity;
 use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;
 use diverge_sdk::provider::endpoints::volumes::Mode;
 use diverge_sdk::shared::containers::request::Image;
@@ -32,6 +35,42 @@ pub struct Needs {
     /// references, which the provider must be able to source: see
     /// [`registry`]. `None` asks nothing of the image.
     pub image: Option<Image>,
+    /// The memory the run reserves, in bytes: what [`headroom`]
+    /// measures the provider's `container_memory` against. `0` asks
+    /// nothing of it.
+    pub memory: u64,
+    /// The overlay disk the run reserves, in bytes: what
+    /// [`headroom`] measures the provider's `container_disk` against.
+    /// `0` asks nothing of it.
+    pub disk: u64,
+}
+
+/// What a headroom ratio is scaled by: one is a run's worth of room
+/// exactly, in millionths, so that a ratio compares as an integer.
+const SCALE: u128 = 1_000_000;
+
+/// How many runs' worth of room the provider's last capacity holds
+/// for a run of these needs, in millionths: the smaller of its
+/// `container_memory` over the run's memory and its `container_disk`
+/// over the run's disk — the scarcer of the two is what the run
+/// comes up against — with a need of `0` counting as unbounded. The
+/// chooser tries the greatest first: see
+/// [`candidates`](super::provider::candidates). A ratio under one
+/// is a provider short of room by its last answer; it is sorted after
+/// every provider with room, and still tried, since the answer may
+/// be stale.
+pub fn headroom(capacity: &Capacity, needs: &Needs) -> u128 {
+    let memory = ratio(capacity.container_memory, needs.memory);
+    let disk = ratio(capacity.container_disk, needs.disk);
+    memory.min(disk)
+}
+
+/// `room` over `need`, in millionths; `u128::MAX` for a need of `0`.
+fn ratio(room: u64, need: u64) -> u128 {
+    if need == 0 {
+        return u128::MAX;
+    }
+    u128::from(room).saturating_mul(SCALE) / u128::from(need)
 }
 
 /// `Ok` when `info` holds out everything `needs`; else what it lacks,

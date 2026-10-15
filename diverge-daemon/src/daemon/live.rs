@@ -3,8 +3,10 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use arc_swap::ArcSwap;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::endpoints::providers::Status;
+use diverge_sdk::provider::endpoints::capacity::server::response::Frame as CapacityFrame;
 use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;
 use diverge_sdk::wire::client::handle::Handle;
 use tokio::sync::{Mutex, Notify, watch};
@@ -15,7 +17,7 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::images::oci::client::execute;
 
-use super::{Changes, Kind, Peers, Standing};
+use super::{Capacity, CapacityChange, CapacityChanges, Changes, Kind, Peers, Standing};
 use crate::containers::services::State;
 use crate::containers::{AgentRun, ConnectionId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
@@ -25,8 +27,8 @@ use crate::volumes::Mirror;
 
 /// The live state of the daemon: which accounts have a client
 /// connected as them, and how many; which providers the daemon holds
-/// a connection to, the handle it speaks to each on and the info each
-/// answered; and the dial
+/// a connection to, the handle it speaks to each on, the info each
+/// answered and the capacity each last answered; and the dial
 /// tasks keeping the outgoing ones connected; which daemons it holds
 /// a connection to through them; which providers hold which image,
 /// and the pull scope held on each; every agent's log as
@@ -90,6 +92,14 @@ pub struct Live {
     /// The pull scope held open on each provider pulled from: opened
     /// at the first pull, kept for the connection's life.
     pulls: Mutex<HashMap<Identity, Arc<execute::ExecuteHandle>>>,
+    /// Each connected provider's capacity cell, by identity: a
+    /// snapshot map, swapped whole when a provider connects or
+    /// disconnects, so a reader looks a cell up under no lock at any
+    /// time. The cell itself is read the same way: see [`Capacity`].
+    capacities: ArcSwap<HashMap<Identity, Arc<Capacity>>>,
+    /// The word that a capacity was swapped, for the provider lists
+    /// kept open.
+    swaps: CapacityChanges,
 }
 
 impl std::fmt::Debug for Live {
@@ -182,16 +192,22 @@ impl Live {
     /// answer, cached for the connection's life, and the word said
     /// that the provider is connected. The answer, shared, for the
     /// attach's own reading.
-    pub async fn connect_provider(&self, identity: &Identity, handle: Handle, info: Info) -> Arc<Info> {
+    pub async fn connect_provider(&self, identity: &Identity, handle: Handle, info: Info) -> (Arc<Info>, Arc<Capacity>) {
         let info = Arc::new(info);
         let standing = Standing::Connected {
             handle,
             info: Arc::clone(&info),
         };
+        let cell = Arc::new(Capacity::new());
         if self.providers.lock().await.fill(identity, standing) {
+            self.capacities.rcu(|map| {
+                let mut map = HashMap::clone(map);
+                map.insert(identity.clone(), Arc::clone(&cell));
+                map
+            });
             self.changes.changed(Kind::of_provider(identity));
         }
-        info
+        (info, cell)
     }
 
     /// The provider answered its info with a version that is not the
@@ -209,9 +225,20 @@ impl Live {
     }
 
     /// The provider's connection ended: its slot given back, with the
-    /// credential it held.
+    /// credential it held, and its capacity cell dropped from the map
+    /// and nudged, so a poller asleep on its interval wakes, finds the
+    /// connection gone and ends.
     pub async fn disconnect_provider(&self, identity: &Identity) {
         if self.providers.lock().await.release(identity) {
+            let cell = self.capacity_cell(identity);
+            self.capacities.rcu(|map| {
+                let mut map = HashMap::clone(map);
+                map.remove(identity);
+                map
+            });
+            if let Some(cell) = cell {
+                cell.nudge();
+            }
             self.changes.changed(Kind::of_provider(identity));
         }
         if self.volumes.lock().await.remove(identity).is_some() {
@@ -340,6 +367,38 @@ impl Live {
             Some(Standing::Connected { info, .. }) => Some(Arc::clone(info)),
             _ => None,
         }
+    }
+
+    /// The provider's capacity cell, if the daemon uses it now: under
+    /// no lock, at any time.
+    pub fn capacity_cell(&self, identity: &Identity) -> Option<Arc<Capacity>> {
+        self.capacities.load().get(identity).cloned()
+    }
+
+    /// The provider's latest capacity answer, if the daemon uses it
+    /// now and it has answered once: under no lock, at any time.
+    pub fn capacity(&self, identity: &Identity) -> Option<Arc<CapacityFrame>> {
+        self.capacity_cell(identity).and_then(|cell| cell.latest())
+    }
+
+    /// Something changed the provider's capacity: its poller asks
+    /// again, now. Nothing waits for the answer; a provider not
+    /// connected is nothing to nudge.
+    pub fn nudge_capacity(&self, identity: &Identity) {
+        if let Some(cell) = self.capacity_cell(identity) {
+            cell.nudge();
+        }
+    }
+
+    /// The provider's poller swapped a new answer in: the word to the
+    /// provider lists kept open, with the answer.
+    pub fn capacity_changed(&self, identity: Identity, capacity: Arc<CapacityFrame>) {
+        self.swaps.changed(CapacityChange { identity, capacity });
+    }
+
+    /// Every capacity swap from now on, for a provider listing.
+    pub fn capacity_changes(&self) -> tokio::sync::broadcast::Receiver<CapacityChange> {
+        self.swaps.subscribe()
     }
 
     /// Keep the dial task for the address, ending any earlier one for
