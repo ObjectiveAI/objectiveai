@@ -22,6 +22,7 @@ mod marks;
 mod notes;
 mod door;
 mod door_serve;
+mod fleet;
 mod hires;
 mod identity;
 mod preview;
@@ -63,10 +64,13 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             actions::agents_list,
+            actions::agents_watch,
             actions::agents_create,
             actions::agents_delete,
             actions::agents_edit,
             actions::agents_mounts,
+            actions::agents_tag,
+            actions::agents_untag,
             actions::agents_message,
             actions::agents_message_take_back,
             actions::logs_open,

@@ -5,7 +5,7 @@ import wordmark from "../assets/wordmark.svg";
 import { Button, Dot, Icon, Row } from "./ui";
 
 export function Rail(props: { focused: string | null }) {
-  const { agents, info, open, spaces, knocks, cards } = useShared();
+  const { agents, agentsState, info, open, spaces, knocks, cards } = useShared();
   const here = (key: string) => props.focused === key;
   return (
     <nav className="rail">
@@ -32,7 +32,13 @@ export function Rail(props: { focused: string | null }) {
           <div className="rail-head">
             <span>{t.rail.agents}</span>
           </div>
-          {agents.length === 0 ? <p className="rail-empty muted">{t.rail.empty}</p> : null}
+          {agentsState.state === "forbidden" ? (
+            <p className="rail-empty muted">{t.common.forbidden}</p>
+          ) : agentsState.state === "error" ? (
+            <p className="rail-empty muted">{t.map.listFailed} {agentsState.message}</p>
+          ) : agents.length === 0 ? (
+            <p className="rail-empty muted">{agentsState.state === "waiting" ? t.map.listWaiting : t.rail.empty}</p>
+          ) : null}
           <ul className="rail-list">
             {agents.map((a) => {
               const state = a.active ? "working" : a.last_active ? "idle" : "never";

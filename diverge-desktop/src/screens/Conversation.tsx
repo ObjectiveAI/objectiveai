@@ -15,7 +15,7 @@ import { t } from "../strings";
 type Pending = { ticket: string; text: string; state: "waiting" | "taken" | "late" | "error"; error?: string };
 
 export function Conversation(props: { name: string; tabKey: string }) {
-  const { agents, refreshAgents, cards, withdrawn, answerCard } = useShared();
+  const { agents, cards, withdrawn, answerCard } = useShared();
   const mine = cards.filter((c) => c.agent === props.name);
   const gone = withdrawn.filter((c) => c.agent === props.name);
   const agent = agents.find((a) => a.key === props.name);
@@ -99,8 +99,7 @@ export function Conversation(props: { name: string; tabKey: string }) {
     } catch (e) {
       setPending((p) => p.map((x) => (x.ticket === ticket ? { ...x, state: "error", error: errorText(e) } : x)));
     }
-    refreshAgents();
-  }, [draft, props.name, refreshAgents]);
+  }, [draft, props.name]);
 
   const takeBack = async (ticket: string) => {
     const had = await api.takeBack(ticket);
@@ -113,7 +112,6 @@ export function Conversation(props: { name: string; tabKey: string }) {
     else if (outcome.outcome === "error") setProblem(outcome.message);
     else if (outcome.outcome === "forbidden") setProblem(t.common.forbidden);
     else setRemoving("idle");
-    refreshAgents();
   };
 
   const status = runningOn ? (

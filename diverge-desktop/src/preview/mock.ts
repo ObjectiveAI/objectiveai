@@ -92,6 +92,13 @@ export function installPreview() {
     for (const w of spaceWatches.values()) if (w.id === id) w.ch.onmessage({ event: "updated", uri: "space://feed" });
   };
   const watches = new Map<string, { name: string; ch: Chan }>();
+  // The live agents list: the whole snapshot again on every change, as the app sends it.
+  const agentsChs = new Map<string, Chan>();
+  let agentsGeneration = 0;
+  const sendAgents = () => {
+    agentsGeneration++;
+    for (const ch of agentsChs.values()) ch.onmessage({ generation: agentsGeneration, state: { state: "live" }, agents: structuredClone(agents) });
+  };
   const pending = new Map<string, { resolve: (v: unknown) => void; timer: number }>();
   let tabs: TabView[] = [];
   let focused: string | null = null;
@@ -128,11 +135,28 @@ export function installPreview() {
           return null;
         case "agents_list":
           return { agents, errors: [], forbidden: false };
+        case "agents_watch": {
+          const id = `agents-${++scope}`;
+          agentsChs.set(id, args.onEvent as Chan);
+          later(sendAgents);
+          return id;
+        }
+        case "agents_tag":
+        case "agents_untag": {
+          const a = agents.find((x) => x.key === args.name);
+          if (!a) return { outcome: "not_found" };
+          const tags = new Set(a.tags);
+          for (const tag of args.tags as string[]) cmd === "agents_tag" ? tags.add(tag) : tags.delete(tag);
+          a.tags = [...tags].sort();
+          sendAgents();
+          return { outcome: "done" };
+        }
         case "agents_create": {
           const input = args.input;
           if (agents.some((a) => a.name === input.name)) return { outcome: "in_use" };
           // The preview hashes no template, so the new agent names none.
           agents.push({ key: input.name, name: input.name, template: "", index: 0, creator: fixture.agents[0].creator as AgentView["creator"], tags: [], image_name: `diverge-agentic-loop-${input.image_kind}`, digest: `unbuilt-${input.image_kind}`, created: new Date().toISOString(), active: false, last_active: null, provider: null, logs_index: 0, tools: [] });
+          sendAgents();
           logs[input.name] = [];
           const view = (m: { provider?: unknown; volume_name: string; volume_relative_path: string; volume_mode: string; container_path: string }) => ({ ...m, provider: m.provider ?? null });
           mounts[input.name] = { pinned: input.provider, volume_mounts: input.volume_mounts.map(view), fuse_file_mounts: input.fuse_file_mounts.map(view), fuse_directory_mounts: input.fuse_directory_mounts.map(view) } as MountsView;
@@ -143,6 +167,7 @@ export function installPreview() {
           if (!a) return { outcome: "not_found" };
           if (a.active) return { outcome: "active" };
           agents.splice(agents.indexOf(a), 1);
+          sendAgents();
           tabs = tabs.filter((t) => t.key !== `agent:${args.name}`);
           generation++;
           emit("tabs://changed", snapshot());
@@ -196,7 +221,7 @@ export function installPreview() {
           return id;
         }
         case "scope_close":
-          return watches.delete(args.id);
+          return watches.delete(args.id) || agentsChs.delete(args.id);
         case "volumes_list":
           return machineOf(args.machine) ? { outcome: "volumes", volumes: volumesOf(args.machine) } : { outcome: "error", message: "the daemon knows no machine by that identity" };
         case "volumes_stat": {

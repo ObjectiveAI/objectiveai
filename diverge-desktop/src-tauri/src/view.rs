@@ -79,7 +79,7 @@ pub struct ImageKindView {
 
 // --- agents ------------------------------------------------------------
 
-#[derive(Serialize, TS, Clone, Debug)]
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct AgentView {
     /// How the app keys it — tabs, rows, logs, messages: its name, or, for
@@ -314,28 +314,35 @@ pub struct AgentsListed {
     pub forbidden: bool,
 }
 
+/// One list item as the screen shows it, with what its template (if the
+/// daemon would say) says it runs.
+pub fn agent_view(agent: agents::list::server::response::Agent, template: Option<&AgentTemplate>) -> AgentView {
+    let image = template.map(|t| &t.image);
+    AgentView {
+        key: crate::daemon::agent_key(agent.name.as_deref(), &agent.template, agent.index),
+        image_name: image.and_then(|i| crate::catalog::Kind::of_image(i)).map(|k| k.image_name()).or_else(|| image.and_then(|i| i.references.first()).map(|r| r.name.clone())).unwrap_or_default(),
+        digest: image.map(|i| i.digest.clone()).unwrap_or_default(),
+        name: agent.name,
+        template: agent.template,
+        index: agent.index,
+        creator: (&agent.creator).into(),
+        tags: agent.tags,
+        created: agent.created.to_rfc3339(),
+        active: agent.active,
+        last_active: agent.last_active.map(|t| t.to_rfc3339()),
+        provider: agent.provider.as_ref().map(|p| (&p.identity).into()),
+        logs_index: agent.logs_index,
+        tools: agent.tools.iter().map(tool_words).collect(),
+    }
+}
+
 /// A list's frames, applied in order, with each agent's template (by id)
 /// for what it was made from.
 pub fn listed(frames: Vec<agents::list::server::response::Frame>, templates: &HashMap<String, AgentTemplate>) -> AgentsListed {
     use agents::list::server::response::Frame;
     let view = |agent: agents::list::server::response::Agent| {
-        let image = templates.get(&agent.template).map(|t| &t.image);
-        AgentView {
-            key: crate::daemon::agent_key(agent.name.as_deref(), &agent.template, agent.index),
-            image_name: image.and_then(|i| crate::catalog::Kind::of_image(i)).map(|k| k.image_name()).or_else(|| image.and_then(|i| i.references.first()).map(|r| r.name.clone())).unwrap_or_default(),
-            digest: image.map(|i| i.digest.clone()).unwrap_or_default(),
-            name: agent.name,
-            template: agent.template,
-            index: agent.index,
-            creator: (&agent.creator).into(),
-            tags: agent.tags,
-            created: agent.created.to_rfc3339(),
-            active: agent.active,
-            last_active: agent.last_active.map(|t| t.to_rfc3339()),
-            provider: agent.provider.as_ref().map(|p| (&p.identity).into()),
-            logs_index: agent.logs_index,
-            tools: agent.tools.iter().map(tool_words).collect(),
-        }
+        let template = templates.get(&agent.template);
+        agent_view(agent, template)
     };
     let mut out = AgentsListed::default();
     for frame in frames {
@@ -379,6 +386,36 @@ pub async fn agents_listed(daemon: &dyn crate::daemon::Daemon) -> AgentsListed {
         }
     }
     listed(frames, &templates)
+}
+
+// --- your agents, live --------------------------------------------------------
+
+/// Where the app's one open agents list stands.
+#[derive(Serialize, TS, Clone, Debug, PartialEq, Default)]
+#[serde(tag = "state", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum ListState {
+    /// Asked, and not whole yet: the first time, or asked again after it ended.
+    #[default]
+    Waiting,
+    /// Whole, and followed as it changes.
+    Live,
+    /// The daemon refused: the account you're served as may not list agents.
+    Forbidden,
+    /// The list failed, in these words; it is asked again a second later.
+    Error { message: String },
+}
+
+/// Everything the app knows of your agents now, whole, sent again on every
+/// change with a higher generation (see [`crate::fleet`]).
+#[derive(Serialize, TS, Clone, Debug, Default)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct AgentsSnapshot {
+    #[ts(type = "number")]
+    pub generation: u64,
+    pub state: ListState,
+    /// In the list's order: oldest made first.
+    pub agents: Vec<AgentView>,
 }
 
 /// What the screen sends to make an agent.
@@ -577,6 +614,41 @@ impl From<agents::delete::server::response::Frame> for DeleteOutcome {
             Frame::Active => DeleteOutcome::Active,
             Frame::Forbidden => DeleteOutcome::Forbidden,
             Frame::Error(error) => DeleteOutcome::Error { message: error_text(&error) },
+        }
+    }
+}
+
+/// What putting tags on an agent, or taking them off, came to.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum TagOutcome {
+    Done,
+    NotFound,
+    Forbidden,
+    Error { message: String },
+}
+
+impl From<agents::tag::server::response::Frame> for TagOutcome {
+    fn from(frame: agents::tag::server::response::Frame) -> Self {
+        use agents::tag::server::response::Frame;
+        match frame {
+            Frame::Tagged => TagOutcome::Done,
+            Frame::NotFound => TagOutcome::NotFound,
+            Frame::Forbidden => TagOutcome::Forbidden,
+            Frame::Error(error) => TagOutcome::Error { message: error_text(&error) },
+        }
+    }
+}
+
+impl From<agents::untag::server::response::Frame> for TagOutcome {
+    fn from(frame: agents::untag::server::response::Frame) -> Self {
+        use agents::untag::server::response::Frame;
+        match frame {
+            Frame::Untagged => TagOutcome::Done,
+            Frame::NotFound => TagOutcome::NotFound,
+            Frame::Forbidden => TagOutcome::Forbidden,
+            Frame::Error(error) => TagOutcome::Error { message: error_text(&error) },
         }
     }
 }

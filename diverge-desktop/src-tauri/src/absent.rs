@@ -8,7 +8,7 @@
 #![cfg_attr(feature = "stand-in", allow(dead_code))]
 
 use async_trait::async_trait;
-use futures::stream;
+use futures::{StreamExt, stream};
 use rmcp::model::{CallToolRequestParams, CallToolResult, ErrorData, ListToolsResult, ReadResourceResult, ServerNotification};
 use serde_json::json;
 use tokio_util::sync::CancellationToken;
@@ -78,12 +78,22 @@ impl Daemon for Absent {
         Box::pin(stream::iter([agents::logs::server::response::Frame::Error(self.no())]))
     }
 
-    fn agents_list(&self, _: agents::list::client::request::Frame, _: CancellationToken) -> Frames<agents::list::server::response::Frame> {
-        Box::pin(stream::iter([agents::list::server::response::Frame::Listed]))
+    /// Nothing to list, said once and held open: there is nothing that could change.
+    fn agents_list(&self, _: agents::list::client::request::Frame, cancel: CancellationToken) -> Frames<agents::list::server::response::Frame> {
+        let held = stream::once(cancel.cancelled_owned()).filter_map(|()| futures::future::ready(None));
+        Box::pin(stream::iter([agents::list::server::response::Frame::Listed]).chain(held))
     }
 
     async fn agents_edit(&self, _: agents::edit::client::request::Frame) -> agents::edit::server::response::Frame {
         agents::edit::server::response::Frame::Error(self.no())
+    }
+
+    async fn agents_tag(&self, _: agents::tag::client::request::Frame) -> agents::tag::server::response::Frame {
+        agents::tag::server::response::Frame::Error(self.no())
+    }
+
+    async fn agents_untag(&self, _: agents::untag::client::request::Frame) -> agents::untag::server::response::Frame {
+        agents::untag::server::response::Frame::Error(self.no())
     }
 
     async fn standalone_tools_templates_create(

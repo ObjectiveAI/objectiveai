@@ -33,6 +33,8 @@ pub struct AppState {
     pub machines: Arc<dyn Machines>,
     pub spaces: Arc<dyn Spaces>,
     pub door: Arc<Door>,
+    /// Your agents, live: the app's one open agents list.
+    pub fleet: Arc<crate::fleet::Fleet>,
     /// The door served on this machine's loopback, for local agents you run yourself.
     pub serve: Arc<crate::door_serve::DoorServe>,
     pub stand_in_host: Option<PathBuf>,
@@ -123,7 +125,9 @@ impl AppState {
                 let identity = Arc::new(crate::identity::Identity::untouched(&data.join(KEYS_FILE), says));
                 let absent = Arc::new(crate::absent::Absent::saying(says));
                 let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
-                return Self::assemble(data, identity, seams, folder);
+                let state = Self::assemble(data, identity, seams, folder);
+                state.fleet.start(state.daemon.clone());
+                return state;
             }
             None => {
                 // Nobody is named from this Mac: until the first-run page is finished there's no you here.
@@ -139,6 +143,7 @@ impl AppState {
                 state
             }
         };
+        state.fleet.start(state.daemon.clone());
         crate::reporter::spawn(state.daemon.clone(), state.spaces.clone(), state.identity.clone());
         crate::hires::spawn(state.daemon.clone(), state.spaces.clone(), state.identity.clone(), state.door.clone());
         state
@@ -202,6 +207,7 @@ impl AppState {
             machines: seams.machines,
             spaces: seams.spaces,
             door,
+            fleet: crate::fleet::Fleet::new(),
             serve,
             stand_in_host: seams.stand_in_host,
             network: seams.network,
@@ -265,10 +271,13 @@ impl AppState {
 /// The registry, by name. Keep in step with `handlers()` in main.rs.
 pub const REGISTRY: &[(&str, &str)] = &[
     ("agents_list", "List every agent"),
+    ("agents_watch", "Your agents, whole, now and again on every change (a run starting or ending, an edit, tags, tools)"),
     ("agents_create", "Make an agent from an image, settings, limits and mounts"),
     ("agents_delete", "Remove an agent (the daemon refuses while it is running)"),
     ("agents_edit", "Change what an agent mounts (the daemon refuses while it is running)"),
     ("agents_mounts", "What this app last stated an agent mounts"),
+    ("agents_tag", "Put tags on an agent (one it has already stays)"),
+    ("agents_untag", "Take tags off an agent"),
     ("agents_message", "Send an agent a message; resolves when delivered"),
     ("agents_message_take_back", "Take back a message that has not been delivered yet"),
     ("logs_open", "Read an agent's log — filtered by kind and span, perhaps watched"),
@@ -439,6 +448,28 @@ pub async fn agents_list(state: State<'_, AppState>) -> Result<AgentsListed, Str
     Ok(agents_listed(state.daemon.as_ref()).await)
 }
 
+/// Your agents, whole, from the app's one live list: the snapshot now, then
+/// a new one on every change, each with a higher generation, until the scope closes.
+#[tauri::command]
+pub fn agents_watch(state: State<'_, AppState>, on_event: Channel<AgentsSnapshot>) -> String {
+    let (scope, token) = state.open_scope("agents");
+    let mut snapshots = state.fleet.subscribe();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            let now = snapshots.borrow_and_update().clone();
+            if on_event.send(now).is_err() {
+                token.cancel();
+                return;
+            }
+            tokio::select! {
+                _ = token.cancelled() => return,
+                changed = snapshots.changed() => if changed.is_err() { return },
+            }
+        }
+    });
+    scope
+}
+
 #[tauri::command]
 pub async fn agents_create(state: State<'_, AppState>, input: CreateAgentInput) -> Result<CreateOutcome, String> {
     create_agent(&state, input).await
@@ -482,6 +513,26 @@ pub async fn agents_edit(state: State<'_, AppState>, input: EditMountsInput) -> 
         state.remember_mounts(&name, Some(after));
     }
     Ok(outcome)
+}
+
+/// Put tags on one of your agents; the live list shows them once the daemon has.
+#[tauri::command]
+pub async fn agents_tag(state: State<'_, AppState>, name: String, tags: Vec<String>) -> Result<TagOutcome, String> {
+    Ok(tag(&state, &name, tags).await)
+}
+
+async fn tag(state: &AppState, name: &str, tags: Vec<String>) -> TagOutcome {
+    state.daemon.agents_tag(agents::tag::client::request::Frame { agent: crate::daemon::reference_of(name), tags, relay: None }).await.into()
+}
+
+/// Take tags off one of your agents.
+#[tauri::command]
+pub async fn agents_untag(state: State<'_, AppState>, name: String, tags: Vec<String>) -> Result<TagOutcome, String> {
+    Ok(untag(&state, &name, tags).await)
+}
+
+async fn untag(state: &AppState, name: &str, tags: Vec<String>) -> TagOutcome {
+    state.daemon.agents_untag(agents::untag::client::request::Frame { agent: crate::daemon::reference_of(name), tags, relay: None }).await.into()
 }
 
 /// What this app last stated the agent mounts; none if it was made elsewhere.
@@ -2565,6 +2616,43 @@ mod tests {
         assert_eq!(store::header(&state.data.join(VIEWS_FILE)).map(|h| h.version), Some(store::VIEWS.version));
     }
 
+    /// The app over the stand-in daemon, following its agents list as the app does.
+    #[cfg(feature = "stand-in")]
+    fn app_over_stand_in(what: &str) -> AppState {
+        let data = store::tests::folder(what);
+        let identity = Arc::new(named(&data, "juno"));
+        let daemon = Arc::new(crate::daemon::stub::StubDaemon::new(data.join("stand-in-host")));
+        let absent = Arc::new(crate::absent::Absent::not_yet());
+        let seams = Seams { daemon: daemon.clone(), machines: daemon, spaces: absent, stand_in_host: None, network: true, first_mounts: HashMap::new() };
+        let folder = store::hold(&data);
+        let state = AppState::assemble(data, identity, seams, folder);
+        state.fleet.start(state.daemon.clone());
+        state
+    }
+
+    /// Waits (a while, not for ever) until the live list shows what `until` looks for.
+    async fn live_until(state: &AppState, until: impl Fn(&AgentsSnapshot) -> bool) -> AgentsSnapshot {
+        let mut seen = state.fleet.subscribe();
+        tokio::time::timeout(std::time::Duration::from_secs(10), seen.wait_for(|s| until(s))).await.expect("the live list showed it").unwrap().clone()
+    }
+
+    /// Tags put on an agent, and taken off, reach the app's one live list
+    /// with nothing asked again.
+    #[cfg(feature = "stand-in")]
+    #[tokio::test]
+    async fn tags_reach_the_live_list() {
+        let state = app_over_stand_in("actions-live-tags");
+        let first = live_until(&state, |s| s.state == ListState::Live).await;
+        assert!(first.agents.iter().any(|a| a.key == "broken-loop" && a.tags.is_empty()));
+        assert_eq!(tag(&state, "broken-loop", vec!["urgent".into(), "reading".into()]).await, TagOutcome::Done);
+        let tagged = live_until(&state, |s| s.agents.iter().any(|a| a.key == "broken-loop" && !a.tags.is_empty())).await;
+        assert_eq!(tagged.agents.iter().find(|a| a.key == "broken-loop").unwrap().tags, ["reading", "urgent"]);
+        assert!(tagged.generation > first.generation);
+        assert_eq!(untag(&state, "broken-loop", vec!["urgent".into()]).await, TagOutcome::Done);
+        live_until(&state, |s| s.agents.iter().any(|a| a.key == "broken-loop" && a.tags == ["reading"])).await;
+        assert_eq!(tag(&state, "nobody", vec!["x".into()]).await, TagOutcome::NotFound);
+    }
+
     #[tokio::test]
     async fn with_nothing_answering_the_app_says_the_network_part_isnt_there() {
         let data = store::tests::folder("actions-absent");
@@ -2576,6 +2664,11 @@ mod tests {
         let about = info(&state);
         assert!(!about.network && !about.stand_in);
         assert!(agents_listed(state.daemon.as_ref()).await.agents.is_empty(), "no agents made up");
+        // The live list says the same, and is whole.
+        state.fleet.start(state.daemon.clone());
+        let live = live_until(&state, |s| s.state == ListState::Live).await;
+        assert!(live.agents.is_empty(), "no agents made up");
+        assert_eq!(tag(&state, "anyone", vec!["x".into()]).await, TagOutcome::Error { message: crate::absent::NOT_YET.into() });
         assert!(state.daemon.providers_list().await.is_empty(), "no machines made up");
         assert!(state.spaces.list().await.is_empty(), "no rooms made up");
         match host_space(&state, HostSpaceInput { title: "Saturday Workshop".into(), kind: "board".into(), charter: String::new(), open_door: false }).await.unwrap() {

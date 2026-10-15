@@ -70,8 +70,8 @@ pub fn reference_of(key: &str) -> reference::Agent {
 
 /// The agents list read once: everything listed when the scope opened, up
 /// to and including `Listed` (or the refusal or failure that ends it), then
-/// the scope is cancelled. The list itself stays open on the wire; a screen
-/// that follows it live reads [`Daemon::agents_list`] on past `Listed`.
+/// the scope is cancelled. The list itself stays open on the wire; the app
+/// follows it live past `Listed` in one place, [`crate::fleet`].
 pub async fn agents_listed(daemon: &dyn Daemon) -> Vec<agents::list::server::response::Frame> {
     use agents::list::server::response::Frame;
     let cancel = CancellationToken::new();
@@ -169,6 +169,13 @@ pub trait Daemon: Send + Sync + 'static {
         &self,
         request: agents::edit::client::request::Frame,
     ) -> agents::edit::server::response::Frame;
+
+    /// Tag 7. Put tags on an agent of yours; one it holds already is held
+    /// still. Its list item reports them, sorted.
+    async fn agents_tag(&self, request: agents::tag::client::request::Frame) -> agents::tag::server::response::Frame;
+
+    /// Tag 8. Take tags off an agent of yours; one it doesn't hold is no failure.
+    async fn agents_untag(&self, request: agents::untag::client::request::Frame) -> agents::untag::server::response::Frame;
 
     // The tools verbs. The app reaches no room through them: a tool the
     // daemon attaches bypasses the app, which seals agents' calls and asks

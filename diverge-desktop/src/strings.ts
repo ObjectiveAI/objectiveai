@@ -237,10 +237,13 @@ export const t = {
     atTheDoor: "at the door",
     machines: "Machines",
     views: "Views",
-    refreshed: "Listed just now",
-    refreshNote: "The daemon's list isn't live, so this re-asks every few seconds.",
     empty: "No agents yet.",
     unnamed: "Unnamed",
+  },
+  map: {
+    // Where the app's one open agents list stands.
+    listWaiting: "Asking the daemon for your agents…",
+    listFailed: "The daemon's list of your agents failed, so this is as it last was. Asking again:",
   },
   standIn: {
     label: "Stand-in daemon",
