@@ -6,20 +6,31 @@ inherits it.
 
 ## The seams
 - `src-tauri/src/daemon/mod.rs` — `Daemon`, one method per daemon verb the app uses (`agents::{templates::{create, get},
-  create, delete, message, logs, list, edit}`, `standalone_tools::{templates::create, create, edit, register,
+  create, delete, message, logs, list, edit, tag, untag}`, `standalone_tools::{templates::create, create, edit, register,
   attach_agent_instance, detach_agent_instance, attach_agent_template, detach_agent_template, delete, list}`). `StubDaemon`
   (feature `stand-in`) now; `WireDaemon` when a daemon ships. The app doesn't use the tools verbs for rooms: a daemon-attached
-  tool bypasses the app, which seals agents' calls and asks the person first.
+  tool bypasses the app, which seals agents' calls and asks the person first. It lists your tools, and attaches one to an
+  agent or takes it back, only when you do so on the Agents map (`standalone_tools_{list, attach, detach}`, a tool named
+  by the words an agent's list item uses for it).
   - **Agents come from templates.** New agent makes (or finds: same template, same id) the template the form describes
     (image, memory, disk, settings) with `agents::templates::create`, then `agents::create` from its id (name, machine,
     mounts). An agent's name is optional; it is named for good by its template and index. The app keys an agent by
     `daemon::agent_key` (its name, else `<template>#<index>`) everywhere — tabs, rail, logs, messages, mounts, the door —
     and `daemon::reference_of` turns a key back into the `reference::Agent` every request takes. `AgentView` carries
-    `template`, `index`, `creator` and `tags`; the screens don't show them yet. The image an agent runs is its template's
+    `template`, `index`, `creator` and `tags`; the Agents map shows them. The image an agent runs is its template's
     (`agents::templates::get`). No image is built yet, so each of the six has its own placeholder digest
     (`Kind::digest`, since a template's id leaves the image's references out) and is named in a reference.
-  - **Lists stay open.** `agents::list` answers `Added`… `Listed` and then what changes; `daemon::agents_listed` reads it
-    once and cancels (so does `machines::volumes_listed` for a machine's volumes). Following it live is the next step.
+  - **Lists stay open, and the app follows one.** `agents::list` answers `Added`… `Listed` and then what changes (an
+    agent come into the filter `Added`, one in it that differs `Changed`, one gone `Removed` as last sent); a log line
+    changes nothing it says (its `logs_index` is as of the last change of state). `daemon::agents_listed` reads it once and
+    cancels (so do `tools_listed` and `machines::volumes_listed`). **The live list** (`src-tauri/src/fleet.rs`): the app
+    holds exactly one agents list open for its life, asked again a second after it ends or fails, kept by template and
+    index (a rename is a change), and on every change sends the whole list with a generation number, as the tabs do
+    (`agents_watch`; the page never reconciles deltas and never asks on a clock), with where it stands
+    (waiting, live, refused, failed). Each snapshot carries **the tree** (`fleet::tree`, also `agents_tree`): agents you
+    made at the top, an agent another made under its maker, agents one of your tools made under that tool, agents whose
+    maker isn't listed in one group last; working first, then newest; each agent with its cards waiting on you (followed
+    from the door). A self-made or ringed maker is placed once. Built without the stand-in, the list is whole, empty and held open.
   - **Logs are typed.** No `jq` on the wire: a read is narrowed by kind (`type`), span and count, and every item comes
     typed; a message's parts are `User` items carrying who sent them. Views' presets are kinds of item.
   - A `Forbidden` answer (the daemon's grants) shows as the daemon refusing, in `common.forbidden`.
@@ -174,8 +185,10 @@ inherits it.
   and staged scenes. `StubDaemon` behaves as the daemon does: templates held by hash, agents numbered per template,
   lists that say `Listed` and stay open, `creator: Client` on what the app makes and `User` items for what you send.
   Its seeded agents (research-notes, broken-loop, site-fixes) are made from templates, plus one site-fixes made,
-  with no name. Built without it (`--no-default-features`), nothing answers the seams (`absent.rs`): every list
-  is empty, everything else says the network part isn't there yet, and so do the screens. A test checks the
+  with no name, and morning-digest, made by your tool nightly-digest (attached to research-notes). site-fixes' long job
+  sets a helper going a minute in (its lines carry `parent_tool_call_id`), so the map shows all three kinds of nesting.
+  Its agents list is live: a tick on every change (made, deleted, a run starting or ending, an edit, tags, tools).
+  Built without it (`--no-default-features`), nothing answers the seams (`absent.rs`): every list is empty, everything else says the network part isn't there yet, and so do the screens. A test checks the
   stand-in's own words are in the program only when the feature is on.
 - **Setup** is `AppState::open(data)` (actions.rs); main.rs builds the menu and picks the folder: the one
   `DIVERGE_DATA_DIR` names (tests, a second copy of the app), the system's place for the app otherwise.
@@ -212,7 +225,13 @@ inherits it.
 
 ## Screens (draft four)
 The first-run page, alone, until it's finished (what people should call you, 18 or older, a terms slot that says
-Diverge's terms aren't written yet; no acceptance is recorded) · Home (feed across Spaces + fleet; tabs are filters; an ask goes to several rooms and is followed as one thread; take
+Diverge's terms aren't written yet; no acceptance is recorded) · Agents (the rail's Agents heading: the live map of who
+made whom, as an org chart down or across (`DEFAULT_LAYOUT`), mouse-drag to pan, no zoom of its own; each card says its
+state as the rail does, its machine as the daemon names it, when it last ran, what it's doing now from a watched tail of
+its log (`lib/map.ts`: `doing`, read from 60 items back; idle cards read once, only on screen; a dozen logs at once,
+`lib/tails.ts`), its helpers in this run as smaller cards on a dashed line (a count once the run ends), its tools and
+tags, what waits on you; "More" opens a row under it: tags, attach or detach one of your tools, remove while idle. A
+tree to the keyboard: one Tab stop, arrows along the way it grows, Enter opens the conversation) · Home (feed across Spaces + fleet; tabs are filters; an ask goes to several rooms and is followed as one thread; take
 an offer, or close the ask everywhere) · Inbox (agents and direct rooms, one list) · You (your names, your profile
 room's hires and notes, receipts once each, credited to the room that issued them) · Spaces (knocks that check, with
 notes and vouches; hosted, joined; host with an open door or not; paste an invite) · the door (an invite read before

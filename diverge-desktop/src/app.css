@@ -247,8 +247,9 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 .map-down .map-child:not(:last-child) > .map-child-body { padding-right: var(--space-4); }
 .map-across .map-child:not(:last-child) > .map-child-body { padding-bottom: var(--space-3); }
 .map-self { display: flex; flex-direction: column; }
-/* A card: an agent, or a tool of yours that made agents (or the agents whose maker isn't listed), quieter. */
-.map-card { width: 304px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-2); }
+/* A card: an agent, or a tool of yours that made agents (or the agents whose maker isn't listed), quieter. Each is
+   a place the keyboard goes (arrow keys, Enter), so its edge is the strong one. */
+.map-card { width: 304px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-md); padding: var(--space-2); }
 .map-card-group { background: var(--bg); border-style: dashed; padding: var(--space-2) var(--space-3); }
 .map-agent, .map-group { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
 .map-card-head { display: flex; align-items: center; gap: var(--space-2); padding-left: var(--space-2); }

@@ -54,7 +54,8 @@ export function AgentMap(props: { tree: MapNode[]; layout: Layout; onOpen: (agen
           aria-label={nodeLabel(n)}
           className={`map-card${n.what.kind === "agent" ? "" : " map-card-group"}`}
           onKeyDown={(e) => onKey(e, n)}
-          onFocus={() => setRover(n.key)}
+          // Only the card itself takes the one Tab stop: Tab passing through a card's controls leaves it be.
+          onFocus={(e) => e.target === e.currentTarget && setRover(n.key)}
         >
           {n.what.kind === "agent" ? (
             <AgentCard agent={n.what.agent} cards={n.what.cards} canvas={canvas} onOpen={() => props.onOpen((n.what as { agent: AgentView }).agent)} panned={pan.moved} />
@@ -95,6 +96,8 @@ export function AgentMap(props: { tree: MapNode[]; layout: Layout; onOpen: (agen
       onPointerMove={pan.move}
       onPointerUp={pan.end}
       onPointerCancel={pan.end}
+      // The browser shows something focused only as far as it already peeks into the canvas: show all of it.
+      onFocus={(e) => (e.target as HTMLElement).scrollIntoView({ block: "nearest", inline: "nearest" })}
     >
       <div className="map-forest" role="tree" aria-label={t.map.canvas}>
         {props.tree.map((n, i) => node(n, 1, i, props.tree.length))}
