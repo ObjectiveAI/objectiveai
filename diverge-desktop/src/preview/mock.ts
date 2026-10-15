@@ -47,7 +47,9 @@ function encodeInvite(invite: Invite): string {
 }
 
 export function installPreview() {
-  const agents: AgentView[] = structuredClone(fixture.agents) as AgentView[];
+  // Preview only: add ?no-agents to the address to see the app before you've made any.
+  const none = new URLSearchParams(location.search).has("no-agents");
+  const agents: AgentView[] = none ? [] : (structuredClone(fixture.agents) as AgentView[]);
   const logs: Record<string, LogEntry[]> = structuredClone(fixture.logs) as Record<string, LogEntry[]>;
   const machines: MachineView[] = structuredClone(fixture.machines) as MachineView[];
   // Per machine (by identity key): its files ("volume:path"), trees, and stats.
@@ -98,7 +100,7 @@ export function installPreview() {
   // a level, and one made here is one of yours, at the top.
   const agentsChs = new Map<string, Chan>();
   let agentsGeneration = 0;
-  let tree = structuredClone(fixture.tree) as MapNode[];
+  let tree = none ? [] : (structuredClone(fixture.tree) as MapNode[]);
   const refit = (nodes: MapNode[]): MapNode[] =>
     nodes.flatMap((n) => {
       if (n.what.kind !== "agent") return [{ ...n, children: refit(n.children) }];

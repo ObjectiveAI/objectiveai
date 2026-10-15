@@ -15,6 +15,7 @@ pub struct Tabs {
 pub fn key_of(tab: &TabKind) -> String {
     match tab {
         TabKind::Agent { name } => format!("agent:{name}"),
+        TabKind::Agents => "agents".into(),
         TabKind::NewAgent => "new-agent".into(),
         TabKind::Storage => "storage".into(),
         TabKind::Machines => "machines".into(),

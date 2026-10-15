@@ -22,6 +22,8 @@ function title(tab: TabKind): string {
   switch (tab.kind) {
     case "agent":
       return tab.name;
+    case "agents":
+      return t.map.title;
     case "new_agent":
       return t.create.title;
     case "storage":

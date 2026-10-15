@@ -14,6 +14,7 @@ import { Empty } from "./components/ui";
 import { SharedContext } from "./lib/context";
 import { api } from "./lib/ipc";
 import { setMachineNames } from "./lib/format";
+import { AgentsMap } from "./screens/AgentsMap";
 import { Conversation } from "./screens/Conversation";
 import { Home } from "./screens/Home";
 import { Inbox } from "./screens/Inbox";
@@ -211,6 +212,7 @@ export function App() {
             {tabs.tabs.map(({ key, tab }) => (
               <div key={key} className="pane" data-pane={key} hidden={tabs.focused !== key}>
                 {tab.kind === "agent" ? <Conversation name={tab.name} tabKey={key} /> : null}
+                {tab.kind === "agents" ? <AgentsMap /> : null}
                 {tab.kind === "new_agent" ? <NewAgent tabKey={key} /> : null}
                 {tab.kind === "storage" ? <Storage /> : null}
                 {tab.kind === "home" ? <Home /> : null}

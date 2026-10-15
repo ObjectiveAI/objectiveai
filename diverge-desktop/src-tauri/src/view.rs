@@ -1780,6 +1780,8 @@ pub struct SavedView {
 #[ts(export, export_to = "../../src/bindings/")]
 pub enum TabKind {
     Agent { name: String },
+    /// The Agents map: who made whom, and what each working one is doing now.
+    Agents,
     NewAgent,
     Storage,
     Machines,

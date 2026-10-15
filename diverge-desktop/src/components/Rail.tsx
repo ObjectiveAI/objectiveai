@@ -29,9 +29,10 @@ export function Rail(props: { focused: string | null }) {
         </div>
 
         <div className="rail-section">
-          <div className="rail-head">
-            <span>{t.rail.agents}</span>
-          </div>
+          {/* The heading opens the Agents map: who made whom, and what each is doing. */}
+          <Row className="rail-item rail-head-row" on={here("agents")} onClick={() => open({ kind: "agents" })}>
+            <span className="rail-item-name">{t.rail.agents}</span>
+          </Row>
           {agentsState.state === "forbidden" ? (
             <p className="rail-empty muted">{t.common.forbidden}</p>
           ) : agentsState.state === "error" ? (
