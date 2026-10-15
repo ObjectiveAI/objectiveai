@@ -44,10 +44,11 @@ use crate::provider::endpoints::volumes::Mode;
 /// request naming one volume at several paths names one mode for it.
 /// How many may mount a volume is the volume's too, as far as the
 /// provider's [`info`](crate::provider::endpoints::info) capability
-/// for the mode goes: up to any number of the caller's containers for
-/// an ephemeral or a read-only volume, one running container at a
-/// time for a persistent one, which a single run may still name at
-/// several paths. A second holder the provider does not allow is
+/// for the mode goes: up to any number of the caller's containers at
+/// once, whatever the mode, each of which may name it at several
+/// paths — a persistent volume being one filesystem they share, an
+/// ephemeral one a volume each starts from afresh. A second holder
+/// the provider does not allow is
 /// refused with
 /// [`VolumeMounted`](crate::shared::containers::response::VolumeMounted)
 /// or

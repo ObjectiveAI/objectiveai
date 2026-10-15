@@ -40,9 +40,10 @@
 //! A volume's [`Mode`](super::Mode) says what becomes of a mutation
 //! and who may serve it, as far as the provider's
 //! [`info`](crate::provider::endpoints::info) capability for the mode
-//! goes. A persistent volume is changed in place, and has one user at
-//! a time: a FUSE serve of it is refused while a running container
-//! mounts it or another FUSE serve holds it. An ephemeral volume
+//! goes. A persistent volume is changed in place, and has at most one
+//! FUSE serve at a time, never beside a running container: a FUSE
+//! serve of it is refused while a running container mounts it or
+//! another FUSE serve holds it. An ephemeral volume
 //! is served on a layer of the FUSE serve's own — every FUSE serve starts from
 //! the volume as it is, its mutations land in the layer and are
 //! discarded at the finish, and the request's

@@ -66,10 +66,11 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 /// write, walk, resize or delete it meanwhile; between runs it is
 /// free. Any number of the caller's agents may mount one ephemeral
 /// or read-only volume at once, beside any container of that
-/// provider that mounts it; a persistent volume has one user at a
-/// time, and the daemon's serve for this agent's run is that user. A
-/// serve the provider refuses at a start — no such volume, one held
-/// to itself, a persistent one held by anyone — is the start's
+/// provider that mounts it; a persistent volume has at most one FUSE
+/// serve at a time and none beside a running container, and the
+/// daemon's serve for this agent's run is that serve. A serve the
+/// provider refuses at a start — no such volume, one held to itself,
+/// a persistent one served or mounted by anyone — is the start's
 /// error, kept in the agent's log; the create checks only that the
 /// provider is one the daemon knows.
 ///

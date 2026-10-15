@@ -8,9 +8,10 @@ use serde::{Deserialize, Serialize};
 /// each, and both, at once.
 ///
 /// The mode itself says the MOST that may be done with a volume in
-/// it — one user at a time for a persistent volume, any number for an
-/// ephemeral or a read-only one — and this says how much of that the
-/// provider does. Each member is a boolean, absent being `false`, and
+/// it — any number of running containers but one FUSE serve, never
+/// both, for a persistent volume; any number of each, beside one
+/// another, for an ephemeral or a read-only one — and this says how
+/// much of that the provider does. Each member is a boolean, absent being `false`, and
 /// the later ones extend the earlier: `mount_many` means nothing
 /// without `mount`, `fuse_serve_many` nothing without `fuse_serve`,
 /// `mount_and_fuse_serve` nothing without both; a provider states
@@ -22,12 +23,13 @@ use serde::{Deserialize, Serialize};
 ///
 /// | mode | `mount_many` | `fuse_serve_many` | `mount_and_fuse_serve` |
 /// |------|--------------|-------------------|------------------------|
-/// | persistent | never | never | never |
+/// | persistent | may | never | never |
 /// | ephemeral | may | may | may |
 /// | read only | may | may | may |
 ///
 /// A provider holds out no more than the mode allows: a persistent
-/// volume's object has every `_many` and the `_and_` `false`.
+/// volume's object has `fuse_serve_many` and `mount_and_fuse_serve`
+/// `false`.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, schemars::JsonSchema,
 )]

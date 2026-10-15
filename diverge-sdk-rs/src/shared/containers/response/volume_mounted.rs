@@ -12,11 +12,10 @@ use serde::{Deserialize, Serialize};
 /// The first and only response of its scope, then the finish, with
 /// nothing fetched and nothing deployed. The volume and the container
 /// that has it are as they were; a caller stops that container, names
-/// another volume, or asks another provider, and asks again. A
-/// persistent volume is the usual case, its
-/// [`Mode`](crate::provider::endpoints::volumes::Mode) allowing one
-/// user at a time; an ephemeral or a read-only one is this only where
-/// the provider's capability for the mode says so.
+/// another volume, or asks another provider, and asks again. Every
+/// [`Mode`](crate::provider::endpoints::volumes::Mode) allows more
+/// than one running container at once; which modes this provider
+/// mounts more than once is its capability for each.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VolumeMounted {

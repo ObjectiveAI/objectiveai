@@ -21,10 +21,11 @@
 //! provider's [`info`](super::info) capability for the mode goes: an
 //! ephemeral or a read-only volume may be mounted in any number of
 //! containers of its caller and served on any number of
-//! [`fuse_serve`] scopes at once; a persistent volume has one user at
-//! a time, one running container or one FUSE serve; and a provider
-//! may do less than the mode allows — mount once, serve once, never
-//! both — which its capabilities say. Whatever the mode, nothing
+//! [`fuse_serve`] scopes at once; a persistent volume may be mounted
+//! in any number of containers at once but served on one
+//! [`fuse_serve`] scope at a time, and never served beside a running
+//! container; and a provider may do less than the mode allows —
+//! mount once, serve once, never both — which its capabilities say. Whatever the mode, nothing
 //! examines, reads, writes, walks, resizes or deletes a volume while
 //! anything holds it. On the server half that is one hold per volume
 //! with two kinds — shared, taken by a run for its life and by a
