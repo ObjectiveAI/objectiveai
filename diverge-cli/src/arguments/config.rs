@@ -57,32 +57,19 @@ pub enum Action {
         #[arg(value_name = "FILTER")]
         filter: String,
     },
-    /// Set one place in the document, or delete it: the place a jq
-    /// path expression names, the value as YAML. `edit SEL VALUE` is
-    /// the program `(SEL) = $value`, `edit SEL --delete` the program
-    /// `del(SEL)`, written only once the result passes the document's
-    /// own type.
-    Edit {
-        /// The place, as a jq path expression, with its leading dot:
-        /// `.port`, `.volumes.stores[0].capacity`, `.daemons[].default`,
-        /// `.volumes.stores[] | select(.path == "/mnt/a") | .capacity`,
-        /// `.volumes.stores[length]` to append. An object missing on
-        /// the way is made, as jq makes it; an expression that names
-        /// no place is jq's own refusal.
-        #[arg(value_name = "SELECTOR")]
-        selector: String,
-        /// The value, as YAML, so it types without quoting: `15000` a
-        /// number, `true` a bool, `root` a string, `"15000"` a string
-        /// meant as one, `{kind: remote, url: "…"}` an object. JSON is
-        /// YAML. Required unless `--delete`.
-        #[arg(
-            value_name = "VALUE",
-            required_unless_present = "delete",
-            conflicts_with = "delete"
-        )]
-        value: Option<String>,
-        /// Delete what the selector names, instead of setting it.
-        #[arg(long)]
-        delete: bool,
+    /// Change the document by a JSON Patch: a list of operations, each
+    /// on one place the document has — `add`, `remove`, `replace`,
+    /// `move`, `copy`, `test`, RFC 6902, with JSON Pointer paths —
+    /// applied in order, whole or not at all, and written only once
+    /// the result passes the document's own type. The one way a record
+    /// of the daemon's is edited, and the one way a document is.
+    Patch {
+        /// The patch, as YAML, JSON being YAML:
+        /// `[{op: replace, path: /port, value: 15000}]`,
+        /// `[{op: add, path: /volumes/stores/-, value: {path: /mnt/b, capacity: 1000000}}]`,
+        /// `[{op: remove, path: /volumes/stores/0}]`. Every operation
+        /// is as `diverge_sdk::daemon::patch::Operation` states it.
+        #[arg(value_name = "PATCH")]
+        patch: String,
     },
 }

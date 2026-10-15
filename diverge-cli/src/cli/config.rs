@@ -4,6 +4,8 @@ use std::path::Path;
 
 use tokio::io::AsyncWriteExt as _;
 
+use diverge_sdk::daemon::patch;
+
 use super::Error;
 use crate::arguments::{Action, Document};
 use crate::document::{self, Which};
@@ -13,9 +15,9 @@ use crate::jq;
 /// value the filter yields — `.` when none was given — as JSON, one
 /// line each; a `set` runs the program, takes
 /// the one value it yields as the new document, validates it by the
-/// document's type, and writes it; an `edit` is a `set` of the program
-/// `(SEL) = $value` — or `del(SEL)` — with the YAML value bound as
-/// `$value`.
+/// document's type, and writes it; a `patch` applies the JSON Patch
+/// to the document, whole or not at all, validates the result by the
+/// document's type, and writes it.
 pub async fn run(root: &Path, document: Document) -> Result<(), Error> {
     let (which, action) = match document {
         Document::Daemon { action } => (Which::Daemon, action),
@@ -25,8 +27,8 @@ pub async fn run(root: &Path, document: Document) -> Result<(), Error> {
     match action {
         Action::Get { filter } => {
             let current = document::read(root, which).await?;
-            let values = jq::run(filter.as_deref().unwrap_or("."), current, None)
-                .map_err(document::Error::Jq)?;
+            let values =
+                jq::run(filter.as_deref().unwrap_or("."), current).map_err(document::Error::Jq)?;
             let mut stdout = tokio::io::stdout();
             for value in values {
                 let mut text = serde_json::to_vec(&value).map_err(document::Error::Json)?;
@@ -39,32 +41,23 @@ pub async fn run(root: &Path, document: Document) -> Result<(), Error> {
             stdout.flush().await.map_err(document::Error::Stdout)?;
             Ok(())
         }
-        Action::Set { filter } => set(root, which, &filter, None).await,
-        Action::Edit {
-            selector,
-            value,
-            delete,
-        } => {
-            let value = match value {
-                Some(text) => Some(document::value(&text)?),
-                None => None,
-            };
-            set(root, which, &document::program(&selector, delete), value).await
+        Action::Set { filter } => set(root, which, &filter).await,
+        Action::Patch { patch: text } => {
+            let patch = document::patch(&text)?;
+            let current = document::read(root, which).await?;
+            let patched = patch::apply(current, &patch).map_err(document::Error::Apply)?;
+            let yaml = which.validate(patched)?;
+            document::write(root, which, &yaml).await?;
+            Ok(())
         }
     }
 }
 
-/// The document rewritten by `program`, with `value` bound as `$value`
-/// when there is one: exactly one value yielded, validated by the
-/// document's type, and written.
-async fn set(
-    root: &Path,
-    which: Which,
-    program: &str,
-    value: Option<serde_json::Value>,
-) -> Result<(), Error> {
+/// The document rewritten by `program`: exactly one value yielded,
+/// validated by the document's type, and written.
+async fn set(root: &Path, which: Which, program: &str) -> Result<(), Error> {
     let current = document::read(root, which).await?;
-    let mut values = jq::run(program, current, value).map_err(document::Error::Jq)?;
+    let mut values = jq::run(program, current).map_err(document::Error::Jq)?;
     if values.len() != 1 {
         return Err(document::Error::NotOne(values.len()).into());
     }
