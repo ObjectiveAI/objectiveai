@@ -28,7 +28,9 @@
 //! frame through the [`Emitter`] as one compact JSON line, each
 //! through the jq filter when there is one, and each the moment it
 //! is had — nothing is collected and printed later. Nothing stays open past
-//! its answer: a list ends at its `listed` frame, a filetree at its
+//! its answer: a list ends at its `listed` frame — unless `--watch`,
+//! which keeps it open for every change after, for a program that
+//! ends the command when it is done — a filetree at its
 //! first snapshot, a logs request where it asked to, and a connect
 //! once the one MCP exchange its subcommand names is answered. A
 //! timeout abandons the

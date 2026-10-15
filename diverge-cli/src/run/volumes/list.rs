@@ -16,6 +16,12 @@ pub struct Arguments {
     /// serve it, as an account held there. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
+    /// Keep the list open: after the word that the list is whole, every
+    /// change printed as it comes, for as long as the command runs —
+    /// for a program that reads the stream and ends the command when it
+    /// is done. Absent, the command ends at that word.
+    #[arg(long)]
+    pub watch: bool,
     /// What is beneath the request: `request-schema`, the JSON Schema
     /// of the body it takes, or `response-schema`, the JSON Schema of
     /// every line it prints — printed in place of putting any request.
@@ -24,8 +30,8 @@ pub struct Arguments {
 }
 
 /// The request put, every item printed as it comes, through the
-/// word that the list is whole; the changes after it are not this
-/// command's.
+/// word that the list is whole — and, with `--watch`, every change
+/// after it, until the command is ended.
 pub async fn run(
     arguments: Arguments,
     target: &Target<'_>,
@@ -42,5 +48,10 @@ pub async fn run(
     }
     let request: request::Frame = body(arguments.body.as_deref())?;
     let handle = target.dial().await?;
-    shape::stream::<_, response::Frame, _>(&handle, &request, emitter, shape::at_listed).await
+    let stop = if arguments.watch {
+        shape::never
+    } else {
+        shape::at_listed
+    };
+    shape::stream::<_, response::Frame, _>(&handle, &request, emitter, stop).await
 }
