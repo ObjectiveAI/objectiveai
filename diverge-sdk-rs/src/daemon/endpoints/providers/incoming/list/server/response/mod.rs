@@ -5,7 +5,9 @@
 //! forbidden, or a failure. [`Incoming`] is what one is.
 
 mod frame;
+mod swap;
 mod incoming;
 
 pub use frame::*;
+pub use swap::*;
 pub use incoming::*;

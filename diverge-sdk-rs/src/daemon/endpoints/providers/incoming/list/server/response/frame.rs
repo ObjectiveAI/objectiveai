@@ -7,10 +7,11 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-use super::Incoming;
+use super::{Incoming, Swap};
 
-/// A list's answer: a credential added, changed or removed, the word that
-/// the list is whole, forbidden, or a failure.
+/// A list's answer: a credential added, changed or removed, a listed one's
+/// capacity swapped, the word that the list is whole, forbidden, or a
+/// failure.
 ///
 /// A list is a stream kept open. First every credential that matches as
 /// the daemon holds it, oldest first, the first `count` of them,
@@ -20,14 +21,29 @@ use super::Incoming;
 /// was last sent as [`Changed`](Self::Changed), one that matches no
 /// more as [`Removed`](Self::Removed) — the listing kept as the first
 /// `count` that match, so one leaving that window is removed and one
-/// entering it added. The finish follows the client's cancel, the
+/// entering it added — and one listed whose provider's capacity the
+/// daemon cached anew, and nothing else of it changed, as
+/// [`Capacity`](Self::Capacity), the key and the new capacity alone.
+/// The finish follows the client's cancel, the
 /// client's connection ending, or exactly one [`Error`](Self::Error);
 /// or the scope is exactly one [`Forbidden`](Self::Forbidden), then
 /// the finish. A payload leads with one byte saying which — `0` for
-/// `Added`, `1` for `Changed`, `2` for `Removed`, `3` for `Listed`,
-/// `4` for `Forbidden`, `5` for `Error` — and the rest is that
-/// variant's own JSON: one [`Incoming`](super::Incoming) for the first three,
-/// the error for the last, nothing for the others.
+/// `Added`, `1` for `Changed`, `2` for `Removed`, `3` for `Capacity`,
+/// `4` for `Listed`, `5` for `Forbidden`, `6` for `Error` — and the
+/// rest is that variant's own JSON: one [`Incoming`](super::Incoming) for the
+/// first three, a [`Swap`](super::Swap) for the fourth, the error for
+/// the last, nothing for the others.
+///
+/// # A capacity swap is not a change
+///
+/// A provider's capacity moves with every run started and ended on
+/// it, every volume made and dropped, and at every poll besides —
+/// far more often than anything else in an item. So it travels
+/// alone: a [`Capacity`](Self::Capacity) names the item by its key
+/// and carries the new capacity, and the client reads the item as
+/// last sent with that capacity from then on. A
+/// [`Changed`](Self::Changed) is sent for a change of anything else
+/// in the item, and carries the capacity current then.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -68,16 +84,20 @@ pub enum Frame {
     /// One credential listed already, matching no more: as it was last
     /// sent. Tag `2`.
     Removed(Incoming),
+    /// One credential listed already, whose provider's capacity the daemon
+    /// cached anew, and nothing else of it changed: its key and the
+    /// new capacity. Tag `3`.
+    Capacity(Swap),
     /// Every credential that matched when the scope opened has been sent.
-    /// Tag `3`.
+    /// Tag `4`.
     ///
     /// Carries nothing — the variant is bare. A client that wants the
     /// list once cancels here; one that watches reads on.
     Listed,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing was sent. Tag `4`.
+    /// it; nothing was sent. Tag `5`.
     Forbidden,
-    /// A failure. Tag `5`.
+    /// A failure. Tag `6`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -93,14 +113,17 @@ const CHANGED: u8 = 1;
 /// Tag for [`Frame::Removed`].
 const REMOVED: u8 = 2;
 
+/// Tag for [`Frame::Capacity`].
+const CAPACITY: u8 = 3;
+
 /// Tag for [`Frame::Listed`].
-const LISTED: u8 = 3;
+const LISTED: u8 = 4;
 
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 4;
+const FORBIDDEN: u8 = 5;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 5;
+const ERROR: u8 = 6;
 
 /// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
@@ -123,6 +146,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[REMOVED]);
                 serde_json::to_writer(out, item)
             }
+            Frame::Capacity(swap) => {
+                out.extend_from_slice(&[CAPACITY]);
+                serde_json::to_writer(out, swap)
+            }
             Frame::Listed => {
                 out.extend_from_slice(&[LISTED]);
                 Ok(())
@@ -140,7 +167,7 @@ impl Encode for Frame {
 }
 
 impl Decode<'_> for Frame {
-    /// Four ways to fail, and each names which half failed.
+    /// Five ways to fail, and each names which half failed.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
@@ -150,6 +177,7 @@ impl Decode<'_> for Frame {
             ADDED => serde_json::from_slice(rest).map(Frame::Added).map_err(FrameError::Incoming),
             CHANGED => serde_json::from_slice(rest).map(Frame::Changed).map_err(FrameError::Incoming),
             REMOVED => serde_json::from_slice(rest).map(Frame::Removed).map_err(FrameError::Incoming),
+            CAPACITY => serde_json::from_slice(rest).map(Frame::Capacity).map_err(FrameError::Swap),
             LISTED => Ok(Frame::Listed),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
@@ -163,10 +191,12 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's six.
+    /// A tag that is none of this frame's seven.
     UnknownTag(u8),
     /// The credential, added, changed or removed, did not parse.
     Incoming(serde_json::Error),
+    /// The capacity swap did not parse.
+    Swap(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -177,6 +207,7 @@ impl fmt::Display for FrameError {
             FrameError::Empty => f.write_str("providers incoming list response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown providers incoming list response frame tag {tag}"),
             FrameError::Incoming(error) => write!(f, "providers incoming list credential did not parse: {error}"),
+            FrameError::Swap(error) => write!(f, "providers incoming list capacity swap did not parse: {error}"),
             FrameError::Error(error) => write!(f, "providers incoming list error did not parse: {error}"),
         }
     }
@@ -185,7 +216,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Incoming(error) | FrameError::Error(error) => Some(error),
+            FrameError::Incoming(error) | FrameError::Swap(error) | FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }
