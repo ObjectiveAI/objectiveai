@@ -1,0 +1,19 @@
+---
+title: 'OCI blob'
+summary: 'Tag 1: the client asks the server for a blob of an image the server holds for it, by digest; the server answers with the bytes in zero or more channel responses and the channel response finish; a finish with nothing before it states that the server does not hold the digest for the client.'
+order: 1
+draft: false
+---
+
+The client opens this channel to pull a blob the server holds for it:
+a config or a layer, by digest.
+
+- **The request.** The tag byte `1` followed by the digest as JSON.
+  [Request](/endpoints/images-oci/client/oci-blob/request/) states its form.
+- **The response.** The bytes of the blob in zero or more channel
+  responses and the channel response finish.
+  [Response](/endpoints/images-oci/client/oci-blob/response/) states the sequence.
+- **Held for the client.** The server answers the blob only of an
+  image it holds for the client, as [images::oci](/endpoints/images-oci/)
+  states. A digest it does not hold for the client is answered with
+  the channel response finish and nothing before it.

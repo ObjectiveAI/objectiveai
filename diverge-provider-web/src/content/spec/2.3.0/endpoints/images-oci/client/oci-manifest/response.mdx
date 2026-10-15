@@ -1,0 +1,24 @@
+---
+title: 'Response'
+summary: 'The server answers with at most one channel response, the media type and the manifest verbatim, and the channel response finish; a finish with nothing before it states that the server does not hold the digest for the client.'
+order: 2
+draft: false
+---
+
+```text
+[media_type_len: u16, big-endian][media_type: utf8 …][manifest bytes …]      at most once
+```
+
+- **The sequence.** At most one channel response, followed by the
+  channel response finish. A channel response finish that no channel
+  response precedes states that the server does not hold the digest
+  for the client.
+- **The frame.** A `u16`, big-endian, the byte length of the media
+  type; the media type, UTF-8; the bytes of the manifest, verbatim,
+  running to the end of the payload. The bytes are those the digest
+  names.
+
+The channel response is defined by `diverge-sdk-rs/src/shared/containers/oci/manifest/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/manifest/response/frame.rs
+```

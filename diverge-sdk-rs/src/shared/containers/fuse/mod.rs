@@ -37,7 +37,7 @@
 //! defines: the provider's channel toward the caller, and the
 //! [`proxy`](crate::container_proxy::outside::endpoints::fuse) inside the
 //! container — and, the id left off, a caller's channels on a
-//! [`volumes::serve`](crate::provider::endpoints::volumes::serve) scope, where
+//! [`volumes::fuse_serve`](crate::provider::endpoints::volumes::fuse_serve) scope, where
 //! a provider answers them from a volume of its own.
 //!
 //! # The id is the caller's, and opaque

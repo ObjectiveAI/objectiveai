@@ -68,17 +68,23 @@ impl ExecuteHandle {
         self.0
             .wait(|payload| {
                 Ok(match server::response::Frame::decode(payload)? {
-                    // Sent only as the first response, before the
-                    // id; after it, neither is a fact of the run, and
-                    // the wire forbids them.
-                    server::response::Frame::Id(_) | server::response::Frame::VolumeHeld(_) => Decoded::Skip,
+                    // The refusals are sent only as the first response,
+                    // in place of the id; after it, none is a fact of
+                    // the run, and the wire forbids them.
+                    server::response::Frame::Id(_)
+                    | server::response::Frame::VolumeHeld(_)
+                    | server::response::Frame::VolumeMounted(_)
+                    | server::response::Frame::VolumeFuseServed(_)
+                    | server::response::Frame::VolumeMountUnsupported(_)
+                    | server::response::Frame::VolumeMode(_)
+                    | server::response::Frame::FuseMountsUnsupported => Decoded::Skip,
                     server::response::Frame::Error(error) => Decoded::Error(error),
                 })
             })
             .await
     }
 
-    /// Stop the container, and with it every connector's scope on it.
+    /// Stop the container.
     /// Nothing answers on the channel this opens; what answers is the
     /// scope's own finish, on [`wait`](Self::wait).
     pub async fn stop(&self) -> Result<(), OpenError> {
@@ -123,8 +129,7 @@ impl ExecuteHandle {
     /// Copy one file out of this container into the container under
     /// `id`, at `destination`, without the bytes passing through here;
     /// resolves when it is at the destination. The caller must be
-    /// running, or connected to, both containers, or the provider
-    /// refuses.
+    /// running both containers, or the provider refuses.
     pub async fn transfer(&self, path: Vec<String>, id: String, destination: Vec<String>) -> Result<(), UnaryError<Transfer>> {
         let payload = payload(&channel_request::Frame::Transfer(transfer::request::Request { path, id, destination }))
             .map_err(UnaryError::Request)?;

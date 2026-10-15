@@ -4,26 +4,34 @@
 //! SDK's [`container_proxy_endpoints`] wire with the provider's
 //! server over ONE WebSocket, dialled once on `14979` for the
 //! container's life. On it the server opens scopes — the begin, each
-//! FUSE mount, every tree, read and write — and the proxy answers
-//! each; on the begin scope the proxy opens channels of its own for
+//! FUSE mount, every tree, read, write and serve — and the proxy
+//! answers each, a serve being a subtree of the container answered
+//! ask by ask, as a volume serve answers a mount, and watched for as
+//! long as the server wants it; on the begin scope the proxy opens
+//! channels of its own for
 //! everything the container asks of the world outside: its database
-//! connections, its commands, its vault, its tool calls outward.
+//! connections, its vault, an agent container's tool calls outward,
+//! a tool container's daemon connections.
 //!
 //! The program beside the proxy sees none of that. On the loopback
-//! at `80` it finds a fully compliant MCP server at `/mcp`, the vault
-//! as plain HTTP at `/vault/<op>`, and its commands at `POST
-//! /command`; at `81` a pgwire listener that is, to its driver, a
-//! database. Each of those becomes one channel on the begin scope,
-//! and nothing the program dials has to know.
+//! at `80` it finds a fully compliant MCP server at `/mcp` — an agent
+//! container's, a tool container's program being answered that it
+//! makes no tool call outward — the vault as plain HTTP at
+//! `/vault/<op>`, and the daemon protocol as a WebSocket at `/daemon`
+//! — a tool container's, an agent container's program having the
+//! socket closed on it, since an agent holds no account; at `81` a
+//! pgwire listener that is, to its driver, a database. Each of those
+//! becomes one channel on the begin scope, and nothing the program
+//! dials has to know.
 //!
-//! For either kind of container the proxy registers the arguments
+//! For either kind of container the proxy registers the arguments and
+//! the id of the template the container is made from
 //! with the program's own server on the loopback when the server
-//! begins, hands the server the tools the program answered with, and
-//! asks the program for their schema when the server asks. It also
-//! puts the container's image, learnt on the begin, under `_meta` on
-//! every MCP exchange it relays in either direction and on every
-//! chunk the agent says, so the two ends of a tool call know which
-//! image is on the other side, and a caller knows which image spoke. For an
+//! begins, hands the server the dependencies the program answered with, and
+//! asks the program for their schema when the server asks. It sets
+//! nothing under `_meta` on any MCP exchange it relays, in either
+//! direction, and nothing on any chunk the agent says: who is on
+//! either end is the daemon's to attest, not the proxy's. For an
 //! agent container the proxy is also the loop's keeper: it holds the
 //! queue every enqueue joins, starts a run when none runs and offers
 //! each message to the run in flight when one does, and relays every
@@ -47,7 +55,6 @@ mod program;
 mod proxy;
 mod reply;
 mod serve;
-mod stamp;
 mod tool;
 
 use std::future::IntoFuture as _;
@@ -92,7 +99,7 @@ async fn run() {
         .route("/vault/delete", axum::routing::post(inside::vault::delete))
         .route("/vault/lock", axum::routing::post(inside::vault::lock))
         .route("/vault/unlock", axum::routing::post(inside::vault::unlock))
-        .route("/command", axum::routing::post(inside::command::agent))
+        .route("/daemon", axum::routing::any(inside::daemon::serve))
         .nest_service("/mcp", mcp)
         .with_state(Arc::clone(&proxy));
 

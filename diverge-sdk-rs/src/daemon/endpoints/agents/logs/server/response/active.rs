@@ -13,6 +13,7 @@ use super::Provider;
 /// matches, was produced there. A run that never came up keeps an
 /// [`Error`](super::Error) and no `active`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Active {
     /// Always `active`.
     pub r#type: ActiveType,
@@ -23,6 +24,7 @@ pub struct Active {
 
 /// [`Active`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum ActiveType {
     #[serde(rename = "active")]
     #[default]

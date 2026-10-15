@@ -1,0 +1,53 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response, whose payload is one JSON object with the members version, the string 2.3.0, and capabilities, the object the Capabilities layer defines, with no tag and no length, and the response finish follows it.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope. The response
+finish follows the response, and no frame follows the finish.
+
+```text
+[info JSON …]
+```
+
+```json
+{"version":"2.3.0","capabilities":{"images_store":true,"images_registries":["docker.io"],"containers_fuse_mount":true,"containers_fuse_serve":true,"volume_persistent":{"mount":true,"fuse_serve":true,"mount_many":true,"fuse_serve_many":false,"mount_and_fuse_serve":false},"volume_ephemeral":{"mount":true,"fuse_serve":true,"mount_many":true,"fuse_serve_many":true,"mount_and_fuse_serve":true},"volume_read_only":{"mount":true,"fuse_serve":true,"mount_many":true,"fuse_serve_many":true,"mount_and_fuse_serve":true}}}
+```
+
+- **The payload.** The payload of the response is one JSON object,
+  read as [Notation](/endpoints/#notation) provides, running to the
+  end of the frame. No tag precedes it and no length prefixes it.
+  The object has exactly two members, `version` and `capabilities`,
+  and the server sends no other member.
+- **`version`.** A string: the revision of this specification, of
+  the form `MAJOR.MINOR.PATCH`. A server that implements this
+  revision sends exactly the string `2.3.0`. It sends no other
+  string, and it does not send the empty string. A server that
+  implements another revision sends that revision's string, as that
+  revision defines it.
+- **`capabilities`.** An object: the capabilities the server holds
+  out, in the form the [Capabilities](/capabilities/) layer defines,
+  member by member, with the meaning that layer gives each member and
+  each member's absence. The object is the same in every `info`
+  response the server sends.
+- **The sequence.** Exactly one response precedes the response
+  finish, and nothing follows the finish. A response finish that no
+  response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides.
+- **Malformed.** A payload that is not valid UTF-8, a payload that is
+  not exactly one JSON object, an object with no `version` member, a
+  `version` member that is not a string, and a `capabilities` member
+  that is not an object are malformed. An object with no
+  `capabilities` member is read as a server that holds out no
+  capability.
+
+The response is defined by
+`diverge-sdk-rs/src/provider/endpoints/info/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/info/server/response/frame.rs
+```
+
+The capabilities are defined on the [Capabilities](/capabilities/)
+page, which includes their files.

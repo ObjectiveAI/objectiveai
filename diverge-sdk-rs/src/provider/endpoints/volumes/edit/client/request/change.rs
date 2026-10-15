@@ -37,7 +37,7 @@ pub enum Change {
     /// What a listing then reports as
     /// [`Volume::mode`](crate::provider::endpoints::volumes::list::server::response::Volume::mode),
     /// and what every container that mounts the volume after, and
-    /// every serve of it after, is bound under: see [`Mode`] for what
+    /// every FUSE serve of it after, is bound under: see [`Mode`] for what
     /// each value means. The content is untouched either way: a
     /// volume made ephemeral holds what it held, and a volume made
     /// persistent holds what it held, which is what it had before any

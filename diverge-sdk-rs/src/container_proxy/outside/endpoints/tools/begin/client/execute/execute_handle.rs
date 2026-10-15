@@ -5,11 +5,11 @@ use serde_json::Value;
 use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
-use crate::provider::endpoints::containers::client::answered::{
+use crate::provider::endpoints::containers::client::answered::{Daemon, 
     McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Schema,
 };
 use crate::provider::endpoints::containers::client::{Answered, ChannelStream, OpenError, UnaryError, unary};
-use crate::shared::containers::postgres;
+use crate::shared::containers::{daemon, postgres};
 use crate::shared::mcp;
 
 /// The begin scope a tool container's server holds.
@@ -107,6 +107,22 @@ impl ExecuteHandle {
     /// The server's half of a database connection the proxy
     /// announced, quoting the id the proxy minted: what comes back is
     /// everything the container's driver wrote, until the finish.
+    /// The server's half of a daemon connection the proxy announced,
+    /// quoting the id the proxy minted: what comes back is every client
+    /// frame the program sent on it, until the finish, which is the
+    /// program's socket ended. See
+    /// [`daemon`](crate::shared::containers::daemon).
+    pub async fn daemon(&self, connection_id: u32) -> Result<ChannelStream<Daemon>, OpenError> {
+        let payload = payload(&channel_request::Frame::Daemon(daemon::request::Daemon { connection_id }))
+            .map_err(OpenError::Request)?;
+        let channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(OpenError::Send)?;
+        Ok(ChannelStream::new(channel.response_receiver))
+    }
+
     pub async fn postgres(&self, connection_id: u32) -> Result<ChannelStream<Postgres>, OpenError> {
         let payload = payload(&channel_request::Frame::Postgres(postgres::request::Postgres { connection_id }))
             .map_err(OpenError::Request)?;

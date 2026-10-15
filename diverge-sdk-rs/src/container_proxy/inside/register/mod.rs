@@ -1,12 +1,13 @@
-//! `POST /register`: the arguments, told to the program once; the
-//! tools, answered once.
+//! `POST /register`: the arguments and the template, told to the
+//! program once; the dependencies, answered once.
 //!
-//! The proxy sends the [`request::Request`] JSON, the arguments the
-//! container was made with, before anything else it asks of the
-//! program — an agent's first loop, a tool server's first exchange.
+//! The proxy sends the [`request::Request`] JSON — the arguments the
+//! container was made with, and the id of the template it was made
+//! from — before anything else it asks of the program — an agent's
+//! first loop, a tool server's first exchange.
 //! A `2xx` is the arguments held for the container's life, and its
-//! body is the [`response::Response`] JSON: the tools the program
-//! depends on, which the proxy carries to the provider and the
+//! body is the [`response::Response`] JSON: the dependency tool
+//! templates the program depends on, which the proxy carries to the provider and the
 //! provider has the caller deploy before the container's id goes
 //! out. A non-`2xx` is the image refusing the arguments, in its own
 //! words, and the proxy answers the provider's begin with them; so is

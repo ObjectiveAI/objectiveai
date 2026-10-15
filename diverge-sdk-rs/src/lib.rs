@@ -4,16 +4,18 @@
 //! | module | what it is |
 //! |--------|------------|
 //! | [`wire`] | one WebSocket, nine-byte frames, scopes and channels, the encode/decode contract, and the frame-level cores of both halves — what every protocol here is spoken over |
-//! | [`shared`] | the shapes more than one endpoint is made of: the one error, what a container asks and is answered, filetrees, MCP |
-//! | [`provider`] | the provider protocol: its sixteen endpoints, the caller half and the provider half — the normative artifact of the specification |
+//! | [`shared`] | the shapes more than one endpoint is made of: the one error, what a container asks and is answered, filetrees, MCP, the permissions that name nothing |
+//! | [`provider`] | the provider protocol: its twenty-four endpoints, the caller half, and the frames a provider answers with — the normative artifact of the specification; the provider half itself is the `diverge-provider` crate's |
 //! | [`daemon`] | the daemon protocol: its endpoints, over the same wire |
 //! | [`container_proxy`] | the proxy beside every container's program, from both sides: [`outside`](container_proxy::outside), the WebSocket a provider opens into it; [`inside`](container_proxy::inside), the loopback the program dials it on |
+//! | [`file_lock`] | one exclusive lock per file across processes, let go on drop — how Diverge programs take turns at a directory; nothing of it crosses a wire |
+//! | [`postgres_supervisor`] | the two lines a daemon and the `diverge-postgres` it runs beside itself exchange over that program's stdio: the ready line out, the shutdown line in |
 //!
 //! # Nothing is optional
 //!
 //! There are no features. Every half of every protocol compiles for
-//! every dependent — a caller carries the provider half it never
-//! runs, a program inside a container carries the wire it never
+//! every dependent — a caller carries the daemon's frames it never
+//! serves, a program inside a container carries the wire it never
 //! speaks — so that nothing a reader names is behind a flag and no
 //! two builds of this crate disagree about what exists. What that
 //! costs is compile time; what it buys is one crate that is the same
@@ -45,6 +47,8 @@
 
 pub mod container_proxy;
 pub mod daemon;
+pub mod file_lock;
+pub mod postgres_supervisor;
 pub mod provider;
 pub mod shared;
 pub mod wire;

@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 /// rather than flattened so that nothing in it can be mistaken for
 /// the item's own `type`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Error {
     /// Always `error`.
     pub r#type: ErrorType,
@@ -22,6 +23,7 @@ pub struct Error {
 
 /// [`Error`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum ErrorType {
     #[serde(rename = "error")]
     #[default]

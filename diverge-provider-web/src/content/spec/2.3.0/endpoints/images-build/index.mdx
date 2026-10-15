@@ -1,0 +1,91 @@
+---
+title: 'images::build'
+summary: 'Tag 17: a client names an image, hands a Containerfile and names a directory of one of its volumes as the context, or none; the server sends the build’s output line by line, then exactly one response stating that the image exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the image persists until the client deletes it.'
+order: 17
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`17` followed by the name, the Containerfile, and the context of the
+build. The server sends zero or more responses, each one line of the
+build's output, then exactly one response which states that the
+image exists, that the server has insufficient capacity for it,
+that something holds the context volume, that the server keeps no
+client image, or an error. The response finish follows that response, and no frame
+follows the finish.
+
+- **The request.** The request carries a name the client chooses, the
+  Containerfile as text, and the context: a directory of one of the
+  client's volumes, or none.
+  [Request](/endpoints/images-build/request/) states its form.
+- **The build.** The server builds the image the Containerfile
+  describes, with the context as the build's working directory, by a
+  tool of its own; this specification prescribes neither the tool nor
+  what a Containerfile may contain. What the Containerfile may
+  `FROM` is what the server can obtain, as it obtains any image. What
+  it may `COPY` is the context. The server reads the context and
+  writes nothing into it: a build copies in and not out.
+- **The context.** When the request names a context, the server
+  resolves `volume_name` against the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides, and `volume_relative_path` against that volume as a
+  [volume mount](/endpoints/containers-tools-run/request/) resolves
+  its path. The server holds the volume for the duration of the build
+  as a running container that mounts it holds it, under the
+  [mode object](/capabilities/#the-mode-object) the server holds
+  out for the volume's mode, as [Capabilities](/capabilities/#the-hold)
+  states for a build's context. A request naming a volume not in the
+  client's listing, and a path with a component that is empty, `.`
+  or `..`, are each answered with an error, and nothing is built. A
+  volume the server cannot hold — one an operation holds, one a
+  running container holds beyond what `mount_many` allows, one a
+  FUSE serve holds beyond what `mount_and_fuse_serve` allows — is
+  answered with `ContextHeld`, the byte `3`, which is not an error,
+  and nothing is built. The hold ends when the scope ends.
+- **The output.** The server sends each line the build's tool writes
+  as one response, as a string, as the tool writes it. This
+  specification prescribes nothing about the lines: a client shows
+  them to a person and does not parse them.
+- **The image.** When the server sends the byte `1`, the image
+  exists, under the name the client gave and with the digest the
+  response carries. From that moment, every
+  [images::list](/endpoints/images-list/) scope the client opens
+  lists the image, and every list scope the client holds open is sent
+  the image as added, until an [images::delete](/endpoints/images-delete/)
+  request by the client deletes it. The end of the scope, and the end
+  of every connection of the client, leave the image in existence.
+  The server does not remove the image on its own account.
+  [Response](/endpoints/images-build/response/) states the form of
+  the response.
+- **The client.** The client is the identity under which the
+  connection was authorized. The image is built for that identity,
+  and that identity alone can name it, examine it, delete it, or run
+  it: an [images::check](/endpoints/images-check/) by that identity
+  naming the image's digest is available, and a container request by
+  that identity naming the digest runs the image from what the server
+  holds. To any other identity the image is not held, unless that
+  identity has built an image of the same digest itself.
+- **The name.** The name is the client's choice. This revision
+  prescribes no form for it. A server may refuse a name; the refusal
+  is an error. A request whose name is the name of an image already
+  in the client's listing is answered with an error, and the listing
+  is unchanged. A name is unique among the images of one client only.
+- **Insufficient capacity.** When the server's store has no room for
+  the image, it sends the byte `2`. No image exists by that name as
+  a result of the request, and the client's listing is as it was
+  before the request. The server does not send the byte `1` for an
+  image its store cannot hold. Whether the server determines this
+  before the build or after is the server's own.
+- **The error.** An error states that the image was not built, for a
+  reason other than capacity or the context's hold — a build that failed, a name refused or
+  taken, a context refused: no image exists by that name as a result
+  of the request, and the client's listing is as it was before the
+  request. The output sent before the error states what the build
+  said.
+- **No image store.** A server that holds out no
+  [`images_store`](/capabilities/#images_store) capability keeps no
+  client image and answers every request of this endpoint with
+  exactly one response, the byte `4` alone, and the response
+  finish, before anything is looked up; it sends no line of output,
+  holds no volume and builds nothing. Every other requirement of
+  this page holds for a server that holds the capability out.

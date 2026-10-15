@@ -1,5 +1,6 @@
-//! What a server's response frame carries for a list.
+//! What a server's response frame carries for an agents list.
 
+use serde::Serialize;
 use std::fmt;
 
 use crate::wire::decode::Decode;
@@ -8,50 +9,129 @@ use crate::shared::error::Error;
 
 use super::Agent;
 
-/// A list's answer: one agent, or a failure.
+/// A list's answer: an agent added, changed or removed, the word that
+/// the list is whole, forbidden, or a failure.
 ///
-/// A list is a stream: zero or more of these, one per agent of the
-/// caller's, oldest created first, then the finish; or exactly one
-/// error, then the finish. A payload leads with one byte saying
-/// which — `0` for [`Agent`](Self::Agent), `1` for
-/// [`Error`](Self::Error) — and the rest is that variant's own JSON.
+/// A list is a stream kept open. First every agent that matches as
+/// the daemon holds it, oldest first, the first `count` of them,
+/// each as [`Added`](Self::Added); then exactly one
+/// [`Listed`](Self::Listed); then, for the scope's life, an agent come
+/// to match as `Added`, one that matches still and differs from what
+/// was last sent as [`Changed`](Self::Changed) — its record, what is attached to
+/// it, whether it is active, when it last was, and its log's length
+/// as of its last change of state — one that matches no
+/// more as [`Removed`](Self::Removed) — the listing kept as the first
+/// `count` that match, so one leaving that window is removed and one
+/// entering it added. The finish follows the client's cancel, the
+/// client's connection ending, or exactly one [`Error`](Self::Error);
+/// or the scope is exactly one [`Forbidden`](Self::Forbidden), then
+/// the finish. A payload leads with one byte saying which — `0` for
+/// `Added`, `1` for `Changed`, `2` for `Removed`, `3` for `Listed`,
+/// `4` for `Forbidden`, `5` for `Error` — and the rest is that
+/// variant's own JSON: one [`Agent`](super::Agent) for the first three,
+/// the error for the last, nothing for the others.
 ///
 /// # A finish with nothing is an answer
 ///
-/// The caller has no agents: a scope that finishes with no response
-/// before it is that answer, not a failure. An [`Error`](Self::Error)
-/// is a failure: the daemon could not list, for whatever reason it
-/// knows. Agents sent before the failure precede the error; none
-/// follow it, and the list is not whole.
-#[derive(Debug, Clone, PartialEq)]
+/// The client cancelled before anything was sent, or the request was
+/// not served: a scope that finishes with no response before it is
+/// that, not a failure; a listing with nothing that matches is
+/// `Listed` at once, and watched. An [`Error`](Self::Error) is a
+/// failure: the daemon could not list, for whatever reason it knows.
+/// What was sent before the failure precedes the error; nothing
+/// follows it.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
+///
+/// # As JSON
+///
+/// For a client that prints what the daemon answered: the variant,
+/// snake case, over its payload — `{"found":…}`, `{"error":…}` — and
+/// a bare variant the string alone — `"not_found"`. The wire is the
+/// tag byte and the payload, never this.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// One agent. Tag `0`.
-    Agent(Agent),
-    /// A failure. Tag `1`.
+    /// One agent that matches, as the daemon holds it, listed now and
+    /// not before. Tag `0`.
+    Added(Agent),
+    /// One agent listed already, as it is now, differing from what was
+    /// last sent. Tag `1`.
+    Changed(Agent),
+    /// One agent listed already, matching no more: as it was last
+    /// sent. Tag `2`.
+    Removed(Agent),
+    /// Every agent that matched when the scope opened has been sent.
+    /// Tag `3`.
     ///
-    /// See [`shared::error::Error`](crate::shared::error::Error)
-    /// for why it says so little.
+    /// Carries nothing — the variant is bare. A client that wants the
+    /// list once cancels here; one that watches reads on.
+    Listed,
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing was sent. Tag `4`.
+    Forbidden,
+    /// A failure. Tag `5`.
+    ///
+    /// See [`shared::error::Error`](crate::shared::error::Error) for
+    /// why it says so little.
     Error(Error),
 }
 
-/// Tag for [`Frame::Agent`].
-const AGENT: u8 = 0;
+/// Tag for [`Frame::Added`].
+const ADDED: u8 = 0;
+
+/// Tag for [`Frame::Changed`].
+const CHANGED: u8 = 1;
+
+/// Tag for [`Frame::Removed`].
+const REMOVED: u8 = 2;
+
+/// Tag for [`Frame::Listed`].
+const LISTED: u8 = 3;
+
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 4;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 1;
+const ERROR: u8 = 5;
 
-/// A tag, then the variant's own JSON.
+/// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
-    /// The ordinary JSON failure, from either half.
+    /// The ordinary JSON failure. The bare answers cannot fail.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Agent(agent) => {
-                out.extend_from_slice(&[AGENT]);
-                serde_json::to_writer(out, agent)
+            Frame::Added(item) => {
+                out.extend_from_slice(&[ADDED]);
+                serde_json::to_writer(out, item)
+            }
+            Frame::Changed(item) => {
+                out.extend_from_slice(&[CHANGED]);
+                serde_json::to_writer(out, item)
+            }
+            Frame::Removed(item) => {
+                out.extend_from_slice(&[REMOVED]);
+                serde_json::to_writer(out, item)
+            }
+            Frame::Listed => {
+                out.extend_from_slice(&[LISTED]);
+                Ok(())
+            }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
+                Ok(())
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -69,7 +149,11 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            AGENT => serde_json::from_slice(rest).map(Frame::Agent).map_err(FrameError::Agent),
+            ADDED => serde_json::from_slice(rest).map(Frame::Added).map_err(FrameError::Agent),
+            CHANGED => serde_json::from_slice(rest).map(Frame::Changed).map_err(FrameError::Agent),
+            REMOVED => serde_json::from_slice(rest).map(Frame::Removed).map_err(FrameError::Agent),
+            LISTED => Ok(Frame::Listed),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -81,9 +165,9 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
-    /// The agent did not parse.
+    /// The agent, added, changed or removed, did not parse.
     Agent(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),

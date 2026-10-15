@@ -1,21 +1,40 @@
 //! Agents: what the daemon runs on a caller's behalf, and names.
 //!
-//! An agent is an agent container the daemon spawns on a provider —
-//! one the daemon chooses, or the one a [`create`] pins it to, with
-//! that provider's volumes mounted — from what the create names: the
-//! image, the limits, the mounts, the arguments. The daemon holds it
-//! under a name of the caller's choosing. The name is how the caller reaches the agent
-//! after: one name, one agent, for as long as the agent exists.
+//! An agent is an agent container the daemon spawns on a provider — one
+//! the daemon chooses, or the one its create pins it to, with that
+//! provider's volumes mounted — from what the [`create`] names: a
+//! [`template`](templates), which is the image, the limits and the
+//! arguments, held by its hash — the
+//! daemon's one [`template`](crate::daemon::template) shape, typed
+//! `"agent"` — and what is the agent's own: the provider it runs on,
+//! and the mounts of providers' volumes. The daemon holds it under a
+//! name of the caller's choosing. The name is how the caller reaches
+//! the agent after: one name, one agent, for as long as the agent
+//! exists.
 //!
-//! [`create`] spawns an agent under a name; [`delete`] removes one by
-//! name; [`edit`] changes what one mounts; [`message`] sends one a message, and may take it back;
-//! [`logs`] reads what one said and what was said to it; [`list`]
-//! names every one the caller has. The MCP servers an agent calls
-//! are [`tools`](super::tools), attached to it by name.
+//! [`templates`] holds what agents are made from; [`create`] spawns an
+//! agent under a name from one; [`delete`] removes one by name;
+//! [`edit`] changes what one mounts; [`message`] sends one a message,
+//! and may take it back; [`logs`] reads what one said and what was said
+//! to it; [`get`] answers one as a list would; [`list`] lists them,
+//! narrowed, with their tags; [`tag`] and [`untag`] change one's tags;
+//! [`filetree`] watches one's container whole; [`download`] sends the
+//! client a file or a directory out of one's container, [`upload`] puts
+//! files into it, and [`transfer`] copies out of it into another agent,
+//! a tool or a volume, the bytes never reaching the client. The MCP servers an agent calls are [`standalone_tools`](super::standalone_tools),
+//! attached to it by name, or to its template by the template's id.
 
 pub mod create;
 pub mod delete;
+pub mod download;
 pub mod edit;
+pub mod filetree;
+pub mod get;
 pub mod list;
 pub mod logs;
 pub mod message;
+pub mod tag;
+pub mod templates;
+pub mod transfer;
+pub mod untag;
+pub mod upload;

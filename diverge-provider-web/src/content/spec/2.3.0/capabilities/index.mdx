@@ -1,0 +1,353 @@
+---
+title: 'Capabilities'
+summary: 'The parts of the Endpoints layer a server holds out, stated in the capabilities object of its info response: the client image store, the registries it pulls from, FUSE mounts and FUSE serves of containers, and each volume mode with what may hold a volume of it; and, for every capability, the endpoints it governs and exactly what the server sends for a request past a capability it does not hold out.'
+order: 4
+draft: false
+---
+
+A server serves every endpoint of the [Endpoints](/endpoints/)
+layer: it reads every request and answers it as that layer provides.
+Some of what a request may ask, a server may not do: keep a client
+image store, pull from a registry, mount a file the client serves,
+serve a running container's files, keep volumes of a mode, let more
+than one party hold a volume at once. Each such part is a
+**capability**. The server states the capabilities it holds out in
+the `capabilities` object of its [info](/endpoints/info/) response,
+and this layer defines that object and binds the server by it: for
+every capability, the endpoints it governs, what the server does
+where it holds the capability out, and exactly what the server sends
+for a request past a capability it does not hold out.
+
+- **The object is a fact of the server.** The server sends the same
+  `capabilities` object in every `info` response it sends, on every
+  connection, for as long as it runs. The object does not depend on
+  the identity under which a connection was authorized, on the
+  request, or on the time.
+- **A capability held out is served.** A server that holds out a
+  capability serves the endpoints it governs as the pages of the
+  Endpoints layer state, in full, and sends none of the responses
+  this layer defines for the capability's absence.
+- **A capability not held out is refused as this layer states.** A
+  server that does not hold out a capability answers every request
+  past it with exactly the response this layer names for that
+  endpoint, as the first and only response on the scope, followed by
+  the response finish, serves no channel on the scope, looks nothing
+  up for the request, holds nothing, fetches nothing, deploys
+  nothing and changes nothing. The server sends no error, no other
+  refusal and no bare finish in place of the response named.
+- **Every page of the Endpoints layer is read with this one.** A
+  requirement of an endpoint page that a capability governs holds
+  where the server holds the capability out; where it does not, the
+  response this layer names is the whole of the server's answer, and
+  the endpoint page's requirements on what follows the request do
+  not arise.
+
+## The object
+
+The `capabilities` member of the info response is one JSON object,
+read as [Notation](/endpoints/#notation) provides, with the members
+tabulated. Every member is optional. An absent member has the meaning
+the table gives its absence, and a server that does not hold out a
+capability may send the member with that value or omit it; the two
+are one statement. The server sends no member this revision does not
+define.
+
+| Member | Type | Absent | Governs |
+|--------|------|--------|---------|
+| `images_store` | boolean | `false` | [images::list](/endpoints/images-list/), [images::stat](/endpoints/images-stat/), [images::build](/endpoints/images-build/), [images::delete](/endpoints/images-delete/), [images::oci](/endpoints/images-oci/), and the `client` source of [images::check](/endpoints/images-check/) |
+| `images_registries` | array of strings | `[]` | the `registries` source of [images::check](/endpoints/images-check/), and where a run obtains its image |
+| `containers_fuse_mount` | boolean | `false` | the FUSE mounts of [containers::agents::run](/endpoints/containers-agents-run/) and [containers::tools::run](/endpoints/containers-tools-run/) |
+| `containers_fuse_serve` | boolean | `false` | [containers::fuse_serve](/endpoints/containers-fuse-serve/) |
+| `volume_persistent` | object, [the mode object](#the-mode-object) | no volume of the mode | the eleven volume endpoints, and the volume mounts of the two runs, for a volume whose `mode` is `persistent` |
+| `volume_ephemeral` | object, [the mode object](#the-mode-object) | no volume of the mode | the same, for a volume whose `mode` is `ephemeral` |
+| `volume_read_only` | object, [the mode object](#the-mode-object) | no volume of the mode | the same, for a volume whose `mode` is `read_only` |
+
+The object is defined by
+`diverge-sdk-rs/src/provider/endpoints/info/server/response/capabilities.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/info/server/response/capabilities.rs
+```
+
+## `images_store`
+
+The server keeps a client image store: images the client builds on
+it by [images::build](/endpoints/images-build/), under names of the
+client's, held for the client and for no other identity, as the
+pages of those endpoints define.
+
+- **Held out.** The server serves [images::list](/endpoints/images-list/),
+  [images::stat](/endpoints/images-stat/),
+  [images::build](/endpoints/images-build/),
+  [images::delete](/endpoints/images-delete/) and
+  [images::oci](/endpoints/images-oci/) as their pages state, and
+  the `client` source of [images::check](/endpoints/images-check/)
+  is a source the server has.
+- **Not held out.** The server has no client image, and the `client`
+  source of [images::check](/endpoints/images-check/) is not a
+  source the server has. The server answers:
+  - an [images::list](/endpoints/images-list/) request with exactly
+    one response, the byte `4` and nothing else, and the response
+    finish; it sends no image, no byte `2` and no byte `3`;
+  - an [images::stat](/endpoints/images-stat/) request with exactly
+    one response, the byte `1` and nothing else, and the response
+    finish;
+  - an [images::build](/endpoints/images-build/) request with exactly
+    one response, the byte `4` and nothing else, and the response
+    finish; it sends no line of output before it, and builds nothing;
+  - an [images::delete](/endpoints/images-delete/) request with
+    exactly one response, the byte `2` and nothing else, and the
+    response finish;
+  - an [images::oci](/endpoints/images-oci/) request with exactly one
+    response on the main stream, the byte `0` and nothing else, and
+    the response finish; it answers no channel the client opens on
+    the scope;
+  - an [images::check](/endpoints/images-check/) request that asks
+    for the `client` source and not for the `registries` source, or
+    that asks for the `registries` source where
+    [`images_registries`](#images_registries) is empty, with exactly
+    one response, the byte `2` and nothing else, and the response
+    finish; a request that also asks for the `registries` source
+    where `images_registries` is not empty is answered from that
+    source alone.
+- **The `images_disk` member of a capacity response.** The server
+  sends the `images_disk` member of every
+  [capacity](/endpoints/capacity/) response whether or not it holds
+  out `images_store`. Where it does not, the member carries any
+  value, and a client does not read it.
+
+## `images_registries`
+
+The registries the server pulls images from: an array of strings,
+each the host of one registry as a reference's `registry` member
+names it — `docker.io`, `ghcr.io`, `registry.example.com:5000` — and
+every registry the server pulls from is in the array.
+
+- **The `registries` source.** An [images::check](/endpoints/images-check/)
+  request that asks for the `registries` source is answered by
+  consulting exactly the registries in the array that a reference of
+  the request names, as `<registry>/<name>@<digest>`. A reference
+  naming a registry not in the array is ignored. The source is one
+  the server has when the array is not empty.
+- **A run's image.** A server obtains the image of a
+  [containers::agents::run](/endpoints/containers-agents-run/) or a
+  [containers::tools::run](/endpoints/containers-tools-run/) from a
+  registry only where the registry is in the array and a reference
+  of the request names it; it obtains an image from no registry the
+  array does not list.
+- **Empty.** An empty array, or an absent member, states that the
+  server pulls from no registry. The `registries` source is not a
+  source the server has: an [images::check](/endpoints/images-check/)
+  request that asks for it and for no source the server has is
+  answered with exactly one response, the byte `2` and nothing else,
+  and the response finish; one that also asks for the `client`
+  source where [`images_store`](#images_store) is `true` is answered
+  from that source alone. A run's image is obtained from what the
+  server holds or from the client, and from no registry.
+
+## `containers_fuse_mount`
+
+The server mounts, into a container it runs, the files and
+directories the client serves: the entries of `fuse_file_mounts` and
+`fuse_directory_mounts` of a run request, each one FUSE mount made as
+the run pages state.
+
+- **Held out.** The server makes every FUSE mount a run request
+  names, as step 6 of [containers::agents::run](/endpoints/containers-agents-run/)
+  and of [containers::tools::run](/endpoints/containers-tools-run/)
+  states.
+- **Not held out.** The server makes no FUSE mount. It answers a run
+  request whose `fuse_file_mounts` or `fuse_directory_mounts` has at
+  least one entry with exactly one response, the byte `6` and
+  nothing else, and the response finish; it holds no volume, obtains
+  no image and deploys nothing for the request. The server sends the
+  byte `6` after it has read the request and found no mount the
+  request pages refuse with an error, and before it holds any
+  volume: a request refused for its paths or ids is answered with
+  the error, and a request that names no FUSE mount is served as the
+  run pages state.
+
+## `containers_fuse_serve`
+
+The server serves a subtree of a running container's filesystem to
+its runner, on a [containers::fuse_serve](/endpoints/containers-fuse-serve/)
+scope.
+
+- **Held out.** The server serves [containers::fuse_serve](/endpoints/containers-fuse-serve/)
+  as its page states.
+- **Not held out.** The server answers every
+  [containers::fuse_serve](/endpoints/containers-fuse-serve/) request
+  with exactly one response, the byte `1` and nothing else, and the
+  response finish. It looks up no container for the request, opens
+  nothing on any proxy, and answers no channel on the scope.
+
+## The volume modes
+
+Each of `volume_persistent`, `volume_ephemeral` and
+`volume_read_only` states whether the server keeps volumes whose
+`mode` is, respectively, `persistent`, `ephemeral` and `read_only`,
+as [volumes::create](/endpoints/volumes-create/) defines the three
+modes; and, where it does, what the server does with a volume of the
+mode: [the mode object](#the-mode-object).
+
+- **Present.** The server keeps volumes of the mode. A
+  [volumes::list](/endpoints/volumes-list/) listing of the server
+  may contain a volume of the mode, a
+  [volumes::create](/endpoints/volumes-create/) request may state the
+  mode, and a [volumes::edit](/endpoints/volumes-edit/) request may
+  change a volume into the mode. What a running container, a FUSE
+  serve and an operation may do with a volume of the mode is the
+  mode object.
+- **Absent.** The server keeps no volume of the mode. No listing of
+  the server contains a volume of the mode. The server answers a
+  [volumes::create](/endpoints/volumes-create/) request whose `mode`
+  is the mode with exactly one response, the byte `2` and nothing
+  else, and the response finish, and creates nothing. The server
+  answers a [volumes::edit](/endpoints/volumes-edit/) request whose
+  change states the mode — as `Mode`, or as `Both` — and names a
+  volume in the client's listing with exactly one response, the byte
+  `3` and nothing else, and the response finish, and changes nothing;
+  a request naming a volume not in the listing is answered with the
+  error the edit page states, whatever the change.
+- **None present.** A server that holds out none of the three keeps
+  no volume at all, and the eleven volume endpoints are not served.
+  The server answers every request of each with exactly one
+  response, the byte tabulated and nothing else, and the response
+  finish; it sends nothing else on the scope, serves no channel, and
+  neither lists, examines, reads, writes, walks, serves, measures,
+  creates, edits nor deletes anything for the request. Such a server
+  has no volume a run can name: a run request whose `volume_mounts`
+  has an entry is answered with the error the run pages state for a
+  volume not in the client's listing, and an
+  [images::build](/endpoints/images-build/) request naming a context
+  is answered with the error its page states for a volume not in the
+  client's listing.
+
+| Endpoint | The byte, alone |
+|----------|-----------------|
+| [volumes::list](/endpoints/volumes-list/) | `4` |
+| [volumes::stat](/endpoints/volumes-stat/) | `4` |
+| [volumes::read](/endpoints/volumes-read/) | `4` |
+| [volumes::write](/endpoints/volumes-write/) | `4` |
+| [volumes::filetree](/endpoints/volumes-filetree/) | `4` |
+| [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) | `5` |
+| [volumes::create_capacity](/endpoints/volumes-create-capacity/) | `1` |
+| [volumes::create](/endpoints/volumes-create/) | `3` |
+| [volumes::edit_capacity](/endpoints/volumes-edit-capacity/) | `1` |
+| [volumes::edit](/endpoints/volumes-edit/) | `7` |
+| [volumes::delete](/endpoints/volumes-delete/) | `4` |
+- **The `volumes_disk` member of a capacity response.** The server
+  sends the `volumes_disk` member of every
+  [capacity](/endpoints/capacity/) response whether or not it holds
+  out a mode object. Where it holds out none, the member carries any
+  value, and a client does not read it.
+
+## The mode object
+
+The value of a present `volume_persistent`, `volume_ephemeral` or
+`volume_read_only` member is one JSON object of five boolean
+members, each optional, an absent member being `false`.
+
+| Member | `true` states that |
+|--------|--------------------|
+| `mount` | a running container of the client may mount a volume of the mode |
+| `fuse_serve` | a [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) scope of the client may hold a volume of the mode |
+| `mount_many` | more than one running container may mount a volume of the mode at once |
+| `fuse_serve_many` | more than one FUSE serve may hold a volume of the mode at once |
+| `mount_and_fuse_serve` | a running container and a FUSE serve may hold a volume of the mode at once |
+
+- **The mode allows at most.** A mode allows at most what
+  [volumes::create](/endpoints/volumes-create/) states for it: a
+  `persistent` volume may be mounted in any number of running
+  containers at once, is held by at most one FUSE serve at a time,
+  and is never held by a FUSE serve and a running container at once;
+  an `ephemeral` or a `read_only` volume may be held by any number of
+  running containers and FUSE serves at once. A server holds out no
+  more than the mode allows: the `volume_persistent` object has
+  `fuse_serve_many` and `mount_and_fuse_serve` `false`, absent or
+  present.
+- **Consistency.** A server that sends `mount_many` `true` sends
+  `mount` `true`. A server that sends `fuse_serve_many` `true` sends
+  `fuse_serve` `true`. A server that sends `mount_and_fuse_serve`
+  `true` sends `mount` `true` and `fuse_serve` `true`.
+- **One running container is one holder.** A running container that
+  mounts a volume at several `container_path`s of one request is one
+  running container holding the volume. An
+  [images::build](/endpoints/images-build/) that names a directory
+  of the volume as its context holds the volume as one running
+  container does, for the life of the build.
+
+## The hold
+
+The server holds a volume for a running container from the moment it
+accepts the run request that names the volume until the run ends;
+for a FUSE serve from the moment it sends `Serving` until the
+response finish; for a build naming the volume as its context from
+the moment it accepts the build request until the response finish;
+and to itself for a [volumes::stat](/endpoints/volumes-stat/),
+[volumes::read](/endpoints/volumes-read/),
+[volumes::write](/endpoints/volumes-write/),
+[volumes::filetree](/endpoints/volumes-filetree/),
+[volumes::edit](/endpoints/volumes-edit/) or
+[volumes::delete](/endpoints/volumes-delete/), an **operation**,
+from the moment it accepts the request until the response finish, a
+delete never giving the hold back. Whether a request that would hold
+a volume is served is decided by the volume's `mode`, by the mode
+object the server holds out for the mode, and by who holds the
+volume at the time of the request, in the order stated below, the
+first rule that applies deciding; the decision and the hold it takes
+are one act, between which no other hold of the volume is taken or
+given back and no edit of the volume lands.
+
+- **A run's volume mount.** For each distinct `volume_name` a run
+  request names, in the order first named: (1) a volume not in the
+  client's listing is the run's error; (2) a volume whose `mode` is
+  not the `mode` of every mount naming it is `VolumeMode`, carrying
+  the name and the mode the volume is in; (3) a volume of a mode
+  whose object is absent, or whose `mount` is `false`, is
+  `VolumeMountUnsupported`, carrying the name; (4) a volume an
+  operation holds is `VolumeHeld`, carrying the name; (5) a volume a
+  running container holds, where `mount_many` is `false`, is
+  `VolumeMounted`, carrying the name; (6) a volume a FUSE serve
+  holds, where `mount_and_fuse_serve` is `false`, is
+  `VolumeFuseServed`, carrying the name; (7) otherwise the server
+  holds the volume for the run. A refusal of any volume gives back
+  every volume held for the request before it, and the server
+  fetches nothing and deploys nothing for the request. The run pages
+  state each response's form.
+- **A FUSE serve.** For the volume a [volumes::fuse_serve](/endpoints/volumes-fuse-serve/)
+  request names: (1) a volume not in the client's listing is the
+  error; (2) a volume whose `mode` is not the request's `mode` is
+  `VolumeMode`, carrying the name and the mode the volume is in; (3)
+  a volume of a mode whose object is absent, or whose `fuse_serve` is
+  `false`, is `Unsupported`; (4) a volume an operation holds is
+  `Held`; (5) a volume another FUSE serve holds, where
+  `fuse_serve_many` is `false`, is `FuseServed`; (6) a volume a
+  running container holds, where `mount_and_fuse_serve` is `false`,
+  is `Mounted`; (7) otherwise the server holds the volume for the
+  FUSE serve. That page states each response's form.
+- **An operation.** For the volume an operation names: (1) a volume
+  not in the client's listing is the error; (2) a volume another
+  operation holds is `Held`; (3) a volume a running container holds
+  is `Mounted`; (4) a volume a FUSE serve holds is `FuseServed`; (5)
+  otherwise the server holds the volume to itself for the operation.
+  Each operation's page states each response's form.
+- **A build's context.** For the volume an [images::build](/endpoints/images-build/)
+  request names as its context: (1) a volume not in the client's
+  listing is the error; (2) a volume an operation holds, a volume a
+  running container holds where the mode object is absent or its
+  `mount_many` is `false`, and a volume a FUSE serve holds where the
+  mode object is absent or its `mount_and_fuse_serve` is `false`, are
+  each `ContextHeld`; (3) otherwise the server holds the volume for
+  the build. That page states each response's form.
+- **Who holds, as of the request.** A running container holds a
+  volume from the moment the server holds it for the run until the
+  run ends, whether or not the id has been sent. A FUSE serve holds a
+  volume from `Serving` until the response finish. An operation
+  holds a volume from the moment the server accepts the request until
+  its response finish.
+
+The mode object is defined by
+`diverge-sdk-rs/src/provider/endpoints/info/server/response/volume_capabilities.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/info/server/response/volume_capabilities.rs
+```

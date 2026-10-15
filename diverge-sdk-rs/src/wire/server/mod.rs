@@ -10,7 +10,7 @@
 //! answers the same frames either way — and yields the scopes the far
 //! end opens, each with the bytes that opened it and nothing decoded:
 //! which request vocabulary those bytes are in is the
-//! [`provider`](crate::provider::server::handle)'s or the proxy's to
+//! `provider`'s or the proxy's to
 //! know, not this half's.
 //!
 //! # The socket, and only the socket
@@ -107,15 +107,15 @@
 //! and the identity was never in question: this end dialled the peer,
 //! so it already knows who it is. [`authorization`] is the argument
 //! that says which. The provider's
-//! [`handle`](crate::provider::server::handle) drives the handshake
+//! `handle` drives the handshake
 //! in front of its dispatch, and its error type is where a handshake
 //! that failed is reported — never to the peer, which is the auth
 //! frame's own no-answer rule. The client half tells the same story
 //! from the other chair: [`client::authorize`](crate::wire::client::authorize)
 //! presents this end's credential or judges the far end's.
 
-pub(crate) mod answer;
-pub(crate) mod answers;
+pub mod answer;
+pub mod answers;
 pub mod authorization;
 pub mod channel;
 mod notice;

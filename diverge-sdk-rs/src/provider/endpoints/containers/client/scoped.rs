@@ -144,17 +144,17 @@ impl Scoped {
         E: fmt::Display + Send + 'static,
     {
         let content = content.map(|piece| piece.map_err(|error| Error(serde_json::Value::String(error.to_string()))));
-        let write_id = self.writes.register(Box::pin(content));
+        let write_id = self.writes.register(Box::pin(content)).await;
         let payload = match encode(write_id) {
             Ok(payload) => payload,
             Err(error) => {
-                self.writes.take(write_id);
+                self.writes.take(write_id).await;
                 return Err(UnaryError::Request(error));
             }
         };
         let result = self.unary::<A>(&payload).await;
         if result.is_err() {
-            self.writes.take(write_id);
+            self.writes.take(write_id).await;
         }
         result
     }

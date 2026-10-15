@@ -1,4 +1,5 @@
-//! What a client's channel request frame carries for a tool container run.
+//! What a client's channel request frame carries for a tool container
+//! run.
 
 use std::error::Error;
 use std::fmt;
@@ -7,6 +8,7 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::mcp;
 use crate::shared::containers::{postgres, read, transfer, write_path};
+use crate::shared::containers::daemon;
 
 /// What a caller asks a provider for while a tool container runs.
 ///
@@ -22,13 +24,14 @@ use crate::shared::containers::{postgres, read, transfer, write_path};
 /// | `4` | [`Transfer`](Self::Transfer) |
 /// | `5` | [`Postgres`](Self::Postgres) |
 /// | `6` | [`Schema`](Self::Schema) |
-/// | `7` | [`McpListTools`](Self::McpListTools) |
-/// | `8` | [`McpListResources`](Self::McpListResources) |
-/// | `9` | [`McpCallTool`](Self::McpCallTool) |
-/// | `10` | [`McpReadResource`](Self::McpReadResource) |
-/// | `11` | [`McpNotifications`](Self::McpNotifications) |
+/// | `7` | [`Daemon`](Self::Daemon) |
+/// | `8` | [`McpListTools`](Self::McpListTools) |
+/// | `9` | [`McpListResources`](Self::McpListResources) |
+/// | `10` | [`McpCallTool`](Self::McpCallTool) |
+/// | `11` | [`McpReadResource`](Self::McpReadResource) |
+/// | `12` | [`McpNotifications`](Self::McpNotifications) |
 ///
-/// The first seven are the same in every container scope, in the same
+/// The first eight are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
 /// family's own exchange. All of them but the first reach INTO the
 /// container, which is the thing a caller cannot dial: it runs on the
@@ -55,11 +58,6 @@ pub enum Frame {
     /// to wait to find out. This is unambiguous and immediate: a
     /// caller that says so is not gone, it is finished.
     ///
-    /// # What it does to everyone else
-    ///
-    /// Ends them. Connectors hold scopes on a container that no longer
-    /// exists, so those scopes finish too — a connection cannot
-    /// outlive the thing it joined.
     Stop,
     /// The container's filesystem, watched. Tag `1`.
     ///
@@ -85,7 +83,7 @@ pub enum Frame {
     /// One file, copied into another container. Tag `4`.
     ///
     /// The other container by its id, and the caller must be running
-    /// or connected to it. The provider reads the file out of this
+    /// it. The provider reads the file out of this
     /// container and writes it into that one on its own connections
     /// to the two proxies, and nothing of the file comes back here —
     /// one answer does. See
@@ -104,6 +102,14 @@ pub enum Frame {
     /// with the JSON Schema of the container's arguments. See
     /// [`schema`](crate::shared::containers::schema).
     Schema,
+    /// A daemon connection the container's program opened, by the id
+    /// the provider announced: this end's half of it. Tag `7`.
+    ///
+    /// What comes back on it is everything the PROGRAM sends, as
+    /// [`daemon::client::Frame`](crate::shared::containers::daemon::client::Frame)s;
+    /// its finish is the program's socket ended. See
+    /// [`daemon`](crate::shared::containers::daemon) for the pair.
+    Daemon(daemon::request::Daemon),
     /// What tools are there. Tag `7`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
@@ -160,20 +166,23 @@ const POSTGRES: u8 = 5;
 /// Tag for [`Frame::Schema`].
 const SCHEMA: u8 = 6;
 
+/// Tag for [`Frame::Daemon`].
+const DAEMON: u8 = 7;
+
 /// Tag for [`Frame::McpListTools`].
-const MCP_LIST_TOOLS: u8 = 7;
+const MCP_LIST_TOOLS: u8 = 8;
 
 /// Tag for [`Frame::McpListResources`].
-const MCP_LIST_RESOURCES: u8 = 8;
+const MCP_LIST_RESOURCES: u8 = 9;
 
 /// Tag for [`Frame::McpCallTool`].
-const MCP_CALL_TOOL: u8 = 9;
+const MCP_CALL_TOOL: u8 = 10;
 
 /// Tag for [`Frame::McpReadResource`].
-const MCP_READ_RESOURCE: u8 = 10;
+const MCP_READ_RESOURCE: u8 = 11;
 
 /// Tag for [`Frame::McpNotifications`].
-const MCP_NOTIFICATIONS: u8 = 11;
+const MCP_NOTIFICATIONS: u8 = 12;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -208,6 +217,10 @@ impl Encode for Frame {
             Frame::Schema => {
                 out.extend_from_slice(&[SCHEMA]);
                 Ok(())
+            }
+            Frame::Daemon(request) => {
+                out.extend_from_slice(&[DAEMON]);
+                request.encode(out).map_err(|error| match error {})
             }
             Frame::McpListTools(request) => {
                 out.extend_from_slice(&[MCP_LIST_TOOLS]);
@@ -257,6 +270,9 @@ impl Decode<'_> for Frame {
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
             SCHEMA => Ok(Frame::Schema),
+            DAEMON => daemon::request::Daemon::decode(rest)
+                .map(Frame::Daemon)
+                .map_err(FrameError::Daemon),
             MCP_LIST_TOOLS => mcp::list_tools::request::Request::decode(rest)
                 .map(Frame::McpListTools)
                 .map_err(FrameError::McpParams),
@@ -297,6 +313,8 @@ pub enum FrameError {
     Transfer(serde_json::Error),
     /// The connection id was not four bytes.
     Postgres(postgres::request::PostgresError),
+    /// The daemon connection's id was not four bytes.
+    Daemon(daemon::request::DaemonError),
     /// One of the five MCP exchanges' params did not parse.
     ///
     /// One variant for five tags, because they fail the same way and
@@ -325,6 +343,7 @@ impl fmt::Display for FrameError {
                 write!(f, "transfer request did not parse: {error}")
             }
             FrameError::Postgres(error) => write!(f, "{error}"),
+            FrameError::Daemon(error) => write!(f, "{error}"),
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
@@ -340,6 +359,7 @@ impl Error for FrameError {
             | FrameError::Transfer(error)
             | FrameError::McpParams(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
+            FrameError::Daemon(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

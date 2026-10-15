@@ -18,7 +18,7 @@ use super::scope_handle::ScopeHandle;
 /// that closes without one — the connection or the scope went first
 /// — yields exactly one [`Err`] and ends, so a reader can tell
 /// content that is whole from content that stopped.
-pub(crate) struct Answers {
+pub struct Answers {
     first: Option<Bytes>,
     channel: Option<Channel>,
 }
@@ -26,11 +26,11 @@ pub(crate) struct Answers {
 /// The channel closed without its finish: whatever was being sent
 /// did not all arrive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Unfinished;
+pub struct Unfinished;
 
 impl Answers {
     /// Open the channel `payload` asks for; the stream is its answers.
-    pub(crate) async fn open(scope: &ScopeHandle, payload: &[u8]) -> Self {
+    pub async fn open(scope: &ScopeHandle, payload: &[u8]) -> Self {
         Answers {
             first: None,
             channel: Some(scope.send_channel_request(payload).await),
@@ -41,7 +41,7 @@ impl Answers {
     /// finish before any — the wire's could-not-serve — or a caller
     /// that is gone; otherwise the stream, that first answer at its
     /// front.
-    pub(crate) async fn first(scope: &ScopeHandle, payload: &[u8]) -> Option<Self> {
+    pub async fn first(scope: &ScopeHandle, payload: &[u8]) -> Option<Self> {
         let mut channel = scope.send_channel_request(payload).await;
         loop {
             let bytes = channel.response_receiver.recv().await?;

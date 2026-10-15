@@ -68,6 +68,9 @@ async fn connection(socket: WebSocket, proxy: Arc<Proxy>) {
             ClientRequest::FilesystemWrite(frame) => {
                 scopes.spawn(serve::write(scope, frame));
             }
+            ClientRequest::FilesystemServe(frame) => {
+                scopes.spawn(serve::served(scope, frame));
+            }
             // Six scopes have six error vocabularies, and an invalid
             // request names none of them: the finish with nothing
             // before it, which is what the wire means by a request

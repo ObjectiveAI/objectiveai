@@ -78,6 +78,10 @@ pub async fn execute(
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Stat(stat) => Ok(stat),
+        response::Frame::Mounted => Err(ExecuteError::Mounted),
+        response::Frame::FuseServed => Err(ExecuteError::FuseServed),
+        response::Frame::Held => Err(ExecuteError::Held),
+        response::Frame::Unsupported => Err(ExecuteError::Unsupported),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
@@ -112,6 +116,19 @@ pub enum ExecuteError {
     Unanswered,
     /// The response frame did not parse.
     Response(response::FrameDecodeError),
+    /// The volume is mounted in a running container, and was not
+    /// examined. Nothing changed.
+    Mounted,
+    /// A FUSE serve holds the volume, and it was not examined. Nothing
+    /// changed.
+    FuseServed,
+    /// Another operation — a stat, a read, a write, a filetree, an
+    /// edit or a delete — has the volume to itself, and it was not
+    /// examined. Nothing changed.
+    Held,
+    /// The provider keeps no volumes. The protocol's defined refusal,
+    /// not a failure.
+    Unsupported,
     /// The provider could not do it, and said so.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -140,6 +157,16 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Response(error) => {
                 write!(f, "volume stat answer did not parse: {error}")
             }
+            ExecuteError::Mounted => f.write_str(
+                "the volume is mounted in a running container and was not examined",
+            ),
+            ExecuteError::FuseServed => f.write_str(
+                "a FUSE serve holds the volume and it was not examined",
+            ),
+            ExecuteError::Held => f.write_str(
+                "another operation has the volume to itself and it was not examined",
+            ),
+            ExecuteError::Unsupported => f.write_str("the provider keeps no volumes"),
             ExecuteError::Provider(_) => {
                 f.write_str("the provider could not complete the volume stat")
             }
@@ -161,6 +188,10 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Response(error) => Some(error),
             ExecuteError::Closed
             | ExecuteError::Unanswered
+            | ExecuteError::Mounted
+            | ExecuteError::FuseServed
+            | ExecuteError::Held
+            | ExecuteError::Unsupported
             | ExecuteError::Provider(_) => None,
         }
     }

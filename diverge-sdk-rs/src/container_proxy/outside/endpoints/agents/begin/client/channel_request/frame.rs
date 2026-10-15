@@ -23,7 +23,8 @@ use crate::shared::containers::{dequeue, enqueue, postgres};
 ///
 /// The first two are the same in both begin scopes, so a reader of
 /// one is a reader of both; what follows is this family's own
-/// exchange. All
+/// exchange — no daemon connection among them, since an agent
+/// container holds no account and asks the daemon nothing. All
 /// of them reach INTO the container: the last hop of what a caller
 /// opened on the provider. What comes OUT of the agent — its
 /// conversation — is no channel: it rides the begin's own main
@@ -45,13 +46,13 @@ pub enum Frame {
     Schema,
     /// A message for the agent. Tag `2`.
     ///
-    /// The one way into it: a message with no loop running starts
-    /// one, on that message, and a message while one runs joins its
-    /// queue. Answered once — by an
+    /// The one way into it: a message with no loop running starts one,
+    /// on that message, and a message while one runs joins its queue.
+    /// Answered once — by an
     /// [`enqueue::response::Frame`](crate::shared::containers::enqueue::response::Frame)
-    /// naming the message's fate, whenever that is known — and then
-    /// the finish. What the agent says in reply is the begin's main
-    /// stream. See [`enqueue`](crate::shared::containers::enqueue).
+    /// naming the message's fate, whenever that is known — and then the
+    /// finish. What the agent says in reply is the begin's main stream.
+    /// See [`enqueue`](crate::shared::containers::enqueue).
     Enqueue(enqueue::request::Request),
     /// Withdraw every message still waiting under a key. Tag `3`.
     ///

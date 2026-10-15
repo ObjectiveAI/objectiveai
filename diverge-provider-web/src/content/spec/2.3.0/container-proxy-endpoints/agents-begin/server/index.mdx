@@ -1,6 +1,6 @@
 ---
 title: 'Server Channels'
-summary: 'The channels the server opens on an agent container’s begin scope, by tag: everything the container asks of the world outside it, each relayed by the client to its client as a channel of its own.'
+summary: 'The channels the server opens on an agent container’s begin scope, by tag: everything the container asks of the world outside it — its database connections, its vault, its tool calls outward — each relayed by the client to its client as a channel of its own; no daemon connection, since an agent container holds no account.'
 order: 4
 draft: false
 ---
@@ -13,17 +13,16 @@ answer, its section states.
 | Tag | Channel |
 |-----|---------|
 | `0` | [postgres](/container-proxy-endpoints/agents-begin/server/postgres/) |
-| `1` | [command](/container-proxy-endpoints/agents-begin/server/command/) |
-| `2` | [vault-get](/container-proxy-endpoints/agents-begin/server/vault-get/) |
-| `3` | [vault-set](/container-proxy-endpoints/agents-begin/server/vault-set/) |
-| `4` | [vault-delete](/container-proxy-endpoints/agents-begin/server/vault-delete/) |
-| `5` | [vault-lock](/container-proxy-endpoints/agents-begin/server/vault-lock/) |
-| `6` | [vault-unlock](/container-proxy-endpoints/agents-begin/server/vault-unlock/) |
-| `7` | [mcp-list-tools](/container-proxy-endpoints/agents-begin/server/mcp-list-tools/) |
-| `8` | [mcp-list-resources](/container-proxy-endpoints/agents-begin/server/mcp-list-resources/) |
-| `9` | [mcp-call-tool](/container-proxy-endpoints/agents-begin/server/mcp-call-tool/) |
-| `10` | [mcp-read-resource](/container-proxy-endpoints/agents-begin/server/mcp-read-resource/) |
-| `11` | [mcp-notifications](/container-proxy-endpoints/agents-begin/server/mcp-notifications/) |
+| `1` | [vault-get](/container-proxy-endpoints/agents-begin/server/vault-get/) |
+| `2` | [vault-set](/container-proxy-endpoints/agents-begin/server/vault-set/) |
+| `3` | [vault-delete](/container-proxy-endpoints/agents-begin/server/vault-delete/) |
+| `4` | [vault-lock](/container-proxy-endpoints/agents-begin/server/vault-lock/) |
+| `5` | [vault-unlock](/container-proxy-endpoints/agents-begin/server/vault-unlock/) |
+| `6` | [mcp-list-tools](/container-proxy-endpoints/agents-begin/server/mcp-list-tools/) |
+| `7` | [mcp-list-resources](/container-proxy-endpoints/agents-begin/server/mcp-list-resources/) |
+| `8` | [mcp-call-tool](/container-proxy-endpoints/agents-begin/server/mcp-call-tool/) |
+| `9` | [mcp-read-resource](/container-proxy-endpoints/agents-begin/server/mcp-read-resource/) |
+| `10` | [mcp-notifications](/container-proxy-endpoints/agents-begin/server/mcp-notifications/) |
 
 The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/agents/begin/server/channel_request/frame.rs`:
 

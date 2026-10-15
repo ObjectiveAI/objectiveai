@@ -38,3 +38,9 @@ finish.
 - **The error.** An error states that the server did not answer the
   question, and that nothing was determined about the capacity. An
   error is not the number `0`.
+- **No volume at all.** A server that holds out none of the three
+  mode objects of [Capabilities](/capabilities/#the-volume-modes)
+  keeps no volume and answers every request of this endpoint with
+  exactly one response, the byte `1` alone, and the response
+  finish, before anything is looked up. Every other requirement of
+  this page holds for a server that keeps volumes.

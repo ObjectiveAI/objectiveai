@@ -23,7 +23,7 @@ pub(crate) async fn write(
     writes: Arc<Writes>,
     encoders: Encoders,
 ) -> Result<(), Stop> {
-    let Some(mut content) = writes.take(write_id) else {
+    let Some(mut content) = writes.take(write_id).await else {
         let error = Error(serde_json::Value::String(format!("no write {write_id} is pending")));
         if let Some(bytes) = (encoders.write_error)(&error) {
             respond_bytes(handle, scope, channel, &bytes).await?;

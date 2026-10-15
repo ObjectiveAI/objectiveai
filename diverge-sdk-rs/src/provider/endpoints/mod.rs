@@ -6,10 +6,12 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`containers`] | run an agent or a tool server in a container; join a tool server |
-//! | [`images`] | ask whether an image can be supplied |
-//! | [`volumes`] | list what a provider offers; examine one; read, write or walk one; serve one's files live; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
-//! | [`version`] | ask what a provider is |
+//! | [`containers`] | run an agent or a tool server in a container; serve a subtree of a container live |
+//! | [`images`] | ask whether an image can be supplied; list the images the caller built, and keep the listing; examine one; build one; destroy one; pull what the provider holds for the caller |
+//! | [`volumes`] | list what a provider offers, and keep the listing; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
+//! | [`daemons`] | accept connections from other daemons; connect to another daemon |
+//! | [`info`] | ask what a provider is: its version, and what it does |
+//! | [`capacity`] | ask how much the caller may still use: room for a volume, room in the image store, memory and disk a run could reserve |
 //!
 //! # The tags
 //!
@@ -22,37 +24,56 @@
 //! |-----|---------|
 //! | `0` | [`containers::agents::run`] |
 //! | `1` | [`containers::tools::run`] |
-//! | `2` | [`containers::tools::connect`] |
+//! | `2` | [`containers::fuse_serve`] |
 //! | `3` | [`volumes::list`] |
 //! | `4` | [`volumes::stat`] |
 //! | `5` | [`volumes::read`] |
 //! | `6` | [`volumes::write`] |
 //! | `7` | [`volumes::filetree`] |
-//! | `8` | [`volumes::serve`] |
+//! | `8` | [`volumes::fuse_serve`] |
 //! | `9` | [`volumes::create_capacity`] |
 //! | `10` | [`volumes::create`] |
 //! | `11` | [`volumes::edit_capacity`] |
 //! | `12` | [`volumes::edit`] |
 //! | `13` | [`volumes::delete`] |
 //! | `14` | [`images::check`] |
-//! | `15` | [`version`] |
+//! | `15` | [`images::list`] |
+//! | `16` | [`images::stat`] |
+//! | `17` | [`images::build`] |
+//! | `18` | [`images::delete`] |
+//! | `19` | [`images::oci`] |
+//! | `20` | [`info`] |
+//! | `21` | [`capacity`] |
+//! | `22` | [`daemons::accept`] |
+//! | `23` | [`daemons::connect`] |
 //!
-//! Sixteen, grouped by endpoint and ordered within it. The three
-//! container scopes lead: the agents' run, then the tools' run and the
-//! connect that joins one. The eleven volume scopes follow in the
+//! Twenty-four, grouped by endpoint and ordered within it. The three
+//! container scopes lead: the agents' run, the tools' run, and the
+//! serve that answers a running container's files live. The eleven volume
+//! scopes follow in the
 //! order a caller uses them: find one, examine it, read a file out of
 //! it, write one in, see its tree, serve its files live, ask how large
 //! one may be made, make one, ask how far one may grow, resize it,
 //! destroy it.
-//! Then the two that ask rather than do:
-//! [`images::check`], and [`version`].
+//! Then the six of [`images`]: the check, which asks rather than
+//! does; the caller's own store — list, examine, build, destroy; and
+//! the pull of what the provider holds.
+//! Then [`info`], which asks what a provider is, and [`capacity`],
+//! which asks what is left of it. Last, the two of [`daemons`], added
+//! after: a daemon accepting connections from other daemons, and a
+//! daemon connecting to one.
 //!
-//! Nothing derives meaning from adjacency, which [`version`] is the
-//! proof of — it is the one a client asks FIRST and it holds the
-//! highest tag, because tags are handed out in the order scopes were
-//! defined and nothing reads them in order. The grouping is for
-//! whoever reads the table, and a new scope takes the next free value wherever it
-//! belongs conceptually.
+//! Nothing derives meaning from adjacency, which [`info`] is the
+//! proof of — it is the one a client asks FIRST and it sits near the
+//! end, because tags are handed out in the order scopes were defined
+//! and nothing reads them in order. The grouping is for whoever reads
+//! the table, and a new scope takes the value where it belongs
+//! conceptually, the scopes after it moving up one, and a scope
+//! removed takes its value with it, the scopes after it moving down —
+//! which is how the container FUSE serve sits at `2` and the volumes
+//! at `3` through `13`, the images at `14` through `19`, and
+//! [`capacity`] at `21` beside [`info`], the daemons having moved up
+//! to `22` and `23`.
 //!
 //! This table is the whole allocation. Each request states its own
 //! value and points here, because a value chosen in one module has to
@@ -69,14 +90,18 @@
 //! told apart by what a caller says into the container: a message
 //! for an agent, or MCP. Everything else a container scope carries —
 //! the arguments a container is made with and the schema that says
-//! what they may be among it — is the same wire in all three, defined
-//! once in [`shared::containers`](crate::shared::containers).
+//! what they may be among it — is the same wire in both, defined
+//! once in [`shared::containers`](crate::shared::containers). A
+//! [`containers::fuse_serve`] reaches into either family's container the
+//! same way, and carries the volume FUSE serve's own asks.
 
 mod client_request;
 
 pub use client_request::*;
 
+pub mod capacity;
 pub mod containers;
+pub mod daemons;
 pub mod images;
-pub mod version;
+pub mod info;
 pub mod volumes;

@@ -1,12 +1,12 @@
 ---
 title: 'Request'
-summary: 'The payload of the channel request: the tag byte 3 and the request of the channel.'
+summary: 'The payload of the channel request: the tag byte 2 and the request of the channel.'
 order: 1
 draft: false
 ---
 
 ```text
-[3][key_len: u16, big-endian][key …][value …]
+[2][key_len: u16, big-endian][key …][value …]
 ```
 
 - **The ask.** The bytes after the tag are the ask, in the form the

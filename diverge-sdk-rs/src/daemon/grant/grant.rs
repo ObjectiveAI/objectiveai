@@ -1,0 +1,48 @@
+//! One grant, by the kind it is over.
+
+use serde::{Deserialize, Serialize};
+
+use super::{agents, agents_templates, standalone_tools, standalone_tools_templates, dependency_tools, providers_outgoing, providers_incoming, providers_daemons, accounts, roles, volumes, postgres};
+
+/// One grant: a permission over one kind of thing the daemon holds.
+/// Externally tagged by the kind's name — one object with one member,
+/// `{"agents":…}`, `{"providers_incoming":…}` — whose value is that
+/// kind's [`Permission`](agents::Permission), in one of the shapes
+/// [`grant`](crate::daemon::grant) states. Snake case on the wire:
+/// `"agents"`, `"agents_templates"`, `"standalone_tools"`,
+/// `"standalone_tools_templates"`, `"dependency_tools"`,
+/// `"providers_outgoing"`, `"providers_incoming"`,
+/// `"providers_daemons"`, `"accounts"`, `"roles"`, `"volumes"`,
+/// `"postgres"` — the kinds of
+/// [`shared::permission::Grant`](crate::shared::permission::Grant),
+/// which this is built of.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Grant {
+    /// Over agents: see [`agents::Permission`].
+    Agents(agents::Permission),
+    /// Over agent templates: see [`agents_templates::Permission`].
+    AgentsTemplates(agents_templates::Permission),
+    /// Over standalone tools: see [`standalone_tools::Permission`].
+    StandaloneTools(standalone_tools::Permission),
+    /// Over standalone tool templates: see
+    /// [`standalone_tools_templates::Permission`].
+    StandaloneToolsTemplates(standalone_tools_templates::Permission),
+    /// Over dependency tools: see [`dependency_tools::Permission`].
+    DependencyTools(dependency_tools::Permission),
+    /// Over outgoing providers: see [`providers_outgoing::Permission`].
+    ProvidersOutgoing(providers_outgoing::Permission),
+    /// Over incoming credentials: see [`providers_incoming::Permission`].
+    ProvidersIncoming(providers_incoming::Permission),
+    /// Over daemons: see [`providers_daemons::Permission`].
+    ProvidersDaemons(providers_daemons::Permission),
+    /// Over accounts: see [`accounts::Permission`].
+    Accounts(accounts::Permission),
+    /// Over roles: see [`roles::Permission`].
+    Roles(roles::Permission),
+    /// Over volumes: see [`volumes::Permission`].
+    Volumes(volumes::Permission),
+    /// Over the database: see [`postgres::Permission`].
+    Postgres(postgres::Permission),
+}

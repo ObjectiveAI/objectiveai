@@ -1,0 +1,54 @@
+---
+title: 'capacity'
+summary: 'Tag 21: a client asks how much it may still use; the server sends exactly one response carrying, as JSON, four counts of bytes — the room for a new volume, the room in the client image store, the memory and the overlay disk a container run could still reserve — each the most the client could use as of the instant of the response, and the scope finishes.'
+order: 21
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`21` and nothing more. The server sends exactly one response, whose
+payload is one JSON object carrying four members, `volumes_disk`,
+`images_disk`, `container_memory` and `container_disk`, each a count
+of bytes. The response finish follows the response, and no frame
+follows the finish.
+
+- **The request.** The request carries no parameter; the tag is the
+  whole of it. [Request](/endpoints/capacity/request/) states its
+  form.
+- **The response.** The response carries, as `volumes_disk`, the
+  largest size in bytes a new volume of the client could have; as
+  `images_disk`, the number of bytes the client could still add to
+  the client image store; as `container_memory`, the number of bytes
+  of memory a container run of the client could still reserve; and
+  as `container_disk`, the number of bytes of overlay disk a
+  container run of the client could still reserve.
+  [Response](/endpoints/capacity/response/) states its form.
+- **What is reported.** Each member is the most of its resource that
+  the client, as the identity of the connection, could use as of the
+  instant the server sends the response, as the server allots it. A
+  server that allots the client less of a resource than the server
+  holds reports the client's allotment. A server that allots the
+  client the whole of a resource reports the whole. A server reports
+  no more of a resource than it would, at that instant, let the
+  client use.
+- **Nothing is reserved.** The response sets nothing aside. A request
+  that relies on a member — a [volumes::create](/endpoints/volumes-create/),
+  an [images::build](/endpoints/images-build/), a container run — is
+  answered on its own terms, and the server may refuse it for want of
+  room after a response that reported room for it.
+- **Always answered.** The server answers every `capacity` request
+  with exactly one response. No capability governs the endpoint. This
+  endpoint defines no error frame and no refusal.
+- **Members the server does not hold out.** The server sends every
+  member in every response. Where the server holds out no volume
+  mode object, `volumes_disk` carries any value, and a client does
+  not read it. Where the server does not hold out `images_store`,
+  `images_disk` carries any value, and a client does not read it.
+  [Capabilities](/capabilities/) states what the server holds out.
+- **Reckoned by reservation.** `container_memory` is what remains of
+  the memory the server lets its running containers reserve, after
+  the `memory` of every running container's request; `container_disk`
+  is what remains of the overlay disk the server lets its running
+  containers reserve, after the `disk` of every running container's
+  request. The server reckons neither against the memory or the disk
+  free on its host.

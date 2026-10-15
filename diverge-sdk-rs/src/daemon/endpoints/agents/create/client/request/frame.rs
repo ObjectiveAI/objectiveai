@@ -3,125 +3,75 @@
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use crate::shared::relay::Relay;
 
-use super::{FuseMount, Image, Provider};
+use crate::daemon::create::Inner;
 
-/// Ask the daemon to create an agent under a name.
+/// Ask the daemon to create an agent under a name, from a template.
 ///
-/// Everything the agent is made from — the image, the limits, the
-/// mounts, the arguments, and the provider it is pinned to, if any —
-/// and the name the agent is held under from then on. What a caller may not choose is not here at all rather
-/// than here and ignored: the container's name, its ports, its
-/// entrypoint and its environment are the provider's, because they
+/// What every agent made from the template shares — the image, the
+/// limits, the arguments — is the
+/// [`template`](Inner::template), named by its id; what is this
+/// agent's own is here: the provider it runs on with the volumes it
+/// mounts there, its FUSE mounts of providers' volumes, and the name
+/// the agent is held under from then on. The dependencies its program
+/// declares are deployed by the daemon when its container starts,
+/// and nothing of them is named here. The provider is the agent's and not the template's so that a
+/// template can be shared. What a caller may not choose is not here at
+/// all rather than here and ignored: the container's name, its ports,
+/// its entrypoint and its environment are the provider's, because they
 /// are how the provider reaches the container and how the container
-/// reaches back. There is no environment: the mounts are the
-/// caller's only provisioning channel, and a field that is accepted
-/// and ignored is a field callers will believe in.
+/// reaches back. There is no environment: the mounts are the caller's
+/// only provisioning channel, and a field that is accepted and ignored
+/// is a field callers will believe in.
 ///
 /// # The name
 ///
-/// A string of the caller's choosing, unique among the caller's
-/// agents: the daemon refuses a request whose name is an agent's
-/// already, and says so with a variant of its own, because a caller
-/// acts on it differently from a failure — use the agent it has, or
-/// choose another name. Nothing here constrains the string's form;
-/// the name is the caller's word for its agent, and the daemon
-/// compares it and does not read it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Optional. A string of the caller's choosing, unique among the
+/// caller's agents: the daemon refuses a request whose name is an
+/// agent's already, and says so with a variant of its own, because a
+/// caller acts on it differently from a failure — use the agent it has,
+/// or choose another name. A request with no name is never refused for
+/// one: the agent is reached by its template and its index, which it
+/// always has. Nothing here constrains the string's form; the name is
+/// the caller's word for its agent, and the daemon compares it and does
+/// not read it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The image: a name and a digest. See [`Image`].
-    pub image: Image,
-    /// How much memory the container may have, in BYTES.
-    ///
-    /// A ceiling, not a hint. A process that exceeds what the
-    /// container is allowed is killed by the kernel rather than told
-    /// — no failed allocation to catch, no warning first — and the
-    /// container will not see this number in its own
-    /// `/proc/meminfo`, which reports the host's. An image that sizes
-    /// itself off what it thinks it has will size itself wrong.
-    ///
-    /// Bytes rather than megabytes because a unit that has to be
-    /// spelled out in prose is a unit half of everyone gets wrong.
-    pub memory: u64,
-    /// How much the container may WRITE, in BYTES.
-    ///
-    /// Its own filesystem only — what it adds to or changes over the
-    /// image it came from. The image's layers are read-only and are
-    /// not counted, so a container starts at nothing however large
-    /// the image is. It does not govern the mounts: a volume is
-    /// storage that already existed, with a size of its own.
-    ///
-    /// Bytes rather than megabytes, for the reason
-    /// [`memory`](Self::memory) gives.
-    pub disk: u64,
-    /// The one provider the agent runs on, and the volumes of that
-    /// provider made visible inside the container. See [`Provider`].
-    ///
-    /// Absent, the agent runs on whichever provider the daemon
-    /// chooses, and mounts no volume: a volume is a provider's own
-    /// and does not carry across, so an agent with state on a
-    /// provider's disk is an agent of that provider.
+    /// What an agent's create and a tool's share — the template, the
+    /// provider and its volumes, the FUSE mounts: see [`Inner`].
+    /// Flattened, so its members are this object's own. No account:
+    /// an agent container holds none and asks the daemon nothing.
+    #[serde(flatten)]
+    pub inner: Inner,
+    /// The name, if any: a string of the caller's choosing, unique
+    /// among the caller's agents, by which the agent is reached
+    /// afterwards beside its template and its index. Absent, the
+    /// agent has none, and is reached once and for all only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider: Option<Provider>,
-    /// Files of providers' volumes served LIVE across the daemon,
-    /// mounted one each over FUSE.
-    ///
-    /// Each names a file by a provider, a volume of that provider's
-    /// and a path in it, and its path in the container — see
-    /// [`FuseMount`]; each may name a different provider. Every one
-    /// is mounted before the agent runs, and every read and every
-    /// write of a piece inside the container is one ask, forwarded by
-    /// the daemon to the volume's provider and served from the
-    /// volume's file in place. The file is
-    /// overwritten in place only; a program that replaces its file by
-    /// rename needs a directory mount. Its container path is no other
-    /// mount's and lies inside none, as every mount's.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_file_mounts: Vec<FuseMount>,
-    /// Directories of providers' volumes served LIVE across the
-    /// daemon, mounted one each over FUSE.
-    ///
-    /// Each names a directory by a provider, a volume of that
-    /// provider's and a path in it, and its path in the container —
-    /// see [`FuseMount`]; each may name a different provider. The
-    /// whole tree under the volume path is what the container sees:
-    /// every listing, stat, read or write of a piece, truncation,
-    /// change of attributes, creation, removal and rename inside the
-    /// container is one ask, forwarded by the daemon to the volume's
-    /// provider and served from the volume's tree in place. No other
-    /// mount may lie inside it.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_directory_mounts: Vec<FuseMount>,
-    /// What the image is told once, as the image defines it, for the
-    /// agent's life.
-    ///
-    /// A JSON value, because this crate does not know what an image
-    /// takes — a model, tools, an image's own knobs — and a wire that
-    /// typed it would have to be revised for every image that ever
-    /// ran. It is handed to the container and not read here.
-    pub arguments: Value,
-    /// The name, unique among the caller's agents.
-    pub name: String,
+    pub name: Option<String>,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
 }
 
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
 const TAG: u8 = 0;
 
-/// JSON, as the container request is on the provider's wire: the
-/// arguments are a JSON value, and a value cannot come back out of
-/// postcard at all.
+/// JSON, as every request of the daemon's is.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;

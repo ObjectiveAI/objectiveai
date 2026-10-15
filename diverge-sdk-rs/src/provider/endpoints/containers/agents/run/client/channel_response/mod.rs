@@ -1,20 +1,16 @@
 //! What a caller sends back during a run, one module per kind of
 //! channel the provider opens.
 //!
-//! [`oci_has`] says whether the caller holds the image, and
-//! [`oci_manifest`] and [`oci_blob`] hand it over when the provider
-//! takes it from there; [`authorize`] answers whether a connector
-//! may join; [`write_bytes`]
-//! streams the content of a file being written. The rest answer the
-//! CONTAINER, relayed: [`postgres`] is what
-//! its database said, [`command`] the items its command produced, the
-//! five `vault_*` what its vault answered, the five `mcp_*` what the
-//! caller's MCP servers answered its tool calls with, and the nine
-//! `fuse_*` what the files and directories it mounted live hold, what
-//! an entry of them is, and whether a change to one took.
+//! [`oci_has`] says whether the caller holds the image and under
+//! what name, and [`oci_manifest`] and [`oci_blob`] hand it over when the provider
+//! takes it from there; [`write_bytes`] streams the content of a file
+//! being written. The rest answer the CONTAINER, relayed: [`postgres`]
+//! is what its database said, the five `vault_*` what its vault
+//! answered, the five `mcp_*` what the caller's MCP servers answered
+//! its tool calls with, and the nine `fuse_*` what the files and
+//! directories it mounted live hold, what an entry of them is, and
+//! whether a change to one took.
 
-pub mod authorize;
-pub mod command;
 pub mod fuse_list;
 pub mod fuse_mkdir;
 pub mod fuse_read;

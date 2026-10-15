@@ -30,6 +30,17 @@ pub enum ExecuteError {
     Misrouted,
     /// The provider's answer did not decode.
     Response(super::super::super::server::response::FrameError),
+    /// The volume is mounted in a running container, and nothing was
+    /// written.
+    Mounted,
+    /// A FUSE serve holds the volume, and nothing was written.
+    FuseServed,
+    /// Another operation — a stat, a read, a write, a filetree, an
+    /// edit or a delete — has the volume to itself, and nothing was
+    /// written.
+    Held,
+    /// The provider keeps no volumes, and nothing was written.
+    Unsupported,
     /// The file did not land, and nothing partial did: the provider's
     /// own words.
     Refused(crate::shared::error::Error),
@@ -61,6 +72,16 @@ impl fmt::Display for ExecuteError {
                 f.write_str("a frame that cannot open a write answered it")
             }
             ExecuteError::Response(error) => write!(f, "{error}"),
+            ExecuteError::Mounted => {
+                f.write_str("the volume is mounted in a running container and nothing was written")
+            }
+            ExecuteError::FuseServed => {
+                f.write_str("a FUSE serve holds the volume and nothing was written")
+            }
+            ExecuteError::Held => {
+                f.write_str("another operation has the volume to itself and nothing was written")
+            }
+            ExecuteError::Unsupported => f.write_str("the provider keeps no volumes"),
             ExecuteError::Refused(_) => f.write_str("the provider refused the volume write"),
             ExecuteError::Source(_) => {
                 f.write_str("the content ended in an error before the write was whole")
@@ -80,6 +101,10 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Closed
             | ExecuteError::Unanswered
             | ExecuteError::Misrouted
+            | ExecuteError::Mounted
+            | ExecuteError::FuseServed
+            | ExecuteError::Held
+            | ExecuteError::Unsupported
             | ExecuteError::Refused(_)
             | ExecuteError::Source(_) => None,
         }

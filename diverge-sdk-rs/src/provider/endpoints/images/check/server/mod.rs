@@ -7,13 +7,11 @@
 //!
 //! # And a way to answer it
 //!
-//! [`handle`] performs the exchange rather than describing it: hand it
+//! the provider crate's `handle` performs the exchange rather than describing it: hand it
 //! the [`ScopeHandle`](crate::wire::server::scope_handle::ScopeHandle) a
 //! [`Session`](crate::wire::server::session::Session) yielded, whose caller
 //! it is, and an
-//! [`ImageChecker`](crate::provider::server::image_checker::ImageChecker), and it
+//! `ImageChecker`, and it
 //! answers.
 
 pub mod response;
-
-pub mod handle;

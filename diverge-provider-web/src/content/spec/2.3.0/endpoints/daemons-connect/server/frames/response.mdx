@@ -1,0 +1,41 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the connector answers with, what ends it, what a finish with nothing before it means, and what the server does with the answer.'
+order: 2
+draft: false
+---
+
+```text
+[type: u8][scope: u32][channel: u32][payload …]    zero or more, one client frame each
+```
+
+- **The sequence.** Zero or more channel responses, each one client
+  frame of the daemon protocol with no tag in front, in the order the
+  connector sends them. The channel response finish is the connector
+  hanging up: the server finishes the acceptor's half and sends the
+  response finish of the scope. A channel response finish that no
+  channel response precedes is the connector hanging up before it
+  sent a frame, and the server does the same.
+- **The frame.** Each channel response is exactly one client frame of
+  the daemon protocol, laid out as [Frames](/frames/) lays out a
+  client frame: the type byte, the scope as a `u32` big-endian, the
+  channel as a `u32` big-endian, and the payload, running to the end.
+  The type is `1`, a request opening a scope; `4`, a channel request
+  on a scope; `5`, a channel response on a channel the acceptor
+  opened; or `6`, the finish of such a channel. A channel response
+  that is not one — shorter than the header, of a type the wire does
+  not have, or an auth frame — hangs up: the server finishes the
+  acceptor's half and sends the response finish of the scope.
+- **What the server does with it.** The server relays each channel
+  response onto the acceptor's half of the connection as one channel
+  response, verbatim.
+
+The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/connect/client/channel_response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/connect/client/channel_response/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/daemon/client/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/daemon/client/frame.rs
+```

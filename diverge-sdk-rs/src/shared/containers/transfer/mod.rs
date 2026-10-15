@@ -14,16 +14,13 @@
 //!
 //! # Who may ask
 //!
-//! The client must be running, or connected to, BOTH containers: the
-//! one the scope is on, which holding the scope already establishes,
-//! and the one the request names, which the provider checks against
-//! who is running it and who is attached to it. A request naming a
-//! container the client is neither running nor connected to is
+//! The client must be running BOTH containers: the one the scope is
+//! on, which holding the scope already establishes, and the one the
+//! request names, which the provider checks against who is running
+//! it. A request naming a container the client is not running is
 //! refused, and so is one naming an id under which nothing runs, with
 //! the same error — a refusal that said which would tell a stranger
-//! whether an id exists. Holding the id is not enough on its own: an
-//! id is a capability to ASK to attach, and attaching is what a
-//! connect scope is for.
+//! whether an id exists.
 
 pub mod request;
 pub mod response;

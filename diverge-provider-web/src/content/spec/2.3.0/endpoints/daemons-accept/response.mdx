@@ -1,0 +1,47 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response: the byte 0 and the identity as JSON, after which the scope stays open, or the byte 1 and an error, after which the finish follows.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope. After the
+identity the scope stays open, and the response finish ends it; after
+an error the response finish follows at once. No frame bearing the
+scope follows the finish.
+
+```text
+[0][accepting JSON …]    once, the identity, and the scope stays open
+[1][error JSON …]        once, when the identity is held, and the finish follows
+```
+
+- **The sequence.** Exactly one response precedes the response
+  finish. The byte `0` is the identity: the scope stays open, and
+  the finish follows the acceptor's stop or the acceptor's connection
+  ending. The byte `1` is an error: the finish follows it, and no
+  connection is announced. A response finish that no response
+  precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides.
+- **The identity.** A payload whose first byte is `0` carries, after
+  that byte as JSON, an object with the member `identity`, a string:
+  the identity of the connection the scope was opened on, as the
+  [authorization](/authorization/) established it. A connector names
+  the acceptor by exactly this string.
+- **The error.** A payload whose first byte is `1` carries, after
+  that byte, exactly one JSON value in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  The server sends `{"kind":"held"}` when an accept scope is open
+  under the identity already.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is neither `0` nor `1`, and a payload whose bytes after the first
+  do not parse as the stated JSON are malformed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/response/frame.rs
+```
+
+and by `diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/response/accepting.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/response/accepting.rs
+```

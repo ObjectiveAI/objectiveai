@@ -17,8 +17,8 @@ use tokio::sync::mpsc::UnboundedReceiver;
 /// scope.
 ///
 /// [`request_receiver`](Self::request_receiver) is the server asking
-/// for something inside this scope — serving an image, running a
-/// command, proxying Postgres. There may be none, and there may be more
+/// for something inside this scope — serving an image, running a daemon
+/// frame, proxying Postgres. There may be none, and there may be more
 /// of them than answers.
 ///
 /// They are separate because a channel number belongs to whoever opened

@@ -21,6 +21,19 @@
 //! common, which is everything but one exchange each: asking for a
 //! container, working with its files, and the asks it makes back.
 //!
+//! [`permission`] is what a grant is made of — the actions over each
+//! kind of thing the daemon holds, and the grants that reach by tags
+//! alone, which a dependency tool template carries and the daemon's
+//! own grants are built of.
+//!
+//! [`daemons`] is what a daemon connecting to another daemon through a
+//! provider is made of: how it authenticates, and what the acceptor is
+//! told of it.
+//!
+//! [`canonical`] is the one form a value is hashed in — compact JSON
+//! with every object key sorted at every depth — which every id that
+//! is a hash is computed over.
+//!
 //! [`error`] is the odd one out: a shape nothing carries yet. It is
 //! here rather than beside whichever frame first needs it, because a
 //! failure that means different things in different modules is a
@@ -32,7 +45,11 @@
 //! [`Root::update`](filetree::response::Root::update) is exactly the
 //! kind of thing that would stop agreeing quietly.
 
+pub mod canonical;
 pub mod containers;
+pub mod daemons;
 pub mod error;
 pub mod filetree;
 pub mod mcp;
+pub mod permission;
+pub mod relay;

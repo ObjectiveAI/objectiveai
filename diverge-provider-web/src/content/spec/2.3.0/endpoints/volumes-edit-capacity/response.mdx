@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the available increase in bytes as a varint or with the byte 1 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the available increase in bytes as a varint, is the byte 1 alone when the server keeps no volume, or begins with the byte 2 followed by an error as one JSON value, and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -9,8 +9,9 @@ The server sends exactly one response on the scope. The response
 finish follows the response, and no frame follows the finish.
 
 ```text
-[0][capacity: varint]
-[1][error JSON …]
+[0][capacity: varint]    the capacity
+[1]                      not answered: the server keeps no volume
+[2][error JSON …]        not answered
 ```
 
 - **The sequence.** Exactly one response precedes the response
@@ -23,14 +24,19 @@ finish follows the response, and no frame follows the finish.
   the postcard reading of [Notation](/endpoints/#notation) provides.
   The server sends nothing after the varint, and a client ignores
   every byte that follows it.
-- **The error.** A payload whose first byte is `1` carries an error
+- **Unsupported.** A payload that is the byte `1` and nothing else
+  states that the server holds out none of the three mode objects
+  and keeps no volume, as [Capabilities](/capabilities/#the-volume-modes)
+  provides. It is the only response, sent before anything is looked
+  up; a client ignores every byte that follows it.
+- **The error.** A payload whose first byte is `2` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, a payload whose bytes after `0` do not
-  decode as a varint, and a payload whose bytes after `1` are not one
+  is none of `0`, `1` and `2`, a payload whose bytes after `0` do not
+  decode as a varint, and a payload whose bytes after `2` are not one
   JSON value are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/edit_capacity/server/response/frame.rs`:

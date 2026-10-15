@@ -1,49 +1,66 @@
 //! What a server's response frame carries for a create.
 
+use serde::Serialize;
 use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A create's answer: the agent is created, the name is in use, or a
-/// failure.
+/// A create's answer: the agent exists under the name, the name is in
+/// use, or a failure.
 ///
 /// A create is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
-/// with one byte saying which — `0` for [`Created`](Self::Created),
-/// `1` for [`InUse`](Self::InUse), `2` for [`Error`](Self::Error) —
-/// and only the error carries anything after it.
+/// with one byte saying which — `0` for [`Created`](Self::Created), `1`
+/// for [`InUse`](Self::InUse), `2` for [`Forbidden`](Self::Forbidden),
+/// `3` for [`Error`](Self::Error) — and only the error carries
+/// anything after it.
 ///
-/// # The name in use is not a failure
+/// # Answers, and one failure
 ///
-/// They are two of the three things this scope can end with and they
-/// mean different things about the caller's agents.
-/// [`InUse`](Self::InUse) is an ANSWER: an agent of the caller's
-/// exists under that name already, and the daemon created nothing —
-/// the caller uses the agent it has, or chooses another name, and
-/// nothing is retried. An [`Error`](Self::Error) is the absence of
-/// an answer: the agent could not be created, for whatever reason
-/// the daemon knows, and the name is as it was.
+/// [`InUse`](Self::InUse) is an ANSWER: the daemon looked, and the
+/// name is an agent's of the caller's already, and nothing was
+/// created and nothing is retried — the caller uses the agent it has
+/// or chooses another name. An [`Error`](Self::Error) is the absence
+/// of an answer: the
+/// daemon could not create the agent, for whatever reason it knows, and
+/// nothing is held.
 ///
-/// # Created carries nothing
+/// # Forbidden
 ///
-/// The name is the caller's handle from now on, and the caller chose
-/// it: there is no id to hand back, and nothing else the caller needs
-/// to reach the agent it just named.
-#[derive(Debug, Clone, PartialEq)]
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
+///
+/// # As JSON
+///
+/// For a client that prints what the daemon answered: the variant,
+/// snake case, over its payload — `{"found":…}`, `{"error":…}` — and
+/// a bare variant the string alone — `"not_found"`. The wire is the
+/// tag byte and the payload, never this.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The agent exists under the name. Tag `0`.
+    /// The agent exists, under the name if one was given, and is
+    /// reached by its template and index from now on. Tag `0`.
     Created,
-    /// An agent of the caller's exists under that name already;
-    /// nothing was created. Tag `1`.
+    /// The name is an agent's of the caller's already; nothing was
+    /// created. Tag `1`.
     InUse,
-    /// A failure. Tag `2`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `2`.
+    Forbidden,
+    /// A failure. Tag `3`.
     ///
-    /// The agent does not exist and will not, and the name is
-    /// unchanged. See
-    /// [`shared::error::Error`](crate::shared::error::Error)
-    /// for why it says so little.
+    /// Nothing changed. See
+    /// [`shared::error::Error`](crate::shared::error::Error) for why it
+    /// says so little.
     Error(Error),
 }
 
@@ -53,12 +70,15 @@ const CREATED: u8 = 0;
 /// Tag for [`Frame::InUse`].
 const IN_USE: u8 = 1;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 2;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 3;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
-    /// The ordinary JSON failure. The two bare answers cannot fail.
+    /// The ordinary JSON failure. The bare answers cannot fail.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -71,6 +91,10 @@ impl Encode for Frame {
             }
             Frame::InUse => {
                 out.extend_from_slice(&[IN_USE]);
+                Ok(())
+            }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -91,6 +115,7 @@ impl Decode<'_> for Frame {
         match *tag {
             CREATED => Ok(Frame::Created),
             IN_USE => Ok(Frame::InUse),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -102,7 +127,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

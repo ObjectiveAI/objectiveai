@@ -1,4 +1,5 @@
-//! What a client's channel request frame carries for an agent container run.
+//! What a client's channel request frame carries for an agent container
+//! run.
 
 use std::error::Error;
 use std::fmt;
@@ -27,7 +28,9 @@ use crate::shared::containers::{postgres, read, transfer, write_path};
 ///
 /// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
-/// family's own exchange. All of them but the first reach INTO the
+/// family's own exchange — no daemon connection among them, since an
+/// agent container holds no account and asks the daemon nothing. All
+/// of them but the first reach INTO the
 /// container, which is the thing a caller cannot dial: it runs on the
 /// provider. That is the whole reason these channels open outward
 /// from the client rather than the other way. What comes OUT of the
@@ -54,11 +57,6 @@ pub enum Frame {
     /// to wait to find out. This is unambiguous and immediate: a
     /// caller that says so is not gone, it is finished.
     ///
-    /// # What it does to everyone else
-    ///
-    /// Ends them. Connectors hold scopes on a container that no longer
-    /// exists, so those scopes finish too — a connection cannot
-    /// outlive the thing it joined.
     Stop,
     /// The container's filesystem, watched. Tag `1`.
     ///
@@ -84,7 +82,7 @@ pub enum Frame {
     /// One file, copied into another container. Tag `4`.
     ///
     /// The other container by its id, and the caller must be running
-    /// or connected to it. The provider reads the file out of this
+    /// it. The provider reads the file out of this
     /// container and writes it into that one on its own connections
     /// to the two proxies, and nothing of the file comes back here —
     /// one answer does. See
@@ -105,13 +103,13 @@ pub enum Frame {
     Schema,
     /// A message for the agent. Tag `7`.
     ///
-    /// The one way into it: a message with no loop running starts
-    /// one, on that message, and a message while one runs joins its
-    /// queue. Answered once — by an
+    /// The one way into it: a message with no loop running starts one,
+    /// on that message, and a message while one runs joins its queue.
+    /// Answered once — by an
     /// [`enqueue::response::Frame`](crate::shared::containers::enqueue::response::Frame)
-    /// naming the message's fate, whenever that is known — and then
-    /// the finish. What the agent says in reply is the scope's main
-    /// stream. See [`enqueue`](crate::shared::containers::enqueue).
+    /// naming the message's fate, whenever that is known — and then the
+    /// finish. What the agent says in reply is the scope's main stream.
+    /// See [`enqueue`](crate::shared::containers::enqueue).
     Enqueue(enqueue::request::Request),
     /// Withdraw every message still waiting under a key. Tag `8`.
     ///

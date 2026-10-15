@@ -11,8 +11,8 @@ the postcard wire format, as the postcard reading of
 
 ```text
 [12][name_len: varint][name: utf8 …][0][bytes: varint]
-[12][name_len: varint][name: utf8 …][1][mode: 0 | 1 | 2]
-[12][name_len: varint][name: utf8 …][2][bytes: varint][mode: 0 | 1 | 2]
+[14][name_len: varint][name: utf8 …][1][mode: 0 | 1 | 2]
+[14][name_len: varint][name: utf8 …][2][bytes: varint][mode: 0 | 1 | 2]
 ```
 
 - **`name`.** The name of the volume, UTF-8, preceded by its byte

@@ -101,7 +101,7 @@ pub struct Volume {
     /// [`edit`](crate::provider::endpoints::volumes::edit::client::request::Change::Mode)
     /// of it; for a volume the provider offers on its own, the
     /// provider's word. One answer for every container that mounts
-    /// the volume and every serve of it — neither chooses.
+    /// the volume and every FUSE serve of it — neither chooses.
     ///
     /// One byte in postcard, `0`, `1` or `2`, after `created`.
     pub mode: Mode,

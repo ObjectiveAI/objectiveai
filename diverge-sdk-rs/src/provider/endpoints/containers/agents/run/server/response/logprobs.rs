@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 /// One token, and what the model thought of it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub struct Logprob {
     /// The token as text.
     pub token: String,
@@ -29,6 +30,7 @@ pub struct Logprob {
 
 /// An alternative the model considered at one position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub struct TopLogprob {
     /// The token as text.
     pub token: String,

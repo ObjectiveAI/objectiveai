@@ -1,7 +1,7 @@
 ---
 title: 'Endpoints'
-summary: 'A request’s payload begins with one tag byte designating the endpoint; sixteen endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
-order: 6
+summary: 'A request’s payload begins with one tag byte designating the endpoint; twenty-four endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
+order: 7
 draft: false
 ---
 
@@ -14,20 +14,28 @@ endpoint's request content, in the form the endpoint defines.
 |-----|----------|
 | `0` | [containers::agents::run](/endpoints/containers-agents-run/) |
 | `1` | [containers::tools::run](/endpoints/containers-tools-run/) |
-| `2` | [containers::tools::connect](/endpoints/containers-tools-connect/) |
+| `2` | [containers::fuse_serve](/endpoints/containers-fuse-serve/) |
 | `3` | [volumes::list](/endpoints/volumes-list/) |
 | `4` | [volumes::stat](/endpoints/volumes-stat/) |
 | `5` | [volumes::read](/endpoints/volumes-read/) |
 | `6` | [volumes::write](/endpoints/volumes-write/) |
 | `7` | [volumes::filetree](/endpoints/volumes-filetree/) |
-| `8` | [volumes::serve](/endpoints/volumes-serve/) |
+| `8` | [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) |
 | `9` | [volumes::create_capacity](/endpoints/volumes-create-capacity/) |
 | `10` | [volumes::create](/endpoints/volumes-create/) |
 | `11` | [volumes::edit_capacity](/endpoints/volumes-edit-capacity/) |
 | `12` | [volumes::edit](/endpoints/volumes-edit/) |
 | `13` | [volumes::delete](/endpoints/volumes-delete/) |
 | `14` | [images::check](/endpoints/images-check/) |
-| `15` | [version](/endpoints/version/) |
+| `15` | [images::list](/endpoints/images-list/) |
+| `16` | [images::stat](/endpoints/images-stat/) |
+| `17` | [images::build](/endpoints/images-build/) |
+| `18` | [images::delete](/endpoints/images-delete/) |
+| `19` | [images::oci](/endpoints/images-oci/) |
+| `20` | [info](/endpoints/info/) |
+| `21` | [capacity](/endpoints/capacity/) |
+| `22` | [daemons::accept](/endpoints/daemons-accept/) |
+| `23` | [daemons::connect](/endpoints/daemons-connect/) |
 
 The tag values are normative as tabulated. Each endpoint has its own
 section. Every section of this layer states requirements of the
@@ -42,6 +50,13 @@ input the server serves, and imposes no requirement on the client.
 - **Growth is new tag values.** A future endpoint is a new tag value
   in this table. The frame types of the [Frames](/frames/) layer are
   unaffected by the addition of endpoints.
+- **Capabilities.** The server states in the `capabilities` object
+  of its [info](/endpoints/info/) response which of the parts of this
+  layer it serves, as the [Capabilities](/capabilities/) layer
+  defines, and answers every request past a part it does not serve by
+  the response that layer names for the endpoint. Every requirement
+  of this layer on an endpoint a capability governs holds subject to
+  that layer.
 
 ## Notation
 

@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::{command, postgres, vault};
+use crate::shared::containers::{postgres, vault};
 use crate::shared::mcp;
 
 /// What the proxy asks the server for once an agent container
@@ -17,24 +17,25 @@ use crate::shared::mcp;
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Postgres`](Self::Postgres) |
-/// | `1` | [`Command`](Self::Command) |
-/// | `2` | [`VaultGet`](Self::VaultGet) |
-/// | `3` | [`VaultSet`](Self::VaultSet) |
-/// | `4` | [`VaultDelete`](Self::VaultDelete) |
-/// | `5` | [`VaultLock`](Self::VaultLock) |
-/// | `6` | [`VaultUnlock`](Self::VaultUnlock) |
-/// | `7` | [`McpListTools`](Self::McpListTools) |
-/// | `8` | [`McpListResources`](Self::McpListResources) |
-/// | `9` | [`McpCallTool`](Self::McpCallTool) |
-/// | `10` | [`McpReadResource`](Self::McpReadResource) |
-/// | `11` | [`McpNotifications`](Self::McpNotifications) |
+/// | `1` | [`VaultGet`](Self::VaultGet) |
+/// | `2` | [`VaultSet`](Self::VaultSet) |
+/// | `3` | [`VaultDelete`](Self::VaultDelete) |
+/// | `4` | [`VaultLock`](Self::VaultLock) |
+/// | `5` | [`VaultUnlock`](Self::VaultUnlock) |
+/// | `6` | [`McpListTools`](Self::McpListTools) |
+/// | `7` | [`McpListResources`](Self::McpListResources) |
+/// | `8` | [`McpCallTool`](Self::McpCallTool) |
+/// | `9` | [`McpReadResource`](Self::McpReadResource) |
+/// | `10` | [`McpNotifications`](Self::McpNotifications) |
 ///
-/// The same twelve in both families, in the same order: everything a
-/// container asks of the world outside — its database connections,
-/// its commands, its vault, its tool calls outward to the caller's
-/// MCP servers — which the server relays to the caller as the
-/// provider protocol's own channel requests. The fuse asks are not
-/// here; each rides the scope of the mount it belongs to.
+/// Eleven: everything an agent container asks of the world outside —
+/// its database connections, its vault, its tool calls outward to the
+/// caller's MCP servers — which the server relays to the caller as
+/// the provider protocol's own channel requests. No daemon
+/// connection: an agent container holds no account and asks the
+/// daemon nothing; a tool container's begin has that ask and no tool
+/// call outward. The fuse asks are not here; each rides the scope of
+/// the mount it belongs to.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// The proxy's half of a database connection the container's
@@ -45,76 +46,68 @@ pub enum Frame<'a> {
     /// finishing this one with nothing before it. See
     /// [`postgres`](crate::shared::containers::postgres).
     Postgres(postgres::request::Postgres),
-    /// Run a command the container asked for. Tag `1`.
-    ///
-    /// Opaque bytes in the CLI's vocabulary; the items come back one
-    /// per frame. See [`command`](crate::shared::containers::command).
-    Command(command::request::Request<'a>),
-    /// Read a vault key. Tag `2`.
+    /// Read a vault key. Tag `1`.
     VaultGet(vault::get::request::Request<'a>),
-    /// Write a vault key. Tag `3`.
+    /// Write a vault key. Tag `2`.
     VaultSet(vault::set::request::Request<'a>),
-    /// Remove a vault key. Tag `4`.
+    /// Remove a vault key. Tag `3`.
     VaultDelete(vault::delete::request::Request<'a>),
-    /// Hold a vault key's lock. Tag `5`.
+    /// Hold a vault key's lock. Tag `4`.
     VaultLock(vault::lock::request::Request<'a>),
-    /// Release a vault key's lock. Tag `6`.
+    /// Release a vault key's lock. Tag `5`.
     ///
     /// The five vault asks are the container's; see
     /// [`vault`](crate::shared::containers::vault) for what each
     /// carries and how a lock behaves.
     VaultUnlock(vault::unlock::request::Request<'a>),
-    /// What tools the caller's servers have. Tag `7`.
+    /// What tools the caller's servers have. Tag `6`.
     ///
     /// The container asking OUTWARD: an agent's tool calls go to
     /// servers that live with the caller, so the five exchanges in
     /// [`shared::mcp`](crate::shared::mcp) travel this direction too.
     McpListTools(mcp::list_tools::request::Request),
-    /// What resources they have. Tag `8`.
+    /// What resources they have. Tag `7`.
     McpListResources(mcp::list_resources::request::Request),
-    /// Run one of their tools. Tag `9`.
+    /// Run one of their tools. Tag `8`.
     McpCallTool(mcp::call_tool::request::Request),
-    /// Read one of their resources. Tag `10`.
+    /// Read one of their resources. Tag `9`.
     McpReadResource(mcp::read_resource::request::Request),
-    /// Everything they say on their own account. Tag `11`.
+    /// Everything they say on their own account. Tag `10`.
     McpNotifications(mcp::notifications::request::Request),
 }
 
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 0;
 
-/// Tag for [`Frame::Command`].
-const COMMAND: u8 = 1;
-
 /// Tag for [`Frame::VaultGet`].
-const VAULT_GET: u8 = 2;
+const VAULT_GET: u8 = 1;
 
 /// Tag for [`Frame::VaultSet`].
-const VAULT_SET: u8 = 3;
+const VAULT_SET: u8 = 2;
 
 /// Tag for [`Frame::VaultDelete`].
-const VAULT_DELETE: u8 = 4;
+const VAULT_DELETE: u8 = 3;
 
 /// Tag for [`Frame::VaultLock`].
-const VAULT_LOCK: u8 = 5;
+const VAULT_LOCK: u8 = 4;
 
 /// Tag for [`Frame::VaultUnlock`].
-const VAULT_UNLOCK: u8 = 6;
+const VAULT_UNLOCK: u8 = 5;
 
 /// Tag for [`Frame::McpListTools`].
-const MCP_LIST_TOOLS: u8 = 7;
+const MCP_LIST_TOOLS: u8 = 6;
 
 /// Tag for [`Frame::McpListResources`].
-const MCP_LIST_RESOURCES: u8 = 8;
+const MCP_LIST_RESOURCES: u8 = 7;
 
 /// Tag for [`Frame::McpCallTool`].
-const MCP_CALL_TOOL: u8 = 9;
+const MCP_CALL_TOOL: u8 = 8;
 
 /// Tag for [`Frame::McpReadResource`].
-const MCP_READ_RESOURCE: u8 = 10;
+const MCP_READ_RESOURCE: u8 = 9;
 
 /// Tag for [`Frame::McpNotifications`].
-const MCP_NOTIFICATIONS: u8 = 11;
+const MCP_NOTIFICATIONS: u8 = 10;
 
 impl Encode for Frame<'_> {
     /// The JSON failure from the asks that are JSON, or a vault key
@@ -127,10 +120,6 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[POSTGRES]);
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
-                request.encode(out).map_err(|error| match error {})
-            }
-            Frame::Command(request) => {
-                out.extend_from_slice(&[COMMAND]);
                 request.encode(out).map_err(|error| match error {})
             }
             Frame::VaultGet(request) => {
@@ -216,10 +205,6 @@ impl<'a> Decode<'a> for Frame<'a> {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            COMMAND => Ok(Frame::Command(
-                command::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
             VAULT_GET => vault::get::request::Request::decode(rest)
                 .map(Frame::VaultGet)
                 .map_err(FrameError::Vault),
@@ -265,7 +250,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's twelve.
+    /// A tag that is none of this frame's eleven.
     UnknownTag(u8),
     /// The connection id was not four bytes.
     Postgres(postgres::request::PostgresError),

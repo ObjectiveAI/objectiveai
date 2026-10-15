@@ -1,0 +1,56 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the image no longer exists, exactly the byte 1 when a running container runs it and it was not deleted, exactly the byte 2 when the server keeps no client image, or the byte 3 followed by an error as one JSON value, and the response finish follows it.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope. The response
+finish follows the response, and no frame follows the finish.
+
+```text
+[0]                  deleted
+[1]                  not deleted: a running container runs the image
+[2]                  not deleted: the server keeps no client image
+[3][error JSON …]    not deleted
+```
+
+- **The sequence.** Exactly one response precedes the response
+  finish, and nothing follows the finish. A response finish that no
+  response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides; whether the image exists is then
+  not stated, and the client learns it from an
+  [images::list](/endpoints/images-list/) scope.
+- **Deleted.** A payload whose first byte is `0` states that the
+  image no longer exists. The server sends it after the image is
+  gone. From the moment the server sends it, every `images::list`
+  scope the client opens omits the image, and every list scope the
+  client holds open that was sent the image as added is sent it as
+  removed. The server sends nothing after the byte `0`, and a client
+  ignores every byte that follows it.
+- **In use.** A payload whose first byte is `1` states that a running
+  container of the client runs the image at the time of the request,
+  and that it was not deleted. The image and the client's listing are
+  as they were before the request. The server sends nothing after the
+  byte `1`, and a client ignores every byte that follows it.
+- **Unsupported.** A payload that is the byte `2` and nothing else
+  states that the server holds out no
+  [`images_store`](/capabilities/#images_store) capability and keeps
+  no client image, as [Capabilities](/capabilities/) provides. It is
+  the only response of the scope, sent before anything is looked up;
+  bytes after it are not read.
+- **The error.** A payload whose first byte is `3` carries an error
+  after that byte, running to the end of the payload. The error is
+  exactly one JSON value, in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  This revision prescribes nothing about its content. The error
+  states that the image exists as a result of the request, as it did
+  before it, and that the reason is not a running container.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is none of `0`, `1`, `2` and `3`, and a payload whose bytes after
+  `3` are not one JSON value are malformed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/images/delete/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/delete/server/response/frame.rs
+```

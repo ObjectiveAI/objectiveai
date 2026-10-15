@@ -1,8 +1,8 @@
 //! Which begin the connection had.
 
-/// The family the begin scope speaks: the two carry the same twelve
-/// asks in the same order, each in its own frame, and a proxy that
-/// asks has to know which.
+/// The family the begin scope speaks: the two carry the same asks in
+/// the same order, each in its own frame and each less what its
+/// container never makes, and a proxy that asks has to know which.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Family {
     /// An agent container's begin.

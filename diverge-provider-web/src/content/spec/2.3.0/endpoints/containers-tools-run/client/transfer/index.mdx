@@ -14,17 +14,15 @@ proxies, and none of them reach the client.
 - **The request.** The tag byte `4` followed by the path, the id of
   the other container, and the destination path as JSON.
   [Request](/endpoints/containers-tools-run/client/transfer/request/) states its form.
-- **The transferrer.** The client is running, or is connected as a
-  connector to, both the container of the scope and the container the
-  request names. The container of the scope is met by the scope
-  itself. For the container named, the server determines whether the
-  identity of the connection is the identity that runs it or an
-  identity connected to it at the time of the request. A request
-  naming a container the client is neither running nor connected to,
-  and a request naming an id under which the server is running no
-  container, are each answered with exactly one channel response, the
-  error `{"kind":"denied"}`, and the channel response finish; the
-  two are not distinguished.
+- **The transferrer.** The client is running both the container of
+  the scope and the container the request names. The container of
+  the scope is met by the scope itself. For the container named, the
+  server determines whether the identity of the connection is the
+  identity that runs it at the time of the request. A request naming
+  a container the client is not running, and a request naming an id
+  under which the server is running no container, are each answered
+  with exactly one channel response, the error `{"kind":"denied"}`,
+  and the channel response finish; the two are not distinguished.
 - **The copy.** The server opens a read scope on the proxy of the
   container of the scope, naming the path, and a write scope on the
   proxy of the container named, naming the destination, and streams

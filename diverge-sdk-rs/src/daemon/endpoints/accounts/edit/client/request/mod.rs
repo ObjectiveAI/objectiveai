@@ -1,0 +1,7 @@
+//! Edit request data. What a caller hands the daemon to change an
+//! account: which one, and each member as it is to be, taken away, or
+//! left as it is.
+
+mod frame;
+
+pub use frame::*;

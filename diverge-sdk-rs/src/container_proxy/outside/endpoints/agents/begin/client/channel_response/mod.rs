@@ -2,12 +2,11 @@
 //! channel the proxy opens.
 //!
 //! Every one answers the CONTAINER, relayed: [`postgres`] is what its
-//! database said, [`command`] the items its command produced, the
-//! five `vault_*` what its vault answered, and the five `mcp_*` what
-//! the caller's MCP servers answered its tool calls with — each an
-//! alias of the shape [`shared`](crate::shared) defines.
+//! database said, the five `vault_*` what its vault answered,
+//! and the five `mcp_*` what the caller's MCP servers answered its tool
+//! calls with — each an alias of the shape [`shared`](crate::shared)
+//! defines.
 
-pub mod command;
 pub mod mcp_call_tool;
 pub mod mcp_list_resources;
 pub mod mcp_list_tools;

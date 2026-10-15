@@ -12,11 +12,15 @@
 //! after it, a snapshot again only for a source that lost track —
 //! are ordering properties over a stream, which no schema can
 //! express. They belong to the prose specification. What this module
-//! defines is the vocabulary: what a node is, and what a frame is.
+//! defines is the vocabulary: what a node is, and what a frame is —
+//! and, in [`json`], how either is written as JSON, tagged, for a
+//! client that prints what it reads.
 
 mod frame;
 mod node;
 mod root;
+
+pub mod json;
 
 pub use frame::*;
 pub use node::*;

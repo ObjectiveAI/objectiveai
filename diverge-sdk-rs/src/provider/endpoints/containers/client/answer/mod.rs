@@ -7,45 +7,38 @@
 //! the provider reads the channel's end for what it is. Nothing
 //! retries.
 
-mod authorize;
-mod command;
+mod daemon;
+mod dependencies;
 mod fuse;
 mod mcp;
 mod oci;
 mod postgres;
 mod send;
-mod tools;
 mod vault;
 mod write;
 
 use std::sync::Arc;
 
-/// The write answer alone, for the connect scope: the one ask a
-/// provider makes of a connector.
-pub(crate) use write::write as write_content;
-
 use super::{Ask, Encoders, Writes};
 use crate::wire::client::handle::Handle;
 use crate::provider::client::{
-    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, ToolDeployer,
-    Vault,
+    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer, Vault,
 };
 
 /// Answer `ask` on `channel` of `scope`.
-pub(crate) async fn answer<O, A, T, P, C, V, M, F>(
+pub(crate) async fn answer<O, T, P, D, V, M, F>(
     handle: Handle,
     scope: u32,
     channel: u32,
     ask: Ask,
     writes: Arc<Writes>,
-    answerers: Answerers<O, A, T, P, C, V, M, F>,
+    answerers: Answerers<O, T, P, D, V, M, F>,
     encoders: Encoders,
 ) where
     O: OciStore + 'static,
-    A: ConnectionAuthorizer + 'static,
-    T: ToolDeployer + 'static,
+    T: DependencyDeployer + 'static,
     P: PostgresDialer + 'static,
-    C: CommandRunner + 'static,
+    D: Daemon + 'static,
     V: Vault + 'static,
     M: McpServer + 'static,
     F: FuseServer + 'static,
@@ -53,16 +46,17 @@ pub(crate) async fn answer<O, A, T, P, C, V, M, F>(
     let _ = match ask {
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, answerers.oci).await,
-        Ask::OciHas(name, digest) => oci::has(&handle, scope, channel, name, digest, answerers.oci).await,
-        Ask::Authorize(request) => {
-            authorize::authorize(&handle, scope, channel, request, answerers.authorizer).await
+        Ask::OciHas(digest) => oci::has(&handle, scope, channel, digest, answerers.oci).await,
+        Ask::Dependencies { id, dependencies: declared } => {
+            dependencies::dependencies(&handle, scope, channel, id, declared, answerers.dependencies).await
         }
-        Ask::Tools(declared) => tools::tools(&handle, scope, channel, declared, answerers.tools).await,
         Ask::Write(write_id) => write::write(&handle, scope, channel, write_id, writes, encoders).await,
         Ask::Postgres(connection_id) => {
             postgres::postgres(&handle, scope, channel, connection_id, answerers.postgres, encoders).await
         }
-        Ask::Command(command) => command::command(&handle, scope, channel, command, answerers.commands).await,
+        Ask::Daemon(connection_id) => {
+            daemon::daemon(&handle, scope, channel, connection_id, answerers.daemon, encoders).await
+        }
         Ask::VaultGet(key) => vault::get(&handle, scope, channel, key, answerers.vault).await,
         Ask::VaultSet(key, value) => vault::set(&handle, scope, channel, key, value, answerers.vault).await,
         Ask::VaultDelete(key) => vault::delete(&handle, scope, channel, key, answerers.vault).await,

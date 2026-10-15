@@ -11,7 +11,6 @@ use tokio::sync::{mpsc, oneshot};
 
 use super::{Cmd, DequeueReply, Fate, Outcome, Queued, run};
 use crate::proxy::Proxy;
-use crate::stamp::Stamp;
 
 /// A message offered to the loop in flight, and not yet fated.
 struct Inflight {
@@ -44,6 +43,9 @@ enum Run {
 ///   task of its own, reporting back on a channel, so a dequeue
 ///   never waits on an `/enqueue` the loop holds open.
 /// - Nothing here writes an error on the begin scope's main stream.
+///   What [`run::relay`] writes there beside the chunks is the
+///   proxy's own two words, that a loop began and that it ended,
+///   and neither ends the scope.
 struct Driver {
     queue: VecDeque<Queued>,
     inflight: Option<Inflight>,
@@ -56,9 +58,9 @@ struct Driver {
 
 /// Start the driver for an agent container that has begun, and hand
 /// back the channel the server's channels speak to it on.
-pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp) -> mpsc::UnboundedSender<Cmd> {
+pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>) -> mpsc::UnboundedSender<Cmd> {
     let (sender, receiver) = mpsc::unbounded_channel();
-    tokio::spawn(drive(proxy, scope, stamp, receiver));
+    tokio::spawn(drive(proxy, scope, receiver));
     sender
 }
 
@@ -73,7 +75,7 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp) -> mpsc:
 /// drain. The command channel closing is the connection gone — every
 /// channel that held a sender is over — and the driver ends with it;
 /// the calls in flight end with the process.
-async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut commands: mpsc::UnboundedReceiver<Cmd>) {
+async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::UnboundedReceiver<Cmd>) {
     let mut driver = Driver {
         queue: VecDeque::new(),
         inflight: None,
@@ -121,7 +123,7 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut com
                         for message in batch {
                             let _ = message.fate.send(Fate::Delivered);
                         }
-                        ended = Some(run::relay(response, Arc::clone(&scope), stamp.clone()));
+                        ended = Some(run::relay(response, Arc::clone(&scope)));
                         driver.run = Run::Active;
                     }
                     Ok(Err(error)) => {

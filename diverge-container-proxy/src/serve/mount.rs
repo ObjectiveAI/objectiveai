@@ -42,7 +42,7 @@ async fn make(proxy: &Proxy, scope: Arc<ScopeHandle>, frame: request::Frame) -> 
     let Some(path) = paths::absolute(&frame.path) else {
         return Err("the path names the root, or has a component that is not a name".to_string());
     };
-    if proxy.mounts.holds(&path) {
+    if proxy.mounts.holds(&path).await {
         return Err(format!("{} is already a mount", path.display()));
     }
     let kind = match frame.kind {
@@ -57,5 +57,5 @@ async fn make(proxy: &Proxy, scope: Arc<ScopeHandle>, frame: request::Frame) -> 
             .map_err(|error| format!("mount: {error}"))?
             .map_err(|error| format!("mount: {error}"))?
     };
-    proxy.mounts.insert(path, mounted)
+    proxy.mounts.insert(path, mounted).await
 }

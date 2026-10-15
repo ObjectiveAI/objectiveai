@@ -3,7 +3,7 @@
 use std::convert::Infallible;
 use std::fmt;
 
-use super::{containers, images, version, volumes};
+use super::{capacity, containers, daemons, images, info, volumes};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -34,8 +34,8 @@ pub enum ClientRequest<'a> {
     ContainersAgentsRun(containers::agents::run::client::request::Frame),
     /// Tag `1`. Run a tool server in a container.
     ContainersToolsRun(containers::tools::run::client::request::Frame),
-    /// Tag `2`. Join a tool container somebody else is running.
-    ContainersToolsConnect(containers::tools::connect::client::request::Frame),
+    /// Tag `2`. Serve a subtree of a running container live.
+    ContainersFuseServe(containers::fuse_serve::client::request::Frame),
     /// Tag `3`. List the volumes a provider offers.
     VolumesList(volumes::list::client::request::Frame),
     /// Tag `4`. Examine one of them.
@@ -47,7 +47,7 @@ pub enum ClientRequest<'a> {
     /// Tag `7`. See what one holds.
     VolumesFiletree(volumes::filetree::client::request::Frame),
     /// Tag `8`. Serve one's files live.
-    VolumesServe(volumes::serve::client::request::Frame),
+    VolumesFuseServe(volumes::fuse_serve::client::request::Frame),
     /// Tag `9`. Ask how large a volume may be made.
     VolumesCreateCapacity(volumes::create_capacity::client::request::Frame),
     /// Tag `10`. Make a volume.
@@ -61,8 +61,24 @@ pub enum ClientRequest<'a> {
     VolumesDelete(volumes::delete::client::request::Frame),
     /// Tag `14`. Ask whether an image can be supplied.
     ImagesCheck(images::check::client::request::Frame),
-    /// Tag `15`. Ask what the provider is.
-    Version(version::client::request::Frame),
+    /// Tag `15`. List the images the caller built.
+    ImagesList(images::list::client::request::Frame),
+    /// Tag `16`. Examine one of them.
+    ImagesStat(images::stat::client::request::Frame),
+    /// Tag `17`. Build one.
+    ImagesBuild(images::build::client::request::Frame),
+    /// Tag `18`. Destroy one.
+    ImagesDelete(images::delete::client::request::Frame),
+    /// Tag `19`. Pull what the provider holds for the caller.
+    ImagesOci(images::oci::client::request::Frame),
+    /// Tag `20`. Ask what the provider is, and what it does.
+    Info(info::client::request::Frame),
+    /// Tag `21`. Ask how much the caller may still use.
+    Capacity(capacity::client::request::Frame),
+    /// Tag `22`. Accept connections from other daemons.
+    DaemonsAccept(daemons::accept::client::request::Frame),
+    /// Tag `23`. Connect to another daemon.
+    DaemonsConnect(daemons::connect::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -73,7 +89,7 @@ pub enum ClientRequest<'a> {
     /// # It is answered, not dropped
     ///
     /// A server finishes the scope over it, with nothing in front:
-    /// sixteen endpoints have sixteen error vocabularies, and an invalid
+    /// twenty-four endpoints have twenty-four error vocabularies, and an invalid
     /// request names none of them — where a finish with nothing before
     /// it is already what the wire means by a request that could not
     /// be served, and every executor reads it as its own "unanswered".
@@ -86,14 +102,15 @@ pub enum ClientRequest<'a> {
     /// A server that wants one has the bytes and can ask the specific
     /// request to decode them, which answers precisely: an unknown
     /// tag, a body that would not parse, or nothing at all. Storing a
-    /// reason here would mean this type choosing which of sixteen error
-    /// vocabularies to speak, and choosing wrong for fifteen of them.
+    /// reason here would mean this type choosing which of twenty-four
+    /// error vocabularies to speak, and choosing wrong for twenty-three
+    /// of them.
     Invalid(&'a [u8]),
 }
 
 impl Encode for ClientRequest<'_> {
-    /// Two ways to fail, because sixteen requests use two encodings
-    /// between them — and three of the sixteen use neither, having
+    /// Two ways to fail, because twenty-four requests use two encodings
+    /// between them — and seven of the twenty-four use neither, having
     /// nothing to encode.
     type Error = ClientRequestEncodeError;
 
@@ -108,7 +125,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ContainersToolsRun(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
-            ClientRequest::ContainersToolsConnect(frame) => {
+            ClientRequest::ContainersFuseServe(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::VolumesList(frame) => {
@@ -128,7 +145,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesFiletree(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
-            ClientRequest::VolumesServe(frame) => {
+            ClientRequest::VolumesFuseServe(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::VolumesCreateCapacity(frame) => {
@@ -151,10 +168,34 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ImagesCheck(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
-            ClientRequest::Version(frame) => {
+            ClientRequest::ImagesList(frame) => {
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 frame.encode(out).map_err(|error| match error {})
+            }
+            ClientRequest::ImagesStat(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
+            }
+            ClientRequest::ImagesBuild(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
+            }
+            ClientRequest::ImagesDelete(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
+            }
+            ClientRequest::ImagesOci(frame) => {
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                frame.encode(out).map_err(|error| match error {})
+            }
+            ClientRequest::Info(frame) => {
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                frame.encode(out).map_err(|error| match error {})
+            }
+            ClientRequest::Capacity(frame) => frame.encode(out).map_err(|error| match error {}),
+            ClientRequest::DaemonsAccept(frame) => frame.encode(out).map_err(|error| match error {}),
+            ClientRequest::DaemonsConnect(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -186,8 +227,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             1 => containers::tools::run::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ContainersToolsRun)
                 .ok(),
-            2 => containers::tools::connect::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ContainersToolsConnect)
+            2 => containers::fuse_serve::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ContainersFuseServe)
                 .ok(),
             3 => volumes::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesList)
@@ -204,8 +245,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             7 => volumes::filetree::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesFiletree)
                 .ok(),
-            8 => volumes::serve::client::request::Frame::decode(bytes)
-                .map(ClientRequest::VolumesServe)
+            8 => volumes::fuse_serve::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesFuseServe)
                 .ok(),
             9 => volumes::create_capacity::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreateCapacity)
@@ -225,8 +266,32 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             14 => images::check::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesCheck)
                 .ok(),
-            15 => version::client::request::Frame::decode(bytes)
-                .map(ClientRequest::Version)
+            15 => images::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesList)
+                .ok(),
+            16 => images::stat::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesStat)
+                .ok(),
+            17 => images::build::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesBuild)
+                .ok(),
+            18 => images::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesDelete)
+                .ok(),
+            19 => images::oci::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesOci)
+                .ok(),
+            20 => info::client::request::Frame::decode(bytes)
+                .map(ClientRequest::Info)
+                .ok(),
+            21 => capacity::client::request::Frame::decode(bytes)
+                .map(ClientRequest::Capacity)
+                .ok(),
+            22 => daemons::accept::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsAccept)
+                .ok(),
+            23 => daemons::connect::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsConnect)
                 .ok(),
             _ => None,
         };
@@ -236,10 +301,10 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
 
 /// A request that could not be written.
 ///
-/// Named for the encoding rather than for the request, because nine
-/// requests share two of them and a variant per request would be nine
-/// names that mean the same failure — nine, because the other three
-/// have nothing to encode.
+/// Named for the encoding rather than for the request, because
+/// seventeen requests share two of them and a variant per request
+/// would be seventeen names that mean the same failure — seventeen,
+/// because the other seven have nothing to encode.
 #[derive(Debug)]
 pub enum ClientRequestEncodeError {
     /// A JSON request did not serialize.

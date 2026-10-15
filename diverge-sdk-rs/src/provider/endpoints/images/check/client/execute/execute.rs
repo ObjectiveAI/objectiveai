@@ -41,7 +41,7 @@ use crate::shared::error::Error;
 /// [`Handle`] is cheap and would be fine, but nothing here outlives the
 /// call, so there is nothing for an owned one to buy.
 ///
-/// # Two answers and an error, which are three things
+/// # Two answers, an error and an empty question, which are four things
 ///
 /// [`Available`](crate::provider::endpoints::images::check::server::response::Available)
 /// and
@@ -51,7 +51,10 @@ use crate::shared::error::Error;
 /// unavailable image is a provider that looked, and an error is a
 /// provider that could not. Treating them alike either gives up on an
 /// image that was there or retries forever against one that never will
-/// be.
+/// be. A request that named no source the provider has comes back as
+/// [`ExecuteError::NoSource`]: the provider looked nowhere, and the
+/// caller asks again with a source the provider has set, or asks
+/// another provider.
 ///
 /// # It reads one frame and leaves
 ///
@@ -102,14 +105,15 @@ pub async fn execute(
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Response(answer) => Ok(answer),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
+        response::Frame::NoSource => Err(ExecuteError::NoSource),
     }
 }
 
 /// A check that did not produce an answer.
 ///
 /// Five of these are this end's view of something going wrong. The
-/// last is the provider saying so itself, and it is the only one that
-/// means the exchange worked.
+/// last two are the provider speaking, and they are the only ones
+/// that mean the exchange worked.
 #[derive(Debug)]
 pub enum ExecuteError {
     /// The request never went out.
@@ -142,6 +146,13 @@ pub enum ExecuteError {
     /// [`Unavailable`](crate::provider::endpoints::images::check::server::response::Unavailable)
     /// is one.
     Provider(Error),
+    /// The request named no source the provider has — neither asked,
+    /// or `client` of a provider with no image store, or `registries`
+    /// of one listing no registry — and the provider answered so:
+    /// nothing was looked at, and nothing is determined about the
+    /// image. Asked again with a source it has set, the provider
+    /// answers.
+    NoSource,
 }
 
 impl fmt::Display for ExecuteError {
@@ -168,6 +179,9 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Provider(_) => {
                 f.write_str("the provider could not answer the image check")
             }
+            ExecuteError::NoSource => {
+                f.write_str("the image check named no source the provider has, and it answered so")
+            }
         }
     }
 }
@@ -186,7 +200,8 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Response(error) => Some(error),
             ExecuteError::Closed
             | ExecuteError::Unanswered
-            | ExecuteError::Provider(_) => None,
+            | ExecuteError::Provider(_)
+            | ExecuteError::NoSource => None,
         }
     }
 }

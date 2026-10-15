@@ -4,15 +4,17 @@ use bytes::Bytes;
 use rmcp::model::{CallToolRequestParams, PaginatedRequestParams, ReadResourceRequestParams};
 
 use crate::provider::endpoints::containers::{agents, tools};
-use crate::shared::containers::authorize;
 use crate::shared::containers::fuse::Attrs;
-use crate::shared::containers::tools::Tool;
+use crate::shared::containers::dependencies::Template;
 
 /// A server-opened channel request on a run scope, with nothing
 /// borrowed: what the serving loop hands to a task.
 ///
 /// The two families' `server::channel_request::Frame`s carry the same
-/// twenty-seven asks in the same order with the same payloads, and
+/// asks with the same payloads, each family less what its container
+/// never asks — the agents family has the dependencies and the five
+/// MCP exchanges outward, which a tool container never makes, and no
+/// daemon connection, which an agent container never opens — and
 /// borrow from the frame they were decoded from; this is the one
 /// owned form both convert into, so the answer to each is written
 /// once. Which family it came from does not matter to the answer: the
@@ -24,19 +26,23 @@ pub enum Ask {
     OciManifest(String),
     /// A blob of an image the caller holds, by digest.
     OciBlob(String),
-    /// Whether the caller holds an image: its name, its digest.
-    OciHas(String, String),
-    /// Whether a connector may attach.
-    Authorize(authorize::request::Authorize),
-    /// The tools the container declared, to deploy.
-    Tools(Vec<Tool>),
+    /// Whether the caller holds an image: its digest.
+    OciHas(String),
+    /// The dependencies the container declared, to deploy, with the
+    /// run's id.
+    Dependencies {
+        /// The run's id, told before the id response.
+        id: String,
+        /// The dependency tool templates, in the order declared.
+        dependencies: Vec<Template>,
+    },
     /// The content of a write this caller started, by its id.
     Write(u32),
     /// A database connection the container opened, by the id the
     /// provider minted.
-    Postgres(u32),
-    /// A command, opaque.
-    Command(Bytes),
+    Postgres(u32),    /// A daemon connection the container's program opened, by the id
+    /// the provider minted.
+    Daemon(u32),
     /// A vault key's value.
     VaultGet(String),
     /// A vault key set.
@@ -85,12 +91,13 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
         match frame {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
-            Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
-            Frame::Authorize(request) => Ask::Authorize(request),
-            Frame::Tools(request) => Ask::Tools(request.tools.into_owned()),
+            Frame::OciHas(request) => Ask::OciHas(request.digest),
+            Frame::Dependencies(request) => Ask::Dependencies {
+                id: request.id.into_owned(),
+                dependencies: request.dependencies.into_owned(),
+            },
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
-            Frame::Command(request) => Ask::Command(Bytes::copy_from_slice(request.0)),
             Frame::VaultGet(request) => Ask::VaultGet(request.key.to_string()),
             Frame::VaultSet(request) => {
                 Ask::VaultSet(request.key.to_string(), Bytes::copy_from_slice(request.value))
@@ -142,12 +149,10 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
         match frame {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
-            Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
-            Frame::Authorize(request) => Ask::Authorize(request),
-            Frame::Tools(request) => Ask::Tools(request.tools.into_owned()),
+            Frame::OciHas(request) => Ask::OciHas(request.digest),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
-            Frame::Command(request) => Ask::Command(Bytes::copy_from_slice(request.0)),
+            Frame::Daemon(request) => Ask::Daemon(request.connection_id),
             Frame::VaultGet(request) => Ask::VaultGet(request.key.to_string()),
             Frame::VaultSet(request) => {
                 Ask::VaultSet(request.key.to_string(), Bytes::copy_from_slice(request.value))
@@ -155,11 +160,6 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             Frame::VaultDelete(request) => Ask::VaultDelete(request.key.to_string()),
             Frame::VaultLock(request) => Ask::VaultLock(request.key.to_string(), request.ttl),
             Frame::VaultUnlock(request) => Ask::VaultUnlock(request.key.to_string()),
-            Frame::McpListTools(request) => Ask::McpListTools(request.0),
-            Frame::McpListResources(request) => Ask::McpListResources(request.0),
-            Frame::McpCallTool(request) => Ask::McpCallTool(request.0),
-            Frame::McpReadResource(request) => Ask::McpReadResource(request.0),
-            Frame::McpNotifications(_) => Ask::McpNotifications,
             Frame::FuseRead(request) => Ask::FuseRead(
                 request.id.to_string(),
                 request.path.to_string(),

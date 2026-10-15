@@ -1,4 +1,4 @@
-//! The answer: held, or not.
+//! The answer: not held, or held under a name.
 
 mod error;
 mod frame;

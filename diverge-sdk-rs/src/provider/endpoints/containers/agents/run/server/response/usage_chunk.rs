@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 /// Each chunk is a DELTA — every field is additive, so a caller that
 /// wants a running total sums them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub struct UsageChunk {
     /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: UsageChunkType,
@@ -31,6 +32,7 @@ pub struct UsageChunk {
 
 /// [`UsageChunk`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum UsageChunkType {
     #[serde(rename = "usage")]
     #[default]

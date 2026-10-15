@@ -4,31 +4,63 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-/// Ask the daemon for every agent of the caller's.
+use crate::shared::relay::Relay;
+
+use super::Filter;
+
+/// Ask the daemon for the caller's agents, narrowed.
 ///
-/// Carries nothing: the caller is the connection's identity, and
-/// the daemon lists everything held under it. On the wire the body
-/// is the empty object, `{}`, so that the request is JSON after its
-/// tag as every request of the agents family is, and so that a
-/// member has somewhere to land the day one is wanted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct Frame {}
+/// Everything is optional, and a request with none of it — `{}` on the
+/// wire — is every agent of the caller's. The members but `count`
+/// together are the filter. The daemon applies the filter, oldest
+/// created first, and sends each agent it lets through as an
+/// [`Agent`](crate::daemon::endpoints::agents::list::server::response::Agent).
+/// The count caps what comes back.
+///
+/// # Any one of, every one of
+///
+/// A member that lists candidates — `names`, `templates`, `creators` —
+/// matches a agent that is any one of them, or was made under any one
+/// of them. `all_tags` matches an agent that carries every one of them,
+/// and `any_tags` one that carries any one of them. An empty list is
+/// absent, and matches every agent.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
+pub struct Frame {
+    /// The filter: see [`Filter`]. Flattened, so its members are this
+    /// object's own.
+    #[serde(flatten)]
+    pub filter: Filter,
+    /// How many agents the list is kept to, counting what matches and
+    /// not what the filter reads: the first that many that match are
+    /// the list, and one leaving that window is removed as one entering
+    /// it is added. `0` is a list of nothing, told whole at once.
+    /// Absent, no cap.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub count: Option<u64>,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
+}
 
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
-const TAG: u8 = 4;
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
+const TAG: u8 = 5;
 
-/// JSON, as the rest of the agents family's requests are.
+/// JSON, as every request of the daemon's is: the filter's members,
+/// each absent when it says nothing, so that a request that says
+/// nothing is `{}`.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
@@ -52,7 +84,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A list request frame that could not be read.
+/// A agents list request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.

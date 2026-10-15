@@ -78,6 +78,7 @@ pub async fn execute(
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Capacity(bytes) => Ok(bytes),
+        response::Frame::Unsupported => Err(ExecuteError::Unsupported),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
@@ -112,6 +113,9 @@ pub enum ExecuteError {
     Unanswered,
     /// The response frame did not parse.
     Response(response::FrameDecodeError),
+    /// The provider keeps no volumes. The protocol's defined refusal,
+    /// not a failure.
+    Unsupported,
     /// The provider could not say, and said so.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -140,6 +144,7 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Response(error) => {
                 write!(f, "volume edit-capacity answer did not parse: {error}")
             }
+            ExecuteError::Unsupported => f.write_str("the provider keeps no volumes"),
             ExecuteError::Provider(_) => {
                 f.write_str("the provider could not answer the volume edit-capacity question")
             }
@@ -161,6 +166,7 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Response(error) => Some(error),
             ExecuteError::Closed
             | ExecuteError::Unanswered
+            | ExecuteError::Unsupported
             | ExecuteError::Provider(_) => None,
         }
     }

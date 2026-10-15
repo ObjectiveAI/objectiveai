@@ -83,6 +83,9 @@ pub async fn execute(
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Deleted => Ok(()),
         response::Frame::Mounted => Err(ExecuteError::Mounted),
+        response::Frame::FuseServed => Err(ExecuteError::FuseServed),
+        response::Frame::Held => Err(ExecuteError::Held),
+        response::Frame::Unsupported => Err(ExecuteError::Unsupported),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
@@ -120,6 +123,16 @@ pub enum ExecuteError {
     /// The volume is mounted in a running container, and the provider
     /// does not delete a mounted volume. Nothing was changed.
     Mounted,
+    /// A FUSE serve holds the volume, and it was not deleted. Nothing
+    /// changed.
+    FuseServed,
+    /// Another operation — a stat, a read, a write, a filetree, an
+    /// edit or a delete — has the volume to itself, and it was not
+    /// deleted. Nothing changed.
+    Held,
+    /// The provider keeps no volumes. The protocol's defined refusal,
+    /// not a failure.
+    Unsupported,
     /// The provider could not do it, and said so.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -151,6 +164,13 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Mounted => f.write_str(
                 "the volume is mounted in a running container and was not deleted",
             ),
+            ExecuteError::FuseServed => f.write_str(
+                "a FUSE serve holds the volume and it was not deleted",
+            ),
+            ExecuteError::Held => f.write_str(
+                "another operation has the volume to itself and it was not deleted",
+            ),
+            ExecuteError::Unsupported => f.write_str("the provider keeps no volumes"),
             ExecuteError::Provider(_) => {
                 f.write_str("the provider could not complete the volume deletion")
             }
@@ -173,6 +193,9 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Closed
             | ExecuteError::Unanswered
             | ExecuteError::Mounted
+            | ExecuteError::FuseServed
+            | ExecuteError::Held
+            | ExecuteError::Unsupported
             | ExecuteError::Provider(_) => None,
         }
     }

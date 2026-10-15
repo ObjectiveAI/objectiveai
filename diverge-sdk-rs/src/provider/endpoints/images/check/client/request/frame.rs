@@ -2,35 +2,49 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::Sources;
+use crate::shared::containers::request::Image;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask a provider whether it can supply a particular image.
+/// Ask a provider whether it can supply a particular image: the
+/// [`Image`] — its digest, and the references under which its bytes
+/// may be fetched — and where to look for it, the [`Sources`].
 ///
-/// No registry. The digest is the image's identity and a registry is
-/// only a locator — any registry serving these bytes serves the same
-/// image, because a client recomputes the hash on pull and rejects a
-/// mismatch. So WHERE a provider gets it is the provider's business:
-/// its own mirror, a pull-through cache, a private registry it has
-/// credentials for, or something it already holds locally.
+/// The digest is the image's identity and a reference is only a
+/// locator — any registry serving these bytes serves the same image,
+/// because a client recomputes the hash on pull and rejects a
+/// mismatch. The references are where the client knows the bytes to
+/// be, and a client that knows of none sends none; a provider asks a
+/// referenced registry only where its own policy lists it.
 ///
-/// That is also what makes proprietary images answerable. A provider
-/// with access to an image no public registry serves can still say
-/// yes, and a caller naming a registry it cannot reach would be
-/// asserting something it has no standing to assert.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+/// # Where to look
+///
+/// Two places, each asked for or not, either or both: the client's
+/// own images, built on this provider, and the referenced
+/// registries. At least one is asked for, or the provider answers
+/// [`NoSource`](crate::provider::endpoints::images::check::server::response::Frame::NoSource)
+/// and determines nothing. Available means at least one source asked
+/// has the image; the provider looks in the client's own images
+/// before it asks a registry. What the provider holds on its own
+/// account is not a place a check can look: no image it pulled is
+/// revealed by one. See [`Sources`].
+///
+/// # An image the client built is one the provider holds, for it
+///
+/// A digest the client [built](crate::provider::endpoints::images::build)
+/// on this provider is available to that client, from the store,
+/// when the `client` source is asked; to any other client it is not
+/// there, unless that client built it too. A provider never answers
+/// one identity's store to another.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The repository path — `library/nginx`, `myorg/myimage`.
-    ///
-    /// Kept alongside the digest because a digest alone is not
-    /// resolvable: every registry API is repository-scoped, and there
-    /// is no lookup from a digest to wherever it lives.
-    pub name: String,
-    /// The manifest digest, `<algorithm>:<hex>`.
-    ///
-    /// What actually identifies the image. Unlike a tag, it cannot be
-    /// repointed at different content.
-    pub digest: String,
+    /// The image asked about.
+    pub image: Image,
+    /// Where to look: two booleans, flat in the JSON beside
+    /// `image`.
+    #[serde(flatten)]
+    pub sources: Sources,
 }
 
 /// This frame's tag among the scope-opening requests.

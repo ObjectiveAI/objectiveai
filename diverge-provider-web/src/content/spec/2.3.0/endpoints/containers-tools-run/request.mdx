@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 1 followed by the request as JSON: the image, the limits, the mounts and the arguments.'
+summary: 'The payload is the tag byte 1 followed by the request as JSON: the image, the template id, the limits, the mounts and the arguments.'
 order: 1
 draft: false
 ---
@@ -12,11 +12,21 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 [1][container JSON …]
 ```
 
-- **`image`.** An object of two fields: `{"name":…,"digest":…}`.
-  `name` is a repository path without a host; `digest` is
-  `<algorithm>:<hex>`, the manifest digest, which identifies the
-  image. The request names no source: where the server obtains the
-  image is the server's own.
+- **`image`.** An object of two fields: `{"digest":…,"references":…}`.
+  `digest` is `<algorithm>:<hex>`, the manifest digest, which
+  identifies the image; `references` is an array of objects of
+  `registry` and `name`, each a registry host and a repository path
+  under which the bytes may be fetched, absent when empty, as
+  [images::check](/endpoints/images-check/request/) states them. The
+  request names no source beyond them: the server looks in what it
+  holds first, asks the referenced registries its policy lists, and
+  may take the image from the client.
+- **`template`.** A string: the id of the template the container is
+  made from, as the client names it — an agent template's, a tool
+  template's, or a dependency tool template's. The server carries it
+  verbatim in the begin scope's request beside `arguments`, so the
+  container's program is told which template it runs as, and reads
+  it for nothing else.
 - **`memory`, `disk`.** Limits in bytes: the memory the container may
   use, and the bytes the container may write to its own filesystem.
   Neither governs a mount.
@@ -29,8 +39,14 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   in the volume when the container ends; `ephemeral`, the volume is
   as it was before the run, and the container sees the volume's
   content as of its start; `read_only`, the container cannot change
-  it. A mount states nothing about it. A request may name one volume
-  at several paths; it is one user of the volume.
+  it. `mode` is the mode the mount means the volume to have, one of
+  the strings `persistent`, `ephemeral` and `read_only`. A mount
+  does not change the volume's mode: a volume whose mode differs
+  from `mode` refuses the run, as the [response](/endpoints/containers-tools-run/response/) states. A request may name one
+  volume at several paths; it is one running container holding the
+  volume, and it
+  names one mode for it, a request naming it under two modes being
+  refused the same way.
 - **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path
   and an `id` the client chose. Every one is mounted before the id
   is sent. A directory mount is a tree the client serves: every entry

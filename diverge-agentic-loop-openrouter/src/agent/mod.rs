@@ -4,9 +4,11 @@
 //! be, and every type here derives its JSON Schema so `GET /schema`
 //! can say so — [`schemars::schema_for!`] over [`Agent`] is the
 //! whole answer. One member is not this image's to define:
-//! `mcp_tools`, the tool containers the agent depends on, in the form
-//! the provider's wire gives a tool, passed back whole as the
-//! registration's answer.
+//! `dependencies`, the tool containers the agent depends on, each a
+//! dependency tool template exactly as the SDK's
+//! `shared::containers::dependencies::Template` states one — its
+//! schema at `GET /schema`, the list itself as the registration's
+//! answer.
 
 mod agent;
 mod context_compression;

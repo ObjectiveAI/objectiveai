@@ -16,6 +16,7 @@ pub mod mcp_list_resources;
 pub mod mcp_list_tools;
 pub mod mcp_notifications;
 pub mod mcp_read_resource;
+pub mod daemon;
 pub mod postgres;
 pub mod read;
 pub mod schema;

@@ -17,37 +17,52 @@
 //! # Why they are shared
 //!
 //! Because more than one scope carries them, in more than one
-//! direction. Every [`containers`](crate::provider::endpoints::containers) scope
-//! has the container inside asking a caller's servers; a
-//! [`tools`](crate::provider::endpoints::containers::tools) scope also has the
-//! caller asking a server the provider is holding; and the
-//! [`proxy`](crate::container_proxy::outside::endpoints::agents::begin) inside the container relays
+//! direction. An [`agents`](crate::provider::endpoints::containers::agents)
+//! run scope has the container inside asking a caller's servers; a
+//! [`tools`](crate::provider::endpoints::containers::tools) run scope
+//! has the caller asking a server the provider is holding, and never
+//! the other way, since a tool container makes no tool call outward;
+//! and the
+//! [`proxy`](crate::container_proxy::outside::endpoints::agents::begin) inside the agent container relays
 //! the first of those one hop earlier.
 //!
 //! Same five exchanges, opposite ways round. A shape defined once per
 //! endpoint would be four definitions that agree until they do not.
 //!
-//! # The image under `_meta`
+//! # Who is on the other side, under `_meta`
 //!
 //! A container never addresses one server over another: it sees its
 //! proxy, and the caller merges its servers into one list. So the
-//! proxy says which image is which, under one `_meta` key,
-//! `diverge.network/image`, whose value is an object of the
-//! container's `name` and `digest` as the run request named them —
-//! the proxy learns them on its begin. On the four requests a
-//! program sends outward the proxy sets the key on the params, so a
-//! tool container that receives the call knows which image is
-//! calling. On what a tool container's own server answers — the
-//! result of each of the four, each tool and each resource of a
-//! list, and each notification — the proxy sets the key too, so a
-//! program that reads a merged list knows which image serves each
-//! tool. And on every chunk an agent says, which is not MCP but has
-//! the same `_meta` at its top level, the proxy sets the key, so a
-//! caller knows which image spoke. The proxy replaces a value the
-//! program set under that key
-//! and leaves every other key as it was sent; the provider's server
-//! relays all of it verbatim. The key's form is MCP's own rule for
-//! `_meta` names: a prefix of dotted labels, a slash, a name.
+//! caller says who is which, under one `_meta` key — [`KEY`],
+//! `diverge.network` — whose value is one object tagged `kind`, the
+//! [`Caller`](attestation::Caller) on a request and the
+//! [`Tool`](attestation::Tool) on an answer, set by [`attest`]; and
+//! the one that says so is the daemon. On the four requests an
+//! agent's program sends outward the daemon sets the caller — `kind`
+//! `agent`: the agent's image, template, index and name — on the
+//! params before it forwards the call, so a tool container that
+//! receives it knows which agent is calling; and on the four an
+//! outside client puts over a connect, the serving daemon sets the
+//! caller too — `kind` `unbrokered`: the identity it authorized the
+//! connection as, and nothing the client said of itself — before the
+//! exchange reaches the tool. On what
+//! a tool container's own server answers — the result of each of the
+//! four, each tool and each resource of a list, and each notification
+//! — the daemon sets the tool as it relays the answer back, so a
+//! program that reads a merged list knows which tool serves each:
+//! `kind` `created`, `connected` or `dependency`, each with the
+//! tool's image and template — a connected tool's as the daemon that
+//! runs it told on the connect, this daemon's stamp replacing that
+//! daemon's, which is not trusted. And on every chunk an agent says,
+//! which is not MCP but has the same `_meta` at its top level, the
+//! daemon sets the agent as it keeps the chunk, so a reader of the
+//! log knows which agent spoke. The daemon replaces a value set under
+//! the key and leaves every other key as it was sent; the proxy and
+//! the provider's server set nothing under `_meta` and relay all of
+//! it as sent. The key's form is MCP's own rule for `_meta` names: a
+//! prefix of dotted labels — here the prefix alone. The side that
+//! receives it reads it back as its type through [`attestation`]: a
+//! tool reads a request's caller, an agent an answer's tool.
 //!
 //! # What is not here
 //!
@@ -60,9 +75,12 @@
 //! channel request wants it.
 
 mod frame_error;
+mod meta;
 
 pub use frame_error::*;
+pub use meta::*;
 
+pub mod attestation;
 pub mod call_tool;
 pub mod list_resources;
 pub mod list_tools;

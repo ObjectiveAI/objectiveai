@@ -1,0 +1,35 @@
+---
+title: 'info'
+summary: 'Tag 20: a client asks what a server is; the server sends exactly one response carrying, as JSON, the revision of this specification it implements, 2.3.0, and the capabilities it holds out, and the scope finishes.'
+order: 20
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`20` and nothing more. The server sends exactly one response, whose
+payload is one JSON object carrying `version`, the string `2.3.0`,
+the revision of this specification, and `capabilities`, the object
+the [Capabilities](/capabilities/) layer defines. The response finish
+follows the response, and no frame follows the finish.
+
+- **The request.** The request carries no parameter; the tag is the
+  whole of it. [Request](/endpoints/info/request/) states its form.
+- **The response.** The response carries the string `2.3.0` as
+  `version`, and a server that implements this revision sends no
+  other string; it carries as `capabilities` the capabilities the
+  server holds out. [Response](/endpoints/info/response/) states its
+  form.
+- **No error.** This endpoint defines no error frame and no refusal.
+  The scope carries exactly one response and the response finish.
+- **Independence.** The request and its response depend on no other
+  exchange. A client that does not know which revision a server
+  implements, or which parts of the [Endpoints](/endpoints/) layer it
+  serves, learns both from this exchange before it composes any other
+  request.
+- **The capabilities bind.** The capabilities the response carries
+  are a fact of the server: every `info` response the server sends,
+  on every connection, carries the same capabilities, and the server
+  serves every request on every connection as they state.
+  [Capabilities](/capabilities/) states what each capability binds
+  the server to, and what the server sends for a request past a
+  capability it does not hold out.

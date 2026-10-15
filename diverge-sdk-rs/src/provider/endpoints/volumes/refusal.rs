@@ -1,14 +1,21 @@
 //! The refusals the handlers answer on their own, without asking
-//! the manager: a name the caller has no volume by, a volume that
-//! something is using, a path that is not one of names, and a write
-//! whose content did not arrive whole.
+//! the manager, and that no endpoint has a frame of its own for: a
+//! name the caller has no volume by, a path that is not one of names,
+//! and a write whose content did not arrive whole. A volume that
+//! something holds is every endpoint's own variant — `Mounted`,
+//! `FuseServed` and `Held` on each, and the run's
+//! [`VolumeHeld`](crate::shared::containers::response::VolumeHeld),
+//! [`VolumeMounted`](crate::shared::containers::response::VolumeMounted)
+//! and
+//! [`VolumeFuseServed`](crate::shared::containers::response::VolumeFuseServed)
+//! — and no error here.
 
 use serde_json::json;
 
 use crate::shared::error::Error;
 
 /// The error for a name the caller has no volume by:
-/// [`get`](crate::provider::server::volume_manager::VolumeManager::get)
+/// `get`
 /// answered [`None`].
 ///
 /// ```json
@@ -18,30 +25,6 @@ pub fn unknown(name: &str) -> Error {
     Error(json!({
         "kind": "volume",
         "error": format!("no volume named `{name}`"),
-    }))
-}
-
-/// The error for a volume whose exclusive hold,
-/// [`lock`](crate::provider::server::volume::Volume::lock), could not be taken:
-/// mounted in a running container or served, or under a stat, a
-/// read, a write, a filetree, an edit or a delete in flight. What a
-/// stat, a read, a write, a filetree and an edit answer, since none
-/// has a frame of its own for it — and what a serve answers for a
-/// volume held exclusively, or a persistent one held at all, its
-/// hold being the shared one. The endpoints with a frame of their own for it
-/// — a delete's
-/// [`Mounted`](crate::provider::endpoints::volumes::delete::server::response::Frame::Mounted),
-/// a run's
-/// [`VolumeHeld`](crate::shared::containers::response::VolumeHeld)
-/// — answer with that instead.
-///
-/// ```json
-/// {"kind":"mounted","error":"the volume `work` is mounted in a running container"}
-/// ```
-pub fn mounted(name: &str) -> Error {
-    Error(json!({
-        "kind": "mounted",
-        "error": format!("the volume `{name}` is mounted in a running container"),
     }))
 }
 

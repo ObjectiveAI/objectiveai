@@ -20,6 +20,7 @@ use super::Logprob;
 /// enum decides on the discriminator, never on shape, so payloads may
 /// coincide without becoming ambiguous.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct AssistantRefusalChunk {
     /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: AssistantRefusalChunkType,
@@ -43,6 +44,7 @@ pub struct AssistantRefusalChunk {
 
 /// [`AssistantRefusalChunk`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum AssistantRefusalChunkType {
     #[serde(rename = "assistant_refusal")]
     #[default]

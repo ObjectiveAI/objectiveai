@@ -1,7 +1,7 @@
 ---
 title: 'Vault unlock'
 summary: 'Tag 6: the server relays an ask of a program in the container that unlocks a key of the vault the caller holds; the client answers with exactly one channel response, ok or an error, which the server relays to the program.'
-order: 6
+order: 5
 draft: false
 ---
 
@@ -9,7 +9,7 @@ The server opens this channel when a program in the container unlocks a key
 of the vault. The ask is sent verbatim; the client's one answer is
 relayed back to the program verbatim.
 
-- **The request.** The tag byte `6` followed by the ask.
+- **The request.** The tag byte `5` followed by the ask.
   [Request](/container-proxy-endpoints/agents-begin/server/vault-unlock/request/) states its form.
 - **The response.** Exactly one channel response and the channel
   response finish. [Response](/container-proxy-endpoints/agents-begin/server/vault-unlock/response/) states the

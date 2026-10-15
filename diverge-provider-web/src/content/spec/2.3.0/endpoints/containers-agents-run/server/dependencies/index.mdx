@@ -1,0 +1,62 @@
+---
+title: 'Dependencies'
+summary: 'Tag 3: the server asks the client to deploy the dependency tool templates the container declared at registration, carrying the run’s id and the templates verbatim; the client answers with exactly one channel response, deployed or an error, and the channel response finish; anything but a deploy is the run’s error.'
+order: 3
+draft: false
+---
+
+The server opens this channel when the `Begun` the proxy answered its
+begin with carries one or more dependencies: the tool containers the
+container's program declared when it was registered, each as a
+dependency tool template, which the client deploys and serves to the
+container under the template's id. The client's answer decides
+whether the run goes on.
+
+- **When.** After the begin has been answered and before the id is
+  sent, beside the FUSE mounts. Exactly once per run, and never on a
+  connect scope. The server opens no dependencies channel when the
+  list is empty.
+- **The id.** The server mints the run's id before it opens the
+  channel, and enters the container among those it runs before it
+  asks: a [containers::fuse_serve](/endpoints/containers-fuse-serve/) naming
+  the id is answered while the dependencies are deployed, which is
+  how the client serves the container's paths into them. The id the
+  request carries is the id the server sends as the response after
+  the channel has ended, and no other. The container is listed by
+  nothing and found by no connect before the response: an agent
+  container is never listed and never connected to.
+- **The request.** The tag byte `3` followed by the run's id and the
+  dependencies as JSON. [Request](/endpoints/containers-agents-run/server/dependencies/request/) states its form.
+- **The response.** Exactly one channel response, deployed or an
+  error, and the channel response finish.
+  [Response](/endpoints/containers-agents-run/server/dependencies/response/) states the sequence.
+- **Verbatim.** The server relays the list as the proxy sent it and
+  reads none of it: not the kind, not the scope, not the mounts, not
+  the permissions.
+- **Two kinds.** A template's `type` is `transient` or `service`. A
+  transient tool is deployed for the one run of the one agent that
+  declared it and stopped with that run; its database scope is that
+  agent's alone; it alone may name the agent's files and directories
+  as mounts. A service is made once, under the scope key its `scope`
+  names — the agent, the agent's template, or the template alone —
+  and kept by the client from then on, started again whenever its
+  container ends and at every start of the client's, for as long as
+  any agent is attached to it: an agent is attached by a
+  registration that declares the template and detached by one that
+  no longer does, and a service no agent is attached to is retired
+  by the client after its idle time. A service names no mount, and
+  its database scope is shared as far as its scope says.
+- **What the client does.** The client runs each dependency as a
+  [containers::tools::run](/endpoints/containers-tools-run/) from
+  the template's `image`, `memory`, `disk` and `arguments`, with the
+  template's id as the run's `template`; serves, for a transient
+  tool, the agent container's paths the template's mounts name into
+  the tool container live, as [containers::fuse_serve](/endpoints/containers-fuse-serve/)
+  serves them and a FUSE mount of the tools run mounts them; gives
+  the tool the database scope its kind names and an account holding
+  the template's `permissions`, within which the word `self` reaches
+  the agent a transient tool was deployed for and every agent
+  attached to a service; and serves the tool to the container under
+  the template's id among the MCP servers the client answers the
+  container's tool calls with. A tool container declares no
+  dependencies of its own, and makes no tool call outward.

@@ -1,0 +1,37 @@
+---
+title: 'Connection'
+summary: 'No tag: the server announces a daemon connection a connector opened, under a connection id it minted, with the connector’s identity, address and mode; the acceptor answers with everything it says on the connection, one server frame per channel response, and its channel response finish hangs up.'
+order: 0
+draft: false
+---
+
+The server opens this channel when a connect scope names the
+acceptor's identity. It is the server's half of the connection; the
+acceptor's half is a
+[connection](/endpoints/daemons-accept/client/connection/) channel the
+acceptor opens, quoting the same id.
+
+- **The request.** The connection as JSON: the id the server minted,
+  the connector's identity and peer address as the server observed
+  them, and the connector's mode verbatim.
+  [Request](/endpoints/daemons-accept/server/connection/request/)
+  states its form.
+- **The response.** What the acceptor says on the connection, as
+  channel responses, each one server frame, and the channel response
+  finish, which hangs up.
+  [Response](/endpoints/daemons-accept/server/connection/response/)
+  states the sequence.
+- **The id.** The server chooses the id and keeps it unique among the
+  connections it has announced on the scope and the acceptor has not
+  finished. It may reuse an id after both halves of its connection
+  have finished.
+- **The mode.** The server relays the connector's mode verbatim and
+  does not read it. The credential it carries is the acceptor's to
+  judge.
+- **Before the other half.** The server sends nothing on the connect
+  scope until the acceptor has opened its half. A channel response
+  the acceptor sends before then is held, and relayed onto the
+  connect scope after the byte `0`, in order.
+- **The conduit.** The server relays each channel response onto the
+  connect scope as one response, the byte `2` followed by the frame
+  verbatim, in order, and reads none of them.

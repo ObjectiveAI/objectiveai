@@ -13,30 +13,31 @@ use diverge_sdk::shared::error::Error;
 use super::Family;
 use crate::encode::encoded;
 use crate::proxy::{Begun, Proxy};
-use crate::stamp::Stamp;
 use crate::{agent, inside, program};
 
 /// Serve the begin for the connection's life.
 ///
 /// A second begin on the connection is `Error`, then the finish, and
-/// the first goes on. Otherwise the arguments are registered with the
+/// the first goes on. Otherwise the arguments and the template are
+/// registered with the
 /// program's server — its refusal is the `Error`, in its own words,
 /// and the connection has not begun — and then `Begun` goes out
-/// carrying the tools the program answered with, the
+/// carrying the dependencies the program answered with, the
 /// scope is published to every surface inside the container, the
 /// queue's driver and the resident notifications ask are started,
 /// and every channel the server opens on the scope is served on a
 /// task of its own: a channel this end cannot read is finished with
-/// nothing. The scope is never finished by this end: it is the
-/// connection's life.
+/// nothing. No daemon connection is among them: an agent container
+/// holds no account and asks the daemon nothing, so the server never
+/// opens one, and `/daemon` closes on an agent container at once. The
+/// scope is never finished by this end: it is the connection's life.
 pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame) {
     if !proxy.claim_begin().await {
         refuse(&scope, begun()).await;
         return;
     }
-    let stamp = Stamp::new(&frame.image);
-    let tools = match program::register(&proxy.upstream, frame.arguments).await {
-        Ok(tools) => tools,
+    let dependencies = match program::register(&proxy.upstream, frame.arguments, frame.template).await {
+        Ok(dependencies) => dependencies,
         Err(error) => {
             proxy.release_begin().await;
             refuse(&scope, error).await;
@@ -44,15 +45,14 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
         }
     };
     let scope = Arc::new(scope);
-    if let Some(payload) = encoded(&response::Frame::Begun(tools)) {
+    if let Some(payload) = encoded(&response::Frame::Begun(dependencies)) {
         scope.send_response(&payload).await;
     }
     proxy.publish(Begun {
         scope: Arc::clone(&scope),
         family: Family::Agents,
-        stamp: stamp.clone(),
     });
-    proxy.set_commands(agent::driver(Arc::clone(&proxy), Arc::clone(&scope), stamp));
+    proxy.set_commands(agent::driver(Arc::clone(&proxy), Arc::clone(&scope)));
     tokio::spawn(inside::mcp::notifications(Arc::clone(&proxy)));
 
     while let Some(bytes) = scope.recv_channel_request().await {
