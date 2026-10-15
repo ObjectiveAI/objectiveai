@@ -10,9 +10,12 @@
 //! created from a template by that id, with a name, a provider and
 //! mounts of its own; [`get`] answers one by id; [`list`] lists them,
 //! narrowed,
-//! with their tags; [`delete`] removes one no agent was made from;
-//! [`tag`] and [`untag`] change a template's tags, which are the
-//! caller's and not in the template's hash.
+//! with their tags and the tools attached to them; [`delete`] removes
+//! one no agent was made from, its attachments with it; [`tag`] and
+//! [`untag`] change a template's tags, which are the caller's and not
+//! in the template's hash. A tool attached to a template — by
+//! [`attach_agent_template`](crate::daemon::endpoints::standalone_tools::attach_agent_template)
+//! — is every agent's that is made from it.
 
 mod agent_type;
 

@@ -13,7 +13,9 @@
 //! which the tool's MCP exchanges travel, and lets the connection go
 //! when nothing has used the tool for `idle_seconds`. The tool's life
 //! is not this scope's: it goes on after the finish, reached by its
-//! name, attached to agents by an [`attach`](super::attach), until a
+//! name, attached to agents by an
+//! [`attach_agent_instance`](super::attach_agent_instance) or an
+//! [`attach_agent_template`](super::attach_agent_template), until a
 //! [`delete`](super::delete).
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the

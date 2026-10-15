@@ -65,10 +65,10 @@ pub enum ClientRequest<'a> {
     StandaloneToolsEdit(standalone_tools::edit::client::request::Frame),
     /// Tag `18`. Register a tool another daemon holds, under a name.
     StandaloneToolsRegister(standalone_tools::register::client::request::Frame),
-    /// Tag `19`. Attach a tool to an agent.
-    StandaloneToolsAttach(standalone_tools::attach::client::request::Frame),
-    /// Tag `20`. Detach a tool from an agent.
-    StandaloneToolsDetach(standalone_tools::detach::client::request::Frame),
+    /// Tag `19`. Attach a tool to one agent.
+    StandaloneToolsAttachAgentInstance(standalone_tools::attach_agent_instance::client::request::Frame),
+    /// Tag `20`. Detach a tool from one agent.
+    StandaloneToolsDetachAgentInstance(standalone_tools::detach_agent_instance::client::request::Frame),
     /// Tag `21`. Delete a tool.
     StandaloneToolsDelete(standalone_tools::delete::client::request::Frame),
     /// Tag `22`. List the caller's tools, narrowed, and keep the list.
@@ -231,6 +231,10 @@ pub enum ClientRequest<'a> {
     ProvidersDaemonsAccountsEdit(providers::daemons::accounts::edit::client::request::Frame),
     /// Tag `100`. Forget an account on a daemon record.
     ProvidersDaemonsAccountsDelete(providers::daemons::accounts::delete::client::request::Frame),
+    /// Tag `101`. Attach a tool to every agent of a template.
+    StandaloneToolsAttachAgentTemplate(standalone_tools::attach_agent_template::client::request::Frame),
+    /// Tag `102`. Detach a tool from every agent of a template.
+    StandaloneToolsDetachAgentTemplate(standalone_tools::detach_agent_template::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -270,8 +274,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::StandaloneToolsGet(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsEdit(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsRegister(frame) => frame.encode(out),
-            ClientRequest::StandaloneToolsAttach(frame) => frame.encode(out),
-            ClientRequest::StandaloneToolsDetach(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsAttachAgentInstance(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsDetachAgentInstance(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsDelete(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsList(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsTag(frame) => frame.encode(out),
@@ -343,6 +347,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsAccountsAdd(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsAccountsEdit(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsAccountsDelete(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsAttachAgentTemplate(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsDetachAgentTemplate(frame) => frame.encode(out),
             ClientRequest::DependencyToolsList(frame) => frame.encode(out),
             ClientRequest::DependencyToolsGet(frame) => frame.encode(out),
             ClientRequest::DependencyToolsDelete(frame) => frame.encode(out),
@@ -433,11 +439,11 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             18 => standalone_tools::register::client::request::Frame::decode(bytes)
                 .map(ClientRequest::StandaloneToolsRegister)
                 .ok(),
-            19 => standalone_tools::attach::client::request::Frame::decode(bytes)
-                .map(ClientRequest::StandaloneToolsAttach)
+            19 => standalone_tools::attach_agent_instance::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsAttachAgentInstance)
                 .ok(),
-            20 => standalone_tools::detach::client::request::Frame::decode(bytes)
-                .map(ClientRequest::StandaloneToolsDetach)
+            20 => standalone_tools::detach_agent_instance::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsDetachAgentInstance)
                 .ok(),
             21 => standalone_tools::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::StandaloneToolsDelete)
@@ -679,6 +685,12 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             100 => providers::daemons::accounts::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersDaemonsAccountsDelete)
                 .ok(),
+            101 => standalone_tools::attach_agent_template::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsAttachAgentTemplate)
+                .ok(),
+            102 => standalone_tools::detach_agent_template::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsDetachAgentTemplate)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -707,8 +719,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::StandaloneToolsGet(_) => f.write_str("standalone tools get"),
             ClientRequest::StandaloneToolsEdit(_) => f.write_str("standalone tools edit"),
             ClientRequest::StandaloneToolsRegister(_) => f.write_str("standalone tools register"),
-            ClientRequest::StandaloneToolsAttach(_) => f.write_str("standalone tools attach"),
-            ClientRequest::StandaloneToolsDetach(_) => f.write_str("standalone tools detach"),
+            ClientRequest::StandaloneToolsAttachAgentInstance(_) => f.write_str("standalone tools attach agent instance"),
+            ClientRequest::StandaloneToolsDetachAgentInstance(_) => f.write_str("standalone tools detach agent instance"),
             ClientRequest::StandaloneToolsDelete(_) => f.write_str("standalone tools delete"),
             ClientRequest::StandaloneToolsList(_) => f.write_str("standalone tools list"),
             ClientRequest::StandaloneToolsTag(_) => f.write_str("standalone tools tag"),
@@ -780,6 +792,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsAccountsAdd(_) => f.write_str("providers daemons accounts add"),
             ClientRequest::ProvidersDaemonsAccountsEdit(_) => f.write_str("providers daemons accounts edit"),
             ClientRequest::ProvidersDaemonsAccountsDelete(_) => f.write_str("providers daemons accounts delete"),
+            ClientRequest::StandaloneToolsAttachAgentTemplate(_) => f.write_str("standalone tools attach agent template"),
+            ClientRequest::StandaloneToolsDetachAgentTemplate(_) => f.write_str("standalone tools detach agent template"),
             ClientRequest::DependencyToolsList(_) => f.write_str("dependency tools list"),
             ClientRequest::DependencyToolsGet(_) => f.write_str("dependency tools get"),
             ClientRequest::DependencyToolsDelete(_) => f.write_str("dependency tools delete"),
@@ -820,8 +834,8 @@ pub fn tag(path: &str) -> Option<u8> {
         "standalone_tools/get" => Some(16),
         "standalone_tools/edit" => Some(17),
         "standalone_tools/register" => Some(18),
-        "standalone_tools/attach" => Some(19),
-        "standalone_tools/detach" => Some(20),
+        "standalone_tools/attach_agent_instance" => Some(19),
+        "standalone_tools/detach_agent_instance" => Some(20),
         "standalone_tools/delete" => Some(21),
         "standalone_tools/list" => Some(22),
         "standalone_tools/tag" => Some(23),
@@ -902,6 +916,8 @@ pub fn tag(path: &str) -> Option<u8> {
         "providers/daemons/accounts/add" => Some(98),
         "providers/daemons/accounts/edit" => Some(99),
         "providers/daemons/accounts/delete" => Some(100),
+        "standalone_tools/attach_agent_template" => Some(101),
+        "standalone_tools/detach_agent_template" => Some(102),
         _ => None,
     }
 }
@@ -930,8 +946,8 @@ impl ClientRequest<'_> {
             ClientRequest::StandaloneToolsGet(_) => "standalone_tools/get",
             ClientRequest::StandaloneToolsEdit(_) => "standalone_tools/edit",
             ClientRequest::StandaloneToolsRegister(_) => "standalone_tools/register",
-            ClientRequest::StandaloneToolsAttach(_) => "standalone_tools/attach",
-            ClientRequest::StandaloneToolsDetach(_) => "standalone_tools/detach",
+            ClientRequest::StandaloneToolsAttachAgentInstance(_) => "standalone_tools/attach_agent_instance",
+            ClientRequest::StandaloneToolsDetachAgentInstance(_) => "standalone_tools/detach_agent_instance",
             ClientRequest::StandaloneToolsDelete(_) => "standalone_tools/delete",
             ClientRequest::StandaloneToolsList(_) => "standalone_tools/list",
             ClientRequest::StandaloneToolsTag(_) => "standalone_tools/tag",
@@ -1003,6 +1019,8 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsAccountsAdd(_) => "providers/daemons/accounts/add",
             ClientRequest::ProvidersDaemonsAccountsEdit(_) => "providers/daemons/accounts/edit",
             ClientRequest::ProvidersDaemonsAccountsDelete(_) => "providers/daemons/accounts/delete",
+            ClientRequest::StandaloneToolsAttachAgentTemplate(_) => "standalone_tools/attach_agent_template",
+            ClientRequest::StandaloneToolsDetachAgentTemplate(_) => "standalone_tools/detach_agent_template",
             ClientRequest::DependencyToolsList(_) => "dependency_tools/list",
             ClientRequest::DependencyToolsGet(_) => "dependency_tools/get",
             ClientRequest::DependencyToolsDelete(_) => "dependency_tools/delete",

@@ -2,9 +2,9 @@
 //! name, or once and for all.
 //!
 //! Every request that acts on an agent or a tool of the caller's — a
-//! delete, an edit, a message, a logs read, a tag, an untag, an attach,
-//! a detach — names it one of two ways, and the caller chooses which on
-//! each request. By its NAME, as its create or its register gave it, if
+//! delete, an edit, a message, a logs read, a tag, an untag, an attach
+//! or a detach of a tool and one agent — names it one of two ways, and
+//! the caller chooses which on each request. By its NAME, as its create or its register gave it, if
 //! it gave one: the name names the agent or the tool now, and is free
 //! again once that one is deleted. Or by its TEMPLATE and its INDEX,
 //! the number its list item carries among all ever made from that

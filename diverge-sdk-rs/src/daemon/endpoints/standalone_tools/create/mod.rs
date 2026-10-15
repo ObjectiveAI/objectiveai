@@ -8,7 +8,9 @@
 //! has, or that it failed, and the scope finishes. The tool's life is
 //! not this scope's: it goes on after the finish, reached by its name,
 //! attached to agents by an
-//! [`attach`](super::attach), until a [`delete`](super::delete).
+//! [`attach_agent_instance`](super::attach_agent_instance) or an
+//! [`attach_agent_template`](super::attach_agent_template), until a
+//! [`delete`](super::delete).
 //! Nothing runs at a create: the tool container runs while an agent
 //! it is attached to is active.
 //!

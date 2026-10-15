@@ -17,12 +17,20 @@ pub enum Over {
     /// [`tools::edit`](crate::daemon::endpoints::standalone_tools::edit) does.
     Edit,
     /// Attach one to an agent, as
-    /// [`tools::attach`](crate::daemon::endpoints::standalone_tools::attach) does;
-    /// the agent is judged by an `edit` grant over agents.
+    /// [`attach_agent_instance`](crate::daemon::endpoints::standalone_tools::attach_agent_instance)
+    /// does, the agent judged by an `edit` grant over agents; or to
+    /// every agent of a template, as
+    /// [`attach_agent_template`](crate::daemon::endpoints::standalone_tools::attach_agent_template)
+    /// does, the template judged by an `attach` grant over agent
+    /// templates.
     Attach,
     /// Detach one from an agent, as
-    /// [`tools::detach`](crate::daemon::endpoints::standalone_tools::detach) does;
-    /// the agent is judged by an `edit` grant over agents.
+    /// [`detach_agent_instance`](crate::daemon::endpoints::standalone_tools::detach_agent_instance)
+    /// does, the agent judged by an `edit` grant over agents; or from
+    /// every agent of a template, as
+    /// [`detach_agent_template`](crate::daemon::endpoints::standalone_tools::detach_agent_template)
+    /// does, the template judged by an `attach` grant over agent
+    /// templates.
     Detach,
     /// Delete one, as
     /// [`tools::delete`](crate::daemon::endpoints::standalone_tools::delete) does.

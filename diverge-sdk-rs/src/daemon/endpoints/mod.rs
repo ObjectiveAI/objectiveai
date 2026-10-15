@@ -7,7 +7,7 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
-//! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent; detach one; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
 //! | [`dependency_tools`] | list the dependency tools agents' programs declare, one per template and owner, narrowed, each with the agents that depend on it and its run; get one; delete every tool of a template none of which runs; tag one and untag one; watch a running one's container whole; download files out of one, upload files into one, transfer files out of one |
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a credential of providers that dial in, get one, list them, take one out, replace one; add a daemon to connect to, get one, list them, forget one, replace its mode or its links, tag one and untag one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
@@ -43,8 +43,8 @@
 //! | `16` | [`standalone_tools::get`] |
 //! | `17` | [`standalone_tools::edit`] |
 //! | `18` | [`standalone_tools::register`] |
-//! | `19` | [`standalone_tools::attach`] |
-//! | `20` | [`standalone_tools::detach`] |
+//! | `19` | [`standalone_tools::attach_agent_instance`] |
+//! | `20` | [`standalone_tools::detach_agent_instance`] |
 //! | `21` | [`standalone_tools::delete`] |
 //! | `22` | [`standalone_tools::list`] |
 //! | `23` | [`standalone_tools::tag`] |
@@ -125,8 +125,10 @@
 //! | `98` | [`providers::daemons::accounts::add`] |
 //! | `99` | [`providers::daemons::accounts::edit`] |
 //! | `100` | [`providers::daemons::accounts::delete`] |
+//! | `101` | [`standalone_tools::attach_agent_template`] |
+//! | `102` | [`standalone_tools::detach_agent_template`] |
 //!
-//! One hundred and one, so far. Every one of them carries the optional
+//! One hundred and three, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request

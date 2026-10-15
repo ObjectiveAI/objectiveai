@@ -32,8 +32,8 @@ impl ClientRequest<'_> {
             ClientRequest::StandaloneToolsGet(_) => bytes(&standalone_tools::get::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsEdit(_) => bytes(&standalone_tools::edit::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsRegister(_) => bytes(&standalone_tools::register::server::response::Frame::Forbidden),
-            ClientRequest::StandaloneToolsAttach(_) => bytes(&standalone_tools::attach::server::response::Frame::Forbidden),
-            ClientRequest::StandaloneToolsDetach(_) => bytes(&standalone_tools::detach::server::response::Frame::Forbidden),
+            ClientRequest::StandaloneToolsAttachAgentInstance(_) => bytes(&standalone_tools::attach_agent_instance::server::response::Frame::Forbidden),
+            ClientRequest::StandaloneToolsDetachAgentInstance(_) => bytes(&standalone_tools::detach_agent_instance::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsDelete(_) => bytes(&standalone_tools::delete::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsList(_) => bytes(&standalone_tools::list::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsTag(_) => bytes(&standalone_tools::tag::server::response::Frame::Forbidden),
@@ -114,6 +114,8 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsAccountsAdd(_) => bytes(&providers::daemons::accounts::add::server::response::Frame::Forbidden),
             ClientRequest::ProvidersDaemonsAccountsEdit(_) => bytes(&providers::daemons::accounts::edit::server::response::Frame::Forbidden),
             ClientRequest::ProvidersDaemonsAccountsDelete(_) => bytes(&providers::daemons::accounts::delete::server::response::Frame::Forbidden),
+            ClientRequest::StandaloneToolsAttachAgentTemplate(_) => bytes(&standalone_tools::attach_agent_template::server::response::Frame::Forbidden),
+            ClientRequest::StandaloneToolsDetachAgentTemplate(_) => bytes(&standalone_tools::detach_agent_template::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
     }
@@ -142,8 +144,8 @@ impl ClientRequest<'_> {
             ClientRequest::StandaloneToolsGet(_) => bytes(&standalone_tools::get::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsEdit(_) => bytes(&standalone_tools::edit::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsRegister(_) => bytes(&standalone_tools::register::server::response::Frame::Error(error)),
-            ClientRequest::StandaloneToolsAttach(_) => bytes(&standalone_tools::attach::server::response::Frame::Error(error)),
-            ClientRequest::StandaloneToolsDetach(_) => bytes(&standalone_tools::detach::server::response::Frame::Error(error)),
+            ClientRequest::StandaloneToolsAttachAgentInstance(_) => bytes(&standalone_tools::attach_agent_instance::server::response::Frame::Error(error)),
+            ClientRequest::StandaloneToolsDetachAgentInstance(_) => bytes(&standalone_tools::detach_agent_instance::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsDelete(_) => bytes(&standalone_tools::delete::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsList(_) => bytes(&standalone_tools::list::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsTag(_) => bytes(&standalone_tools::tag::server::response::Frame::Error(error)),
@@ -224,6 +226,8 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsAccountsAdd(_) => bytes(&providers::daemons::accounts::add::server::response::Frame::Error(error)),
             ClientRequest::ProvidersDaemonsAccountsEdit(_) => bytes(&providers::daemons::accounts::edit::server::response::Frame::Error(error)),
             ClientRequest::ProvidersDaemonsAccountsDelete(_) => bytes(&providers::daemons::accounts::delete::server::response::Frame::Error(error)),
+            ClientRequest::StandaloneToolsAttachAgentTemplate(_) => bytes(&standalone_tools::attach_agent_template::server::response::Frame::Error(error)),
+            ClientRequest::StandaloneToolsDetachAgentTemplate(_) => bytes(&standalone_tools::detach_agent_template::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
     }

@@ -44,13 +44,21 @@ pub struct Tool {
     /// tool that has never run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_active: Option<DateTime<Utc>>,
-    /// The agents it is attached to, each by its
-    /// [`key`](crate::daemon::key) — its template and its index, with
-    /// its name beside when it has one — in the order they were
-    /// attached; empty for a tool attached nowhere. The agents list
-    /// reports the same attachments from the other side.
+    /// The agents it is attached to directly, by
+    /// [`attach_agent_instance`](crate::daemon::endpoints::standalone_tools::attach_agent_instance),
+    /// each by its [`key`](crate::daemon::key) — its template and its
+    /// index, with its name beside when it has one — in the order
+    /// they were attached; empty for none. The agents list reports
+    /// the same attachments from the other side, beside those an
+    /// agent has through its template.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub agents: Vec<key::Agent>,
+    pub attached_agent_instances: Vec<key::Agent>,
+    /// The agent templates it is attached to, by
+    /// [`attach_agent_template`](crate::daemon::endpoints::standalone_tools::attach_agent_template),
+    /// each by its id, in the order they were attached; empty for
+    /// none. Every agent of each has the tool.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attached_agent_templates: Vec<String>,
     /// Its tags, sorted bytewise: what
     /// [`tag`](crate::daemon::endpoints::standalone_tools::tag) put on it and
     /// [`untag`](crate::daemon::endpoints::standalone_tools::untag) has not taken

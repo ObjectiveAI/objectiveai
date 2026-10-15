@@ -5,10 +5,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
 use crate::daemon::endpoints::agents::templates::Template;
+use crate::daemon::key;
 
 /// One template of the caller's: its id, when it was made, who made it,
-/// its tags, and the template whole. The tags are the caller's and not
-/// the template's: not in it, and not in its hash.
+/// its tags, the tools attached to it, and the template whole. The
+/// tags and the attachments are the caller's and not the template's:
+/// not in it, and not in its hash.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Listed {
@@ -34,6 +36,14 @@ pub struct Listed {
     /// has not taken off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+    /// The [`standalone_tools`](crate::daemon::endpoints::standalone_tools)
+    /// attached to it by
+    /// [`attach_agent_template`](crate::daemon::endpoints::standalone_tools::attach_agent_template),
+    /// which every agent made from it has, each by its
+    /// [`key`](crate::daemon::key), in the order they were attached;
+    /// empty for none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tools: Vec<key::Tool>,
     /// The template, as it was handed in: the bytes the id is the
     /// hash of.
     pub template: Template,

@@ -50,10 +50,14 @@ pub struct Filter {
     /// held — `true`, or not, `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active: Option<bool>,
-    /// Attached to every one of these agents, by name. Absent when
-    /// empty, and then any attachments.
+    /// Attached directly to every one of these agents, by name. Absent
+    /// when empty, and then any attachments.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub agents: Vec<String>,
+    pub attached_agent_instances: Vec<String>,
+    /// Attached to every one of these agent templates, by id. Absent
+    /// when empty, and then any attachments.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attached_agent_templates: Vec<String>,
     /// Every one of these among the tool's tags, as
     /// [`tag`](crate::daemon::endpoints::standalone_tools::tag) put them. Absent
     /// when empty, and then any tags.
