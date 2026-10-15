@@ -63,7 +63,7 @@ Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
 the WebSocket transport, the nine-byte frame header and seven frame
-types, the authorization handshake, the twenty-three endpoints and their
+types, the authorization handshake, the twenty-four endpoints and their
 channels, and the payload forms the Specification states for each.
 
 1.4 **"Server"** means the party that, on one WebSocket connection,
@@ -94,7 +94,7 @@ Specification's Frames layer gives them. **"Bare Finish"** means a
 Response Finish that no Response precedes, or a Channel Response
 Finish that no Channel Response precedes.
 
-1.9 **"Endpoint"** means one of the twenty-three scope-opening requests
+1.9 **"Endpoint"** means one of the twenty-four scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `containers::fuse_serve`, `3` `volumes::list`, `4` `volumes::stat`, `5`
@@ -103,8 +103,8 @@ byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `volumes::create`, `11` `volumes::edit_capacity`, `12` `volumes::edit`,
 `13` `volumes::delete`, `14` `images::check`, `15` `images::list`,
 `16` `images::stat`, `17` `images::build`, `18` `images::delete`,
-`19` `images::oci`, `20` `info`, `21` `daemons::accept`, `22`
-`daemons::connect`.
+`19` `images::oci`, `20` `info`, `21` `capacity`, `22`
+`daemons::accept`, `23` `daemons::connect`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
 a container request by a manifest digest and by zero or more
@@ -472,7 +472,7 @@ request. In particular the Provider shall answer: every
 `images::oci` request, where `images_store` is not held out, by the
 byte `4`, `1`, `4`, `2` and `0` respectively, alone; every container
 run request naming a FUSE Mount, where `containers_fuse_mount` is not
-held out, by the byte `6` alone, after the refusals of Section 5.9(a)
+held out, by the byte `6` alone, after the refusals of Section 5.10(a)
 that precede it and before any Volume is held; every
 `containers::fuse_serve` request, where `containers_fuse_serve` is
 not held out, by the byte `1` alone; every `volumes::create` request
@@ -501,7 +501,46 @@ states for a run's Volume Mount, for a FUSE serve, for an operation
 and for a build's context, the first rule that applies deciding, the
 decision and the hold being one act.
 
-### 5.6 `images::check` (tag 14)
+### 5.6 `capacity` (tag 21)
+
+(a) **The answer.** The Provider shall answer every `capacity`
+request with exactly one Response whose payload is one JSON object
+with exactly four members — `volumes_disk`, `images_disk`,
+`container_memory` and `container_disk`, each an integer no less than
+`0` and no greater than `18446744073709551615` — with no tag and no
+length prefix, followed by the Response Finish. The Provider shall
+answer every `capacity` request whatever its `capabilities` object
+holds out, shall not send a member this revision does not define,
+and shall not send an error or a refusal on this Endpoint.
+
+(b) **The meaning.** Each member shall state, in bytes, the most of
+its resource — the size of a new Volume, for `volumes_disk`; what a
+build could add to the Client Image Store, for `images_disk`; the
+`memory` a container run could reserve, for `container_memory`; the
+`disk` a container run could reserve, for `container_disk` — that the
+Identity of the Connection could use as of the instant the Provider
+sends the Response, as the Provider allots it. A Provider that
+allots the Identity less of a resource than the Provider holds shall
+report the Identity's allotment, and a Provider that allots the
+Identity the whole of a resource shall report the whole; a Provider
+shall report no more of a resource than it would, at that instant,
+let the Identity use. The Provider shall reckon `container_memory`
+and `container_disk` against what its running Containers reserved,
+by the `memory` and `disk` of their requests, and not against the
+memory or the disk free on its host.
+
+(c) **Nothing reserved.** The Provider sets nothing aside by
+answering. A request that relies on a member is judged by the
+Obligation that governs it, and the Provider may refuse it for want
+of room after a Response that reported room for it.
+
+(d) **Members not held out.** Where the Provider holds out no mode
+object, `volumes_disk` carries no obligation under (b); where the
+Provider does not hold out `images_store`, `images_disk` carries no
+obligation under (b). The Provider shall send each member
+nonetheless.
+
+### 5.7 `images::check` (tag 14)
 
 The Provider shall answer every `images::check` request with exactly
 one Response and the Response Finish. The sources the Provider has
@@ -527,7 +566,7 @@ another Identity, shall not consult a registry its
 account of an image it holds on its own account, which no request
 can ask for. An available answer reserves nothing.
 
-### 5.7 Volumes
+### 5.8 Volumes
 
 Every covenant of this Section binds a Provider that holds out at
 least one Volume mode object; a Provider that holds out none shall
@@ -712,7 +751,7 @@ name is already in the Identity's listing.
 request naming a Volume in the Identity's listing with exactly one
 Response: the byte `3` alone when the request's change states a mode,
 as `Mode` or as `Both`, for which the Provider holds out no mode
-object, before the Volume is held; a hold as Section 5.7(b) provides;
+object, before the Volume is held; a hold as Section 5.8(b) provides;
 the byte `0` only after the Volume has what the request's change
 states, its size, its mode, or both; the byte `1` when the Provider
 cannot reserve the size stated; the byte `2` when the content of the
@@ -730,7 +769,7 @@ shall be bound under the new mode.
 
 (k) **Deletion.** The Provider shall answer every `volumes::delete`
 request naming a Volume in the Identity's listing with exactly one
-Response: a hold as Section 5.7(b) provides; the byte `0` only after
+Response: a hold as Section 5.8(b) provides; the byte `0` only after
 the Volume no longer exists; or the byte `5` followed by an error for
 any other reason. The Provider shall not delete a Volume that
 anything holds at the time of the request. From the moment the
@@ -747,7 +786,7 @@ is named and against no other. A Client shall not be able to name,
 mount, stat, read, write, walk, FUSE serve, edit or delete a Volume
 of another Identity.
 
-### 5.8 Client Images
+### 5.9 Client Images
 
 Every covenant of this Section but (f) binds a Provider that holds out
 the `images_store` Capability; a Provider that does not shall answer
@@ -823,9 +862,9 @@ which it is named and against no other. A Client shall not be able
 to list, examine, build over or delete a Client Image of another
 Identity. The Provider shall treat a Client Image as an image it
 holds for the Identity that built it — an `images::check` by that
-Identity naming its digest is available under Section 5.6, and a
+Identity naming its digest is available under Section 5.7, and a
 container request by that Identity naming its digest runs it from
-what the Provider holds under Section 5.9(b) — and shall not supply
+what the Provider holds under Section 5.10(b) — and shall not supply
 a Client Image to any other Identity under either Section, unless
 that Identity has itself built an image of the same digest.
 
@@ -857,7 +896,7 @@ for a pull it will not serve. A Provider that does not hold out the
 with exactly one Response on the main stream, the byte `0` alone, and
 the Response Finish, and shall answer no Channel on the Scope.
 
-### 5.9 Container Deployment — `containers::agents::run` (tag 0) and `containers::tools::run` (tag 1)
+### 5.10 Container Deployment — `containers::agents::run` (tag 0) and `containers::tools::run` (tag 1)
 
 For every container run request the Provider accepts, the Provider
 shall perform the following, in the order stated, and shall not
@@ -1030,7 +1069,7 @@ every Channel task, and send the Response Finish with no error. After the
 id, the Provider
 shall send no error on the main stream of the Scope.
 
-### 5.10 The Conduit
+### 5.11 The Conduit
 
 (a) The Provider shall relay the bytes of every Relayed Exchange
 verbatim. It shall not read them, shall not alter them, shall not
@@ -1092,7 +1131,7 @@ answer the Client's Channel with exactly one Channel Response,
 transferred or an error, after the named Container's Proxy has
 answered. The Provider shall send nothing of the file to the Client.
 
-### 5.11 `containers::fuse_serve` (tag 2)
+### 5.12 `containers::fuse_serve` (tag 2)
 
 For every FUSE serve request, the Provider shall, in order: (a) read
 the request and answer a payload that does not decode by a Bare
@@ -1129,7 +1168,7 @@ no Volume and no mount on account of a FUSE serve, shall time nothing
 out, and shall send nothing on the main stream of a FUSE serve Scope
 after the byte `0`.
 
-### 5.12 Daemon connections — `daemons::accept` (tag 21) and `daemons::connect` (tag 22)
+### 5.13 Daemon connections — `daemons::accept` (tag 22) and `daemons::connect` (tag 23)
 
 (a) For every accept request, the Provider shall, in order: read the
 request and answer a payload that does not decode by a Bare Finish;
@@ -1185,7 +1224,7 @@ Identity at a time, shall time nothing out, and shall send nothing on
 the main stream of a connect Scope after the byte `0` but the frames
 of the Acceptor's and the Response Finish.
 
-### 5.13 Prohibitions
+### 5.14 Prohibitions
 
 The Provider shall never: (a) refuse, alter or withhold a FUSE ask on
 its own account, whether a change to a FUSE Mount is allowed being the
@@ -1206,7 +1245,7 @@ Finish, or a Bare Finish where the Specification states a Response;
 anything a Client chose; or (j) serve a Scope under an Identity other
 than that of the Connection on which the Scope was opened.
 
-### 5.14 The Container Proxy
+### 5.15 The Container Proxy
 
 The Provider shall place inside every Container a Container Proxy
 that conforms in full to the Specification's Container Proxy and
@@ -1253,7 +1292,7 @@ Provider shall not retain any other Client Content after the Scope
 that carried it ends, and shall not retain the content of a Relayed
 Exchange at any time except transiently in the course of relaying it.
 
-6.3 **No inspection.** The Provider's Obligation under Section 5.10(a)
+6.3 **No inspection.** The Provider's Obligation under Section 5.11(a)
 not to read Relayed Exchanges is a term of this Article as well as of
 Article 5.
 
@@ -1269,7 +1308,7 @@ only what is required.
 that: (a) it has full power and authority to enter into and perform
 this Agreement; (b) every Server it holds out as conforming is and
 will remain Conforming for the Term; (c) every Container Proxy it
-places inside a Container conforms to Section 5.14; (d) its
+places inside a Container conforms to Section 5.15; (d) its
 performance of this Agreement does not and will not violate any
 agreement to which it is a party or any applicable law; and (e) the
 Deployment Infrastructure it uses is adequate to perform every

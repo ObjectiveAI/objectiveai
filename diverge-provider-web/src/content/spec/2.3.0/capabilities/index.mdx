@@ -109,6 +109,11 @@ pages of those endpoints define.
     finish; a request that also asks for the `registries` source
     where `images_registries` is not empty is answered from that
     source alone.
+- **The `images_disk` member of a capacity response.** The server
+  sends the `images_disk` member of every
+  [capacity](/endpoints/capacity/) response whether or not it holds
+  out `images_store`. Where it does not, the member carries any
+  value, and a client does not read it.
 
 ## `images_registries`
 
@@ -230,6 +235,11 @@ mode: [the mode object](#the-mode-object).
 | [volumes::edit_capacity](/endpoints/volumes-edit-capacity/) | `1` |
 | [volumes::edit](/endpoints/volumes-edit/) | `7` |
 | [volumes::delete](/endpoints/volumes-delete/) | `4` |
+- **The `volumes_disk` member of a capacity response.** The server
+  sends the `volumes_disk` member of every
+  [capacity](/endpoints/capacity/) response whether or not it holds
+  out a mode object. Where it holds out none, the member carries any
+  value, and a client does not read it.
 
 ## The mode object
 
