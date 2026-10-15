@@ -22,8 +22,9 @@ pub struct Filter {
     /// Naming any one of these identities.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identities: Vec<String>,
-    /// Whether a provider is connected through it now: `true`, or none,
-    /// `false`; absent, either.
+    /// Whether the daemon's [`Status`](crate::daemon::endpoints::providers::Status)
+    /// with the provider through it is `connected`: `true`, or not —
+    /// none, or a different version — `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connected: Option<bool>,
     /// Added by any one of these, directly: see

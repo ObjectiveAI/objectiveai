@@ -4,12 +4,14 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
+use crate::daemon::endpoints::providers::Status;
 use crate::daemon::endpoints::providers::outgoing::Kind;
 
 /// One outgoing provider of the caller's: its address, which is its
-/// identity, the kind of its mode without the credential, whether the
-/// daemon holds a connection to it now, when it last did, when it was
-/// added and by whom, and its tags.
+/// identity, the kind of its mode without the credential, where the
+/// daemon stands with it now — and, connected, what the provider
+/// answered its `info` ask — when a connection last opened or closed,
+/// when it was added and by whom, and its tags.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Outgoing {
@@ -18,8 +20,10 @@ pub struct Outgoing {
     /// Which mode it is dialled in, without the credential. See
     /// [`Kind`].
     pub kind: Kind,
-    /// Whether the daemon holds a connection to it now.
-    pub connected: bool,
+    /// Where the daemon stands with it now: see [`Status`]. A
+    /// connection the daemon uses carries the provider's version and
+    /// capabilities as it answered them.
+    pub status: Status,
     /// When that last changed: the time the connection opened, if one
     /// is held; the time the last one closed, if none is; absent for a
     /// provider never dialled.

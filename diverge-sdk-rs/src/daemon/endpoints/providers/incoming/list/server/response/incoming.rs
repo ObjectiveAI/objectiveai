@@ -4,12 +4,13 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
+use crate::daemon::endpoints::providers::Status;
 use crate::daemon::endpoints::providers::incoming::Credential;
 
 /// One credential: the identity it names and the address it is accepted
-/// from — never the key — whether a provider is connected through it
-/// now, when it was added and by whom, and its tags. A list sends them
-/// oldest added first.
+/// from — never the key — where the daemon stands with the provider
+/// connected through it now, when it was added and by whom, and its
+/// tags. A list sends them oldest added first.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Incoming {
@@ -17,10 +18,11 @@ pub struct Incoming {
     /// Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub credential: Credential,
-    /// Whether a provider is connected through it now: exactly one is,
-    /// as the credential's identity, or none — a credential admits one
-    /// connection at a time.
-    pub connected: bool,
+    /// Where the daemon stands with the provider connected through it
+    /// now: see [`Status`]. Exactly one is, as the credential's
+    /// identity, or none — a credential admits one connection at a
+    /// time.
+    pub status: Status,
     /// When the add made it. On the wire an RFC 3339 timestamp in UTC.
     pub created: DateTime<Utc>,
     /// Who added it: the client, over an endpoint, or the agent or the

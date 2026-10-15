@@ -27,8 +27,9 @@ pub struct Filter {
     /// Dialled in any one of these modes, by kind.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub kinds: Vec<Kind>,
-    /// Whether the daemon holds a connection to it now: `true`, or not,
-    /// `false`; absent, either.
+    /// Whether the daemon's [`Status`](crate::daemon::endpoints::providers::Status)
+    /// with it is `connected`: `true`, or not — disconnected, or a
+    /// different version — `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connected: Option<bool>,
     /// Made by any one of these, directly: see

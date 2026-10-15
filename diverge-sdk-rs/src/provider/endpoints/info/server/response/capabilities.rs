@@ -45,7 +45,7 @@ use crate::provider::endpoints::volumes::Mode;
 /// provider's configuration and refused as such; and every quantity
 /// — how many containers, how much disk — which is a limit, not a
 /// capability, and answered where it binds.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Capabilities {
     /// The provider keeps an image store for its callers: it answers

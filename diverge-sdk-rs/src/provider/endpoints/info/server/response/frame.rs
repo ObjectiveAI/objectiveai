@@ -59,7 +59,7 @@ use crate::wire::encode::{Encode, Writer};
 /// does not know is a provider the caller can still use for
 /// everything it does know, and a caller that refused the answer
 /// could use it for nothing.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The revision: `MAJOR.MINOR.PATCH`.

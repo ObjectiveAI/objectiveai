@@ -8,8 +8,8 @@ use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
 /// A create's answer: the volume exists, no provider is the one named,
-/// the name is taken, the provider has no room, forbidden, or a
-/// failure.
+/// the name is taken, the provider has no room, the provider keeps no
+/// such volume, forbidden, or a failure.
 ///
 /// A create is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
@@ -17,17 +17,23 @@ use crate::shared::error::Error;
 /// for [`NoProvider`](Self::NoProvider), `2` for
 /// [`Exists`](Self::Exists), `3` for
 /// [`InsufficientCapacity`](Self::InsufficientCapacity), `4` for
-/// [`Forbidden`](Self::Forbidden), `5` for [`Error`](Self::Error) — and
+/// [`Unsupported`](Self::Unsupported), `5` for
+/// [`Forbidden`](Self::Forbidden), `6` for [`Error`](Self::Error) — and
 /// only the error carries anything after it.
 ///
 /// # Answers, and one failure
 ///
-/// [`NoProvider`](Self::NoProvider), [`Exists`](Self::Exists) and
-/// [`InsufficientCapacity`](Self::InsufficientCapacity) are ANSWERS:
-/// the daemon looked, and no provider is the one named, or the name is
-/// a volume's on that provider already, or the provider cannot reserve
-/// that many bytes, and in each case nothing exists and nothing is
-/// retried — a size the provider has no room for is one to ask smaller.
+/// [`NoProvider`](Self::NoProvider), [`Exists`](Self::Exists),
+/// [`InsufficientCapacity`](Self::InsufficientCapacity) and
+/// [`Unsupported`](Self::Unsupported) are ANSWERS: the daemon looked,
+/// and no provider is the one named, or the name is a volume's on
+/// that provider already, or the provider cannot reserve that many
+/// bytes, or the provider's capabilities keep no volume at all or
+/// none of the mode asked — which the daemon knows from the
+/// provider's `info` and asks no further — and in each case nothing
+/// exists and nothing is retried: a size the provider has no room for
+/// is one to ask smaller, a mode it does not keep one to ask another
+/// provider for.
 /// An [`Error`](Self::Error) is the absence of an answer: the daemon
 /// could not ask, or the provider answered an error, in whichever's
 /// words, and nothing partial exists.
@@ -62,10 +68,13 @@ pub enum Frame {
     /// The provider cannot reserve that many bytes; nothing exists. Tag
     /// `3`.
     InsufficientCapacity,
+    /// The provider's capabilities keep no volume, or none of the mode
+    /// asked; nothing exists, and the provider was not asked. Tag `4`.
+    Unsupported,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `4`.
+    /// it; nothing changed. Tag `5`.
     Forbidden,
-    /// A failure. Tag `5`.
+    /// A failure. Tag `6`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -85,11 +94,14 @@ const EXISTS: u8 = 2;
 /// Tag for [`Frame::InsufficientCapacity`].
 const INSUFFICIENT_CAPACITY: u8 = 3;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 4;
+
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 4;
+const FORBIDDEN: u8 = 5;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 5;
+const ERROR: u8 = 6;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -116,6 +128,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[INSUFFICIENT_CAPACITY]);
                 Ok(())
             }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Forbidden => {
                 out.extend_from_slice(&[FORBIDDEN]);
                 Ok(())
@@ -140,6 +156,7 @@ impl Decode<'_> for Frame {
             NO_PROVIDER => Ok(Frame::NoProvider),
             EXISTS => Ok(Frame::Exists),
             INSUFFICIENT_CAPACITY => Ok(Frame::InsufficientCapacity),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -152,7 +169,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's six.
+    /// A tag that is none of this frame's seven.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

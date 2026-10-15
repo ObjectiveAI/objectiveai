@@ -24,6 +24,16 @@
 //! daemon mints it when the credential is added or replaced, answers it
 //! in that response, once, and reports it never.
 //!
+//! # Where the daemon stands with each
+//!
+//! A list or a get of either reports the daemon's [`Status`] with
+//! the provider: no connection; one the daemon uses, with the
+//! version and the capabilities the provider answered its `info`
+//! ask, cached for the connection's life; or one the daemon holds
+//! open and never uses, the provider's version not being the
+//! daemon's. The daemon asks a provider nothing its capabilities
+//! exclude, and counts it connected only once the answer is cached.
+//!
 //! # And the daemons beyond them
 //!
 //! A [`daemons`] record is another daemon the caller holds an account
@@ -33,6 +43,10 @@
 //! holds as an incoming credential — and one link per provider it is
 //! reachable through, each a provider of the caller's and the identity
 //! the remote is known by there. A connected tool names one.
+
+mod status;
+
+pub use status::*;
 
 pub mod daemons;
 pub mod incoming;
