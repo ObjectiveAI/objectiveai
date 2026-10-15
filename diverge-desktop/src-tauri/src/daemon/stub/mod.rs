@@ -665,15 +665,49 @@ impl StubDaemon {
                 links.keep(t, item);
             }
         }
-        links.keep(t + TimeDelta::seconds(1), Item::Inactive(Inactive { r#type: InactiveType::Inactive, provider: Provider { identity: here } }));
+        links.keep(t + TimeDelta::seconds(1), Item::Inactive(Inactive { r#type: InactiveType::Inactive, provider: Provider { identity: here.clone() } }));
+
+        // A tool of yours, nightly-digest, which made one agent overnight and set it to work.
+        let tool_template = ToolTemplate { r#type: Default::default(), description: None, image: Kind::Python.image(), memory: 2 << 30, disk: 2 << 30, arguments: json!({}) };
+        let tool_id = template_id(&tool_template);
+        let (maker, digest_id, mut digest) = {
+            let mut inner = self.lock();
+            let mode = tool_template.r#type.mode;
+            inner.tool_templates.insert(tool_id.clone(), Held { template: tool_template, created: now - TimeDelta::days(4), creator: client() });
+            let index = inner.next_index(&tool_id);
+            let origin = standalone_tools::list::server::response::Origin::Created { template: tool_id.clone(), index, mode, provider: None, id: None };
+            let create = standalone_tools::create::client::request::Frame { inner: Made { template: tool_id.clone(), provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }, account: None, name: Some("nightly-digest".into()), relay: None };
+            inner.tools.push(ToolState { name: create.name.clone(), origin, create: Some(create), creator: client(), created: now - TimeDelta::days(4), agents: vec![notes_id.clone()], templates: Vec::new(), last_active: Some(now - TimeDelta::hours(8)) });
+            drop(inner);
+            let maker = Creator::Tool(creator::Tool::Record { template: tool_id, index, name: Some("nightly-digest".into()) });
+            let digest = template(Kind::Openrouter, json!({ "model": "openrouter/auto", "system_prompt": "Write a short morning digest of yesterday's notes." }));
+            let (digest_id, digest) = self.make(digest, Some("morning-digest"), None, maker.clone(), now - TimeDelta::hours(8));
+            (maker, digest_id, digest)
+        };
+        let ask = "Write this morning's digest from yesterday's notes.";
+        let mut t = now - TimeDelta::hours(8);
+        digest.keep(t, user_text(5, ask, maker));
+        digest.keep(t, Item::Active(Active { r#type: ActiveType::Active, provider: Provider { identity: here.clone() } }));
+        for step in script::run(Kind::Openrouter, ask, &read) {
+            t += TimeDelta::milliseconds(step.delay_ms as i64);
+            if let Piece::Item(item) = step.piece {
+                digest.keep(t, item);
+            }
+        }
+        digest.keep(t + TimeDelta::seconds(1), Item::Inactive(Inactive { r#type: InactiveType::Inactive, provider: Provider { identity: here } }));
+
+        // What you tagged them with.
+        notes.tags.insert("notes".into());
+        site.tags.insert("website".into());
 
         {
             let mut inner = self.lock();
-            inner.next_id = 5;
+            inner.next_id = 6;
             inner.agents.insert(site_id.clone(), site);
             inner.agents.insert(notes_id, notes);
             inner.agents.insert(broken_id, broken);
             inner.agents.insert(links_id, links);
+            inner.agents.insert(digest_id, digest);
         }
         self.spawn_runner(site_id, script::long_job(&read));
     }
@@ -939,7 +973,7 @@ mod tests {
             standalone_tools::delete::server::response::Frame::Attached
         ));
         let cancel = CancellationToken::new();
-        let listed: Vec<Listed> = daemon.standalone_tools_list(standalone_tools::list::client::request::Frame { filter: Default::default(), count: None, relay: None }, cancel.clone()).take(3).collect().await;
+        let listed: Vec<Listed> = daemon.standalone_tools_list(standalone_tools::list::client::request::Frame { filter: Default::default(), count: None, relay: None }, cancel.clone()).take(4).collect().await;
         cancel.cancel();
         assert!(matches!(listed.last(), Some(Listed::Listed)));
         let labels = listed.iter().find_map(|f| match f { Listed::Added(t) if t.name.as_deref() == Some("labels") => Some(t.clone()), _ => None }).unwrap();

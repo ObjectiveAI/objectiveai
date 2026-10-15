@@ -71,6 +71,16 @@ mod tests {
             logs.insert(agent.key.clone(), entries);
         }
 
+        // site-fixes is part-way through, with a helper at work: its lines are marked as the helper's.
+        let helper = |item: &LogItem| match item {
+            LogItem::Reasoning { parent, .. } | LogItem::Text { parent, .. } | LogItem::ToolCall { parent, .. } | LogItem::ToolResponse { parent, .. } => parent.is_some(),
+            _ => false,
+        };
+        let site = &logs["site-fixes"];
+        assert!(site.iter().filter(|e| helper(&e.item)).count() > 3, "the helper's work is in the snapshot");
+        let task = site.iter().find_map(|e| match &e.item { LogItem::ToolCall { name, id, .. } if name == "Task" => Some(id.clone()), _ => None }).expect("a helper set going");
+        assert!(!site.iter().any(|e| matches!(&e.item, LogItem::ToolResponse { id, .. } if *id == task)), "and it's still at work");
+
         // Each machine's volumes, trees and files, keyed by the machine's
         // identity key, then "volume:path" for a file.
         let mut machines: Vec<MachineView> = Vec::new();

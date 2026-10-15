@@ -2733,6 +2733,24 @@ mod tests {
         assert!(matches!(removed, DeleteOutcome::Active));
     }
 
+    /// The stand-in's agents, as the map shows them: one your agent made under
+    /// it, one your tool made under that tool, and the tags and tools you gave them.
+    #[cfg(feature = "stand-in")]
+    #[tokio::test]
+    async fn the_stand_ins_map_has_each_kind_of_maker() {
+        let state = app_over_stand_in("actions-map-seeds");
+        let s = live_until(&state, |s| s.state == ListState::Live).await;
+        let under = |key: &str| s.tree.iter().find(|n| n.key == key).map(|n| n.children.iter().map(|c| c.key.clone()).collect::<Vec<_>>());
+        let site = s.agents.iter().find(|a| a.key == "site-fixes").unwrap();
+        let made = s.agents.iter().find(|a| a.name.is_none()).unwrap();
+        assert_eq!(under("agent:site-fixes"), Some(vec![format!("agent:{}", made.key)]));
+        let tool = s.tree.iter().find(|n| matches!(&n.what, MapWhat::Tool { maker: CreatorView::Tool { name: Some(n), .. } } if n == "nightly-digest")).expect("a tool of yours made one");
+        assert_eq!(tool.children.iter().map(|c| c.key.as_str()).collect::<Vec<_>>(), ["agent:morning-digest"]);
+        assert_eq!(s.tree[0].key, "agent:site-fixes", "the working one first");
+        assert_eq!(site.tags, ["website"]);
+        assert_eq!(s.agents.iter().find(|a| a.key == "research-notes").unwrap().tools, ["nightly-digest"]);
+    }
+
     #[tokio::test]
     async fn with_nothing_answering_the_app_says_the_network_part_isnt_there() {
         let data = store::tests::folder("actions-absent");
