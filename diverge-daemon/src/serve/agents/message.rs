@@ -53,9 +53,10 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
     let run = match containers::agent(daemon, &agent).await {
         Ok(run) => run,
         Err(error) => {
-            return Ok(Frame::Error(match error.unsupported() {
-                Some(what) => reply::unsupported(what),
-                None => reply::failure(&error),
+            return Ok(Frame::Error(match (error.unsupported(), error.no_source()) {
+                (Some(what), _) => reply::unsupported(what),
+                (None, Some(what)) => reply::no_source(what),
+                (None, None) => reply::failure(&error),
             }));
         }
     };

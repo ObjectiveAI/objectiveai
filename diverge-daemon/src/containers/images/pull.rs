@@ -80,7 +80,7 @@ pub async fn blob(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Optio
 /// else answered meanwhile. Never the asker.
 async fn holders(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Vec<Identity> {
     let mut known = daemon.live.holders(digest).await;
-    if known.is_empty() && locate(daemon, digest, asker).await.is_some() {
+    if known.is_empty() && locate(daemon, digest, Some(asker)).await.is_some() {
         known = daemon.live.holders(digest).await;
     }
     known.retain(|holder| holder != asker);

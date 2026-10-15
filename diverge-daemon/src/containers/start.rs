@@ -81,6 +81,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
     let needs = Needs {
         fuse_mounts: !agent.fuse_file_mounts.is_empty() || !agent.fuse_directory_mounts.is_empty(),
         volume_modes: volumes.iter().map(|mount| mount.volume_mode).collect(),
+        image: Some(build::image(&template.template.image)),
     };
     let candidates = provider::candidates(daemon, agent.provider.as_ref().map(|provider| &provider.identity), &needs)
         .await
@@ -213,6 +214,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
             let needs = Needs {
                 fuse_mounts: !tool.fuse_file_mounts.is_empty() || !tool.fuse_directory_mounts.is_empty(),
                 volume_modes: volumes.iter().map(|mount| mount.volume_mode).collect(),
+                image: Some(build::image(&record.template.image)),
             };
             let candidates = provider::candidates(daemon, pinned.as_ref().map(|provider| &provider.identity), &needs)
                 .await

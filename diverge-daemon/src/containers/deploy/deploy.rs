@@ -184,6 +184,7 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
     let needs = Needs {
         fuse_mounts: !fuse_file_mounts.is_empty() || !fuse_directory_mounts.is_empty(),
         volume_modes: Vec::new(),
+        image: Some(tool.declared.image.clone()),
     };
     let candidates = provider::candidates(daemon, None, &needs).await.map_err(|error| error.to_string())?;
     let mounts = Arc::new(

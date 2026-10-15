@@ -38,3 +38,13 @@ pub fn unsupported(what: &str) -> Error {
     }))
 }
 
+/// The wire's error for a run whose image no provider can source,
+/// which the daemon refused without asking any: one shape,
+/// `{"kind":"no_source","error":…}`, saying why — no listed registry
+/// a reference names, and no connected provider holding the image.
+pub fn no_source(what: &str) -> Error {
+    Error(serde_json::json!({
+        "kind": "no_source",
+        "error": what,
+    }))
+}

@@ -70,6 +70,16 @@ impl StartError {
         }
     }
 
+    /// Why the run's image cannot be sourced, where that is why the
+    /// start failed: the sentence the daemon's `no_source` error
+    /// carries, in place of a failure.
+    pub fn no_source(&self) -> Option<&str> {
+        match self {
+            StartError::Provider(error) => error.no_source(),
+            _ => None,
+        }
+    }
+
     /// A run's mounts that could not be built, as the start's error.
     pub fn mounts(error: MountsError) -> StartError {
         match error {

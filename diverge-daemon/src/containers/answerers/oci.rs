@@ -13,7 +13,7 @@ use crate::containers::images;
 /// never asked, having looked already.
 impl OciStore for Answerer {
     async fn holds(&self, digest: &str) -> Option<String> {
-        images::locate(&self.daemon, digest, &self.provider)
+        images::locate(&self.daemon, digest, Some(&self.provider))
             .await
             .map(|_| images::name(digest))
     }

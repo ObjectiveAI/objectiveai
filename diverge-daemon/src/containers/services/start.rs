@@ -47,7 +47,11 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         template: tool.template.clone(),
         owner: owner.clone(),
     });
-    let candidates = provider::candidates(daemon, None, &Needs::default()).await.map_err(StartError::Provider)?;
+    let needs = Needs {
+        image: Some(tool.declared.image.clone()),
+        ..Needs::default()
+    };
+    let candidates = provider::candidates(daemon, None, &needs).await.map_err(StartError::Provider)?;
     let container = build::service(&tool.template, &tool.declared);
     let attestation = attestation::Tool::Dependency {
         image: container.image.clone(),

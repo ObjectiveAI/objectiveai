@@ -58,6 +58,7 @@ pub async fn mounts(
         let needs = capable::Needs {
             fuse_mounts: !file_mounts.is_empty() || !directory_mounts.is_empty(),
             volume_modes: provider.volume_mounts.iter().map(|mount| mount.volume_mode).collect(),
+            image: None,
         };
         let lacked = daemon.live.capabilities(&provider.identity).await.and_then(|info| capable::check(&info, &needs).err());
         if let Some(what) = lacked {

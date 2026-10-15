@@ -4,6 +4,7 @@
 //! container.
 
 use diverge_sdk::daemon::endpoints::agents::create::client::request::VolumeMount;
+use diverge_sdk::daemon::endpoints::agents::create::client::request::Image as TemplateImage;
 use diverge_sdk::daemon::template::Template;
 use diverge_sdk::shared::containers::dependencies;
 use diverge_sdk::shared::containers::request;
@@ -19,18 +20,7 @@ use super::fuse::Mounts;
 /// serves it by.
 pub fn container<T>(template_id: &str, template: &Template<T>, volumes: &[VolumeMount], mounts: &Mounts) -> request::Container {
     request::Container {
-        image: request::Image {
-            digest: template.image.digest.clone(),
-            references: template
-                .image
-                .references
-                .iter()
-                .map(|reference| request::Reference {
-                    registry: reference.registry.clone(),
-                    name: reference.name.clone(),
-                })
-                .collect(),
-        },
+        image: image(&template.image),
         template: template_id.to_string(),
         memory: template.memory,
         disk: template.disk,
@@ -79,5 +69,23 @@ pub fn service(template_id: &str, template: &dependencies::Template) -> request:
         fuse_file_mounts: Vec::new(),
         fuse_directory_mounts: Vec::new(),
         arguments: template.arguments.clone(),
+    }
+}
+
+/// A template's image as a run names it: the digest and every
+/// reference, which the chooser judges a provider by before the
+/// container is built — see
+/// [`capable::image`](super::capable::image).
+pub fn image(image: &TemplateImage) -> request::Image {
+    request::Image {
+        digest: image.digest.clone(),
+        references: image
+            .references
+            .iter()
+            .map(|reference| request::Reference {
+                registry: reference.registry.clone(),
+                name: reference.name.clone(),
+            })
+            .collect(),
     }
 }

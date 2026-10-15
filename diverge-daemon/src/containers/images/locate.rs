@@ -16,21 +16,24 @@ use crate::daemon::Daemon;
 /// A provider connected now that holds the image under `digest`, or
 /// `None`.
 ///
-/// Every connected provider but `asker` — the one asking, which has
-/// looked already — whose capabilities keep a client image store, the
-/// only providers a check of the `client` source can find anything
-/// on, is asked an `images::check` at once, for the daemon's own
-/// images there and nothing else, and the first to answer
+/// Every connected provider but `asker` — the provider asking on a
+/// run, which has looked in its own store already; `None` when it is
+/// the daemon asking for itself, before it chooses a provider for a
+/// run, and then nobody is left out — whose capabilities keep a
+/// client image store, the only providers a check of the `client`
+/// source can find anything on, is asked an `images::check` at once,
+/// for the daemon's own images there and nothing else, and the first
+/// to answer
 /// available is the answer. The rest are not waited for: the asks go
 /// on in a task of their own, and every provider that answers
 /// available after is remembered beside the first, so a pull that
 /// finds the first gone has the next. An unavailable, a refusal, a
 /// failure and a provider that will not answer in time are all no;
 /// no provider answering yes is `None`, after the last has answered.
-pub async fn locate(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Option<Identity> {
+pub async fn locate(daemon: &Arc<Daemon>, digest: &str, asker: Option<&Identity>) -> Option<Identity> {
     let mut asked = Vec::new();
     for identity in daemon.live.connected_providers().await {
-        if &identity == asker {
+        if asker == Some(&identity) {
             continue;
         }
         let keeps_store = daemon
