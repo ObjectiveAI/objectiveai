@@ -1,14 +1,16 @@
-//! `diverge run standalone-tools detach`: detaching a tool from an
-//! agent, by their names, as
-//! [`detach`](diverge_sdk::daemon::endpoints::standalone_tools::detach)
+//! `diverge run standalone-tools attach-agent-instance`: attaching a
+//! tool to one agent, by their names, as
+//! [`attach_agent_instance`](diverge_sdk::daemon::endpoints::standalone_tools::attach_agent_instance)
 //! states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::standalone_tools::detach::{client::request, server::response};
+use diverge_sdk::daemon::endpoints::standalone_tools::attach_agent_instance::{
+    client::request, server::response,
+};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Detaching a tool from an agent, by their names.
+/// Attaching a tool to one agent, by their names.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -33,14 +35,14 @@ pub async fn run(
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
             return request_schema::<request::Frame>(
-                "diverge run standalone-tools detach",
+                "diverge run standalone-tools attach-agent-instance",
                 emitter,
             )
             .await;
         }
         Some(Below::ResponseSchema(_)) => {
             return response_schema::<response::Frame>(
-                "diverge run standalone-tools detach",
+                "diverge run standalone-tools attach-agent-instance",
                 emitter,
             )
             .await;

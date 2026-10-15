@@ -1,14 +1,18 @@
-//! `diverge run standalone-tools attach`: attaching a tool to an agent,
-//! by their names, as
-//! [`attach`](diverge_sdk::daemon::endpoints::standalone_tools::attach)
+//! `diverge run standalone-tools attach-agent-template`: attaching a
+//! tool to every agent of a template, by the tool's name and the
+//! template's id, as
+//! [`attach_agent_template`](diverge_sdk::daemon::endpoints::standalone_tools::attach_agent_template)
 //! states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::standalone_tools::attach::{client::request, server::response};
+use diverge_sdk::daemon::endpoints::standalone_tools::attach_agent_template::{
+    client::request, server::response,
+};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Attaching a tool to an agent, by their names.
+/// Attaching a tool to every agent of a template, by the tool's name
+/// and the template's id.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -33,14 +37,14 @@ pub async fn run(
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
             return request_schema::<request::Frame>(
-                "diverge run standalone-tools attach",
+                "diverge run standalone-tools attach-agent-template",
                 emitter,
             )
             .await;
         }
         Some(Below::ResponseSchema(_)) => {
             return response_schema::<response::Frame>(
-                "diverge run standalone-tools attach",
+                "diverge run standalone-tools attach-agent-template",
                 emitter,
             )
             .await;

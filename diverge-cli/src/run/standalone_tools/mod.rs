@@ -8,11 +8,13 @@ use clap::Subcommand;
 
 use crate::run::{Emitter, Error, Target};
 
-pub mod attach;
+pub mod attach_agent_instance;
+pub mod attach_agent_template;
 pub mod connect;
 pub mod create;
 pub mod delete;
-pub mod detach;
+pub mod detach_agent_instance;
+pub mod detach_agent_template;
 pub mod download;
 pub mod edit;
 pub mod filetree;
@@ -28,8 +30,11 @@ pub mod upload;
 /// The requests over standalone tools, and their templates.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum StandaloneTools {
-    /// Attaching a tool to an agent, by their names.
-    Attach(attach::Arguments),
+    /// Attaching a tool to one agent, by their names.
+    AttachAgentInstance(attach_agent_instance::Arguments),
+    /// Attaching a tool to every agent of a template, by the tool's name
+    /// and the template's id.
+    AttachAgentTemplate(attach_agent_template::Arguments),
     /// Serving a tool the daemon runs to another daemon: the scope that
     /// daemon's agents reach the tool through, over the daemon
     /// connection, held for one MCP exchange.
@@ -39,8 +44,11 @@ pub enum StandaloneTools {
     Create(create::Arguments),
     /// Deleting a tool by name.
     Delete(delete::Arguments),
-    /// Detaching a tool from an agent, by their names.
-    Detach(detach::Arguments),
+    /// Detaching a tool from one agent, by their names.
+    DetachAgentInstance(detach_agent_instance::Arguments),
+    /// Detaching a tool from every agent of a template, by the tool's
+    /// name and the template's id.
+    DetachAgentTemplate(detach_agent_template::Arguments),
     /// Downloading a file or a directory out of a tool.
     Download(download::Arguments),
     /// Editing a tool: its name, its account, its mounts.
@@ -75,11 +83,21 @@ pub async fn run(
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
     match command {
-        StandaloneTools::Attach(arguments) => attach::run(arguments, target, emitter).await,
+        StandaloneTools::AttachAgentInstance(arguments) => {
+            attach_agent_instance::run(arguments, target, emitter).await
+        }
+        StandaloneTools::AttachAgentTemplate(arguments) => {
+            attach_agent_template::run(arguments, target, emitter).await
+        }
         StandaloneTools::Connect(command) => connect::run(command, target, emitter).await,
         StandaloneTools::Create(arguments) => create::run(arguments, target, emitter).await,
         StandaloneTools::Delete(arguments) => delete::run(arguments, target, emitter).await,
-        StandaloneTools::Detach(arguments) => detach::run(arguments, target, emitter).await,
+        StandaloneTools::DetachAgentInstance(arguments) => {
+            detach_agent_instance::run(arguments, target, emitter).await
+        }
+        StandaloneTools::DetachAgentTemplate(arguments) => {
+            detach_agent_template::run(arguments, target, emitter).await
+        }
         StandaloneTools::Download(arguments) => download::run(arguments, target, emitter).await,
         StandaloneTools::Edit(arguments) => edit::run(arguments, target, emitter).await,
         StandaloneTools::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
