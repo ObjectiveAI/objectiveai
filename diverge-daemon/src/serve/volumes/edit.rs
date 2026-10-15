@@ -61,6 +61,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Ok(Edited::ContentTooLarge) => Frame::ContentTooLarge,
         Err(volumes::Fail::Held) => Frame::Held,
         Err(volumes::Fail::NotFound) => Frame::NotFound,
-        Err(fail) => Frame::Error(reply::failure(&fail)),
+        Err(fail) => Frame::Error(fail.error()),
     })
 }

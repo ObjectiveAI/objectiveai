@@ -18,6 +18,7 @@ use tokio::sync::{Mutex, watch};
 
 use crate::containers::answerers::Answerer;
 use crate::containers::fuse::Mounts;
+use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
 use crate::containers::services;
 use crate::containers::{Key, ToolHandle, ToolKey, ToolRun, User, build, provider, stop};
@@ -180,8 +181,16 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
     if let Some(stale) = daemon.live.tool_run(key).await {
         stop::stop_dependencies(daemon, vec![stale]).await;
     }
-    let candidates = provider::candidates(daemon, None).await.map_err(|error| error.to_string())?;
-    let mounts = Arc::new(Mounts::build_dependency(daemon, &answerer.provider, agent_container, fuse_file_mounts, fuse_directory_mounts).await?);
+    let needs = Needs {
+        fuse_mounts: !fuse_file_mounts.is_empty() || !fuse_directory_mounts.is_empty(),
+        volume_modes: Vec::new(),
+    };
+    let candidates = provider::candidates(daemon, None, &needs).await.map_err(|error| error.to_string())?;
+    let mounts = Arc::new(
+        Mounts::build_dependency(daemon, &answerer.provider, agent_container, fuse_file_mounts, fuse_directory_mounts)
+            .await
+            .map_err(|error| error.to_string())?,
+    );
     let container = build::dependency(&tool.template, &tool.declared, &mounts);
     let image = container.image.clone();
     let attestation = attestation::Tool::Dependency {

@@ -52,7 +52,12 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
     }
     let run = match containers::agent(daemon, &agent).await {
         Ok(run) => run,
-        Err(error) => return Ok(Frame::Error(reply::failure(&error))),
+        Err(error) => {
+            return Ok(Frame::Error(match error.unsupported() {
+                Some(what) => reply::unsupported(what),
+                None => reply::failure(&error),
+            }));
+        }
     };
     let sender = Creator::Client(Client {
         identity: standing.identity.clone(),

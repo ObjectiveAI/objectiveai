@@ -11,15 +11,22 @@
 //! and was admitted at the handshake by a credential the daemon
 //! minted; [`incoming`] is what the socket becomes from then on. On
 //! either, [`attach`] is the one shape: the socket split into the
-//! SDK's client router and handle, the provider asked its version
-//! once — so that a socket that is not a provider never counts as one
-//! connected — the handle put into [`Live`](crate::daemon::Live)
-//! under the provider's [`Identity`](diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity),
-//! the router driven until the socket ends or the daemon evicts it,
-//! and the slot given back. One connection per identity, and one per
-//! incoming credential: the slot is taken before the version is asked,
-//! and a newcomer that collides on either is dropped without a word.
-//! On every connection held, when the configuration says so, the
+//! SDK's client router and handle, the provider asked its info once
+//! — so that a socket that is not a provider never counts as one
+//! connected — the answer judged, and the handle put into
+//! [`Live`](crate::daemon::Live) under the provider's
+//! [`Identity`](diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity)
+//! with the answer cached beside it: as CONNECTED, when the version
+//! answered is the daemon's own, the one standing in which the
+//! provider is used, and never for anything its cached capabilities
+//! exclude; as a DIFFERENT VERSION otherwise, the socket held open
+//! and the provider used for nothing. Then the router is driven until
+//! the socket ends or the daemon evicts it, and the slot given back.
+//! One connection per identity, and one per incoming credential: the
+//! slot is reserved before the info is asked, reading as no
+//! connection until the answer fills it, and a newcomer that collides
+//! on either is dropped without a word. On every connection used,
+//! when the configuration says so, the
 //! daemon [`accept`]s other daemons through the provider: one
 //! `daemons::accept` scope for the connection's life, each connection
 //! the provider announces judged by its credential and served by the

@@ -4,6 +4,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::endpoints::providers::Status;
+use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;
 use diverge_sdk::wire::client::handle::Handle;
 use tokio::sync::{Mutex, Notify, watch};
 use tokio::task::AbortHandle;
@@ -13,7 +15,7 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::images::oci::client::execute;
 
-use super::{Changes, Kind, Peers};
+use super::{Changes, Kind, Peers, Standing};
 use crate::containers::services::State;
 use crate::containers::{AgentRun, ConnectionId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
@@ -23,7 +25,8 @@ use crate::volumes::Mirror;
 
 /// The live state of the daemon: which accounts have a client
 /// connected as them, and how many; which providers the daemon holds
-/// a connection to, and the handle it speaks to each on; and the dial
+/// a connection to, the handle it speaks to each on and the info each
+/// answered; and the dial
 /// tasks keeping the outgoing ones connected; which daemons it holds
 /// a connection to through them; which providers hold which image,
 /// and the pull scope held on each; every agent's log as
@@ -162,26 +165,46 @@ impl Live {
         self.connected.lock().await.keys().copied().collect()
     }
 
-    /// Take the provider's slot for a connection being admitted,
+    /// Reserve the provider's slot for a connection being admitted,
     /// holding `credential` — the hash of the key an incoming provider
     /// presented — with it: `None` when a connection holds the
     /// identity, or one holds the credential, already, and the
-    /// newcomer is refused; else the slot's eviction word. What is
-    /// taken is given back with `disconnect_provider`, on every path.
-    pub async fn take_provider(&self, identity: Identity, credential: Option<String>) -> Option<Arc<Notify>> {
-        let kind = Kind::of_provider(&identity);
-        let taken = self.providers.lock().await.take(identity, credential);
-        if taken.is_some() {
-            self.changes.changed(kind);
-        }
-        taken
+    /// newcomer is refused; else the slot's eviction word, the slot
+    /// pending. Nothing is said of it yet: a pending slot reads as no
+    /// connection. What is reserved is given back with
+    /// `disconnect_provider`, on every path.
+    pub async fn reserve_provider(&self, identity: Identity, credential: Option<String>) -> Option<Arc<Notify>> {
+        self.providers.lock().await.reserve(identity, credential)
     }
 
-    /// The provider answered its version, and this is the handle on
-    /// it: its slot filled.
-    pub async fn connect_provider(&self, identity: &Identity, handle: Handle) {
-        if let Some(slot) = self.providers.lock().await.slots.get_mut(identity) {
-            slot.handle = Some(handle);
+    /// The provider answered its info with the daemon's version: its
+    /// slot filled with the handle every request to it rides and the
+    /// answer, cached for the connection's life, and the word said
+    /// that the provider is connected. The answer, shared, for the
+    /// attach's own reading.
+    pub async fn connect_provider(&self, identity: &Identity, handle: Handle, info: Info) -> Arc<Info> {
+        let info = Arc::new(info);
+        let standing = Standing::Connected {
+            handle,
+            info: Arc::clone(&info),
+        };
+        if self.providers.lock().await.fill(identity, standing) {
+            self.changes.changed(Kind::of_provider(identity));
+        }
+        info
+    }
+
+    /// The provider answered its info with a version that is not the
+    /// daemon's: its slot filled with the handle, kept so the socket
+    /// stays open and handed to nobody, and the answer, which a list
+    /// reports; the word said, since the slot's standing changed.
+    pub async fn different_version_provider(&self, identity: &Identity, handle: Handle, info: Info) {
+        let standing = Standing::DifferentVersion {
+            _handle: handle,
+            info: Arc::new(info),
+        };
+        if self.providers.lock().await.fill(identity, standing) {
+            self.changes.changed(Kind::of_provider(identity));
         }
     }
 
@@ -277,22 +300,46 @@ impl Live {
         }
     }
 
-    /// Whether the daemon holds a connection to the provider now — a
-    /// provider still answering its version included, since its
-    /// credential is taken.
+    /// Whether the daemon uses the provider now: its info cached, its
+    /// version the daemon's. A provider still being asked, and one of
+    /// another version, are not connected.
     pub async fn is_provider_connected(&self, identity: &Identity) -> bool {
-        self.providers.lock().await.slots.contains_key(identity)
+        self.provider_status(identity).await.connected()
     }
 
-    /// Every provider connected now: one snapshot, for a list.
+    /// Where the daemon stands with the provider, as a list reports
+    /// it.
+    pub async fn provider_status(&self, identity: &Identity) -> Status {
+        self.providers.lock().await.status(identity)
+    }
+
+    /// Every provider the daemon uses now: one snapshot, for whoever
+    /// asks them all.
     pub async fn connected_providers(&self) -> HashSet<Identity> {
-        self.providers.lock().await.slots.keys().cloned().collect()
+        let providers = self.providers.lock().await;
+        providers
+            .slots
+            .iter()
+            .filter(|(_, slot)| matches!(slot.standing, Standing::Connected { .. }))
+            .map(|(identity, _)| identity.clone())
+            .collect()
     }
 
-    /// The handle on the provider, if it is connected and has
-    /// answered its version.
+    /// The handle on the provider, if the daemon uses it now.
     pub async fn provider(&self, identity: &Identity) -> Option<Handle> {
-        self.providers.lock().await.slots.get(identity).and_then(|slot| slot.handle.clone())
+        match self.providers.lock().await.slots.get(identity).map(|slot| &slot.standing) {
+            Some(Standing::Connected { handle, .. }) => Some(handle.clone()),
+            _ => None,
+        }
+    }
+
+    /// The provider's info — its capabilities — if the daemon uses it
+    /// now: what every ask of it is held within.
+    pub async fn capabilities(&self, identity: &Identity) -> Option<Arc<Info>> {
+        match self.providers.lock().await.slots.get(identity).map(|slot| &slot.standing) {
+            Some(Standing::Connected { info, .. }) => Some(Arc::clone(info)),
+            _ => None,
+        }
     }
 
     /// Keep the dial task for the address, ending any earlier one for

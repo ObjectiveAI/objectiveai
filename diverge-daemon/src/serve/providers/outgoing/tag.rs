@@ -35,7 +35,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(provider) = providers_outgoing::by_address(&mut tx, &frame.address, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let connected = daemon.live.is_provider_connected(&provider.identity()).await;
+    let status = daemon.live.provider_status(&provider.identity()).await;
+    let connected = status.connected();
     if !judge::providers_outgoing::tagging(&standing, Tagging::Tag, &provider, connected, &frame.tags) {
         return Ok(Frame::Forbidden);
     }

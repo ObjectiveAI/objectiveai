@@ -7,7 +7,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
-use crate::serve::inner::{self, Checked};
+use crate::serve::inner::{self, Checked, Mounted};
 use crate::serve::reply;
 use crate::store::{self, agents, agents_templates};
 
@@ -44,9 +44,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
     match inner::mounts(&mut tx, &standing, daemon, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts).await? {
-        Checked::Ok(()) => {}
-        Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
-        Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
+        Mounted::Ok => {}
+        Mounted::Forbidden => return Ok(Frame::Forbidden),
+        Mounted::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
+        Mounted::Unsupported(what) => return Ok(Frame::Error(reply::unsupported(&what))),
     }
     let new = agents::New {
         template: inner.template,

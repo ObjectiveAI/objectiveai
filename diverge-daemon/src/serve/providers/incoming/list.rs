@@ -73,14 +73,19 @@ impl Source for Listed<'_> {
                 let mut conn = self.daemon.store.acquire().await?;
                 providers_incoming::all(&mut conn).await?
             };
-            let connected = self.daemon.live.connected_providers().await;
-            Ok(all
-                .iter()
-                .map(|credential| (credential, connected.contains(&credential.provider())))
-                .filter(|(credential, connected)| judge::providers_incoming::over(self.standing, Over::List, credential, *connected))
-                .filter(|(credential, connected)| filter::providers_incoming::test(self.filter, credential, *connected))
-                .map(|(credential, connected)| (credential.identity.clone(), credential.report(connected)))
-                .collect())
+            let mut listed = Vec::with_capacity(all.len());
+            for credential in &all {
+                let status = self.daemon.live.provider_status(&credential.provider()).await;
+                let connected = status.connected();
+                if !judge::providers_incoming::over(self.standing, Over::List, credential, connected) {
+                    continue;
+                }
+                if !filter::providers_incoming::test(self.filter, credential, connected) {
+                    continue;
+                }
+                listed.push((credential.identity.clone(), credential.report(status)));
+            }
+            Ok(listed)
         }
     }
 }

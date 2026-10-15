@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use diverge_sdk::provider::endpoints::version::client::execute::ExecuteError;
+use diverge_sdk::provider::endpoints::info::client::execute::ExecuteError;
 
 /// What [`attach`](super::attach) fails with: the slot taken already,
 /// or the one thing asked of a provider before it counts as connected.
@@ -12,17 +12,17 @@ pub enum Error {
     /// credential: one connection per either, and the newcomer's
     /// socket is dropped without a word.
     Held,
-    /// The provider did not answer its version, or answered something
+    /// The provider did not answer its info, or answered something
     /// that is not one: the socket is not a provider's, or is already
     /// gone.
-    Version(ExecuteError),
+    Info(ExecuteError),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Held => f.write_str("another connection holds the identity or the credential"),
-            Error::Version(error) => write!(f, "the provider did not answer its version: {error}"),
+            Error::Info(error) => write!(f, "the provider did not answer its info: {error}"),
         }
     }
 }
@@ -31,7 +31,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Held => None,
-            Error::Version(error) => Some(error),
+            Error::Info(error) => Some(error),
         }
     }
 }

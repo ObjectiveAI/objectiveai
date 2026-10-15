@@ -28,7 +28,7 @@ const PAUSE: Duration = Duration::from_secs(5);
 /// what the next dial presents, and a provider forgotten ends the
 /// task — connects to its [`url`], presents the mode's authorization
 /// as the connection's first frame, and [`attach`]es: a provider that
-/// answers its version is held and served until the connection ends,
+/// answers its info is held and served until the connection ends,
 /// with the record's `last_connected` set as it opens and as it
 /// closes. Then the pause, and again. Ended only by the abort handle
 /// [`Live`](crate::daemon::Live) keeps for it, which drops whatever

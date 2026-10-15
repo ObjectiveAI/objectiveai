@@ -14,6 +14,7 @@ use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute a
 use tokio::sync::{Mutex, watch};
 
 use super::answerers::Answerer;
+use super::capable::Needs;
 use super::fuse::Mounts;
 use super::mcp::Served;
 use super::{AgentRun, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, services, stop};
@@ -76,15 +77,19 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         }
         (template, attached)
     };
-    let candidates = provider::candidates(daemon, agent.provider.as_ref().map(|provider| &provider.identity))
+    let volumes = agent.provider.as_ref().map(|provider| provider.volume_mounts.as_slice()).unwrap_or(&[]);
+    let needs = Needs {
+        fuse_mounts: !agent.fuse_file_mounts.is_empty() || !agent.fuse_directory_mounts.is_empty(),
+        volume_modes: volumes.iter().map(|mount| mount.volume_mode).collect(),
+    };
+    let candidates = provider::candidates(daemon, agent.provider.as_ref().map(|provider| &provider.identity), &needs)
         .await
         .map_err(StartError::Provider)?;
     let mounts = Arc::new(
         Mounts::build(daemon, &agent.fuse_file_mounts, &agent.fuse_directory_mounts)
             .await
-            .map_err(StartError::Mounts)?,
+            .map_err(StartError::mounts)?,
     );
-    let volumes = agent.provider.as_ref().map(|provider| provider.volume_mounts.as_slice()).unwrap_or(&[]);
     let container = build::container(&agent.template, &template.template, volumes, &mounts);
     let image = container.image.clone();
     let served = Arc::new(Mutex::new(Served::new()));
@@ -204,15 +209,19 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     .await?
                     .ok_or_else(|| StartError::NoTemplate(template.clone()))?
             };
-            let candidates = provider::candidates(daemon, pinned.as_ref().map(|provider| &provider.identity))
+            let volumes = pinned.as_ref().map(|provider| provider.volume_mounts.as_slice()).unwrap_or(&[]);
+            let needs = Needs {
+                fuse_mounts: !tool.fuse_file_mounts.is_empty() || !tool.fuse_directory_mounts.is_empty(),
+                volume_modes: volumes.iter().map(|mount| mount.volume_mode).collect(),
+            };
+            let candidates = provider::candidates(daemon, pinned.as_ref().map(|provider| &provider.identity), &needs)
                 .await
                 .map_err(StartError::Provider)?;
             let mounts = Arc::new(
                 Mounts::build(daemon, &tool.fuse_file_mounts, &tool.fuse_directory_mounts)
                     .await
-                    .map_err(StartError::Mounts)?,
+                    .map_err(StartError::mounts)?,
             );
-            let volumes = pinned.as_ref().map(|provider| provider.volume_mounts.as_slice()).unwrap_or(&[]);
             let container = build::container(template, &record.template, volumes, &mounts);
             let image = container.image.clone();
             let mut last = String::new();

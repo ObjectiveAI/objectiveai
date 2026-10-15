@@ -1,13 +1,13 @@
 //! The mounts the daemon serves into a container, by the id each
 //! FUSE ask names.
 //!
-//! A record's cross-provider mounts are served by a `volumes::serve`
+//! A record's cross-provider mounts are served by a `volumes::fuse_serve`
 //! scope the daemon holds on the volume's provider for the run's
 //! life, every ask forwarded and every answer relayed — the serve is
 //! the run's, opened at its start and let go at its end, which is
 //! what the idle rule makes of "held for the agent's life". A
 //! dependency's mounts are served the same way by a
-//! `containers::serve` scope the daemon holds on the agent's provider
+//! `containers::fuse_serve` scope the daemon holds on the agent's provider
 //! for the dependency's life: the agent's own path, a directory
 //! whole or a file with the directory holding it, into the
 //! dependency's container. [`Mounts`] is the set for one run, built

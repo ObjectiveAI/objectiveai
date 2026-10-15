@@ -34,9 +34,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(credential) = providers_incoming::by_identity(&mut conn, &frame.identity, false).await? else {
         return Ok(Frame::NotFound);
     };
-    let connected = daemon.live.is_provider_connected(&credential.provider()).await;
+    let status = daemon.live.provider_status(&credential.provider()).await;
+    let connected = status.connected();
     if !judge::providers_incoming::over(&standing, Over::Get, &credential, connected) {
         return Ok(Frame::Forbidden);
     }
-    Ok(Frame::Found(credential.report(connected)))
+    Ok(Frame::Found(credential.report(status)))
 }

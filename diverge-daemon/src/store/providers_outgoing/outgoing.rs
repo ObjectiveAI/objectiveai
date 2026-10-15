@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::endpoints::providers::Status;
 use diverge_sdk::daemon::endpoints::providers::outgoing::list::server::response;
 use diverge_sdk::daemon::endpoints::providers::outgoing::{Kind, Mode};
 
@@ -44,13 +45,13 @@ impl Outgoing {
         }
     }
 
-    /// The provider as a list reports it, given whether the daemon
-    /// holds a connection to it now.
-    pub fn report(&self, connected: bool) -> response::Outgoing {
+    /// The provider as a list reports it, given where the daemon
+    /// stands with it now.
+    pub fn report(&self, status: Status) -> response::Outgoing {
         response::Outgoing {
             address: self.address.clone(),
             kind: self.kind(),
-            connected,
+            status,
             last_connected: self.last_connected,
             created: self.created,
             creator: self.creator.clone(),

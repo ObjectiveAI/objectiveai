@@ -3,6 +3,7 @@
 use std::fmt;
 
 use super::NoProvider;
+use super::fuse::MountsError;
 use crate::daemons;
 use crate::logs;
 use crate::store;
@@ -26,6 +27,9 @@ pub enum StartError {
     /// A mount could not be served: a volume the provider refused, or
     /// a provider not connected.
     Mounts(String),
+    /// A provider's capabilities exclude what the run or a mount
+    /// needs, and it was not asked: what it lacks, in a sentence.
+    Unsupported(String),
     /// The provider did not run it, in its own words or the wire's.
     Run(String),
     /// The log could not be written.
@@ -41,6 +45,7 @@ impl fmt::Display for StartError {
             StartError::NoDaemon(name) => write!(f, "the daemon {name} is not on record"),
             StartError::Daemon(error) => write!(f, "{error}"),
             StartError::Mounts(error) => write!(f, "a mount could not be served: {error}"),
+            StartError::Unsupported(what) => write!(f, "a provider's capabilities exclude it: {what}"),
             StartError::Run(error) => write!(f, "the provider did not run the container: {error}"),
             StartError::Logs(error) => write!(f, "the log: {error}"),
         }
@@ -50,6 +55,27 @@ impl fmt::Display for StartError {
 impl fmt::Debug for StartError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, f)
+    }
+}
+
+impl StartError {
+    /// What a provider's capabilities lacked, where that is why the
+    /// start failed: the sentence the daemon's `unsupported` error
+    /// carries, in place of a failure.
+    pub fn unsupported(&self) -> Option<&str> {
+        match self {
+            StartError::Unsupported(what) => Some(what),
+            StartError::Provider(error) => error.unsupported(),
+            _ => None,
+        }
+    }
+
+    /// A run's mounts that could not be built, as the start's error.
+    pub fn mounts(error: MountsError) -> StartError {
+        match error {
+            MountsError::Unsupported(what) => StartError::Unsupported(what),
+            MountsError::Failed(what) => StartError::Mounts(what),
+        }
     }
 }
 

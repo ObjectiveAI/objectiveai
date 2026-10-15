@@ -90,10 +90,15 @@ async fn holders(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Vec<Id
 /// The pull scope on the provider: the one kept, or one opened now
 /// and kept — unless another opener kept one first, whose scope is
 /// used and this one disconnected. `None` for a provider that is not
-/// connected now, or whose scope could not be opened.
+/// connected now, whose capabilities keep no client image store —
+/// one that would answer the pull unsupported, and is not asked — or
+/// whose scope could not be opened.
 async fn scope(daemon: &Arc<Daemon>, holder: &Identity) -> Option<Arc<execute::ExecuteHandle>> {
     if let Some(scope) = daemon.live.pull_scope(holder).await {
         return Some(scope);
+    }
+    if !daemon.live.capabilities(holder).await.is_some_and(|info| info.capabilities.images_store) {
+        return None;
     }
     let handle = daemon.live.provider(holder).await?;
     let opened = Arc::new(execute::execute(&handle, &request::Frame).await.ok()?);

@@ -28,6 +28,8 @@ pub async fn tree(daemon: &Daemon, volume: &reference::Volume, path: &[String]) 
     };
     match execute::execute(&handle, &request).await {
         Ok(nodes) => Ok(nodes),
+        Err(execute::ExecuteError::Mounted | execute::ExecuteError::FuseServed | execute::ExecuteError::Held) => Err(Fail::Held),
+        Err(execute::ExecuteError::Unsupported) => Err(Fail::Unsupported("the provider keeps no volume".to_string())),
         Err(execute::ExecuteError::Provider(error)) => Err(Fail::refusal(&error)),
         Err(error) => Err(Fail::failed(&error)),
     }

@@ -7,10 +7,10 @@ use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::server::chann
 use diverge_sdk::daemon::endpoints::agents::create::client::request::FuseMount as VolumeFuseMount;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::provider::client::Listed;
-use diverge_sdk::provider::endpoints::containers::serve::client::execute::{self as container_serve, ExecuteHandle as ContainerServe};
-use diverge_sdk::provider::endpoints::containers::serve::client::request::Frame as ContainerServeRequest;
-use diverge_sdk::provider::endpoints::volumes::serve::client::execute::{self as volume_serve, ExecuteHandle as VolumeServe};
-use diverge_sdk::provider::endpoints::volumes::serve::client::request::Frame as VolumeServeRequest;
+use diverge_sdk::provider::endpoints::containers::fuse_serve::client::execute::{self as container_serve, ExecuteHandle as ContainerServe};
+use diverge_sdk::provider::endpoints::containers::fuse_serve::client::request::Frame as ContainerServeRequest;
+use diverge_sdk::provider::endpoints::volumes::fuse_serve::client::execute::{self as volume_serve, ExecuteHandle as VolumeServe};
+use diverge_sdk::provider::endpoints::volumes::fuse_serve::client::request::Frame as VolumeServeRequest;
 use diverge_sdk::shared::containers::dependencies::Mount;
 use diverge_sdk::shared::containers::fuse::Attrs;
 use diverge_sdk::shared::containers::fuse::ack::Refused;
@@ -22,6 +22,7 @@ use tokio::sync::{Mutex, broadcast};
 use tokio::task::AbortHandle;
 
 use super::{bridge, watch};
+use crate::containers::capable;
 use crate::daemon::Daemon;
 
 /// The scope a mount's bytes come from: a volume served by its
@@ -29,9 +30,9 @@ use crate::daemon::Daemon;
 /// provider it runs on. The two answer the same nine asks in the same
 /// frames, so a mount is asked without knowing which.
 pub enum Serve {
-    /// A `volumes::serve`.
+    /// A `volumes::fuse_serve`.
     Volume(VolumeServe),
-    /// A `containers::serve`: an agent's path, into its dependency.
+    /// A `containers::fuse_serve`: an agent's path, into its dependency.
     Container(ContainerServe),
 }
 
@@ -57,6 +58,27 @@ impl Serve {
         match self {
             Serve::Volume(serve) => serve.stop().await,
             Serve::Container(serve) => serve.stop().await,
+        }
+    }
+}
+
+/// Why a run's mounts could not be built: a provider that holds out
+/// no capability for what a mount asks, named, or a serve that could
+/// not be opened, in a sentence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MountsError {
+    /// A provider's capabilities exclude the serve a mount needs:
+    /// the volume's provider FUSE serves no volume of the mode, or
+    /// the agent's provider FUSE serves no container.
+    Unsupported(String),
+    /// A provider not connected, or a serve it refused or failed.
+    Failed(String),
+}
+
+impl std::fmt::Display for MountsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MountsError::Unsupported(what) | MountsError::Failed(what) => f.write_str(what),
         }
     }
 }
@@ -103,10 +125,11 @@ impl Mounts {
     }
 
     /// The mounts for a record's run: its cross-provider mounts, every
-    /// volume's serve opened on its provider. The first that cannot
-    /// be is the failure, in a sentence, and what was opened is let
-    /// go.
-    pub async fn build(daemon: &Daemon, volume_files: &[VolumeFuseMount], volume_directories: &[VolumeFuseMount]) -> Result<Mounts, String> {
+    /// volume's FUSE serve opened on its provider — a provider whose
+    /// capabilities FUSE serve a volume of the mount's mode, else the
+    /// mount is unsupported and the provider is not asked. The first
+    /// that cannot be is the failure, and what was opened is let go.
+    pub async fn build(daemon: &Daemon, volume_files: &[VolumeFuseMount], volume_directories: &[VolumeFuseMount]) -> Result<Mounts, MountsError> {
         let mut mounts = Mounts::empty();
         let mut v = 0usize;
         for (mount, directory) in volume_files
@@ -118,8 +141,17 @@ impl Mounts {
             let id = format!("v{v}");
             let Some(handle) = daemon.live.provider(&mount.provider).await else {
                 mounts.stop().await;
-                return Err(format!("the provider of the volume {} is not connected now", mount.volume_name));
+                return Err(MountsError::Failed(format!("the provider of the volume {} is not connected now", mount.volume_name)));
             };
+            let lacked = daemon
+                .live
+                .capabilities(&mount.provider)
+                .await
+                .and_then(|info| capable::fuse_serve(&info, mount.volume_mode).err());
+            if let Some(what) = lacked {
+                mounts.stop().await;
+                return Err(MountsError::Unsupported(format!("the volume {} cannot be served: {what}", mount.volume_name)));
+            }
             let request = VolumeServeRequest {
                 name: mount.volume_name.clone(),
                 mode: mount.volume_mode,
@@ -129,7 +161,7 @@ impl Mounts {
                 Ok(serve) => serve,
                 Err(error) => {
                     mounts.stop().await;
-                    return Err(format!("the volume {} could not be served: {error:?}", mount.volume_name));
+                    return Err(MountsError::Failed(format!("the volume {} could not be served: {error:?}", mount.volume_name)));
                 }
             };
             mounts.sources.insert(
@@ -156,14 +188,26 @@ impl Mounts {
     /// the template names, `files` and `directories`, each served by
     /// the agent's provider from the agent's container — a directory
     /// whole, a file with the directory holding it — and watched for
-    /// every change, the agent's own included. The first that cannot
-    /// be served is the failure, in a sentence, and what was opened is
-    /// let go.
-    pub async fn build_dependency(daemon: &Daemon, agent_provider: &Identity, agent_container: &str, files: &[Mount], directories: &[Mount]) -> Result<Mounts, String> {
+    /// every change, the agent's own included. An agent's provider
+    /// whose capabilities FUSE serve no container is every such mount
+    /// unsupported, and is not asked. The first that cannot be served
+    /// is the failure, and what was opened is let go.
+    pub async fn build_dependency(daemon: &Daemon, agent_provider: &Identity, agent_container: &str, files: &[Mount], directories: &[Mount]) -> Result<Mounts, MountsError> {
         let mut mounts = Mounts::empty();
+        if files.is_empty() && directories.is_empty() {
+            return Ok(mounts);
+        }
         let Some(handle) = daemon.live.provider(agent_provider).await else {
-            return Err("the agent's provider is not connected now".to_string());
+            return Err(MountsError::Failed("the agent's provider is not connected now".to_string()));
         };
+        let serves_containers = daemon
+            .live
+            .capabilities(agent_provider)
+            .await
+            .is_none_or(|info| info.capabilities.containers_fuse_serve);
+        if !serves_containers {
+            return Err(MountsError::Unsupported("the agent's provider FUSE serves no container, which a dependency's mount of the agent's path needs".to_string()));
+        }
         let mut d = 0usize;
         for (mount, directory) in files
             .iter()
@@ -181,7 +225,7 @@ impl Mounts {
                 let mut path = mount.agent_path.clone();
                 let Some(name) = path.pop() else {
                     mounts.stop().await;
-                    return Err("a file mount names the agent's root".to_string());
+                    return Err(MountsError::Failed("a file mount names the agent's root".to_string()));
                 };
                 (path, vec![name])
             };
@@ -193,7 +237,7 @@ impl Mounts {
                 Ok(serve) => serve,
                 Err(error) => {
                     mounts.stop().await;
-                    return Err(format!("the agent's path {} could not be served: {error:?}", mount.agent_path.join("/")));
+                    return Err(MountsError::Failed(format!("the agent's path {} could not be served: {error:?}", mount.agent_path.join("/"))));
                 }
             };
             let tree = match serve.filetree().await {
@@ -201,7 +245,7 @@ impl Mounts {
                 Err(error) => {
                     serve.stop().await;
                     mounts.stop().await;
-                    return Err(format!("the agent's path {} could not be watched: {error:?}", mount.agent_path.join("/")));
+                    return Err(MountsError::Failed(format!("the agent's path {} could not be watched: {error:?}", mount.agent_path.join("/"))));
                 }
             };
             let watcher = tokio::spawn(watch::relay(tree, mounts.changes.clone(), mount.tool_path.clone(), prefix.clone()));

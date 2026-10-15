@@ -17,8 +17,10 @@ use crate::daemon::Daemon;
 /// `None`.
 ///
 /// Every connected provider but `asker` — the one asking, which has
-/// looked already — is asked an `images::check` at once, for the
-/// daemon's own images there and nothing else, and the first to answer
+/// looked already — whose capabilities keep a client image store, the
+/// only providers a check of the `client` source can find anything
+/// on, is asked an `images::check` at once, for the daemon's own
+/// images there and nothing else, and the first to answer
 /// available is the answer. The rest are not waited for: the asks go
 /// on in a task of their own, and every provider that answers
 /// available after is remembered beside the first, so a pull that
@@ -29,6 +31,14 @@ pub async fn locate(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Opt
     let mut asked = Vec::new();
     for identity in daemon.live.connected_providers().await {
         if &identity == asker {
+            continue;
+        }
+        let keeps_store = daemon
+            .live
+            .capabilities(&identity)
+            .await
+            .is_some_and(|info| info.capabilities.images_store);
+        if !keeps_store {
             continue;
         }
         if let Some(handle) = daemon.live.provider(&identity).await {

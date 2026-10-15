@@ -63,6 +63,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         Err(Fail::NotFound) => Frame::NotFound,
         Err(Fail::NoDestination) => Frame::NoDestination,
         Err(Fail::Held) => Frame::Held,
-        Err(fail) => Frame::Error(reply::failure(&fail)),
+        Err(fail) => Frame::Error(fail.error()),
     })
 }

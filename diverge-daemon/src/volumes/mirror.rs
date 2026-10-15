@@ -54,6 +54,10 @@ impl Mirror {
             }
             Frame::Removed(volume) => self.volumes.lock().await.remove(&volume.name).is_some(),
             Frame::Listed => self.whole.send_replace(Whole::Listed) != Whole::Listed,
+            Frame::Unsupported => {
+                self.failed("the provider keeps no volume".to_string());
+                true
+            }
             Frame::Error(error) => {
                 self.failed(super::describe(&error));
                 true

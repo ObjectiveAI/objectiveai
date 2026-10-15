@@ -24,7 +24,7 @@
 //! inside the process — a container's `/daemon` pair, or another
 //! daemon come through a provider — is served by [`serve_pair`], the
 //! same session and dispatch, for a standing admitted elsewhere.
-//! [`reply`] is how every handler sends a frame and how a store
+//! [`reply()`] is how every handler sends a frame and how a store
 //! failure becomes the wire's error. [`Error`] is why the daemon could not start or could
 //! not listen, the one report a failed start gets; the daemon prints
 //! nothing else.
@@ -48,7 +48,7 @@ mod dispatch;
 mod error;
 mod listen;
 mod pair;
-mod reply;
+pub mod reply;
 mod run;
 
 pub use connection::*;

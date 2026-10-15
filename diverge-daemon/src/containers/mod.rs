@@ -42,6 +42,7 @@
 
 mod build;
 mod error;
+pub mod capable;
 mod idle;
 mod inflight;
 mod key;

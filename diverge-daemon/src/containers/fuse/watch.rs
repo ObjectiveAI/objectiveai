@@ -1,6 +1,6 @@
 //! A served tree's own changes, rerooted at the mount.
 
-use diverge_sdk::provider::endpoints::volumes::serve::server::channel_response::filetree;
+use diverge_sdk::provider::endpoints::volumes::fuse_serve::server::channel_response::filetree;
 use diverge_sdk::shared::filetree::response::{Frame, Node};
 use diverge_sdk::wire::client::channel::Channel;
 use diverge_sdk::wire::decode::Decode as _;

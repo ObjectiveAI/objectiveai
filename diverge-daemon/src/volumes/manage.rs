@@ -39,7 +39,8 @@ pub enum Edited {
 pub enum Dropped {
     /// The volume is gone.
     Deleted,
-    /// A container of the provider's mounts it.
+    /// A container of the provider's mounts it, a FUSE serve holds
+    /// it, or an operation is on it.
     Mounted,
 }
 
@@ -49,6 +50,8 @@ pub async fn create(daemon: &Daemon, identity: &Identity, name: String, bytes: u
     match create_execute::execute(&handle, &create_request::Frame { name, bytes, mode }).await {
         Ok(()) => Ok(Made::Created),
         Err(create_execute::ExecuteError::InsufficientCapacity) => Ok(Made::InsufficientCapacity),
+        Err(create_execute::ExecuteError::ModeUnsupported) => Err(Fail::Unsupported("the provider keeps no volume of that mode".to_string())),
+        Err(create_execute::ExecuteError::Unsupported) => Err(Fail::Unsupported("the provider keeps no volume".to_string())),
         Err(create_execute::ExecuteError::Provider(error)) => Err(Fail::refusal(&error)),
         Err(error) => Err(Fail::failed(&error)),
     }
@@ -65,6 +68,9 @@ pub async fn edit(daemon: &Daemon, volume: &reference::Volume, change: Change) -
         Ok(()) => Ok(Edited::Edited),
         Err(edit_execute::ExecuteError::InsufficientCapacity) => Ok(Edited::InsufficientCapacity),
         Err(edit_execute::ExecuteError::ContentTooLarge) => Ok(Edited::ContentTooLarge),
+        Err(edit_execute::ExecuteError::ModeUnsupported) => Err(Fail::Unsupported("the provider keeps no volume of that mode".to_string())),
+        Err(edit_execute::ExecuteError::Unsupported) => Err(Fail::Unsupported("the provider keeps no volume".to_string())),
+        Err(edit_execute::ExecuteError::Mounted | edit_execute::ExecuteError::FuseServed | edit_execute::ExecuteError::Held) => Err(Fail::Held),
         Err(edit_execute::ExecuteError::Provider(error)) => Err(Fail::refusal(&error)),
         Err(error) => Err(Fail::failed(&error)),
     }
@@ -78,7 +84,8 @@ pub async fn delete(daemon: &Daemon, volume: &reference::Volume) -> Result<Dropp
     };
     match delete_execute::execute(&handle, &request).await {
         Ok(()) => Ok(Dropped::Deleted),
-        Err(delete_execute::ExecuteError::Mounted) => Ok(Dropped::Mounted),
+        Err(delete_execute::ExecuteError::Mounted | delete_execute::ExecuteError::FuseServed | delete_execute::ExecuteError::Held) => Ok(Dropped::Mounted),
+        Err(delete_execute::ExecuteError::Unsupported) => Err(Fail::Unsupported("the provider keeps no volume".to_string())),
         Err(delete_execute::ExecuteError::Provider(error)) => Err(Fail::refusal(&error)),
         Err(error) => Err(Fail::failed(&error)),
     }
@@ -96,6 +103,8 @@ pub async fn stat(daemon: &Daemon, volume: &reference::Volume) -> Result<Stat, F
             bytes_used: stat.bytes_used,
             dirhash: stat.dirhash,
         }),
+        Err(stat_execute::ExecuteError::Mounted | stat_execute::ExecuteError::FuseServed | stat_execute::ExecuteError::Held) => Err(Fail::Held),
+        Err(stat_execute::ExecuteError::Unsupported) => Err(Fail::Unsupported("the provider keeps no volume".to_string())),
         Err(stat_execute::ExecuteError::Provider(error)) => Err(Fail::refusal(&error)),
         Err(error) => Err(Fail::failed(&error)),
     }

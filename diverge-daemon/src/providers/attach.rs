@@ -5,7 +5,7 @@ use std::pin::{Pin, pin};
 use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
-use diverge_sdk::provider::endpoints::version;
+use diverge_sdk::provider::endpoints::info;
 use diverge_sdk::wire::client::handle::Handle;
 use diverge_sdk::wire::client::router::{InvalidAuthorize, Router};
 use diverge_sdk::wire::connection::Connection;
@@ -16,11 +16,18 @@ use tokio::sync::{Notify, mpsc};
 use super::Error;
 use crate::daemon::Daemon;
 
+/// The version a provider must answer to be used: this crate's own,
+/// read from the manifest at compile time. The daemon and the
+/// provider are versioned with the SDK, which is the specification,
+/// so an equal string is a provider speaking the daemon's protocol
+/// and any other is one the daemon will not speak to.
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 /// A provider's connection, attached: holding its slot under its
 /// identity, with the router not yet driven to the end.
 ///
 /// What [`attach`] hands back once the provider has answered its
-/// version. [`serve`](Self::serve) is the rest of the connection's
+/// info. [`serve`](Self::serve) is the rest of the connection's
 /// life — until the socket ends or the daemon evicts it — and gives
 /// the slot back at its end. Dropping this instead ends the
 /// connection, since the router and its half of the socket are here
@@ -43,19 +50,26 @@ pub struct Attached {
 /// to the provider `identity`, holding `credential` — the hash of the
 /// key an incoming provider presented — with it.
 ///
-/// The slot is taken first: one held under the identity, or one
+/// The slot is reserved first: one held under the identity, or one
 /// holding the credential, is [`Error::Held`], and the socket is
-/// dropped without a word. Then the socket is split into the SDK's
-/// client router and handle; the provider is asked its version, with
-/// the router driven meanwhile, and one that does not answer is not a
-/// provider, [`Error::Version`], the slot given back and the socket
-/// dropped; then the handle fills the slot, the daemon's accept of
-/// other daemons is opened on the connection when the configuration
-/// says so, the provider's volumes listing is opened and kept for the
-/// connection's life, and what comes back is the rest of the
-/// connection's life, to be served.
+/// dropped without a word, so that no second socket of one provider
+/// is ever admitted — and a reserved slot reads as no connection
+/// until it is filled. Then the socket is split into the SDK's client
+/// router and handle; the provider is asked its info, with the router
+/// driven meanwhile, and one that does not answer is not a provider,
+/// [`Error::Info`], the slot given back and the socket dropped. A
+/// provider that answers the daemon's own `VERSION` fills the slot
+/// as connected, with the handle and the answer cached for the
+/// connection's life: the daemon's accept of other daemons is opened
+/// on the connection when the configuration says so, and the
+/// provider's volumes listing is opened and kept, when its
+/// capabilities keep volumes at all. A provider that answers another
+/// version fills the slot as a different version — the handle kept so
+/// the socket stays open, and nothing opened on it, ever. Either way
+/// what comes back is the rest of the connection's life, to be
+/// served.
 pub async fn attach(connection: Connection, identity: Identity, credential: Option<String>, daemon: &Arc<Daemon>) -> Result<Attached, Error> {
-    let Some(evict) = daemon.live.take_provider(identity.clone(), credential).await else {
+    let Some(evict) = daemon.live.reserve_provider(identity.clone(), credential).await else {
         return Err(Error::Held);
     };
     let (sink, stream) = connection.split();
@@ -64,23 +78,32 @@ pub async fn attach(connection: Connection, identity: Identity, credential: Opti
     let router = Router::new(stream, registration_receiver, closed_sender);
     let handle = Handle::new(sink, registration_sender, closed_receiver);
     let mut reading: Pin<Box<dyn Future<Output = Result<(), InvalidAuthorize>> + Send>> = Box::pin(router.run());
-    {
-        let asked = pin!(version::client::execute::execute(&handle));
-        let answered = match future::select(asked, reading.as_mut()).await {
+    let answered = {
+        let asked = pin!(info::client::execute::execute(&handle));
+        match future::select(asked, reading.as_mut()).await {
             Either::Left((answered, _)) => answered,
-            // The socket ended before the version came back.
+            // The socket ended before the info came back.
             Either::Right((_, asked)) => asked.await,
-        };
-        if let Err(error) = answered {
-            daemon.live.disconnect_provider(&identity).await;
-            return Err(Error::Version(error));
         }
+    };
+    let answer = match answered {
+        Ok(answer) => answer,
+        Err(error) => {
+            daemon.live.disconnect_provider(&identity).await;
+            return Err(Error::Info(error));
+        }
+    };
+    if answer.version == VERSION {
+        let info = daemon.live.connect_provider(&identity, handle.clone(), answer).await;
+        if daemon.accept_daemons {
+            tokio::spawn(super::accept(Arc::clone(daemon), handle.clone()));
+        }
+        if info.capabilities.volumes() {
+            tokio::spawn(crate::volumes::watch(Arc::clone(daemon), identity.clone(), handle));
+        }
+    } else {
+        daemon.live.different_version_provider(&identity, handle, answer).await;
     }
-    daemon.live.connect_provider(&identity, handle.clone()).await;
-    if daemon.accept_daemons {
-        tokio::spawn(super::accept(Arc::clone(daemon), handle.clone()));
-    }
-    tokio::spawn(crate::volumes::watch(Arc::clone(daemon), identity.clone(), handle));
     Ok(Attached {
         daemon: Arc::clone(daemon),
         identity,

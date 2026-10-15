@@ -26,6 +26,9 @@ pub async fn read(daemon: &Daemon, volume: &reference::Volume, path: &[String]) 
     Ok(Box::pin(stream.map(|piece: Result<Bytes, _>| match piece {
         Ok(bytes) => Ok(bytes),
         Err(read_execute::ExecuteStreamError::Refused(error)) => Err(super::describe(&error)),
+        Err(
+            read_execute::ExecuteStreamError::Mounted | read_execute::ExecuteStreamError::FuseServed | read_execute::ExecuteStreamError::Held,
+        ) => Err(Fail::Held.to_string()),
         Err(error) => Err(error.to_string()),
     })))
 }
@@ -43,6 +46,8 @@ pub async fn write(daemon: &Daemon, volume: &reference::Volume, path: &[String],
     match write_execute::execute(&handle, &request, content).await {
         Ok(()) => Ok(()),
         Err(write_execute::ExecuteError::Refused(error)) => Err(Fail::refusal(&error)),
+        Err(write_execute::ExecuteError::Mounted | write_execute::ExecuteError::FuseServed | write_execute::ExecuteError::Held) => Err(Fail::Held),
+        Err(write_execute::ExecuteError::Unsupported) => Err(Fail::Unsupported("the provider keeps no volume".to_string())),
         Err(write_execute::ExecuteError::Source(error)) => Err(Fail::Error(super::describe(&error))),
         Err(error) => Err(Fail::failed(&error)),
     }

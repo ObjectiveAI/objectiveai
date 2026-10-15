@@ -13,6 +13,7 @@ use tokio::sync::{Mutex, watch};
 use crate::containers::answerers::Answerer;
 use crate::containers::deploy::short;
 use crate::containers::fuse::Mounts;
+use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
 use crate::containers::{Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, provider, stop};
 use crate::daemon::{Daemon, Kind};
@@ -46,7 +47,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         template: tool.template.clone(),
         owner: owner.clone(),
     });
-    let candidates = provider::candidates(daemon, None).await.map_err(StartError::Provider)?;
+    let candidates = provider::candidates(daemon, None, &Needs::default()).await.map_err(StartError::Provider)?;
     let container = build::service(&tool.template, &tool.declared);
     let attestation = attestation::Tool::Dependency {
         image: container.image.clone(),

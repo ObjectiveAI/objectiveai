@@ -5,6 +5,7 @@ use std::net::IpAddr;
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::endpoints::providers::Status;
 use diverge_sdk::daemon::endpoints::providers::incoming::Credential;
 use diverge_sdk::daemon::endpoints::providers::incoming::list::server::response;
 
@@ -47,12 +48,12 @@ impl Incoming {
         }
     }
 
-    /// The credential as a list reports it, given whether a provider
-    /// is connected through it now.
-    pub fn report(&self, connected: bool) -> response::Incoming {
+    /// The credential as a list reports it, given where the daemon
+    /// stands with the provider connected through it now.
+    pub fn report(&self, status: Status) -> response::Incoming {
         response::Incoming {
             credential: self.credential(),
-            connected,
+            status,
             created: self.created,
             creator: self.creator.clone(),
             tags: self.tags.clone(),

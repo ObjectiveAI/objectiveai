@@ -74,7 +74,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         Ok(()) => {}
         Err(Fail::NotFound) => reply::reply(scope, &Frame::NotFound).await,
         Err(Fail::Held) => reply::reply(scope, &Frame::Held).await,
-        Err(fail) => reply::reply(scope, &Frame::Error(reply::failure(&fail))).await,
+        Err(fail) => reply::reply(scope, &Frame::Error(fail.error())).await,
     }
     Ok(())
 }

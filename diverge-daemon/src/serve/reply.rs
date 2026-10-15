@@ -27,3 +27,14 @@ pub fn failure(error: &impl Display) -> Error {
         "error": error.to_string(),
     }))
 }
+
+/// The wire's error for a request a provider's capabilities exclude,
+/// which the daemon refused without asking the provider: one shape,
+/// `{"kind":"unsupported","error":…}`, naming what the provider lacks.
+pub fn unsupported(what: &str) -> Error {
+    Error(serde_json::json!({
+        "kind": "unsupported",
+        "error": what,
+    }))
+}
+

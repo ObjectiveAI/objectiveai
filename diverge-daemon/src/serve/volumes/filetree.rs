@@ -61,6 +61,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Ok(Found::File(_)) => Frame::NotDirectory,
         Ok(Found::Missing) | Err(volumes::Fail::NotFound) => Frame::NotFound,
         Err(volumes::Fail::Held) => Frame::Held,
-        Err(fail) => Frame::Error(reply::failure(&fail)),
+        Err(fail) => Frame::Error(fail.error()),
     })
 }
