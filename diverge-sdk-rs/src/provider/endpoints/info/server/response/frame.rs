@@ -41,10 +41,11 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// # There is no failure
 ///
-/// Alone among the responses in this specification. Every other scope
-/// can come back with the provider saying it could not — an image it
-/// cannot supply, a container that would not start — because every
-/// other scope asks it to DO something.
+/// As with [`capacity`](crate::provider::endpoints::capacity), and no
+/// other response in this specification. Every other scope can come
+/// back with the provider saying it could not — an image it cannot
+/// supply, a container that would not start — because every other
+/// scope asks it to DO something.
 ///
 /// This asks it to say what it is, which it always knows. A provider
 /// that could not answer this could not have received the question.

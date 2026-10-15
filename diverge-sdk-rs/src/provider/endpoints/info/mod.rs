@@ -1,9 +1,10 @@
 //! Asking a provider what it is: its version, and what it does.
 //!
 //! One question, one answer, and the smallest exchange in this
-//! specification: a client asks, a provider says the revision of the
-//! specification it implements and the capabilities it holds out, and
-//! the scope finishes.
+//! specification — shared only with [`capacity`](super::capacity),
+//! shaped the same: a client asks, a provider says the revision of
+//! the specification it implements and the capabilities it holds out,
+//! and the scope finishes.
 //!
 //! # It is the one thing askable before anything else is known
 //!

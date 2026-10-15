@@ -11,6 +11,7 @@
 //! | [`volumes`] | list what a provider offers, and keep the listing; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
 //! | [`daemons`] | accept connections from other daemons; connect to another daemon |
 //! | [`info`] | ask what a provider is: its version, and what it does |
+//! | [`capacity`] | ask how much the caller may still use: room for a volume, room in the image store, memory and disk a run could reserve |
 //!
 //! # The tags
 //!
@@ -42,10 +43,11 @@
 //! | `18` | [`images::delete`] |
 //! | `19` | [`images::oci`] |
 //! | `20` | [`info`] |
-//! | `21` | [`daemons::accept`] |
-//! | `22` | [`daemons::connect`] |
+//! | `21` | [`capacity`] |
+//! | `22` | [`daemons::accept`] |
+//! | `23` | [`daemons::connect`] |
 //!
-//! Twenty-three, grouped by endpoint and ordered within it. The three
+//! Twenty-four, grouped by endpoint and ordered within it. The three
 //! container scopes lead: the agents' run, the tools' run, and the
 //! serve that answers a running container's files live. The eleven volume
 //! scopes follow in the
@@ -56,19 +58,22 @@
 //! Then the six of [`images`]: the check, which asks rather than
 //! does; the caller's own store — list, examine, build, destroy; and
 //! the pull of what the provider holds.
-//! Then [`info`], which asks. Last, the two of [`daemons`], added
+//! Then [`info`], which asks what a provider is, and [`capacity`],
+//! which asks what is left of it. Last, the two of [`daemons`], added
 //! after: a daemon accepting connections from other daemons, and a
 //! daemon connecting to one.
 //!
 //! Nothing derives meaning from adjacency, which [`info`] is the
-//! proof of — it is the one a client asks FIRST and it holds the
-//! highest tag, because tags are handed out in the order scopes were
-//! defined and nothing reads them in order. The grouping is for
-//! whoever reads the table, and a new scope takes the value where it
-//! belongs conceptually, the scopes after it moving up one, and a
-//! scope removed takes its value with it, the scopes after it moving
-//! down — which is how the container FUSE serve sits at `2` and the
-//! volumes at `3` through `13`, and the images at `14` through `19`.
+//! proof of — it is the one a client asks FIRST and it sits near the
+//! end, because tags are handed out in the order scopes were defined
+//! and nothing reads them in order. The grouping is for whoever reads
+//! the table, and a new scope takes the value where it belongs
+//! conceptually, the scopes after it moving up one, and a scope
+//! removed takes its value with it, the scopes after it moving down —
+//! which is how the container FUSE serve sits at `2` and the volumes
+//! at `3` through `13`, the images at `14` through `19`, and
+//! [`capacity`] at `21` beside [`info`], the daemons having moved up
+//! to `22` and `23`.
 //!
 //! This table is the whole allocation. Each request states its own
 //! value and points here, because a value chosen in one module has to
@@ -94,6 +99,7 @@ mod client_request;
 
 pub use client_request::*;
 
+pub mod capacity;
 pub mod containers;
 pub mod daemons;
 pub mod images;
