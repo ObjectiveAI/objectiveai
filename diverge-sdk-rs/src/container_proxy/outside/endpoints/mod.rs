@@ -13,7 +13,7 @@
 //! | `3` | [`filesystem::tree`] |
 //! | `4` | [`filesystem::read`] |
 //! | `5` | [`filesystem::write`] |
-//! | `6` | [`filesystem::serve`] |
+//! | `6` | [`filesystem::fuse_serve`] |
 //!
 //! Seven. A `begin` leads, one per family, because it is the server's
 //! first act on every connection: the scope the proxy's own asks ride —
@@ -22,7 +22,7 @@
 //! connection — and the family's own exchanges with
 //! it. A mount is a scope because the asks a mount makes ride it, and a
 //! tree is one because it does not end by itself. A read and a write
-//! are scopes because each is a stream of its own. A serve is one
+//! are scopes because each is a stream of its own. A FUSE serve is one
 //! because the asks the server makes of a subtree ride it, for as
 //! long as the server wants them answered.
 //!

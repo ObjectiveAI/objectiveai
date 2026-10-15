@@ -78,7 +78,7 @@ pub struct Frame {
     /// until an [`edit`](crate::provider::endpoints::volumes::edit) changes it.
     /// How a provider makes `ephemeral` hold — an overlay, a copy — is
     /// its own. A fact of the volume and not of a mount: every
-    /// container that mounts the volume and every serve of it is
+    /// container that mounts the volume and every FUSE serve of it is
     /// bound under it, and a
     /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
     /// does not say otherwise.

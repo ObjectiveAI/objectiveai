@@ -11,13 +11,21 @@ use crate::shared::error::Error;
 ///
 /// One of these on channel `0`, then the scope finishes. A payload
 /// leads with one byte saying which — `0` for [`Stat`](Self::Stat),
-/// `1` for [`Error`](Self::Error) — and the rest is that variant's
-/// own bytes.
+/// `1` for [`Unsupported`](Self::Unsupported), `2` for
+/// [`Error`](Self::Error) — and the rest is that variant's own
+/// bytes, of which `Unsupported` has none.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The image examined. Tag `0`.
     Stat(Stat),
-    /// A failure. Tag `1`.
+    /// The provider has no image store — its `images_store` is `false`,
+    /// see [`info`](crate::provider::endpoints::info) — and nothing was
+    /// done. Tag `1`.
+    ///
+    /// Carries nothing. A caller asks another provider; nothing about
+    /// the request is the cause.
+    Unsupported,
+    /// A failure. Tag `2`.
     ///
     /// An image the caller has none by that name is one, and so is a
     /// provider that could not look. See
@@ -29,8 +37,11 @@ pub enum Frame {
 /// Tag for [`Frame::Stat`].
 const STAT: u8 = 0;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 1;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 1;
+const ERROR: u8 = 2;
 
 /// Two variants, two formats, and the tag chooses between them: the
 /// stat is postcard, as the rest of the store is, and the
@@ -47,6 +58,10 @@ impl Encode for Frame {
             Frame::Stat(stat) => {
                 out.extend_from_slice(&[STAT]);
                 postcard::to_io(stat, &mut *out).map(|_| ()).map_err(FrameEncodeError::Stat)
+            }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -65,6 +80,7 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameDecodeError::Empty)?;
         match *tag {
             STAT => postcard::from_bytes(rest).map(Frame::Stat).map_err(FrameDecodeError::Stat),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameDecodeError::Error),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
         }
@@ -103,7 +119,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The stat did not parse.
     Stat(postcard::Error),

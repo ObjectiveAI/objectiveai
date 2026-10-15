@@ -13,11 +13,15 @@ use serde::{Deserialize, Serialize};
 /// [`client`](Self::client) is the caller's own images — those it
 /// [built](crate::provider::endpoints::images::build) on this
 /// provider and has not deleted — and no other identity's: a
-/// provider never answers one identity's store to another.
+/// provider never answers one identity's store to another; a
+/// provider with no image store has this source for nobody.
 /// [`registries`](Self::registries) is every referenced registry the
-/// provider's own policy lists, asked as `<registry>/<name>@<digest>`;
-/// a reference naming a registry not listed is ignored, and a
-/// request with no reference asks nothing of this source.
+/// provider's own policy lists — the `images_registries` of its
+/// [`info`](crate::provider::endpoints::info) — asked as
+/// `<registry>/<name>@<digest>`; a reference naming a registry not
+/// listed is ignored, and a request with no reference asks nothing
+/// of this source. A request naming only sources the provider has
+/// not is answered `NoSource`, as one naming neither is.
 ///
 /// # Never the provider's own
 ///

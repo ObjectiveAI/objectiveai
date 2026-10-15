@@ -45,6 +45,7 @@ pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<(), Ex
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Deleted => Ok(()),
         response::Frame::InUse => Err(ExecuteError::InUse),
+        response::Frame::Unsupported => Err(ExecuteError::Unsupported),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
@@ -72,6 +73,9 @@ pub enum ExecuteError {
     /// A running container of the caller runs the image, and the
     /// provider does not delete an image in use. Nothing was changed.
     InUse,
+    /// The provider has no image store. The protocol's defined
+    /// refusal, not a failure.
+    Unsupported,
     /// The provider could not do it, and said so. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why
     /// it says so little.
@@ -88,6 +92,7 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Unanswered => f.write_str("image deletion finished without an answer"),
             ExecuteError::Response(error) => write!(f, "image deletion answer did not parse: {error}"),
             ExecuteError::InUse => f.write_str("a running container runs the image, and it was not deleted"),
+            ExecuteError::Unsupported => f.write_str("the provider has no image store"),
             ExecuteError::Provider(_) => f.write_str("the provider could not complete the image deletion"),
         }
     }
@@ -104,7 +109,11 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Request(error) => Some(error),
             ExecuteError::Frame(error) => Some(error),
             ExecuteError::Response(error) => Some(error),
-            ExecuteError::Closed | ExecuteError::Unanswered | ExecuteError::InUse | ExecuteError::Provider(_) => None,
+            ExecuteError::Closed
+            | ExecuteError::Unanswered
+            | ExecuteError::InUse
+            | ExecuteError::Unsupported
+            | ExecuteError::Provider(_) => None,
         }
     }
 }

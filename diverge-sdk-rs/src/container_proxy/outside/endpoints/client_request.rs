@@ -42,7 +42,7 @@ pub enum ClientRequest<'a> {
     /// Tag `5`. Write one file into the container.
     FilesystemWrite(filesystem::write::client::request::Frame),
     /// Tag `6`. Serve a subtree of the container live.
-    FilesystemServe(filesystem::serve::client::request::Frame),
+    FilesystemFuseServe(filesystem::fuse_serve::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request the server sends — it is
@@ -86,7 +86,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::FilesystemTree(frame) => frame.encode(out),
             ClientRequest::FilesystemRead(frame) => frame.encode(out),
             ClientRequest::FilesystemWrite(frame) => frame.encode(out),
-            ClientRequest::FilesystemServe(frame) => frame.encode(out),
+            ClientRequest::FilesystemFuseServe(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -129,8 +129,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             5 => filesystem::write::client::request::Frame::decode(bytes)
                 .map(ClientRequest::FilesystemWrite)
                 .ok(),
-            6 => filesystem::serve::client::request::Frame::decode(bytes)
-                .map(ClientRequest::FilesystemServe)
+            6 => filesystem::fuse_serve::client::request::Frame::decode(bytes)
+                .map(ClientRequest::FilesystemFuseServe)
                 .ok(),
             _ => None,
         };

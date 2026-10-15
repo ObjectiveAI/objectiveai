@@ -89,6 +89,10 @@ pub async fn execute(
             Err(ExecuteError::InsufficientCapacity)
         }
         response::Frame::ContentTooLarge => Err(ExecuteError::ContentTooLarge),
+        response::Frame::ModeUnsupported => Err(ExecuteError::ModeUnsupported),
+        response::Frame::Mounted => Err(ExecuteError::Mounted),
+        response::Frame::FuseServed => Err(ExecuteError::FuseServed),
+        response::Frame::Held => Err(ExecuteError::Held),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
@@ -129,6 +133,19 @@ pub enum ExecuteError {
     /// The volume holds more than the size asked for, so it cannot be
     /// shrunk to it. The size is as it was.
     ContentTooLarge,
+    /// The provider has no volumes of the mode asked for. Nothing
+    /// changed.
+    ModeUnsupported,
+    /// The volume is mounted in a running container, and was not
+    /// edited. Nothing changed.
+    Mounted,
+    /// A FUSE serve holds the volume, and it was not edited. Nothing
+    /// changed.
+    FuseServed,
+    /// Another operation — a stat, a read, a write, a filetree, an
+    /// edit or a delete — has the volume to itself, and it was not
+    /// edited. Nothing changed.
+    Held,
     /// The provider could not do it, and said so.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -163,6 +180,18 @@ impl fmt::Display for ExecuteError {
             ExecuteError::ContentTooLarge => f.write_str(
                 "the volume holds more than that size and cannot be shrunk to it",
             ),
+            ExecuteError::ModeUnsupported => {
+                f.write_str("the provider has no volumes of the mode asked for")
+            }
+            ExecuteError::Mounted => f.write_str(
+                "the volume is mounted in a running container and was not edited",
+            ),
+            ExecuteError::FuseServed => f.write_str(
+                "a FUSE serve holds the volume and it was not edited",
+            ),
+            ExecuteError::Held => f.write_str(
+                "another operation has the volume to itself and it was not edited",
+            ),
             ExecuteError::Provider(_) => {
                 f.write_str("the provider could not complete the volume edit")
             }
@@ -186,6 +215,10 @@ impl std::error::Error for ExecuteError {
             | ExecuteError::Unanswered
             | ExecuteError::InsufficientCapacity
             | ExecuteError::ContentTooLarge
+            | ExecuteError::ModeUnsupported
+            | ExecuteError::Mounted
+            | ExecuteError::FuseServed
+            | ExecuteError::Held
             | ExecuteError::Provider(_) => None,
         }
     }

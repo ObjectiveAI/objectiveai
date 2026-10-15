@@ -5,7 +5,7 @@
 //! and go; [`stat`] names one and says how
 //! much of it is used and what is in it; [`read`] takes one file out
 //! of one, [`write`](mod@write) puts one in, and [`filetree`] says what one
-//! holds, once; [`serve`] holds one mounted, answers a FUSE mount's
+//! holds, once; [`fuse_serve`] holds one mounted, answers a FUSE mount's
 //! asks from it and streams its tree as served; [`create_capacity`] says how
 //! large a volume may be made and [`create`] makes one; [`edit_capacity`] says
 //! how far one may grow and [`edit`] changes how much it reserves,
@@ -17,21 +17,26 @@
 //!
 //! # Many mounters, or one editor
 //!
-//! Who may hold a volume at once is its [`Mode`]: an ephemeral or a
-//! read-only volume may be mounted in any number of containers of its
-//! caller and served on any number of [`serve`] scopes at once; a
-//! persistent volume has one user at a time, one running container
-//! or one serve. Whatever the mode, nothing examines, reads, writes,
-//! walks, resizes or deletes a volume while anything holds it. On the
-//! server half that is one hold per volume with two kinds — shared,
-//! taken by a run for its life and by a [`serve`] for its scope's,
-//! and exclusive, taken by a [`stat`], a [`read`],
-//! a [`write`](mod@write), a [`filetree`], an [`edit`] or a [`delete`]
-//! for its
-//! duration — taken by the handlers, never by the provider;
-//! [`refusal`] is what a handler answers when the hold cannot be
-//! taken and the endpoint has no frame of its own for it. See
-//! `Volume` for the rule in full.
+//! Who may hold a volume at once is its [`Mode`], as far as the
+//! provider's [`info`](super::info) capability for the mode goes: an
+//! ephemeral or a read-only volume may be mounted in any number of
+//! containers of its caller and served on any number of
+//! [`fuse_serve`] scopes at once; a persistent volume has one user at
+//! a time, one running container or one FUSE serve; and a provider
+//! may do less than the mode allows — mount once, serve once, never
+//! both — which its capabilities say. Whatever the mode, nothing
+//! examines, reads, writes, walks, resizes or deletes a volume while
+//! anything holds it. On the server half that is one hold per volume
+//! with two kinds — shared, taken by a run for its life and by a
+//! [`fuse_serve`] for its scope's, and exclusive, taken by a
+//! [`stat`], a [`read`], a [`write`](mod@write), a [`filetree`], an
+//! [`edit`] or a [`delete`] for its duration — taken by the handlers,
+//! never by the provider. A hold that cannot be taken is answered by
+//! the endpoint's own variant, which says what holds the volume: a
+//! running container (`Mounted`), a FUSE serve (`FuseServed`) or
+//! another operation (`Held`); [`refusal`] is what a handler answers
+//! for what no endpoint has a frame of its own for. See `Volume` for
+//! the rule in full.
 //! A volume is seen changing in the tree of a container it is
 //! mounted in, watched there by the container's proxy or, where the
 //! provider keeps a volume out of the proxy's tree, by the provider
@@ -82,7 +87,7 @@ pub mod edit_capacity;
 pub mod filetree;
 pub mod list;
 pub mod read;
-pub mod serve;
+pub mod fuse_serve;
 pub mod stat;
 pub mod write;
 

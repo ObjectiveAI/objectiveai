@@ -1,4 +1,4 @@
-//! A run, or a serve, refused because a volume it names is not in
+//! A run, or a FUSE serve, refused because a volume it names is not in
 //! the mode it meant.
 
 use serde::{Deserialize, Serialize};
@@ -7,7 +7,7 @@ use crate::provider::endpoints::volumes::Mode;
 
 /// The volume a request named under one mode that is in another, and
 /// so refused the request: a run, whose every mount states the mode it
-/// means the volume to have, or a serve, whose request does.
+/// means the volume to have, or a FUSE serve, whose request does.
 ///
 /// Nothing changed: the volume is in the mode reported here, as its
 /// listing reports it, and only an

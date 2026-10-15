@@ -153,6 +153,9 @@ fn answer(bytes: &[u8]) -> Result<(), ExecuteError> {
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Written(_) => Ok(()),
+        response::Frame::Mounted => Err(ExecuteError::Mounted),
+        response::Frame::FuseServed => Err(ExecuteError::FuseServed),
+        response::Frame::Held => Err(ExecuteError::Held),
         response::Frame::Error(error) => Err(ExecuteError::Refused(error)),
     }
 }

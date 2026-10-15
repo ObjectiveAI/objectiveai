@@ -14,7 +14,7 @@ use crate::shared::error::Error;
 /// these per scope, before the finish that ends it. There are three
 /// things that reply can be: an answer, the news that the question
 /// could not be answered, or the word that the question named no
-/// source to look in.
+/// source the provider has to look in.
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Response`](Self::Response), `1` for [`Error`](Self::Error), `2`
@@ -25,7 +25,7 @@ use crate::shared::error::Error;
 /// |----------------------|-------|
 /// | a [`Response`](Self::Response), then a finish | the provider looked where it was asked to, and this is what it found |
 /// | an [`Error`](Self::Error), then a finish | the provider could not look, and nothing is determined |
-/// | [`NoSource`](Self::NoSource), then a finish | the request asked the provider to look nowhere, and nothing is determined |
+/// | [`NoSource`](Self::NoSource), then a finish | the request named no source the provider has, and nothing is determined |
 ///
 /// # The frame type is still not a wire shape
 ///
@@ -67,12 +67,16 @@ pub enum Frame {
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
     Error(Error),
-    /// The request asked for no source, and nothing was looked at.
-    /// Tag `2`.
+    /// The request named no source the provider has, and nothing was
+    /// looked at. Tag `2`.
     ///
-    /// Neither an answer nor a failure: the question was empty. A
-    /// caller that wanted an answer asks again with at least one of
-    /// the two sources set.
+    /// Neither an answer nor a failure: the question was empty, for
+    /// this provider. A request asking for neither source is this; so
+    /// is one asking `client` of a provider with no image store, or
+    /// `registries` of one that lists no registry — see
+    /// [`info`](crate::provider::endpoints::info) for both — and
+    /// nothing else. A caller that wanted an answer asks again with a
+    /// source the provider has set, or asks another provider.
     NoSource,
 }
 

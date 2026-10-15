@@ -19,7 +19,7 @@ pub struct Request<'a> {
     /// The run's id: the one the `Id` response carries after the
     /// deploy, told here first so that the caller can serve the
     /// container's own paths into the dependencies — a
-    /// `containers::serve` names a container by it — before the id is
+    /// `containers::fuse_serve` names a container by it — before the id is
     /// answered. The provider has entered the container among those
     /// it runs by the time it asks.
     pub id: Cow<'a, str>,

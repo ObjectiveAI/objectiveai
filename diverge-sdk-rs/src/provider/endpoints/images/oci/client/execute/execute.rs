@@ -7,12 +7,13 @@ use crate::wire::encode::{Encode, Writer};
 
 /// Open a pull on `handle`, and hold the scope.
 ///
-/// Reads nothing before returning: the provider answers nothing on
-/// the main stream, and every answer comes on an ask's own channel.
-/// The scope's inbox is dropped, because the provider opens no
-/// channel on a pull. A scope the provider will not serve finishes
-/// unasked, which [`wait`](ExecuteHandle::wait) reports and every
-/// ask after it fails to open.
+/// Reads nothing before returning: a provider that serves the pull
+/// answers nothing on the main stream, and every answer comes on an
+/// ask's own channel. The scope's inbox is dropped, because the
+/// provider opens no channel on a pull. A scope the provider will not
+/// serve finishes unasked — after the one frame saying it has no
+/// image store, where that is why — which [`wait`](ExecuteHandle::wait)
+/// reports and every ask after it fails to open.
 pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<ExecuteHandle, ExecuteError> {
     let mut payload = Vec::new();
     // Taken as an argument like every other endpoint's, though it has

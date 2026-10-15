@@ -15,12 +15,16 @@
 //!
 //! # Nothing on the main stream
 //!
-//! The provider answers nothing on channel `0`. The scope is held
-//! for the connection's life, every ask answered on its own channel,
-//! and it ends at the caller's disconnect — a fourth channel, which
-//! nothing answers — or at the caller's connection ending; the
-//! provider's response finish follows either. A finish the caller
-//! did not ask for is a scope the provider will not serve.
+//! The provider answers nothing on channel `0`, with one exception.
+//! The scope is held for the connection's life, every ask answered on
+//! its own channel, and it ends at the caller's disconnect — a fourth
+//! channel, which nothing answers — or at the caller's connection
+//! ending; the provider's response finish follows either. A finish
+//! the caller did not ask for is a scope the provider will not serve.
+//! The exception is a provider with no image store — its
+//! `images_store` is `false`, see [`info`](super::super::info) — which says
+//! so with the one frame of [`server::response`], first and alone,
+//! and finishes.
 //!
 //! # What it is for
 //!

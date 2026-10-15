@@ -1,9 +1,11 @@
 //! The server side of an image pull: what a provider sends.
 //!
-//! Nothing on the main stream — there is no `response`: the provider
+//! Nothing on the main stream, for a pull the provider serves: it
 //! answers every ask on the ask's own channel and sends no frame on
-//! channel `0` but the finish that ends the scope. There is no
-//! `channel_request` either: the provider opens no channel on a pull.
+//! channel `0` but the finish that ends the scope. [`response`] is
+//! the one frame it sends there when it will not serve the pull at
+//! all — it has no image store — before that finish. There is no
+//! `channel_request`: the provider opens no channel on a pull.
 //! [`channel_response`] is the three answers, one module per kind of
 //! channel the caller opens, each the run's own answer type.
 //!
@@ -18,3 +20,4 @@
 //! [`execute`](super::client::execute) on the other side.
 
 pub mod channel_response;
+pub mod response;

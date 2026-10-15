@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 /// is on.
 ///
 /// The caller serves the agent container's path live — a
-/// `containers::serve` of it, or of the directory holding a file —
+/// `containers::fuse_serve` of it, or of the directory holding a file —
 /// and makes the mount in the tool container as a FUSE mount answered
-/// from that serve, so every read, write, listing, removal, rename and
+/// from that FUSE serve, so every read, write, listing, removal, rename and
 /// new directory the tool makes is one ask answered from the agent's
 /// own filesystem, where the agent sees it at once. Nothing is copied:
 /// the two containers share the path for as long as both run.

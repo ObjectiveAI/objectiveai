@@ -68,12 +68,16 @@ impl ExecuteHandle {
         self.0
             .wait(|payload| {
                 Ok(match server::response::Frame::decode(payload)? {
-                    // The three are sent only as the first response,
-                    // before the id; after it, none is a fact of the
-                    // run, and the wire forbids them.
+                    // The refusals are sent only as the first response,
+                    // in place of the id; after it, none is a fact of
+                    // the run, and the wire forbids them.
                     server::response::Frame::Id(_)
                     | server::response::Frame::VolumeHeld(_)
-                    | server::response::Frame::VolumeMode(_) => Decoded::Skip,
+                    | server::response::Frame::VolumeMounted(_)
+                    | server::response::Frame::VolumeFuseServed(_)
+                    | server::response::Frame::VolumeMountUnsupported(_)
+                    | server::response::Frame::VolumeMode(_)
+                    | server::response::Frame::FuseMountsUnsupported => Decoded::Skip,
                     server::response::Frame::Error(error) => Decoded::Error(error),
                 })
             })

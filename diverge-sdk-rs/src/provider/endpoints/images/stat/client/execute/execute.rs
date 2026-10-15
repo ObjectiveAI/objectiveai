@@ -43,6 +43,7 @@ pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<respon
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Stat(stat) => Ok(stat),
+        response::Frame::Unsupported => Err(ExecuteError::Unsupported),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
@@ -67,6 +68,9 @@ pub enum ExecuteError {
     Unanswered,
     /// The response frame did not parse.
     Response(response::FrameDecodeError),
+    /// The provider has no image store. The protocol's defined
+    /// refusal, not a failure.
+    Unsupported,
     /// The provider could not do it, and said so. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why
     /// it says so little.
@@ -82,6 +86,7 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Frame(error) => write!(f, "image stat answer did not decode: {error}"),
             ExecuteError::Unanswered => f.write_str("image stat finished without an answer"),
             ExecuteError::Response(error) => write!(f, "image stat answer did not parse: {error}"),
+            ExecuteError::Unsupported => f.write_str("the provider has no image store"),
             ExecuteError::Provider(_) => f.write_str("the provider could not complete the image stat"),
         }
     }
@@ -98,7 +103,10 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Request(error) => Some(error),
             ExecuteError::Frame(error) => Some(error),
             ExecuteError::Response(error) => Some(error),
-            ExecuteError::Closed | ExecuteError::Unanswered | ExecuteError::Provider(_) => None,
+            ExecuteError::Closed
+            | ExecuteError::Unanswered
+            | ExecuteError::Unsupported
+            | ExecuteError::Provider(_) => None,
         }
     }
 }

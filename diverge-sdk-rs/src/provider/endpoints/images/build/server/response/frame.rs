@@ -14,20 +14,24 @@ use crate::shared::error::Error;
 /// A build is a stream with an end. Zero or more
 /// [`Output`](Self::Output) frames, each a line the provider's build
 /// tool wrote, as it wrote them; then exactly one of
-/// [`Built`](Self::Built), [`InsufficientCapacity`](Self::InsufficientCapacity)
+/// [`Built`](Self::Built), [`InsufficientCapacity`](Self::InsufficientCapacity),
+/// [`ContextHeld`](Self::ContextHeld), [`Unsupported`](Self::Unsupported)
 /// and [`Error`](Self::Error); then the finish, and nothing after it.
 /// A payload leads with one byte saying which — `0` for `Output`,
-/// `1` for `Built`, `2` for `InsufficientCapacity`, `3` for `Error` —
-/// and the rest is that variant's own bytes; `InsufficientCapacity`
-/// carries nothing.
+/// `1` for `Built`, `2` for `InsufficientCapacity`, `3` for
+/// `ContextHeld`, `4` for `Unsupported`, `5` for `Error` — and the
+/// rest is that variant's own bytes; the three bare refusals carry
+/// nothing, and come with no output before them.
 ///
 /// | the scope ends with | means |
 /// |----------------------|-------|
 /// | [`Built`](Self::Built), then a finish | the image exists under the name, and a listing will show it |
 /// | [`InsufficientCapacity`](Self::InsufficientCapacity), then a finish | the store has no room for it, and nothing exists |
+/// | [`ContextHeld`](Self::ContextHeld), then a finish | something holds the context volume, and nothing exists |
+/// | [`Unsupported`](Self::Unsupported), then a finish | the provider has no image store, and nothing exists |
 /// | an [`Error`](Self::Error), then a finish | it does not exist, for some other reason — a build that failed, a name taken, a context refused — and the output before it says what the build said |
 ///
-/// # Insufficient capacity is an answer, not an error
+/// # The refusals are answers, not errors
 ///
 /// A provider whose store has no room for the image says so with
 /// [`InsufficientCapacity`](Self::InsufficientCapacity) rather than
@@ -35,7 +39,12 @@ use crate::shared::error::Error;
 /// other failure. The distinction is what a caller acts on: a store
 /// with no room is one to delete an image from and ask again, and a
 /// failure is not. Whether the provider knows before it builds or
-/// only after is the provider's; either way nothing exists.
+/// only after is the provider's; either way nothing exists. A context
+/// volume that something holds — a running container, a FUSE serve,
+/// or an operation that has it to itself — is
+/// [`ContextHeld`](Self::ContextHeld), a thing to stop or wait for;
+/// a provider with no image store at all is
+/// [`Unsupported`](Self::Unsupported), another provider to ask.
 ///
 /// # Output is text
 ///
@@ -53,7 +62,23 @@ pub enum Frame {
     /// The store has no room for the image, and nothing exists. Tag
     /// `2`.
     InsufficientCapacity,
-    /// A failure. Tag `3`.
+    /// Something holds the volume the context names — a running
+    /// container, a FUSE serve, or a stat, a read, a write, a filetree,
+    /// an edit or a delete that has it to itself — and nothing exists.
+    /// Tag `3`.
+    ///
+    /// Carries nothing. A build takes the shared hold a run takes,
+    /// and a volume that will not take it is this; a caller stops the
+    /// holder, or waits for it, and asks again.
+    ContextHeld,
+    /// The provider has no image store — its `images_store` is `false`,
+    /// see [`info`](crate::provider::endpoints::info) — and nothing
+    /// exists. Tag `4`.
+    ///
+    /// Carries nothing. A caller asks another provider; nothing about
+    /// the request is the cause.
+    Unsupported,
+    /// A failure. Tag `5`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little; the output before it says more.
@@ -69,8 +94,14 @@ const BUILT: u8 = 1;
 /// Tag for [`Frame::InsufficientCapacity`].
 const INSUFFICIENT_CAPACITY: u8 = 2;
 
+/// Tag for [`Frame::ContextHeld`].
+const CONTEXT_HELD: u8 = 3;
+
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 4;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 3;
+const ERROR: u8 = 5;
 
 /// Two formats, and the tag chooses between them: a line and the
 /// image built are postcard, as the rest of the store is, and the
@@ -96,6 +127,14 @@ impl Encode for Frame {
                 out.extend_from_slice(&[INSUFFICIENT_CAPACITY]);
                 Ok(())
             }
+            Frame::ContextHeld => {
+                out.extend_from_slice(&[CONTEXT_HELD]);
+                Ok(())
+            }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out).map_err(FrameEncodeError::Error)
@@ -115,6 +154,8 @@ impl Decode<'_> for Frame {
             OUTPUT => postcard::from_bytes(rest).map(Frame::Output).map_err(FrameDecodeError::Output),
             BUILT => postcard::from_bytes(rest).map(Frame::Built).map_err(FrameDecodeError::Built),
             INSUFFICIENT_CAPACITY => Ok(Frame::InsufficientCapacity),
+            CONTEXT_HELD => Ok(Frame::ContextHeld),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameDecodeError::Error),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
         }
@@ -157,7 +198,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The line did not parse.
     Output(postcard::Error),

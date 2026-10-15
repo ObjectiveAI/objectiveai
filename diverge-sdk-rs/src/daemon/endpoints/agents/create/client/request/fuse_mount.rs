@@ -17,12 +17,12 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 /// A volume is one provider's, and a container runs on one provider;
 /// a FUSE mount is how a container reaches a volume that is not its
 /// own provider's. The daemon stands between: it holds the volume
-/// served on its provider — the provider protocol's `volumes::serve`,
+/// served on its provider — the provider protocol's `volumes::fuse_serve`,
 /// which answers the nine asks a FUSE mount makes — and answers the
 /// container's provider, which relays the mount's asks, by forwarding
-/// each ask to that serve as it is and each answer back. Every mount
+/// each ask to that FUSE serve as it is and each answer back. Every mount
 /// names its own provider, so one agent's mounts may come from
-/// several; the daemon opens one serve per distinct provider and
+/// several; the daemon opens one FUSE serve per distinct provider and
 /// volume for the agent's life. The provider named may be the one
 /// the agent runs on. Nothing forbids it, though a
 /// [`VolumeMount`](super::VolumeMount) on the create's
@@ -48,7 +48,7 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 /// # The volume's mode
 ///
 /// A persistent volume changes in place. An ephemeral volume is
-/// served on a layer of the serve's own: the container starts from
+/// served on a layer of the FUSE serve's own: the container starts from
 /// the volume as it is, its changes land in the layer, the layer holds
 /// at most the mount's [`overlay_disk`](Self::overlay_disk) bytes, and
 /// the layer goes when the agent does. A read-only volume is served read-only
@@ -113,7 +113,7 @@ pub struct FuseMount {
     pub volume_relative_path: Vec<String>,
     /// The mode the volume is meant to be in: `persistent`, it keeps
     /// what is written into it; `ephemeral`, every change is discarded
-    /// afterwards, with the container or with the serve; `read_only`,
+    /// afterwards, with the container or with the FUSE serve; `read_only`,
     /// nothing changes it. The mode is the volume's own, on its
     /// provider — its listing reports it,
     /// [`volumes::create`](crate::provider::endpoints::volumes::create)
@@ -122,20 +122,20 @@ pub struct FuseMount {
     /// changes it; see [`Mode`] — and this states which mode this
     /// mount means the volume to have. The daemon sends it to the
     /// provider with the mount, and a volume in another mode refuses
-    /// the run — or, for a mount served across providers, its serve —
+    /// the run — or, for a mount served across providers, its FUSE serve —
     /// which is the agent's or tool's start error; nothing changes a
     /// volume's mode but a `volumes edit`.
     pub volume_mode: Mode,
-    /// The most bytes the serve's own layer may hold, for an
+    /// The most bytes the FUSE serve's own layer may hold, for an
     /// ephemeral volume: present exactly when
     /// [`volume_mode`](Self::volume_mode) is `ephemeral`, absent
     /// otherwise, and a mount that has it or lacks it the other way
     /// round is the create's error. The daemon carries it into the
     /// `overlay_disk` of the
-    /// [`volumes::serve`](crate::provider::endpoints::volumes::serve)
+    /// [`volumes::fuse_serve`](crate::provider::endpoints::volumes::fuse_serve)
     /// it opens for the mount, so it is that request's rule: the
     /// provider sets the bytes aside for the agent's life and refuses
-    /// the serve when it cannot, and a change inside the container
+    /// the FUSE serve when it cannot, and a change inside the container
     /// that would take the layer past them fails.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub overlay_disk: Option<u64>,

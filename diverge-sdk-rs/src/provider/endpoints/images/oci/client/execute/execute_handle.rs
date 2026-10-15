@@ -7,6 +7,8 @@ use tokio::sync::Mutex;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::super::channel_request;
+use super::super::super::server::response;
+use crate::wire::decode::Decode as _;
 use super::answered::{OciBlob, OciHas, OciManifest};
 use crate::provider::client::Manifest;
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError, unary};
@@ -109,13 +111,19 @@ impl ExecuteHandle {
 
     /// The scope's end: the finish, after the disconnect or unasked —
     /// a provider that will not serve the pull — or the connection
-    /// going first. Resolves once and answers the same way again
-    /// after.
+    /// going first; a provider with no image store says so before its
+    /// finish, and that is [`End::Unsupported`]. Resolves once and
+    /// answers the same way again after.
     pub async fn wait(&self) -> End {
         let mut main = self.main.lock().await;
         while let Some(bytes) = main.recv().await {
             match frame::server::ServerFrame::decode(&bytes) {
                 Ok(frame::server::ServerFrame::ResponseFinish { .. }) => return End::Finished,
+                Ok(frame::server::ServerFrame::Response { payload, .. }) => {
+                    if let Ok(response::Frame::Unsupported) = response::Frame::decode(payload) {
+                        return End::Unsupported;
+                    }
+                }
                 Ok(_) => {}
                 Err(_) => return End::Closed,
             }
@@ -128,8 +136,11 @@ impl ExecuteHandle {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum End {
     /// The finish came: the disconnect was answered, or the provider
-    /// would not serve the scope.
+    /// would not serve the scope for a reason it does not say.
     Finished,
+    /// The provider has no image store, and said so; its finish
+    /// follows. No ask was answered.
+    Unsupported,
     /// The connection ended before the finish.
     Closed,
 }

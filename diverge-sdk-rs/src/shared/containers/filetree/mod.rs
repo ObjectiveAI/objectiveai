@@ -20,9 +20,9 @@
 //! A volume mounted nowhere has no proxy to watch it; what it holds is
 //! answered once, as the snapshot alone, by
 //! [`volumes::filetree`](crate::provider::endpoints::volumes::filetree).
-//! A volume being served is watched as the serve sees it, its layer
+//! A volume being served is watched as the FUSE serve sees it, its layer
 //! included, by the filetree channel of its
-//! [`volumes::serve`](crate::provider::endpoints::volumes::serve)
+//! [`volumes::fuse_serve`](crate::provider::endpoints::volumes::fuse_serve)
 //! scope.
 
 pub mod response;

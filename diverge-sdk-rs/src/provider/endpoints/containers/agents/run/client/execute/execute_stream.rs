@@ -65,7 +65,13 @@ fn decode(payload: &[u8]) -> Result<Decoded<Event>, response::FrameError> {
         response::Frame::Active => Decoded::Item(Event::Active),
         response::Frame::Inactive => Decoded::Item(Event::Inactive),
         response::Frame::Error(error) => Decoded::Error(error),
-        response::Frame::Id(_) | response::Frame::VolumeHeld(_) | response::Frame::VolumeMode(_) => Decoded::Skip,
+        response::Frame::Id(_)
+        | response::Frame::VolumeHeld(_)
+        | response::Frame::VolumeMounted(_)
+        | response::Frame::VolumeFuseServed(_)
+        | response::Frame::VolumeMountUnsupported(_)
+        | response::Frame::VolumeMode(_)
+        | response::Frame::FuseMountsUnsupported => Decoded::Skip,
     })
 }
 

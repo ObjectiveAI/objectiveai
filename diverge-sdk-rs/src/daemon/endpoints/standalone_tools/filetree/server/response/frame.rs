@@ -31,7 +31,7 @@ use crate::shared::filetree;
 /// provider's own tree of the container, which leaves the FUSE mounts
 /// out, with each FUSE mount's subtree spliced in at its mount point by
 /// the daemon, which serves every one of them from the filetree
-/// channel of the `volumes::serve` it bridges the mount to. A change under a FUSE mount is reported as any other
+/// channel of the `volumes::fuse_serve` it bridges the mount to. A change under a FUSE mount is reported as any other
 /// change is, from the same source, and every directory under one has
 /// `changes` `true`. Every path is from the container's root.
 ///

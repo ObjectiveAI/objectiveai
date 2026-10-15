@@ -12,9 +12,9 @@
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
-//! And one scope of neither family: [`serve`] names a container the
+//! And one scope of neither family: [`fuse_serve`] names a container the
 //! caller is running, of either family, and a directory of it, and
-//! answers the nine FUSE asks from it live — the volume serve's own
+//! answers the nine FUSE asks from it live — the volume FUSE serve's own
 //! vocabulary, with a container at the far end — so that a mount
 //! elsewhere can be a running container's directory.
 //!
@@ -65,7 +65,7 @@
 //!
 
 pub mod agents;
-pub mod serve;
+pub mod fuse_serve;
 pub mod tools;
 
 pub mod client;

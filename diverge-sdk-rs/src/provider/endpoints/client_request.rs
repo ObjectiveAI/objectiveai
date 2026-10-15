@@ -3,7 +3,7 @@
 use std::convert::Infallible;
 use std::fmt;
 
-use super::{containers, daemons, images, version, volumes};
+use super::{containers, daemons, images, info, volumes};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -35,7 +35,7 @@ pub enum ClientRequest<'a> {
     /// Tag `1`. Run a tool server in a container.
     ContainersToolsRun(containers::tools::run::client::request::Frame),
     /// Tag `2`. Serve a subtree of a running container live.
-    ContainersServe(containers::serve::client::request::Frame),
+    ContainersFuseServe(containers::fuse_serve::client::request::Frame),
     /// Tag `3`. List the volumes a provider offers.
     VolumesList(volumes::list::client::request::Frame),
     /// Tag `4`. Examine one of them.
@@ -47,7 +47,7 @@ pub enum ClientRequest<'a> {
     /// Tag `7`. See what one holds.
     VolumesFiletree(volumes::filetree::client::request::Frame),
     /// Tag `8`. Serve one's files live.
-    VolumesServe(volumes::serve::client::request::Frame),
+    VolumesFuseServe(volumes::fuse_serve::client::request::Frame),
     /// Tag `9`. Ask how large a volume may be made.
     VolumesCreateCapacity(volumes::create_capacity::client::request::Frame),
     /// Tag `10`. Make a volume.
@@ -71,8 +71,8 @@ pub enum ClientRequest<'a> {
     ImagesDelete(images::delete::client::request::Frame),
     /// Tag `19`. Pull what the provider holds for the caller.
     ImagesOci(images::oci::client::request::Frame),
-    /// Tag `20`. Ask what the provider is.
-    Version(version::client::request::Frame),
+    /// Tag `20`. Ask what the provider is, and what it does.
+    Info(info::client::request::Frame),
     /// Tag `21`. Accept connections from other daemons.
     DaemonsAccept(daemons::accept::client::request::Frame),
     /// Tag `22`. Connect to another daemon.
@@ -123,7 +123,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ContainersToolsRun(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
-            ClientRequest::ContainersServe(frame) => {
+            ClientRequest::ContainersFuseServe(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::VolumesList(frame) => {
@@ -143,7 +143,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesFiletree(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
-            ClientRequest::VolumesServe(frame) => {
+            ClientRequest::VolumesFuseServe(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::VolumesCreateCapacity(frame) => {
@@ -185,7 +185,7 @@ impl Encode for ClientRequest<'_> {
                 // is how you say so: there is no value to handle.
                 frame.encode(out).map_err(|error| match error {})
             }
-            ClientRequest::Version(frame) => {
+            ClientRequest::Info(frame) => {
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 frame.encode(out).map_err(|error| match error {})
@@ -224,8 +224,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             1 => containers::tools::run::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ContainersToolsRun)
                 .ok(),
-            2 => containers::serve::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ContainersServe)
+            2 => containers::fuse_serve::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ContainersFuseServe)
                 .ok(),
             3 => volumes::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesList)
@@ -242,8 +242,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             7 => volumes::filetree::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesFiletree)
                 .ok(),
-            8 => volumes::serve::client::request::Frame::decode(bytes)
-                .map(ClientRequest::VolumesServe)
+            8 => volumes::fuse_serve::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesFuseServe)
                 .ok(),
             9 => volumes::create_capacity::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreateCapacity)
@@ -278,8 +278,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             19 => images::oci::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesOci)
                 .ok(),
-            20 => version::client::request::Frame::decode(bytes)
-                .map(ClientRequest::Version)
+            20 => info::client::request::Frame::decode(bytes)
+                .map(ClientRequest::Info)
                 .ok(),
             21 => daemons::accept::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DaemonsAccept)

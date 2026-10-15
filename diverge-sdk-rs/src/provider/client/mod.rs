@@ -6,7 +6,7 @@
 //! — and a provider opens channels back into it for the things it
 //! cannot reach itself, which the caller answers through the traits
 //! here. Every endpoint has its executor: eleven of the `volumes`,
-//! `images::check` and `version` collapse into a call; the two
+//! `images::check` and `info` collapse into a call; the two
 //! `containers` runs hand back a handle that holds the container's
 //! life.
 //!

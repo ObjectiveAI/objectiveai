@@ -19,7 +19,7 @@ use crate::shared::permission::Grant;
 /// storage — but, for a transient tool alone, the AGENT's own files
 /// and directories, each a path in the agent container served live at
 /// a path in the tool container: the caller serves the agent
-/// container, a `containers::serve` of the path, and mounts the tool,
+/// container, a `containers::fuse_serve` of the path, and mounts the tool,
 /// a `fuse::mount` answered from it. [`mode`](Self::mode) says which
 /// of the two modes the dependency is — a transient tool of the
 /// agent's run, with those mounts, or a service the caller keeps,

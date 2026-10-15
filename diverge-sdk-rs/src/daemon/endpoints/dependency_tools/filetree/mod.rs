@@ -10,7 +10,7 @@
 //! is the provider protocol's [`filetree`](crate::shared::filetree)
 //! stream, which leaves the FUSE mounts out, made whole by the daemon:
 //! each mount's subtree from the filetree channel of the
-//! `volumes::serve` the daemon bridges the mount to, and a change under
+//! `volumes::fuse_serve` the daemon bridges the mount to, and a change under
 //! one from the same source. The tool's container is watched as it
 //! runs: a dependency tool that does not run is not started for the
 //! watch, and is `NotFound`; nothing is stopped or released when the

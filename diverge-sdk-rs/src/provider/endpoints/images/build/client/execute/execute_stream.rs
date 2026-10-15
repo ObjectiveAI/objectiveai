@@ -65,6 +65,8 @@ impl Stream for ExecuteStream {
         };
         match response::Frame::decode(payload) {
             Ok(response::Frame::InsufficientCapacity) => self.end(ExecuteStreamError::InsufficientCapacity),
+            Ok(response::Frame::ContextHeld) => self.end(ExecuteStreamError::ContextHeld),
+            Ok(response::Frame::Unsupported) => self.end(ExecuteStreamError::Unsupported),
             Ok(response::Frame::Error(error)) => self.end(ExecuteStreamError::Refused(error)),
             Ok(frame) => Poll::Ready(Some(Ok(frame))),
             Err(error) => self.end(ExecuteStreamError::Response(error)),
@@ -86,6 +88,12 @@ pub enum ExecuteStreamError {
     /// The store has no room for the image, and nothing was built.
     /// The protocol's defined refusal, not a failure.
     InsufficientCapacity,
+    /// Something holds the context volume, and nothing was built. The
+    /// protocol's defined refusal, not a failure.
+    ContextHeld,
+    /// The provider has no image store, and nothing was built. The
+    /// protocol's defined refusal, not a failure.
+    Unsupported,
     /// The provider ended the build with an error, in its own words;
     /// the output before it says why. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why
@@ -101,6 +109,8 @@ impl fmt::Display for ExecuteStreamError {
             ExecuteStreamError::Misrouted => f.write_str("a frame that cannot be on a main stream arrived"),
             ExecuteStreamError::Response(error) => write!(f, "{error}"),
             ExecuteStreamError::InsufficientCapacity => f.write_str("the provider has no room for the image"),
+            ExecuteStreamError::ContextHeld => f.write_str("something holds the context volume"),
+            ExecuteStreamError::Unsupported => f.write_str("the provider has no image store"),
             ExecuteStreamError::Refused(_) => f.write_str("the provider ended the image build with an error"),
         }
     }
@@ -114,6 +124,8 @@ impl std::error::Error for ExecuteStreamError {
             ExecuteStreamError::Closed
             | ExecuteStreamError::Misrouted
             | ExecuteStreamError::InsufficientCapacity
+            | ExecuteStreamError::ContextHeld
+            | ExecuteStreamError::Unsupported
             | ExecuteStreamError::Refused(_) => None,
         }
     }

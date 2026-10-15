@@ -65,6 +65,7 @@ impl Stream for ExecuteStream {
             _ => return self.end(ExecuteStreamError::Misrouted),
         };
         match response::Frame::decode(payload) {
+            Ok(response::Frame::Unsupported) => self.end(ExecuteStreamError::Unsupported),
             Ok(response::Frame::Error(error)) => self.end(ExecuteStreamError::Refused(error)),
             Ok(frame) => Poll::Ready(Some(Ok(frame))),
             Err(error) => self.end(ExecuteStreamError::Response(error)),
@@ -83,6 +84,9 @@ pub enum ExecuteStreamError {
     Misrouted,
     /// A response that is not this scope's.
     Response(response::FrameDecodeError),
+    /// The provider has no image store, and nothing is listed. The
+    /// protocol's defined refusal, not a failure.
+    Unsupported,
     /// The provider ended the listing with an error, in its own words.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -98,6 +102,7 @@ impl fmt::Display for ExecuteStreamError {
             ExecuteStreamError::Frame(error) => write!(f, "frame did not decode: {error}"),
             ExecuteStreamError::Misrouted => f.write_str("a frame that cannot be on a main stream arrived"),
             ExecuteStreamError::Response(error) => write!(f, "{error}"),
+            ExecuteStreamError::Unsupported => f.write_str("the provider has no image store"),
             ExecuteStreamError::Refused(_) => f.write_str("the provider ended the image listing with an error"),
         }
     }
@@ -108,7 +113,10 @@ impl std::error::Error for ExecuteStreamError {
         match self {
             ExecuteStreamError::Frame(error) => Some(error),
             ExecuteStreamError::Response(error) => Some(error),
-            ExecuteStreamError::Closed | ExecuteStreamError::Misrouted | ExecuteStreamError::Refused(_) => None,
+            ExecuteStreamError::Closed
+            | ExecuteStreamError::Misrouted
+            | ExecuteStreamError::Unsupported
+            | ExecuteStreamError::Refused(_) => None,
         }
     }
 }

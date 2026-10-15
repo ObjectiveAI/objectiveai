@@ -21,8 +21,10 @@ use crate::shared::error::Error;
 /// nothing else: a caller with no image is listed as `Listed` at
 /// once, and watched. A payload leads with one byte saying which —
 /// `0` for `Added`, `1` for `Removed`, `2` for `Listed`, `3` for
-/// `Error` — and the rest is that variant's own bytes; `Listed`
-/// carries nothing.
+/// `Unsupported`, `4` for `Error` — and the rest is that variant's
+/// own bytes; `Listed` and `Unsupported` carry nothing. A provider
+/// with no image store sends `Unsupported` first and alone, and the
+/// finish follows it.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -48,7 +50,14 @@ pub enum Frame {
     /// Carries nothing — the variant is bare. A caller that wants the
     /// listing once stops here; one that watches reads on.
     Listed,
-    /// A failure. Tag `3`.
+    /// The provider has no image store — its `images_store` is `false`,
+    /// see [`info`](crate::provider::endpoints::info) — and nothing was
+    /// done. Tag `3`.
+    ///
+    /// Carries nothing. A caller asks another provider; nothing about
+    /// the request is the cause.
+    Unsupported,
+    /// A failure. Tag `4`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -64,8 +73,11 @@ const REMOVED: u8 = 1;
 /// Tag for [`Frame::Listed`].
 const LISTED: u8 = 2;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 3;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 3;
+const ERROR: u8 = 4;
 
 /// Two formats, and the tag chooses between them: an image is
 /// postcard, as a volume is in its listing, and the error is JSON,
@@ -91,6 +103,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[LISTED]);
                 Ok(())
             }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out).map_err(FrameEncodeError::Error)
@@ -110,6 +126,7 @@ impl Decode<'_> for Frame {
             ADDED => postcard::from_bytes(rest).map(Frame::Added).map_err(FrameDecodeError::Image),
             REMOVED => postcard::from_bytes(rest).map(Frame::Removed).map_err(FrameDecodeError::Image),
             LISTED => Ok(Frame::Listed),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameDecodeError::Error),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
         }
@@ -148,7 +165,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The image did not parse.
     Image(postcard::Error),

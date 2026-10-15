@@ -5,7 +5,7 @@
 //! rides no other wire with the mount left off: the provider's
 //! channel toward the caller carries the same asks with the mount's
 //! id in front, and here the scope is the mount — as it is the
-//! volume on a `volumes::serve` scope, which carries these very
+//! volume on a `volumes::fuse_serve` scope, which carries these very
 //! frames. [`Path`] is the whole ask where nothing but the path is
 //! carried; [`Read`], [`Write`] and [`Rename`] prefix the path
 //! because something follows it; [`Truncate`] and [`Setattr`] put

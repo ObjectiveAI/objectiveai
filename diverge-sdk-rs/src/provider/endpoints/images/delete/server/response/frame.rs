@@ -12,13 +12,15 @@ use crate::shared::error::Error;
 /// One of these on channel `0`, then the scope finishes. A payload
 /// leads with one byte saying which — `0` for
 /// [`Deleted`](Self::Deleted), `1` for [`InUse`](Self::InUse), `2`
-/// for [`Error`](Self::Error) — and for the first two there is nothing
+/// for [`Unsupported`](Self::Unsupported), `3` for
+/// [`Error`](Self::Error) — and for the first three there is nothing
 /// after it, because saying so IS the whole message.
 ///
 /// | the scope ends with | means |
 /// |----------------------|-------|
 /// | [`Deleted`](Self::Deleted), then a finish | the image is gone and a listing will not show it |
 /// | [`InUse`](Self::InUse), then a finish | a running container of the caller runs it, and nothing was changed |
+/// | [`Unsupported`](Self::Unsupported), then a finish | the provider has no image store, and there was nothing to delete |
 /// | an [`Error`](Self::Error), then a finish | it is not gone, for some other reason, and a caller should assume it is intact |
 ///
 /// # In use is an answer, not an error
@@ -45,7 +47,14 @@ pub enum Frame {
     /// Nothing was changed: the image and the listing are as they
     /// were.
     InUse,
-    /// A failure. Tag `2`.
+    /// The provider has no image store — its `images_store` is `false`,
+    /// see [`info`](crate::provider::endpoints::info) — and there was
+    /// nothing to delete. Tag `2`.
+    ///
+    /// Carries nothing. A caller asks another provider; nothing about
+    /// the request is the cause.
+    Unsupported,
+    /// A failure. Tag `3`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -58,8 +67,11 @@ const DELETED: u8 = 0;
 /// Tag for [`Frame::InUse`].
 const IN_USE: u8 = 1;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 2;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 3;
 
 /// A tag, and for a failure the JSON after it: an
 /// [`Error`](Frame::Error) is a [`serde_json::Value`], which cannot
@@ -82,6 +94,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[IN_USE]);
                 Ok(())
             }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -100,6 +116,7 @@ impl Decode<'_> for Frame {
         match *tag {
             DELETED => Ok(Frame::Deleted),
             IN_USE => Ok(Frame::InUse),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -111,7 +128,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

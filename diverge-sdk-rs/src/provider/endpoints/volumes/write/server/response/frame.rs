@@ -10,20 +10,35 @@ use crate::shared::error::Error;
 /// The file landed, or it did not.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Written`](Self::Written), `1` for [`Error`](Self::Error) — and
-/// the rest is that variant's own bytes.
+/// [`Written`](Self::Written), `1` for [`Mounted`](Self::Mounted),
+/// `2` for [`FuseServed`](Self::FuseServed), `3` for
+/// [`Held`](Self::Held), `4` for [`Error`](Self::Error) — and the
+/// rest is that variant's own bytes, of which the three refusals have
+/// none.
 ///
 /// # How it ends
 ///
 /// | the scope ends with | means |
 /// |---------------------|-------|
 /// | a [`Written`](Self::Written), then a finish | the file is at the path |
+/// | [`Mounted`](Self::Mounted), then a finish | a running container has the volume, and nothing was written |
+/// | [`FuseServed`](Self::FuseServed), then a finish | a FUSE serve holds the volume, and nothing was written |
+/// | [`Held`](Self::Held), then a finish | another operation has the volume to itself, and nothing was written |
 /// | an [`Error`](Self::Error), then a finish | it is not, and nothing partial is |
 ///
 /// Only a finish ends it, and it comes only once the content channel
 /// has — or at once, for a write refused before the content was asked
-/// for: a volume the caller cannot see, one that is mounted, a parent
-/// that is not a directory.
+/// for: a volume the caller cannot see, one that something holds, a
+/// parent that is not a directory.
+///
+/// # Mounted, FUSE served and held are answers, not errors
+///
+/// A volume that something holds is not touched, and the provider
+/// says which thing holds it — a running container, a FUSE serve, or
+/// another operation — with its own variant rather than an
+/// [`Error`](Self::Error) a caller could not tell from any other
+/// failure. The distinction is what a caller acts on: stop the
+/// container, stop the FUSE serve, or wait, and ask again.
 ///
 /// # The failure is this scope's, the answer is not
 ///
@@ -35,7 +50,26 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The file is at the path. Tag `0`.
     Written(write_path::response::Frame),
-    /// A failure. Tag `1`.
+    /// The volume is mounted in a running container, and was not
+    /// written. Tag `1`.
+    ///
+    /// Nothing was changed; a caller stops the container and asks
+    /// again.
+    Mounted,
+    /// A FUSE serve holds the volume, and it was not written.
+    /// Tag `2`.
+    ///
+    /// Nothing was changed; a caller stops the FUSE serve and asks
+    /// again.
+    FuseServed,
+    /// Another operation — a stat, a read, a write, a filetree, an
+    /// edit or a delete — has the volume to itself, and it was not
+    /// written. Tag `3`.
+    ///
+    /// Nothing was changed; a caller waits for it to end and asks
+    /// again.
+    Held,
+    /// A failure. Tag `4`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -45,8 +79,17 @@ pub enum Frame {
 /// Tag for [`Frame::Written`].
 const WRITTEN: u8 = 0;
 
+/// Tag for [`Frame::Mounted`].
+const MOUNTED: u8 = 1;
+
+/// Tag for [`Frame::FuseServed`].
+const FUSE_SERVED: u8 = 2;
+
+/// Tag for [`Frame::Held`].
+const HELD: u8 = 3;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 1;
+const ERROR: u8 = 4;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from the half that has one. The
@@ -65,6 +108,18 @@ impl Encode for Frame {
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 inner.encode(out).map_err(|error| match error {})
+            }
+            Frame::Mounted => {
+                out.extend_from_slice(&[MOUNTED]);
+                Ok(())
+            }
+            Frame::FuseServed => {
+                out.extend_from_slice(&[FUSE_SERVED]);
+                Ok(())
+            }
+            Frame::Held => {
+                out.extend_from_slice(&[HELD]);
+                Ok(())
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -85,6 +140,9 @@ impl Decode<'_> for Frame {
             WRITTEN => write_path::response::Frame::decode(rest)
                 .map(Frame::Written)
                 .map_err(|error| match error {}),
+            MOUNTED => Ok(Frame::Mounted),
+            FUSE_SERVED => Ok(Frame::FuseServed),
+            HELD => Ok(Frame::Held),
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
@@ -98,7 +156,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),
