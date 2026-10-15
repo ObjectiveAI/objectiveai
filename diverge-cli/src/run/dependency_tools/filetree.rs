@@ -19,6 +19,12 @@ pub struct Arguments {
     /// serve it, as an account held there. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
+    /// Keep the tree open: after its snapshot, every change printed as
+    /// it comes, for as long as the command runs — for a program that
+    /// reads the stream and ends the command when it is done. Absent,
+    /// the command ends at the snapshot.
+    #[arg(long)]
+    pub watch: bool,
     /// What is beneath the request: `request-schema`, the JSON Schema
     /// of the body it takes, or `response-schema`, the JSON Schema of
     /// every line it prints — printed in place of putting any request.
@@ -26,8 +32,8 @@ pub struct Arguments {
     pub below: Option<Below>,
 }
 
-/// The request put, the tree's snapshot printed; the changes after
-/// it are not this command's.
+/// The request put, the tree's snapshot printed — and, with
+/// `--watch`, every change after it, until the command is ended.
 pub async fn run(
     arguments: Arguments,
     target: &Target<'_>,
@@ -52,5 +58,10 @@ pub async fn run(
     }
     let request: request::Frame = body(arguments.body.as_deref())?;
     let handle = target.dial().await?;
-    shape::stream::<_, response::Frame, _>(&handle, &request, emitter, shape::at_snapshot).await
+    let stop = if arguments.watch {
+        shape::never
+    } else {
+        shape::at_snapshot
+    };
+    shape::stream::<_, response::Frame, _>(&handle, &request, emitter, stop).await
 }

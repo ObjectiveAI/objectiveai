@@ -28,13 +28,13 @@
 //! frame through the [`Emitter`] as one compact JSON line, each
 //! through the jq filter when there is one, and each the moment it
 //! is had — nothing is collected and printed later. Nothing stays open past
-//! its answer: a list ends at its `listed` frame — unless `--watch`,
-//! which keeps it open for every change after, for a program that
-//! ends the command when it is done — a filetree at its
-//! first snapshot, a logs request where it asked to, and a connect
-//! once the one MCP exchange its subcommand names is answered. A
-//! timeout abandons the
-//! request and ends the run with [`Error::Timeout`].
+//! its answer: a list ends at its `listed` frame and a container's
+//! filetree at its first snapshot — unless `--watch`, which keeps
+//! either open for every change after, for a program that ends the
+//! command when it is done — a logs request ends where it asked to,
+//! and a connect once the one MCP exchange its subcommand names is
+//! answered. A timeout abandons the request and ends the run with
+//! [`Error::Timeout`].
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
