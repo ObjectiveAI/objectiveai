@@ -189,7 +189,7 @@ Client, or a Daemon Connector transmits to the Provider under the
 Protocol,
 including image manifests and blobs, the bytes of writes, reads and
 transfers, filesystem trees, database traffic, commands and
-their items, vault keys and values, FUSE asks and their answers on a
+their items, FUSE asks and their answers on a
 mount and on a `volumes::fuse_serve`, MCP exchanges, prompts, arguments,
 dependency declarations, and loop chunks.
 
