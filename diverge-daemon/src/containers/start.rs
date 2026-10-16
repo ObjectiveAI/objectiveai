@@ -11,20 +11,18 @@ use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::{execute 
 use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::{execute as agents_run, request as agents_request};
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
-use indexmap::IndexMap;
-use serde_json::Value;
 use tokio::sync::{Mutex, watch};
 
 use super::answerers::Answerer;
 use super::capable::Needs;
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{AgentRun, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, services, stop};
+use super::{AgentRun, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, secrets, sender_of_agent, sender_of_tool, serve_name, services, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::daemons;
 use crate::store::agents::Agent;
 use crate::store::tools::{Origin, Tool, attachments};
-use crate::store::{agents, agents_templates, providers_daemons, tools as tool_records, tools_templates, vault};
+use crate::store::{agents, agents_templates, providers_daemons, tools as tool_records, tools_templates};
 
 /// The agent's run, started now if it was not up: the providers it
 /// may run on found, the mounts served, the attached tools served
@@ -102,7 +100,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             .await
             .map_err(StartError::mounts)?,
     );
-    let secrets = match secrets(daemon, &agent.secrets).await {
+    let secrets = match secrets::resolve(daemon, &agent.secrets).await {
         Ok(secrets) => secrets,
         Err(error) => {
             mounts.stop().await;
@@ -246,7 +244,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     .await
                     .map_err(StartError::mounts)?,
             );
-            let secrets = match secrets(daemon, &tool.secrets).await {
+            let secrets = match secrets::resolve(daemon, &tool.secrets).await {
                 Ok(secrets) => secrets,
                 Err(error) => {
                     mounts.stop().await;
@@ -379,27 +377,4 @@ fn connect_failed(error: &tools_connect::ExecuteError) -> String {
         tools_connect::ExecuteError::Daemon(error) => format!("the daemon named could not serve the tool: {}", error.0),
         error => format!("the connect on the daemon named failed: {error}"),
     }
-}
-
-/// The values the record's secrets are handed as: each bound vault
-/// key read now, in the record's order. A key the vault does not hold
-/// is the start's failure, naming the secret and the key; nothing of
-/// the run is made before every one is read.
-async fn secrets(daemon: &Daemon, bound: &IndexMap<String, String>) -> Result<IndexMap<String, Value>, StartError> {
-    if bound.is_empty() {
-        return Ok(IndexMap::new());
-    }
-    let keys: Vec<String> = bound.values().cloned().collect();
-    let values = {
-        let mut conn = daemon.store.acquire().await?;
-        vault::values(&mut conn, &keys).await?
-    };
-    let mut resolved = IndexMap::with_capacity(bound.len());
-    for (name, key) in bound {
-        let Some(value) = values.get(key) else {
-            return Err(StartError::Secrets(format!("the secret {name} is bound to the vault key {key}, which is not set")));
-        };
-        resolved.insert(name.clone(), value.clone());
-    }
-    Ok(resolved)
 }

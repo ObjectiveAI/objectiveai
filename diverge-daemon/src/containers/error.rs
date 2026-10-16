@@ -29,6 +29,9 @@ pub enum StartError {
     Mounts(String),
     /// A secret's vault key is not set: the secret and the key.
     Secrets(String),
+    /// A secret a dependency template declares is not one the agent
+    /// that spawns it binds: the secret.
+    Unbound(String),
     /// A provider's capabilities exclude what the run or a mount
     /// needs, and it was not asked: what it lacks, in a sentence.
     Unsupported(String),
@@ -48,6 +51,7 @@ impl fmt::Display for StartError {
             StartError::Daemon(error) => write!(f, "{error}"),
             StartError::Mounts(error) => write!(f, "a mount could not be served: {error}"),
             StartError::Secrets(what) => write!(f, "a secret is not set: {what}"),
+            StartError::Unbound(what) => write!(f, "a secret is not bound: {what}"),
             StartError::Unsupported(what) => write!(f, "a provider's capabilities exclude it: {what}"),
             StartError::Run(error) => write!(f, "the provider did not run the container: {error}"),
             StartError::Logs(error) => write!(f, "the log: {error}"),

@@ -25,8 +25,9 @@
 //!
 //! [`settle`] is what a start does when the program declared nothing,
 //! the agent detached from every dependency tool; [`keep`] is a
-//! service kept up — its [`State`] made, its [`supervise`] task and
-//! its [`clock`] started — and [`held`] its hold recomputed from what
+//! service kept up — its [`State`] made, its [`supervise`] task,
+//! which says each start's [`Outcome`] on the state, and its
+//! [`clock`] started — and [`held`] its hold recomputed from what
 //! holds it; [`start`] is one run of a dependency service's container
 //! (a tool on record's is the one every tool has); [`retire`] is the
 //! end of its keeping; [`boot`] is every service brought up at the
@@ -45,6 +46,7 @@ mod clock;
 mod deleted;
 mod held;
 mod keep;
+mod outcome;
 mod retire;
 mod settle;
 mod start;
@@ -57,6 +59,7 @@ pub use clock::*;
 pub use deleted::*;
 pub use held::*;
 pub use keep::*;
+pub use outcome::*;
 pub use retire::*;
 pub use settle::*;
 pub use start::*;

@@ -36,7 +36,9 @@
 //! its record or, a dependency tool, by its row, [`ToolKey`] a
 //! tool's run either way; [`AgentRun`] and [`ToolRun`] are what is
 //! live for one; [`container`] and [`dependency`] are the request a
-//! run is; [`Opened`] is a run as a file operation works on it, and
+//! run is, and [`secrets`] what a run's secrets come to — the names
+//! a template declares bound to vault keys, and the vault read;
+//! [`Opened`] is a run as a file operation works on it, and
 //! [`files`] the operations — the container's tree whole, a file
 //! read, a file written — with the daemon's mounts included.
 //!
@@ -60,6 +62,7 @@ mod stop;
 mod tools;
 
 pub mod files;
+pub mod secrets;
 
 pub mod answerers;
 pub mod deploy;

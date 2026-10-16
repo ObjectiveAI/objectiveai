@@ -47,9 +47,10 @@ pub async fn container<T>(template_id: &str, template: &Template<T>, volumes: &[
 /// The container a transient dependency is: its template's image,
 /// limits and arguments, with the template's id, no volume — a
 /// dependency names none — every mount of the agent's paths under
-/// the id the daemon serves it by, and no secret: a dependency
-/// template declares none.
-pub async fn dependency(template_id: &str, template: &dependencies::Template, mounts: &Mounts) -> request::Container {
+/// the id the daemon serves it by, and the secrets, each name the
+/// template declares to the value the agent it is deployed for binds
+/// it to.
+pub async fn dependency(template_id: &str, template: &dependencies::Template, mounts: &Mounts, secrets: IndexMap<String, Value>) -> request::Container {
     let (fuse_file_mounts, fuse_directory_mounts) = mounts.lists().await;
     request::Container {
         image: template.image.clone(),
@@ -60,14 +61,16 @@ pub async fn dependency(template_id: &str, template: &dependencies::Template, mo
         fuse_file_mounts,
         fuse_directory_mounts,
         arguments: template.arguments.clone(),
-        secrets: IndexMap::new(),
+        secrets,
     }
 }
 
 /// The container a service is: its template's image, limits and
-/// arguments, with the template's id, and no mount of any kind — a
-/// service is many agents' and names no volume.
-pub fn service(template_id: &str, template: &dependencies::Template) -> request::Container {
+/// arguments, with the template's id, no mount of any kind — a
+/// service is many agents' and names no volume — and the secrets,
+/// each name the template declares to the value the agent that
+/// spawns this run binds it to.
+pub fn service(template_id: &str, template: &dependencies::Template, secrets: IndexMap<String, Value>) -> request::Container {
     request::Container {
         image: template.image.clone(),
         template: template_id.to_string(),
@@ -77,7 +80,7 @@ pub fn service(template_id: &str, template: &dependencies::Template) -> request:
         fuse_file_mounts: Vec::new(),
         fuse_directory_mounts: Vec::new(),
         arguments: template.arguments.clone(),
-        secrets: IndexMap::new(),
+        secrets,
     }
 }
 

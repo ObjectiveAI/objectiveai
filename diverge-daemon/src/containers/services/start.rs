@@ -8,6 +8,8 @@ use diverge_sdk::shared::mcp::attestation;
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::grant::Converted;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
+use diverge_sdk::shared::containers::dependencies::Scope;
+use indexmap::IndexMap;
 use tokio::sync::{Mutex, watch};
 
 use crate::containers::answerers::Answerer;
@@ -15,33 +17,61 @@ use crate::containers::deploy::short;
 use crate::containers::fuse::Mounts;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
-use crate::containers::{Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, provider, stop};
+use crate::containers::{Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, provider, secrets, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{Dependent, Fixed};
 use crate::store::agents;
-use crate::store::dependency_tools::DependencyTool;
+use crate::store::dependency_tools::{DependencyTool, attachments};
 
 /// The service's run, started now if it was not up: its container —
 /// the template's image, limits and arguments, no mount, since a
-/// service is many agents' and mounts nothing of any one's — run on
-/// the first candidate provider that will, under its template's
-/// grants with every attached agent as its `self`, its run entered as
-/// live under its row with a waiter. A per-agent service whose agent
-/// is gone cannot be named and is not started.
+/// service is many agents' and mounts nothing of any one's, and its
+/// secrets, each name the template declares to the value the vault
+/// holds now under the key the agent that spawns the run binds it to
+/// — run on the first candidate provider that will, under its
+/// template's grants with every attached agent as its `self`, its run
+/// entered as live under its row with a waiter. The agent that spawns
+/// the run is the service's owner, for an `instance` scope, and
+/// otherwise the attached agent whose registration declared the
+/// template last — so the binding may differ from run to run, and a
+/// vault key set anew is read at the next. A per-agent service whose
+/// agent is gone cannot be named and is not started; a service that
+/// declares secrets with no agent attached, or a key not set, is not
+/// started either, and the supervisor tries again.
 pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<ToolRun>, StartError> {
     let key = ToolKey::Dependency(tool.id);
     if let Some(run) = daemon.live.tool_run(key).await {
         return Ok(run);
     }
-    let owner = match tool.owner_agent {
-        Some(id) => {
-            let mut conn = daemon.store.acquire().await?;
-            agents::by_id(&mut conn, id, false).await?
-        }
-        None => None,
+    let (owner_agent, source) = {
+        let mut conn = daemon.store.acquire().await?;
+        let owner_agent = match tool.owner_agent {
+            Some(id) => agents::by_id(&mut conn, id, false).await?,
+            None => None,
+        };
+        let source = if tool.declared.secrets.is_empty() {
+            None
+        } else {
+            match tool.scope {
+                Scope::Instance => owner_agent.clone(),
+                Scope::Template | Scope::Global => match attachments::latest(&mut conn, tool.id).await? {
+                    Some(attachment) => agents::by_id(&mut conn, attachment.agent, false).await?,
+                    None => None,
+                },
+            }
+        };
+        (owner_agent, source)
     };
-    let Some(owner) = tool.owner(owner.as_ref()) else {
+    let Some(owner) = tool.owner(owner_agent.as_ref()) else {
         return Err(StartError::Run("the service's agent is gone".to_string()));
+    };
+    let resolved = match source {
+        Some(source) => {
+            let bound = secrets::bind(&tool.declared.secrets, &source.secrets).map_err(StartError::Unbound)?;
+            secrets::resolve(daemon, &bound).await?
+        }
+        None if tool.declared.secrets.is_empty() => IndexMap::new(),
+        None => return Err(StartError::Run("no agent attached to the service spawns it".to_string())),
     };
     let sender = Creator::Tool(creator::Tool::Dependency {
         template: tool.template.clone(),
@@ -54,7 +84,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         ..Needs::default()
     };
     let candidates = provider::candidates(daemon, None, &needs).await.map_err(StartError::Provider)?;
-    let container = build::service(&tool.template, &tool.declared);
+    let container = build::service(&tool.template, &tool.declared, resolved);
     let attestation = attestation::Tool::Dependency {
         image: container.image.clone(),
         template: tool.template.clone(),
