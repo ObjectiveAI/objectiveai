@@ -101,9 +101,6 @@ where
         server::response::Frame::VolumeMode(refused) => {
             return Err(ExecuteError::VolumeMode(refused));
         }
-        server::response::Frame::FuseMountsUnsupported => {
-            return Err(ExecuteError::FuseMountsUnsupported);
-        }
         server::response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
     };
 
@@ -200,10 +197,6 @@ pub enum ExecuteError {
     /// nothing was deployed; edit the volume or the mount, and ask
     /// again.
     VolumeMode(VolumeMode),
-    /// The provider refused the run: it names a FUSE mount, and the
-    /// provider mounts none. Nothing was fetched and nothing was
-    /// deployed; ask another provider.
-    FuseMountsUnsupported,
     /// The provider could not run the container, and said so.
     Provider(Error),
 }
@@ -245,9 +238,6 @@ impl fmt::Display for ExecuteError {
                 "the volume `{}` is in mode `{:?}`, not the mode the mount names",
                 refused.name, refused.mode
             ),
-            ExecuteError::FuseMountsUnsupported => {
-                f.write_str("the request names a FUSE mount, and the provider mounts none")
-            }
             ExecuteError::Provider(_) => f.write_str("the provider could not run the container"),
         }
     }
@@ -271,7 +261,6 @@ impl std::error::Error for ExecuteError {
             | ExecuteError::VolumeFuseServed(_)
             | ExecuteError::VolumeMountUnsupported(_)
             | ExecuteError::VolumeMode(_)
-            | ExecuteError::FuseMountsUnsupported
             | ExecuteError::Provider(_) => None,
         }
     }

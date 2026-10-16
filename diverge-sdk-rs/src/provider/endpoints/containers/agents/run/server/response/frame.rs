@@ -21,10 +21,9 @@ use crate::shared::error::Error;
 /// [`VolumeFuseServed`](Self::VolumeFuseServed), `4` for
 /// [`VolumeMountUnsupported`](Self::VolumeMountUnsupported), `5` for
 /// [`VolumeMode`](Self::VolumeMode), `6` for
-/// [`FuseMountsUnsupported`](Self::FuseMountsUnsupported), `7` for
-/// [`Error`](Self::Error), `8` for [`Chunk`](Self::Chunk), `9` for
-/// [`Active`](Self::Active), `10` for [`Inactive`](Self::Inactive) —
-/// and the rest is that variant's own JSON, or nothing: the three
+/// [`Error`](Self::Error), `7` for [`Chunk`](Self::Chunk), `8` for
+/// [`Active`](Self::Active), `9` for [`Inactive`](Self::Inactive) —
+/// and the rest is that variant's own JSON, or nothing: the two
 /// bare words carry nothing after the byte.
 ///
 /// # The id, then the conversation
@@ -62,10 +61,7 @@ use crate::shared::error::Error;
 /// [`VolumeMountUnsupported`](Self::VolumeMountUnsupported); and no
 /// volume is mounted while a stat, a read, a write, a filetree, an
 /// edit or a delete has it to itself: a request that names one so
-/// held is answered [`VolumeHeld`](Self::VolumeHeld). A request
-/// naming a FUSE mount on a provider whose `containers_fuse_mount` is
-/// `false` is answered
-/// [`FuseMountsUnsupported`](Self::FuseMountsUnsupported). Each
+/// held is answered [`VolumeHeld`](Self::VolumeHeld). Each
 /// refusal is its own variant, because a caller acts on it
 /// differently from a failure: edit the volume or the mount, stop the
 /// container or the FUSE serve, wait for the operation, name another
@@ -161,13 +157,7 @@ pub enum Frame {
     /// Nothing was fetched and nothing was deployed, and the volume is
     /// as it was.
     VolumeMode(VolumeMode),
-    /// The run was refused: it names a FUSE mount, and the provider
-    /// mounts none — its `containers_fuse_mount` is `false`. Tag `6`.
-    ///
-    /// The first and only response of its scope; the finish follows.
-    /// Nothing was fetched and nothing was deployed. Carries nothing.
-    FuseMountsUnsupported,
-    /// A failure. Tag `7`.
+    /// A failure. Tag `6`.
     ///
     /// The container is not running and will not be — the image
     /// would not pull, the container would not start, whatever the
@@ -180,7 +170,7 @@ pub enum Frame {
     /// part of the agent's OUTPUT, a loop saying it is over and why,
     /// and the scope goes on.
     Error(Error),
-    /// One chunk of the agent's conversation. Tag `8`.
+    /// One chunk of the agent's conversation. Tag `7`.
     ///
     /// After the id, zero or more, for as long as the scope lives, in
     /// the order the agent produced them and exactly as the proxy
@@ -189,14 +179,14 @@ pub enum Frame {
     /// and never after a finish. See [`AgenticLoopChunk`] for what
     /// one is.
     Chunk(AgenticLoopChunk),
-    /// A loop began. Tag `9`, and nothing after it.
+    /// A loop began. Tag `8`, and nothing after it.
     ///
     /// The proxy's word that the agent's server took a message and is
     /// working: every chunk until the matching
     /// [`Inactive`](Self::Inactive) is this loop's. After the id,
     /// never twice without an `Inactive` between.
     Active,
-    /// A loop ended. Tag `10`, and nothing after it.
+    /// A loop ended. Tag `9`, and nothing after it.
     ///
     /// The proxy's word that the loop's stream ended — cleanly, or by
     /// dying; a loop that failed said so in a fatal notification chunk
@@ -224,25 +214,22 @@ const VOLUME_MOUNT_UNSUPPORTED: u8 = 4;
 /// Tag for [`Frame::VolumeMode`].
 const VOLUME_MODE: u8 = 5;
 
-/// Tag for [`Frame::FuseMountsUnsupported`].
-const FUSE_MOUNTS_UNSUPPORTED: u8 = 6;
-
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 7;
+const ERROR: u8 = 6;
 
 /// Tag for [`Frame::Chunk`]. Public, so a relay that carries a
 /// chunk's JSON without reading it can frame it.
-pub const CHUNK: u8 = 8;
+pub const CHUNK: u8 = 7;
 
 /// Tag for [`Frame::Active`]. Public, so a relay writes the one byte
 /// that is the whole frame.
-pub const ACTIVE: u8 = 9;
+pub const ACTIVE: u8 = 8;
 
 /// Tag for [`Frame::Inactive`]. Public, as [`ACTIVE`] is.
-pub const INACTIVE: u8 = 10;
+pub const INACTIVE: u8 = 9;
 
 impl Encode for Frame {
-    /// One failure per variant that carries JSON; the three bare
+    /// One failure per variant that carries JSON; the two bare
     /// words cannot fail.
     type Error = FrameEncodeError;
 
@@ -276,10 +263,6 @@ impl Encode for Frame {
             Frame::VolumeMode(refused) => {
                 out.extend_from_slice(&[VOLUME_MODE]);
                 serde_json::to_writer(out, refused).map_err(FrameEncodeError::VolumeMode)
-            }
-            Frame::FuseMountsUnsupported => {
-                out.extend_from_slice(&[FUSE_MOUNTS_UNSUPPORTED]);
-                Ok(())
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -394,7 +377,6 @@ impl Decode<'_> for Frame {
             VOLUME_MODE => serde_json::from_slice(rest)
                 .map(Frame::VolumeMode)
                 .map_err(FrameError::VolumeMode),
-            FUSE_MOUNTS_UNSUPPORTED => Ok(Frame::FuseMountsUnsupported),
             ERROR => Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameError::Error),
@@ -413,7 +395,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's eleven.
+    /// A tag that is none of this frame's ten.
     ///
     /// What a provider newer than its caller produces, which is the
     /// case the tag exists to make survivable: a reader that does not

@@ -13,9 +13,8 @@ use serde::Serialize;
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Mounted`](Self::Mounted), `1` for [`Overlaps`](Self::Overlaps),
-/// `2` for [`Taken`](Self::Taken), `3` for
-/// [`Unsupported`](Self::Unsupported), `4` for [`Error`](Self::Error)
-/// — and only the error carries anything after it.
+/// `2` for [`Taken`](Self::Taken), `3` for [`Error`](Self::Error) —
+/// and only the error carries anything after it.
 ///
 /// # Exactly one, then the finish
 ///
@@ -45,10 +44,7 @@ pub enum Frame {
     /// The id is one the container holds a FUSE mount under; nothing
     /// is mounted. Tag `2`.
     Taken,
-    /// The provider holds out no `containers_fuse_mount`, and makes no
-    /// FUSE mount; nothing is mounted. Tag `3`.
-    Unsupported,
-    /// The proxy did not make the mount: its error, verbatim. Tag `4`.
+    /// The proxy did not make the mount: its error, verbatim. Tag `3`.
     ///
     /// Nothing is mounted. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -65,11 +61,8 @@ const OVERLAPS: u8 = 1;
 /// Tag for [`Frame::Taken`].
 const TAKEN: u8 = 2;
 
-/// Tag for [`Frame::Unsupported`].
-const UNSUPPORTED: u8 = 3;
-
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 3;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -92,10 +85,6 @@ impl Encode for Frame {
                 out.extend_from_slice(&[TAKEN]);
                 Ok(())
             }
-            Frame::Unsupported => {
-                out.extend_from_slice(&[UNSUPPORTED]);
-                Ok(())
-            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -115,7 +104,6 @@ impl Decode<'_> for Frame {
             MOUNTED => Ok(Frame::Mounted),
             OVERLAPS => Ok(Frame::Overlaps),
             TAKEN => Ok(Frame::Taken),
-            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -127,7 +115,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

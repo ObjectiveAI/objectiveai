@@ -73,19 +73,6 @@ pub struct Capabilities {
     /// answers `NoSource`.
     #[serde(default)]
     pub images_registries: Vec<String>,
-    /// The provider mounts a run's FUSE mounts — the
-    /// [`FuseMount`](crate::shared::containers::request::FuseMount)s
-    /// of its request, and one more whenever the caller asks on the
-    /// run's `fuse_mount` channel — served by the caller. Absent —
-    /// `false` — a run naming any is answered `FuseMountsUnsupported`,
-    /// and the channel `Unsupported`.
-    #[serde(default)]
-    pub containers_fuse_mount: bool,
-    /// The provider FUSE serves a running container's subtree:
-    /// [`containers::fuse_serve`](crate::provider::endpoints::containers::fuse_serve)
-    /// is answered. Absent — `false` — it answers `Unsupported`.
-    #[serde(default)]
-    pub containers_fuse_serve: bool,
     /// The provider keeps volumes in the
     /// [`Persistent`](Mode::Persistent) mode, and this is what may be
     /// done with one. Absent, no listed volume is in the mode, and a

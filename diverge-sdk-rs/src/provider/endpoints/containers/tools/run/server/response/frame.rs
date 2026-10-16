@@ -18,9 +18,7 @@ use crate::shared::error::Error;
 /// [`VolumeFuseServed`](Self::VolumeFuseServed), `4` for
 /// [`VolumeMountUnsupported`](Self::VolumeMountUnsupported), `5` for
 /// [`VolumeMode`](Self::VolumeMode), `6` for
-/// [`FuseMountsUnsupported`](Self::FuseMountsUnsupported), `7` for
-/// [`Error`](Self::Error) — and the rest is that variant's own JSON,
-/// or nothing: the one bare word carries nothing after the byte.
+/// [`Error`](Self::Error) — and the rest is that variant's own JSON.
 ///
 /// # Silence is the good case
 ///
@@ -55,10 +53,7 @@ use crate::shared::error::Error;
 /// [`VolumeMountUnsupported`](Self::VolumeMountUnsupported); and no
 /// volume is mounted while a stat, a read, a write, a filetree, an
 /// edit or a delete has it to itself: a request that names one so
-/// held is answered [`VolumeHeld`](Self::VolumeHeld). A request
-/// naming a FUSE mount on a provider whose `containers_fuse_mount` is
-/// `false` is answered
-/// [`FuseMountsUnsupported`](Self::FuseMountsUnsupported). Each
+/// held is answered [`VolumeHeld`](Self::VolumeHeld). Each
 /// refusal is its own variant, because a caller acts on it
 /// differently from a failure: edit the volume or the mount, stop the
 /// container or the FUSE serve, wait for the operation, name another
@@ -111,13 +106,7 @@ pub enum Frame {
     /// Nothing was fetched and nothing was deployed, and the volume is
     /// as it was.
     VolumeMode(VolumeMode),
-    /// The run was refused: it names a FUSE mount, and the provider
-    /// mounts none — its `containers_fuse_mount` is `false`. Tag `6`.
-    ///
-    /// The first and only response of its scope; the finish follows.
-    /// Nothing was fetched and nothing was deployed. Carries nothing.
-    FuseMountsUnsupported,
-    /// A failure. Tag `7`.
+    /// A failure. Tag `6`.
     ///
     /// The container is not running and will not be — the image
     /// would not pull, the container would not start, whatever the
@@ -146,15 +135,11 @@ const VOLUME_MOUNT_UNSUPPORTED: u8 = 4;
 /// Tag for [`Frame::VolumeMode`].
 const VOLUME_MODE: u8 = 5;
 
-/// Tag for [`Frame::FuseMountsUnsupported`].
-const FUSE_MOUNTS_UNSUPPORTED: u8 = 6;
-
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 7;
+const ERROR: u8 = 6;
 
 impl Encode for Frame {
-    /// One failure per variant that carries JSON; the bare word
-    /// cannot fail.
+    /// One failure per variant that carries JSON.
     type Error = FrameEncodeError;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -187,10 +172,6 @@ impl Encode for Frame {
             Frame::VolumeMode(refused) => {
                 out.extend_from_slice(&[VOLUME_MODE]);
                 serde_json::to_writer(out, refused).map_err(FrameEncodeError::VolumeMode)
-            }
-            Frame::FuseMountsUnsupported => {
-                out.extend_from_slice(&[FUSE_MOUNTS_UNSUPPORTED]);
-                Ok(())
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -287,7 +268,6 @@ impl Decode<'_> for Frame {
             VOLUME_MODE => serde_json::from_slice(rest)
                 .map(Frame::VolumeMode)
                 .map_err(FrameError::VolumeMode),
-            FUSE_MOUNTS_UNSUPPORTED => Ok(Frame::FuseMountsUnsupported),
             ERROR => Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameError::Error),
@@ -301,7 +281,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's eight.
+    /// A tag that is none of this frame's seven.
     UnknownTag(u8),
     /// The id did not parse.
     Id(serde_json::Error),

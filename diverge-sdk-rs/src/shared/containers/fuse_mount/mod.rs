@@ -16,10 +16,9 @@
 //! A path that is a mount's the container holds, lies inside one or
 //! holds one — a volume mount's or a FUSE mount's, the request's or
 //! one made since — is `Overlaps`; an id the container holds a FUSE
-//! mount under is `Taken`; a provider that holds out no
-//! `containers_fuse_mount` answers `Unsupported`. Each is answered
-//! without asking the proxy. What the proxy refuses is `Error`, in
-//! the proxy's own words.
+//! mount under is `Taken`. Each is answered without asking the
+//! proxy. What the proxy refuses is `Error`, in the proxy's own
+//! words.
 
 pub mod request;
 pub mod response;

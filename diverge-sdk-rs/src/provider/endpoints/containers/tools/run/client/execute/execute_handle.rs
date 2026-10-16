@@ -77,8 +77,7 @@ impl ExecuteHandle {
                     | server::response::Frame::VolumeMounted(_)
                     | server::response::Frame::VolumeFuseServed(_)
                     | server::response::Frame::VolumeMountUnsupported(_)
-                    | server::response::Frame::VolumeMode(_)
-                    | server::response::Frame::FuseMountsUnsupported => Decoded::Skip,
+                    | server::response::Frame::VolumeMode(_) => Decoded::Skip,
                     server::response::Frame::Error(error) => Decoded::Error(error),
                 })
             })
