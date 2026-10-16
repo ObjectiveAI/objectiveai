@@ -148,13 +148,16 @@ every registry the server pulls from is in the array.
 
 The server mounts, into a container it runs, the files and
 directories the client serves: the entries of `fuse_file_mounts` and
-`fuse_directory_mounts` of a run request, each one FUSE mount made as
-the run pages state.
+`fuse_directory_mounts` of a run request, and every mount the client
+asks for on a run's fuse-mount channel while the container runs,
+each one FUSE mount made as the run pages state.
 
 - **Held out.** The server makes every FUSE mount a run request
   names, as step 6 of [containers::agents::run](/endpoints/containers-agents-run/)
   and of [containers::tools::run](/endpoints/containers-tools-run/)
-  states.
+  states, and every mount a client asks for on the
+  [fuse-mount](/endpoints/containers-agents-run/client/fuse-mount/)
+  channel of either run, as that channel states.
 - **Not held out.** The server makes no FUSE mount. It answers a run
   request whose `fuse_file_mounts` or `fuse_directory_mounts` has at
   least one entry with exactly one response, the byte `6` and
@@ -164,7 +167,9 @@ the run pages state.
   request pages refuse with an error, and before it holds any
   volume: a request refused for its paths or ids is answered with
   the error, and a request that names no FUSE mount is served as the
-  run pages state.
+  run pages state. It answers every fuse-mount channel request with
+  exactly one channel response, the byte `3`, and the channel
+  response finish, and asks the proxy nothing.
 
 ## `containers_fuse_serve`
 

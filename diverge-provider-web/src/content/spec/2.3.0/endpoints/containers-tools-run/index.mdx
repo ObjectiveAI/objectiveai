@@ -116,7 +116,11 @@ about the client, which may open any channel at any time.
    and the kind, and waits for its answer before opening the next. A
    mount the proxy does not make is the run's error, and the server
    stops the container. The server opens no tree scope and sends no
-   response before the last mount is complete.
+   response before the last mount is complete. A FUSE mount the
+   client asks for after the id, on the
+   [fuse-mount](/endpoints/containers-tools-run/client/fuse-mount/)
+   channel, is made as that channel states, and is a FUSE mount of
+   the container from the moment it is made.
 7. **The server holds what the client opened.** A channel the client
    opens before the server sends the id is served after the id, in
    the order opened, and is neither refused nor read before the last

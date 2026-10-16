@@ -1,0 +1,58 @@
+---
+title: 'FUSE Mount'
+summary: 'Tag 9: the client names a path, an id and a kind; the server holds the id and the path against every mount the container has, opens one mount scope on the proxy, waits for its answer, and answers exactly once — mounted, overlaps, taken, unsupported, or the proxy's error; the mount lives until the run ends.'
+order: 9
+draft: false
+---
+
+The client opens this channel to have one more file or directory it
+serves mounted into the running container, after the id. The channel
+carries the path, the client's id for the mount, and the kind; the
+server makes the mount as it makes the mounts of the request, and
+the asks the mount makes follow on the server channels that the id
+keys.
+
+- **The request.** The tag byte `9` followed by the path, the id and
+  the kind as JSON.
+  [Request](/endpoints/containers-agents-run/client/fuse-mount/request/) states its form.
+- **The capability.** A server that does not hold out
+  [`containers_fuse_mount`](/capabilities/#containers_fuse_mount)
+  answers exactly one channel response, the byte `3`, and the
+  channel response finish, and asks the proxy nothing.
+- **The ledger.** The server holds every mount of the container: the
+  volume mounts and the FUSE mounts of the request, and every FUSE
+  mount made on this channel. A request whose `id` is one the server
+  holds a FUSE mount under is answered with the byte `2`. A request
+  whose `container_path` is a held mount's, lies inside one, or
+  holds one — a volume mount's or a FUSE mount's — is answered with
+  the byte `1`. The server decides the id before the path, holds the
+  id and the path from the moment it decides that neither applies,
+  and asks the proxy nothing for a request it refuses. Two requests
+  the server cannot both make are answered one with the byte `0`
+  and the other with the byte `1` or `2`, in the order the server
+  decided them.
+- **The mount.** The server opens exactly one mount scope on the
+  proxy's connection, naming the path and the kind, and waits for
+  its answer. The proxy's `Ok` is the mount made: the server answers
+  with the byte `0` and the channel response finish, and relays
+  every ask the mount makes after the finish, as step 9 of
+  [containers::agents::run](/endpoints/containers-agents-run/) states. The proxy's error is the mount not
+  made: the server lets go of the id and the path, and answers with
+  the byte `4` followed by the error. The proxy's connection ending
+  before the proxy answers is answered by a channel response finish
+  that no channel response precedes.
+- **The response.** Exactly one channel response, then the channel
+  response finish.
+  [Response](/endpoints/containers-agents-run/client/fuse-mount/response/) states the
+  sequence.
+- **The tree.** A [filetree](/endpoints/containers-agents-run/client/filetree/) the client
+  opens after the byte `0` leaves the mount out, as it leaves out
+  every FUSE mount. A filetree open when the mount is made is as it
+  was opened.
+- **The life of the mount.** The mount lives until the run ends.
+  Nothing unmounts it, and no channel asks for that.
+- **Malformed.** A channel request whose payload does not decode as
+  stated, or whose `container_path` is the root or has a component
+  that is empty, `.` or `..`, is answered by a channel response
+  finish that no channel response precedes, and the server does
+  nothing else for it.

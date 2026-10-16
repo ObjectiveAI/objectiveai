@@ -180,7 +180,8 @@ and for no other Identity.
 
 1.17 **"Volume Mount"** and **"FUSE Mount"** mean, respectively, an
 entry of `volume_mounts`, and of `fuse_file_mounts` or
-`fuse_directory_mounts` of a container request, as the Specification
+`fuse_directory_mounts` of a container request or a mount the Client
+asks for on a run Scope's `fuse_mount` Channel, as the Specification
 defines them.
 
 1.18 **"Client Content"** means every byte a Client, a Container of a
@@ -1062,7 +1063,34 @@ the Client as a Channel the Provider opens, in the form the
 Specification states for that ask, and shall serve every Channel the
 Client opens as the Specification states for that Channel.
 
-(k) **End the run.** When the Provider receives the Client's stop
+(k) **Make a FUSE Mount while the Container runs.** The Provider
+shall serve every `fuse_mount` Channel the Client opens on a run
+Scope with exactly one Channel Response and the Channel Response
+Finish: the byte `3` where it does not hold out
+`containers_fuse_mount`, before anything else and without asking the
+Proxy; the byte `2` where it holds a FUSE Mount under the request's
+id, and the byte `1` where the request's path is a mount's the
+Container holds, lies inside one or holds one — a Volume Mount's or
+a FUSE Mount's, the request's or one made since — each decided in
+that order, before the Proxy is asked and without asking it; else
+the byte `0`, only after the Proxy has answered its mount Scope
+`Ok`, or the byte `4` followed by the Proxy's error where the Proxy
+refused the mount. For a request it does not refuse the Provider
+shall open exactly one mount Scope on the Proxy's connection, naming
+the path and the kind, shall wait for its answer, and shall send the
+byte `0` before it relays any ask of the mount. The Provider shall
+hold the request's id and path from the moment it decides to ask the
+Proxy, so that two requests it cannot both make are not both made,
+and shall let both go where the Proxy refuses. A Proxy connection
+that ends before the Proxy answers is a Bare Finish on the Channel.
+A request whose path is the root, or has a component that is not a
+name, is a request that did not decode. A mount made this way is a
+FUSE Mount of the Container for every other Obligation of this
+Section and of Section 5.11, lives until the run ends, and is
+unmounted by nothing; every tree Scope the Provider opens after the
+mount shall name the mount's path among those the tree leaves out.
+
+(l) **End the run.** When the Provider receives the Client's stop
 channel request, when the Proxy's connection ends, or when the
 Client's Connection ends, the Provider shall stop the Container, end
 every Channel task, and send the Response Finish with no error. After the
@@ -1262,8 +1290,8 @@ program of either that it has no such thing; that sets nothing under
 `_meta` on any MCP exchange it relays, in either direction, or on
 any chunk of an agent's conversation, and alters nothing of them;
 that makes each
-mount
-Scope's mount before answering it and holds every mount for its life,
+mount Scope's mount before answering it, whenever after the begin is
+answered the Scope is opened, and holds every mount for its life,
 asking for what the mount needs on channels of that Scope; that
 leaves out of every filetree the paths the tree Scope's request names
 and `/proc`, `/sys` and `/dev`; that serves a directory of the
