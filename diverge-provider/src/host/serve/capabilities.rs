@@ -27,15 +27,15 @@ pub fn capabilities(config: &Config) -> Capabilities {
             .iter()
             .map(|registry| registry.host.clone())
             .collect(),
-        volume_persistent: Some(VolumeCapabilities {
+        volumes_persistent: Some(VolumeCapabilities {
             mount: true,
             fuse_serve: true,
             mount_many: true,
             fuse_serve_many: false,
             mount_and_fuse_serve: false,
         }),
-        volume_ephemeral: Some(ANY),
-        volume_read_only: Some(ANY),
+        volumes_ephemeral: Some(ANY),
+        volumes_read_only: Some(ANY),
     }
 }
 
