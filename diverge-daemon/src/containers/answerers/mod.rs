@@ -1,4 +1,4 @@
-//! The seven kinds of ask a provider makes on a run scope, answered.
+//! The six kinds of ask a provider makes on a run scope, answered.
 //!
 //! One type, [`Answerer`], is every one of the provider client's
 //! answerer traits for one run: it holds what the asks need — the
@@ -9,7 +9,7 @@
 //! merged; FUSE, the mounts; OCI, answered from the other providers
 //! connected — the daemon holds no image itself, and finds a provider
 //! that does, see [`images`](crate::containers::images). Declined
-//! until their steps: Postgres, and the vault.
+//! until its step: Postgres.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -21,6 +21,5 @@ mod fuse;
 mod mcp;
 mod oci;
 mod postgres;
-mod vault;
 
 pub use answerer::*;

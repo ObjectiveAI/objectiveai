@@ -61,18 +61,17 @@ pub struct Answerer {
     pub services: Mutex<Option<Vec<DependencyToolId>>>,
 }
 
-/// The answerers of a run: all seven the one [`Answerer`].
-pub type Set = Answerers<Answerer, Answerer, Answerer, Answerer, Answerer, Answerer, Answerer>;
+/// The answerers of a run: all six the one [`Answerer`].
+pub type Set = Answerers<Answerer, Answerer, Answerer, Answerer, Answerer, Answerer>;
 
 impl Answerer {
-    /// The seven, as the executors take them.
+    /// The six, as the executors take them.
     pub fn set(self: &Arc<Self>) -> Set {
         Answerers {
             oci: Arc::clone(self),
             dependencies: Arc::clone(self),
             postgres: Arc::clone(self),
             daemon: Arc::clone(self),
-            vault: Arc::clone(self),
             mcp: Arc::clone(self),
             fuse: Arc::clone(self),
         }
