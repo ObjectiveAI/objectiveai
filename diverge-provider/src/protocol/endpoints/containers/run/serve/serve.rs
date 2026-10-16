@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use futures_util::future::{self, Either};
 
-use super::super::family::{Family, Opened};
+use super::super::family::{Opened, Runs};
 use super::super::run::Run;
-use super::{daemon, filetree, postgres, read, schema, transfer, write};
+use super::{daemon, filetree, fuse_mount, postgres, read, schema, transfer, write};
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::frame::client::ClientFrame;
 
@@ -26,8 +26,9 @@ pub(crate) enum End {
 /// how.
 ///
 /// Each frame off the inbox is one channel the caller opened, and
-/// what it asks decides the task: the shared six here, the family's
-/// own through [`Family::serve`]. A request that will not decode is
+/// what it asks decides the task: the shared ones here, the family's
+/// own through [`Family::serve`](super::super::family::Family::serve).
+/// A request that will not decode is
 /// finished with nothing — the wire's could-not-serve — and the loop
 /// goes on. A stop ends the loop at once; channels still being served
 /// are the handler's to end.
@@ -36,7 +37,7 @@ pub(crate) enum End {
 /// arbitrarily long, and
 /// [`recv_channel_request`](diverge_sdk::wire::server::scope_handle::ScopeHandle::recv_channel_request)
 /// is cancel-safe, so the side that loses the race loses nothing.
-pub(crate) async fn serve<F: Family>(run: &Arc<Run>) -> End {
+pub(crate) async fn serve<F: Runs>(run: &Arc<Run>) -> End {
     loop {
         let request = pin!(run.scope.recv_channel_request());
         let over = pin!(run.over.notified());
@@ -70,6 +71,9 @@ pub(crate) async fn serve<F: Family>(run: &Arc<Run>) -> End {
                 run.spawn(postgres::postgres(Arc::clone(&run), channel, connection_id)).await
             }
             Opened::Schema => run.spawn(schema::schema(Arc::clone(&run), channel)).await,
+            Opened::FuseMount(request) => {
+                run.spawn(fuse_mount::fuse_mount::<F>(Arc::clone(&run), channel, request)).await
+            }
             Opened::Exchange(exchange) => run.spawn(F::serve(Arc::clone(&run), channel, exchange)).await,
         }
     }

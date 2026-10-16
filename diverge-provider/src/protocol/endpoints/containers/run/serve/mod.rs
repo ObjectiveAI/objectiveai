@@ -10,11 +10,13 @@
 //! write are scopes this end opens on the proxy, and a transfer is a
 //! read on this proxy wired into a write on another container's; a
 //! database half, the arguments' schema and the family's own exchange
-//! are channels on the begin scope.
+//! are channels on the begin scope; a FUSE mount asked for while the
+//! container runs is one more mount scope on the proxy, waited for.
 
 pub(crate) mod agent;
 pub(crate) mod daemon;
 pub(crate) mod filetree;
+pub(crate) mod fuse_mount;
 pub(crate) mod postgres;
 pub(crate) mod read;
 pub(crate) mod schema;

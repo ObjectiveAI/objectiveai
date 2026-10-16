@@ -9,7 +9,7 @@ use bytes::Bytes;
 
 use diverge_sdk::provider::endpoints::containers::tools::run::client::channel_request;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::channel_response::write_bytes;
-use diverge_sdk::provider::endpoints::containers::tools::run::server::channel_response::{filetree, read, transfer, write_path};
+use diverge_sdk::provider::endpoints::containers::tools::run::server::channel_response::{filetree, fuse_mount, read, transfer, write_path};
 use diverge_sdk::provider::endpoints::containers::tools::run::server::{channel_request as ask, response};
 use diverge_sdk::wire::client::handle::Handle;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -56,6 +56,7 @@ impl Family for Tools {
             channel_request::Frame::Daemon(request) => Opened::Daemon(request.connection_id),
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
             channel_request::Frame::Schema => Opened::Schema,
+            channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),
             channel_request::Frame::McpListResources(request) => {
                 Opened::Exchange(tool::Exchange::ListResources(request))
@@ -116,6 +117,10 @@ impl Family for Tools {
 
     fn transfer_error(error: &Error) -> Option<Vec<u8>> {
         encoded(&transfer::Frame::Error(error.clone()))
+    }
+
+    fn fuse_mount(frame: &fuse_mount::Frame) -> Option<Vec<u8>> {
+        encoded(frame)
     }
 }
 

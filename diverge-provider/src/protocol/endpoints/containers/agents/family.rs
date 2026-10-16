@@ -10,7 +10,7 @@ use bytes::Bytes;
 
 use diverge_sdk::provider::endpoints::containers::agents::run::client::channel_request;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::channel_response::write_bytes;
-use diverge_sdk::provider::endpoints::containers::agents::run::server::channel_response::{filetree, read, transfer, write_path};
+use diverge_sdk::provider::endpoints::containers::agents::run::server::channel_response::{filetree, fuse_mount, read, transfer, write_path};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::{channel_request as ask, response};
 use diverge_sdk::wire::client::handle::Handle;
 use diverge_sdk::container_proxy::outside::client::Ask;
@@ -57,6 +57,7 @@ impl Family for Agents {
             },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
             channel_request::Frame::Schema => Opened::Schema,
+            channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
             channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.key, request.content)),
             channel_request::Frame::Dequeue(request) => Opened::Exchange(agent::Exchange::Dequeue(request.key)),
         }
@@ -112,6 +113,10 @@ impl Family for Agents {
 
     fn transfer_error(error: &Error) -> Option<Vec<u8>> {
         encoded(&transfer::Frame::Error(error.clone()))
+    }
+
+    fn fuse_mount(frame: &fuse_mount::Frame) -> Option<Vec<u8>> {
+        encoded(frame)
     }
 }
 

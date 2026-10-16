@@ -23,6 +23,7 @@ use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
 use diverge_sdk::shared::containers::dependencies::Template;
+use diverge_sdk::shared::containers::fuse_mount;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree;
@@ -68,6 +69,8 @@ pub(crate) trait Family: Send + Sync + 'static {
     fn transferred() -> Option<Vec<u8>>;
     /// A transfer channel's error.
     fn transfer_error(error: &Error) -> Option<Vec<u8>>;
+    /// A mount asked for while the container runs: made, or why not.
+    fn fuse_mount(frame: &fuse_mount::response::Frame) -> Option<Vec<u8>>;
 }
 
 /// What the two scopes that deploy supply besides: how their container
@@ -157,6 +160,8 @@ pub(crate) enum Opened<E> {
     Postgres(u32),
     /// What the arguments may be.
     Schema,
+    /// One more FUSE mount, made while the container runs.
+    FuseMount(fuse_mount::request::Request),
     /// The family's own.
     Exchange(E),
 }

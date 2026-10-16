@@ -27,8 +27,9 @@ use diverge_sdk::shared::filetree::response::{Frame, Node};
 /// registered with the run, which stops it when the run shuts down;
 /// the volume watches end with the run's tasks.
 pub(crate) async fn filetree<F: Family>(run: Arc<Run>, channel: u32) {
+    let ignore = run.ignore.lock().await.clone();
     let opened = future::join(
-        tree::execute(&run.proxy, run.ignore.clone()),
+        tree::execute(&run.proxy, ignore),
         future::join_all(run.watched.iter().map(|watched| watched.watcher.watch())),
     )
     .await;

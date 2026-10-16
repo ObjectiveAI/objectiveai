@@ -8,6 +8,7 @@ use super::begin::Begun;
 use super::check::check;
 use super::family::Runs;
 use super::held::{Held, Refused};
+use super::ledger::Ledger;
 use super::run::{Run, send};
 use super::{relay, serve, setup};
 use crate::protocol::container::Container as _;
@@ -51,7 +52,10 @@ use diverge_sdk::shared::error::Error;
 ///    chunks onto the main stream; on a tool container, the begin's
 ///    own end is listened for.
 /// 4. The caller's channels are served until the run ends: a stop,
-///    the container leaving, or the caller going away.
+///    the container leaving, or the caller going away. Among them a
+///    `fuse_mount`, one more FUSE mount made while the container
+///    runs, checked against every mount it holds — see
+///    [`Ledger`] — and answered once the proxy has.
 /// 5. The teardown, the same for every ending: the directory entry
 ///    removed, the container stopped, the repository released, the
 ///    volumes given back, every task ended, and the finish.
@@ -155,8 +159,10 @@ pub(crate) async fn run<R, D, G, V>(
         Arc::clone(&directory),
         prepared.proxy,
         begin,
+        capabilities.containers_fuse_mount,
         prepared.ignore,
         prepared.watched,
+        Ledger::new(request),
     ));
     run.spawn(relay::relay::<R>(Arc::clone(&run), asks)).await;
     for mount in prepared.mounts {
