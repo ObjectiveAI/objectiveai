@@ -4,7 +4,7 @@
 //! digest, and the [`Reference`]s under which its bytes may be fetched
 //! — the limits, the mounts — a [`VolumeMount`] for a volume the provider
 //! offers, a [`FuseMount`] for what the caller serves live — and the
-//! arguments the image is handed once. Every run in
+//! arguments and the secrets the image is handed once. Every run in
 //! [`containers`](crate::provider::endpoints::containers) sends one of these
 //! and nothing more; what differs between the kinds is said later,
 //! on a channel, not here.

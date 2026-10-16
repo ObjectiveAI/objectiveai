@@ -1,18 +1,20 @@
 //! The members an agent's create and a tool's create share.
 
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 
 /// Everything a container is made of that its template does not say and
-/// its name is not: the template, the provider pin and its volumes,
-/// the FUSE mounts. The account is a tool's alone, on its own create:
+/// its name is not: the template, the secrets' vault keys, the
+/// provider pin and its volumes, the FUSE mounts. The account is a
+/// tool's alone, on its own create:
 /// an agent container holds none and asks the daemon nothing.
 /// Flattened into an
 /// [agent's](crate::daemon::endpoints::agents::create) and a
 /// [tool's](crate::daemon::endpoints::standalone_tools::create) create, so its
 /// members are the request's own.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Inner {
     /// The template the container is made from, by its id — the hash
@@ -21,6 +23,17 @@ pub struct Inner {
     /// error. The template's image, limits and arguments are
     /// the container's for its life.
     pub template: String,
+    /// Which vault key each secret the template declares is: the
+    /// secret's name, as the template's `secrets` names it, to the
+    /// key as [`vault`](crate::daemon::endpoints::vault) holds it.
+    /// Every name the template declares, and no other, else the
+    /// create's `secrets` error; naming a key takes the `use` grant
+    /// over it. The key need not be set yet: at every start of the
+    /// container the daemon reads each key's value then, and a key
+    /// not set is the start's failure. Ordered as given, and kept
+    /// so. Absent, the template declares none.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub secrets: IndexMap<String, String>,
     /// The one provider the container runs on, and the volumes of that
     /// provider made visible inside it. See [`Provider`].
     ///

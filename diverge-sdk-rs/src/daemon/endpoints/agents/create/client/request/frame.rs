@@ -10,7 +10,7 @@ use crate::daemon::create::Inner;
 /// Ask the daemon to create an agent under a name, from a template.
 ///
 /// What every agent made from the template shares — the image, the
-/// limits, the arguments — is the
+/// limits, the arguments, the secrets it needs by name — is the
 /// [`template`](Inner::template), named by its id; what is this
 /// agent's own is here: the provider it runs on with the volumes it
 /// mounts there, its FUSE mounts of providers' volumes, and the name
@@ -36,7 +36,7 @@ use crate::daemon::create::Inner;
 /// always has. Nothing here constrains the string's form; the name is
 /// the caller's word for its agent, and the daemon compares it and does
 /// not read it.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// What an agent's create and a tool's share — the template, the

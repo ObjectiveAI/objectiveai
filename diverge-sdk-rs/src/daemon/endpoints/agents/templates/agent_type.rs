@@ -4,8 +4,8 @@
 use serde::{Deserialize, Serialize};
 
 /// `"type":"agent"`, and nothing beside it: what tells an agent
-/// template from a tool template with the same image, limits, mounts
-/// and arguments. Flat among the template's members: a template
+/// template from a tool template with the same image, limits, mounts,
+/// arguments and secrets. Flat among the template's members: a template
 /// whose `type` is anything else does not decode as an agent
 /// template.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]

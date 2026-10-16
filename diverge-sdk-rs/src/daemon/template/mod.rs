@@ -3,7 +3,8 @@
 //!
 //! A template is everything about an agent or a tool that is not its
 //! name, not the provider it runs on and not its mounts: the image,
-//! the limits, the arguments, and — in words, for whoever makes one —
+//! the limits, the arguments, the secrets it needs by name, and — in
+//! words, for whoever makes one —
 //! what the create has to bring that the template cannot name — so
 //! that a template is shareable, the same template on any daemon
 //! hashing the same. The shape is one, [`Template`], written once
@@ -23,7 +24,8 @@
 //! absent members omitted, the image's `references` absent too, since
 //! one image under different names is one template, no whitespace,
 //! every object key sorted at every depth, the `arguments` and every
-//! map inside them included; see [`Template::hashed`]. Sixty-four
+//! map inside them included, the `secrets` in the order declared;
+//! see [`Template::hashed`]. Sixty-four
 //! characters. The daemon computes it on a create and
 //! answers it; a caller may compute it the same way and need not.
 

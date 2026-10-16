@@ -8,9 +8,10 @@ use crate::daemon::endpoints::agents::create::client::request::Image;
 
 /// Everything an agent or a tool is made from that is the same for
 /// every one made from it: what it is for, how to make one in words,
-/// the image, the limits, the arguments. What is not here is what
-/// differs one to the next — the name, the provider it runs on, and
-/// every mount of providers' volumes — which the
+/// the image, the limits, the arguments, the secrets it needs by
+/// name. What is not here is what differs one to the next — the
+/// name, the provider it runs on, every mount of providers' volumes,
+/// and which vault key each secret is — which the
 /// [agent's](crate::daemon::endpoints::agents::create) or the
 /// [tool's](crate::daemon::endpoints::standalone_tools::create) create states.
 ///
@@ -94,6 +95,14 @@ pub struct Template<Type> {
     /// that typed it would have to be revised for every image that ever
     /// ran. It is handed to the container and not read here.
     pub arguments: Value,
+    /// The secrets the image needs, by name, in the order the image
+    /// states them: what every container made from this is handed
+    /// beside the arguments, each name with the value of the vault
+    /// key the create bound it to. Inside the hash. A name is not
+    /// empty, and no two are alike; a template that says otherwise is
+    /// the create's error. Absent, the image needs none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub secrets: Vec<String>,
 }
 
 impl<Type: Clone> Template<Type> {

@@ -21,7 +21,8 @@ use crate::wire::encode::{Encode, Writer};
 /// them, and what the provider mounted is what persists; a result
 /// differing in anything else is answered `Active`, and nothing
 /// changed. The agent's image, limits, provider and arguments are not
-/// edited: they are its for its life.
+/// edited: they are its for its life; which vault key each of its
+/// secrets is, is.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {

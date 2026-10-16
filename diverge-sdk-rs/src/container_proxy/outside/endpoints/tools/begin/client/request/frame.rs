@@ -1,5 +1,6 @@
 //! What a client's request frame carries for a tool container begin.
 
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -20,10 +21,13 @@ use crate::wire::encode::{Encode, Writer};
 /// that has begun is a container that holds its arguments, and
 /// [`Begun`](super::super::super::server::response::Frame::Begun) says both.
 ///
-/// The template rides beside them: the id of the template the
+/// The secrets ride beside them, the
+/// [`secrets`](crate::shared::containers::request::Container::secrets)
+/// of the same request, each name to its value, handed to the program
+/// with the arguments at its registration, held as they are, and read
+/// by nothing else. So does the template: the id of the template the
 /// container is made from, as the run request named it, handed to
-/// the program with the arguments at its registration and read by
-/// nothing else. The proxy sets nothing under `_meta` on what it
+/// the program with them and read by nothing else. The proxy sets nothing under `_meta` on what it
 /// relays — who is on either end of a tool call is the daemon's to
 /// attest, see [`shared::mcp`](crate::shared::mcp) — so it has no
 /// need of the image it runs in, and is not told it.
@@ -38,6 +42,12 @@ use crate::wire::encode::{Encode, Writer};
 pub struct Frame {
     /// The arguments, as the image defines them.
     pub arguments: Value,
+    /// The secrets, each by the name the image knows it by, to its
+    /// value: the
+    /// [`secrets`](crate::shared::containers::request::Container::secrets)
+    /// of the request that made the container, verbatim. Absent, none.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub secrets: IndexMap<String, Value>,
     /// The template the container is made from, by id, as the
     /// [`template`](crate::shared::containers::request::Container::template)
     /// of the request that made the container names it.
@@ -93,7 +103,7 @@ pub enum FrameError {
     /// assumed which request it held, and was wrong, will — which is
     /// the point of checking a tag rather than skipping it.
     UnexpectedTag(u8),
-    /// The arguments did not parse.
+    /// The request did not parse.
     Body(serde_json::Error),
 }
 

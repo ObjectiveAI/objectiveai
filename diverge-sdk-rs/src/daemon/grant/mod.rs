@@ -3,7 +3,7 @@
 //! A GRANT is one permission over one kind of thing the daemon holds —
 //! agents, agent templates, standalone tools, their templates,
 //! dependency tools, outgoing providers, incoming credentials, daemons,
-//! accounts, roles, volumes, the database — and a
+//! accounts, roles, volumes, the vault, the database — and a
 //! [role](crate::daemon::endpoints::roles) is a
 //! list of them, held by
 //! [accounts](crate::daemon::endpoints::accounts). On the wire a grant
@@ -81,7 +81,11 @@
 //! mounts — a volume mount of the provider it is pinned to, or a FUSE
 //! mount of a file or a directory in it — at the container's create or
 //! edit takes `mount` over the volume, beside the `create` or `edit`
-//! grant over the container.
+//! grant over the container. So is binding a secret: naming a vault
+//! key in a container's `secrets` at its create or edit takes `use`
+//! over the key — a key the vault does not hold yet is reached only
+//! by a grant whose `within` is `"any"` — beside the `create` or
+//! `edit` grant over the container.
 //!
 //! # The actions are the shared ones
 //!
@@ -91,7 +95,8 @@
 //! are made of the same actions, reaching by tags alone, and a grant
 //! here reaches by the kind's own filter. Every kind but the database
 //! carries tags — agents, templates, tools, dependency templates,
-//! providers, credentials, daemons, accounts, roles and volumes alike
+//! providers, credentials, daemons, accounts, roles, volumes and the
+//! vault's keys alike
 //! — so every kind but the database has the tagging shape; every kind
 //! but the database and dependency templates, which a registration
 //! makes, has the making shape. A grant that names nothing becomes one of
@@ -115,5 +120,6 @@ pub mod providers_incoming;
 pub mod providers_daemons;
 pub mod accounts;
 pub mod roles;
+pub mod vault;
 pub mod volumes;
 pub use crate::shared::permission::postgres;
