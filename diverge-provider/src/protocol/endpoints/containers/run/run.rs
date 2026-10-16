@@ -39,10 +39,6 @@ pub(crate) struct Run {
     /// The begin scope on it: where the proxy's asks arrive and where
     /// the family's own exchanges go.
     pub begin: Begin,
-    /// Whether the provider holds out `containers_fuse_mount`: what
-    /// a mount asked for while the container runs is answered
-    /// `Unsupported` without.
-    pub fuse_mount: bool,
     /// Every path the proxy's tree leaves out: every FUSE mount's —
     /// the request's, and each made since, as it is made — and every
     /// mount's of a volume the provider watches itself. Read when a
@@ -79,7 +75,6 @@ impl Run {
         directory: Arc<Directory>,
         proxy: Handle,
         begin: Begin,
-        fuse_mount: bool,
         ignore: Vec<Vec<String>>,
         watched: Arc<[Watched]>,
         mounts: Ledger,
@@ -90,7 +85,6 @@ impl Run {
             directory,
             proxy,
             begin,
-            fuse_mount,
             ignore: Mutex::new(ignore),
             watched,
             mounts: Mutex::new(mounts),

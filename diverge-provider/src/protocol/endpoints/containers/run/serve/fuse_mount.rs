@@ -16,15 +16,13 @@ use diverge_sdk::shared::containers::fuse_mount::response::Frame;
 
 /// Serve one, to the end. The rules, in order:
 ///
-/// 1. A provider that holds out no `containers_fuse_mount` answers
-///    `Unsupported` and does nothing else.
-/// 2. A path that is the root, or has a component that is not a
+/// 1. A path that is the root, or has a component that is not a
 ///    name, is a request that did not decode: the finish alone.
-/// 3. The mount is claimed in the run's [`Ledger`](super::super::ledger::Ledger)
+/// 2. The mount is claimed in the run's [`Ledger`](super::super::ledger::Ledger)
 ///    before the proxy is asked: `Taken` for an id the container
 ///    holds a FUSE mount under, `Overlaps` for a path that is a held
 ///    mount's, lies inside one or holds one.
-/// 4. One mount scope is opened on the proxy, and its answer waited
+/// 3. One mount scope is opened on the proxy, and its answer waited
 ///    for. The proxy's `Ok` is the mount made: its path joins what
 ///    every tree opened from now leaves out, `Mounted` is sent and
 ///    the channel finished, and only then is the mount's relay
@@ -35,11 +33,6 @@ use diverge_sdk::shared::containers::fuse_mount::response::Frame;
 ///
 /// The mount lives until the run ends; nothing unmounts it.
 pub(crate) async fn fuse_mount<R: Runs>(run: Arc<Run>, channel: u32, request: Request) {
-    if !run.fuse_mount {
-        run.respond(channel, R::fuse_mount(&Frame::Unsupported)).await;
-        run.finish(channel).await;
-        return;
-    }
     if request.container_path.is_empty() || !request.container_path.iter().all(|component| check::name(component)) {
         run.finish(channel).await;
         return;

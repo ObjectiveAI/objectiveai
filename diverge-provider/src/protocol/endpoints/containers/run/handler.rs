@@ -28,9 +28,7 @@ use diverge_sdk::shared::error::Error;
 /// In order:
 ///
 /// 0. The request's mounts are checked — see [`check`] — or the run
-///    is refused with the error, before anything is held; a request
-///    naming a FUSE mount on a provider whose capabilities mount none
-///    is refused with `FuseMountsUnsupported`. Then every volume the
+///    is refused with the error, before anything is held. Then every volume the
 ///    request names is found and held, shared — see [`Held`] — or
 ///    the run is refused: with the name of a volume held, mounted,
 ///    FUSE served or of a mode the provider does not mount, with the
@@ -82,13 +80,6 @@ pub(crate) async fn run<R, D, G, V>(
 
     if let Err(error) = check(request) {
         send(&scope, R::error(&error)).await;
-        scope.send_response_finish().await;
-        return;
-    }
-
-    let names_fuse = !request.fuse_file_mounts.is_empty() || !request.fuse_directory_mounts.is_empty();
-    if names_fuse && !capabilities.containers_fuse_mount {
-        send(&scope, R::fuse_mounts_unsupported()).await;
         scope.send_response_finish().await;
         return;
     }
@@ -159,7 +150,6 @@ pub(crate) async fn run<R, D, G, V>(
         Arc::clone(&directory),
         prepared.proxy,
         begin,
-        capabilities.containers_fuse_mount,
         prepared.ignore,
         prepared.watched,
         Ledger::new(request),

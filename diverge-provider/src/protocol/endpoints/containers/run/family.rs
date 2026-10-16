@@ -122,9 +122,6 @@ pub(crate) trait Runs: Family {
     fn volume_mount_unsupported(refused: &VolumeMountUnsupported) -> Option<Vec<u8>>;
     /// The run refused for a volume in another mode, on channel `0`.
     fn volume_mode(refused: &VolumeMode) -> Option<Vec<u8>>;
-    /// The run refused for naming a FUSE mount the provider does not
-    /// make, on channel `0`.
-    fn fuse_mounts_unsupported() -> Option<Vec<u8>>;
 }
 
 /// What a caller opened, classified.
