@@ -485,7 +485,7 @@ Capabilities layer tabulates for it, alone — `volumes::list`,
 
 (e) **The mode objects.** For every Volume mode the Provider holds
 out, the Provider shall send a mode object that holds out no more
-than the mode allows — the `volume_persistent` object with
+than the mode allows — the `volumes_persistent` object with
 `fuse_serve_many` and `mount_and_fuse_serve` `false` —
 that sends `mount` `true` wherever it sends `mount_many` `true`,
 `fuse_serve` `true` wherever it sends `fuse_serve_many` `true`, and

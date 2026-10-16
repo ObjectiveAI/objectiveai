@@ -55,9 +55,9 @@ define.
 |--------|------|--------|---------|
 | `images_store` | boolean | `false` | [images::list](/endpoints/images-list/), [images::stat](/endpoints/images-stat/), [images::build](/endpoints/images-build/), [images::delete](/endpoints/images-delete/), [images::oci](/endpoints/images-oci/), and the `client` source of [images::check](/endpoints/images-check/) |
 | `images_registries` | array of strings | `[]` | the `registries` source of [images::check](/endpoints/images-check/), and where a run obtains its image |
-| `volume_persistent` | object, [the mode object](#the-mode-object) | no volume of the mode | the eleven volume endpoints, and the volume mounts of the two runs, for a volume whose `mode` is `persistent` |
-| `volume_ephemeral` | object, [the mode object](#the-mode-object) | no volume of the mode | the same, for a volume whose `mode` is `ephemeral` |
-| `volume_read_only` | object, [the mode object](#the-mode-object) | no volume of the mode | the same, for a volume whose `mode` is `read_only` |
+| `volumes_persistent` | object, [the mode object](#the-mode-object) | no volume of the mode | the eleven volume endpoints, and the volume mounts of the two runs, for a volume whose `mode` is `persistent` |
+| `volumes_ephemeral` | object, [the mode object](#the-mode-object) | no volume of the mode | the same, for a volume whose `mode` is `ephemeral` |
+| `volumes_read_only` | object, [the mode object](#the-mode-object) | no volume of the mode | the same, for a volume whose `mode` is `read_only` |
 
 The object is defined by
 `diverge-sdk-rs/src/provider/endpoints/info/server/response/capabilities.rs`:
@@ -151,8 +151,8 @@ request, as those pages state: no capability governs them, and the
 
 ## The volume modes
 
-Each of `volume_persistent`, `volume_ephemeral` and
-`volume_read_only` states whether the server keeps volumes whose
+Each of `volumes_persistent`, `volumes_ephemeral` and
+`volumes_read_only` states whether the server keeps volumes whose
 `mode` is, respectively, `persistent`, `ephemeral` and `read_only`,
 as [volumes::create](/endpoints/volumes-create/) defines the three
 modes; and, where it does, what the server does with a volume of the
@@ -212,8 +212,8 @@ mode: [the mode object](#the-mode-object).
 
 ## The mode object
 
-The value of a present `volume_persistent`, `volume_ephemeral` or
-`volume_read_only` member is one JSON object of five boolean
+The value of a present `volumes_persistent`, `volumes_ephemeral` or
+`volumes_read_only` member is one JSON object of five boolean
 members, each optional, an absent member being `false`.
 
 | Member | `true` states that |
@@ -231,7 +231,7 @@ members, each optional, an absent member being `false`.
   and is never held by a FUSE serve and a running container at once;
   an `ephemeral` or a `read_only` volume may be held by any number of
   running containers and FUSE serves at once. A server holds out no
-  more than the mode allows: the `volume_persistent` object has
+  more than the mode allows: the `volumes_persistent` object has
   `fuse_serve_many` and `mount_and_fuse_serve` `false`, absent or
   present.
 - **Consistency.** A server that sends `mount_many` `true` sends
