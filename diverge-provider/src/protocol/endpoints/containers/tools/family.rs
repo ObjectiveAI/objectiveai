@@ -27,7 +27,7 @@ use diverge_sdk::shared;
 use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
-use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, vault};
+use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres};
 use diverge_sdk::shared::containers::daemon;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree as tree;
@@ -182,25 +182,19 @@ impl Runs for Tools {
     }
 }
 
-/// The proxy's ask as this family's frame; a database connection and
-/// a daemon connection are re-asked under this end's own id, see
-/// `Own`, and a tool call outward is nothing a tool container's proxy
-/// opens, this wire having no frame for one.
+/// The proxy's ask as this family's frame: none, as it came. A
+/// database connection and a daemon connection are re-asked under
+/// this end's own id, see `Own`, and a tool call outward is nothing a
+/// tool container's proxy opens, this wire having no frame for one.
 fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
-    Some(match ask {
-        Ask::Postgres(_) => return None,
-        Ask::Daemon(_) => return None,
-        Ask::VaultGet { key } => ask::Frame::VaultGet(vault::get::request::Request { key }),
-        Ask::VaultSet { key, value } => ask::Frame::VaultSet(vault::set::request::Request { key, value }),
-        Ask::VaultDelete { key } => ask::Frame::VaultDelete(vault::delete::request::Request { key }),
-        Ask::VaultLock { key, ttl } => ask::Frame::VaultLock(vault::lock::request::Request { key, ttl: *ttl }),
-        Ask::VaultUnlock { key } => ask::Frame::VaultUnlock(vault::unlock::request::Request { key }),
+    match ask {
+        Ask::Postgres(_) | Ask::Daemon(_) => None,
         Ask::McpListTools(_)
         | Ask::McpListResources(_)
         | Ask::McpCallTool(_)
         | Ask::McpReadResource(_)
-        | Ask::McpNotifications => return None,
-    })
+        | Ask::McpNotifications => None,
+    }
 }
 
 /// A mount's ask as this family's frame, the caller's id in front.

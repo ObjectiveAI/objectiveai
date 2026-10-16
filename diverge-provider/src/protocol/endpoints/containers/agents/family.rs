@@ -29,7 +29,7 @@ use diverge_sdk::shared;
 use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
-use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, vault};
+use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres};
 use diverge_sdk::shared::mcp;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree as tree;
@@ -199,11 +199,6 @@ fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
     Some(match ask {
         Ask::Postgres(_) => return None,
         Ask::Daemon(_) => return None,
-        Ask::VaultGet { key } => ask::Frame::VaultGet(vault::get::request::Request { key }),
-        Ask::VaultSet { key, value } => ask::Frame::VaultSet(vault::set::request::Request { key, value }),
-        Ask::VaultDelete { key } => ask::Frame::VaultDelete(vault::delete::request::Request { key }),
-        Ask::VaultLock { key, ttl } => ask::Frame::VaultLock(vault::lock::request::Request { key, ttl: *ttl }),
-        Ask::VaultUnlock { key } => ask::Frame::VaultUnlock(vault::unlock::request::Request { key }),
         Ask::McpListTools(request) => ask::Frame::McpListTools(request.clone()),
         Ask::McpListResources(request) => ask::Frame::McpListResources(request.clone()),
         Ask::McpCallTool(request) => ask::Frame::McpCallTool(request.clone()),
