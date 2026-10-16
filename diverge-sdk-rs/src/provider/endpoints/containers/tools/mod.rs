@@ -9,7 +9,7 @@
 //! [`schema`](crate::shared::containers::schema) says what its
 //! arguments may be, the same channels read and write its files and
 //! watch its tree, and it asks the same things of the caller — a
-//! database, its daemon connection, its vault, tools of its own.
+//! database, its daemon connection, tools of its own.
 //!
 //! [`run`] owns the container.
 

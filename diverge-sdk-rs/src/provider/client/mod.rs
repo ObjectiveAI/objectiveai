@@ -22,7 +22,6 @@
 //! | [`DependencyDeployer`] | the dependencies the container declared, each a tool container, run |
 //! | [`PostgresDialer`] | the container's database connections |
 //! | [`Daemon`] | the frames of the container's daemon connection, answered by the daemon's session for it |
-//! | [`Vault`] | the container's secrets, with locks |
 //! | [`McpServer`] | the container's tool calls outward |
 //! | [`FuseServer`] | the files and directories mounted live |
 //!
@@ -45,7 +44,6 @@ mod fuse_server;
 mod mcp_server;
 mod oci_store;
 mod postgres_dialer;
-mod vault;
 
 pub use acceptor::*;
 pub use answerers::*;
@@ -55,4 +53,3 @@ pub use fuse_server::*;
 pub use mcp_server::*;
 pub use oci_store::*;
 pub use postgres_dialer::*;
-pub use vault::*;

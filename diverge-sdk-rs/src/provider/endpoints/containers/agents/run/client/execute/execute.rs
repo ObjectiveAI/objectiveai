@@ -8,7 +8,7 @@ use super::execute_handle::ExecuteHandle;
 use super::ExecuteStream;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::provider::client::{
-    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer, Vault,
+    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer,
 };
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
@@ -52,17 +52,16 @@ use crate::shared::error::Error;
 /// the serving task goes on answering the provider's asks until the
 /// scope's request stream ends, which the router closes with the
 /// scope.
-pub async fn execute<O, T, P, D, V, M, F>(
+pub async fn execute<O, T, P, D, M, F>(
     handle: &Handle,
     request: &request::Frame,
-    answerers: Answerers<O, T, P, D, V, M, F>,
+    answerers: Answerers<O, T, P, D, M, F>,
 ) -> Result<(Id, ExecuteHandle, ExecuteStream), ExecuteError>
 where
     O: OciStore + 'static,
     T: DependencyDeployer + 'static,
     P: PostgresDialer + 'static,
     D: Daemon + 'static,
-    V: Vault + 'static,
     M: McpServer + 'static,
     F: FuseServer + 'static,
 {

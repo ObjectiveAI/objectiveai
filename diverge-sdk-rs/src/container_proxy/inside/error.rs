@@ -16,20 +16,6 @@ pub enum Error {
     /// An MCP exchange could not be carried: the session is gone, or
     /// the proxy answered something rmcp could not read.
     McpService(rmcp::ServiceError),
-    /// A vault key too long for its request's length prefix — only
-    /// `set` has one.
-    VaultKey(crate::shared::containers::vault::RequestEncodeError),
-    /// The HTTP call to the proxy failed.
-    VaultRequest(reqwest::Error),
-    /// The proxy answered a status other than success: `400` for a
-    /// request it could not read, `502` for an ask that died or that
-    /// the caller refused unanswered. No retry is made — a vault
-    /// operation is not safe to repeat blindly.
-    VaultStatus(u16),
-    /// The proxy's answer could not be read as the vault's.
-    VaultAnswer(crate::shared::containers::vault::ResponseError),
-    /// The caller's own refusal, in its words.
-    Vault(String),
     /// Dialing the proxy's `/daemon` failed: the socket, or the
     /// upgrade.
     DaemonDial(tokio_tungstenite::tungstenite::Error),
@@ -44,21 +30,6 @@ impl fmt::Display for Error {
             Error::McpService(error) => {
                 write!(f, "an MCP exchange with the proxy failed: {error}")
             }
-            Error::VaultKey(error) => {
-                write!(f, "a vault request could not be written: {error}")
-            }
-            Error::VaultRequest(error) => {
-                write!(f, "a vault request to the proxy failed: {error}")
-            }
-            Error::VaultStatus(status) => {
-                write!(f, "the proxy answered a vault request with {status}")
-            }
-            Error::VaultAnswer(error) => {
-                write!(f, "a vault answer could not be read: {error}")
-            }
-            Error::Vault(message) => {
-                write!(f, "the vault refused: {message}")
-            }
             Error::DaemonDial(error) => {
                 write!(f, "dialing the proxy's daemon failed: {error}")
             }
@@ -71,13 +42,7 @@ impl error::Error for Error {
         match self {
             Error::McpConnect(error) => Some(error),
             Error::McpService(error) => Some(error),
-            Error::VaultKey(error) => Some(error),
-            Error::VaultRequest(error) => Some(error),
-            Error::VaultAnswer(error) => Some(error),
             Error::DaemonDial(error) => Some(error),
-            // A message from the wire, not a Rust error: nothing to
-            // chain.
-            Error::VaultStatus(_) | Error::Vault(_) => None,
         }
     }
 }

@@ -45,6 +45,5 @@ pub mod response;
 pub mod schema;
 pub mod dependencies;
 pub mod transfer;
-pub mod vault;
 pub mod write_bytes;
 pub mod write_path;

@@ -6,8 +6,7 @@
 //! takes it from there; [`write_bytes`] streams the content of a file
 //! being written. The rest answer the CONTAINER, relayed: [`postgres`] is
 //! what its database said, [`daemon`] the server frames that answer a
-//! frame of its daemon connection, the five `vault_*` what its vault
-//! answered, and the nine `fuse_*` what the files and
+//! frame of its daemon connection, and the nine `fuse_*` what the files and
 //! directories it mounted live hold, what an entry of them is, and
 //! whether a change to one took.
 
@@ -25,9 +24,4 @@ pub mod oci_blob;
 pub mod oci_has;
 pub mod oci_manifest;
 pub mod postgres;
-pub mod vault_delete;
-pub mod vault_get;
-pub mod vault_lock;
-pub mod vault_set;
-pub mod vault_unlock;
 pub mod write_bytes;

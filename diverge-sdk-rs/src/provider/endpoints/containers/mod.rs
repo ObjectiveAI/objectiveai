@@ -24,7 +24,7 @@
 //! channel says what they may be; each family has a `run` that owns the
 //! container's life; every scope reads and writes files, watches the
 //! tree, and relays what the container asks of the caller — its
-//! database connections, its daemon connection, its vault, its tool
+//! database connections, its daemon connection, its tool
 //! calls outward. All of that is defined once, in
 //! [`shared::containers`](crate::shared::containers), and each scope's
 //! frames wrap or alias it. The two runs' channel tags are laid out so

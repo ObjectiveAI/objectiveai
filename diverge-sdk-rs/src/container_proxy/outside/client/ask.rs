@@ -1,17 +1,13 @@
 //! One ask a proxy opens on a begin scope, owned.
 
-use bytes::Bytes;
-
-
 use super::super::endpoints::{agents, tools};
 use crate::shared::mcp;
 
 /// What the proxy asks the server for on a begin scope, in the one
 /// owned form both families' frames convert into, so the relay of
 /// each is written once: an agent container's are the database
-/// connections, the vault and the five MCP exchanges outward, a tool
-/// container's the database connections, the daemon connection and
-/// the vault.
+/// connections and the five MCP exchanges outward, a tool container's
+/// the database connections and the daemon connection.
 ///
 /// Owned, because the frame it came from borrows the message it
 /// arrived in and an ask outlives that message: it is relayed to the
@@ -24,35 +20,6 @@ pub enum Ask {
     /// A daemon connection the program opened, by the id the proxy
     /// minted.
     Daemon(u32),
-    /// Read a vault key.
-    VaultGet {
-        /// The key.
-        key: String,
-    },
-    /// Write a vault key.
-    VaultSet {
-        /// The key.
-        key: String,
-        /// The value, verbatim.
-        value: Bytes,
-    },
-    /// Remove a vault key.
-    VaultDelete {
-        /// The key.
-        key: String,
-    },
-    /// Hold a vault key's lock.
-    VaultLock {
-        /// The key.
-        key: String,
-        /// For how long, in seconds.
-        ttl: u32,
-    },
-    /// Release a vault key's lock.
-    VaultUnlock {
-        /// The key.
-        key: String,
-    },
     /// What tools the caller's servers have.
     McpListTools(mcp::list_tools::request::Request),
     /// What resources they have.
@@ -65,28 +32,11 @@ pub enum Ask {
     McpNotifications,
 }
 
-impl From<agents::begin::server::channel_request::Frame<'_>> for Ask {
-    fn from(frame: agents::begin::server::channel_request::Frame<'_>) -> Self {
+impl From<agents::begin::server::channel_request::Frame> for Ask {
+    fn from(frame: agents::begin::server::channel_request::Frame) -> Self {
         use agents::begin::server::channel_request::Frame;
         match frame {
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
-            Frame::VaultGet(request) => Ask::VaultGet {
-                key: request.key.to_owned(),
-            },
-            Frame::VaultSet(request) => Ask::VaultSet {
-                key: request.key.to_owned(),
-                value: Bytes::copy_from_slice(request.value),
-            },
-            Frame::VaultDelete(request) => Ask::VaultDelete {
-                key: request.key.to_owned(),
-            },
-            Frame::VaultLock(request) => Ask::VaultLock {
-                key: request.key.to_owned(),
-                ttl: request.ttl,
-            },
-            Frame::VaultUnlock(request) => Ask::VaultUnlock {
-                key: request.key.to_owned(),
-            },
             Frame::McpListTools(request) => Ask::McpListTools(request),
             Frame::McpListResources(request) => Ask::McpListResources(request),
             Frame::McpCallTool(request) => Ask::McpCallTool(request),
@@ -96,29 +46,12 @@ impl From<agents::begin::server::channel_request::Frame<'_>> for Ask {
     }
 }
 
-impl From<tools::begin::server::channel_request::Frame<'_>> for Ask {
-    fn from(frame: tools::begin::server::channel_request::Frame<'_>) -> Self {
+impl From<tools::begin::server::channel_request::Frame> for Ask {
+    fn from(frame: tools::begin::server::channel_request::Frame) -> Self {
         use tools::begin::server::channel_request::Frame;
         match frame {
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
             Frame::Daemon(request) => Ask::Daemon(request.connection_id),
-            Frame::VaultGet(request) => Ask::VaultGet {
-                key: request.key.to_owned(),
-            },
-            Frame::VaultSet(request) => Ask::VaultSet {
-                key: request.key.to_owned(),
-                value: Bytes::copy_from_slice(request.value),
-            },
-            Frame::VaultDelete(request) => Ask::VaultDelete {
-                key: request.key.to_owned(),
-            },
-            Frame::VaultLock(request) => Ask::VaultLock {
-                key: request.key.to_owned(),
-                ttl: request.ttl,
-            },
-            Frame::VaultUnlock(request) => Ask::VaultUnlock {
-                key: request.key.to_owned(),
-            },
         }
     }
 }

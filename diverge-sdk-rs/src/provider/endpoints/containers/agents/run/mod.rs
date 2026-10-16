@@ -16,7 +16,7 @@
 //! The provider opens them for what it needs from the caller — an image
 //! the caller serves, content it does not hold — and for everything the
 //! container asks of the caller:
-//! its database connections, its daemon connection, its vault, its tool
+//! its database connections, its daemon connection, its tool
 //! calls outward. The caller opens them to reach into the container:
 //! its files, its tree, one more mount made while it runs, a message
 //! for the agent. Same scope, opposite
