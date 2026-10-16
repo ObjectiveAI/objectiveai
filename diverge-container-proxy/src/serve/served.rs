@@ -3,9 +3,9 @@
 
 use std::sync::Arc;
 
-use diverge_sdk::container_proxy::outside::endpoints::filesystem::serve::client::{channel_request, request};
-use diverge_sdk::container_proxy::outside::endpoints::filesystem::serve::server::channel_response::filetree;
-use diverge_sdk::container_proxy::outside::endpoints::filesystem::serve::server::response;
+use diverge_sdk::container_proxy::outside::endpoints::filesystem::fuse_serve::client::{channel_request, request};
+use diverge_sdk::container_proxy::outside::endpoints::filesystem::fuse_serve::server::channel_response::filetree;
+use diverge_sdk::container_proxy::outside::endpoints::filesystem::fuse_serve::server::response;
 use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::client::execute::Ask;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::frame::client::ClientFrame;

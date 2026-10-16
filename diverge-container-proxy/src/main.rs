@@ -10,14 +10,14 @@
 //! long as the server wants it; on the begin scope the proxy opens
 //! channels of its own for
 //! everything the container asks of the world outside: its database
-//! connections, its vault, an agent container's tool calls outward,
-//! a tool container's daemon connections.
+//! connections, an agent container's tool calls outward, a tool
+//! container's daemon connections.
 //!
 //! The program beside the proxy sees none of that. On the loopback
 //! at `80` it finds a fully compliant MCP server at `/mcp` — an agent
 //! container's, a tool container's program being answered that it
-//! makes no tool call outward — the vault as plain HTTP at
-//! `/vault/<op>`, and the daemon protocol as a WebSocket at `/daemon`
+//! makes no tool call outward — and the daemon protocol as a
+//! WebSocket at `/daemon`
 //! — a tool container's, an agent container's program having the
 //! socket closed on it, since an agent holds no account; at `81` a
 //! pgwire listener that is, to its driver, a database. Each of those
@@ -94,11 +94,6 @@ async fn run() {
 
     // The program's side: what the program beside the proxy dials.
     let inside = axum::Router::new()
-        .route("/vault/get", axum::routing::post(inside::vault::get))
-        .route("/vault/set", axum::routing::post(inside::vault::set))
-        .route("/vault/delete", axum::routing::post(inside::vault::delete))
-        .route("/vault/lock", axum::routing::post(inside::vault::lock))
-        .route("/vault/unlock", axum::routing::post(inside::vault::unlock))
         .route("/daemon", axum::routing::any(inside::daemon::serve))
         .nest_service("/mcp", mcp)
         .with_state(Arc::clone(&proxy));

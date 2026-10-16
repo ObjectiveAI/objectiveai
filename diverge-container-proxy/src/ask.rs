@@ -24,8 +24,8 @@ pub enum Asked {
 /// Ask once on `scope` and take the answer: the first message on the
 /// channel, then the finish. Extras are ignored rather than obeyed; a
 /// channel that dies, or finishes with nothing, is the failure it is.
-/// No retry, per the wire: neither a vault operation nor a mounted
-/// file's write is safe to repeat.
+/// No retry, per the wire: a mounted file's write is not safe to
+/// repeat.
 pub async fn ask(scope: &ScopeHandle, payload: &[u8]) -> Result<Bytes, Asked> {
     let mut channel = scope.send_channel_request(payload).await;
     let mut first: Option<Bytes> = None;
@@ -43,7 +43,7 @@ pub async fn ask(scope: &ScopeHandle, payload: &[u8]) -> Result<Bytes, Asked> {
 /// Open one of the proxy's own asks on the begin scope, waiting for
 /// the scope if the connection has not begun — the park — and hand
 /// back the channel its answer arrives on, with the scope it rides.
-pub async fn open(proxy: &Proxy, own: Own<'_>) -> Result<(Begun, Channel), Asked> {
+pub async fn open(proxy: &Proxy, own: Own) -> Result<(Begun, Channel), Asked> {
     let begun = proxy.begun().await.ok_or(Asked::Died)?;
     let payload = own.encoded(begun.family).ok_or(Asked::Encode)?;
     let channel = begun.scope.send_channel_request(&payload).await;
@@ -52,7 +52,7 @@ pub async fn open(proxy: &Proxy, own: Own<'_>) -> Result<(Begun, Channel), Asked
 
 /// One of the proxy's own asks on the begin scope, and its one
 /// answer: [`open`] and [`ask`] in one.
-pub async fn own(proxy: &Proxy, own: Own<'_>) -> Result<Bytes, Asked> {
+pub async fn own(proxy: &Proxy, own: Own) -> Result<Bytes, Asked> {
     let begun = proxy.begun().await.ok_or(Asked::Died)?;
     let payload = own.encoded(begun.family).ok_or(Asked::Encode)?;
     ask(&begun.scope, &payload).await
