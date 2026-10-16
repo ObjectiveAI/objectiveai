@@ -2,6 +2,7 @@
 
 use std::fmt::Display;
 
+use diverge_sdk::shared::containers::fuse_mount;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -57,6 +58,19 @@ pub fn patch(what: &str) -> Error {
     Error(serde_json::json!({
         "kind": "patch",
         "error": what,
+    }))
+}
+
+/// The wire's error for a FUSE mount the provider did not make into
+/// a running container: one shape, `{"kind":"mount","refusal":…}`,
+/// the provider's answer as it gave it — `"overlaps"`, `"taken"`,
+/// `"unsupported"`, or `{"error":…}` in the proxy's words. The mount
+/// is not made and not on record; what the provider mounted before
+/// it is.
+pub fn mount(refusal: &fuse_mount::response::Frame) -> Error {
+    Error(serde_json::json!({
+        "kind": "mount",
+        "refusal": refusal,
     }))
 }
 

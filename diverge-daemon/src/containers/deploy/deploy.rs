@@ -194,7 +194,7 @@ async fn start(answerer: &Answerer, agent_key: &key::Agent, agent_container: &st
             .await
             .map_err(|error| error.to_string())?,
     );
-    let container = build::dependency(&tool.template, &tool.declared, &mounts);
+    let container = build::dependency(&tool.template, &tool.declared, &mounts).await;
     let image = container.image.clone();
     let attestation = attestation::Tool::Dependency {
         image: image.clone(),
@@ -251,6 +251,7 @@ async fn start(answerer: &Answerer, agent_key: &key::Agent, agent_container: &st
             volumes: Vec::new(),
             ended: watch::channel(false).0,
             tasks: Mutex::new(Vec::new()),
+            edits: Mutex::new(()),
             dependency: Some(tool.clone()),
         });
         daemon.live.insert_tool(Arc::clone(&run)).await;

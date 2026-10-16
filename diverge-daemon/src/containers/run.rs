@@ -10,6 +10,8 @@ use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
+use diverge_sdk::shared::containers::fuse::Kind;
+use diverge_sdk::shared::containers::fuse_mount;
 use diverge_sdk::shared::mcp::attest;
 use diverge_sdk::shared::mcp::attestation;
 use bytes::Bytes;
@@ -66,6 +68,9 @@ pub struct AgentRun {
     pub messages: Mutex<HashMap<String, Creator>>,
     /// The tasks that are the run's: the pump and the idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
+    /// Taken for the length of one edit of the record while it runs:
+    /// two editors adding mounts are served one after the other.
+    pub edits: Mutex<()>,
 }
 
 impl AgentRun {
@@ -135,6 +140,17 @@ impl ToolHandle {
         match self {
             ToolHandle::Run(handle) => handle.notifications().await.map_err(|error| error.to_string()),
             ToolHandle::Connected(handle) => handle.notifications().await.map_err(|error| error.to_string()),
+        }
+    }
+
+    /// One more file or directory the daemon serves, mounted into the
+    /// running container at `container_path` under `id`: the
+    /// provider's one answer, waited for. A connected tool's container
+    /// is another daemon's: [`CONNECTED_FILES`].
+    pub async fn fuse_mount(&self, container_path: Vec<String>, id: String, kind: Kind) -> Result<fuse_mount::response::Frame, String> {
+        match self {
+            ToolHandle::Run(handle) => handle.fuse_mount(container_path, id, kind).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
         }
     }
 
@@ -258,6 +274,9 @@ pub struct ToolRun {
     /// Whether the run has ended: `true` once, when it has, which every
     /// connect scope on the tool waits for.
     pub ended: watch::Sender<bool>,
+    /// Taken for the length of one edit of the record while it runs:
+    /// two editors adding mounts are served one after the other.
+    pub edits: Mutex<()>,
     /// The tasks that are the run's: the waiter, and a connected
     /// tool's idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,

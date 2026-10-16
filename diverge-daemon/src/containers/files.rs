@@ -51,7 +51,7 @@ pub async fn entry_at(opened: &Opened, path: &[String]) -> Result<Found, String>
 /// The file at `path` in the container, in pieces: from the mount's
 /// source when the path is under a mount, else read through the run.
 pub async fn read(opened: &Opened, path: &[String]) -> Result<Pieces, String> {
-    if let Some((id, within)) = opened.mounts().mount_at(path) {
+    if let Some((id, within)) = opened.mounts().mount_at(path).await {
         return Ok(read_mount(opened.mounts().clone(), id, within));
     }
     opened.read(path.to_vec()).await
@@ -61,7 +61,7 @@ pub async fn read(opened: &Opened, path: &[String]) -> Result<Pieces, String> {
 /// through the mount's source when the path is under a mount, else
 /// written through the run.
 pub async fn write(opened: &Opened, path: &[String], mut content: Pieces) -> Result<(), String> {
-    let Some((id, within)) = opened.mounts().mount_at(path) else {
+    let Some((id, within)) = opened.mounts().mount_at(path).await else {
         return opened.write(path.to_vec(), content).await;
     };
     let mounts = opened.mounts();

@@ -109,6 +109,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
             volumes: Vec::new(),
             ended: watch::channel(false).0,
             tasks: Mutex::new(Vec::new()),
+            edits: Mutex::new(()),
             dependency: Some(tool.clone()),
         });
         daemon.live.insert_tool(Arc::clone(&run)).await;

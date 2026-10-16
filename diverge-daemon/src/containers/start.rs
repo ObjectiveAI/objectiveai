@@ -101,7 +101,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             .await
             .map_err(StartError::mounts)?,
     );
-    let container = build::container(&agent.template, &template.template, volumes, &mounts);
+    let container = build::container(&agent.template, &template.template, volumes, &mounts).await;
     let image = container.image.clone();
     let served = Arc::new(Mutex::new(Served::new()));
     {
@@ -171,6 +171,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             served,
             messages: Mutex::new(HashMap::new()),
             tasks: Mutex::new(Vec::new()),
+            edits: Mutex::new(()),
         });
         pump::append(
             daemon,
@@ -238,7 +239,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     .await
                     .map_err(StartError::mounts)?,
             );
-            let container = build::container(template, &record.template, volumes, &mounts);
+            let container = build::container(template, &record.template, volumes, &mounts).await;
             let image = container.image.clone();
             let mut last = String::new();
             let mut opened = None;
@@ -326,6 +327,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         volumes: crate::volumes::of_tool(tool),
         ended: watch::channel(false).0,
         tasks: Mutex::new(Vec::new()),
+        edits: Mutex::new(()),
         dependency: None,
     });
     {
