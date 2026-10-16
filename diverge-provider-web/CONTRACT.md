@@ -483,7 +483,10 @@ Capabilities layer tabulates for it, alone — `volumes::list`,
 `5`, `volumes::create_capacity` and `volumes::edit_capacity` `1`,
 `volumes::create` `3`, `volumes::edit` `7`.
 
-(e) **The mode objects.** For every Volume mode the Provider holds
+(e) **The mode objects.** A mode object with at least one member
+`true` is a Volume mode the Provider holds out; a mode object with
+every member `false`, or absent, which is the same statement, is a
+mode it does not hold out. For every Volume mode the Provider holds
 out, the Provider shall send a mode object that holds out no more
 than the mode allows — the `volumes_persistent` object with
 `fuse_serve_many` and `mount_and_fuse_serve` `false` —

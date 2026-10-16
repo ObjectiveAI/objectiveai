@@ -55,9 +55,9 @@ define.
 |--------|------|--------|---------|
 | `images_store` | boolean | `false` | [images::list](/endpoints/images-list/), [images::stat](/endpoints/images-stat/), [images::build](/endpoints/images-build/), [images::delete](/endpoints/images-delete/), [images::oci](/endpoints/images-oci/), and the `client` source of [images::check](/endpoints/images-check/) |
 | `images_registries` | array of strings | `[]` | the `registries` source of [images::check](/endpoints/images-check/), and where a run obtains its image |
-| `volumes_persistent` | object, [the mode object](#the-mode-object) | no volume of the mode | the eleven volume endpoints, and the volume mounts of the two runs, for a volume whose `mode` is `persistent` |
-| `volumes_ephemeral` | object, [the mode object](#the-mode-object) | no volume of the mode | the same, for a volume whose `mode` is `ephemeral` |
-| `volumes_read_only` | object, [the mode object](#the-mode-object) | no volume of the mode | the same, for a volume whose `mode` is `read_only` |
+| `volumes_persistent` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the eleven volume endpoints, and the volume mounts of the two runs, for a volume whose `mode` is `persistent` |
+| `volumes_ephemeral` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the same, for a volume whose `mode` is `ephemeral` |
+| `volumes_read_only` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the same, for a volume whose `mode` is `read_only` |
 
 The object is defined by
 `diverge-sdk-rs/src/provider/endpoints/info/server/response/capabilities.rs`:
@@ -152,13 +152,16 @@ request, as those pages state: no capability governs them, and the
 ## The volume modes
 
 Each of `volumes_persistent`, `volumes_ephemeral` and
-`volumes_read_only` states whether the server keeps volumes whose
-`mode` is, respectively, `persistent`, `ephemeral` and `read_only`,
-as [volumes::create](/endpoints/volumes-create/) defines the three
-modes; and, where it does, what the server does with a volume of the
-mode: [the mode object](#the-mode-object).
+`volumes_read_only` is [the mode object](#the-mode-object) for
+volumes whose `mode` is, respectively, `persistent`, `ephemeral` and
+`read_only`, as [volumes::create](/endpoints/volumes-create/) defines
+the three modes: what the server does with a volume of the mode. A
+mode object with at least one member `true` is a mode the server
+holds out, and keeps volumes in; a mode object with every member
+`false` — or absent, which is the same statement — is a mode the
+server does not hold out.
 
-- **Present.** The server keeps volumes of the mode. A
+- **Held out.** The server keeps volumes of the mode. A
   [volumes::list](/endpoints/volumes-list/) listing of the server
   may contain a volume of the mode, a
   [volumes::create](/endpoints/volumes-create/) request may state the
@@ -166,7 +169,7 @@ mode: [the mode object](#the-mode-object).
   change a volume into the mode. What a running container, a FUSE
   serve and an operation may do with a volume of the mode is the
   mode object.
-- **Absent.** The server keeps no volume of the mode. No listing of
+- **Not held out.** The server keeps no volume of the mode. No listing of
   the server contains a volume of the mode. The server answers a
   [volumes::create](/endpoints/volumes-create/) request whose `mode`
   is the mode with exactly one response, the byte `2` and nothing
@@ -177,7 +180,7 @@ mode: [the mode object](#the-mode-object).
   `3` and nothing else, and the response finish, and changes nothing;
   a request naming a volume not in the listing is answered with the
   error the edit page states, whatever the change.
-- **None present.** A server that holds out none of the three keeps
+- **None held out.** A server that holds out none of the three keeps
   no volume at all, and the eleven volume endpoints are not served.
   The server answers every request of each with exactly one
   response, the byte tabulated and nothing else, and the response
@@ -212,9 +215,12 @@ mode: [the mode object](#the-mode-object).
 
 ## The mode object
 
-The value of a present `volumes_persistent`, `volumes_ephemeral` or
-`volumes_read_only` member is one JSON object of five boolean
-members, each optional, an absent member being `false`.
+The value of each of `volumes_persistent`, `volumes_ephemeral` and
+`volumes_read_only` is one JSON object of five boolean members, each
+optional, an absent member being `false`. The object with every
+member `false` is the mode not held out, and is what an absent mode
+member means; every rule below that speaks of a mode object absent
+speaks of that object too.
 
 | Member | `true` states that |
 |--------|--------------------|
