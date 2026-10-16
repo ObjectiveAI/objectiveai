@@ -80,19 +80,19 @@ pub struct Capabilities {
     /// [`edit`](crate::provider::endpoints::volumes::edit) naming it
     /// is answered `ModeUnsupported`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub volume_persistent: Option<VolumeCapabilities>,
+    pub volumes_persistent: Option<VolumeCapabilities>,
     /// The provider keeps volumes in the
     /// [`Ephemeral`](Mode::Ephemeral) mode, and this is what may be
     /// done with one. Absent, as for
-    /// [`volume_persistent`](Self::volume_persistent).
+    /// [`volumes_persistent`](Self::volumes_persistent).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub volume_ephemeral: Option<VolumeCapabilities>,
+    pub volumes_ephemeral: Option<VolumeCapabilities>,
     /// The provider keeps volumes in the
     /// [`ReadOnly`](Mode::ReadOnly) mode, and this is what may be
     /// done with one. Absent, as for
-    /// [`volume_persistent`](Self::volume_persistent).
+    /// [`volumes_persistent`](Self::volumes_persistent).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub volume_read_only: Option<VolumeCapabilities>,
+    pub volumes_read_only: Option<VolumeCapabilities>,
 }
 
 impl Capabilities {
@@ -100,16 +100,16 @@ impl Capabilities {
     /// three. `false` is every volume endpoint answering
     /// `Unsupported`.
     pub fn volumes(&self) -> bool {
-        self.volume_persistent.is_some() || self.volume_ephemeral.is_some() || self.volume_read_only.is_some()
+        self.volumes_persistent.is_some() || self.volumes_ephemeral.is_some() || self.volumes_read_only.is_some()
     }
 
     /// What may be done with a volume of `mode` here: `None` for a
     /// mode the provider keeps no volumes in.
     pub fn volume(&self, mode: Mode) -> Option<&VolumeCapabilities> {
         match mode {
-            Mode::Persistent => self.volume_persistent.as_ref(),
-            Mode::Ephemeral => self.volume_ephemeral.as_ref(),
-            Mode::ReadOnly => self.volume_read_only.as_ref(),
+            Mode::Persistent => self.volumes_persistent.as_ref(),
+            Mode::Ephemeral => self.volumes_ephemeral.as_ref(),
+            Mode::ReadOnly => self.volumes_read_only.as_ref(),
         }
     }
 }
