@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 1 followed by the request as JSON: the image, the template id, the limits, the mounts and the arguments.'
+summary: 'The payload is the tag byte 1 followed by the request as JSON: the image, the template id, the limits, the mounts, the arguments and the secrets.'
 order: 1
 draft: false
 ---
@@ -24,9 +24,9 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 - **`template`.** A string: the id of the template the container is
   made from, as the client names it — an agent template's, a tool
   template's, or a dependency tool template's. The server carries it
-  verbatim in the begin scope's request beside `arguments`, so the
-  container's program is told which template it runs as, and reads
-  it for nothing else.
+  verbatim in the begin scope's request beside `arguments` and
+  `secrets`, so the container's program is told which template it
+  runs as, and reads it for nothing else.
 - **`memory`, `disk`.** Limits in bytes: the memory the container may
   use, and the bytes the container may write to its own filesystem.
   Neither governs a mount.
@@ -66,6 +66,11 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   the begin request it opens on the proxy and does not read it. What
   the value may be is what the container's
   [schema](/endpoints/containers-tools-run/client/schema/) channel answers.
+- **`secrets`.** A JSON object whose every member is a secret's name,
+  as the image knows it, to its value, any JSON value, in the order
+  given. The server relays it verbatim in the begin request it opens
+  on the proxy, beside `arguments`, and does not read it. Absent, the
+  empty object.
 
 - **Malformed.** A payload with no byte, a payload whose first byte
   is not `1`, and a payload whose bytes after the tag do not

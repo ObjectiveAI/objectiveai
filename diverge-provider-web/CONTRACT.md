@@ -191,7 +191,7 @@ including image manifests and blobs, the bytes of writes, reads and
 transfers, filesystem trees, database traffic, commands and
 their items, FUSE asks and their answers on a
 mount and on a `volumes::fuse_serve`, MCP exchanges, prompts, arguments,
-dependency declarations, and loop chunks.
+secrets, dependency declarations, and loop chunks.
 
 1.19 **"Relayed Exchange"** means any exchange the Specification
 requires the Provider to carry between a Container and a Client, or
@@ -971,8 +971,8 @@ Deployment is the run's error.
 (d) **Connect to the Proxy.** The Provider shall open exactly one
 WebSocket connection to TCP port 14979 of the Container and, on it
 before any other Scope, the begin Scope of the Container's family,
-carrying the request's `arguments` and `template` verbatim, and
-shall await its answer. A Proxy that does not accept the
+carrying the request's `arguments`, `secrets` and `template`
+verbatim, and shall await its answer. A Proxy that does not accept the
 connection, or that answers the begin Scope with an error, is a
 Container that did not come up: the Provider shall stop the Container
 and treat the failure as the run's error. The Provider shall open no
@@ -1007,10 +1007,10 @@ Channel the Client opened before the id was sent only after the id is
 sent, in the order the Channels were opened, and shall neither refuse
 nor read such a Channel before the last FUSE Mount is complete.
 
-(g) **Carry the arguments and the template.** The Provider shall
-carry the request's `arguments` and `template` verbatim in the begin
-Scope's request, and in nothing else, and shall read the `template`
-for nothing. A begin the Proxy answers with an error is the run's
+(g) **Carry the arguments, the secrets and the template.** The
+Provider shall carry the request's `arguments`, `secrets` and
+`template` verbatim in the begin Scope's request, and in nothing
+else, and shall read the `secrets` and the `template` for nothing. A begin the Proxy answers with an error is the run's
 error, and the Provider shall stop the Container.
 
 (h) **Deploy the dependencies.** On a `containers::agents::run`
@@ -1268,7 +1268,8 @@ Container Proxy Endpoints layers:
 that listens on TCP port 14979 and accepts one WebSocket connection
 there; that speaks the Protocol's own frames on it and sends no auth
 frame; that answers exactly one begin Scope per connection, holding the
-arguments and the template id it carries for the Container's life
+arguments, the secrets and the template id it carries for the
+Container's life
 and answering, for an agent Container, with the dependency tool
 templates the program declared, unread, and, for a tool Container,
 with nothing; that opens no daemon Channel for an agent Container

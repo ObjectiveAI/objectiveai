@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 0 followed by the request as JSON: the arguments, as the image defines them, and the id of the template the container is made from.'
+summary: 'The payload is the tag byte 0 followed by the request as JSON: the arguments, as the image defines them, the secrets, each by name, and the id of the template the container is made from.'
 order: 1
 draft: false
 ---
@@ -14,11 +14,18 @@ draft: false
   request that made the container, verbatim. What the value may be,
   the image defines, and the [schema](/container-proxy-endpoints/agents-begin/client/schema/) channel
   answers.
+- **`secrets`.** A JSON object: the `secrets` of the
+  [containers::agents::run](/endpoints/containers-agents-run/request/)
+  request that made the container, verbatim, each member a secret's
+  name to its value, which the server hands to the container's
+  program with the arguments and reads for nothing else. Absent, the
+  empty object.
 - **`template`.** A string: the `template` of the
   [containers::agents::run](/endpoints/containers-agents-run/request/)
   request that made the container, verbatim: the id of the template
   the container is made from, which the server hands to the
-  container's program with the arguments and reads for nothing else.
+  container's program with the arguments and the secrets and reads
+  for nothing else.
 - **Once, and first.** The client sends this request before any other
   request on the connection, and never again on it.
 - **Malformed.** A payload that does not decode as stated is answered
