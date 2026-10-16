@@ -36,7 +36,7 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
         refuse(&scope, super::agents::begun()).await;
         return;
     }
-    match program::register(&proxy.upstream, frame.arguments, frame.template).await {
+    match program::register(&proxy.upstream, frame.arguments, frame.secrets, frame.template).await {
         Ok(_) => {}
         Err(error) => {
             proxy.release_begin().await;
