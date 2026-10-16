@@ -11,7 +11,10 @@ use serde::{Deserialize, Serialize};
 /// it — any number of running containers but one FUSE serve, never
 /// both, for a persistent volume; any number of each, beside one
 /// another, for an ephemeral or a read-only one — and this says how
-/// much of that the provider does. Each member is a boolean, absent being `false`, and
+/// much of that the provider does. Each member is a boolean, absent being `false`;
+/// the object of every member `false` — the member absent, the same
+/// statement — is a mode the provider keeps no volume in, see
+/// [`kept`](Self::kept); and
 /// the later ones extend the earlier: `mount_many` means nothing
 /// without `mount`, `fuse_serve_many` nothing without `fuse_serve`,
 /// `mount_and_fuse_serve` nothing without both; a provider states
@@ -65,4 +68,13 @@ pub struct VolumeCapabilities {
     /// answered `Mounted`.
     #[serde(default)]
     pub mount_and_fuse_serve: bool,
+}
+
+impl VolumeCapabilities {
+    /// Whether the provider keeps volumes of the mode at all: any
+    /// member `true`. Every member `false` is the mode not kept, and
+    /// is what an absent member means.
+    pub fn kept(&self) -> bool {
+        self.mount || self.fuse_serve || self.mount_many || self.fuse_serve_many || self.mount_and_fuse_serve
+    }
 }

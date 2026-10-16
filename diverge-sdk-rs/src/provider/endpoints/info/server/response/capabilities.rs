@@ -24,9 +24,9 @@ use crate::provider::endpoints::volumes::Mode;
 /// object of booleans; no member nests a capability inside another
 /// but the three volume modes, whose object says what may be done
 /// with a volume of the mode. A member absent is the capability
-/// absent — `false`, the empty list, no object — so a provider states
-/// only what it does. A member a reader does not know is ignored:
-/// see [`Frame`](super::Frame).
+/// absent — `false`, the empty list, the object of every member
+/// `false` — so a provider states only what it does. A member a
+/// reader does not know is ignored: see [`Frame`](super::Frame).
 ///
 /// # No mode is no volumes
 ///
@@ -73,26 +73,26 @@ pub struct Capabilities {
     /// answers `NoSource`.
     #[serde(default)]
     pub images_registries: Vec<String>,
-    /// The provider keeps volumes in the
-    /// [`Persistent`](Mode::Persistent) mode, and this is what may be
-    /// done with one. Absent, no listed volume is in the mode, and a
+    /// What may be done with a volume in the
+    /// [`Persistent`](Mode::Persistent) mode. Every member `false` —
+    /// the object absent — the provider keeps no volume in the mode:
+    /// no listed volume is in it, and a
     /// [`create`](crate::provider::endpoints::volumes::create) or an
     /// [`edit`](crate::provider::endpoints::volumes::edit) naming it
-    /// is answered `ModeUnsupported`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub volumes_persistent: Option<VolumeCapabilities>,
-    /// The provider keeps volumes in the
-    /// [`Ephemeral`](Mode::Ephemeral) mode, and this is what may be
-    /// done with one. Absent, as for
-    /// [`volumes_persistent`](Self::volumes_persistent).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub volumes_ephemeral: Option<VolumeCapabilities>,
-    /// The provider keeps volumes in the
-    /// [`ReadOnly`](Mode::ReadOnly) mode, and this is what may be
-    /// done with one. Absent, as for
-    /// [`volumes_persistent`](Self::volumes_persistent).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub volumes_read_only: Option<VolumeCapabilities>,
+    /// is answered `ModeUnsupported`. See
+    /// [`kept`](VolumeCapabilities::kept).
+    #[serde(default)]
+    pub volumes_persistent: VolumeCapabilities,
+    /// What may be done with a volume in the
+    /// [`Ephemeral`](Mode::Ephemeral) mode. Every member `false`, as
+    /// for [`volumes_persistent`](Self::volumes_persistent).
+    #[serde(default)]
+    pub volumes_ephemeral: VolumeCapabilities,
+    /// What may be done with a volume in the
+    /// [`ReadOnly`](Mode::ReadOnly) mode. Every member `false`, as
+    /// for [`volumes_persistent`](Self::volumes_persistent).
+    #[serde(default)]
+    pub volumes_read_only: VolumeCapabilities,
 }
 
 impl Capabilities {
@@ -100,16 +100,18 @@ impl Capabilities {
     /// three. `false` is every volume endpoint answering
     /// `Unsupported`.
     pub fn volumes(&self) -> bool {
-        self.volumes_persistent.is_some() || self.volumes_ephemeral.is_some() || self.volumes_read_only.is_some()
+        self.volumes_persistent.kept() || self.volumes_ephemeral.kept() || self.volumes_read_only.kept()
     }
 
     /// What may be done with a volume of `mode` here: `None` for a
-    /// mode the provider keeps no volumes in.
+    /// mode the provider keeps no volumes in — its object every
+    /// member `false`.
     pub fn volume(&self, mode: Mode) -> Option<&VolumeCapabilities> {
-        match mode {
-            Mode::Persistent => self.volumes_persistent.as_ref(),
-            Mode::Ephemeral => self.volumes_ephemeral.as_ref(),
-            Mode::ReadOnly => self.volumes_read_only.as_ref(),
-        }
+        let object = match mode {
+            Mode::Persistent => &self.volumes_persistent,
+            Mode::Ephemeral => &self.volumes_ephemeral,
+            Mode::ReadOnly => &self.volumes_read_only,
+        };
+        object.kept().then_some(object)
     }
 }
