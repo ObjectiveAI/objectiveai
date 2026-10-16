@@ -1,5 +1,5 @@
 //! `diverge run providers outgoing edit`: changing how an outgoing
-//! provider is dialled, as
+//! provider is dialled: a patch to its mode, as
 //! [`edit`](diverge_sdk::daemon::endpoints::providers::outgoing::edit)
 //! states it.
 
@@ -10,7 +10,7 @@ use diverge_sdk::daemon::endpoints::providers::outgoing::edit::{
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Changing how an outgoing provider is dialled.
+/// Changing how an outgoing provider is dialled: a patch to its mode.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -34,11 +34,8 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>(
-                "diverge run providers outgoing edit",
-                emitter,
-            )
-            .await;
+            return request_schema::<request::Frame>("diverge run providers outgoing edit", emitter)
+                .await;
         }
         Some(Below::ResponseSchema(_)) => {
             return response_schema::<response::Frame>(

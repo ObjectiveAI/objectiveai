@@ -1,4 +1,5 @@
-//! `diverge run roles edit`: changing a role, as
+//! `diverge run roles edit`: changing a role: a patch to its
+//! description and its grants, as
 //! [`edit`](diverge_sdk::daemon::endpoints::roles::edit) states it.
 
 use clap::Args;
@@ -6,7 +7,7 @@ use diverge_sdk::daemon::endpoints::roles::edit::{client::request, server::respo
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Changing a role.
+/// Changing a role: a patch to its description and its grants.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {

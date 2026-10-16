@@ -1,4 +1,5 @@
-//! `diverge run providers daemons edit`: changing a daemon record, as
+//! `diverge run providers daemons edit`: changing a daemon record: a
+//! patch to its links, as
 //! [`edit`](diverge_sdk::daemon::endpoints::providers::daemons::edit)
 //! states it.
 
@@ -7,7 +8,7 @@ use diverge_sdk::daemon::endpoints::providers::daemons::edit::{client::request, 
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Changing a daemon record.
+/// Changing a daemon record: a patch to its links.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {

@@ -46,8 +46,7 @@ pub trait Downloaded {
 /// written, its path and its size. Untagged, so the line is the one
 /// or the other as it is: `"not_found"`, `{"error":…}`,
 /// `{"path":[…],"bytes":N}`.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Line<A> {
     /// An answer that is no chunk: the endpoint's own, see

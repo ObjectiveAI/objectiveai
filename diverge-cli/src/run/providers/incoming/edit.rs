@@ -1,4 +1,6 @@
-//! `diverge run providers incoming edit`: replacing a credential, as
+//! `diverge run providers incoming edit`: replacing a credential: a
+//! patch to the identity it names and the address it is accepted from,
+//! as
 //! [`edit`](diverge_sdk::daemon::endpoints::providers::incoming::edit)
 //! states it.
 
@@ -9,7 +11,8 @@ use diverge_sdk::daemon::endpoints::providers::incoming::edit::{
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Replacing a credential.
+/// Replacing a credential: a patch to the identity it names and the
+/// address it is accepted from.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -33,11 +36,8 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>(
-                "diverge run providers incoming edit",
-                emitter,
-            )
-            .await;
+            return request_schema::<request::Frame>("diverge run providers incoming edit", emitter)
+                .await;
         }
         Some(Below::ResponseSchema(_)) => {
             return response_schema::<response::Frame>(

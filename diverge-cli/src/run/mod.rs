@@ -64,6 +64,7 @@ pub mod postgres;
 pub mod providers;
 pub mod roles;
 pub mod standalone_tools;
+pub mod vault;
 pub mod volumes;
 
 pub use below::*;
@@ -128,6 +129,9 @@ pub enum Command {
     /// The requests over standalone tools, and their templates.
     #[command(subcommand)]
     StandaloneTools(standalone_tools::StandaloneTools),
+    /// The requests over the vault: the keys a record's secrets bind.
+    #[command(subcommand)]
+    Vault(vault::Vault),
     /// The requests over volumes.
     #[command(subcommand)]
     Volumes(volumes::Volumes),
@@ -167,6 +171,7 @@ async fn dispatch(
         Command::Providers(command) => providers::run(command, target, emitter).await,
         Command::Roles(command) => roles::run(command, target, emitter).await,
         Command::StandaloneTools(command) => standalone_tools::run(command, target, emitter).await,
+        Command::Vault(command) => vault::run(command, target, emitter).await,
         Command::Volumes(command) => volumes::run(command, target, emitter).await,
     }
 }

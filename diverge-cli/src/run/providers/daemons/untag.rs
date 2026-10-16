@@ -33,11 +33,8 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>(
-                "diverge run providers daemons untag",
-                emitter,
-            )
-            .await;
+            return request_schema::<request::Frame>("diverge run providers daemons untag", emitter)
+                .await;
         }
         Some(Below::ResponseSchema(_)) => {
             return response_schema::<response::Frame>(

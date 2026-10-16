@@ -43,11 +43,8 @@ pub async fn run(
                 .await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>(
-                "diverge run standalone-tools list",
-                emitter,
-            )
-            .await;
+            return response_schema::<response::Frame>("diverge run standalone-tools list", emitter)
+                .await;
         }
         None => {}
     }

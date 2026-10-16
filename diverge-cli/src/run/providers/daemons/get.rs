@@ -35,11 +35,8 @@ pub async fn run(
                 .await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>(
-                "diverge run providers daemons get",
-                emitter,
-            )
-            .await;
+            return response_schema::<response::Frame>("diverge run providers daemons get", emitter)
+                .await;
         }
         None => {}
     }

@@ -1,12 +1,13 @@
-//! `diverge run agents edit`: editing an agent: its name, its mounts,
-//! as [`edit`](diverge_sdk::daemon::endpoints::agents::edit) states it.
+//! `diverge run agents edit`: editing an agent: a patch to its name and
+//! its mounts, as
+//! [`edit`](diverge_sdk::daemon::endpoints::agents::edit) states it.
 
 use clap::Args;
 use diverge_sdk::daemon::endpoints::agents::edit::{client::request, server::response};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Editing an agent: its name, its mounts.
+/// Editing an agent: a patch to its name and its mounts.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
