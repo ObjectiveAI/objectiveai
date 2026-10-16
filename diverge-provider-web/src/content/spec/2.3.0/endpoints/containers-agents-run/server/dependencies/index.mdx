@@ -32,7 +32,7 @@ whether the run goes on.
   [Response](/endpoints/containers-agents-run/server/dependencies/response/) states the sequence.
 - **Verbatim.** The server relays the list as the proxy sent it and
   reads none of it: not the kind, not the scope, not the mounts, not
-  the permissions.
+  the secrets, not the permissions.
 - **Two kinds.** A template's `type` is `transient` or `service`. A
   transient tool is deployed for the one run of the one agent that
   declared it and stopped with that run; its database scope is that
@@ -49,9 +49,11 @@ whether the run goes on.
 - **What the client does.** The client runs each dependency as a
   [containers::tools::run](/endpoints/containers-tools-run/) from
   the template's `image`, `memory`, `disk` and `arguments`, with the
-  template's id as the run's `template`; serves, for a transient
-  tool, the agent container's paths the template's mounts name into
-  the tool container live, as [containers::fuse_serve](/endpoints/containers-fuse-serve/)
+  template's id as the run's `template` and, under each name of the
+  template's `secrets`, the value the client holds for the agent the
+  tool is deployed for, read at every start of the tool; serves, for
+  a transient tool, the agent container's paths the template's mounts
+  name into the tool container live, as [containers::fuse_serve](/endpoints/containers-fuse-serve/)
   serves them and a FUSE mount of the tools run mounts them; gives
   the tool the database scope its kind names and an account holding
   the template's `permissions`, within which the word `self` reaches

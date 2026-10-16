@@ -1022,7 +1022,7 @@ When the Proxy's answer to the begin Scope carries one or more
 dependency tool templates, the Provider shall open exactly one
 `dependencies` Channel on the run Scope carrying the id and the
 templates verbatim — every template whole, its image, limits,
-arguments, type, scope, mounts and permissions unread — before the id
+arguments, type, scope, mounts, secrets and permissions unread — before the id
 is sent and beside the FUSE Mounts, and shall read the Client's
 answer to its finish; the Provider shall treat the byte `1`, a Bare
 Finish, and a Client that is gone as the run's error and shall stop

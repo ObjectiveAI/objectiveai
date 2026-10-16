@@ -17,13 +17,16 @@ draft: false
   answered while the channel is open.
 - **`dependencies`.** An array of dependency tool templates, in the
   order the program declared them. Each is an object of five members,
-  the members of its mode, and one that may be absent: `image`, an
+  the members of its mode, and two that may be absent: `image`, an
   object of `digest` and `references` as the
   [request](/endpoints/containers-tools-run/request/) of a tools run
   names one; `memory` and `disk`, limits in bytes as that request
   states them; `arguments`, any JSON value, the `arguments` of that
-  request; `mode`, the string `transient` or `service`, which mode
-  the dependency is in, with that mode's own members flat beside it;
+  request; `secrets`, an array of strings, the names of the `secrets`
+  of that request, each a name the agent's template declares, whose
+  values the client supplies — absent when empty; `mode`, the string
+  `transient` or `service`, which mode the dependency is in, with
+  that mode's own members flat beside it;
   and `permissions`, an array of grants in the forms
   `shared::permission` defines — each one object with one member
   named for a kind, whose value is a bare array of making actions, an
@@ -52,7 +55,7 @@ draft: false
   template as compact JSON with absent members omitted, the image's
   `references` absent too, and the keys of every object sorted
   bytewise at every depth, the `arguments` and every object inside
-  them included. One image under different names is one template. Two templates with one id are
+  them and the `secrets` included. One image under different names is one template. Two templates with one id are
   one dependency, and an array that holds one id twice is refused by
   the client as its error. The container calls the tool's tools by
   whatever names the client's merged list shows.
