@@ -9,6 +9,7 @@ use std::future::Future;
 use std::sync::Arc;
 
 use bytes::Bytes;
+use indexmap::IndexMap;
 use serde_json::Value;
 
 use super::begin::Begun;
@@ -82,11 +83,11 @@ pub(crate) trait Runs: Family {
     type Ask<'a>: Encode + TryFrom<Own<'a>, Error = Unasked>;
 
     /// Begin the container's proxy: the family's begin scope on the
-    /// connection `proxy`, carrying the container's `arguments` and
-    /// `template`, the id of the template it is made from.
-    /// What comes back is the scope and what rides it; an
+    /// connection `proxy`, carrying the container's `arguments`, its
+    /// `secrets` and its `template`, the id of the template it is
+    /// made from. What comes back is the scope and what rides it; an
     /// error is the run's, in the proxy's words where it refused.
-    fn begin(proxy: &Handle, arguments: Value, template: String) -> impl Future<Output = Result<Begun, Error>> + Send;
+    fn begin(proxy: &Handle, arguments: Value, secrets: IndexMap<String, Value>, template: String) -> impl Future<Output = Result<Begun, Error>> + Send;
 
     /// The dependencies the container declared, asked of the caller
     /// before the id goes out but with the id minted and told: an

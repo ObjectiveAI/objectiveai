@@ -78,9 +78,9 @@ pub(crate) struct Mount {
 ///    Where the deployer gets the image is its own.
 /// 2. The container is deployed, its proxy listening.
 /// 3. The proxy is dialled: one WebSocket, for the container's life.
-/// 4. The family's `begin` is opened on it — carrying the arguments
-///    — and its `Begun` awaited, with the dependencies an agent
-///    container declared.
+/// 4. The family's `begin` is opened on it — carrying the arguments,
+///    the secrets and the template — and its `Begun` awaited, with
+///    the dependencies an agent container declared.
 /// 5. The id is minted and the container entered in the directory
 ///    under it — with its proxy connection and its begin scope — so
 ///    that a `containers::fuse_serve` naming the id is answered from now,
@@ -150,7 +150,7 @@ where
         }
     };
 
-    let begun = match R::begin(&proxy, arguments, request.template.clone()).await {
+    let begun = match R::begin(&proxy, arguments, request.secrets.clone(), request.template.clone()).await {
         Ok(begun) => begun,
         Err(error) => {
             undo(&container, &repository, registry).await;

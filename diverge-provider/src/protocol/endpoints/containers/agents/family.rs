@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 
+use indexmap::IndexMap;
 use serde_json::Value;
 
 use bytes::Bytes;
@@ -123,10 +124,10 @@ impl Family for Agents {
 impl Runs for Agents {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn begin(proxy: &Handle, arguments: Value, template: String) -> impl Future<Output = Result<Begun, Error>> + Send {
+    fn begin(proxy: &Handle, arguments: Value, secrets: IndexMap<String, Value>, template: String) -> impl Future<Output = Result<Begun, Error>> + Send {
         let proxy = proxy.clone();
         async move {
-            match begin::execute(&proxy, arguments, template).await {
+            match begin::execute(&proxy, arguments, secrets, template).await {
                 Ok((handle, asks, chunks, dependencies)) => Ok(Begun {
                     begin: Begin::Agents(handle),
                     asks,
