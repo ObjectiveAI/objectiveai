@@ -471,12 +471,7 @@ nothing, obtain nothing, deploy nothing and change nothing for the
 request. In particular the Provider shall answer: every
 `images::list`, `images::stat`, `images::build`, `images::delete` and
 `images::oci` request, where `images_store` is not held out, by the
-byte `4`, `1`, `4`, `2` and `0` respectively, alone; every container
-run request naming a FUSE Mount, where `containers_fuse_mount` is not
-held out, by the byte `6` alone, after the refusals of Section 5.10(a)
-that precede it and before any Volume is held; every
-`containers::fuse_serve` request, where `containers_fuse_serve` is
-not held out, by the byte `1` alone; every `volumes::create` request
+byte `4`, `1`, `4`, `2` and `0` respectively, alone; every `volumes::create` request
 stating a mode the Provider holds out no mode object for by the byte
 `2` alone, and every `volumes::edit` request naming a Volume in the
 Identity's listing and stating such a mode by the byte `3` alone; and,
@@ -910,11 +905,7 @@ Finish, a request that names a Volume not in the Identity's listing;
 a mount whose path is the root of the Container; two mounts with one
 path; a mount inside another mount; two FUSE mounts with one
 `id`; a mount path with a component that is empty, `.` or `..`; or an
-image the Provider will not supply. It shall then answer by exactly
-one Response, the byte `6` alone, and the Response Finish, a request
-with an entry in `fuse_file_mounts` or `fuse_directory_mounts` where
-the Provider does not hold out the `containers_fuse_mount`
-Capability, holding no Volume. It shall then decide, for each distinct
+image the Provider will not supply. It shall then decide, for each distinct
 Volume the request names in `volume_mounts`, in the order first
 named and in the order the Specification's Capabilities layer states
 for a run's Volume Mount, the first rule that applies deciding, and
@@ -984,9 +975,7 @@ Container that did not come up: the Provider shall stop the Container
 and treat the failure as the run's error. The Provider shall open no
 second connection to a Container.
 
-(e) **Make every FUSE Mount.** Where the Provider holds out the
-`containers_fuse_mount` Capability — the only Provider that reaches
-this step with a FUSE Mount to make — for each entry of `fuse_file_mounts`,
+(e) **Make every FUSE Mount.** For each entry of `fuse_file_mounts`,
 and after the last of them for each entry of `fuse_directory_mounts`,
 in the order of the request, the Provider shall open one mount Scope
 on the Proxy's connection, naming the path and the kind, and shall
@@ -1045,16 +1034,16 @@ request, from the Identity, or from any other id, and the Provider
 shall send it as exactly one Response, the same id the `dependencies`
 Channel carried; a run refused under paragraph (a) has the refusal
 there stated — the byte `1`, `2`, `3`, `4` or `5` followed by the name
-of the Volume, or the byte `6` alone — as its only Response, and a run
-that fails has the error, the byte `7` followed by it, as its only
+of the Volume — as its only Response, and a run
+that fails has the error, the byte `6` followed by it, as its only
 Response. From that moment the Container is running for
 the Client and shall be findable by a `containers::fuse_serve` request of
 the Client's naming the id. After the id the Provider shall send, for
 a tool container, no other Response; and, for an agent container,
 every chunk the Proxy sends on the begin Scope's main stream as one
-Response, the byte `8` followed by the chunk verbatim, in the order
-the Proxy sent them, bracketed by the byte `9` before each loop and
-the byte `10` after it, and no other Response.
+Response, the byte `7` followed by the chunk verbatim, in the order
+the Proxy sent them, bracketed by the byte `8` before each loop and
+the byte `9` after it, and no other Response.
 
 (j) **Serve the Scope.** For as long as the Scope lives, and
 concurrently, the Provider shall relay every Channel the Proxy opens
@@ -1066,15 +1055,13 @@ Client opens as the Specification states for that Channel.
 (k) **Make a FUSE Mount while the Container runs.** The Provider
 shall serve every `fuse_mount` Channel the Client opens on a run
 Scope with exactly one Channel Response and the Channel Response
-Finish: the byte `3` where it does not hold out
-`containers_fuse_mount`, before anything else and without asking the
-Proxy; the byte `2` where it holds a FUSE Mount under the request's
+Finish: the byte `2` where it holds a FUSE Mount under the request's
 id, and the byte `1` where the request's path is a mount's the
 Container holds, lies inside one or holds one — a Volume Mount's or
 a FUSE Mount's, the request's or one made since — each decided in
 that order, before the Proxy is asked and without asking it; else
 the byte `0`, only after the Proxy has answered its mount Scope
-`Ok`, or the byte `4` followed by the Proxy's error where the Proxy
+`Ok`, or the byte `3` followed by the Proxy's error where the Proxy
 refused the mount. For a request it does not refuse the Provider
 shall open exactly one mount Scope on the Proxy's connection, naming
 the path and the kind, shall wait for its answer, and shall send the
@@ -1163,19 +1150,16 @@ answered. The Provider shall send nothing of the file to the Client.
 
 For every FUSE serve request, the Provider shall, in order: (a) read
 the request and answer a payload that does not decode by a Bare
-Finish, and, where it does not hold out the `containers_fuse_serve`
-Capability, answer by exactly one Response, the byte `1` alone, and
-the Response Finish, looking nothing up and serving no Channel;
-(b) look the `id` up among the Containers it is running whose Runner
+Finish; (b) look the `id` up among the Containers it is running whose Runner
 is the Identity of the Connection, and answer an id that names none —
 no Container at all, or one the Identity does not run — by exactly
-one Response, the byte `2`
+one Response, the byte `1`
 followed by exactly `{"kind":"missing"}`, and the Response Finish;
 (c) open exactly one `filesystem::fuse_serve` Scope on the Container's
 Proxy carrying the request's `path` verbatim, and answer the Proxy's
-error by exactly one Response, the byte `2` followed by that error
+error by exactly one Response, the byte `1` followed by that error
 verbatim, and the Response Finish, and a Proxy that cannot be reached
-by exactly one Response, the byte `2` followed by an error, and the
+by exactly one Response, the byte `1` followed by an error, and the
 Response Finish; (d) answer exactly one Response, the byte `0` and
 nothing else, only after the Proxy has answered its byte `0`; (e) for
 the life of the Scope, relay every Channel the Client opens on it —

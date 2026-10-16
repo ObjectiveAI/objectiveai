@@ -1,6 +1,6 @@
 ---
 title: 'FUSE Mount'
-summary: 'Tag 9: the client names a path, an id and a kind; the server holds the id and the path against every mount the container has, opens one mount scope on the proxy, waits for its answer, and answers exactly once — mounted, overlaps, taken, unsupported, or the proxy's error; the mount lives until the run ends.'
+summary: 'Tag 9: the client names a path, an id and a kind; the server holds the id and the path against every mount the container has, opens one mount scope on the proxy, waits for its answer, and answers exactly once — mounted, overlaps, taken, or the proxy''s error; the mount lives until the run ends.'
 order: 9
 draft: false
 ---
@@ -15,10 +15,6 @@ keys.
 - **The request.** The tag byte `9` followed by the path, the id and
   the kind as JSON.
   [Request](/endpoints/containers-agents-run/client/fuse-mount/request/) states its form.
-- **The capability.** A server that does not hold out
-  [`containers_fuse_mount`](/capabilities/#containers_fuse_mount)
-  answers exactly one channel response, the byte `3`, and the
-  channel response finish, and asks the proxy nothing.
 - **The ledger.** The server holds every mount of the container: the
   volume mounts and the FUSE mounts of the request, and every FUSE
   mount made on this channel. A request whose `id` is one the server
@@ -38,7 +34,7 @@ keys.
   every ask the mount makes after the finish, as step 9 of
   [containers::agents::run](/endpoints/containers-agents-run/) states. The proxy's error is the mount not
   made: the server lets go of the id and the path, and answers with
-  the byte `4` followed by the error. The proxy's connection ending
+  the byte `3` followed by the error. The proxy's connection ending
   before the proxy answers is answered by a channel response finish
   that no channel response precedes.
 - **The response.** Exactly one channel response, then the channel

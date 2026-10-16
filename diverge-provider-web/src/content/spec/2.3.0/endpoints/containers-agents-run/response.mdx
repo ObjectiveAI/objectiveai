@@ -1,13 +1,12 @@
 ---
 title: 'Response'
-summary: 'The server sends the id, one of six refusals, or an error, as the first response; after the id it sends active before each loop, the agent’s chunks as they come, and inactive after the loop, and nothing else until the finish, which carries no error.'
+summary: 'The server sends the id, one of five refusals, or an error, as the first response; after the id it sends active before each loop, the agent’s chunks as they come, and inactive after the loop, and nothing else until the finish, which carries no error.'
 order: 2
 draft: false
 ---
 
-The server sends the id; or one of six refusals — the volume that
-refused the run, named, and why, or the word that the request names
-a FUSE mount the server does not make; or an error; and, after the
+The server sends the id; or one of five refusals — the volume that
+refused the run, named, and why; or an error; and, after the
 id, zero or more loops: for each, the word that it began, the chunks
 the agent says in it, and the word that it ended, for the life of
 the run. The response finish ends the scope. No frame bearing the
@@ -20,22 +19,21 @@ scope follows the finish.
 [3][volume-fuse-served JSON …]          once, when a FUSE serve holds a named volume and the server does not mount a volume of its mode beside one
 [4][volume-mount-unsupported JSON …]    once, when the server does not mount a volume of a named volume's mode
 [5][volume-mode JSON …]                 once, when a named volume is not in the mode its mount names
-[6]                                     once, when the request names a FUSE mount and the server makes none
-[7][error JSON …]                       once, when it is not running for another reason
-[8][chunk JSON …]                       zero or more, within a loop, for the life of the run
-[9]                                     active: a loop began
-[10]                                    inactive: that loop ended
+[6][error JSON …]                       once, when it is not running for another reason
+[7][chunk JSON …]                       zero or more, within a loop, for the life of the run
+[8]                                     active: a loop began
+[9]                                     inactive: that loop ended
 ```
 
 - **The sequence.** Before the id, the server sends no response.
-  The first response is the id, one of the six refusals, or an
+  The first response is the id, one of the five refusals, or an
   error. A refusal and an error are each followed by the response
   finish, and the container is not running and will not be. After
   the id, the server sends zero or more loops, and no other response
   until the finish. A loop is exactly one response whose payload is
-  the byte `9` and nothing else, followed by zero or more chunks, each
+  the byte `8` and nothing else, followed by zero or more chunks, each
   as one response, in the order the proxy sent them, followed by
-  exactly one response whose payload is the byte `10` and nothing
+  exactly one response whose payload is the byte `9` and nothing
   else. The finish carries no error: a run that ended after its id
   ended by the client's stop, by the container's own end, or by the
   client's connection ending. A response finish that no response
@@ -46,10 +44,7 @@ scope follows the finish.
   that byte as JSON, an object with the member `id`, a string. The
   server sends it after every FUSE mount is complete and, for an
   agent container, after the agent is registered.
-- **The refusals, and their order.** The server sends the byte `6`
-  after it has read the request and found no mount the
-  [request](/endpoints/containers-agents-run/request/) page refuses
-  with an error, and before it holds any volume. The server decides
+- **The refusals, and their order.** The server decides
   the bytes `1` to `5` for each distinct `volume_name` the request
   names, in the order first named, in the order
   [Capabilities](/capabilities/#the-hold) states, the first rule that
@@ -95,17 +90,11 @@ scope follows the finish.
   `ephemeral` and `read_only`. The volume is as it was. A request
   naming one volume under two modes is answered the same way, with
   the mode the volume is in.
-- **FUSE mounts unsupported.** A payload that is the byte `6` and
-  nothing else states that the request names at least one entry in
-  `fuse_file_mounts` or `fuse_directory_mounts` and that the server
-  holds out no [`containers_fuse_mount`](/capabilities/#containers_fuse_mount)
-  capability. The server held no volume for the request. A client
-  ignores every byte that follows the byte `6`.
-- **The error.** A payload whose first byte is `7` carries an error
+- **The error.** A payload whose first byte is `6` carries an error
   after that byte, exactly one JSON value in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content.
-- **The chunk.** A payload whose first byte is `8` carries, after
+- **The chunk.** A payload whose first byte is `7` carries, after
   that byte as JSON, one chunk of the agent's conversation, exactly as
   the proxy sent it; the server does not read it. The server sends a
   chunk only after the id. A chunk is one of the forms the included
@@ -119,27 +108,27 @@ scope follows the finish.
   message the loop started on, or of every message it started on,
   in the order sent. A message's user parts mark it landing, and a
   `notification` chunk whose `is_fatal` is `true` marks a loop that
-  ended in failure. No chunk marks the end of a loop: the byte `10`
+  ended in failure. No chunk marks the end of a loop: the byte `9`
   does.
-- **Active and inactive.** A payload that is the byte `9` and
+- **Active and inactive.** A payload that is the byte `8` and
   nothing else states that a loop began: the agent's server answered
-  the loop's `POST /run` with `2xx`. A payload that is the byte `10`
+  the loop's `POST /run` with `2xx`. A payload that is the byte `9`
   and nothing else states that the loop ended: the event stream of
   that answer ended, cleanly or by failing. The server sends each
   exactly as the proxy sent it on the
   [begin response](/container-proxy-endpoints/agents-begin/response/),
   where the proxy produces both and relays neither from the agent's
-  server. The server sends no byte `9` before the id, none while a
-  loop is open, and no byte `10` while none is. An agent is quiet
-  between a `10` and the next `9`; quiet between a `9` and its `10`
+  server. The server sends no byte `8` before the id, none while a
+  loop is open, and no byte `9` while none is. An agent is quiet
+  between a `9` and the next `8`; quiet between an `8` and its `9`
   is an agent still working.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0` to `10`, a payload whose bytes after `0` do not
+  is none of `0` to `9`, a payload whose bytes after `0` do not
   parse as the id, a payload whose bytes after `1`, `2`, `3`, `4` or
-  `5` do not parse as that refusal, a payload whose bytes after `8`
-  do not parse as a chunk, and a payload whose bytes after `7` are
+  `5` do not parse as that refusal, a payload whose bytes after `7`
+  do not parse as a chunk, and a payload whose bytes after `6` are
   not one JSON value are malformed. A payload whose first byte is
-  `6`, `9` or `10` is read by that byte alone; bytes after it are not
+  `8` or `9` is read by that byte alone; bytes after it are not
   read.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/response/frame.rs`:

@@ -1,6 +1,6 @@
 ---
 title: 'Capabilities'
-summary: 'The parts of the Endpoints layer a server holds out, stated in the capabilities object of its info response: the client image store, the registries it pulls from, FUSE mounts and FUSE serves of containers, and each volume mode with what may hold a volume of it; and, for every capability, the endpoints it governs and exactly what the server sends for a request past a capability it does not hold out.'
+summary: 'The parts of the Endpoints layer a server holds out, stated in the capabilities object of its info response: the client image store, the registries it pulls from, and each volume mode with what may hold a volume of it; and, for every capability, the endpoints it governs and exactly what the server sends for a request past a capability it does not hold out.'
 order: 4
 draft: false
 ---
@@ -8,8 +8,7 @@ draft: false
 A server serves every endpoint of the [Endpoints](/endpoints/)
 layer: it reads every request and answers it as that layer provides.
 Some of what a request may ask, a server may not do: keep a client
-image store, pull from a registry, mount a file the client serves,
-serve a running container's files, keep volumes of a mode, let more
+image store, pull from a registry, keep volumes of a mode, let more
 than one party hold a volume at once. Each such part is a
 **capability**. The server states the capabilities it holds out in
 the `capabilities` object of its [info](/endpoints/info/) response,
@@ -56,8 +55,6 @@ define.
 |--------|------|--------|---------|
 | `images_store` | boolean | `false` | [images::list](/endpoints/images-list/), [images::stat](/endpoints/images-stat/), [images::build](/endpoints/images-build/), [images::delete](/endpoints/images-delete/), [images::oci](/endpoints/images-oci/), and the `client` source of [images::check](/endpoints/images-check/) |
 | `images_registries` | array of strings | `[]` | the `registries` source of [images::check](/endpoints/images-check/), and where a run obtains its image |
-| `containers_fuse_mount` | boolean | `false` | the FUSE mounts of [containers::agents::run](/endpoints/containers-agents-run/) and [containers::tools::run](/endpoints/containers-tools-run/) |
-| `containers_fuse_serve` | boolean | `false` | [containers::fuse_serve](/endpoints/containers-fuse-serve/) |
 | `volume_persistent` | object, [the mode object](#the-mode-object) | no volume of the mode | the eleven volume endpoints, and the volume mounts of the two runs, for a volume whose `mode` is `persistent` |
 | `volume_ephemeral` | object, [the mode object](#the-mode-object) | no volume of the mode | the same, for a volume whose `mode` is `ephemeral` |
 | `volume_read_only` | object, [the mode object](#the-mode-object) | no volume of the mode | the same, for a volume whose `mode` is `read_only` |
@@ -144,46 +141,13 @@ every registry the server pulls from is in the array.
   from that source alone. A run's image is obtained from what the
   server holds or from the client, and from no registry.
 
-## `containers_fuse_mount`
+## What every server does
 
-The server mounts, into a container it runs, the files and
-directories the client serves: the entries of `fuse_file_mounts` and
-`fuse_directory_mounts` of a run request, and every mount the client
-asks for on a run's fuse-mount channel while the container runs,
-each one FUSE mount made as the run pages state.
-
-- **Held out.** The server makes every FUSE mount a run request
-  names, as step 6 of [containers::agents::run](/endpoints/containers-agents-run/)
-  and of [containers::tools::run](/endpoints/containers-tools-run/)
-  states, and every mount a client asks for on the
-  [fuse-mount](/endpoints/containers-agents-run/client/fuse-mount/)
-  channel of either run, as that channel states.
-- **Not held out.** The server makes no FUSE mount. It answers a run
-  request whose `fuse_file_mounts` or `fuse_directory_mounts` has at
-  least one entry with exactly one response, the byte `6` and
-  nothing else, and the response finish; it holds no volume, obtains
-  no image and deploys nothing for the request. The server sends the
-  byte `6` after it has read the request and found no mount the
-  request pages refuse with an error, and before it holds any
-  volume: a request refused for its paths or ids is answered with
-  the error, and a request that names no FUSE mount is served as the
-  run pages state. It answers every fuse-mount channel request with
-  exactly one channel response, the byte `3`, and the channel
-  response finish, and asks the proxy nothing.
-
-## `containers_fuse_serve`
-
-The server serves a subtree of a running container's filesystem to
-its runner, on a [containers::fuse_serve](/endpoints/containers-fuse-serve/)
-scope.
-
-- **Held out.** The server serves [containers::fuse_serve](/endpoints/containers-fuse-serve/)
-  as its page states.
-- **Not held out.** The server answers every
-  [containers::fuse_serve](/endpoints/containers-fuse-serve/) request
-  with exactly one response, the byte `1` and nothing else, and the
-  response finish. It looks up no container for the request, opens
-  nothing on any proxy, and answers no channel on the scope.
+Every server makes every FUSE mount a run request names, and every
+mount a client asks for on the fuse-mount channel of a run, and
+serves every [containers::fuse_serve](/endpoints/containers-fuse-serve/)
+request, as those pages state: no capability governs them, and the
+`capabilities` object has no member for them.
 
 ## The volume modes
 

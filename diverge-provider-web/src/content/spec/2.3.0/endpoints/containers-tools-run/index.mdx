@@ -33,13 +33,7 @@ about the client, which may open any channel at any time.
    whose path is the root of the container, two mounts with one path,
    a mount inside another mount, a mount path with a component that
    is empty, `.` or `..`, two FUSE mounts with one `id`, or an image
-   it will not supply. A request
-   whose `fuse_file_mounts` or `fuse_directory_mounts` has an entry,
-   on a server that holds out no
-   [`containers_fuse_mount`](/capabilities/#containers_fuse_mount)
-   capability, is answered by exactly one response, the byte `6`,
-   and the finish, after those refusals and before any volume is
-   held. Then, for each distinct volume the request names in
+   it will not supply. Then, for each distinct volume the request names in
    `volume_mounts`, in the order first named, the server decides as
    [Capabilities](/capabilities/#the-hold) states, the first rule
    that applies deciding: a volume not in the mode its mount names is
@@ -106,10 +100,7 @@ about the client, which may open any channel at any time.
    channel, as
    [containers::agents::run](/endpoints/containers-agents-run/)
    states.
-6. **The server makes every FUSE mount.** On a server that holds
-   out the [`containers_fuse_mount`](/capabilities/#containers_fuse_mount)
-   capability — the only server that reaches this step with a FUSE
-   mount to make — for each entry of
+6. **The server makes every FUSE mount.** For each entry of
    `fuse_file_mounts`, and after the last of them for each entry of
    `fuse_directory_mounts`, in the order of the request, the server
    opens one mount scope on the proxy's connection, naming the path

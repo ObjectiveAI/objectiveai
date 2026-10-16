@@ -9,14 +9,13 @@ draft: false
 [0]                  the mount is made
 [1]                  the path overlaps a mount the container holds
 [2]                  the id is one the container holds a FUSE mount under
-[3]                  the server holds out no containers_fuse_mount
-[4][error JSON …]    the proxy did not make the mount
+[3][error JSON …]    the proxy did not make the mount
 ```
 
 - **The sequence.** Exactly one channel response, followed by the
   channel response finish. The server sends the byte `0` or the byte
-  `4` after the proxy has answered, and the byte `1`, `2` or `3`
-  without asking the proxy. A channel response finish that no
+  `3` after the proxy has answered, and the byte `1` or `2` without
+  asking the proxy. A channel response finish that no
   channel response precedes states that the request did not decode,
   or that the proxy's connection ended before the proxy answered;
   nothing is mounted.
@@ -29,11 +28,7 @@ draft: false
   Nothing is mounted.
 - **Taken.** The byte `2` and nothing after it: the id is one the
   container holds a FUSE mount under. Nothing is mounted.
-- **Unsupported.** The byte `3` and nothing after it: the server
-  holds out no
-  [`containers_fuse_mount`](/capabilities/#containers_fuse_mount).
-  Nothing is mounted.
-- **The error.** After the byte `4`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page: the
+- **The error.** After the byte `3`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page: the
   proxy's refusal of the mount, in the proxy's words. Nothing is
   mounted, and the id and the path are free.
 
