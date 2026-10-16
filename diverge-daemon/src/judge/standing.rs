@@ -166,4 +166,12 @@ impl Standing {
             _ => None,
         })
     }
+
+    /// The grants over the vault.
+    pub fn vault(&self) -> impl Iterator<Item = &grant::vault::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::Vault(permission) => Some(permission),
+            _ => None,
+        })
+    }
 }

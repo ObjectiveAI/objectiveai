@@ -39,6 +39,8 @@ pub enum Kind {
     StandaloneTools,
     /// Volumes: a provider's listing, and the records that mount one.
     Volumes,
+    /// The vault: the keys, and the records that bind one.
+    Vault,
     /// The container connections open through the database.
     Postgres,
 }

@@ -6,6 +6,7 @@ use diverge_sdk::daemon::endpoints::standalone_tools::register::server::response
 use diverge_sdk::daemon::grant::providers_daemons::Over;
 use diverge_sdk::daemon::grant::standalone_tools::Make;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use indexmap::IndexMap;
 
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
@@ -58,6 +59,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         account: None,
         fuse_file_mounts: Vec::new(),
         fuse_directory_mounts: Vec::new(),
+        secrets: IndexMap::new(),
         creator: Creator::Client(Client {
             identity: standing.identity.clone(),
         }),

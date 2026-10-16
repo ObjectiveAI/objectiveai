@@ -15,7 +15,7 @@
 //! and handed by [`dispatch`] to its handler — [`accounts`],
 //! [`roles`], [`providers`], [`agents`], [`standalone_tools`],
 //! [`dependency_tools`],
-//! [`volumes`] and [`postgres`] have one per request, every request
+//! [`volumes`], [`vault`] and [`postgres`] have one per request, every request
 //! of the wire served — or, when the request carries `relay`, by
 //! [`relay`], this daemon as a conduit to another; what the file
 //! operations of every family share is [`files`]. A credential that admits a provider rather
@@ -70,4 +70,5 @@ pub mod relay;
 pub mod roles;
 pub mod stream;
 pub mod standalone_tools;
+pub mod vault;
 pub mod volumes;

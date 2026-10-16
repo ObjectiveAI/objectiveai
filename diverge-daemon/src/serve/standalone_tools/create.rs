@@ -8,7 +8,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
-use crate::serve::inner::{self, Checked, Mounted};
+use crate::serve::inner::{self, Checked, Mounted, Secrets};
 use crate::serve::reply;
 use crate::store::tools::Origin;
 use crate::store::{self, tools, tools_templates};
@@ -23,9 +23,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` without the `create` grant, or without `assign` over
-/// the account named; the error for a template or a provider that is
-/// not there; `NoAccount`; `InUse` for a name another
+/// `Forbidden` without the `create` grant, without `assign` over the
+/// account named, or for a vault key the grants do not reach; the
+/// error for a template or a provider that is not there; the
+/// `secrets` error for secrets that are not the template's;
+/// `NoAccount`; `InUse` for a name another
 /// tool has; else the tool made, its index the next for its template,
 /// nothing running: the container runs while an attached agent is
 /// active.
@@ -38,8 +40,13 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::Forbidden);
     }
     let inner = frame.inner;
-    if tools_templates::by_id(&mut tx, &inner.template, false).await?.is_none() {
+    let Some(template) = tools_templates::by_id(&mut tx, &inner.template, false).await? else {
         return Ok(Frame::Error(reply::failure(&"the tool template named is none the daemon has")));
+    };
+    match inner::secrets(&mut tx, &standing, &template.template.secrets, &inner.secrets).await? {
+        Secrets::Ok => {}
+        Secrets::Mismatch(what) => return Ok(Frame::Error(reply::secrets(&what))),
+        Secrets::Forbidden => return Ok(Frame::Forbidden),
     }
     let account = match inner::account(&mut tx, &standing, daemon, frame.account.as_deref()).await? {
         Checked::Ok(account) => account,
@@ -67,6 +74,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         account,
         fuse_file_mounts: inner.fuse_file_mounts,
         fuse_directory_mounts: inner.fuse_directory_mounts,
+        secrets: inner.secrets,
         creator: Creator::Client(Client {
             identity: standing.identity.clone(),
         }),
@@ -78,5 +86,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     tx.commit().await?;
     daemon.live.changed(Kind::StandaloneTools);
     daemon.live.changed(Kind::Volumes);
+    daemon.live.changed(Kind::Vault);
     Ok(Frame::Created)
 }

@@ -14,13 +14,14 @@
 //! [`tools_templates`], [`dependencies`] — the bodies of the templates
 //! agents' programs declare — [`dependency_tools`] — one per
 //! template and owner, with the agents attached to it — [`agents`]
-//! and [`tools`] are the records of each kind, and [`volumes`] what
+//! and [`tools`] are the records of each kind, [`vault`] the keys
+//! their secrets bind, and [`volumes`] what
 //! the daemon keeps of a volume, which is its tags alone;
 //! loaded whole and written whole; [`hash`] is the one id that is a
 //! hash; [`counters`] is the once-and-for-all
 //! index of a container; [`in_use`] is what containers hold —
-//! templates, accounts, daemons — and what daemon records hold —
-//! providers — as the records say; [`of_account`]
+//! templates, accounts, daemons, vault keys — and what daemon
+//! records hold — providers — as the records say; [`of_account`]
 //! is what an account may do, read fresh for every request; [`tags`]
 //! is the one way a set of tags is kept; the ids are [`AccountId`],
 //! [`RoleId`], [`AgentId`], [`ToolId`], [`DependencyToolId`], [`DaemonId`] and the
@@ -71,4 +72,5 @@ pub mod roles;
 pub mod tags;
 pub mod tools;
 pub mod tools_templates;
+pub mod vault;
 pub mod volumes;

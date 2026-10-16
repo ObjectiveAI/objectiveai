@@ -59,5 +59,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     daemon.live.forget_scope(Key::Tool(ToolKey::Record(tool.id))).await;
     daemon.live.changed(Kind::StandaloneTools);
     daemon.live.changed(Kind::Volumes);
+    daemon.live.changed(Kind::Vault);
     Ok(Frame::Deleted)
 }

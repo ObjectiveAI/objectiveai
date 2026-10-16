@@ -11,10 +11,10 @@ use super::{reaches, resolve};
 use crate::containers::ToolKey;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
-use crate::serve::inner::{self, Checked, Mounted, Outcome, Which};
+use crate::serve::inner::{self, Checked, Mounted, Outcome, Secrets, Which};
 use crate::serve::reply;
 use crate::store::tools::Origin;
-use crate::store::{self, accounts, tools};
+use crate::store::{self, accounts, tools, tools_templates};
 
 /// Answer the edit and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -34,11 +34,13 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// connected tool, which has nothing else of this caller's to change;
 /// `Active` for a result that, while the tool's container runs,
 /// differs in anything but FUSE mounts added — the name, the account,
-/// the volume mounts, a FUSE mount removed, replaced or reordered;
-/// `NoAccount`; the error for a provider that is not there, or
-/// volumes named on a tool pinned to no provider; `InUse` for a name
-/// another tool has; else the tool as the result states, whole or not
-/// at all.
+/// the volume mounts, the secrets, a FUSE mount removed, replaced or
+/// reordered; `NoAccount`; the error for a provider that is not
+/// there, or volumes named on a tool pinned to no provider; the
+/// `secrets` error for secrets that are not the template's, and
+/// `Forbidden` for a vault key the grants do not reach; `InUse` for a
+/// name another tool has; else the tool as the result states, whole
+/// or not at all.
 ///
 /// The rules of an edit while the container runs are the agents
 /// edit's, see [`agents::edit`](crate::serve::agents::edit): the run's
@@ -96,6 +98,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         volume_mounts: pinned.as_ref().map(|provider| provider.volume_mounts.clone()).unwrap_or_default(),
         fuse_file_mounts: tool.fuse_file_mounts.clone(),
         fuse_directory_mounts: tool.fuse_directory_mounts.clone(),
+        secrets: tool.secrets.clone(),
     };
     let result = match inner::patched(&current, &frame.patch) {
         Ok(result) => result,
@@ -105,13 +108,14 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         || result.fuse_file_mounts != current.fuse_file_mounts
         || result.fuse_directory_mounts != current.fuse_directory_mounts;
     let account_changed = result.account != current.account;
-    if tool.is_connected() && (mounts_changed || account_changed) {
+    let secrets_changed = result.secrets != current.secrets;
+    if tool.is_connected() && (mounts_changed || account_changed || secrets_changed) {
         return Ok(Frame::NotOwned);
     }
     let added = match &run {
         None => None,
         Some(_) => {
-            if result.name != current.name || account_changed || result.volume_mounts != current.volume_mounts {
+            if result.name != current.name || account_changed || result.volume_mounts != current.volume_mounts || secrets_changed {
                 return Ok(Frame::Active);
             }
             match inner::additions(&current.fuse_file_mounts, &result.fuse_file_mounts, &current.fuse_directory_mounts, &result.fuse_directory_mounts) {
@@ -130,6 +134,19 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     } else {
         tool.account
     };
+    if secrets_changed {
+        let Some(id) = tool.template() else {
+            return Ok(Frame::NotOwned);
+        };
+        let Some(template) = tools_templates::by_id(&mut tx, id, false).await? else {
+            return Ok(Frame::Error(reply::failure(&"the tool's template is not on record")));
+        };
+        match inner::secrets(&mut tx, &standing, &template.template.secrets, &result.secrets).await? {
+            Secrets::Ok => {}
+            Secrets::Mismatch(what) => return Ok(Frame::Error(reply::secrets(&what))),
+            Secrets::Forbidden => return Ok(Frame::Forbidden),
+        }
+    }
     let provider = match pinned {
         Some(mut provider) => {
             provider.volume_mounts = result.volume_mounts;
@@ -163,6 +180,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
             provider,
             fuse_file_mounts: result.fuse_file_mounts,
             fuse_directory_mounts: result.fuse_directory_mounts,
+            secrets: result.secrets,
         };
         if let tools::Updated::InUse = tools::update(&mut tx, tool.id, &columns).await? {
             return Ok(Frame::InUse);
@@ -171,6 +189,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         daemon.live.changed(Kind::StandaloneTools);
         daemon.live.changed(Kind::Agents);
         daemon.live.changed(Kind::Volumes);
+        daemon.live.changed(Kind::Vault);
         return Ok(Frame::Edited);
     };
     if files.is_empty() && directories.is_empty() {
@@ -211,6 +230,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
             provider,
             fuse_file_mounts: made_files,
             fuse_directory_mounts: made_directories,
+            secrets: current.secrets,
         };
         if let tools::Updated::InUse = tools::update(&mut tx, tool.id, &columns).await? {
             return Ok(Frame::InUse);

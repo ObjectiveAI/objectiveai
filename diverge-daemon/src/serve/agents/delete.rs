@@ -77,5 +77,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     daemon.live.changed(Kind::StandaloneTools);
     daemon.live.changed(Kind::DependencyTools);
     daemon.live.changed(Kind::Volumes);
+    daemon.live.changed(Kind::Vault);
     Ok(Frame::Deleted)
 }

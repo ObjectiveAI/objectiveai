@@ -6,6 +6,7 @@ use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount,
 use diverge_sdk::daemon::endpoints::agents::list::server::response;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as logs, Identity};
 use diverge_sdk::daemon::key;
+use indexmap::IndexMap;
 
 use crate::store::AgentId;
 
@@ -27,6 +28,8 @@ pub struct Agent {
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes, likewise.
     pub fuse_directory_mounts: Vec<FuseMount>,
+    /// Which vault key each secret its template declares is.
+    pub secrets: IndexMap<String, String>,
     /// The provider it last ran on, if it ever ran.
     pub last_provider: Option<Identity>,
     /// When it last began or ceased running.

@@ -1,6 +1,7 @@
 //! Changing what an edit may change about a tool.
 
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
+use indexmap::IndexMap;
 use sqlx::PgConnection;
 use sqlx::types::Json;
 
@@ -23,6 +24,8 @@ pub struct Columns {
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes.
     pub fuse_directory_mounts: Vec<FuseMount>,
+    /// Which vault key each secret the template declares is.
+    pub secrets: IndexMap<String, String>,
 }
 
 /// What an update came to.
@@ -38,7 +41,7 @@ pub enum Updated {
 pub async fn update(conn: &mut PgConnection, id: ToolId, columns: &Columns) -> Result<Updated, Error> {
     let written = sqlx::query(
         "UPDATE diverge.tools SET name = $2, account = $3, provider = $4, fuse_file_mounts = $5, \
-         fuse_directory_mounts = $6 WHERE id = $1",
+         fuse_directory_mounts = $6, secrets = $7 WHERE id = $1",
     )
     .bind(id.0)
     .bind(&columns.name)
@@ -46,6 +49,7 @@ pub async fn update(conn: &mut PgConnection, id: ToolId, columns: &Columns) -> R
     .bind(columns.provider.as_ref().map(Json))
     .bind(Json(&columns.fuse_file_mounts))
     .bind(Json(&columns.fuse_directory_mounts))
+    .bind(Json(&columns.secrets))
     .execute(&mut *conn)
     .await;
     match written {

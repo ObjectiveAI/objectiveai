@@ -47,6 +47,9 @@ axum = { version = "0.8.9", default-features = false, features = ["http1", "toki
 # The one frame the daemon reads off a socket itself: the credential,
 # to tell a client from a provider before either half is built.
 bytes = { version = "1.11.1", default-features = false }
+# A record's secrets, name by name in the order the template declares
+# them, and the values handed to its container.
+indexmap = { version = "2.14.0", features = ["serde"] }
 # The time a record was made, as Postgres keeps it and the wire
 # carries it.
 chrono = { version = "0.4.39", default-features = false, features = ["std", "clock", "serde"] }

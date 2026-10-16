@@ -141,6 +141,18 @@ CREATE TABLE IF NOT EXISTS diverge.counters (
     next        BIGINT NOT NULL
 );
 
+-- The vault: one JSON value per key, handed to the containers whose
+-- records bind the key to a secret. A key some record binds is not
+-- deleted, which the records say, not a constraint: the binding is
+-- inside a record's `secrets`.
+CREATE TABLE IF NOT EXISTS diverge.vault (
+    key     TEXT PRIMARY KEY,
+    value   JSONB NOT NULL,
+    tags    TEXT[] NOT NULL DEFAULT '{}',
+    created TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator JSONB NOT NULL
+);
+
 -- An agent: a template plus what its create added. The container is
 -- work made from the row, never the row.
 CREATE TABLE IF NOT EXISTS diverge.agents (
@@ -154,6 +166,10 @@ CREATE TABLE IF NOT EXISTS diverge.agents (
     provider              JSONB,
     fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
     fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
+    -- Which vault key each secret the template declares is: the
+    -- secret's name to the key, as the create or the last edit gave
+    -- them, in that order.
+    secrets               JSONB NOT NULL DEFAULT '{}',
     -- The provider it last ran on, and when it last began or ceased.
     last_provider         JSONB,
     last_active           TIMESTAMPTZ,
@@ -179,6 +195,9 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
     account               BIGINT REFERENCES diverge.accounts(id) ON DELETE RESTRICT,
     fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
     fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
+    -- Which vault key each secret the template declares is, as for
+    -- an agent; empty for a connected tool.
+    secrets               JSONB NOT NULL DEFAULT '{}',
     last_provider         JSONB,
     last_active           TIMESTAMPTZ,
     tags                  TEXT[] NOT NULL DEFAULT '{}',
@@ -327,3 +346,7 @@ END $$;
 -- tool.
 CREATE UNIQUE INDEX IF NOT EXISTS tools_connected_index
     ON diverge.tools (connected_daemon, connected_tool, index) WHERE kind = 'connected';
+-- A record binds each secret its template declares to a vault key
+-- (2026-10-16).
+ALTER TABLE diverge.agents ADD COLUMN IF NOT EXISTS secrets JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS secrets JSONB NOT NULL DEFAULT '{}';

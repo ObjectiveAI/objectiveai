@@ -71,7 +71,7 @@ pub fn every_grant() -> Vec<Grant> {
     use grant::{
         accounts as ac, agents as ag, agents_templates as at, dependency_tools as de, postgres as pg,
         providers_daemons as pd, providers_incoming as pi, providers_outgoing as po, roles as ro,
-        standalone_tools as to, standalone_tools_templates as tt, volumes as vo,
+        standalone_tools as to, standalone_tools_templates as tt, vault as va, volumes as vo,
     };
     let tagging = vec![Tagging::Tag, Tagging::Untag];
     vec![
@@ -223,6 +223,16 @@ pub fn every_grant() -> Vec<Grant> {
             within: Within::Any,
         }),
         Grant::Volumes(vo::Permission::Tags {
+            actions: tagging.clone(),
+            within: Within::Any,
+            tags: Within::Any,
+        }),
+        Grant::Vault(va::Permission::Make(vec![va::Make::Set])),
+        Grant::Vault(va::Permission::Over {
+            actions: vec![va::Over::Get, va::Over::List, va::Over::Set, va::Over::Delete, va::Over::Use],
+            within: Within::Any,
+        }),
+        Grant::Vault(va::Permission::Tags {
             actions: tagging,
             within: Within::Any,
             tags: Within::Any,
