@@ -182,7 +182,6 @@ async fn start(answerer: &Answerer, agent_key: &key::Agent, agent_container: &st
         stop::stop_dependencies(daemon, vec![stale]).await;
     }
     let needs = Needs {
-        fuse_mounts: !fuse_file_mounts.is_empty() || !fuse_directory_mounts.is_empty(),
         volume_modes: Vec::new(),
         image: Some(tool.declared.image.clone()),
         memory: tool.declared.memory,

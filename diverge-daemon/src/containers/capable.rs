@@ -2,8 +2,8 @@
 //! mount, needs of it — and whether it can source the run's image.
 //!
 //! The daemon asks a provider nothing its cached `info` excludes:
-//! every choice of a provider for a container, and every serve a
-//! mount needs, is judged here first, against the provider's
+//! every choice of a provider for a container, and every volume
+//! serve a mount needs, is judged here first, against the provider's
 //! capabilities as it answered them, and a provider that lacks one is
 //! passed over — or, pinned, refused — without being asked. The
 //! image is judged the same way, from the capabilities first — see
@@ -18,16 +18,13 @@ use diverge_sdk::provider::endpoints::volumes::Mode;
 use diverge_sdk::shared::containers::request::Image;
 
 /// What a container's run asks of the provider it runs on, beyond
-/// running a container: FUSE mounts the daemon serves into it, the
-/// provider's own volumes mounted into it, by mode, and the image
-/// the container is made from, which the provider must be able to
-/// obtain.
+/// running a container: the provider's own volumes mounted into it,
+/// by mode, and the image the container is made from, which the
+/// provider must be able to obtain. Every provider makes the FUSE
+/// mounts a run names and FUSE serves a running container, so a run
+/// asks nothing of either.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Needs {
-    /// The run names at least one FUSE mount — a cross-provider
-    /// volume, or a dependency's mount of the agent's path — which
-    /// the provider must make.
-    pub fuse_mounts: bool,
     /// The modes of the provider's own volumes the run mounts, each
     /// of which the provider must mount.
     pub volume_modes: Vec<Mode>,
@@ -76,9 +73,6 @@ fn ratio(room: u64, need: u64) -> u128 {
 /// `Ok` when `info` holds out everything `needs`; else what it lacks,
 /// in a sentence a start error carries.
 pub fn check(info: &Info, needs: &Needs) -> Result<(), String> {
-    if needs.fuse_mounts && !info.capabilities.containers_fuse_mount {
-        return Err("the provider makes no FUSE mount, which the container's mounts need".to_string());
-    }
     for mode in &needs.volume_modes {
         match info.capabilities.volume(*mode) {
             Some(allowed) if allowed.mount => {}

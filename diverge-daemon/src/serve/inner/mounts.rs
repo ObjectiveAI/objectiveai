@@ -56,7 +56,6 @@ pub async fn mounts(
     }
     if let Some(provider) = pinned {
         let needs = capable::Needs {
-            fuse_mounts: !file_mounts.is_empty() || !directory_mounts.is_empty(),
             volume_modes: provider.volume_mounts.iter().map(|mount| mount.volume_mode).collect(),
             image: None,
             ..capable::Needs::default()

@@ -68,9 +68,8 @@ impl Serve {
 /// not be opened, in a sentence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MountsError {
-    /// A provider's capabilities exclude the serve a mount needs:
-    /// the volume's provider FUSE serves no volume of the mode, or
-    /// the agent's provider FUSE serves no container.
+    /// A provider's capabilities exclude the serve a mount needs: the
+    /// volume's provider FUSE serves no volume of the mode.
     Unsupported(String),
     /// A provider not connected, or a serve it refused or failed.
     Failed(String),
@@ -277,9 +276,7 @@ impl Mounts {
     /// the template names, `files` and `directories`, each served by
     /// the agent's provider from the agent's container — a directory
     /// whole, a file with the directory holding it — and watched for
-    /// every change, the agent's own included. An agent's provider
-    /// whose capabilities FUSE serve no container is every such mount
-    /// unsupported, and is not asked. A container serve reserves no
+    /// every change, the agent's own included. A container serve reserves no
     /// room, so no capacity is asked again for it. The first that
     /// cannot be served is the failure, and what was opened is let go.
     pub async fn build_dependency(daemon: &Daemon, agent_provider: &Identity, agent_container: &str, files: &[Mount], directories: &[Mount]) -> Result<Mounts, MountsError> {
@@ -290,14 +287,6 @@ impl Mounts {
         let Some(handle) = daemon.live.provider(agent_provider).await else {
             return Err(MountsError::Failed("the agent's provider is not connected now".to_string()));
         };
-        let serves_containers = daemon
-            .live
-            .capabilities(agent_provider)
-            .await
-            .is_none_or(|info| info.capabilities.containers_fuse_serve);
-        if !serves_containers {
-            return Err(MountsError::Unsupported("the agent's provider FUSE serves no container, which a dependency's mount of the agent's path needs".to_string()));
-        }
         let mut d = 0usize;
         for (mount, directory) in files
             .iter()
