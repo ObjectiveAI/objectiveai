@@ -15,11 +15,12 @@ use crate::wire::encode::{Encode, Writer};
 /// by the daemon and tool it joined, as
 /// [`reference`](crate::daemon::reference) states. The patch is
 /// applied to the tool's [`Editable`](super::Editable) document, whole or not at all,
-/// and the result is the tool from then on. A tool that is active —
-/// its container running, or its connect scope held — has its mounts
-/// left as they are: a result differing in any mount list is answered
-/// `Active`; a result differing in the name or the account alone is
-/// applied live. A
+/// and the result is the tool from then on. A tool whose container is
+/// running takes one kind of change: FUSE mounts appended to either
+/// list, each mounted into the running container before the edit
+/// persists — the edit answers once the provider has mounted them,
+/// and what the provider mounted is what persists; a result differing
+/// in anything else is answered `Active`, and nothing changed. A
 /// [`connect`](crate::daemon::endpoints::standalone_tools::connect)ed tool has
 /// no mounts of this caller's and runs under no account, since it
 /// runs nothing of the caller's: a result differing in anything but

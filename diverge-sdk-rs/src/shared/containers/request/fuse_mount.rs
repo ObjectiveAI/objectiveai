@@ -7,11 +7,15 @@ use serde::{Deserialize, Serialize};
 /// over FUSE: where, and under what id. Which of the two it is, is
 /// which list of the [`Container`](super::Container) it is on.
 ///
-/// The provider MUST mount every one before it answers the run's id
-/// — one `fuse::mount` scope on the proxy for each, see
+/// The provider MUST mount every one of the request before it
+/// answers the run's id — one `fuse::mount` scope on the proxy for
+/// each, see
 /// [`fuse::mount`](crate::container_proxy::outside::endpoints::fuse::mount), each
-/// complete before the next and before any filetree
-/// is opened — as a filesystem the caller serves: the mount point is the file or the
+/// complete before the next and before any filetree is opened — and
+/// one more whenever the caller asks for it on the run's `fuse_mount`
+/// channel while the container runs, as
+/// [`fuse_mount`](crate::shared::containers::fuse_mount) states, each
+/// as a filesystem the caller serves: the mount point is the file or the
 /// directory itself, made if absent with every missing parent
 /// directory made too, and the directory around it stays whatever
 /// the image or another mount made it. Nothing in the container or

@@ -16,9 +16,10 @@
 //! the caller serves, content it does not hold — and for everything the
 //! container asks of the caller:
 //! its database connections, its daemon connection, its vault, its tool
-//! calls outward. The caller opens them to reach into the container.
-//! Same scope, opposite directions, and neither side's channel numbers
-//! mean anything to the other.
+//! calls outward. The caller opens them to reach into the container:
+//! its files, its tree, one more mount made while it runs, its MCP
+//! server. Same scope, opposite directions, and neither side's channel
+//! numbers mean anything to the other.
 
 pub mod client;
 pub mod server;

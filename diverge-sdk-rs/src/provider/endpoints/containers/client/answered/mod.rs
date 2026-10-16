@@ -2,7 +2,7 @@
 //!
 //! [`Answered`] is the trait; the rest are its implementors for the
 //! answers every scope shares — the shared `postgres`, `schema`,
-//! `enqueue`, `dequeue` and the five MCP frames. The
+//! `enqueue`, `dequeue`, `fuse_mount` and the five MCP frames. The
 //! three answers each family envelopes in a type of its own —
 //! `filetree`, `read`, `write_path` — have their implementors beside
 //! that family's `execute`.
@@ -11,6 +11,7 @@ mod answered;
 mod daemon;
 mod dequeue;
 mod enqueue;
+mod fuse_mount;
 mod mcp_call_tool;
 mod mcp_list_resources;
 mod mcp_list_tools;
@@ -23,6 +24,7 @@ pub use answered::*;
 pub use daemon::*;
 pub use dequeue::*;
 pub use enqueue::*;
+pub use fuse_mount::*;
 pub use mcp_call_tool::*;
 pub use mcp_list_resources::*;
 pub use mcp_list_tools::*;

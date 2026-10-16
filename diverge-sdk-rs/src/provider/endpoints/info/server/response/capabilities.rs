@@ -75,8 +75,10 @@ pub struct Capabilities {
     pub images_registries: Vec<String>,
     /// The provider mounts a run's FUSE mounts — the
     /// [`FuseMount`](crate::shared::containers::request::FuseMount)s
-    /// of its request — served by the caller. Absent — `false` — a
-    /// run naming any is answered `FuseMountsUnsupported`.
+    /// of its request, and one more whenever the caller asks on the
+    /// run's `fuse_mount` channel — served by the caller. Absent —
+    /// `false` — a run naming any is answered `FuseMountsUnsupported`,
+    /// and the channel `Unsupported`.
     #[serde(default)]
     pub containers_fuse_mount: bool,
     /// The provider FUSE serves a running container's subtree:

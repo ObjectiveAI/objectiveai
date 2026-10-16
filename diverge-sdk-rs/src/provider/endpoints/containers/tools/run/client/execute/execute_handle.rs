@@ -16,11 +16,12 @@ use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::client::answered::{
-    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Schema,
+    FuseMount, McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Schema,
 };
 use crate::provider::endpoints::containers::client::{ChannelStream, Decoded, OpenError, Scoped, UnaryError, WaitError};
 use crate::provider::endpoints::containers::tools::run::server;
-use crate::shared::containers::{read, transfer, write_path};
+use crate::shared::containers::fuse::Kind;
+use crate::shared::containers::{fuse_mount, read, transfer, write_path};
 use crate::shared::mcp;
 
 /// The servers' notifications, for as long as the channel lives.
@@ -140,6 +141,16 @@ impl ExecuteHandle {
     pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
         let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
         self.0.unary::<Schema>(&payload).await
+    }
+
+    /// One more file or directory served into the container at
+    /// `container_path`, under `id`, while it runs: the provider's one
+    /// answer — made, or why not — once the proxy has answered, and
+    /// before any ask of the id. The mount lives until the run ends.
+    pub async fn fuse_mount(&self, container_path: Vec<String>, id: String, kind: Kind) -> Result<fuse_mount::response::Frame, UnaryError<FuseMount>> {
+        let payload = payload(&channel_request::Frame::FuseMount(fuse_mount::request::Request { container_path, id, kind }))
+            .map_err(UnaryError::Request)?;
+        self.0.unary::<FuseMount>(&payload).await
     }
 
     /// `tools/list` against the server inside the container.

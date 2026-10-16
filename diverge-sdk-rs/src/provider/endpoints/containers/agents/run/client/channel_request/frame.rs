@@ -7,7 +7,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::containers::{dequeue, enqueue};
-use crate::shared::containers::{postgres, read, transfer, write_path};
+use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 
 /// What a caller asks a provider for while an agent container runs.
 ///
@@ -25,6 +25,7 @@ use crate::shared::containers::{postgres, read, transfer, write_path};
 /// | `6` | [`Schema`](Self::Schema) |
 /// | `7` | [`Enqueue`](Self::Enqueue) |
 /// | `8` | [`Dequeue`](Self::Dequeue) |
+/// | `9` | [`FuseMount`](Self::FuseMount) |
 ///
 /// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
@@ -119,6 +120,16 @@ pub enum Frame {
     /// Each message it withdraws is ALSO answered, on its own enqueue
     /// channel. See [`dequeue`](crate::shared::containers::dequeue).
     Dequeue(dequeue::request::Request),
+    /// A FUSE mount made while the container runs. Tag `9`.
+    ///
+    /// The caller serves one more file or directory into the
+    /// container at a path, under an id of its own, as the mounts of
+    /// the run's request are served. Answered once — by a
+    /// [`fuse_mount::response::Frame`](crate::shared::containers::fuse_mount::response::Frame)
+    /// saying the mount is made, or why not — and then the finish;
+    /// the answer precedes every ask of the id. See
+    /// [`fuse_mount`](crate::shared::containers::fuse_mount).
+    FuseMount(fuse_mount::request::Request),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -147,6 +158,9 @@ const ENQUEUE: u8 = 7;
 
 /// Tag for [`Frame::Dequeue`].
 const DEQUEUE: u8 = 8;
+
+/// Tag for [`Frame::FuseMount`].
+const FUSE_MOUNT: u8 = 9;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -190,6 +204,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[DEQUEUE]);
                 request.encode(out)
             }
+            Frame::FuseMount(request) => {
+                out.extend_from_slice(&[FUSE_MOUNT]);
+                request.encode(out)
+            }
         }
     }
 }
@@ -222,6 +240,9 @@ impl Decode<'_> for Frame {
             DEQUEUE => dequeue::request::Request::decode(rest)
                 .map(Frame::Dequeue)
                 .map_err(FrameError::Dequeue),
+            FUSE_MOUNT => fuse_mount::request::Request::decode(rest)
+                .map(Frame::FuseMount)
+                .map_err(FrameError::FuseMount),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -246,6 +267,8 @@ pub enum FrameError {
     Enqueue(serde_json::Error),
     /// The dequeue's key did not parse as JSON.
     Dequeue(serde_json::Error),
+    /// The mount request did not parse.
+    FuseMount(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -273,6 +296,9 @@ impl fmt::Display for FrameError {
             FrameError::Dequeue(error) => {
                 write!(f, "dequeue request did not parse: {error}")
             }
+            FrameError::FuseMount(error) => {
+                write!(f, "fuse mount request did not parse: {error}")
+            }
         }
     }
 }
@@ -284,7 +310,8 @@ impl Error for FrameError {
             | FrameError::Write(error)
             | FrameError::Transfer(error)
             | FrameError::Enqueue(error)
-            | FrameError::Dequeue(error) => Some(error),
+            | FrameError::Dequeue(error)
+            | FrameError::FuseMount(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }

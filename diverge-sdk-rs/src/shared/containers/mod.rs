@@ -16,7 +16,8 @@
 //! The CALLER asks the container: [`read`] one file out,
 //! [`write_path`] one file in — its content on a channel the provider
 //! opens, [`write_bytes`] — [`transfer`] one file into another
-//! container it is running, and [`filetree`] for its filesystem.
+//! container it is running, [`fuse_mount`] one more file or directory
+//! served into it while it runs, and [`filetree`] for its filesystem.
 //!
 //! The CONTAINER asks the caller, through the provider: [`postgres`]
 //! carries each database connection it opens, [`daemon`] a frame of the program's daemon connection — the two verbs against its queue —
@@ -35,6 +36,7 @@ pub mod dequeue;
 pub mod enqueue;
 pub mod filetree;
 pub mod fuse;
+pub mod fuse_mount;
 pub mod oci;
 pub mod postgres;
 pub mod read;

@@ -24,8 +24,9 @@ use crate::shared::error::Error;
 /// [`NotFound`](Self::NotFound), [`Active`](Self::Active) and
 /// [`InUse`](Self::InUse) are
 /// ANSWERS: the daemon looked, and no agent of the caller's is the one
-/// named, or one is and a loop is running in it while the request names
-/// a mount, or the name requested is another agent's, and in each case
+/// named, or one is and its container is running while the result
+/// differs in anything but FUSE mounts added, or the name requested
+/// is another agent's, and in each case
 /// nothing changed
 /// and nothing is retried. An [`Error`](Self::Error) is the absence of
 /// an answer: the daemon could not make the change, for whatever reason
@@ -57,8 +58,8 @@ pub enum Frame {
     /// No agent of the caller's is the one named; nothing changed. Tag
     /// `1`.
     NotFound,
-    /// The agent is active — a loop is running in it — and the request
-    /// names a mount; nothing changed. Tag `2`.
+    /// The agent's container is running and the result differs in
+    /// anything but FUSE mounts added to it; nothing changed. Tag `2`.
     Active,
     /// The name requested is another agent's; nothing changed. Tag `3`.
     InUse,

@@ -7,7 +7,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::mcp;
-use crate::shared::containers::{postgres, read, transfer, write_path};
+use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 use crate::shared::containers::daemon;
 
 /// What a caller asks a provider for while a tool container runs.
@@ -30,6 +30,7 @@ use crate::shared::containers::daemon;
 /// | `10` | [`McpCallTool`](Self::McpCallTool) |
 /// | `11` | [`McpReadResource`](Self::McpReadResource) |
 /// | `12` | [`McpNotifications`](Self::McpNotifications) |
+/// | `13` | [`FuseMount`](Self::FuseMount) |
 ///
 /// The first eight are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
@@ -110,39 +111,49 @@ pub enum Frame {
     /// its finish is the program's socket ended. See
     /// [`daemon`](crate::shared::containers::daemon) for the pair.
     Daemon(daemon::request::Daemon),
-    /// What tools are there. Tag `7`.
+    /// What tools are there. Tag `8`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See [`mcp::list_tools`](crate::shared::mcp::list_tools)
     /// for what it asks and what answers it.
     McpListTools(mcp::list_tools::request::Request),
-    /// What resources are there. Tag `8`.
+    /// What resources are there. Tag `9`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::list_resources`](crate::shared::mcp::list_resources) for
     /// what it asks and what answers it.
     McpListResources(mcp::list_resources::request::Request),
-    /// Run one tool. Tag `9`.
+    /// Run one tool. Tag `10`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See [`mcp::call_tool`](crate::shared::mcp::call_tool)
     /// for what it asks and what answers it.
     McpCallTool(mcp::call_tool::request::Request),
-    /// Read one resource. Tag `10`.
+    /// Read one resource. Tag `11`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::read_resource`](crate::shared::mcp::read_resource) for
     /// what it asks and what answers it.
     McpReadResource(mcp::read_resource::request::Request),
-    /// Everything the server says on its own account. Tag `11`.
+    /// Everything the server says on its own account. Tag `12`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::notifications`](crate::shared::mcp::notifications) for
     /// what it asks and what answers it.
     McpNotifications(mcp::notifications::request::Request),
+    /// A FUSE mount made while the container runs. Tag `13`.
+    ///
+    /// The caller serves one more file or directory into the
+    /// container at a path, under an id of its own, as the mounts of
+    /// the run's request are served. Answered once — by a
+    /// [`fuse_mount::response::Frame`](crate::shared::containers::fuse_mount::response::Frame)
+    /// saying the mount is made, or why not — and then the finish;
+    /// the answer precedes every ask of the id. See
+    /// [`fuse_mount`](crate::shared::containers::fuse_mount).
+    FuseMount(fuse_mount::request::Request),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -183,6 +194,9 @@ const MCP_READ_RESOURCE: u8 = 11;
 
 /// Tag for [`Frame::McpNotifications`].
 const MCP_NOTIFICATIONS: u8 = 12;
+
+/// Tag for [`Frame::FuseMount`].
+const FUSE_MOUNT: u8 = 13;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -244,6 +258,10 @@ impl Encode for Frame {
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
             }
+            Frame::FuseMount(request) => {
+                out.extend_from_slice(&[FUSE_MOUNT]);
+                request.encode(out)
+            }
         }
     }
 }
@@ -293,6 +311,9 @@ impl Decode<'_> for Frame {
                 mcp::notifications::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
+            FUSE_MOUNT => fuse_mount::request::Request::decode(rest)
+                .map(Frame::FuseMount)
+                .map_err(FrameError::FuseMount),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -322,6 +343,8 @@ pub enum FrameError {
     /// cases every reader matches and none of them distinguishes
     /// anything a caller could act on.
     McpParams(serde_json::Error),
+    /// The mount request did not parse.
+    FuseMount(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -347,6 +370,9 @@ impl fmt::Display for FrameError {
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
+            FrameError::FuseMount(error) => {
+                write!(f, "fuse mount request did not parse: {error}")
+            }
         }
     }
 }
@@ -357,7 +383,8 @@ impl Error for FrameError {
             FrameError::Read(error)
             | FrameError::Write(error)
             | FrameError::Transfer(error)
-            | FrameError::McpParams(error) => Some(error),
+            | FrameError::McpParams(error)
+            | FrameError::FuseMount(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Daemon(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,

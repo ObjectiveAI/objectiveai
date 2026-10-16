@@ -14,11 +14,13 @@ use crate::wire::encode::{Encode, Writer};
 /// The agent is named by its name or by its template and its index, as
 /// [`reference`](crate::daemon::reference) states. The patch is
 /// applied to the agent's [`Editable`](super::Editable) document, whole or not at all,
-/// and the result is the agent from then on. An agent that is active
-/// — one with a loop running — has its mounts left as they are: a
-/// patch whose result differs in any mount list is answered `Active`,
-/// and nothing changed; one that differs in the name alone is applied
-/// live. The agent's image, limits, provider and arguments are not
+/// and the result is the agent from then on. An agent whose container
+/// is running takes one kind of change: FUSE mounts appended to
+/// either list, each mounted into the running container before the
+/// edit persists — the edit answers once the provider has mounted
+/// them, and what the provider mounted is what persists; a result
+/// differing in anything else is answered `Active`, and nothing
+/// changed. The agent's image, limits, provider and arguments are not
 /// edited: they are its for its life.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
