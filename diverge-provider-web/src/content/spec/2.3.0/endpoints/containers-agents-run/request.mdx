@@ -64,8 +64,9 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 
 - **`arguments`.** Any JSON value. The server relays it verbatim in
   the begin request it opens on the proxy and does not read it. What
-  the value may be is what the container's
-  [schema](/endpoints/containers-agents-run/client/schema/) channel answers.
+  the value may be is what the image's `/DIVERGE.md` states, which the
+  container's [info](/endpoints/containers-agents-run/client/info/)
+  channel answers.
 - **No secret.** The request carries no secret, and the server holds
   none. Which secrets the container's program takes is its own
   answer at its registration, carried to the client on the

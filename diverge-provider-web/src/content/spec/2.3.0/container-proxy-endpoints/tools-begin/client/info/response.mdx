@@ -1,0 +1,51 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0][document JSON …]    the image's /DIVERGE.md, parsed
+[1]                     the image ships no /DIVERGE.md
+[2][error JSON …]       the file could not be read, or is not a document
+```
+
+- **The sequence.** Exactly one channel response, followed by the
+  channel response finish. A channel response finish that no channel
+  response precedes states that the server did not serve the
+  question.
+- **The document.** The byte `0` is followed by exactly one JSON
+  object of two members, which the server reads from the file. The
+  file begins with a line that is exactly `---`; the lines after it,
+  up to the next line that is exactly `---`, are the frontmatter,
+  which the server parses as JSON and sends as `schema`, the JSON
+  Schema of the container's `arguments`, a JSON object. Every byte
+  after that line is `body`, a string, verbatim. The server reads the
+  file as UTF-8 and reads neither member further.
+- **Missing.** The byte `1` states that the image ships no
+  `/DIVERGE.md`. Nothing follows the byte. That is a fact about the
+  image and not a failure.
+- **The error.** The byte `2` states that the file is at the root and
+  the server could not read it, or that the file is not a document:
+  it does not begin with a line that is exactly `---`, no later line
+  is exactly `---`, the frontmatter is not JSON, or the frontmatter
+  is JSON and not an object. The bytes after it are exactly one JSON
+  value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page. No error of
+  this channel is the container's program's: the server asks it
+  nothing.
+
+The channel response is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/tools/begin/server/channel_response/info/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/tools/begin/server/channel_response/info/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/info/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/response/frame.rs
+```
+
+and the document by `diverge-sdk-rs/src/shared/containers/info/document.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/document.rs
+```

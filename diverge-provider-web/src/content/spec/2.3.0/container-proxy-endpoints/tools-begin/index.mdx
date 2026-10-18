@@ -76,9 +76,9 @@ beyond the order [Connection](/container-proxy/connection/) provides.
 - **Both directions.** The server opens channels on this scope for
   everything the container asks of the world outside it — its
   database connections, its daemon connections — and the
-  client opens channels on it for the schema, the five MCP exchanges
-  into the container's own MCP server, the feed of the secrets'
-  values, and its half of each database connection.
+  client opens channels on it for the image's `/DIVERGE.md`, the
+  five MCP exchanges into the container's own MCP server, the feed of
+  the secrets' values, and its half of each database connection.
 - **No tool call outward.** A tool container makes no tool call
   outward: the server opens no MCP channel on this scope, and
   answers the container's program with an error when it calls.
