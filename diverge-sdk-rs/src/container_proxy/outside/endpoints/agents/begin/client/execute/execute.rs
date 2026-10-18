@@ -1,6 +1,5 @@
 //! Opening the scope, and hearing that it has begun.
 
-use indexmap::IndexMap;
 use serde_json::Value;
 
 use super::super::request;
@@ -11,12 +10,11 @@ use crate::container_proxy::outside::client::{Ask, Asks};
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame;
-use crate::shared::containers::dependencies::Template;
 
 /// Begin the server's work on an agent container: open the scope
-/// carrying `arguments`, `secrets` and `template`, the id of the
-/// template the container is made from, and wait for the proxy to
-/// say it has begun.
+/// carrying `arguments` and `template`, the id of the template the
+/// container is made from, and wait for the proxy to say it has
+/// begun.
 ///
 /// Reads exactly one frame off the main stream before returning,
 /// because nothing may be opened on the scope before its `Begun`:
@@ -24,16 +22,18 @@ use crate::shared::containers::dependencies::Template;
 /// server's own words; a finish first is
 /// [`Unanswered`](ExecuteError::Unanswered); a chunk or a loop's word
 /// first is a proxy out of order. What comes back is the handle, the
-/// asks the proxy will open, the conversation, and the dependencies
-/// the container declared.
+/// asks the proxy will open, the conversation, and what the
+/// container's program declared — the dependencies and the secrets
+/// it takes, which the server has the caller register before it
+/// feeds the first values on the handle's
+/// [`secrets`](ExecuteHandle::secrets).
 pub async fn execute(
     handle: &Handle,
     arguments: Value,
-    secrets: IndexMap<String, Value>,
     template: String,
-) -> Result<(ExecuteHandle, Asks<Ask>, Chunks, Vec<Template>), ExecuteError> {
+) -> Result<(ExecuteHandle, Asks<Ask>, Chunks, response::Registered), ExecuteError> {
     let mut payload = Vec::new();
-    request::Frame { arguments, secrets, template }
+    request::Frame { arguments, template }
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
     let mut scope = handle.send_request(&payload).await.map_err(ExecuteError::Send)?;
@@ -45,13 +45,13 @@ pub async fn execute(
         frame::server::ServerFrame::ResponseFinish { .. } => return Err(ExecuteError::Unanswered),
         _ => return Err(ExecuteError::Misrouted),
     };
-    let dependencies = match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
-        response::Frame::Begun(dependencies) => dependencies,
+    let registered = match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
+        response::Frame::Begun(registered) => registered,
         response::Frame::Error(error) => return Err(ExecuteError::Refused(error)),
         // The agent speaks only after `Begun`, and no loop runs
         // before it; any of the three first is a proxy out of order,
         // which is a frame this end cannot place.
-        response::Frame::Chunk(_) | response::Frame::Active | response::Frame::Inactive => {
+        response::Frame::Chunk(_) | response::Frame::Active | response::Frame::Inactive(_) => {
             return Err(ExecuteError::Misrouted);
         }
     };
@@ -60,7 +60,7 @@ pub async fn execute(
         ExecuteHandle::new(handle.clone(), scope.scope),
         Asks::new(scope.request_receiver, decode_ask),
         Chunks::new(scope.response_receiver),
-        dependencies,
+        registered,
     ))
 }
 

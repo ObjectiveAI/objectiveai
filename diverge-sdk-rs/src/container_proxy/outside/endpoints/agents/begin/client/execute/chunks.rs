@@ -17,7 +17,8 @@ use crate::shared::error::Error;
 /// Everything the begin scope's main stream says after `Begun`, for
 /// as long as the connection lives: every chunk the agent produces,
 /// and the proxy's word before a loop's first chunk and after its
-/// last, each one [`Event`].
+/// last — the latter with the loop's rotating secrets — each one
+/// [`Event`].
 ///
 /// Zero or more [`Ok`], then either the end — the proxy finished the
 /// scope, which is the proxy ending — or exactly one [`Err`] and the
@@ -67,7 +68,7 @@ impl Stream for Chunks {
         match response::Frame::decode(payload) {
             Ok(response::Frame::Chunk(chunk)) => Poll::Ready(Some(Ok(Event::Chunk(chunk)))),
             Ok(response::Frame::Active) => Poll::Ready(Some(Ok(Event::Active))),
-            Ok(response::Frame::Inactive) => Poll::Ready(Some(Ok(Event::Inactive))),
+            Ok(response::Frame::Inactive(values)) => Poll::Ready(Some(Ok(Event::Inactive(values)))),
             Ok(response::Frame::Error(error)) => self.end(ChunksError::Refused(error)),
             // `Begun` comes once, and it came before this stream
             // existed.

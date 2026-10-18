@@ -5,10 +5,11 @@ use serde_json::Value;
 use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
-use crate::provider::endpoints::containers::client::answered::{Daemon, 
-    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Schema,
+use crate::provider::endpoints::containers::client::answered::{Daemon,
+    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Schema, Secrets,
 };
 use crate::provider::endpoints::containers::client::{Answered, ChannelStream, OpenError, UnaryError, unary};
+use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{daemon, postgres};
 use crate::shared::mcp;
 
@@ -16,9 +17,10 @@ use crate::shared::mcp;
 ///
 /// Every channel the server may open on it is a method here — the
 /// arguments' schema, the five MCP exchanges into the container's
-/// server, the server's half of a database connection — and so is answering a channel the proxy
-/// opened, by the proxy's own channel number. Clones share the scope,
-/// which is how a connector's exchanges ride the runner's begin.
+/// server, the secrets' feed, the server's half of a database
+/// connection — and so is answering a channel the proxy opened, by
+/// the proxy's own channel number. Clones share the scope, which is
+/// how a connector's exchanges ride the runner's begin.
 ///
 /// # Dropping it does nothing
 ///
@@ -104,9 +106,17 @@ impl ExecuteHandle {
         Ok(ChannelStream::new(channel.response_receiver))
     }
 
-    /// The server's half of a database connection the proxy
-    /// announced, quoting the id the proxy minted: what comes back is
-    /// everything the container's driver wrote, until the finish.
+    /// Feed the program its secrets' `values`, every name it
+    /// declared: resolves once the program holds them, which opens
+    /// the gate the proxy holds every exchange behind. Once before
+    /// the run's id goes out, and at every activation after, relaying
+    /// the caller's own feed; the proxy's refusal is
+    /// [`Refused`](UnaryError::Refused), the program's own words.
+    pub async fn secrets(&self, values: Values) -> Result<(), UnaryError<Secrets>> {
+        let payload = payload(&channel_request::Frame::Secrets(values)).map_err(UnaryError::Request)?;
+        unary::<Secrets>(&self.handle, self.scope, &payload).await
+    }
+
     /// The server's half of a daemon connection the proxy announced,
     /// quoting the id the proxy minted: what comes back is every client
     /// frame the program sent on it, until the finish, which is the
@@ -123,6 +133,9 @@ impl ExecuteHandle {
         Ok(ChannelStream::new(channel.response_receiver))
     }
 
+    /// The server's half of a database connection the proxy
+    /// announced, quoting the id the proxy minted: what comes back is
+    /// everything the container's driver wrote, until the finish.
     pub async fn postgres(&self, connection_id: u32) -> Result<ChannelStream<Postgres>, OpenError> {
         let payload = payload(&channel_request::Frame::Postgres(postgres::request::Postgres { connection_id }))
             .map_err(OpenError::Request)?;

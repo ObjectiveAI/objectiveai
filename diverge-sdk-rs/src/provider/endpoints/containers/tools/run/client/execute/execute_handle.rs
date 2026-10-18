@@ -13,14 +13,14 @@ use serde_json::Value;
 
 use super::super::channel_request;
 use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
-use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::client::answered::{
-    FuseMount, McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Schema,
+    FuseMount, McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Schema, Secrets,
 };
-use crate::provider::endpoints::containers::client::{ChannelStream, Decoded, OpenError, Scoped, UnaryError, WaitError};
+use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError};
 use crate::provider::endpoints::containers::tools::run::server;
 use crate::shared::containers::fuse::Kind;
+use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{fuse_mount, read, transfer, write_path};
 use crate::shared::mcp;
 
@@ -32,10 +32,12 @@ pub type McpNotificationsStream = ChannelStream<McpNotifications>;
 /// Every channel a caller may open into a tool container is a method
 /// here: the tree watched, a file read or written, the arguments'
 /// schema, the five MCP exchanges into the server the container
-/// runs, and the stop. Each
-/// opens its own channel, so several may be in flight at once. Clones
-/// share the scope, and [`wait`](Self::wait) on any of them reports
-/// the same end.
+/// runs, the secrets' feed, and the stop. What the proxy says of the
+/// container's activity is not: it is the
+/// [`ExecuteStream`](super::ExecuteStream) `execute` handed back
+/// beside this. Each opens its own channel, so several may be in
+/// flight at once. Clones share the scope, and [`ended`](Self::ended)
+/// on any of them reports the same end.
 ///
 /// # Dropping it does nothing
 ///
@@ -65,28 +67,22 @@ impl ExecuteHandle {
     /// stop, or the container's own end — and the provider's error
     /// when it ended that way. Resolves once and answers the same way
     /// again after.
-    pub async fn wait(&self) -> Result<(), WaitError<server::response::FrameError>> {
-        self.0
-            .wait(|payload| {
-                Ok(match server::response::Frame::decode(payload)? {
-                    // The refusals are sent only as the first response,
-                    // in place of the id; after it, none is a fact of
-                    // the run, and the wire forbids them.
-                    server::response::Frame::Id(_)
-                    | server::response::Frame::VolumeHeld(_)
-                    | server::response::Frame::VolumeMounted(_)
-                    | server::response::Frame::VolumeFuseServed(_)
-                    | server::response::Frame::VolumeMountUnsupported(_)
-                    | server::response::Frame::VolumeMode(_) => Decoded::Skip,
-                    server::response::Frame::Error(error) => Decoded::Error(error),
-                })
-            })
-            .await
+    ///
+    /// # It reads nothing
+    ///
+    /// The main stream is the container's activity, and the
+    /// [`ExecuteStream`](super::ExecuteStream) `execute` handed back
+    /// is its reader. This waits for that reader to reach the end, so
+    /// that no word is lost to a caller who only wanted to know the
+    /// run is over; a caller that wants the end and not the activity
+    /// drains the stream.
+    pub async fn ended(&self) -> Result<(), WaitError<server::response::FrameError>> {
+        self.0.ended().await
     }
 
     /// Stop the container.
     /// Nothing answers on the channel this opens; what answers is the
-    /// scope's own finish, on [`wait`](Self::wait).
+    /// scope's own finish, on [`ended`](Self::ended).
     pub async fn stop(&self) -> Result<(), OpenError> {
         let payload = payload(&channel_request::Frame::Stop).map_err(OpenError::Request)?;
         self.0.bare(&payload).await.map_err(OpenError::Send)
@@ -204,5 +200,17 @@ impl ExecuteHandle {
         ))
         .map_err(OpenError::Request)?;
         self.0.open::<McpNotifications>(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Feed the program its secrets' `values`, every name it
+    /// declared, at an activation: resolves once the program holds
+    /// them, relayed through the provider to the proxy, which
+    /// delivers no exchange to the program until it does. The first
+    /// feed is not this: it answers the registration, before the id.
+    /// A refusal is [`Refused`](UnaryError::Refused), the program's
+    /// own words through the proxy, and is the activation's error.
+    pub async fn secrets(&self, values: Values) -> Result<(), UnaryError<Secrets>> {
+        let payload = payload(&channel_request::Frame::Secrets(values)).map_err(UnaryError::Request)?;
+        self.0.unary::<Secrets>(&payload).await
     }
 }

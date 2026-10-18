@@ -1,22 +1,24 @@
-//! One vault key with its value.
+//! One vault key with its values.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
+use super::Slot;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
 
 /// One vault key as a get answers it: what a
 /// [`Key`](crate::daemon::endpoints::vault::list::server::response::Key)
-/// reports, with the value beside — the one place a value is sent.
+/// reports, with every value beside — the one place a value is sent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Entry {
     /// The name.
     pub key: String,
-    /// The value, any JSON, as the last set gave it.
-    pub value: Value,
+    /// Its values, each with its number and who holds it: see
+    /// [`Slot`]. In slot order, and never empty — a key with no value
+    /// is a key the vault does not hold.
+    pub slots: Vec<Slot>,
     /// The agents binding it: each by its
     /// [`key`](crate::daemon::key), with its name beside when it has
     /// one. Absent when empty.

@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::{dependencies, fuse, oci, postgres, write_bytes};
+use crate::shared::containers::{fuse, oci, postgres, registration, write_bytes};
 use crate::shared::mcp;
 
 /// What a provider asks a caller for while an agent container runs.
@@ -18,7 +18,7 @@ use crate::shared::mcp;
 /// | `0` | [`OciManifest`](Self::OciManifest) |
 /// | `1` | [`OciBlob`](Self::OciBlob) |
 /// | `2` | [`OciHas`](Self::OciHas) |
-/// | `3` | [`Dependencies`](Self::Dependencies) |
+/// | `3` | [`Registration`](Self::Registration) |
 /// | `4` | [`Write`](Self::Write) |
 /// | `5` | [`Postgres`](Self::Postgres) |
 /// | `6` | [`McpListTools`](Self::McpListTools) |
@@ -37,8 +37,8 @@ use crate::shared::mcp;
 /// | `19` | [`FuseSetattr`](Self::FuseSetattr) |
 ///
 /// Twenty. The first five are the provider's own asks — whether the
-/// caller holds an image, its manifest and blobs, the dependencies
-/// the container declared, a write's content — and the rest are the
+/// caller holds an image, its manifest and blobs, the container's
+/// registration, a write's content — and the rest are the
 /// CONTAINER's, relayed: its database connections, its tool calls
 /// outward to the caller's MCP servers, and the files the caller
 /// mounted live. No daemon connection: an agent
@@ -66,12 +66,15 @@ pub enum Frame<'a> {
     /// before it asks for anything of it; see
     /// [`oci`](crate::shared::containers::oci).
     OciHas(oci::has::request::Request),
-    /// Deploy the dependencies the container declared. Tag `3`.
+    /// Register the container: deploy the dependencies it declared,
+    /// and resolve the secrets it takes. Tag `3`.
     ///
     /// Opened once, after the proxy's `Begun` carried a non-empty
-    /// list and before the id. See
-    /// [`dependencies`](crate::shared::containers::dependencies).
-    Dependencies(dependencies::request::Request<'a>),
+    /// list or a non-empty declaration, and before the id; answered
+    /// with the secrets' first values, which the provider feeds to
+    /// the container before it sends the id. See
+    /// [`registration`](crate::shared::containers::registration).
+    Registration(registration::request::Request<'a>),
     /// Send the content for a write. Tag `4`.
     ///
     /// Opened in answer to a write the caller started. A write cannot
@@ -134,7 +137,7 @@ pub enum Frame<'a> {
     /// Every `truncate(2)`, `ftruncate(2)` and `O_TRUNC` open.
     FuseTruncate(fuse::truncate::request::Request<'a>),
     /// Set some attributes of an entry the caller mounted live. Tag
-    /// `20`.
+    /// `19`.
     ///
     /// Every `chmod(2)`, `chown(2)` and `utimensat(2)`.
     FuseSetattr(fuse::setattr::request::Request<'a>),
@@ -149,8 +152,8 @@ const OCI_BLOB: u8 = 1;
 /// Tag for [`Frame::OciHas`].
 const OCI_HAS: u8 = 2;
 
-/// Tag for [`Frame::Dependencies`].
-const DEPENDENCIES: u8 = 3;
+/// Tag for [`Frame::Registration`].
+const REGISTRATION: u8 = 3;
 
 /// Tag for [`Frame::Write`].
 const WRITE: u8 = 4;
@@ -219,8 +222,8 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[OCI_HAS]);
                 request.encode(out).map_err(FrameEncodeError::Json)
             }
-            Frame::Dependencies(request) => {
-                out.extend_from_slice(&[DEPENDENCIES]);
+            Frame::Registration(request) => {
+                out.extend_from_slice(&[REGISTRATION]);
                 request.encode(out).map_err(FrameEncodeError::Json)
             }
             Frame::Write(request) => {
@@ -339,9 +342,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             OCI_HAS => oci::has::request::Request::decode(rest)
                 .map(Frame::OciHas)
                 .map_err(FrameError::Oci),
-            DEPENDENCIES => dependencies::request::Request::decode(rest)
-                .map(Frame::Dependencies)
-                .map_err(FrameError::Dependencies),
+            REGISTRATION => registration::request::Request::decode(rest)
+                .map(Frame::Registration)
+                .map_err(FrameError::Registration),
             WRITE => write_bytes::request::Request::decode(rest)
                 .map(Frame::Write)
                 .map_err(FrameError::Write),
@@ -409,8 +412,8 @@ pub enum FrameError {
     UnknownTag(u8),
     /// An image ask did not parse.
     Oci(serde_json::Error),
-    /// The dependencies did not parse.
-    Dependencies(serde_json::Error),
+    /// The registration did not parse.
+    Registration(serde_json::Error),
     /// The write content request did not decode.
     Write(write_bytes::request::RequestError),
     /// The connection id was not four bytes.
@@ -436,8 +439,8 @@ impl fmt::Display for FrameError {
             FrameError::Oci(error) => {
                 write!(f, "image ask did not parse: {error}")
             }
-            FrameError::Dependencies(error) => {
-                write!(f, "dependencies did not parse: {error}")
+            FrameError::Registration(error) => {
+                write!(f, "registration did not parse: {error}")
             }
             FrameError::Write(error) => {
                 write!(f, "write content request did not decode: {error}")
@@ -455,7 +458,7 @@ impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             FrameError::Oci(error)
-            | FrameError::Dependencies(error)
+            | FrameError::Registration(error)
             | FrameError::McpParams(error) => Some(error),
             FrameError::Write(error) => Some(error),
             FrameError::Postgres(error) => Some(error),

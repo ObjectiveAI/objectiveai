@@ -49,7 +49,9 @@ pub struct Editable {
     /// create's [`secrets`](crate::daemon::create::Inner::secrets)
     /// gave them: every name the template declares and no other, else
     /// the edit's `secrets` error; a key named anew takes the `use`
-    /// grant over it. Read at the container's next start.
+    /// grant over it, and must be one the vault holds with at least
+    /// one value, else the same error. Resolved at the container's
+    /// next activation.
     #[serde(default)]
     pub secrets: IndexMap<String, String>,
 }

@@ -11,18 +11,21 @@
 //! far a service is shared; the grants its account holds — and named by
 //! its id, the hash of its canonical bytes, which the caller serves it
 //! to the program under. The proxy carries the list on the agents
-//! begin's `Begun`; the provider, when the list is not empty, opens one
-//! channel on the run scope with [`request::Request`], the list
-//! verbatim, and the caller answers with one [`response::Frame`] —
-//! deployed, or an error in its own words — then the channel finishes.
-//! The run goes on to its id on a deploy and ends, the container
-//! stopped, on anything else. An agent that declares nothing is never
-//! asked about.
+//! begin's `Begun`, beside the secrets the program declared; the
+//! provider carries both to the caller in one
+//! [`registration`](super::registration) ask on the run scope, and the
+//! caller deploys each before it answers. The run goes on to its id
+//! on a deploy and ends, the container stopped, on anything else. An
+//! agent that declares nothing — no dependency and no secret — is
+//! never asked about.
 //!
 //! A TOOL container has no dependencies: its program may answer its
 //! registration with a list, and its proxy ignores it; its begin's
-//! `Begun` carries nothing, and its run scope has no such channel. Only
-//! an agent has dependencies.
+//! `Begun` carries its secrets' declaration alone, and its
+//! registration ask carries an empty list. Only an agent has
+//! dependencies. A dependency's own container is a tool container,
+//! registered like any other, its secrets resolved through the
+//! binding of the agent that spawned it.
 //!
 //! The provider carries and does not read the list; everything a caller
 //! needs to deploy a dependency is in it, as fields a program acts on
@@ -34,9 +37,6 @@ mod mode;
 mod mount;
 mod scope;
 mod template;
-
-pub mod request;
-pub mod response;
 
 pub use mode::*;
 pub use mount::*;

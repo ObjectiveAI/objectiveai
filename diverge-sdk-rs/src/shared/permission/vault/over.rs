@@ -16,17 +16,18 @@ pub enum Over {
     /// [`vault::list`](crate::daemon::endpoints::vault::list) does;
     /// the list sends what the grant reaches, and never a value.
     List,
-    /// Replace one's value, as
+    /// Replace one of its values, or append one, as
     /// [`vault::set`](crate::daemon::endpoints::vault::set) does over
     /// a key the vault holds.
     Set,
-    /// Delete one, as
+    /// Delete one, or one of its values, as
     /// [`vault::delete`](crate::daemon::endpoints::vault::delete)
     /// does.
     Delete,
     /// Bind one to a secret of an agent's or a tool's, in the
     /// `secrets` of its [create](crate::daemon::create::Inner::secrets)
-    /// or edit. A key the vault does not hold yet is reached only by
-    /// a grant whose `within` is `"any"`.
+    /// or edit. The key must be one the vault holds, with at least
+    /// one value: a bound key is read or locked at every activation,
+    /// and one with nothing to give is refused at the binding.
     Use,
 }

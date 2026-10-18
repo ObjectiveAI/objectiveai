@@ -96,11 +96,16 @@ pub struct Template<Type> {
     /// ran. It is handed to the container and not read here.
     pub arguments: Value,
     /// The secrets the image needs, by name, in the order the image
-    /// states them: what every container made from this is handed
-    /// beside the arguments, each name with the value of the vault
-    /// key the create bound it to. Inside the hash. A name is not
-    /// empty, and no two are alike; a template that says otherwise is
-    /// the create's error. Absent, the image needs none.
+    /// states them: names only. Which of them a container's program
+    /// takes, and in what mode — read once per activation, or held
+    /// and written back — is the program's own answer at its
+    /// registration, see
+    /// [`secrets`](crate::shared::containers::secrets); the value of
+    /// each is the vault key the create bound the name to, one of its
+    /// values fed at every activation. Inside the hash, sorted
+    /// bytewise there. A name is not empty, and no two are alike; a
+    /// template that says otherwise is the create's error. Absent,
+    /// the image needs none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub secrets: Vec<String>,
 }
@@ -108,10 +113,14 @@ pub struct Template<Type> {
 impl<Type: Clone> Template<Type> {
     /// The template as its id hashes it: the same, with the image's
     /// references absent, since where the bytes may be fetched is not
-    /// what the template is.
+    /// what the template is, and the secrets' names sorted bytewise,
+    /// since the order an image states them in is not what it needs.
     pub fn hashed(&self) -> Template<Type> {
+        let mut secrets = self.secrets.clone();
+        secrets.sort_unstable();
         Template {
             image: self.image.hashed(),
+            secrets,
             ..self.clone()
         }
     }

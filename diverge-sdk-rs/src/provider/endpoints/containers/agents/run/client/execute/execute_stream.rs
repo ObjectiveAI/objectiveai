@@ -14,8 +14,9 @@ use crate::provider::endpoints::containers::client::{Decoded, Scoped, WaitError}
 
 /// Everything the run's main stream says after the id, for as long as
 /// the run lives: every chunk the agent produces, and the proxy's word
-/// before a loop's first chunk and after its last — each one
-/// [`Event`], as [`response::Frame`] carries them.
+/// before a loop's first chunk and after its last — the latter with
+/// the loop's rotating secrets — each one [`Event`], as
+/// [`response::Frame`] carries them.
 ///
 /// Zero or more [`Ok`], in the order the provider relayed them; then
 /// either the end — the finish, the run over as it should — or exactly
@@ -63,7 +64,7 @@ fn decode(payload: &[u8]) -> Result<Decoded<Event>, response::FrameError> {
     Ok(match response::Frame::decode(payload)? {
         response::Frame::Chunk(chunk) => Decoded::Item(Event::Chunk(chunk)),
         response::Frame::Active => Decoded::Item(Event::Active),
-        response::Frame::Inactive => Decoded::Item(Event::Inactive),
+        response::Frame::Inactive(values) => Decoded::Item(Event::Inactive(values)),
         response::Frame::Error(error) => Decoded::Error(error),
         response::Frame::Id(_)
         | response::Frame::VolumeHeld(_)

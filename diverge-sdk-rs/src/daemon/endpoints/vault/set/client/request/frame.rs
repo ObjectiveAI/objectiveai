@@ -7,17 +7,25 @@ use serde::{Deserialize, Serialize};
 use crate::shared::relay::Relay;
 use serde_json::Value;
 
-/// Ask the daemon to set a vault key, by name: make it, where the
-/// vault holds no key of the name — the `set` make — or replace its
-/// value, where it does — `set` over the key.
+/// Ask the daemon to set a value of a vault key, by name: make the
+/// key, where the vault holds no key of the name — the `set` make,
+/// the value its slot `0` — or, where it does — `set` over the key —
+/// append the value as one more slot, or replace the value of the
+/// slot named.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The key's name.
     pub key: String,
-    /// The value: any JSON, held as given and handed to every
-    /// container made with the key under the name its template
-    /// declares.
+    /// Which of the key's values to replace, by number, as a get
+    /// reports them. Absent, the value is appended as a new slot —
+    /// the first, where the key is new. Naming a slot the key does
+    /// not have, or one of a key the vault does not hold, is
+    /// `NotFound`; naming one a running container holds is `Locked`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slot: Option<u32>,
+    /// The value: any JSON, held as given and handed to a container
+    /// that takes the key under the name its template declares.
     pub value: Value,
     /// Served by another daemon, as one of the accounts this daemon
     /// holds on it: see [`Relay`]. Absent, served here.

@@ -1,13 +1,15 @@
-//! One vault key, as the daemon holds it, its value apart.
+//! One vault key, as the daemon holds it, its values apart.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use super::SlotState;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
 
-/// One vault key: its name, the agents and tools binding it, its
-/// tags, when it was made and by whom — and never its value, which a
+/// One vault key: its name, its slots with who holds each, the agents
+/// and tools binding it, its tags, when it was made and by whom — and
+/// never a value, which a
 /// [`get`](crate::daemon::endpoints::vault::get) alone answers. A list
 /// sends them oldest created first.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -15,6 +17,10 @@ use crate::daemon::key;
 pub struct Key {
     /// The name.
     pub key: String,
+    /// Its values, each by number with who holds it and never what it
+    /// is: see [`SlotState`]. In slot order, and never empty — a key
+    /// with no value is a key the vault does not hold.
+    pub slots: Vec<SlotState>,
     /// The agents binding it in their `secrets`: each by its
     /// [`key`](crate::daemon::key), with its name beside when it has
     /// one, in no order. Absent when empty.

@@ -7,10 +7,12 @@ use crate::wire::encode::{Encode, Writer};
 use crate::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
+use crate::shared::containers::secrets::Values;
 use crate::shared::error::Error;
 
-/// A run's answer: the container's id — or the volume that refused
-/// it, or a failure.
+/// A run's answer: the container's id, then the proxy's word whenever
+/// the container goes active and inactive, for as long as the scope
+/// lives — or the volume that refused it, or a failure.
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Id`](Self::Id), `1` for [`VolumeHeld`](Self::VolumeHeld), `2`
@@ -18,13 +20,18 @@ use crate::shared::error::Error;
 /// [`VolumeFuseServed`](Self::VolumeFuseServed), `4` for
 /// [`VolumeMountUnsupported`](Self::VolumeMountUnsupported), `5` for
 /// [`VolumeMode`](Self::VolumeMode), `6` for
-/// [`Error`](Self::Error) — and the rest is that variant's own JSON.
+/// [`Error`](Self::Error), `7` for [`Active`](Self::Active), `8` for
+/// [`Inactive`](Self::Inactive) — and the rest is that variant's own
+/// JSON, or nothing: the one bare word carries nothing after the
+/// byte.
 ///
-/// # Silence is the good case
+/// # The id, then the activity
 ///
 /// | the scope | means |
 /// |-----------|-------|
-/// | an id, then nothing, and stays open | the container is running |
+/// | an id, then quiet, and stays open | the container is running, and no exchange has been in flight |
+/// | an id, an active, and stays open | the container is running and serving: one or more MCP exchanges are in flight |
+/// | …an active, an inactive, and stays open | the last in flight has been answered, its rotating secrets handed back; the container is idle until the next |
 /// | a volume held, then a finish | it never started: that volume is under a stat, a read, a write, a filetree, an edit or a delete |
 /// | a volume mounted, then a finish | it never started: a running container has that volume, and the provider mounts a volume of its mode once |
 /// | a volume FUSE served, then a finish | it never started: a FUSE serve has that volume, and the provider does not mount a volume of its mode beside one |
@@ -61,7 +68,23 @@ use crate::shared::error::Error;
 /// volume's `mount`, taken by the run handler and given back on every
 /// ending.
 ///
-/// Everything a caller reads from the container — the tree, the
+/// # The proxy marks the activity, and only the proxy can
+///
+/// An exchange is one of the four MCP calls a caller opens into the
+/// container — `tools/list`, `resources/list`, `tools/call`,
+/// `resources/read`; notifications are no exchange. The proxy counts
+/// them in flight and says so on its begin stream — see
+/// [the begin's frame](crate::container_proxy::outside::endpoints::tools::begin::server::response::Frame)
+/// — which the provider relays here as [`Active`](Self::Active) when
+/// the count goes from none to one and [`Inactive`](Self::Inactive)
+/// when it goes from one to none, the latter carrying the rotating
+/// secrets the program handed back, for the caller to write into the
+/// places they were locked from. Before the next exchange is
+/// delivered the caller feeds the values again, on its own
+/// [`Secrets`](super::super::super::client::channel_request::Frame::Secrets)
+/// channel, and the proxy holds the exchange until it has.
+///
+/// Everything else a caller reads from the container — the tree, the
 /// family's own exchange — is a channel it opens, not this stream.
 /// Which is why this carries no readiness signal either: a provider
 /// knows when a CONTAINER has started, and that is not the same fact
@@ -115,6 +138,24 @@ pub enum Frame {
     /// [`shared::error::Error`](crate::shared::error::Error) for why
     /// it says so little.
     Error(Error),
+    /// An exchange is in flight where none was. Tag `7`, and nothing
+    /// after it.
+    ///
+    /// The proxy's word that the container is serving, and holds its
+    /// secrets' values until the matching [`Inactive`](Self::Inactive).
+    /// After the id, never twice without an `Inactive` between.
+    Active,
+    /// The last exchange in flight has been answered, and these are
+    /// the rotating secrets. Tag `8`.
+    ///
+    /// The proxy's word that the container is idle, and the
+    /// [`Values`] it collected from the program: every `rotating`
+    /// secret the program declared, each by name to the value it
+    /// leaves in it, as JSON after the byte; empty for a program that
+    /// declared none rotating. The caller writes each into the place
+    /// it was locked from. Never without an [`Active`](Self::Active)
+    /// before it.
+    Inactive(Values),
 }
 
 /// Tag for [`Frame::Id`].
@@ -138,8 +179,17 @@ const VOLUME_MODE: u8 = 5;
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 6;
 
+/// Tag for [`Frame::Active`]. Public, so a relay writes the one byte
+/// that is the whole frame.
+pub const ACTIVE: u8 = 7;
+
+/// Tag for [`Frame::Inactive`]. Public, so a relay that carries the
+/// values' JSON without reading it can frame it.
+pub const INACTIVE: u8 = 8;
+
 impl Encode for Frame {
-    /// One failure per variant that carries JSON.
+    /// One failure per variant that carries JSON; the one bare word
+    /// cannot fail.
     type Error = FrameEncodeError;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -177,6 +227,14 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out).map_err(FrameEncodeError::Error)
             }
+            Frame::Active => {
+                out.extend_from_slice(&[ACTIVE]);
+                Ok(())
+            }
+            Frame::Inactive(values) => {
+                out.extend_from_slice(&[INACTIVE]);
+                serde_json::to_writer(out, values).map_err(FrameEncodeError::Inactive)
+            }
         }
     }
 }
@@ -198,6 +256,9 @@ pub enum FrameEncodeError {
     VolumeMode(serde_json::Error),
     /// The error did not serialize.
     Error(serde_json::Error),
+    /// The rotating secrets did not serialize. The message is the
+    /// serializer's, which quotes no value.
+    Inactive(serde_json::Error),
 }
 
 impl fmt::Display for FrameEncodeError {
@@ -224,6 +285,9 @@ impl fmt::Display for FrameEncodeError {
             FrameEncodeError::Error(error) => {
                 write!(f, "tools run error did not serialize: {error}")
             }
+            FrameEncodeError::Inactive(error) => {
+                write!(f, "tools run inactive secrets did not serialize: {error}")
+            }
         }
     }
 }
@@ -238,12 +302,13 @@ impl std::error::Error for FrameEncodeError {
             FrameEncodeError::VolumeMountUnsupported(error) => Some(error),
             FrameEncodeError::VolumeMode(error) => Some(error),
             FrameEncodeError::Error(error) => Some(error),
+            FrameEncodeError::Inactive(error) => Some(error),
         }
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Eight ways to fail, and each names which variant failed.
+    /// Nine ways to fail, and each names which variant failed.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
@@ -271,6 +336,10 @@ impl Decode<'_> for Frame {
             ERROR => Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameError::Error),
+            ACTIVE => Ok(Frame::Active),
+            INACTIVE => serde_json::from_slice(rest)
+                .map(Frame::Inactive)
+                .map_err(FrameError::Inactive),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -281,7 +350,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's seven.
+    /// A tag that is none of this frame's nine.
     UnknownTag(u8),
     /// The id did not parse.
     Id(serde_json::Error),
@@ -297,6 +366,9 @@ pub enum FrameError {
     VolumeMode(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
+    /// The rotating secrets did not parse. The message is the
+    /// parser's, which quotes no value.
+    Inactive(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -329,6 +401,9 @@ impl fmt::Display for FrameError {
             FrameError::Error(error) => {
                 write!(f, "tools run error did not parse: {error}")
             }
+            FrameError::Inactive(error) => {
+                write!(f, "tools run inactive secrets did not parse: {error}")
+            }
         }
     }
 }
@@ -343,6 +418,7 @@ impl std::error::Error for FrameError {
             FrameError::VolumeMountUnsupported(error) => Some(error),
             FrameError::VolumeMode(error) => Some(error),
             FrameError::Error(error) => Some(error),
+            FrameError::Inactive(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

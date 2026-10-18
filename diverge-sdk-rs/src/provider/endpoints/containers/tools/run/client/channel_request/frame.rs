@@ -7,6 +7,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::mcp;
+use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 use crate::shared::containers::daemon;
 
@@ -31,13 +32,15 @@ use crate::shared::containers::daemon;
 /// | `11` | [`McpReadResource`](Self::McpReadResource) |
 /// | `12` | [`McpNotifications`](Self::McpNotifications) |
 /// | `13` | [`FuseMount`](Self::FuseMount) |
+/// | `14` | [`Secrets`](Self::Secrets) |
 ///
-/// The first eight are the same in every container scope, in the same
+/// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
-/// family's own exchange. All of them but the first reach INTO the
-/// container, which is the thing a caller cannot dial: it runs on the
-/// provider. That is the whole reason these channels open outward
-/// from the client rather than the other way.
+/// family's own exchange, and then the mount and the feed, which every
+/// scope has again, each under a tag of its own. All of them but the
+/// first reach INTO the container, which is the thing a caller cannot
+/// dial: it runs on the provider. That is the whole reason these
+/// channels open outward from the client rather than the other way.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// Stop the container. Tag `0`.
@@ -154,6 +157,21 @@ pub enum Frame {
     /// the answer precedes every ask of the id. See
     /// [`fuse_mount`](crate::shared::containers::fuse_mount).
     FuseMount(fuse_mount::request::Request),
+    /// The secrets' values, fed to the program at an activation. Tag
+    /// `14`.
+    ///
+    /// Carries the [`Values`] as JSON — every name the program
+    /// declared, each to its value, a `fixed` one read and a
+    /// `rotating` one locked — which the provider relays to the proxy,
+    /// and the proxy hands the program before it delivers an exchange.
+    /// Opened by the caller when an idle container is about to
+    /// receive an exchange and holds no values: after the
+    /// registration's own feed, that is after every `Inactive`.
+    /// Answered once — by a
+    /// [`feed::response::Frame`](crate::shared::containers::secrets::feed::response::Frame),
+    /// `Fed` or the program's refusal — and then the finish. See
+    /// [`secrets`](crate::shared::containers::secrets).
+    Secrets(Values),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -197,6 +215,9 @@ const MCP_NOTIFICATIONS: u8 = 12;
 
 /// Tag for [`Frame::FuseMount`].
 const FUSE_MOUNT: u8 = 13;
+
+/// Tag for [`Frame::Secrets`].
+const SECRETS: u8 = 14;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -262,6 +283,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[FUSE_MOUNT]);
                 request.encode(out)
             }
+            Frame::Secrets(values) => {
+                out.extend_from_slice(&[SECRETS]);
+                serde_json::to_writer(out, values)
+            }
         }
     }
 }
@@ -314,6 +339,9 @@ impl Decode<'_> for Frame {
             FUSE_MOUNT => fuse_mount::request::Request::decode(rest)
                 .map(Frame::FuseMount)
                 .map_err(FrameError::FuseMount),
+            SECRETS => serde_json::from_slice(rest)
+                .map(Frame::Secrets)
+                .map_err(FrameError::Secrets),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -345,6 +373,9 @@ pub enum FrameError {
     McpParams(serde_json::Error),
     /// The mount request did not parse.
     FuseMount(serde_json::Error),
+    /// The secrets' values did not parse as JSON. The message is the
+    /// parser's, which quotes no value.
+    Secrets(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -373,6 +404,9 @@ impl fmt::Display for FrameError {
             FrameError::FuseMount(error) => {
                 write!(f, "fuse mount request did not parse: {error}")
             }
+            FrameError::Secrets(error) => {
+                write!(f, "secrets feed did not parse: {error}")
+            }
         }
     }
 }
@@ -384,7 +418,8 @@ impl Error for FrameError {
             | FrameError::Write(error)
             | FrameError::Transfer(error)
             | FrameError::McpParams(error)
-            | FrameError::FuseMount(error) => Some(error),
+            | FrameError::FuseMount(error)
+            | FrameError::Secrets(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Daemon(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,

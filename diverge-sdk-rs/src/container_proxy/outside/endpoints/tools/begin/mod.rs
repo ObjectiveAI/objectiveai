@@ -5,14 +5,19 @@
 //!
 //! The scope a begin opens is the CONNECTION's life. It is the server's
 //! first act, once, and it carries the arguments — the image's, a JSON
-//! value, handed over here and never again — and nothing else: what it
-//! opens is the place channels go, and a container that holds its
-//! arguments. The proxy answers
+//! value, handed over here and never again — and the template's id,
+//! and nothing else: what it opens is the place channels go, and a
+//! container that holds its arguments. The proxy answers
 //! [`Begun`](server::response::Frame::Begun) on channel `0` once the
-//! container's server has taken them — carrying the tools the server
-//! declared in return, for the provider to have deployed — and then
-//! nothing more there for as long as the connection lives; the finish
-//! is the proxy ending.
+//! container's server has taken them — carrying the secrets the
+//! server declared it takes, for the provider to have resolved, see
+//! [`Registered`](server::response::Registered) — and then, for as
+//! long as the connection lives, its word whenever the container
+//! goes active and inactive, the latter carrying the rotating secrets
+//! back; the finish is the proxy ending. The secrets' values come
+//! down a channel of the server's,
+//! [`Secrets`](client::channel_request::Frame::Secrets), before
+//! anything is delivered to the program.
 //!
 //! # Channels go both ways here
 //!

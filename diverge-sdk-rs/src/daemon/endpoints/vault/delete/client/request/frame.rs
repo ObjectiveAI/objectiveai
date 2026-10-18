@@ -6,15 +6,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::shared::relay::Relay;
 
-/// Ask the daemon to delete a vault key, by name. A key an agent or a
-/// tool binds in its `secrets` is not deleted, and the daemon says so
-/// with a variant of its own: unbind it, or delete them, and ask
-/// again.
+/// Ask the daemon to delete a vault key, by name, or one value of it,
+/// by number. A key an agent or a tool binds in its `secrets` is not
+/// deleted, and the daemon says so with a variant of its own: unbind
+/// it, or delete them, and ask again; nor is a value a running
+/// container holds, nor a key with one — wait for it to go inactive
+/// — nor a key's last value, which is the key itself.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The key's name.
     pub key: String,
+    /// Which of the key's values to delete, by number, as a get
+    /// reports them. Absent, the whole key with every value it holds.
+    /// Naming a slot the key does not have is `NotFound`; naming its
+    /// only one is `Last`; naming one a running container holds is
+    /// `Locked`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slot: Option<u32>,
     /// Served by another daemon, as one of the accounts this daemon
     /// holds on it: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]

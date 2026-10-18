@@ -6,16 +6,18 @@ use serde_json::Value;
 use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
-use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, Postgres, Schema};
+use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, Postgres, Schema, Secrets};
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError, unary};
+use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{dequeue, enqueue, postgres};
 
 /// The begin scope an agent container's server holds.
 ///
 /// Every channel the server may open on it is a method here — the
-/// arguments' schema, the queue's two verbs, the server's half of a
-/// database connection — and so is answering a channel the proxy
-/// opened, by the proxy's own channel number. Clones share the scope.
+/// arguments' schema, the queue's two verbs, the secrets' feed, the
+/// server's half of a database connection — and so is answering a
+/// channel the proxy opened, by the proxy's own channel number.
+/// Clones share the scope.
 ///
 /// # Dropping it does nothing
 ///
@@ -64,6 +66,17 @@ impl ExecuteHandle {
         let payload = payload(&channel_request::Frame::Dequeue(dequeue::request::Request { key }))
             .map_err(UnaryError::Request)?;
         unary::<Dequeue>(&self.handle, self.scope, &payload).await
+    }
+
+    /// Feed the program its secrets' `values`, every name it
+    /// declared: resolves once the program holds them, which opens
+    /// the gate the proxy holds every delivery behind. Once before
+    /// the run's id goes out, and at every activation after, relaying
+    /// the caller's own feed; the proxy's refusal is
+    /// [`Refused`](UnaryError::Refused), the program's own words.
+    pub async fn secrets(&self, values: Values) -> Result<(), UnaryError<Secrets>> {
+        let payload = payload(&channel_request::Frame::Secrets(values)).map_err(UnaryError::Request)?;
+        unary::<Secrets>(&self.handle, self.scope, &payload).await
     }
 
     /// The server's half of a database connection the proxy

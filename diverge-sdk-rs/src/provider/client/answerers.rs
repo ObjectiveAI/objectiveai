@@ -8,12 +8,11 @@ use std::sync::Arc;
 ///
 /// A run executor takes one of these and answers every server-opened
 /// channel through it: the image's pieces from [`oci`](Self::oci), the
-/// dependencies the container declared from
-/// [`dependencies`](Self::dependencies), the
-/// container's database connections through [`postgres`](Self::postgres),
-/// its daemon connection through [`daemon`](Self::daemon), its tool
-/// calls through
-/// [`mcp`](Self::mcp), and the files it mounted live through
+/// container's registration — its dependencies deployed, its secrets
+/// resolved — from [`registrar`](Self::registrar), the container's
+/// database connections through [`postgres`](Self::postgres), its
+/// daemon connection through [`daemon`](Self::daemon), its tool calls
+/// through [`mcp`](Self::mcp), and the files it mounted live through
 /// [`fuse`](Self::fuse). Each is an [`Arc`], because every ask is
 /// answered on a task of its own — answers may be given in any order,
 /// and an agent making several calls at once is the ordinary case —
@@ -30,9 +29,9 @@ pub struct Answerers<O, T, P, D, M, F> {
     /// manifests and blobs
     /// ([`OciStore`](super::OciStore)).
     pub oci: Arc<O>,
-    /// The dependencies the container declared, run
-    /// ([`DependencyDeployer`](super::DependencyDeployer)).
-    pub dependencies: Arc<T>,
+    /// The container's registration: its dependencies run, its
+    /// secrets resolved ([`Registrar`](super::Registrar)).
+    pub registrar: Arc<T>,
     /// The database the container dials
     /// ([`PostgresDialer`](super::PostgresDialer)).
     pub postgres: Arc<P>,
@@ -51,7 +50,7 @@ impl<O, T, P, D, M, F> Clone for Answerers<O, T, P, D, M, F> {
     fn clone(&self) -> Self {
         Answerers {
             oci: Arc::clone(&self.oci),
-            dependencies: Arc::clone(&self.dependencies),
+            registrar: Arc::clone(&self.registrar),
             postgres: Arc::clone(&self.postgres),
             daemon: Arc::clone(&self.daemon),
             mcp: Arc::clone(&self.mcp),

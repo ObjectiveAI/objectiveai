@@ -10,7 +10,7 @@ use super::answer;
 use super::{Ask, Encoders, Writes};
 use crate::wire::client::handle::Handle;
 use crate::provider::client::{
-    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer,
+    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, Registrar,
 };
 use crate::wire::frame;
 
@@ -39,7 +39,7 @@ pub(crate) async fn serve<O, T, P, D, M, F>(
     encoders: Encoders,
 ) where
     O: OciStore + 'static,
-    T: DependencyDeployer + 'static,
+    T: Registrar + 'static,
     P: PostgresDialer + 'static,
     D: Daemon + 'static,
     M: McpServer + 'static,

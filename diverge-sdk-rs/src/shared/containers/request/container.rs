@@ -1,6 +1,5 @@
 //! Asking for a container.
 
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -9,10 +8,14 @@ use super::{FuseMount, Image, VolumeMount};
 /// Ask a provider to create a container.
 ///
 /// Everything here is what a caller may CHOOSE, and it is the same for
-/// every kind of container — the arguments and the secrets included,
-/// which either kind is handed once: what differs between an agent and a tool
+/// every kind of container — the arguments included, which either
+/// kind is handed once: what differs between an agent and a tool
 /// server is what a caller says into it once it runs, on a channel,
-/// not here.
+/// not here. No secret is here either: which secrets a container
+/// takes is its program's answer at registration, and their values
+/// are fed on a channel at every activation — see
+/// [`secrets`](crate::shared::containers::secrets) — so a request
+/// carries none, and a provider never holds one.
 /// What a caller may not choose is not here at all rather than here
 /// and ignored — the container's name, its published ports, its
 /// entrypoint and its environment are the provider's, because they
@@ -29,9 +32,9 @@ pub struct Container {
     /// template's id, a tool template's, or a dependency tool
     /// template's, each the lowercase hexadecimal SHA-256 of the
     /// template's canonical bytes. The provider hands it to the
-    /// container beside the arguments and the secrets, at its
-    /// registration, and reads nothing of it: it is the program's to
-    /// know which template it runs as.
+    /// container beside the arguments, at its registration, and reads
+    /// nothing of it: it is the program's to know which template it
+    /// runs as.
     pub template: String,
     /// How much memory the container may have, in BYTES.
     ///
@@ -105,11 +108,4 @@ pub struct Container {
     /// [`schema`](crate::shared::containers::schema) answers, for
     /// either kind of container.
     pub arguments: Value,
-    /// The secrets the image is told once, beside the arguments: each
-    /// by the name the image knows it by, as the caller's template
-    /// declared them, to its value, any JSON. The provider hands them
-    /// to the container at its registration and does not read them,
-    /// in the order given. Absent, none.
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub secrets: IndexMap<String, Value>,
 }

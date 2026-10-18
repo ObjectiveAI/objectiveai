@@ -8,11 +8,11 @@
 //! retries.
 
 mod daemon;
-mod dependencies;
 mod fuse;
 mod mcp;
 mod oci;
 mod postgres;
+mod registration;
 mod send;
 mod write;
 
@@ -21,7 +21,7 @@ use std::sync::Arc;
 use super::{Ask, Encoders, Writes};
 use crate::wire::client::handle::Handle;
 use crate::provider::client::{
-    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer,
+    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, Registrar,
 };
 
 /// Answer `ask` on `channel` of `scope`.
@@ -35,7 +35,7 @@ pub(crate) async fn answer<O, T, P, D, M, F>(
     encoders: Encoders,
 ) where
     O: OciStore + 'static,
-    T: DependencyDeployer + 'static,
+    T: Registrar + 'static,
     P: PostgresDialer + 'static,
     D: Daemon + 'static,
     M: McpServer + 'static,
@@ -45,8 +45,8 @@ pub(crate) async fn answer<O, T, P, D, M, F>(
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciHas(digest) => oci::has(&handle, scope, channel, digest, answerers.oci).await,
-        Ask::Dependencies { id, dependencies: declared } => {
-            dependencies::dependencies(&handle, scope, channel, id, declared, answerers.dependencies).await
+        Ask::Registration { id, dependencies, secrets } => {
+            registration::registration(&handle, scope, channel, id, dependencies, secrets, answerers.registrar).await
         }
         Ask::Write(write_id) => write::write(&handle, scope, channel, write_id, writes, encoders).await,
         Ask::Postgres(connection_id) => {

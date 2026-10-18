@@ -83,9 +83,10 @@
 //! edit takes `mount` over the volume, beside the `create` or `edit`
 //! grant over the container. So is binding a secret: naming a vault
 //! key in a container's `secrets` at its create or edit takes `use`
-//! over the key — a key the vault does not hold yet is reached only
-//! by a grant whose `within` is `"any"` — beside the `create` or
-//! `edit` grant over the container.
+//! over the key — one the vault holds, with at least one value; a
+//! key it does not hold is refused, as `Forbidden` where no grant
+//! reaches it and as the create's `secrets` error where one does —
+//! beside the `create` or `edit` grant over the container.
 //!
 //! # The actions are the shared ones
 //!

@@ -7,21 +7,29 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A set's answer: the key holds the value, forbidden, or a failure.
+/// A set's answer: the key holds the value, no such key or slot,
+/// the slot is locked, forbidden, or a failure.
 ///
 /// A set is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Set`](Self::Set), `1` for
-/// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error) —
-/// and only the error carries anything after it.
+/// [`NotFound`](Self::NotFound), `2` for [`Locked`](Self::Locked),
+/// `3` for [`Forbidden`](Self::Forbidden), `4` for
+/// [`Error`](Self::Error) — and only the error carries anything after
+/// it.
 ///
-/// # One answer, one failure
+/// # Answers, and one failure
 ///
-/// [`Set`](Self::Set) is the ANSWER, whether the key was made or its
-/// value replaced: the two are one request, and a caller that wants
-/// to know which lists first. An [`Error`](Self::Error) is the absence
-/// of an answer: the daemon could not set the key, for whatever reason
-/// it knows, and the key is as it was.
+/// [`Set`](Self::Set) is the ANSWER, whether the key was made, the
+/// value appended or a slot's value replaced: the three are one
+/// request, and a caller that wants to know which gets first.
+/// [`NotFound`](Self::NotFound) and [`Locked`](Self::Locked) are
+/// answers too: the daemon looked, and either the slot named — or
+/// the key it was named on — is not there, or it is and a running
+/// container holds it, and in either case nothing changed and
+/// nothing is retried. An [`Error`](Self::Error) is the absence of an
+/// answer: the daemon could not set the value, for whatever reason it
+/// knows, and the key is as it was.
 ///
 /// # Forbidden
 ///
@@ -45,10 +53,17 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The key holds the value. Tag `0`.
     Set,
+    /// The slot named is not there — no key has the name, or the key
+    /// has no slot of the number; nothing changed. Tag `1`.
+    NotFound,
+    /// A running container holds the slot named as a `rotating`
+    /// secret, and it was left as it is; nothing changed. Tag `2`.
+    /// Wait for the container to go inactive, or name another slot.
+    Locked,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `1`.
+    /// it; nothing changed. Tag `3`.
     Forbidden,
-    /// A failure. Tag `2`.
+    /// A failure. Tag `4`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -59,11 +74,17 @@ pub enum Frame {
 /// Tag for [`Frame::Set`].
 const SET: u8 = 0;
 
+/// Tag for [`Frame::NotFound`].
+const NOT_FOUND: u8 = 1;
+
+/// Tag for [`Frame::Locked`].
+const LOCKED: u8 = 2;
+
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 1;
+const FORBIDDEN: u8 = 3;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 4;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -76,6 +97,14 @@ impl Encode for Frame {
         match self {
             Frame::Set => {
                 out.extend_from_slice(&[SET]);
+                Ok(())
+            }
+            Frame::NotFound => {
+                out.extend_from_slice(&[NOT_FOUND]);
+                Ok(())
+            }
+            Frame::Locked => {
+                out.extend_from_slice(&[LOCKED]);
                 Ok(())
             }
             Frame::Forbidden => {
@@ -99,6 +128,8 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             SET => Ok(Frame::Set),
+            NOT_FOUND => Ok(Frame::NotFound),
+            LOCKED => Ok(Frame::Locked),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -111,7 +142,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

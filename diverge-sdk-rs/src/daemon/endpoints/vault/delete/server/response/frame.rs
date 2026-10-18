@@ -7,26 +7,32 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A delete's answer: the key is gone, no key has the name, a record
-/// binds it, forbidden, or a failure.
+/// A delete's answer: the key or the value is gone, no such key or
+/// slot, a record binds the key, a container holds the value, the
+/// value is the key's last, forbidden, or a failure.
 ///
 /// A delete is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Deleted`](Self::Deleted),
 /// `1` for [`NotFound`](Self::NotFound), `2` for [`InUse`](Self::InUse),
-/// `3` for [`Forbidden`](Self::Forbidden), `4` for
+/// `3` for [`Locked`](Self::Locked), `4` for [`Last`](Self::Last),
+/// `5` for [`Forbidden`](Self::Forbidden), `6` for
 /// [`Error`](Self::Error) — and only the error carries anything after
 /// it.
 ///
 /// # Answers, and one failure
 ///
-/// [`NotFound`](Self::NotFound) and [`InUse`](Self::InUse) are
-/// ANSWERS: the daemon looked, and either no key has the name, or one
-/// does and an agent or a tool binds it — a fact of their records,
-/// which outlasts any run — and in either case nothing changed and
-/// nothing is retried. An [`Error`](Self::Error) is the absence of an
-/// answer: the daemon could not delete, for whatever reason it knows,
-/// and the key is as it was.
+/// [`NotFound`](Self::NotFound), [`InUse`](Self::InUse),
+/// [`Locked`](Self::Locked) and [`Last`](Self::Last) are ANSWERS:
+/// the daemon looked, and either no key has the name or the key no
+/// such slot; or the key is there and an agent or a tool binds it —
+/// a fact of their records, which outlasts any run; or a running
+/// container holds the value, or one of the key's — a fact of the
+/// run, gone at its inactive; or the slot is the key's only one,
+/// which a delete of the key removes — and in every case nothing
+/// changed and nothing is retried. An [`Error`](Self::Error) is the
+/// absence of an answer: the daemon could not delete, for whatever
+/// reason it knows, and the key is as it was.
 ///
 /// # Forbidden
 ///
@@ -48,17 +54,27 @@ use crate::shared::error::Error;
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The key is gone. Tag `0`.
+    /// The key, or the value named, is gone. Tag `0`.
     Deleted,
-    /// No key has the name; nothing changed. Tag `1`.
+    /// No key has the name, or the key has no slot of the number;
+    /// nothing changed. Tag `1`.
     NotFound,
     /// An agent or a tool binds the key in its `secrets`, and it was
     /// left as it is; nothing changed. Tag `2`.
     InUse,
+    /// A running container holds the value named — or, for a whole
+    /// key, one of its values — as a `rotating` secret, and it was
+    /// left as it is; nothing changed. Tag `3`. Wait for the
+    /// container to go inactive, and ask again.
+    Locked,
+    /// The slot named is the key's only one, and it was left as it
+    /// is; nothing changed. Tag `4`. A key holds at least one value:
+    /// delete the key instead.
+    Last,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `3`.
+    /// it; nothing changed. Tag `5`.
     Forbidden,
-    /// A failure. Tag `4`.
+    /// A failure. Tag `6`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -75,11 +91,17 @@ const NOT_FOUND: u8 = 1;
 /// Tag for [`Frame::InUse`].
 const IN_USE: u8 = 2;
 
+/// Tag for [`Frame::Locked`].
+const LOCKED: u8 = 3;
+
+/// Tag for [`Frame::Last`].
+const LAST: u8 = 4;
+
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 3;
+const FORBIDDEN: u8 = 5;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 6;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -100,6 +122,14 @@ impl Encode for Frame {
             }
             Frame::InUse => {
                 out.extend_from_slice(&[IN_USE]);
+                Ok(())
+            }
+            Frame::Locked => {
+                out.extend_from_slice(&[LOCKED]);
+                Ok(())
+            }
+            Frame::Last => {
+                out.extend_from_slice(&[LAST]);
                 Ok(())
             }
             Frame::Forbidden => {
@@ -125,6 +155,8 @@ impl Decode<'_> for Frame {
             DELETED => Ok(Frame::Deleted),
             NOT_FOUND => Ok(Frame::NotFound),
             IN_USE => Ok(Frame::InUse),
+            LOCKED => Ok(Frame::Locked),
+            LAST => Ok(Frame::Last),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -137,7 +169,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's seven.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

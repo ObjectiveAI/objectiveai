@@ -1,4 +1,4 @@
-//! The body: the arguments, the secrets and the template.
+//! The body: the arguments and the template.
 
 mod request;
 

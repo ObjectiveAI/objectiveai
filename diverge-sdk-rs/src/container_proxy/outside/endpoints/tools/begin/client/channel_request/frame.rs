@@ -8,6 +8,7 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::containers::postgres;
 use crate::shared::containers::daemon;
+use crate::shared::containers::secrets::Values;
 use crate::shared::mcp;
 
 /// What the server asks the proxy for once a tool container has
@@ -26,12 +27,14 @@ use crate::shared::mcp;
 /// | `5` | [`McpCallTool`](Self::McpCallTool) |
 /// | `6` | [`McpReadResource`](Self::McpReadResource) |
 /// | `7` | [`McpNotifications`](Self::McpNotifications) |
+/// | `8` | [`Secrets`](Self::Secrets) |
 ///
-/// The first three are the same in both begin scopes, so a reader of
+/// The first two are the same in both begin scopes, so a reader of
 /// one is a reader of both; what follows is this family's own
-/// exchange. All
-/// of them reach INTO the container: the last hop of what a caller
-/// opened on the provider.
+/// exchange, and then the feed, which both scopes have again under a
+/// tag of their own. All of them reach INTO the container: the last
+/// hop of what a caller opened on the provider, or of what the caller
+/// fed.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The server's half of a database connection. Tag `0`.
@@ -55,23 +58,36 @@ pub enum Frame {
     /// its finish is the program's socket ended. See
     /// [`daemon`](crate::shared::containers::daemon) for the pair.
     Daemon(daemon::request::Daemon),
-    /// What tools the container's server has. Tag `2`.
+    /// What tools the container's server has. Tag `3`.
     ///
     /// The family's own exchange, and the first of five: the caller
     /// speaking to the MCP server inside, each of the exchanges in
     /// [`shared::mcp`](crate::shared::mcp) on a channel of its own,
     /// answered by the container's own server.
     McpListTools(mcp::list_tools::request::Request),
-    /// What resources it has. Tag `3`.
+    /// What resources it has. Tag `4`.
     McpListResources(mcp::list_resources::request::Request),
-    /// Run one of its tools. Tag `4`.
+    /// Run one of its tools. Tag `5`.
     McpCallTool(mcp::call_tool::request::Request),
-    /// Read one of its resources. Tag `5`.
+    /// Read one of its resources. Tag `6`.
     McpReadResource(mcp::read_resource::request::Request),
-    /// Everything it says on its own account. Tag `6`.
+    /// Everything it says on its own account. Tag `7`.
     ///
     /// Carries nothing, and answers for as long as the channel lives.
     McpNotifications(mcp::notifications::request::Request),
+    /// The secrets' values, fed to the program. Tag `8`.
+    ///
+    /// Carries the [`Values`] as JSON — every name the program
+    /// declared, each to its value — which the proxy hands the
+    /// program on `POST /secrets` and holds until that call answers.
+    /// Opened by the server once before it sends the run's id and
+    /// again at every activation, relaying the caller's own feed.
+    /// Answered once — by a
+    /// [`feed::response::Frame`](crate::shared::containers::secrets::feed::response::Frame),
+    /// `Fed` or the program's refusal — and then the finish; a `Fed`
+    /// opens the gate the proxy holds every exchange behind. See
+    /// [`secrets`](crate::shared::containers::secrets).
+    Secrets(Values),
 }
 
 /// Tag for [`Frame::Postgres`].
@@ -97,6 +113,9 @@ const MCP_READ_RESOURCE: u8 = 6;
 
 /// Tag for [`Frame::McpNotifications`].
 const MCP_NOTIFICATIONS: u8 = 7;
+
+/// Tag for [`Frame::Secrets`].
+const SECRETS: u8 = 8;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever ask has one.
@@ -138,6 +157,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[MCP_NOTIFICATIONS]);
                 request.encode(out).map_err(|error| match error {})
             }
+            Frame::Secrets(values) => {
+                out.extend_from_slice(&[SECRETS]);
+                serde_json::to_writer(out, values)
+            }
         }
     }
 }
@@ -176,6 +199,9 @@ impl Decode<'_> for Frame {
                 mcp::notifications::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
+            SECRETS => serde_json::from_slice(rest)
+                .map(Frame::Secrets)
+                .map_err(FrameError::Secrets),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -197,6 +223,9 @@ pub enum FrameError {
     /// One variant for five tags, because they fail the same way and
     /// the tag already said which was meant.
     McpParams(serde_json::Error),
+    /// The secrets' values did not parse as JSON. The message is the
+    /// parser's, which quotes no value.
+    Secrets(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -213,6 +242,9 @@ impl fmt::Display for FrameError {
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
+            FrameError::Secrets(error) => {
+                write!(f, "secrets feed did not parse: {error}")
+            }
         }
     }
 }
@@ -220,7 +252,7 @@ impl fmt::Display for FrameError {
 impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FrameError::McpParams(error) => Some(error),
+            FrameError::McpParams(error) | FrameError::Secrets(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Daemon(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,

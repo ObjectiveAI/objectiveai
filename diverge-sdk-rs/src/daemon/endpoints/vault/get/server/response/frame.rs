@@ -9,7 +9,7 @@ use crate::shared::error::Error;
 
 use super::Entry;
 
-/// A get's answer: the key with its value, no key is the one named,
+/// A get's answer: the key with its values, no key is the one named,
 /// forbidden, or a failure.
 ///
 /// A get is one question and one reply, so there is exactly one of
@@ -47,7 +47,7 @@ use super::Entry;
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The key, with its value. Tag `0`.
+    /// The key, with its values. Tag `0`.
     Found(Entry),
     /// No key is the one named. Tag `1`.
     NotFound,

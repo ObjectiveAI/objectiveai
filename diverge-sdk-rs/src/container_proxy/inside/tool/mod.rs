@@ -9,18 +9,27 @@
 //!
 //! | the proxy calls | with | the program answers |
 //! |-----------------|------|---------------------|
-//! | `POST /register` | the [`register::request::Request`](crate::container_proxy::inside::register::request::Request) JSON | `2xx` with the [`register::response::Response`](crate::container_proxy::inside::register::response::Response) JSON, the dependencies the program declares, the arguments, the secrets and the template id held for the container's life; or a non-`2xx` |
+//! | `POST /register` | the [`register::request::Request`](crate::container_proxy::inside::register::request::Request) JSON | `2xx` with the [`register::response::Response`](crate::container_proxy::inside::register::response::Response) JSON, the secrets the program takes — its dependencies ignored — the arguments and the template id held for the container's life; or a non-`2xx` |
+//! | `POST /secrets` | the [`secrets::feed::request::Request`](crate::container_proxy::inside::secrets::feed::request::Request) JSON | `2xx` once the values are held, its body unread; or a non-`2xx` |
+//! | `POST /secrets/collect` | the [`secrets::collect::request::Request`](crate::container_proxy::inside::secrets::collect::request::Request) JSON | `2xx` with the [`secrets::collect::response::Response`](crate::container_proxy::inside::secrets::collect::response::Response) JSON, every name asked for with its value; or a non-`2xx` |
 //! | `GET /schema` | nothing | `2xx` with the JSON Schema of the arguments; or a non-`2xx` |
 //! | `/mcp` | MCP over Streamable HTTP | the server itself: every exchange the caller opens on the provider, made by the proxy's one client |
 //!
 //! # Registration comes first, and once
 //!
-//! The arguments and the secrets are fixed for the container's life,
-//! and so are the dependencies the program answers with. The proxy registers them exactly
-//! once, before it dials the MCP server; the program refuses any
-//! second `/register`, whatever it carries (`{"kind":"registered"}`,
-//! `409`). What the program makes of the arguments — which tools it
-//! serves, against what — is its own.
+//! The arguments are fixed for the container's life, and so are the
+//! modes the program declares its secrets in. The proxy registers
+//! them exactly once, before it dials the MCP server; the program
+//! refuses any second `/register`, whatever it carries
+//! (`{"kind":"registered"}`, `409`). The secrets' values are not
+//! fixed: they are fed on `POST /secrets` once the registration is
+//! answered and again at every activation — an MCP exchange about to
+//! be delivered when none is in flight — and the `rotating` ones are
+//! collected on `POST /secrets/collect` at every inactive — the last
+//! exchange in flight answered — so a value the program changed
+//! while serving is the value it is fed next. What the program makes
+//! of the arguments — which tools it serves, against what — is its
+//! own.
 //!
 //! # The MCP server is the program's
 //!

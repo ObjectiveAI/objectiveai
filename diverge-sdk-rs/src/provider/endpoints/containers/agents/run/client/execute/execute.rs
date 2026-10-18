@@ -8,7 +8,7 @@ use super::execute_handle::ExecuteHandle;
 use super::ExecuteStream;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::provider::client::{
-    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer,
+    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, Registrar,
 };
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
@@ -26,12 +26,24 @@ use crate::shared::error::Error;
 /// Run an agent container, and hold it.
 ///
 /// The rest of this crate describes the exchange; this performs it.
-/// The request goes out, the main stream's first frame decides —
-/// the container's id, or the provider's error, or a finish with
-/// nothing before it, which is the provider that could not serve the
-/// run at all — and then two things start: a task that reads every
+/// The request goes out, and at once a task starts that reads every
 /// channel the provider opens on the scope and answers it through
-/// `answerers`, and the [`ExecuteHandle`] a caller keeps.
+/// `answerers`; then the main stream's first frame decides — the
+/// container's id, or the provider's error, or a finish with nothing
+/// before it, which is the provider that could not serve the run at
+/// all — and the [`ExecuteHandle`] a caller keeps is made.
+///
+/// # The serving task starts before the first frame is read
+///
+/// The provider asks before it answers: the image's manifest and
+/// blobs, the container's registration — its dependencies deployed,
+/// its secrets resolved and fed — and the FUSE mounts' first reads
+/// are all channels it opens on the scope before it sends the id. A
+/// run that read the id first and served the channels after would
+/// wait for an id the provider is waiting on it to earn, and neither
+/// would move. So the serving task is spawned right after the request
+/// goes out; a refusal ends it with the scope, since the router
+/// closes the scope's request stream with the scope.
 ///
 /// # What comes back, and what does not
 ///
@@ -59,7 +71,7 @@ pub async fn execute<O, T, P, D, M, F>(
 ) -> Result<(Id, ExecuteHandle, ExecuteStream), ExecuteError>
 where
     O: OciStore + 'static,
-    T: DependencyDeployer + 'static,
+    T: Registrar + 'static,
     P: PostgresDialer + 'static,
     D: Daemon + 'static,
     M: McpServer + 'static,
@@ -73,6 +85,18 @@ where
         .send_request(&payload)
         .await
         .map_err(ExecuteError::Send)?;
+    // Served from here on: the provider's asks precede its id, and
+    // the registration among them is answered by this end.
+    let writes = Arc::new(Writes::new());
+    tokio::spawn(serve::serve(
+        scope.request_receiver,
+        handle.clone(),
+        scope.scope,
+        Arc::clone(&writes),
+        answerers,
+        decode_ask,
+        ENCODERS,
+    ));
     let bytes = scope
         .response_receiver
         .recv()
@@ -116,21 +140,11 @@ where
         // The agent speaks only after the id, and no loop runs before
         // it; any of the three first is a provider out of order,
         // which is a frame this end cannot place.
-        server::response::Frame::Chunk(_) | server::response::Frame::Active | server::response::Frame::Inactive => {
+        server::response::Frame::Chunk(_) | server::response::Frame::Active | server::response::Frame::Inactive(_) => {
             return Err(ExecuteError::Misrouted);
         }
     };
 
-    let writes = Arc::new(Writes::new());
-    tokio::spawn(serve::serve(
-        scope.request_receiver,
-        handle.clone(),
-        scope.scope,
-        Arc::clone(&writes),
-        answerers,
-        decode_ask,
-        ENCODERS,
-    ));
     let scoped = Arc::new(Scoped::new(handle.clone(), scope.scope, writes, scope.response_receiver));
     Ok((id, ExecuteHandle::new(Arc::clone(&scoped)), ExecuteStream::new(scoped)))
 }

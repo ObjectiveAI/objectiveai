@@ -24,7 +24,7 @@
 //! absent members omitted, the image's `references` absent too, since
 //! one image under different names is one template, no whitespace,
 //! every object key sorted at every depth, the `arguments` and every
-//! map inside them included, the `secrets` in the order declared;
+//! map inside them included, the `secrets` sorted bytewise;
 //! see [`Template::hashed`]. Sixty-four
 //! characters. The daemon computes it on a create and
 //! answers it; a caller may compute it the same way and need not.

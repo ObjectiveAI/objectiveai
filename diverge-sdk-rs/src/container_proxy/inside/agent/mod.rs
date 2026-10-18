@@ -10,7 +10,9 @@
 //!
 //! | the proxy calls | with | the program answers |
 //! |-----------------|------|---------------------|
-//! | `POST /register` | the [`register::request::Request`](crate::container_proxy::inside::register::request::Request) JSON | `2xx` with the [`register::response::Response`](crate::container_proxy::inside::register::response::Response) JSON, the dependencies the program declares, the arguments, the secrets and the template id held for the container's life; or a non-`2xx` |
+//! | `POST /register` | the [`register::request::Request`](crate::container_proxy::inside::register::request::Request) JSON | `2xx` with the [`register::response::Response`](crate::container_proxy::inside::register::response::Response) JSON, the dependencies the program declares and the secrets it takes, the arguments and the template id held for the container's life; or a non-`2xx` |
+//! | `POST /secrets` | the [`secrets::feed::request::Request`](crate::container_proxy::inside::secrets::feed::request::Request) JSON | `2xx` once the values are held, its body unread; or a non-`2xx` |
+//! | `POST /secrets/collect` | the [`secrets::collect::request::Request`](crate::container_proxy::inside::secrets::collect::request::Request) JSON | `2xx` with the [`secrets::collect::response::Response`](crate::container_proxy::inside::secrets::collect::response::Response) JSON, every name asked for with its value; or a non-`2xx` |
 //! | `POST /run` | the [`run::request::Request`] JSON | `2xx` as `text/event-stream`, every `data:` one `AgenticLoopChunk` JSON — the messages' user parts first — the stream's end the loop ended; or a non-`2xx` |
 //! | `GET /schema` | nothing | `2xx` with the JSON Schema of the arguments; or a non-`2xx` |
 //! | `POST /enqueue` | the [`enqueue::request::Request`] JSON | `2xx` with one [`enqueue::Fate`], held until the fate is known; or a non-`2xx` |
@@ -18,14 +20,20 @@
 //!
 //! # Registration comes first, and once
 //!
-//! The arguments and the secrets are fixed for the container's life,
-//! and so are the dependencies the program answers with. The proxy registers them exactly
-//! once, before the first loop; the program refuses a `/run` before
-//! that (`{"kind":"unregistered"}`) and
-//! refuses any second `/register`, whatever it carries
-//! (`{"kind":"registered"}`, `409`). Every loop after runs as the
-//! agent the program made of them, on its own prompt, each resuming
-//! the conversation the last one left.
+//! The arguments are fixed for the container's life, and so are the
+//! dependencies the program answers with and the modes it declares
+//! its secrets in. The proxy registers them exactly once, before the
+//! first loop; the program refuses a `/run` before that
+//! (`{"kind":"unregistered"}`) and refuses any second `/register`,
+//! whatever it carries (`{"kind":"registered"}`, `409`). The secrets'
+//! values are not fixed: they are fed on `POST /secrets` once the
+//! registration is answered and again at every activation — a loop
+//! about to start — and the `rotating` ones are collected on
+//! `POST /secrets/collect` at every inactive — a loop ended — so a
+//! value the program changed in a loop is the value the next loop is
+//! fed. Every loop runs as the agent the program made of the
+//! arguments, on its own prompt, each resuming the conversation the
+//! last one left.
 //!
 //! # The stream never carries an error
 //!

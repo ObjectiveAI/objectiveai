@@ -28,10 +28,13 @@ pub struct Inner {
     /// key as [`vault`](crate::daemon::endpoints::vault) holds it.
     /// Every name the template declares, and no other, else the
     /// create's `secrets` error; naming a key takes the `use` grant
-    /// over it. The key need not be set yet: at every start of the
-    /// container the daemon reads each key's value then, and a key
-    /// not set is the start's failure. Ordered as given, and kept
-    /// so. Absent, the template declares none.
+    /// over it, and the key must be one the vault holds with at least
+    /// one value, else the same error. Which values the container is
+    /// fed, and whether it holds them or reads them, is decided at
+    /// every activation by the mode its program declared for the
+    /// name; see [`secrets`](crate::shared::containers::secrets).
+    /// Ordered as given, and kept so. Absent, the template declares
+    /// none.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub secrets: IndexMap<String, String>,
     /// The one provider the container runs on, and the volumes of that

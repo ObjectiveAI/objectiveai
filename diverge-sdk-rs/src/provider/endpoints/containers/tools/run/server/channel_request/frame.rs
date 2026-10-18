@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::{daemon, fuse, oci, postgres, write_bytes};
+use crate::shared::containers::{daemon, fuse, oci, postgres, registration, write_bytes};
 
 /// What a provider asks a caller for while a tool container runs.
 ///
@@ -29,14 +29,17 @@ use crate::shared::containers::{daemon, fuse, oci, postgres, write_bytes};
 /// | `12` | [`FuseStat`](Self::FuseStat) |
 /// | `13` | [`FuseTruncate`](Self::FuseTruncate) |
 /// | `14` | [`FuseSetattr`](Self::FuseSetattr) |
+/// | `15` | [`Registration`](Self::Registration) |
 ///
-/// Fifteen. The first four are the provider's own asks — whether the
-/// caller holds an image, its manifest and blobs, a write's content —
-/// and the rest are the CONTAINER's, relayed: its database
-/// connections, its daemon connection, and the files the caller
-/// mounted live. No tool call outward: a tool container makes
+/// Sixteen. Five are the provider's own asks — whether the caller
+/// holds an image, its manifest and blobs, a write's content, the
+/// container's registration, the last of them numbered after the rest
+/// because it came last — and the rest are the CONTAINER's, relayed:
+/// its database connections, its daemon connection, and the files the
+/// caller mounted live. No tool call outward: a tool container makes
 /// none, and only an agent container asks the caller's MCP servers;
-/// and no dependencies, which a tool container never declares.
+/// and no dependencies in the registration, which a tool container
+/// never declares.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// A manifest of an image the caller holds, by digest. Tag `0`.
@@ -117,10 +120,20 @@ pub enum Frame<'a> {
     /// Every `truncate(2)`, `ftruncate(2)` and `O_TRUNC` open.
     FuseTruncate(fuse::truncate::request::Request<'a>),
     /// Set some attributes of an entry the caller mounted live. Tag
-    /// `19`.
+    /// `14`.
     ///
     /// Every `chmod(2)`, `chown(2)` and `utimensat(2)`.
     FuseSetattr(fuse::setattr::request::Request<'a>),
+    /// Register the container: resolve the secrets it takes. Tag
+    /// `15`.
+    ///
+    /// Opened once, after the proxy's `Begun` carried a non-empty
+    /// declaration, and before the id; its dependencies are empty,
+    /// since a tool container declares none. Answered with the
+    /// secrets' first values, which the provider feeds to the
+    /// container before it sends the id. See
+    /// [`registration`](crate::shared::containers::registration).
+    Registration(registration::request::Request<'a>),
 }
 
 /// Tag for [`Frame::OciManifest`].
@@ -167,6 +180,9 @@ const FUSE_TRUNCATE: u8 = 13;
 
 /// Tag for [`Frame::FuseSetattr`].
 const FUSE_SETATTR: u8 = 14;
+
+/// Tag for [`Frame::Registration`].
+const REGISTRATION: u8 = 15;
 
 impl Encode for Frame<'_> {
     /// The JSON failure from the asks that are JSON, or a fuse id or
@@ -236,6 +252,10 @@ impl Encode for Frame<'_> {
             Frame::FuseSetattr(request) => {
                 out.extend_from_slice(&[FUSE_SETATTR]);
                 request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
+            Frame::Registration(request) => {
+                out.extend_from_slice(&[REGISTRATION]);
+                request.encode(out).map_err(FrameEncodeError::Json)
             }
         }
     }
@@ -323,6 +343,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             FUSE_SETATTR => fuse::setattr::request::Request::decode(rest)
                 .map(Frame::FuseSetattr)
                 .map_err(FrameError::Fuse),
+            REGISTRATION => registration::request::Request::decode(rest)
+                .map(Frame::Registration)
+                .map_err(FrameError::Registration),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -333,10 +356,12 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's fifteen.
+    /// A tag that is none of this frame's sixteen.
     UnknownTag(u8),
     /// An image ask did not parse.
     Oci(serde_json::Error),
+    /// The registration did not parse.
+    Registration(serde_json::Error),
     /// The write content request did not decode.
     Write(write_bytes::request::RequestError),
     /// The connection id was not four bytes.
@@ -359,6 +384,9 @@ impl fmt::Display for FrameError {
             FrameError::Oci(error) => {
                 write!(f, "image ask did not parse: {error}")
             }
+            FrameError::Registration(error) => {
+                write!(f, "registration did not parse: {error}")
+            }
             FrameError::Write(error) => {
                 write!(f, "write content request did not decode: {error}")
             }
@@ -373,7 +401,7 @@ impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             FrameError::Daemon(error) => Some(error),
-            FrameError::Oci(error) => Some(error),
+            FrameError::Oci(error) | FrameError::Registration(error) => Some(error),
             FrameError::Write(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Fuse(error) => Some(error),

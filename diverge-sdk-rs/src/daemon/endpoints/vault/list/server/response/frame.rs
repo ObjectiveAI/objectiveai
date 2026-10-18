@@ -17,8 +17,9 @@ use super::Key;
 /// each as [`Added`](Self::Added); then exactly one
 /// [`Listed`](Self::Listed); then, for the scope's life, a key come
 /// to match as `Added`, one that matches still and differs from what
-/// was last sent as [`Changed`](Self::Changed) — its tags, or the
-/// agents and tools binding it; never its value — one that matches no
+/// was last sent as [`Changed`](Self::Changed) — its tags, its slots
+/// or their locks, or the agents and tools binding it; never a value
+/// — one that matches no
 /// more as [`Removed`](Self::Removed) — the listing kept as the first
 /// `count` that match, so one leaving that window is removed and one
 /// entering it added. The finish follows the client's cancel, the
