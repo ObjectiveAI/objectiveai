@@ -40,15 +40,18 @@ use diverge_sdk::shared::error::Error;
 ///    [`setup::prepare`](super::setup::prepare): registry,
 ///    deploy, the proxy dialled, the family's begin, the id minted
 ///    and the container entered in the directory — with its proxy
-///    connection, for serves and transfers — then the dependencies the container declared asked of the
-///    caller, the id told, beside every mount. A failure is the run's
-///    error, and the scope finishes on it.
+///    connection, for serves and transfers — then the container
+///    registered with the caller, the id told, its first secrets fed
+///    back to it, beside every mount. A failure is the run's error,
+///    and the scope finishes on it.
 /// 2. The id is sent. From here the container is running for the
 ///    caller.
 /// 3. The relays are spawned: the proxy's asks on the begin scope,
 ///    each mount's asks, and — on an agent container — the agent's
-///    chunks onto the main stream; on a tool container, the begin's
-///    own end is listened for.
+///    chunks onto the main stream, the loop's `Active` and
+///    `Inactive` among them; on a tool container, its `Active` and
+///    `Inactive` onto the main stream, the begin's end heard with
+///    them.
 /// 4. The caller's channels are served until the run ends: a stop,
 ///    the container leaving, or the caller going away. Among them a
 ///    `fuse_mount`, one more FUSE mount made while the container
@@ -135,14 +138,15 @@ pub(crate) async fn run<R, D, G, V>(
     let id = prepared.id.clone();
     send(&scope, R::id(&Id { id: id.clone() })).await;
 
-    // The dependencies were asked of the caller in the setup; the
-    // list is not needed again.
+    // The container was registered with the caller in the setup; what
+    // it declared is not needed again.
     let Begun {
         begin,
         asks,
         chunks,
-        finish,
+        activity,
         dependencies: _,
+        secrets: _,
     } = prepared.begun;
     let run = Arc::new(Run::new(
         Arc::clone(&scope),
@@ -161,15 +165,8 @@ pub(crate) async fn run<R, D, G, V>(
     if let Some(chunks) = chunks {
         run.spawn(relay::chunks(Arc::clone(&run), chunks)).await;
     }
-    if let Some(finish) = finish {
-        // The begin scope ending, however it ends, is the container
-        // gone.
-        let over = Arc::clone(&run);
-        run.spawn(async move {
-            let _ = finish.await;
-            over.over.notify_one();
-        })
-        .await;
+    if let Some(activity) = activity {
+        run.spawn(relay::activity(Arc::clone(&run), activity)).await;
     }
     let _end = serve::serve::<R>(&run).await;
 

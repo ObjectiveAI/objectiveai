@@ -4,7 +4,6 @@ use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 
-use indexmap::IndexMap;
 use serde_json::Value;
 
 use bytes::Bytes;
@@ -22,7 +21,7 @@ use crate::protocol::endpoints::containers::run::family::{Family, Opened, Runs};
 use crate::protocol::endpoints::containers::run::own::{Own, Unasked};
 use crate::protocol::endpoints::containers::run::run::Run;
 use crate::protocol::endpoints::containers::run::serve::agent;
-use crate::protocol::endpoints::containers::run::setup::deployed;
+use crate::protocol::endpoints::containers::run::setup::registered;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::endpoints::containers::run::{encoded::encoded, render};
 use diverge_sdk::container_proxy::outside::endpoints::agents::begin::client::execute as begin;
@@ -30,7 +29,8 @@ use diverge_sdk::shared;
 use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
-use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres};
+use diverge_sdk::shared::containers::secrets::{Declaration, Values};
+use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, registration};
 use diverge_sdk::shared::mcp;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree as tree;
@@ -58,6 +58,7 @@ impl Family for Agents {
             },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
             channel_request::Frame::Schema => Opened::Schema,
+            channel_request::Frame::Secrets(values) => Opened::Secrets(values),
             channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
             channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.key, request.content)),
             channel_request::Frame::Dequeue(request) => Opened::Exchange(agent::Exchange::Dequeue(request.key)),
@@ -124,16 +125,17 @@ impl Family for Agents {
 impl Runs for Agents {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn begin(proxy: &Handle, arguments: Value, secrets: IndexMap<String, Value>, template: String) -> impl Future<Output = Result<Begun, Error>> + Send {
+    fn begin(proxy: &Handle, arguments: Value, template: String) -> impl Future<Output = Result<Begun, Error>> + Send {
         let proxy = proxy.clone();
         async move {
-            match begin::execute(&proxy, arguments, secrets, template).await {
-                Ok((handle, asks, chunks, dependencies)) => Ok(Begun {
+            match begin::execute(&proxy, arguments, template).await {
+                Ok((handle, asks, chunks, registered)) => Ok(Begun {
                     begin: Begin::Agents(handle),
                     asks,
                     chunks: Some(chunks),
-                    finish: None,
-                    dependencies,
+                    activity: None,
+                    dependencies: registered.dependencies,
+                    secrets: registered.secrets,
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -145,21 +147,22 @@ impl Runs for Agents {
         Some(relayed(ask)?)
     }
 
-    /// The dependencies the agent declared, asked of the caller on
-    /// this family's `dependencies` channel: nothing when it declared
-    /// none.
-    fn deploy(scope: &ScopeHandle, id: &str, declared: &[dependencies::Template]) -> impl Future<Output = Result<(), Error>> + Send {
-        let payload = (!declared.is_empty()).then(|| {
-            encoded(&ask::Frame::Dependencies(dependencies::request::Request {
+    /// What the agent declared — the dependencies to deploy, the
+    /// secrets to answer — registered with the caller on this family's
+    /// `registration` channel: nothing when it declared neither.
+    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
+        let payload = (!dependencies.is_empty() || !secrets.is_empty()).then(|| {
+            encoded(&ask::Frame::Registration(registration::request::Request {
                 id: Cow::Borrowed(id),
-                dependencies: Cow::Borrowed(declared),
+                dependencies: Cow::Borrowed(dependencies),
+                secrets: Cow::Borrowed(secrets),
             }))
         });
         async move {
             match payload {
-                None => Ok(()),
-                Some(Some(payload)) => deployed(scope, &payload).await,
-                Some(None) => Err(render::dependencies_failed("the dependencies ask did not encode")),
+                None => Ok(None),
+                Some(Some(payload)) => registered(scope, &payload).await.map(Some),
+                Some(None) => Err(render::registration_failed("the registration ask did not encode")),
             }
         }
     }

@@ -9,7 +9,6 @@ use std::future::Future;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use indexmap::IndexMap;
 use serde_json::Value;
 
 use super::begin::Begun;
@@ -25,6 +24,7 @@ use diverge_sdk::shared::containers::response::{
 };
 use diverge_sdk::shared::containers::dependencies::Template;
 use diverge_sdk::shared::containers::fuse_mount;
+use diverge_sdk::shared::containers::secrets::{Declaration, Values};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree;
@@ -83,19 +83,25 @@ pub(crate) trait Runs: Family {
     type Ask<'a>: Encode + TryFrom<Own<'a>, Error = Unasked>;
 
     /// Begin the container's proxy: the family's begin scope on the
-    /// connection `proxy`, carrying the container's `arguments`, its
-    /// `secrets` and its `template`, the id of the template it is
-    /// made from. What comes back is the scope and what rides it; an
-    /// error is the run's, in the proxy's words where it refused.
-    fn begin(proxy: &Handle, arguments: Value, secrets: IndexMap<String, Value>, template: String) -> impl Future<Output = Result<Begun, Error>> + Send;
+    /// connection `proxy`, carrying the container's `arguments` and
+    /// its `template`, the id of the template it is made from. What
+    /// comes back is the scope and what rides it, with what the
+    /// container declared; an error is the run's, in the proxy's
+    /// words where it refused.
+    fn begin(proxy: &Handle, arguments: Value, template: String) -> impl Future<Output = Result<Begun, Error>> + Send;
 
-    /// The dependencies the container declared, asked of the caller
-    /// before the id goes out but with the id minted and told: an
-    /// agent container's on its `dependencies` channel, nothing when
-    /// it declared none; a tool container declares nothing and
-    /// nothing is asked. A deploy is `Ok`; anything else is the run's
-    /// error, in the caller's words where it refused.
-    fn deploy(scope: &ScopeHandle, id: &str, declared: &[Template]) -> impl Future<Output = Result<(), Error>> + Send;
+    /// What the container declared, registered with the caller before
+    /// the id goes out but with the id minted and told: the
+    /// `dependencies` it declared, for the caller to deploy, and the
+    /// `secrets` it takes, by name and mode, for the caller to answer
+    /// the values of — on the family's `registration` channel, one
+    /// ask carrying both. `Ok(Some(values))` is the registration
+    /// accepted and the first values, to feed the container before
+    /// the id goes out; `Ok(None)` is a container that declared
+    /// neither, for which nothing is asked and nothing fed; anything
+    /// else is the run's error, in the caller's words where it
+    /// refused.
+    fn register(scope: &ScopeHandle, id: &str, dependencies: &[Template], secrets: &Declaration) -> impl Future<Output = Result<Option<Values>, Error>> + Send;
 
     /// The proxy's ask on the begin scope, as this family's frame to
     /// the caller — or [`None`] for one that is not carried as it
@@ -158,6 +164,9 @@ pub(crate) enum Opened<E> {
     Postgres(u32),
     /// What the arguments may be.
     Schema,
+    /// The secrets' values, to feed the container: an activation's,
+    /// after the registration's.
+    Secrets(Values),
     /// One more FUSE mount, made while the container runs.
     FuseMount(fuse_mount::request::Request),
     /// The family's own.

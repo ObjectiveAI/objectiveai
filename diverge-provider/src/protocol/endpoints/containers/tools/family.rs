@@ -1,9 +1,9 @@
 //! This scope's frames, named for the machinery.
 
+use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 
-use indexmap::IndexMap;
 use serde_json::Value;
 
 use bytes::Bytes;
@@ -22,13 +22,15 @@ use crate::protocol::endpoints::containers::run::family::{Family, Opened, Runs};
 use crate::protocol::endpoints::containers::run::own::{Own, Unasked};
 use crate::protocol::endpoints::containers::run::run::Run;
 use crate::protocol::endpoints::containers::run::serve::tool;
+use crate::protocol::endpoints::containers::run::setup::registered;
 use crate::protocol::endpoints::containers::run::{encoded::encoded, render};
 use diverge_sdk::container_proxy::outside::endpoints::tools::begin::client::execute as begin;
 use diverge_sdk::shared;
 use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
-use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres};
+use diverge_sdk::shared::containers::secrets::{Declaration, Values};
+use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, registration};
 use diverge_sdk::shared::containers::daemon;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree as tree;
@@ -57,6 +59,7 @@ impl Family for Tools {
             channel_request::Frame::Daemon(request) => Opened::Daemon(request.connection_id),
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
             channel_request::Frame::Schema => Opened::Schema,
+            channel_request::Frame::Secrets(values) => Opened::Secrets(values),
             channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),
             channel_request::Frame::McpListResources(request) => {
@@ -128,16 +131,17 @@ impl Family for Tools {
 impl Runs for Tools {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn begin(proxy: &Handle, arguments: Value, secrets: IndexMap<String, Value>, template: String) -> impl Future<Output = Result<Begun, Error>> + Send {
+    fn begin(proxy: &Handle, arguments: Value, template: String) -> impl Future<Output = Result<Begun, Error>> + Send {
         let proxy = proxy.clone();
         async move {
-            match begin::execute(&proxy, arguments, secrets, template).await {
-                Ok((handle, asks, finish)) => Ok(Begun {
+            match begin::execute(&proxy, arguments, template).await {
+                Ok((handle, asks, events, registered)) => Ok(Begun {
                     begin: Begin::Tools(handle),
                     asks,
                     chunks: None,
-                    finish: Some(finish),
+                    activity: Some(events),
                     dependencies: Vec::new(),
+                    secrets: registered.secrets,
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -149,9 +153,25 @@ impl Runs for Tools {
         Some(relayed(ask)?)
     }
 
-    /// A tool container declares nothing: nothing is asked.
-    fn deploy(_: &ScopeHandle, _: &str, _: &[dependencies::Template]) -> impl Future<Output = Result<(), Error>> + Send {
-        async { Ok(()) }
+    /// The secrets the tool takes, registered with the caller on this
+    /// family's `registration` channel — the dependencies always
+    /// empty, since a tool container declares none: nothing when it
+    /// takes none.
+    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
+        let payload = (!dependencies.is_empty() || !secrets.is_empty()).then(|| {
+            encoded(&ask::Frame::Registration(registration::request::Request {
+                id: Cow::Borrowed(id),
+                dependencies: Cow::Borrowed(dependencies),
+                secrets: Cow::Borrowed(secrets),
+            }))
+        });
+        async move {
+            match payload {
+                None => Ok(None),
+                Some(Some(payload)) => registered(scope, &payload).await.map(Some),
+                Some(None) => Err(render::registration_failed("the registration ask did not encode")),
+            }
+        }
     }
 
     fn fuse<'a>(mount_id: &'a str, ask: &'a MountAsk) -> ask::Frame<'a> {

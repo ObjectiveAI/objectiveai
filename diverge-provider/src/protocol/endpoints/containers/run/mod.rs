@@ -22,22 +22,25 @@
 //!   serve the caller's manifests and blobs; the deploy, with the
 //!   caller's help at hand and the source the deployer's; the one
 //!   connection to the proxy, and on it the family's `begin` —
-//!   carrying the arguments, answered with the dependencies the
-//!   container declared — and then, beside each other, the caller
-//!   asked to deploy those dependencies and one `fuse::mount` scope per mount, each
-//!   complete before the next. Nothing the caller opens is read until
-//!   all of it is done and the id is out.
+//!   carrying the arguments, answered with what the container
+//!   declared: its dependencies and the secrets it takes — and then,
+//!   beside each other, the container registered with the caller —
+//!   those dependencies deployed, those secrets' first values
+//!   answered and fed to the container — and one `fuse::mount` scope
+//!   per mount, each complete before the next. Nothing the caller
+//!   opens is read until all of it is done and the id is out.
 //! - `relay`, the proxy's asks — the channels it opens on `begin`,
-//!   the asks each mount makes on its scope, and the agent's chunks
-//!   off the begin's main stream — each carried to the caller and its
-//!   answer carried back on the proxy's own channel, every one on a
-//!   task of its own.
+//!   the asks each mount makes on its scope, and off the begin's main
+//!   stream the agent's chunks or the tool's activity — each carried
+//!   to the caller and its answer carried back on the proxy's own
+//!   channel, every one on a task of its own.
 //! - `ledger`, every mount a running container holds, for a FUSE
 //!   mount asked for while it runs to be refused as overlapping, or
 //!   under an id already held, before the proxy is asked.
 //! - `serve`, the channels the caller opens — a tree, a read, a
 //!   write, a transfer into another container, its half of a
-//!   database connection, one more FUSE mount, and the family's own
+//!   database connection, a feed of the secrets, one more FUSE mount,
+//!   and the family's own
 //!   exchange — each served against the proxy on a task of its own,
 //!   read off the scope by one loop that also hears the stop, the
 //!   container leaving, and the caller going away.

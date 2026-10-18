@@ -39,20 +39,22 @@ pub(crate) fn id_refused(id: &str) -> Error {
     }))
 }
 
-/// The caller did not answer the ask to deploy the container's
-/// dependencies: a finish with nothing before it, or a caller gone.
-pub(crate) fn dependencies_unserved() -> Error {
+/// The caller did not answer the ask to register the container — its
+/// dependencies deployed, its secrets' values given: a finish with
+/// nothing before it, or a caller gone.
+pub(crate) fn registration_unserved() -> Error {
     Error(serde_json::json!({
-        "kind": "dependencies",
-        "error": "the caller did not deploy the dependencies",
+        "kind": "registration",
+        "error": "the caller did not register the container",
     }))
 }
 
-/// The dependencies ask could not be written, or its answer could
-/// not be read.
-pub(crate) fn dependencies_failed(error: impl fmt::Display) -> Error {
+/// The registration ask could not be written, or its answer could
+/// not be read. The answer carries values, and `error` is the
+/// decoder's word about its shape, never a value from it.
+pub(crate) fn registration_failed(error: impl fmt::Display) -> Error {
     Error(serde_json::json!({
-        "kind": "dependencies",
+        "kind": "registration",
         "error": error.to_string(),
     }))
 }

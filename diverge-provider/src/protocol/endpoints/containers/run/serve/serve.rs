@@ -7,7 +7,7 @@ use futures_util::future::{self, Either};
 
 use super::super::family::{Opened, Runs};
 use super::super::run::Run;
-use super::{daemon, filetree, fuse_mount, postgres, read, schema, transfer, write};
+use super::{daemon, filetree, fuse_mount, postgres, read, schema, secrets, transfer, write};
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::frame::client::ClientFrame;
 
@@ -71,6 +71,7 @@ pub(crate) async fn serve<F: Runs>(run: &Arc<Run>) -> End {
                 run.spawn(postgres::postgres(Arc::clone(&run), channel, connection_id)).await
             }
             Opened::Schema => run.spawn(schema::schema(Arc::clone(&run), channel)).await,
+            Opened::Secrets(values) => run.spawn(secrets::secrets(Arc::clone(&run), channel, values)).await,
             Opened::FuseMount(request) => {
                 run.spawn(fuse_mount::fuse_mount::<F>(Arc::clone(&run), channel, request)).await
             }

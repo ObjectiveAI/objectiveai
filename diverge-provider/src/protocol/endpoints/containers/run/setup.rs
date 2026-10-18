@@ -16,6 +16,7 @@ use super::watched::{Watched, Watching};
 use diverge_sdk::wire::client::handle::Handle;
 use diverge_sdk::container_proxy::outside::client::Asks;
 use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::client::execute::{self as mount, Ask as MountAsk};
+use diverge_sdk::provider::endpoints::containers::client::UnaryError;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::server::answer::{Answer, answer};
 use crate::protocol::caller::Caller;
@@ -31,13 +32,14 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume::Volume;
 use diverge_sdk::shared::containers::fuse::Kind;
 use diverge_sdk::shared::containers::request::{Container, FuseMount};
-use diverge_sdk::shared::containers::dependencies;
+use diverge_sdk::shared::containers::registration;
+use diverge_sdk::shared::containers::secrets::Values;
 use diverge_sdk::shared::error::Error;
 
 /// A container brought up and ready to serve.
 pub(crate) struct Prepared<C> {
     /// The id, minted here and entered in the directory before the
-    /// dependencies were asked for: what the run answers.
+    /// registration was asked for: what the run answers.
     pub id: String,
     /// The container, to stop when the run is over.
     pub container: C,
@@ -78,21 +80,26 @@ pub(crate) struct Mount {
 ///    Where the deployer gets the image is its own.
 /// 2. The container is deployed, its proxy listening.
 /// 3. The proxy is dialled: one WebSocket, for the container's life.
-/// 4. The family's `begin` is opened on it — carrying the arguments,
-///    the secrets and the template — and its `Begun` awaited, with
-///    the dependencies an agent container declared.
+/// 4. The family's `begin` is opened on it — carrying the arguments
+///    and the template — and its `Begun` awaited, with what the
+///    container declared: the dependencies, for an agent container,
+///    and the secrets it takes, by name and mode. No value of any
+///    secret is in the begin.
 /// 5. The id is minted and the container entered in the directory
 ///    under it — with its proxy connection and its begin scope — so
 ///    that a `containers::fuse_serve` naming the id is answered from now,
 ///    which is what lets the caller serve the container's own paths
 ///    into its dependencies. The id is not answered yet.
-/// 6. Beside each other: the caller is asked to deploy those
-///    dependencies, when there are any, the id told with them — the
-///    agents family's [`deploy`](Runs::deploy); a tool container
-///    declares nothing — and one `fuse::mount`
-///    scope per mount is opened, file mounts first, each answered
-///    before the next. Both are awaited to their end before either's
-///    failure is acted on.
+/// 6. Beside each other: the container is registered with the caller
+///    — the family's [`register`](Runs::register), one ask carrying
+///    the dependencies to deploy and the secrets to answer, the id
+///    told with them, nothing asked when it declared neither — and
+///    the values the caller answered are fed to the container on the
+///    begin's secrets channel, awaited until the program has applied
+///    them, the program's refusal the run's error; and one
+///    `fuse::mount` scope per mount is opened, file mounts first,
+///    each answered before the next. Both are awaited to their end
+///    before either's failure is acted on.
 ///
 /// Every failure after the deploy stops the container, takes it out
 /// of the directory and releases the repository; the error is the
@@ -150,7 +157,7 @@ where
         }
     };
 
-    let begun = match R::begin(&proxy, arguments, request.secrets.clone(), request.template.clone()).await {
+    let begun = match R::begin(&proxy, arguments, request.template.clone()).await {
         Ok(begun) => begun,
         Err(error) => {
             undo(&container, &repository, registry).await;
@@ -161,8 +168,8 @@ where
     let id = Directory::mint();
     directory.insert(id.clone(), Arc::clone(client_identity), proxy.clone()).await;
 
-    let (deployed, mounts) = future::join(R::deploy(scope, &id, &begun.dependencies), mounts(&proxy, request)).await;
-    let mounts = match (deployed, mounts) {
+    let (fed, mounts) = future::join(fed::<R>(scope, &id, &begun), mounts(&proxy, request)).await;
+    let mounts = match (fed, mounts) {
         (Ok(()), Ok(mounts)) => mounts,
         (Err(error), _) | (Ok(()), Err(error)) => {
             directory.remove(&id).await;
@@ -194,22 +201,41 @@ where
     registry.release(repository).await;
 }
 
-/// The caller's answer to a dependencies ask, read to the finish so its
-/// number comes back to the run: one frame back — a deploy is `Ok`;
-/// the caller's refusal is the run's error in the caller's words; a
-/// finish with nothing, or an answer this end cannot read, is the
-/// run's error too. The agents family opens the ask; a tool container
-/// declares nothing and opens none.
-pub(crate) async fn deployed(scope: &ScopeHandle, payload: &[u8]) -> Result<(), Error> {
+/// The container registered with the caller and fed its first
+/// values, in order: the family's [`register`](Runs::register), then
+/// — when it asked anything — the values the caller answered fed on
+/// the begin's secrets channel, awaited until the program has applied
+/// them. The program's refusal of the values is the run's error in
+/// the program's words; the proxy failing to answer is the run's
+/// error too. Nothing is delivered to the container by its proxy
+/// until this feed, which is why it precedes the id.
+async fn fed<R: Runs>(scope: &ScopeHandle, id: &str, begun: &Begun) -> Result<(), Error> {
+    let Some(values) = R::register(scope, id, &begun.dependencies, &begun.secrets).await? else {
+        return Ok(());
+    };
+    match begun.begin.secrets(values).await {
+        Ok(()) => Ok(()),
+        Err(UnaryError::Refused(error)) => Err(error),
+        Err(error) => Err(render::proxy(error)),
+    }
+}
+
+/// The caller's answer to a registration ask, read to the finish so
+/// its number comes back to the run: one frame back — the values, the
+/// registration accepted; the caller's refusal is the run's error in
+/// the caller's words; a finish with nothing, or an answer this end
+/// cannot read, is the run's error too. Either family opens the ask
+/// when its container declared anything.
+pub(crate) async fn registered(scope: &ScopeHandle, payload: &[u8]) -> Result<Values, Error> {
     let mut channel = scope.send_channel_request(payload).await;
-    let mut outcome = Err(render::dependencies_unserved());
+    let mut outcome = Err(render::registration_unserved());
     while let Some(bytes) = channel.response_receiver.recv().await {
         match answer(&bytes) {
             Some(Answer::Frame(payload)) => {
-                outcome = match dependencies::response::Frame::decode(&payload) {
-                    Ok(dependencies::response::Frame::Deployed) => Ok(()),
-                    Ok(dependencies::response::Frame::Error(error)) => Err(error),
-                    Err(error) => Err(render::dependencies_failed(error)),
+                outcome = match registration::response::Frame::decode(&payload) {
+                    Ok(registration::response::Frame::Deployed(values)) => Ok(values),
+                    Ok(registration::response::Frame::Error(error)) => Err(error),
+                    Err(error) => Err(render::registration_failed(error)),
                 };
             }
             Some(Answer::Finish) => break,

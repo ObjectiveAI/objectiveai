@@ -9,9 +9,10 @@
 //! container leaving, and the caller going away. A tree, a read and a
 //! write are scopes this end opens on the proxy, and a transfer is a
 //! read on this proxy wired into a write on another container's; a
-//! database half, the arguments' schema and the family's own exchange
-//! are channels on the begin scope; a FUSE mount asked for while the
-//! container runs is one more mount scope on the proxy, waited for.
+//! database half, the arguments' schema, a feed of the secrets and
+//! the family's own exchange are channels on the begin scope; a FUSE
+//! mount asked for while the container runs is one more mount scope
+//! on the proxy, waited for.
 
 pub(crate) mod agent;
 pub(crate) mod daemon;
@@ -20,6 +21,7 @@ pub(crate) mod fuse_mount;
 pub(crate) mod postgres;
 pub(crate) mod read;
 pub(crate) mod schema;
+pub(crate) mod secrets;
 pub(crate) mod tool;
 pub(crate) mod transfer;
 pub(crate) mod write;
