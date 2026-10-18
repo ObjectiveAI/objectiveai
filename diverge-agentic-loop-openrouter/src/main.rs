@@ -10,8 +10,14 @@
 //! `POST /enqueue` and `POST /dequeue` are the running loop's
 //! queue; `GET /schema` is the JSON Schema of the `arguments` this
 //! image accepts; `POST /register` is that value, told once for the
-//! container's life before any loop — a run before it is refused. Its tool calls go through the proxy's MCP server;
-//! its key comes from the vault the caller holds; the history it
+//! container's life before any loop — a run before it is refused —
+//! answered with the one secret this image takes; `POST /secrets` is
+//! that secret's value, fed by the proxy once the registration is
+//! answered and again at every activation; `POST /secrets/collect`
+//! is the rotating secrets asked back at every inactive, which this
+//! image, declaring none, is never asked. Its tool calls go through the proxy's MCP server;
+//! its key is the secret `OPENROUTER_API_KEY`, held from the last
+//! feed and read once at every loop's start; the history it
 //! resumes from, and leaves behind, is one row in the caller's
 //! database, reached through the proxy's loopback pgwire.
 //!
@@ -20,17 +26,19 @@
 //! The proxy is not part of this image: the host injects it at
 //! runtime, and it may not be up at all until a request comes. So
 //! the server binds and waits, and the first thing to touch the
-//! proxy — the vault, the database, the MCP session — is `POST /run`
-//! itself. Making the [`Client`] is no I/O.
+//! proxy — the database, the MCP session — is `POST /run` itself;
+//! the key is not fetched from anywhere, it was fed. Making the
+//! [`Client`] is no I/O.
 //!
 //! # What is an error, and what is not
 //!
 //! Anything that fails before the loop has said a single thing is a
 //! real error — a non-`2xx`, with a JSON reason, and no stream:
-//! arguments that are not an openrouter agent, a vault with no
-//! `OPENROUTER_API_KEY`, a database that will not answer, a history
-//! that will not open, the first fetch, and the first item of the
-//! loop itself, which is pulled before the response is decided. A
+//! arguments that are not an openrouter agent, a feed that has not
+//! come or carries no string under `OPENROUTER_API_KEY`, a database
+//! that will not answer, a history that will not open, the first
+//! fetch, and the first item of the loop itself, which is pulled
+//! before the response is decided. A
 //! failure AFTER output is a fatal `notification` chunk, the loop's
 //! own last word, then the stream's end. The stream never carries an
 //! error of its own: it is chunks, and only chunks.
@@ -43,6 +51,7 @@ mod history;
 mod r#loop;
 mod queue;
 mod registration;
+mod secrets;
 // The wire modules carry OpenRouter's COMPLETE shapes, which is more
 // than this container constructs or reads — a role never built, a
 // field parsed and never consumed. The derives used to count as use;
@@ -68,6 +77,7 @@ use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
 use diverge_sdk::container_proxy::inside::register;
 use diverge_sdk::container_proxy::inside::register::response::Response;
 use diverge_sdk::container_proxy::inside::agent::run;
+use diverge_sdk::container_proxy::inside::secrets::{collect, feed};
 use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, NotificationChunk,
@@ -75,14 +85,11 @@ use diverge_sdk::provider::endpoints::containers::agents::run::server::response:
 use futures_util::{Stream, StreamExt as _};
 use serde_json::Value;
 
-use crate::agent::Agent;
+use crate::agent::{API_KEY, Agent};
 use crate::claim::Claim;
 use crate::continuation::Continuation;
 use crate::queue::QUEUE;
 use crate::r#loop::Item;
-
-/// The vault key the upstream's credential is kept under.
-const API_KEY: &str = "OPENROUTER_API_KEY";
 
 /// A refusal: the status, and a JSON reason.
 type Refusal = (StatusCode, Json<Value>);
@@ -106,6 +113,8 @@ async fn serve() {
         .route("/schema", axum::routing::get(schema))
         .route("/enqueue", axum::routing::post(enqueue))
         .route("/dequeue", axum::routing::post(dequeue))
+        .route("/secrets", axum::routing::post(feed))
+        .route("/secrets/collect", axum::routing::post(collect))
         .with_state(Arc::new(Client::new()));
 
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_sdk::container_proxy::inside::port()))
@@ -174,39 +183,31 @@ async fn run(
         .await);
     }
 
-    let api_key = match client.vault_get(API_KEY).await {
-        Ok(Some(bytes)) => match String::from_utf8(bytes.to_vec()) {
-            Ok(api_key) => api_key,
-            Err(_) => {
-                return Err(refuse(
-                generation,
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    serde_json::json!({
-                        "kind": "api_key",
-                        "error": format!("{API_KEY} is not UTF-8"),
-                    }),
-                )
-                .await);
-            }
-        },
-        Ok(None) => {
+    // The key, from the last feed: a snapshot taken once, here, so a
+    // feed that lands mid-loop reaches the next loop and not this
+    // one. Absent — no feed yet, or a feed without the name — or not
+    // a string is the refusal, which names the secret and never says
+    // what was fed.
+    let api_key = match secrets::values().await.and_then(|mut values| values.swap_remove(API_KEY)) {
+        Some(Value::String(api_key)) => api_key,
+        Some(_) => {
             return Err(refuse(
                 generation,
                 StatusCode::INTERNAL_SERVER_ERROR,
                 serde_json::json!({
-                    "kind": "api_key",
-                    "error": format!("the vault holds no {API_KEY}"),
+                    "kind": "secrets",
+                    "error": format!("the value fed for the secret {API_KEY} is not a string"),
                 }),
             )
             .await);
         }
-        Err(error) => {
+        None => {
             return Err(refuse(
                 generation,
                 StatusCode::INTERNAL_SERVER_ERROR,
                 serde_json::json!({
-                    "kind": "api_key",
-                    "error": error.to_string(),
+                    "kind": "secrets",
+                    "error": format!("no value was fed for the secret {API_KEY}"),
                 }),
             )
             .await);
@@ -312,7 +313,8 @@ async fn run(
 ///
 /// A value this image will not take is `400`; an agent already
 /// registered is `409`, whatever the second carries — the agent
-/// never changes. `200`, with the tools the agent depends on passed back, is the agent held.
+/// never changes. `200`, with the tools the agent depends on and the
+/// secrets it takes passed back, is the agent held.
 async fn register(Json(request): Json<register::request::Request>) -> Result<(StatusCode, Json<Response>), Refusal> {
     let agent: Agent = match serde_json::from_value(request.arguments) {
         Ok(agent) => agent,
@@ -327,13 +329,45 @@ async fn register(Json(request): Json<register::request::Request>) -> Result<(St
         }
     };
     let dependencies = agent.dependencies.clone();
+    let secrets = agent.declaration();
     match registration::register(agent) {
-        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies }))),
+        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies, secrets }))),
         Err(_) => Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
                 "kind": "registered",
                 "error": "the agent is registered, and it never changes",
+            })),
+        )),
+    }
+}
+
+/// `POST /secrets`: the secrets' values, fed.
+///
+/// Held whole, replacing whatever the last feed left; a loop in
+/// flight keeps the key it took at its start, and the next loop
+/// reads these. `204`, since the proxy reads no body: the answer
+/// is the values held, and nothing is delivered to this program
+/// until it is given.
+async fn feed(Json(request): Json<feed::request::Request>) -> StatusCode {
+    secrets::feed(request.0).await;
+    StatusCode::NO_CONTENT
+}
+
+/// `POST /secrets/collect`: the rotating secrets, handed back.
+///
+/// This image declares none, so the proxy never asks; served as the
+/// contract all the same: every name asked, with the value it was
+/// fed, and a name the program holds no value for `500`, naming the
+/// name and never a value.
+async fn collect(Json(request): Json<collect::request::Request>) -> Result<Json<collect::response::Response>, Refusal> {
+    match secrets::collect(&request.names).await {
+        Ok(values) => Ok(Json(collect::response::Response(values))),
+        Err(error) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "kind": "secrets",
+                "error": error,
             })),
         )),
     }

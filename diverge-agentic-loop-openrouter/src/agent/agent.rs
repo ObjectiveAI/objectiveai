@@ -1,16 +1,31 @@
 //! The OpenRouter agent.
 
 use diverge_sdk::shared::containers::dependencies::Template;
+use diverge_sdk::shared::containers::secrets::{Declaration, Mode};
 use indexmap::IndexMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::{ContextCompression, Provider, Reasoning, Stop, Verbosity};
 
+/// The one secret this image takes: the name the agent's template
+/// must declare, bound to the vault key holding the OpenRouter API
+/// key. Its value is a JSON string, fed whole, and goes out as the
+/// bearer token of every fetch.
+pub const API_KEY: &str = "OPENROUTER_API_KEY";
+
 /// An agent running against OpenRouter.
 ///
 /// The widest parameter set of any upstream, because OpenRouter fronts
 /// many providers and exposes what each of them accepts.
+///
+/// # Secrets
+///
+/// One, whatever the arguments: [`API_KEY`], `fixed` — read at every
+/// activation and never changed by the loop. The template this
+/// agent is made from must declare that name, or the registration
+/// is refused by the provider; the value reaches the loop through
+/// the proxy's feed, never through the arguments.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Agent {
     /// The model to route to, in OpenRouter's `vendor/name` form.
@@ -85,4 +100,13 @@ pub struct Agent {
     /// one schema, from the one type, at both. Absent is none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<Template>,
+}
+
+impl Agent {
+    /// The secrets this agent takes, as the registration answers
+    /// them: [`API_KEY`], `fixed`, and nothing else — no argument
+    /// selects another.
+    pub fn declaration(&self) -> Declaration {
+        Declaration::from([(API_KEY.to_string(), Mode::Fixed)])
+    }
 }
