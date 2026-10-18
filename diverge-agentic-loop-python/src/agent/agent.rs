@@ -1,6 +1,7 @@
 //! The Python agent.
 
 use diverge_sdk::shared::containers::dependencies::Template;
+use diverge_sdk::shared::containers::secrets::Declaration;
 use indexmap::IndexMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,13 @@ use super::Version;
 /// is nothing to name — and no sampling parameters either. A Python
 /// agent occupies the same slot as a model-backed one and answers
 /// deterministically, or as deterministically as its source does.
+///
+/// # Secrets
+///
+/// None: there is no model, so no credential, and the script is
+/// handed nothing but the conversation and the caller's lists. The
+/// template this agent is made from need declare no name, and a name
+/// it does declare is one the program never asks for.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Agent {
     /// The source, verbatim.
@@ -51,6 +59,12 @@ pub struct Agent {
 }
 
 impl Agent {
+    /// The secrets this agent takes, as the registration answers
+    /// them: none, whatever the arguments.
+    pub fn declaration(&self) -> Declaration {
+        Declaration::new()
+    }
+
     /// The requirements as pip takes them: one `name<op>version`
     /// argument each, in the map's order.
     pub fn pip_arguments(&self) -> Vec<String> {

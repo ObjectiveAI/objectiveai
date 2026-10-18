@@ -12,7 +12,12 @@
 //! accepts; `POST /register` is that value, told once for the
 //! container's life before any loop — a run before it is refused —
 //! and is when its source is written to disk and its requirements
-//! installed. No model: every turn RUNS the agent's Python against
+//! installed, answered with the secrets this image takes, which are
+//! none; `POST /secrets` is their values, fed by the proxy once the
+//! registration is answered and again at every activation, held and
+//! read by nothing; `POST /secrets/collect` is the rotating secrets
+//! asked back at every inactive, which this image, declaring none,
+//! is never asked. No model: every turn RUNS the agent's Python against
 //! the whole conversation and the caller's tool and resource lists,
 //! and reads what its last expression answers. Its tool calls go
 //! through the proxy's MCP server; the history it resumes from, and
@@ -50,6 +55,7 @@ mod r#loop;
 mod queue;
 mod registration;
 mod run;
+mod secrets;
 
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -64,6 +70,7 @@ use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
 use diverge_sdk::container_proxy::inside::register;
 use diverge_sdk::container_proxy::inside::register::response::Response;
 use diverge_sdk::container_proxy::inside::agent::run as run_endpoint;
+use diverge_sdk::container_proxy::inside::secrets::{collect, feed};
 use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, NotificationChunk,
@@ -99,6 +106,8 @@ async fn serve() {
         .route("/schema", axum::routing::get(schema))
         .route("/enqueue", axum::routing::post(enqueue))
         .route("/dequeue", axum::routing::post(dequeue))
+        .route("/secrets", axum::routing::post(feed))
+        .route("/secrets/collect", axum::routing::post(collect))
         .with_state(Arc::new(Client::new()));
 
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_sdk::container_proxy::inside::port()))
@@ -261,7 +270,8 @@ async fn run(
 /// pip will not install, with everything pip said; an agent already
 /// registered is `409`, whatever the second carries — the agent
 /// never changes; the disk or pip failing to start is `500`. `200`,
-/// with the tools the agent depends on passed back, is the agent held, its source on disk and its packages present.
+/// with the tools the agent depends on and the secrets it takes —
+/// none — passed back, is the agent held, its source on disk and its packages present.
 /// The answer waits for the install, however long it takes.
 async fn register(Json(request): Json<register::request::Request>) -> Result<(StatusCode, Json<Response>), Refusal> {
     let agent: Agent = match serde_json::from_value(request.arguments) {
@@ -277,9 +287,41 @@ async fn register(Json(request): Json<register::request::Request>) -> Result<(St
         }
     };
     let dependencies = agent.dependencies.clone();
+    let secrets = agent.declaration();
     match registration::register(agent).await {
-        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies }))),
+        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies, secrets }))),
         Err(error) => Err((error.status(), Json(error.message()))),
+    }
+}
+
+/// `POST /secrets`: the secrets' values, fed.
+///
+/// Held whole, replacing whatever the last feed left, and read by no
+/// loop — this image declares no secret, so a feed carries nothing
+/// it wants. `204`, since the proxy reads no body: the answer is the
+/// values held, and nothing is delivered to this program until it is
+/// given.
+async fn feed(Json(request): Json<feed::request::Request>) -> StatusCode {
+    secrets::feed(request.0).await;
+    StatusCode::NO_CONTENT
+}
+
+/// `POST /secrets/collect`: the rotating secrets, handed back.
+///
+/// This image declares none, so the proxy never asks; served as the
+/// contract all the same: every name asked, with the value it was
+/// fed, and a name the program holds no value for `500`, naming the
+/// name and never a value.
+async fn collect(Json(request): Json<collect::request::Request>) -> Result<Json<collect::response::Response>, Refusal> {
+    match secrets::collect(&request.names).await {
+        Ok(values) => Ok(Json(collect::response::Response(values))),
+        Err(error) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "kind": "secrets",
+                "error": error,
+            })),
+        )),
     }
 }
 
