@@ -13,8 +13,9 @@
 //! Eliza (elizaOS, the TypeScript agent framework) is a LIBRARY the
 //! harness drives from an entry of its own: one `AgentRuntime` per
 //! run, its memory the caller's Postgres reached through the proxy,
-//! its secrets the caller's vault, its tools the caller's MCP servers
-//! through the proxy, and its plugins the ones the caller names. What
+//! its secrets fed by the proxy before every run, its tools the
+//! caller's MCP servers through the proxy, and its plugins the ones
+//! the caller names. What
 //! a request can say is what that runtime is constructed with — and
 //! every field here names a constructor option, a character field or
 //! a plugin the harness actually loads. The research behind each
@@ -56,8 +57,10 @@
 //! `DOCUMENTS_PATH` — given as each entry's [`settings`](Plugin::settings),
 //! and their secrets — `OPENAI_API_KEY`, `EMBEDDING_API_KEY`,
 //! `TAVILY_API_KEY` — are named by the caller as each entry's
-//! [`secrets`](Plugin::secrets), the vault's keys. The harness implies
-//! no key and renders no setting of any plugin's.
+//! [`secrets`](Plugin::secrets): the names the agent's template
+//! declares, which the registration answers with and the proxy feeds
+//! the values of before every run. The harness implies no secret and
+//! renders no setting of any plugin's.
 //!
 //! What the harness loads on its own: `@elizaos/plugin-sql`, the
 //! database adapter, with `POSTGRES_URL` the proxy's pgwire; and its
@@ -69,7 +72,7 @@
 //! the constructor, which is what a [`Plugin`] becomes); `templates`
 //! (the message handler's prompt is not overridable where it
 //! matters); `settings` and `secrets` maps on the character (every
-//! setting is a plugin's own, every secret the vault's); and any
+//! setting is a plugin's own, every secret fed by name); and any
 //! credential at all.
 //!
 //! Always off, no field, and the reason for each so nobody re-opens
@@ -101,8 +104,10 @@ pub mod plugin;
 
 mod agent;
 mod memory;
+mod secrets;
 
 pub use agent::*;
 pub use character::Character;
 pub use memory::*;
 pub use plugin::Plugin;
+pub use secrets::*;

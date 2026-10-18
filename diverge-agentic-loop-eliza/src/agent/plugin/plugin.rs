@@ -8,7 +8,7 @@ use super::Secret;
 
 /// An elizaOS plugin the container installs and loads for the run —
 /// any npm package that exports a `Plugin`, configured by its own
-/// setting names, its secrets the vault's.
+/// setting names, its secrets named here and fed by the proxy.
 ///
 /// HOW THE HARNESS APPLIES IT: at the start of the run, every named
 /// package the image's project does not already hold is installed
@@ -19,13 +19,13 @@ use super::Secret;
 /// installs that version, whatever this spec says, so a conversation
 /// is never resumed against a plugin that changed under it. Each
 /// [`settings`](Self::settings) entry and each [`secrets`](Self::secrets)
-/// value read from the vault goes in the runtime's constructor
-/// settings map and the entry process's environment both — the
-/// core's `getSetting` never reads the environment, and some plugins
-/// read nothing else — the vault's values at the top of Eliza's
-/// precedence. A package the registry cannot resolve, one that is
-/// not a plugin once imported, or a secret the vault does not hold
-/// refuses the run before the runtime starts.
+/// value the proxy fed goes in the runtime's constructor settings map
+/// and the entry process's environment both — the core's
+/// `getSetting` never reads the environment, and some plugins read
+/// nothing else — the fed values at the top of Eliza's precedence. A
+/// package the registry cannot resolve, one that is not a plugin
+/// once imported, or a declared secret the proxy has not fed refuses
+/// the run before the runtime starts.
 ///
 /// The plugin runs in the agent's process with the caller's tools in
 /// reach; the container is the sandbox.
@@ -43,10 +43,10 @@ pub struct Plugin {
     /// `"false"` back as booleans. Absent is nothing configured.
     #[serde(default, skip_serializing_if = "Map::is_empty")]
     pub settings: Map<String, Value>,
-    /// The settings that are secrets, each a vault key: a bare name
-    /// for a static secret, an object for one the run rotates and
-    /// where the rotated value is left. See [`Secret`]. Absent is no
-    /// secrets.
+    /// The settings that are secrets, each a name the agent's
+    /// template declares: a bare name for a fixed secret, an object
+    /// for one the run rotates and where the rotated value is left.
+    /// See [`Secret`]. Absent is no secrets.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub secrets: Vec<Secret>,
 }

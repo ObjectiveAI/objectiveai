@@ -26,7 +26,9 @@ CREATE TABLE IF NOT EXISTS eliza_lineage (
     id smallint PRIMARY KEY CHECK (id = 1),
     agent_id uuid NOT NULL,
     room text NOT NULL,
-    plugins jsonb NOT NULL
+    plugins jsonb NOT NULL,
+    vault_passphrase text NOT NULL,
+    secret_salt text NOT NULL
 )
 ```
 
@@ -45,6 +47,15 @@ CREATE TABLE IF NOT EXISTS eliza_lineage (
   embeds, and at what width, is the caller's model-provider list's,
   and Eliza itself pins the first embedding provider that answers and
   re-embeds in the background when the width changes.
+- `vault_passphrase` and `secret_salt` are the two values Eliza's own
+  stores are keyed by, minted (two v4 uuids, 64 hex characters each)
+  when the row is first made and absent from the upsert's
+  `DO UPDATE SET`, so a lineage keeps the pair it was minted with:
+  a vault store opened under another passphrase would not open, and
+  a settings value encrypted under another salt would not decrypt.
+  Nobody provisions them and nothing fetches them. There is no
+  `ALTER` for a row made before the columns existed: nothing has run
+  live, and a minted passphrase would not open an existing store.
 
 Read at the top of every run and cached in memory after the first;
 written BEFORE the runtime starts — on the first run, and whenever the
@@ -69,9 +80,9 @@ so nothing lands in the `agents` row encrypted.
 The map beats the row: `initialize()` merges the persisted `agents`
 row's settings back into `character.settings`, but for every key the
 constructor map names the map's value wins (`runtime.ts:3156-3175`).
-That is how "the vault's copy at the top of Eliza's precedence" is
-kept: a rewound row never wins over the vault for a key the harness
-sets.
+That is how "the fed value at the top of Eliza's precedence" is kept:
+a rewound row never wins over the secret the proxy fed for a key the
+harness sets.
 
 What the harness renders (user ruling 2026-09-10: nothing is
 pre-wired but the adapter):
@@ -87,7 +98,9 @@ pre-wired but the adapter):
   `CODING_TOOLS_WORKSPACE_ROOTS` and `SHELL_ALLOWED_DIRECTORY` for the
   coding tools, `DOCUMENTS_PATH` and `LOAD_DOCS_ON_STARTUP` for
   plugin-documents, and so on. The harness knows none of them.
-- the vault's values, inserted LAST, so a plugin setting cannot
+- the fed secrets' values, inserted LAST, each rendered as a setting
+  is (`settings::text`: a string as-is, a number or boolean spelled
+  out, an object or array as its JSON), so a plugin setting cannot
   shadow a secret of the same name.
 - memory: `advanced_capabilities`, `relationships` and `documents`
   are constructor options (`enableDocuments` is core's native
@@ -102,56 +115,72 @@ var/lib/eliza`, `ELIZA_VAULT_PASSPHRASE`, `ELIZA_VAULT_DISABLE_KEYCHAIN
 =1`, `SECRET_SALT`, `ELIZA_DISABLE_TRAJECTORY_LOGGING=1`. `NODE_ENV` is
 never set (production without a salt throws; unset is dev defaults).
 
-## Secrets come from the vault, and only from the vault
+## Secrets are declared at registration, fed before every loop, collected after
 
-A secret is a vault key named by the setting it fills. `vault.rs`
-reads the keys off the agent: every plugin's `secrets`, on either
-list, and nothing the harness implies of its own — `OPENAI_API_KEY`
-is plugin-openai's to be given as a secret on its entry, exactly as
-`TAVILY_API_KEY` is plugin-web-search's. A key the vault does not
-hold, or holds as something other than text, refuses the run before
-the runtime starts, naming the key.
+A secret is a setting named by a plugin's entry, and the name is the
+one the agent's template declares it under. `agent/secrets.rs` reads
+the names off the agent: every plugin's `secrets`, on either list,
+the model providers' first, each name once in its first position,
+and nothing the harness implies of its own — `OPENAI_API_KEY` is
+plugin-openai's to be given as a secret on its entry, exactly as
+`TAVILY_API_KEY` is plugin-web-search's. `POST /register` answers
+with that declaration, each name to `fixed` (a bare name, or
+`rotates: false`) or `rotating` (`{key, rotates}`; a name on both
+lists is `rotating`), and nothing else is ever fed. The container
+never reads a secret from anywhere: the proxy feeds the values on
+`POST /secrets` once the registration is answered and again at every
+activation — which may land mid-run — and `secrets.rs` holds the
+whole set in memory, each feed replacing the last. A run takes its
+snapshot once at its start; a declared name the last feed lacks, or
+carries as `null`, refuses the run before the runtime starts, naming
+it and never a value (`{"kind": "secrets"}`). A feed mid-run lands on
+the next run.
 
-- STATIC (a bare name, or `rotates: false`): one `get`, no lock, no
-  set.
-- MINTED, the harness's own: `ELIZA_VAULT_PASSPHRASE` and
-  `SECRET_SALT`. Read from the vault; absent, minted (two v4 uuids, 64
-  hex characters) and set, so a lineage never changes them and never
-  has to provision them. The salt is NOT a throwaway (report 3 said it
-  was): `initialize()` merges the persisted row back into the
-  character, and a settings value encrypted under another salt throws
-  `Failed to decrypt secret setting` — a plugin that persisted one
-  through `updateAgent` would kill every later run.
-- ROTATING (`{key, rotates}`): Hermes's cycle. `vault_lock` for 300 s,
-  re-locked every 100 s on a task for the run's life; `vault_get`;
-  the value as the setting; after EVERY turn (and after a turn that
-  ended in failure) the rotated value is read back from where
-  `rotates` says and `vault_set` the moment it differs from the last
-  value set or read — a container that dies mid-run has already put
-  the last rotation where the next run finds it; `vault_unlock` at
-  the end, every key attempted, the first failure reported. A run
-  abandoned stops refreshing and the locks lapse by TTL.
+- FIXED: the fed value as the setting; nothing handed back.
+- ROTATING: the fed value as the setting; after EVERY turn (and after
+  a turn that ended in failure) the rotated value is read back from
+  where `rotates` says and left in memory the moment it differs from
+  the value held, rendered as a setting is — so a value the plugin
+  never changed is handed back in the shape it was fed. The proxy
+  collects the rotating names on `POST /secrets/collect` at every
+  inactive, the run's end, and every name asked is answered: what
+  the run last read back or started on, else what the last feed
+  carried; a name the program holds nothing for is `500`, naming it.
+  A feed clears what the last run left, so a collect after a run
+  that failed before its read-back answers the value fed for THIS
+  activation. A container that dies mid-run has left the last
+  rotation where the collect finds it; the lock and the write-back
+  are the proxy's, not the container's.
 - The read-back channels: `true` → `runtime.getSetting(key)` through
   the entry (`read setting`); `{setting}` → the same for that name;
-  `{file: [...]}` → the file's bytes, read by the harness from the
-  container's root; `{vault: entry}` → Eliza's own vault through the
-  entry (`read vault`), `{agent_id}` in the entry name replaced with
-  the lineage's. A read-back that finds nothing is nothing new; a key
-  nothing was EVER read back for is a non-fatal notification at the
-  run's end, naming it.
+  `{file: [...]}` → the file's UTF-8 text, read by the harness from
+  the container's root (a file that is not text is a non-fatal
+  notification, and the fed value stands); `{vault: entry}` → Eliza's
+  own vault through the entry (`read vault`), `{agent_id}` in the
+  entry name replaced with the lineage's. A read-back that finds
+  nothing is nothing new; a name nothing was EVER read back for is a
+  non-fatal notification at the run's end, naming it and saying the
+  collect answers the value fed.
 - Never the database: the caller's database is snapshotted and
   rewound, and a credential rewound is a login burned. A plugin that
   keeps a rotating credential in a table of its own is unsupported,
   on purpose; Eliza's cache is the database too and is not a channel.
+- The harness's own two, `ELIZA_VAULT_PASSPHRASE` and `SECRET_SALT`,
+  are not secrets of the caller's: they are the lineage row's,
+  minted with it (above). The salt is NOT a throwaway (report 3 said
+  it was): `initialize()` merges the persisted row back into the
+  character, and a settings value encrypted under another salt throws
+  `Failed to decrypt secret setting` — a plugin that persisted one
+  through `updateAgent` would kill every later run.
 
 ## Eliza's own vault, on by default
 
 `@elizaos/vault` is a library plugins import directly (browser,
 telegram, wallet, google-workspace, even plugin-sql); the core has no
 hook for it. The harness gives it what a headless host needs every
-run: the passphrase in `ELIZA_VAULT_PASSPHRASE` (the minted static
-above; the library wants twelve characters or more), the keychain
-probe off, and the store under `ELIZA_STATE_DIR=/var/lib/eliza` at
+run: the passphrase in `ELIZA_VAULT_PASSPHRASE` (the lineage row's,
+minted with it; the library wants twelve characters or more), the
+keychain probe off, and the store under `ELIZA_STATE_DIR=/var/lib/eliza` at
 `.vault-pglite/`. Fixed always; a caller who wants the store to
 outlive the container mounts a volume there, and one who does not
 gets a store that dies with it. The entry reads an entry back with
@@ -441,24 +470,32 @@ cc's three-phase `Claim` (Idle / Running / Settling), inside a
 `Teardown` captured into the run's stream: when the stream drops the
 teardown marks the claim settling, closes the queue on a task, and
 only then releases — a request landing meanwhile waits, never
-refused. The entry dies with the stream; held vault locks lapse by
-TTL.
+refused. The entry dies with the stream; what was read back by then
+is what the collect answers.
 
 ## The server
 
 `main.rs` is hermes's server around `run::run`, on the loopback at
 the port the SDK's `container_proxy_sdk::port()` names (`PORT`, else 8080),
 forwarded to by the proxy the host injects: `POST /register` (the
-agent, once, for the container's life; a second is `409`), `POST /run`
+agent, once, for the container's life; a second is `409`; answered
+with the agent's dependencies and the secrets its plugins name, each
+to its mode, the declaration held for the feeds to be checked
+against), `POST /secrets` (the declared secrets' values, fed by the
+proxy once the registration is answered and at every activation;
+held whole, replacing the last feed; `204`), `POST /secrets/collect`
+(the rotating names asked back at every inactive, each answered with
+what the run last read back, else the value fed; a name the program
+holds nothing for is `500 {"kind": "secrets"}`, naming it), `POST /run`
 (a run before registration is `409 unregistered`; a run beside one
 streaming is `409 busy`; a message with no content `400`, its blocks rendered by the entry — an image described, audio transcribed — before the turn; a database that will
-not answer `500`; the run's one `Err` — lineage, vault, install, the
-entry failing before ready — is a `500` in its own words; a run with
-nothing to say is `empty_run`; then the chunks as server-sent events,
-the first item pulled before the status is chosen), `GET /schema`
-(`schemars::schema_for!(Agent)`), `POST /enqueue` (held until the fate
-is known), `POST /dequeue`. Nothing of the proxy's is touched before a
-request.
+not answer `500`; the run's one `Err` — lineage, a declared secret
+not fed, install, the entry failing before ready — is a `500` in its
+own words; a run with nothing to say is `empty_run`; then the chunks
+as server-sent events, the first item pulled before the status is
+chosen), `GET /schema` (`schemars::schema_for!(Agent)`), `POST /enqueue`
+(held until the fate is known), `POST /dequeue`. Nothing of the
+proxy's is touched before a request.
 
 ## The runtime image (see also the Containerfile header)
 

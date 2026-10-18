@@ -12,10 +12,25 @@ use super::{Character, Memory, Plugin};
 /// hands the runtime it constructs — a character field Eliza renders
 /// into its prompts, a constructor option, a plugin the container
 /// loads — and nothing else made the cut. Nothing here is a secret:
-/// every credential a plugin needs lives in the caller's vault, under
-/// a key the plugin's entry names, and is read per run. The one place
-/// this vocabulary bends the protocol's post-transform rule is
-/// [`character`](Self::character), and the bend is stated there.
+/// every credential a plugin needs is a secret the plugin's entry
+/// names, and the value is fed by the proxy before every run. The
+/// one place this vocabulary bends the protocol's post-transform
+/// rule is [`character`](Self::character), and the bend is stated
+/// there.
+///
+/// # Secrets
+///
+/// The names on every plugin's [`secrets`](Plugin::secrets), on
+/// either list, are the whole of what this image declares at its
+/// registration — [`declaration`](Self::declaration), each name to
+/// `fixed` or `rotating` — and the agent's template must declare
+/// every one of them, since a name the template does not declare is
+/// the registration's error. The harness names no secret of its own:
+/// Eliza's vault passphrase and settings salt are minted into the
+/// lineage row the first time it is made. The values the proxy feeds
+/// are set as the settings of the same names, at the top of Eliza's
+/// precedence; a rotating one is read back from where its entry says
+/// and handed back when the proxy collects at the run's end.
 ///
 /// # Nothing is pre-wired but the adapter
 ///
