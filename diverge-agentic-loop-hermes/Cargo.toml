@@ -23,7 +23,7 @@ axum = { version = "0.8.9" }
 # database URL, and the MCP URL the gateway is configured with.
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The agent's JSON Schema, derived from the agent types for
-# `GET /schema`.
+# `--schema`.
 schemars = { version = "1.2.2" }
 # The continuation's outbound stream, as a generator.
 async-stream = { version = "0.3.6" }

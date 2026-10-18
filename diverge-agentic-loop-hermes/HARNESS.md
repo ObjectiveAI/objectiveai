@@ -332,9 +332,9 @@ agent, once, for the container's life; a second is `409`), `POST /run`
 unregistered`; the run's chunks out as server-sent events,
 the first item pulled before the status is chosen — the run's one
 `Err` is a `500` with its own words, a run with nothing to say is
-`empty_run`, a run beside one streaming is `409 busy`), `GET
-/schema` (`schemars::schema_for!(Agent)`), `POST /enqueue` (held
-until the fate is known), `POST /dequeue`, `POST /secrets` (the
+`empty_run`, a run beside one streaming is `409 busy`),
+`POST /enqueue` (held until the fate is known), `POST /dequeue`,
+`POST /secrets` (the
 values, held whole in place of the previous feed — `204`, always; a
 value that will not do is found out by the loop that applies it)
 and `POST /secrets/collect` (every rotating name asked for, each as

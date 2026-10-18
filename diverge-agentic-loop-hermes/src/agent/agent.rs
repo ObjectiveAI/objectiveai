@@ -60,9 +60,10 @@ pub struct Agent {
     /// The tool containers this agent depends on, each a dependency
     /// tool template the caller deploys and serves to it as an MCP
     /// server, exactly as the SDK's [`Template`] states one: that
-    /// type's JSON Schema is what `GET /schema` states for this member,
-    /// and this list, unchanged, is what the registration answers —
-    /// one schema, from the one type, at both. Absent is none.
+    /// type's JSON Schema is what `--schema` prints for this member,
+    /// in `/DIVERGE.md`, and this list, unchanged, is what the
+    /// registration answers — one schema, from the one type, at both.
+    /// Absent is none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<Template>,
 }
