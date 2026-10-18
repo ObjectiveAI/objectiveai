@@ -1,11 +1,16 @@
 //! Driving the run: the whole lifetime, as one stream of chunks.
 //!
 //! [`run`] owns everything between the request and the end: the
-//! login resolved ([`Auth`]), `config.toml` written ([`config`]),
-//! the continuation loaded and restored once ([`continuation`]),
-//! `codex exec --json` spawned per turn ([`Process`]) and its events
-//! converted into chunks ([`Turn`]), the queue consulted at each
-//! turn's end ([`QUEUE`]), the rollouts harvested into the rows.
+//! login made from the agent's method and the secret the proxy fed
+//! ([`Auth::resolve`](crate::agent::Auth::resolve), over a snapshot
+//! of [`secrets::values`] taken once here), its file written under
+//! the home, `config.toml` written ([`config`]), the continuation
+//! loaded and restored once ([`continuation`]), `codex exec --json`
+//! spawned per turn ([`Process`]) and its events converted into
+//! chunks ([`Turn`]), the queue consulted at each turn's end
+//! ([`QUEUE`]), the rotating secret read back after the last turn
+//! into what the collect answers ([`secrets::leave`]), the rollouts
+//! harvested into the rows.
 //!
 //! # The queue is consulted when a turn ends
 //!
@@ -47,9 +52,7 @@ pub use error::*;
 pub use process::*;
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
-use diverge_sdk::container_proxy::inside::Client;
 use diverge_sdk::container_proxy::inside::agent::run::request::Message;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::{AgenticLoopChunk, user_parts};
 use futures_util::Stream;
@@ -57,17 +60,17 @@ use rmcp::model::ContentBlock;
 use sqlx::PgPool;
 
 use crate::agent::Agent;
-use crate::auth::{self, Auth};
+use crate::auth;
 use crate::claim::Claim;
 use crate::config;
 use crate::continuation;
 use crate::queue::QUEUE;
+use crate::secrets;
 
 /// The run, whole: one stream of chunks. `generation` is the queue's,
 /// from [`QUEUE.open`](crate::queue::Queue::open); `claim` is the run
 /// lock, released by the teardown.
 pub fn run(
-    client: Arc<Client>,
     pool: PgPool,
     agent: Agent,
     messages: Vec<Message>,
@@ -85,13 +88,20 @@ pub fn run(
     async_stream::stream! {
         let _teardown = teardown;
 
-        let login = match Auth::resolve(&client).await {
+        // The secrets as fed, once: a feed that lands from here on is
+        // the next loop's.
+        let values = secrets::values().await;
+        let login = match agent.auth.resolve(&values) {
             Ok(login) => login,
             Err(error) => {
                 yield Err(Error::Auth(error));
                 return;
             }
         };
+        if let Err(error) = login.write().await {
+            yield Err(Error::Login(error));
+            return;
+        }
         let contents = match config::render(&agent) {
             Ok(contents) => contents,
             Err(error) => {
@@ -113,9 +123,7 @@ pub fn run(
 
         let mut env: BTreeMap<String, String> = BTreeMap::new();
         env.insert("CODEX_HOME".to_string(), auth::CODEX_HOME.to_string());
-        if let Some((key, value)) = login.env() {
-            env.insert(key.to_string(), value.to_string());
-        }
+        env.extend(login.env);
 
         // Whether any event has been written: before the first, a
         // failure is the request's own; after, a fatal notification.
@@ -276,6 +284,15 @@ pub fn run(
                 message.deliver();
             }
             input = blocks;
+        }
+
+        // The rotating secret as the loop leaves it, for the collect
+        // that follows the loop's end: `auth.json` as Codex rewrote
+        // it, under the `auth_file` method, and nothing under the
+        // others. Unreadable, or not JSON, leaves the fed value to
+        // answer — the collect still carries the name.
+        if let Some((name, value)) = agent.auth.read_back().await {
+            secrets::leave(name, value).await;
         }
 
         // The way back up: the rollouts into the rows, whenever a

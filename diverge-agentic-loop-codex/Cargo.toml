@@ -18,9 +18,11 @@ axum = { version = "0.8.9" }
 # Path-only: this crate rides the workspace and is never published, so
 # the SDKs are named by where they live rather than by version pins
 # version.sh would have to chase. The provider SDK is the vocabulary —
-# the chunks, the fates, the vault's well-known keys; the container
-# SDK is the proxy beside this program — the vault, the database URL,
-# and the MCP URL Codex is configured with.
+# the chunks, the fates; the shared secrets types — the declaration
+# the registration answers, the values the proxy feeds; the container
+# SDK is the proxy beside this program — the registration and the
+# two secrets calls it makes on this server, the database URL, and
+# the MCP URL Codex is configured with.
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The agent's JSON Schema, derived from the agent types for
 # `GET /schema`.
