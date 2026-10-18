@@ -191,7 +191,8 @@ including image manifests and blobs, the bytes of writes, reads and
 transfers, filesystem trees, database traffic, commands and
 their items, FUSE asks and their answers on a
 mount and on a `volumes::fuse_serve`, MCP exchanges, prompts, arguments,
-secrets, dependency declarations, and loop chunks.
+the names, modes and values of secrets, dependency declarations, and
+loop chunks.
 
 1.19 **"Relayed Exchange"** means any exchange the Specification
 requires the Provider to carry between a Container and a Client, or
@@ -971,8 +972,8 @@ Deployment is the run's error.
 (d) **Connect to the Proxy.** The Provider shall open exactly one
 WebSocket connection to TCP port 14979 of the Container and, on it
 before any other Scope, the begin Scope of the Container's family,
-carrying the request's `arguments`, `secrets` and `template`
-verbatim, and shall await its answer. A Proxy that does not accept the
+carrying the request's `arguments` and `template` verbatim and no
+secret, and shall await its answer. A Proxy that does not accept the
 connection, or that answers the begin Scope with an error, is a
 Container that did not come up: the Provider shall stop the Container
 and treat the failure as the run's error. The Provider shall open no
@@ -1007,46 +1008,67 @@ Channel the Client opened before the id was sent only after the id is
 sent, in the order the Channels were opened, and shall neither refuse
 nor read such a Channel before the last FUSE Mount is complete.
 
-(g) **Carry the arguments, the secrets and the template.** The
-Provider shall carry the request's `arguments`, `secrets` and
-`template` verbatim in the begin Scope's request, and in nothing
-else, and shall read the `secrets` and the `template` for nothing. A begin the Proxy answers with an error is the run's
-error, and the Provider shall stop the Container.
+(g) **Carry the arguments and the template.** The Provider shall
+carry the request's `arguments` and `template` verbatim in the begin
+Scope's request, and in nothing else, and shall read the `template`
+for nothing. The request carries no secret, and the Provider shall
+hold none: which secrets a Container takes is its program's answer
+at its registration, and their values are the Client's, carried
+under paragraphs (h) and (i). A begin the Proxy answers with an
+error is the run's error, and the Provider shall stop the Container.
 
-(h) **Deploy the dependencies.** On a `containers::agents::run`
-Scope, the Provider shall choose the id of (i) before this step and
-shall enter the Container among those it runs, so that a
-`containers::fuse_serve` request naming the id is answered from this step
-on; the Provider shall list the Container to nobody.
-When the Proxy's answer to the begin Scope carries one or more
-dependency tool templates, the Provider shall open exactly one
-`dependencies` Channel on the run Scope carrying the id and the
-templates verbatim — every template whole, its image, limits,
-arguments, type, scope, mounts, secrets and permissions unread — before the id
-is sent and beside the FUSE Mounts, and shall read the Client's
-answer to its finish; the Provider shall treat the byte `1`, a Bare
-Finish, and a Client that is gone as the run's error and shall stop
-the Container. The Provider
-shall open no `dependencies` Channel when the list is empty, never on
-a `containers::tools::run` Scope — a tool Container declares no
-dependencies, and its begin's answer carries none.
+(h) **Register the Container.** On every run Scope of either family,
+the Provider shall choose the id of (i) before this step and shall
+enter the Container among those it runs, so that a
+`containers::fuse_serve` request naming the id is answered from this
+step on; the Provider shall list an agent Container to nobody. When
+the Proxy's answer to the begin Scope carries one or more dependency
+tool templates or one or more declared secrets, the Provider shall
+open exactly one `registration` Channel on the run Scope carrying the
+id, the templates and the declaration verbatim — every template
+whole, its image, limits, arguments, type, scope, mounts, secrets and
+permissions unread; every declared secret's name and mode unread —
+before the id is sent and beside the FUSE Mounts, and shall read the
+Client's answer to its finish. Where the answer is the byte `0`
+followed by the secrets' values, the Provider shall open exactly one
+`secrets` Channel on the begin Scope carrying those values verbatim
+and unread, and shall read the Proxy's answer to its finish; the
+Proxy's `Fed` lets the run go on. The Provider shall treat the byte
+`1` on either Channel, a Bare Finish on either, and a Client that is
+gone as the run's error and shall stop the Container. The Provider
+shall open no `registration` Channel and feed nothing when the
+templates and the declaration are both empty. On a
+`containers::tools::run` Scope the templates are always empty — a tool
+Container declares no dependencies, and its begin's answer carries
+none — and the `registration` Channel carries the declaration alone.
 
 (i) **Send the id.** The id the Provider chose in (h) shall be unique
 among the Containers it is running and not derivable from the
 request, from the Identity, or from any other id, and the Provider
-shall send it as exactly one Response, the same id the `dependencies`
-Channel carried; a run refused under paragraph (a) has the refusal
-there stated — the byte `1`, `2`, `3`, `4` or `5` followed by the name
-of the Volume — as its only Response, and a run
-that fails has the error, the byte `6` followed by it, as its only
-Response. From that moment the Container is running for
-the Client and shall be findable by a `containers::fuse_serve` request of
-the Client's naming the id. After the id the Provider shall send, for
-a tool container, no other Response; and, for an agent container,
-every chunk the Proxy sends on the begin Scope's main stream as one
+shall send it as exactly one Response, the same id the `registration`
+Channel carried, and only after that Channel has ended and its feed,
+where there was one, has been answered `Fed`; a run refused under
+paragraph (a) has the refusal there stated — the byte `1`, `2`, `3`,
+`4` or `5` followed by the name of the Volume — as its only Response,
+and a run that fails before the id has the error, the byte `6`
+followed by it, as its only Response. From that moment the Container
+is running for the Client and shall be findable by a
+`containers::fuse_serve` request of the Client's naming the id. After
+the id the Provider shall send, for a tool container, the byte `7`
+whenever the Proxy sends `Active` on the begin Scope's main stream and
+the byte `8` followed by the values verbatim whenever the Proxy sends
+`Inactive`, and no other Response; and, for an agent container, every
+chunk the Proxy sends on the begin Scope's main stream as one
 Response, the byte `7` followed by the chunk verbatim, in the order
 the Proxy sent them, bracketed by the byte `8` before each loop and
-the byte `9` after it, and no other Response.
+the byte `9` followed by the values verbatim after it, and no other
+Response; save that, where the Proxy ends the begin Scope with an
+error after `Begun`, the Provider shall send that error as one
+Response, the byte `6` followed by it verbatim, and the Response
+Finish after it. The Provider shall relay every `secrets` Channel the
+Client opens on the run Scope as exactly one `secrets` Channel on the
+begin Scope, the values verbatim and unread, and shall answer the
+Client's Channel as the Proxy answers the Provider's.
 
 (j) **Serve the Scope.** For as long as the Scope lives, and
 concurrently, the Provider shall relay every Channel the Proxy opens
@@ -1084,8 +1106,9 @@ mount shall name the mount's path among those the tree leaves out.
 channel request, when the Proxy's connection ends, or when the
 Client's Connection ends, the Provider shall stop the Container, end
 every Channel task, and send the Response Finish with no error. After the
-id, the Provider
-shall send no error on the main stream of the Scope.
+id, the Provider shall send no error of its own on the main stream of
+the Scope; the one error it sends after the id is the Proxy's, under
+paragraph (i).
 
 ### 5.11 The Conduit
 
@@ -1268,11 +1291,23 @@ Container Proxy Endpoints layers:
 that listens on TCP port 14979 and accepts one WebSocket connection
 there; that speaks the Protocol's own frames on it and sends no auth
 frame; that answers exactly one begin Scope per connection, holding the
-arguments, the secrets and the template id it carries for the
-Container's life
+arguments and the template id it carries for the Container's life
 and answering, for an agent Container, with the dependency tool
-templates the program declared, unread, and, for a tool Container,
-with nothing; that opens no daemon Channel for an agent Container
+templates and the secrets the program declared, unread, and, for a
+tool Container, with the secrets the program declared, unread, and no
+dependencies; that hands the values of every `secrets` Channel to the
+program as they are, unread, and answers `Fed` only once the program
+holds them; that, from `Begun` and from every `Inactive`, delivers
+nothing to a program that declared a secret — no message, no MCP
+exchange — until the next `secrets` Channel is answered `Fed`; that
+collects from the program the value of every `rotating` secret it
+declared at the end of every loop of an agent Container and at the
+end of the last MCP exchange in flight of a tool Container, and
+carries them on the `Inactive`; that, where it cannot collect every
+such value, ends the begin Scope with an error naming the secret and
+carrying no value; that marks a tool Container's activity with
+`Active` before the first exchange in flight is delivered and
+`Inactive` after the last is answered; that opens no daemon Channel for an agent Container
 and no MCP Channel outward for a tool Container, answering the
 program of either that it has no such thing; that sets nothing under
 `_meta` on any MCP exchange it relays, in either direction, or on

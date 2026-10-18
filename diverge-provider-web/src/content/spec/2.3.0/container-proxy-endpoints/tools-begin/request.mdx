@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 1 followed by the request as JSON: the arguments, as the image defines them, the secrets, each by name, and the id of the template the container is made from.'
+summary: 'The payload is the tag byte 1 followed by the request as JSON: the arguments, as the image defines them, and the id of the template the container is made from; no secret rides it.'
 order: 1
 draft: false
 ---
@@ -14,18 +14,17 @@ draft: false
   request that made the container, verbatim. What the value may be,
   the image defines, and the [schema](/container-proxy-endpoints/tools-begin/client/schema/) channel
   answers.
-- **`secrets`.** A JSON object: the `secrets` of the
-  [containers::tools::run](/endpoints/containers-tools-run/request/)
-  request that made the container, verbatim, each member a secret's
-  name to its value, which the server hands to the container's
-  program with the arguments and reads for nothing else. Absent, the
-  empty object.
 - **`template`.** A string: the `template` of the
   [containers::tools::run](/endpoints/containers-tools-run/request/)
   request that made the container, verbatim: the id of the template
   the container is made from, which the server hands to the
-  container's program with the arguments and the secrets and reads
-  for nothing else.
+  container's program with the arguments and reads for nothing
+  else.
+- **No secret.** The request carries no secret. Which secrets the
+  container's program takes is its own answer, carried in the
+  `secrets` of `Begun`; their values follow on a
+  [secrets](/container-proxy-endpoints/tools-begin/client/secrets/)
+  channel, the first of them before the run's id.
 - **Once, and first.** The client sends this request before any other
   request on the connection, and never again on it.
 - **Malformed.** A payload that does not decode as stated is answered
