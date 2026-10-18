@@ -5,15 +5,15 @@ use serde::{Deserialize, Serialize};
 
 /// HuggingFace's inference router.
 ///
-/// APPLICATION: the harness sets `HF_TOKEN` to
-/// [`api_key`](Self::api_key) in the gateway's process environment
-/// before Hermes starts.
+/// APPLICATION: the harness sets `HF_TOKEN` to the
+/// secret's value in the gateway's process environment before
+/// Hermes starts.
+///
+/// SECRET: `HF_TOKEN`, fixed — the API key, under that name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `huggingface`.
     pub provider: Huggingface,
-    /// The API key, applied as `HF_TOKEN`.
-    pub api_key: String,
 }
 
 /// [`Provider`]'s discriminator.

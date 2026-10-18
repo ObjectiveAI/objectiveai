@@ -5,15 +5,15 @@ use serde::{Deserialize, Serialize};
 
 /// Actual Computer.
 ///
-/// APPLICATION: the harness sets `ACTUAL_API_KEY` to
-/// [`api_key`](Self::api_key) in the gateway's process environment
-/// before Hermes starts.
+/// APPLICATION: the harness sets `ACTUAL_API_KEY` to the
+/// secret's value in the gateway's process environment before
+/// Hermes starts.
+///
+/// SECRET: `ACTUAL_API_KEY`, fixed — the API key, under that name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `actual`.
     pub provider: Actual,
-    /// The API key, applied as `ACTUAL_API_KEY`.
-    pub api_key: String,
 }
 
 /// [`Provider`]'s discriminator.

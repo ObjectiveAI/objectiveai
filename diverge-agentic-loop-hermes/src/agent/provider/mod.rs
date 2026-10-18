@@ -1,36 +1,44 @@
-//! Provider definitions — the inference source and its credentials.
+//! Provider definitions — the inference source, and the secrets it
+//! takes.
 //!
-//! AUTH IS AN ARGUMENT. Each provider here is a structure carrying
-//! exactly the credentials and endpoint facts that provider needs;
-//! nothing about a run's inference auth rides the filesystem or a
-//! mount, and the request carries no environment for it to ride —
-//! tool credentials (`FAL_KEY`, `HASS_TOKEN`, and friends) are
-//! arguments on the toolset structures the same way.
+//! AUTH IS A SECRET. Each provider here is a structure carrying its
+//! discriminator and the endpoint facts that provider needs — never
+//! a credential. A credential is a SECRET: the agent's template
+//! declares it by NAME, the program answers its registration with
+//! the names its arguments select and the mode it takes each in
+//! (every structure's `SECRET:` paragraph says which), and the proxy
+//! feeds the values on `POST /secrets` before every loop. Nothing
+//! about a run's inference auth rides the arguments, the filesystem
+//! or a mount — tool credentials (`FAL_KEY`, `HASS_TOKEN`, and
+//! friends) are secrets on the toolset structures the same way.
 //!
 //! HOW THE HARNESS APPLIES IT: each structure's doc names the
-//! mechanism, and all but one reduce to setting the provider's
-//! canonical env var(s) in the gateway's PROCESS environment before
-//! Hermes starts (vertex additionally writes its service-account
-//! document to a file). Process env is load-bearing twice over:
-//! Hermes prefers `~/.hermes/.env` OVER process env when that file
-//! exists — so the image must guarantee it does not — and bedrock's
-//! botocore chain reads only real env, never Hermes's dotenv.
+//! mechanism, and all but two reduce to setting the provider's
+//! canonical env var(s) — the secret's own name — in the gateway's
+//! PROCESS environment before Hermes starts, to the fed value. The
+//! two: [`custom`]'s key goes into `model.api_key` of the config,
+//! the only place Hermes reads a custom key from; [`vertex`]'s
+//! document goes to the file `VERTEX_CREDENTIALS_PATH` names.
+//! Process env is load-bearing twice over: Hermes prefers
+//! `~/.hermes/.env` OVER process env when that file exists — so the
+//! image must guarantee it does not — and bedrock's botocore chain
+//! reads only real env, never Hermes's dotenv.
 //!
-//! ROTATING OAUTH LIVES IN THE VAULT. Four providers — [`nous`],
+//! ROTATING OAUTH IS A ROTATING SECRET. Four providers — [`nous`],
 //! [`openai_codex`], [`minimax_oauth`], [`qwen_oauth`] —
 //! authenticate with OAuth state whose refresh tokens are
 //! SINGLE-USE: every refresh rotates them, and whoever holds the
-//! old copy is logged out. A plain value argument cannot carry
-//! that, so these structures carry no credential at all: the
-//! document lives in the caller's vault under a well-known key
-//! (the SDK's `shared::containers::vault::keys`), and the harness
-//! owes it the cycle — lock the key for the run, read the document,
-//! write it where Hermes reads it, run, read it back as the run
-//! left it, set it, unlock. The lock is what keeps two runs from
-//! rotating one login past each other. (These providers'
-//! advertised key env vars — `NOUS_API_KEY`, `QWEN_API_KEY` — are
-//! vestigial; no resolution path reads them, so the state document
-//! is the only credential there is.)
+//! old copy is logged out. A value read and forgotten cannot carry
+//! that, so these structures declare their state document as a
+//! `rotating` secret — a JSON object the harness writes where Hermes
+//! reads it before the gateway starts, reads back as the run left it
+//! after the gateway exits, and hands to the proxy's collect, which
+//! writes it back where it was locked from. The lock the caller
+//! holds on a rotating value for the container's active period is
+//! what keeps two runs from rotating one login past each other.
+//! (These providers' advertised key env vars — `NOUS_API_KEY`,
+//! `QWEN_API_KEY` — are vestigial; no resolution path reads them, so
+//! the state document is the only credential there is.)
 //!
 //! DROPPED from Hermes's bundled registry: `copilot-acp` alone,
 //! which keeps its auth inside a spawned external CLI, not in

@@ -11,11 +11,16 @@
 //! at each turn's end; `GET /schema` is the JSON Schema of the agent
 //! value this image accepts; `POST /register` is that value, told
 //! once for the container's life before any run — a run before it is
-//! refused. The run itself is [`run::run`]: the
-//! filesystem laid down from the agent, `hermes gateway` spawned and
-//! driven over `/v1/runs`, the way back up. Its tool calls go through
-//! the proxy's MCP server, named in its config; its rotating logins
-//! come from the vault and go back to it; the session it resumes
+//! refused — answered with the tools the agent depends on and the
+//! secrets it takes, each by name to its mode; `POST /secrets` is
+//! the proxy feeding those secrets' values, before the first run and
+//! at every activation after; `POST /secrets/collect` is the proxy
+//! asking the rotating ones back, at every inactive. The run itself
+//! is [`run::run`]: the filesystem laid down from the agent and the
+//! fed values, `hermes gateway` spawned and driven over `/v1/runs`,
+//! the way back up. Its tool calls go through the proxy's MCP
+//! server, named in its config; its rotating logins come from the
+//! feed and go back through the collect; the session it resumes
 //! from, and leaves behind, is rows in the caller's database, reached
 //! through the proxy's loopback pgwire — restored once, harvested at
 //! the end of every run.
@@ -25,22 +30,23 @@
 //! The proxy is not part of this image: the host injects it at
 //! runtime, and it may not be up at all until a request comes. So
 //! the server binds and waits, and the first thing to touch the
-//! proxy is `POST /run` itself: the vault, the database, then the
-//! gateway's own MCP client. Making the [`Client`] is no I/O.
+//! proxy is `POST /run` itself: the database, then the gateway's own
+//! MCP client. Making the [`Client`] is no I/O.
 //!
 //! # What is an error, and what is not
 //!
 //! Anything that fails before the run has said a single thing is a
 //! real error — a non-`2xx`, with a JSON reason, and no stream: a
 //! run beside one streaming, an agent value that is not a Hermes
-//! agent, an empty prompt, a database that will not answer, a vault
-//! document that cannot be had, a filesystem that will not lay down,
-//! a session that will not restore, a gateway that will not start,
-//! and the first item of the stream itself, which is pulled before
-//! the response is decided. A failure AFTER output is a fatal
-//! `notification` chunk, the run's own last words, then the stream's
-//! end. The stream never carries an error of its own: it is chunks,
-//! and only chunks.
+//! agent, an empty prompt, a database that will not answer, a secret
+//! the feed lacks or fed in the wrong shape, a filesystem that will
+//! not lay down, a session that will not restore, a gateway that
+//! will not start, and the first item of the stream itself, which is
+//! pulled before the response is decided. A failure AFTER output is
+//! a fatal `notification` chunk, the run's own last words, then the
+//! stream's end. The stream never carries an error of its own: it is
+//! chunks, and only chunks. No error, anywhere, carries a secret's
+//! value: a secrets failure names the secret.
 
 mod agent;
 mod claim;
@@ -55,7 +61,7 @@ mod registration;
 #[allow(dead_code)]
 mod response;
 mod run;
-mod vault;
+mod secrets;
 
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -68,6 +74,7 @@ use diverge_sdk::container_proxy::inside::Client;
 use diverge_sdk::container_proxy::inside::agent::dequeue::{self, Outcome};
 use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
 use diverge_sdk::container_proxy::inside::register::response::Response;
+use diverge_sdk::container_proxy::inside::secrets::{collect, feed};
 use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use futures_util::{Stream, StreamExt as _};
@@ -100,6 +107,8 @@ async fn serve() {
         .route("/schema", axum::routing::get(schema))
         .route("/enqueue", axum::routing::post(enqueue))
         .route("/dequeue", axum::routing::post(dequeue))
+        .route("/secrets", axum::routing::post(feed_secrets))
+        .route("/secrets/collect", axum::routing::post(collect_secrets))
         .with_state(Arc::new(Client::new()));
 
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_sdk::container_proxy::inside::port()))
@@ -120,7 +129,8 @@ async fn serve() {
 /// is never refused); a message with no content, or content this agent cannot take (`400`); a database
 /// that will not answer (`500`); and the run's FIRST item, pulled
 /// before the response is decided — the run's one `Err` is the
-/// request's own failure (`500`, in its own words), and a run with
+/// request's own failure (`500`, in its own words — a secret the feed
+/// lacks is `{"kind":"secrets"}`, naming it), and a run with
 /// nothing to say is `empty_run`. The queue is opened for this run
 /// right behind the claim; every refusal before the run exists closes
 /// it again, so a message waiting for a loop that will never look is
@@ -185,7 +195,6 @@ async fn run(
     };
 
     let mut items = Box::pin(run::run(
-        client,
         pool,
         agent,
         request.messages,
@@ -235,9 +244,14 @@ async fn run(
 
 /// `POST /register`: the `arguments`, the agent, once, for the container's life.
 ///
-/// A value this image will not take is `400`; an agent already
+/// A value this image will not take is `400 agent`; an agent that
+/// will not plan — a contradiction in what it names, a skills mount
+/// that cannot be looked at — is `400 plan`; an agent already
 /// registered is `409`, whatever the second carries — the agent
-/// never changes. `200`, with the tools the agent depends on passed back, is the agent held.
+/// never changes. `200`, with the tools the agent depends on and the
+/// secrets it takes passed back, is the agent held. The declaration
+/// is not stored: it is the agent's to recompute, and the run plans
+/// the agent afresh every time.
 async fn register(Json(request): Json<diverge_sdk::container_proxy::inside::register::request::Request>) -> Result<(StatusCode, Json<Response>), Refusal> {
     let agent: Agent = match serde_json::from_value(request.arguments) {
         Ok(agent) => agent,
@@ -251,14 +265,59 @@ async fn register(Json(request): Json<diverge_sdk::container_proxy::inside::regi
             ));
         }
     };
+    let secrets = match agent.declaration().await {
+        Ok(declaration) => declaration,
+        Err(error) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "kind": "plan",
+                    "error": error.to_string(),
+                })),
+            ));
+        }
+    };
     let dependencies = agent.dependencies.clone();
     match registration::register(agent) {
-        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies }))),
+        Ok(()) => Ok((
+            StatusCode::OK,
+            Json(Response {
+                dependencies,
+                secrets,
+            }),
+        )),
         Err(_) => Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
                 "kind": "registered",
                 "error": "the agent is registered, and it never changes",
+            })),
+        )),
+    }
+}
+
+/// `POST /secrets`: the secrets' values, fed. Held whole in place of
+/// the previous feed ([`secrets::feed`]); a loop in flight keeps the
+/// snapshot it took, and the next loop takes these. `204`, always:
+/// a value that will not do is found out by the loop that applies
+/// it, and is that run's refusal, naming the secret.
+async fn feed_secrets(Json(request): Json<feed::request::Request>) -> StatusCode {
+    secrets::feed(request.0).await;
+    StatusCode::NO_CONTENT
+}
+
+/// `POST /secrets/collect`: the rotating secrets, handed back —
+/// every name asked for, each as the last loop left it, else as it
+/// was fed ([`secrets::collect`]). A name held nowhere is `500
+/// secrets`, naming the name and never a value.
+async fn collect_secrets(Json(request): Json<collect::request::Request>) -> Result<Json<collect::response::Response>, Refusal> {
+    match secrets::collect(&request.names).await {
+        Ok(values) => Ok(Json(collect::response::Response(values))),
+        Err(name) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "kind": "secrets",
+                "error": format!("no value is held under {name}"),
             })),
         )),
     }

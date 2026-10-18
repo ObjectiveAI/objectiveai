@@ -4,13 +4,14 @@ use std::error;
 use std::fmt;
 use std::io;
 
-/// Why the documents could not be read back after the gateway exited.
+/// Why the rotating documents could not be read back after the
+/// gateway exited. Nothing here carries a value: the file's own
+/// error, and only that.
 #[derive(Debug)]
 pub enum ReadBackError {
     /// `auth.json` or the Qwen file could not be read.
     Io(io::Error),
-    /// `auth.json` would not parse, or an entry would not
-    /// re-serialize.
+    /// `auth.json` or the Qwen file would not parse as JSON.
     Json(serde_json::Error),
 }
 
@@ -21,7 +22,7 @@ impl fmt::Display for ReadBackError {
                 write!(f, "the filesystem could not be read back: {error}")
             }
             ReadBackError::Json(error) => {
-                write!(f, "auth.json could not be read back: {error}")
+                write!(f, "a credential file could not be read back: {error}")
             }
         }
     }

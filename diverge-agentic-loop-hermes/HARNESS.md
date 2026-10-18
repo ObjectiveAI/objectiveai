@@ -5,28 +5,33 @@ as they are settled. Each entry is a decision already made, with its
 evidence in `reports/` where one exists. Add to this file as more is
 figured out.
 
-## Auth is handled on the filesystem, from the request
+## Auth is a secret, applied on the filesystem
 
-Nothing about credentials arrives ambiently: the request's agent
-carries the static ones as arguments (provider structures, toolset
-structures), the ROTATING ones live in the caller's vault under the
-SDK's well-known keys, and the harness APPLIES all of them before
-`hermes gateway` starts —
+Nothing about credentials arrives ambiently, and none is an
+argument: the request's agent SELECTS secrets by name — each
+provider and toolset structure's `SECRET:` paragraph says which, and
+in what mode — the agent's template declares those names, and the
+proxy FEEDS their values on `POST /secrets` before the first loop
+and at every activation after. The harness APPLIES every fed value
+before `hermes gateway` starts —
 
-- canonical env vars in the gateway's PROCESS environment (the
-  per-provider and per-toolset docs in the agent module name each
-  one);
+- the `fixed` ones bound for the environment, as canonical env vars
+  in the gateway's PROCESS environment, each under the secret's own
+  name (the per-provider and per-toolset docs in the agent module
+  name each one);
 - `$HERMES_HOME/auth.json` entries for the OAuth providers (nous,
-  openai-codex, minimax-oauth) and spotify — the vault document
-  written verbatim as `providers.<name>`;
+  openai-codex, minimax-oauth) and spotify — the fed document, a
+  JSON object, written verbatim as `providers.<name>`;
 - qwen-oauth's document at the REAL `$HOME`
   (`~/.qwen/oauth_creds.json`) — and NO `providers.qwen-oauth`
   marker: that entry serves the setup wizard's credential check
   only; the gateway reads the CLI file directly;
-- vertex's service-account JSON to a file + `VERTEX_CREDENTIALS_PATH`;
+- vertex's service-account document (`VERTEX_SERVICE_ACCOUNT_JSON`, a JSON
+  string holding it) to a file + `VERTEX_CREDENTIALS_PATH`;
 - `model.base_url` + `model.api_key` in config.yaml for `custom`
-  (Hermes reads the key only beside a configured URL; the env var
-  `CUSTOM_BASE_URL` is set too, and is what it resolves first).
+  (`CUSTOM_API_KEY` is not a variable Hermes reads — the key is read
+  from the config only, and only beside a configured URL; the env
+  var `CUSTOM_BASE_URL` is set too, and is what it resolves first).
 
 Rules that make this work (`provider-auth.md`, `oauth-resources.md`):
 
@@ -36,48 +41,51 @@ Rules that make this work (`provider-auth.md`, `oauth-resources.md`):
   auth.json's `active_provider` (priority 6 of 8; a stray
   `OPENAI_API_KEY` would outrank it). Omit `suppressed_sources`
   when writing auth.json.
-- Where two toolsets name the same env var (`FAL_KEY`), the values
-  must agree; disagreement is the caller's contradiction.
-- Rotating OAuth state is a VAULT DOCUMENT under a fixed key
+- One name, one secret: where two places select the same name
+  (`FAL_KEY` from image_gen and video_gen, `XAI_API_KEY` from the xai
+  provider and x_search), the plan declares it once and one value is
+  fed. The contradiction rule survives for plain variables only
+  (`Plan::set`), and for a name declared for two different targets
+  (`Plan::declare`).
+- Rotating OAuth state is a ROTATING SECRET under a fixed name
   (`NOUS_OAUTH`, `OPENAI_CODEX_OAUTH`, `MINIMAX_OAUTH`, `QWEN_OAUTH`,
-  `SPOTIFY_OAUTH` — the SDK's `vault::keys`, shared by any image
-  that speaks the same login). The agent names no field for it:
-  choosing the provider or toolset is the whole ask. Every run owes
-  the cycle, in `vault.rs`: LOCK the key (TTL 300 s, re-locked every
-  100 s on a task for the run's life), GET the document, write it,
-  run, read it back as Hermes left it, SET it, UNLOCK. A key the
-  vault does not hold, or holds as something other than a JSON
-  object, refuses the run before the gateway starts. A document no
-  longer on disk at the end (Hermes quarantined the entry) is not
-  set — the caller keeping its copy beats a lost login — and the key
-  is still unlocked. A run abandoned mid-way stops refreshing and
-  the locks lapse by their TTL.
-- The alternative to the vault cycle is a FUSE DIRECTORY mount
-  (`fuse_directory_mounts` on the container request): the caller
-  serves `$HERMES_HOME` — or the directory holding `auth.json` and
-  the qwen file — live, and every refresh Hermes writes lands with
-  the caller as it happens. A DIRECTORY, not a file mount: Hermes
-  saves its auth store by writing a temporary beside it and renaming
-  over it (`hermes_cli/auth.py`, `_save_auth_store`, an atomic
-  `os.replace`), and the kernel refuses a rename onto a single-file
-  mount point. Which the caller chooses is the request's; the
-  harness's cycle runs only for keys the vault holds.
+  `SPOTIFY_OAUTH`). The agent names no field for it: choosing the
+  provider or toolset is the whole ask. The rotating cycle is the
+  PROXY'S, not the harness's: the caller locks one value for the
+  container's active period and feeds it; the run writes it, runs,
+  reads it back as Hermes left it (`filesystem::read_back`) and
+  leaves it in `secrets.rs`; the proxy collects it on
+  `POST /secrets/collect` at the inactive, and the caller writes it
+  back and drops the lock. A name the feed lacks, or holds as
+  something other than a JSON object, refuses the run before the
+  gateway starts (`{"kind":"secrets"}`, naming the name and never a
+  value). A document no longer on disk at the end (Hermes
+  quarantined the entry) is answered with the value it was fed — the
+  caller keeping its copy beats a lost login — because the collect
+  must be answered for EVERY rotating name. A loop that fails before
+  its read-back leaves nothing, and the collect answers the values
+  fed for that activation: every feed clears what the previous loop
+  left.
 
 ## The `filesystem` module lays it down, and reads the documents back
 
 Three entry points: `filesystem::plan` reads the agent into the
-`Plan` — the environment, the config's inputs, and which vault
-documents the run needs; `filesystem::prepare` writes the plan down
-with the documents in hand; `filesystem::read_back` reads each
-document off disk after the gateway has exited (the `auth.json`
-entry re-serialized, the Qwen file verbatim — a document no longer
-there is `None`), for the vault. The continuation is not the
+`Plan` — the environment, the config's inputs, and the secrets the
+run takes, each by name with where its value goes (`Plan::declare`;
+`Plan::declaration` is what `/register` answers, and
+`Agent::declaration` is that, planned); `filesystem::prepare` writes
+the plan down with the fed values in hand — every name looked up and
+shape-checked BEFORE a byte is written; `filesystem::read_back`
+reads each rotating document off disk after the gateway has exited
+(the `auth.json` entry taken whole, the Qwen file parsed — a
+document no longer there is answered with the fed value), as the
+`Values` the collect answers. The continuation is not the
 filesystem module's to move any more: `continuation.rs` restores it
 from the database once and harvests it at every run's end.
 
 `filesystem::prepare` turns the plan into the gateway's process
 environment (returned to the spawner — the request carries no
-environment of its own; the agent's typed fields and the vault are
+environment of its own; the agent's typed fields and the feed are
 the whole source), `config.yaml`, and the credential files, in one
 pass:
 
@@ -100,7 +108,7 @@ pass:
   nothing is on by omission: Hermes's own API-server default — web,
   browser, terminal, file, code_execution, vision, todo, memory,
   session_search, and image_gen (hidden without a FAL key, which only
-  the structure brings) — is never consulted.
+  the switch's secret brings) — is never consulted.
   `skills` in exactly when something is on disk under the external
   skills path, out otherwise — and skills come from MOUNTS at
   `/root/.hermes/external-skills/` (one directory per skill, its
@@ -121,9 +129,11 @@ pass:
   `{"version": 1, "providers": {...}}` with the documents verbatim,
   the Qwen file, the vertex file (`VERTEX_CREDENTIALS_PATH` names
   it).
-- One variable, one value: `FAL_KEY` (image_gen vs video_gen) and
-  `XAI_API_KEY` (the xai provider vs x_search) must agree, or the
-  request contradicts itself and is refused.
+- One name, one secret: `FAL_KEY` (image_gen and video_gen) and
+  `XAI_API_KEY` (the xai provider and x_search) are declared once
+  however many places select them; a plain variable set twice to
+  different values is the request contradicting itself, and is
+  refused.
 
 ## Use yolo mode — the container is the sandbox
 
@@ -213,7 +223,7 @@ override): `state.db` whole — the session store, schema v26 and
 moving, its gateway-only tables empty here — plus
 `memories/MEMORY.md` and `memories/USER.md`. Nothing else travels:
 configuration is rendered from the request, `auth.json` entries are
-vault documents, caches regenerate, skill writing is unsupported. The
+fed secrets, caches regenerate, skill writing is unsupported. The
 `filesystem::continuation` module is the shape; `continuation.rs` is
 where it lives; the rules:
 
@@ -267,18 +277,22 @@ where it lives; the rules:
 ## Nothing rides the container surface
 
 There are no resources. What used to be fetched by identity over
-the socket — rotating OAuth state — comes from the vault (above),
-and the continuation comes from the database. Nothing rides the
-container surface but the request and the chunks.
+the socket — rotating OAuth state — is fed by the proxy and
+collected back (above), and the continuation comes from the
+database. Nothing rides the container surface but the request, the
+secrets' two calls, and the chunks.
 
 ## The runner (`run::run`)
 
-One stream for the whole run: plan → the vault cycle's first half →
-prepare → the session (restored once, else the tip on disk) → spawn
-`hermes gateway` (env from `prepare`, SIGTERM to stop, `/health`
-polled every 250ms with no timeout) → turns over `/v1/runs` → stop →
-read back and set the documents, unlock → harvest into the rows.
-Rules settled with it:
+One stream for the whole run: plan → the secrets snapshot
+(`secrets::values`, taken once and kept for the loop, whatever is
+fed meanwhile) → prepare → the session (restored once, else the tip
+on disk) → spawn `hermes gateway` (env from `prepare`, SIGTERM to
+stop, `/health` polled every 250ms with no timeout) → turns over
+`/v1/runs` → stop → read back the rotating documents and leave them
+for the collect (`secrets::leave`) → harvest into the rows. The run
+takes no proxy client: the only thing of the proxy's it touches is
+the database the server dialed for it. Rules settled with it:
 
 - The queue is taken at each turn's end, and only there (above).
 - Tool chunks come from the gateway's events, which carry no ids
@@ -297,13 +311,16 @@ Rules settled with it:
   (compaction may have rotated it) and the next turn records into
   it. Effort rides `model_options.reasoning`.
 - Before the gateway is up, a failure is the stream's one `Err` — the
-  server's status; after, every failure is a fatal notification and
-  the run still stops the gateway, releases the vault and harvests.
+  server's status (a secret the feed lacks or fed in the wrong shape
+  is `{"kind":"secrets"}`); after, every failure is a fatal
+  notification and the run still stops the gateway, reads back what
+  it can and harvests. A read-back that fails is a fatal notification
+  saying the collect will answer the fed values.
 - One run at a time: the run holds the `Claim` (cc's three-phase
   lock) inside a `Teardown` captured into the stream; when the stream
   drops the teardown marks it settling, closes the queue on a task,
   and only then releases — a request landing meanwhile waits, never
-  refused. The gateway dies with the stream; held locks lapse by TTL.
+  refused. The gateway dies with the stream.
 
 ## The server
 
@@ -317,9 +334,16 @@ the first item pulled before the status is chosen — the run's one
 `Err` is a `500` with its own words, a run with nothing to say is
 `empty_run`, a run beside one streaming is `409 busy`), `GET
 /schema` (`schemars::schema_for!(Agent)`), `POST /enqueue` (held
-until the fate is known), `POST /dequeue`. Nothing of the proxy's is
-touched before a request; the vault, the database and the gateway
-are all `POST /run`'s.
+until the fate is known), `POST /dequeue`, `POST /secrets` (the
+values, held whole in place of the previous feed — `204`, always; a
+value that will not do is found out by the loop that applies it)
+and `POST /secrets/collect` (every rotating name asked for, each as
+the last loop left it or else as it was fed — `200`; a name held
+nowhere is `500 secrets`, naming the name and never a value).
+`/register` answers the agent's dependencies and its secrets'
+declaration, planned from the agent; an agent that will not plan is
+`400 plan`. Nothing of the proxy's is touched before a request; the
+database and the gateway are both `POST /run`'s.
 
 ## The runtime image (see also the Containerfile header)
 

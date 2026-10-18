@@ -18,9 +18,9 @@ axum = { version = "0.8.9" }
 # Path-only: this crate rides the workspace and is never published, so
 # the SDKs are named by where they live rather than by version pins
 # version.sh would have to chase. The provider SDK is the vocabulary —
-# the chunks, the fates, the vault's well-known keys; the container
-# SDK is the proxy beside this program — the vault, the database URL,
-# and the MCP URL the gateway is configured with.
+# the chunks, the fates; the container SDK is the proxy beside this
+# program — the registration and the secrets' feed and collect, the
+# database URL, and the MCP URL the gateway is configured with.
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The agent's JSON Schema, derived from the agent types for
 # `GET /schema`.
@@ -54,9 +54,9 @@ sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio
 uuid = { version = "1.22.0", features = ["v4"] }
 # The runtime under the listener, `sync` for the queue's mutex and
 # the claim's Notify, `fs` + `io-util` for the continuation's files,
-# read and appended a piece at a time, `time` for the vault lock's
-# refresh. No `macros` — the runtime is built in main, not attributed
-# onto it.
+# read and appended a piece at a time, `time` for the gateway's
+# readiness poll. No `macros` — the runtime is built in main, not
+# attributed onto it.
 tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync", "time"] }
 
 # SIGTERM for the gateway: a graceful stop before the fold. Unix
