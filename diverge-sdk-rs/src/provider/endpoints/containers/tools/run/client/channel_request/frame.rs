@@ -24,7 +24,7 @@ use crate::shared::containers::daemon;
 /// | `3` | [`Write`](Self::Write) |
 /// | `4` | [`Transfer`](Self::Transfer) |
 /// | `5` | [`Postgres`](Self::Postgres) |
-/// | `6` | [`Schema`](Self::Schema) |
+/// | `6` | [`Info`](Self::Info) |
 /// | `7` | [`Daemon`](Self::Daemon) |
 /// | `8` | [`McpListTools`](Self::McpListTools) |
 /// | `9` | [`McpListResources`](Self::McpListResources) |
@@ -103,9 +103,9 @@ pub enum Frame {
     /// What the arguments may be. Tag `6`.
     ///
     /// Carries nothing — the variant is bare — and the provider answers
-    /// with the JSON Schema of the container's arguments. See
-    /// [`schema`](crate::shared::containers::schema).
-    Schema,
+    /// with the image's DIVERGE.md, parsed, or that it has none. See
+    /// [`info`](crate::shared::containers::info).
+    Info,
     /// A daemon connection the container's program opened, by the id
     /// the provider announced: this end's half of it. Tag `7`.
     ///
@@ -192,8 +192,8 @@ const TRANSFER: u8 = 4;
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 5;
 
-/// Tag for [`Frame::Schema`].
-const SCHEMA: u8 = 6;
+/// Tag for [`Frame::Info`].
+const INFO: u8 = 6;
 
 /// Tag for [`Frame::Daemon`].
 const DAEMON: u8 = 7;
@@ -249,8 +249,8 @@ impl Encode for Frame {
                 out.extend_from_slice(&[POSTGRES]);
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::Schema => {
-                out.extend_from_slice(&[SCHEMA]);
+            Frame::Info => {
+                out.extend_from_slice(&[INFO]);
                 Ok(())
             }
             Frame::Daemon(request) => {
@@ -312,7 +312,7 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            SCHEMA => Ok(Frame::Schema),
+            INFO => Ok(Frame::Info),
             DAEMON => daemon::request::Daemon::decode(rest)
                 .map(Frame::Daemon)
                 .map_err(FrameError::Daemon),

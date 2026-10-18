@@ -24,7 +24,7 @@
 //! The proxy opens them for everything the container asks of the world
 //! outside — its database connections, its daemon connection, its
 //! tool calls outward. The server opens them for the
-//! arguments' schema, for the family's own exchange — the five MCP
+//! image's DIVERGE.md, for the family's own exchange — the five MCP
 //! exchanges into the container's server — and for its half of each
 //! database connection. Same scope, opposite directions, and neither
 //! side's channel numbers mean anything to the other.

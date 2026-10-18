@@ -18,7 +18,7 @@ use crate::shared::containers::{dequeue, enqueue, postgres};
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Postgres`](Self::Postgres) |
-/// | `1` | [`Schema`](Self::Schema) |
+/// | `1` | [`Info`](Self::Info) |
 /// | `2` | [`Enqueue`](Self::Enqueue) |
 /// | `3` | [`Dequeue`](Self::Dequeue) |
 /// | `4` | [`Secrets`](Self::Secrets) |
@@ -44,9 +44,10 @@ pub enum Frame {
     /// What the arguments may be. Tag `1`.
     ///
     /// Carries nothing — the variant is bare — and the proxy answers
-    /// with the JSON Schema of the container's arguments. See
-    /// [`schema`](crate::shared::containers::schema).
-    Schema,
+    /// with the image's DIVERGE.md, parsed — read from the
+    /// container's root, the program never asked — or that it has
+    /// none. See [`info`](crate::shared::containers::info).
+    Info,
     /// A message for the agent. Tag `2`.
     ///
     /// The one way into it: a message with no loop running starts one,
@@ -83,8 +84,8 @@ pub enum Frame {
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 0;
 
-/// Tag for [`Frame::Schema`].
-const SCHEMA: u8 = 1;
+/// Tag for [`Frame::Info`].
+const INFO: u8 = 1;
 
 /// Tag for [`Frame::Enqueue`].
 const ENQUEUE: u8 = 2;
@@ -107,8 +108,8 @@ impl Encode for Frame {
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::Schema => {
-                out.extend_from_slice(&[SCHEMA]);
+            Frame::Info => {
+                out.extend_from_slice(&[INFO]);
                 Ok(())
             }
             Frame::Enqueue(request) => {
@@ -137,7 +138,7 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            SCHEMA => Ok(Frame::Schema),
+            INFO => Ok(Frame::Info),
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),

@@ -20,7 +20,7 @@ use crate::shared::mcp;
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Postgres`](Self::Postgres) |
-/// | `1` | [`Schema`](Self::Schema) |
+/// | `1` | [`Info`](Self::Info) |
 /// | `2` | [`Daemon`](Self::Daemon) |
 /// | `3` | [`McpListTools`](Self::McpListTools) |
 /// | `4` | [`McpListResources`](Self::McpListResources) |
@@ -47,9 +47,10 @@ pub enum Frame {
     /// What the arguments may be. Tag `1`.
     ///
     /// Carries nothing — the variant is bare — and the proxy answers
-    /// with the JSON Schema of the container's arguments. See
-    /// [`schema`](crate::shared::containers::schema).
-    Schema,
+    /// with the image's DIVERGE.md, parsed — read from the
+    /// container's root, the program never asked — or that it has
+    /// none. See [`info`](crate::shared::containers::info).
+    Info,
     /// A daemon connection the program opened, by the id the proxy
     /// announced: the server's half of it. Tag `2`.
     ///
@@ -93,8 +94,8 @@ pub enum Frame {
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 0;
 
-/// Tag for [`Frame::Schema`].
-const SCHEMA: u8 = 1;
+/// Tag for [`Frame::Info`].
+const INFO: u8 = 1;
 
 /// Tag for [`Frame::Daemon`].
 const DAEMON: u8 = 2;
@@ -129,8 +130,8 @@ impl Encode for Frame {
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::Schema => {
-                out.extend_from_slice(&[SCHEMA]);
+            Frame::Info => {
+                out.extend_from_slice(&[INFO]);
                 Ok(())
             }
             Frame::Daemon(request) => {
@@ -175,7 +176,7 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            SCHEMA => Ok(Frame::Schema),
+            INFO => Ok(Frame::Info),
             DAEMON => daemon::request::Daemon::decode(rest)
                 .map(Frame::Daemon)
                 .map_err(FrameError::Daemon),

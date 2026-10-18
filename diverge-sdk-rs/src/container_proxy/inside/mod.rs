@@ -27,7 +27,7 @@
 //! The program's own server is not here. Every container's program
 //! is its own HTTP server, on the loopback at the port [`port()`]
 //! names, and the proxy dials it, forwarding what the provider's
-//! server asks: `/register`, `/schema`, `/secrets` and
+//! server asks: `/register`, `/secrets` and
 //! `/secrets/collect` on either kind of container — [`register`] is
 //! the first's body, the arguments and the template id, and its
 //! answer, the dependencies the program declares and the secrets it
@@ -36,7 +36,9 @@
 //! an agent container, the loop's `/run`, `/enqueue` and `/dequeue`
 //! that [`agent`] states; for a tool container, the MCP server at
 //! `/mcp` that [`tool`] states. Each surface is stated there, once,
-//! and nothing here stands between the two.
+//! and nothing here stands between the two. What the arguments may
+//! be is asked of no program: it is the image's `/DIVERGE.md`, which
+//! the proxy reads from the root.
 
 pub mod agent;
 mod client;

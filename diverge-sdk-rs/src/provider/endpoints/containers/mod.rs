@@ -20,9 +20,10 @@
 //!
 //! Everything else is identical, and it is most of the wire: the
 //! request that makes a container carries its arguments — a JSON value
-//! the image defines, fixed for the container's life — and a `schema`
-//! channel says what they may be; each family has a `run` that owns the
-//! container's life; every scope reads and writes files, watches the
+//! the image defines, fixed for the container's life — and an `info`
+//! channel answers the image's DIVERGE.md, which says what they may
+//! be; each family has a `run` that owns the container's life; every
+//! scope reads and writes files, watches the
 //! tree, and relays what the container asks of the caller — its
 //! database connections, its daemon connection, its tool
 //! calls outward. All of that is defined once, in

@@ -1,14 +1,13 @@
 //! The begin scope, held for the connection's life.
 
-use serde_json::Value;
-
 use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
-use crate::provider::endpoints::containers::client::answered::{Daemon,
-    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Schema, Secrets,
+use crate::provider::endpoints::containers::client::answered::{Daemon, Info,
+    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Secrets,
 };
 use crate::provider::endpoints::containers::client::{Answered, ChannelStream, OpenError, UnaryError, unary};
+use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{daemon, postgres};
 use crate::shared::mcp;
@@ -16,7 +15,7 @@ use crate::shared::mcp;
 /// The begin scope a tool container's server holds.
 ///
 /// Every channel the server may open on it is a method here — the
-/// arguments' schema, the five MCP exchanges into the container's
+/// image's DIVERGE.md, the five MCP exchanges into the container's
 /// server, the secrets' feed, the server's half of a database
 /// connection — and so is answering a channel the proxy opened, by
 /// the proxy's own channel number. Clones share the scope, which is
@@ -49,10 +48,13 @@ impl ExecuteHandle {
         self.scope
     }
 
-    /// What the arguments may be: the image's JSON Schema for them.
-    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
-        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
-        unary::<Schema>(&self.handle, self.scope, &payload).await
+    /// What the arguments may be: the image's `/DIVERGE.md`, parsed —
+    /// its schema and its body — or `None` for an image that ships
+    /// none. The proxy reads the file from the container's root; the
+    /// program is never asked.
+    pub async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
+        let payload = payload(&channel_request::Frame::Info).map_err(UnaryError::Request)?;
+        unary::<Info>(&self.handle, self.scope, &payload).await
     }
 
     /// What tools the container's server has.

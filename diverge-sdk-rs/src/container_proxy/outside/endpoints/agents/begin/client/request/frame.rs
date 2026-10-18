@@ -13,8 +13,8 @@ use crate::wire::encode::{Encode, Writer};
 /// [`arguments`](crate::shared::containers::request::Container::arguments)
 /// of the request that made the container, typed to the same depth
 /// for the same reason — a JSON value, because the image defines what
-/// it takes, and what the value may be is what
-/// [`schema`](crate::shared::containers::schema) answers. They ride
+/// it takes, and what the value may be is what the image's
+/// [`info`](crate::shared::containers::info) answers. They ride
 /// the begin rather than a channel of their own because they are
 /// handed over exactly once, first, and never change: the container
 /// that has begun is a container that holds its arguments, and

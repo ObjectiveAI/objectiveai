@@ -2,17 +2,18 @@
 //!
 //! A tool container's program is an HTTP server on the container's
 //! loopback, at [`port()`](crate::container_proxy::inside::port), and the proxy beside it is
-//! its only caller. This module is that server's contract — the two
+//! its only caller. This module is that server's contract — the
 //! calls every container answers, and the MCP server beside them —
 //! stated once, for the program that answers them and the proxy that
-//! makes them.
+//! makes them. What the arguments may be is not among them: that is
+//! the image's `/DIVERGE.md`, which the proxy reads from the root and
+//! the program is never asked for.
 //!
 //! | the proxy calls | with | the program answers |
 //! |-----------------|------|---------------------|
 //! | `POST /register` | the [`register::request::Request`](crate::container_proxy::inside::register::request::Request) JSON | `2xx` with the [`register::response::Response`](crate::container_proxy::inside::register::response::Response) JSON, the secrets the program takes — its dependencies ignored — the arguments and the template id held for the container's life; or a non-`2xx` |
 //! | `POST /secrets` | the [`secrets::feed::request::Request`](crate::container_proxy::inside::secrets::feed::request::Request) JSON | `2xx` once the values are held, its body unread; or a non-`2xx` |
 //! | `POST /secrets/collect` | the [`secrets::collect::request::Request`](crate::container_proxy::inside::secrets::collect::request::Request) JSON | `2xx` with the [`secrets::collect::response::Response`](crate::container_proxy::inside::secrets::collect::response::Response) JSON, every name asked for with its value; or a non-`2xx` |
-//! | `GET /schema` | nothing | `2xx` with the JSON Schema of the arguments; or a non-`2xx` |
 //! | `/mcp` | MCP over Streamable HTTP | the server itself: every exchange the caller opens on the provider, made by the proxy's one client |
 //!
 //! # Registration comes first, and once

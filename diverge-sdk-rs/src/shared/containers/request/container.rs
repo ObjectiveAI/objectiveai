@@ -104,8 +104,8 @@ pub struct Container {
     /// takes — an agent's model and tools, a tool server's own knobs
     /// — and a wire that typed it would have to be revised for every
     /// image that ever ran. The provider hands it to the container
-    /// and does not read it; what the value MAY be is what
-    /// [`schema`](crate::shared::containers::schema) answers, for
-    /// either kind of container.
+    /// and does not read it; what the value MAY be is what the image's
+    /// [`info`](crate::shared::containers::info) answers — its
+    /// DIVERGE.md — for either kind of container.
     pub arguments: Value,
 }

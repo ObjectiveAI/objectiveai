@@ -5,8 +5,12 @@
 //! its only caller. This module is that server's contract — the
 //! loop's three calls, their bodies, their answers — stated once,
 //! for the program that answers them and the proxy that makes them,
-//! beside the two calls every container answers:
-//! [`register`](crate::container_proxy::inside::register) and `GET /schema`.
+//! beside the calls every container answers:
+//! [`register`](crate::container_proxy::inside::register) and the
+//! two over its [`secrets`](crate::container_proxy::inside::secrets).
+//! What the arguments may be is not among them: that is the image's
+//! `/DIVERGE.md`, which the proxy reads from the root and the program
+//! is never asked for.
 //!
 //! | the proxy calls | with | the program answers |
 //! |-----------------|------|---------------------|
@@ -14,7 +18,6 @@
 //! | `POST /secrets` | the [`secrets::feed::request::Request`](crate::container_proxy::inside::secrets::feed::request::Request) JSON | `2xx` once the values are held, its body unread; or a non-`2xx` |
 //! | `POST /secrets/collect` | the [`secrets::collect::request::Request`](crate::container_proxy::inside::secrets::collect::request::Request) JSON | `2xx` with the [`secrets::collect::response::Response`](crate::container_proxy::inside::secrets::collect::response::Response) JSON, every name asked for with its value; or a non-`2xx` |
 //! | `POST /run` | the [`run::request::Request`] JSON | `2xx` as `text/event-stream`, every `data:` one `AgenticLoopChunk` JSON — the messages' user parts first — the stream's end the loop ended; or a non-`2xx` |
-//! | `GET /schema` | nothing | `2xx` with the JSON Schema of the arguments; or a non-`2xx` |
 //! | `POST /enqueue` | the [`enqueue::request::Request`] JSON | `2xx` with one [`enqueue::Fate`], held until the fate is known; or a non-`2xx` |
 //! | `POST /dequeue` | the [`dequeue::request::Request`] JSON | `2xx` with one [`dequeue::Outcome`]; or a non-`2xx` |
 //!

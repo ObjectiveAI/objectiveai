@@ -7,15 +7,15 @@ use std::sync::Arc;
 use bytes::Bytes;
 use futures_util::Stream;
 use rmcp::model::ContentBlock;
-use serde_json::Value;
 
 use super::super::channel_request;
 use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::agents::run::server;
-use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, FuseMount, Schema, Secrets};
+use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, FuseMount, Info, Secrets};
 use crate::provider::endpoints::containers::client::{OpenError, Scoped, UnaryError, WaitError};
 use crate::shared::containers::fuse::Kind;
+use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{dequeue, enqueue, fuse_mount, read, transfer, write_path};
 
@@ -23,7 +23,7 @@ use crate::shared::containers::{dequeue, enqueue, fuse_mount, read, transfer, wr
 ///
 /// Every channel a caller may open into an agent container is a
 /// method here: the tree watched, a file read or written, one more
-/// mount made, the arguments' schema, the queue's two verbs, the
+/// mount made, the image's DIVERGE.md, the queue's two verbs, the
 /// secrets' feed, and the stop. What the agent says
 /// is not: it is the [`ExecuteStream`](super::ExecuteStream) `execute` handed back
 /// beside this. Each opens its own channel, so several may be in flight
@@ -127,10 +127,12 @@ impl ExecuteHandle {
         self.0.unary::<Transfer>(&payload).await
     }
 
-    /// What the arguments may be: the image's JSON Schema for them.
-    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
-        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
-        self.0.unary::<Schema>(&payload).await
+    /// What the arguments may be: the image's `/DIVERGE.md`, parsed —
+    /// its schema and its body — or `None` for an image that ships
+    /// none.
+    pub async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
+        let payload = payload(&channel_request::Frame::Info).map_err(UnaryError::Request)?;
+        self.0.unary::<Info>(&payload).await
     }
 
     /// A message for the agent — starting a loop when none runs,

@@ -7,7 +7,8 @@ use serde_json::Value;
 /// What the program is handed once: the `arguments` of the request
 /// that made the container, typed to the same depth for the same
 /// reason — a JSON value, because the image defines what it takes,
-/// and what the value may be is what `GET /schema` answers — and the
+/// and what the value may be is the image's `/DIVERGE.md`, which the
+/// proxy reads and the program is never asked for — and the
 /// id of the template the container was made from, so that a program
 /// knows which template it is an instance of. No secret rides here:
 /// the program declares which it takes in its answer, and their
