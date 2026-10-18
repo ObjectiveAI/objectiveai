@@ -29,7 +29,7 @@ dashmap = { version = "6.1.0" }
 # program — the database URL, and the MCP URL Claude Code is handed.
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The agent's JSON Schema, derived from the agent types for
-# `GET /schema`.
+# `--schema`.
 schemars = { version = "1.2.2" }
 # The continuation's row, through the proxy's loopback pgwire. `json`
 # binds the state as jsonb.
