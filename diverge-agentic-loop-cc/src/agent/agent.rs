@@ -1,6 +1,7 @@
 //! The Claude Code agent.
 
 use diverge_sdk::shared::containers::dependencies::Template;
+use diverge_sdk::shared::containers::secrets::Declaration;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +17,13 @@ use super::{Effort, Tools};
 /// passed to Claude Code as `--tools`;
 /// [`dependencies`](Self::dependencies) is the other kind, the tool
 /// containers the agent asks the caller to run for it.
+///
+/// # Secrets
+///
+/// None: Claude Code logs in by itself, and no argument names a
+/// credential. The template this agent is made from need declare no
+/// name, and a name it does declare is one the program never asks
+/// for.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Agent {
     /// The model to run.
@@ -40,4 +48,12 @@ pub struct Agent {
     /// one schema, from the one type, at both. Absent is none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<Template>,
+}
+
+impl Agent {
+    /// The secrets this agent takes, as the registration answers
+    /// them: none, whatever the arguments.
+    pub fn declaration(&self) -> Declaration {
+        Declaration::new()
+    }
 }
