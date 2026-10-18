@@ -141,16 +141,27 @@ CREATE TABLE IF NOT EXISTS diverge.counters (
     next        BIGINT NOT NULL
 );
 
--- The vault: one JSON value per key, handed to the containers whose
--- records bind the key to a secret. A key some record binds is not
--- deleted, which the records say, not a constraint: the binding is
--- inside a record's `secrets`.
+-- The vault: keys, each holding one or more JSON values, handed to
+-- the containers whose records bind the key to a secret. A key some
+-- record binds is not deleted, which the records say, not a
+-- constraint: the binding is inside a record's `secrets`.
 CREATE TABLE IF NOT EXISTS diverge.vault (
     key     TEXT PRIMARY KEY,
-    value   JSONB NOT NULL,
     tags    TEXT[] NOT NULL DEFAULT '{}',
     created TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator JSONB NOT NULL
+);
+
+-- A key's values: its slots, numbered from 0 in the order appended,
+-- gone with the key. A slot a running container holds names the
+-- holder — the record's Creator, as JSON — and is NULL while free; a
+-- lock is on a value, never on a key.
+CREATE TABLE IF NOT EXISTS diverge.vault_slots (
+    key    TEXT NOT NULL REFERENCES diverge.vault (key) ON DELETE CASCADE,
+    slot   INT NOT NULL,
+    value  JSONB NOT NULL,
+    holder JSONB,
+    PRIMARY KEY (key, slot)
 );
 
 -- An agent: a template plus what its create added. The container is
@@ -350,3 +361,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS tools_connected_index
 -- (2026-10-16).
 ALTER TABLE diverge.agents ADD COLUMN IF NOT EXISTS secrets JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS secrets JSONB NOT NULL DEFAULT '{}';
+-- A vault key holds its values in slots (2026-10-18): the one value
+-- an earlier daemon kept on the key becomes its slot 0, once, and the
+-- column goes.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'diverge' AND table_name = 'vault' AND column_name = 'value'
+    ) THEN
+        EXECUTE 'INSERT INTO diverge.vault_slots (key, slot, value) SELECT key, 0, value FROM diverge.vault ON CONFLICT DO NOTHING';
+    END IF;
+END $$;
+ALTER TABLE diverge.vault DROP COLUMN IF EXISTS value;

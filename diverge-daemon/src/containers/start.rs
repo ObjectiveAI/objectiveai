@@ -17,7 +17,7 @@ use super::answerers::Answerer;
 use super::capable::Needs;
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{AgentRun, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, secrets, sender_of_agent, sender_of_tool, serve_name, services, stop};
+use super::{AgentRun, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_tool, serve_name, services, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::daemons;
 use crate::store::agents::Agent;
@@ -29,10 +29,12 @@ use crate::store::{agents, agents_templates, providers_daemons, tools as tool_re
 /// idle, the run opened on the first provider that runs it — its
 /// dependencies deployed meanwhile, the transient ones stopped again
 /// when that provider does not — its dependencies settled to none
-/// when its program declared none, and its id taken, the log told
+/// when its program declared none, its secrets taken at its
+/// registration as [`Registrar`](diverge_sdk::provider::client::Registrar)
+/// states and moved into the run, and its id taken, the log told
 /// it began, the pump and the idle clock running. A start that fails
-/// keeps an `Error` item in the log, and the mounts opened are let
-/// go.
+/// keeps an `Error` item in the log, the mounts opened are let go,
+/// and what a registration took is given back.
 pub async fn agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun>, StartError> {
     if let Some(run) = daemon.live.agent_run(agent.id).await {
         return Ok(run);
@@ -100,14 +102,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             .await
             .map_err(StartError::mounts)?,
     );
-    let secrets = match secrets::resolve(daemon, &agent.secrets).await {
-        Ok(secrets) => secrets,
-        Err(error) => {
-            mounts.stop().await;
-            return Err(error);
-        }
-    };
-    let container = build::container(&agent.template, &template.template, volumes, &mounts, secrets).await;
+    let container = build::container(&agent.template, &template.template, volumes, &mounts).await;
     let image = container.image.clone();
     let served = Arc::new(Mutex::new(Served::new()));
     {
@@ -137,6 +132,9 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             touched: touched.clone(),
             inflight: Arc::clone(&inflight),
             services: Mutex::new(None),
+            declared: template.template.secrets.clone(),
+            binding: agent.secrets.clone(),
+            secrets: Mutex::new(None),
         });
         let opened = agents_run::execute(&handle, &agents_request::Frame(container.clone()), answerer.set()).await;
         let (id, handle, stream) = match opened {
@@ -152,6 +150,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
                     deployed
                 };
                 stop::stop_dependencies(daemon, deployed).await;
+                secrets::abandon(daemon, &answerer).await;
                 last = format!("{error:?}");
                 continue;
             }
@@ -176,6 +175,8 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             volumes: crate::volumes::of_agent(agent),
             served,
             messages: Mutex::new(HashMap::new()),
+            pending: Arc::new(Inflight::new()),
+            secrets: Mutex::new(answerer.secrets.lock().await.take()),
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
         });
@@ -209,9 +210,13 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
 /// connected tool connected to — the daemon named connected to, over
 /// the one connection to it, and its connect opened naming the tool,
 /// which starts the container there and carries the tool's MCP
-/// exchanges from then on. A waiter takes the run down when it ends:
-/// the container's run, or the connect scope, which the other daemon
-/// finishes when the tool's run ends there; a transient tool's idle
+/// exchanges from then on. A created tool's secrets are taken at its
+/// registration, as [`Registrar`](diverge_sdk::provider::client::Registrar)
+/// states, and moved into the run; [`pump_tool`](super::pump_tool)
+/// reads the container's activity to its end and takes the run down;
+/// a connected tool's waiter takes it down when the connect scope
+/// ends, which the other daemon finishes when the tool's run ends
+/// there; a transient tool's idle
 /// clock ends either `idle_seconds` after the last use, nothing in
 /// flight and no connect open. A tool declares no dependencies, so
 /// nothing is served to it. Whether the tool is a service is its
@@ -221,7 +226,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         return Ok(run);
     }
     let touched = watch::channel(Instant::now()).0;
-    let (identity, container, handle, mounts, attestation, service) = match &tool.origin {
+    let (identity, container, handle, mounts, attestation, service, stream, secrets) = match &tool.origin {
         Origin::Created { template, provider: pinned } => {
             let record = {
                 let mut conn = daemon.store.acquire().await?;
@@ -244,14 +249,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     .await
                     .map_err(StartError::mounts)?,
             );
-            let secrets = match secrets::resolve(daemon, &tool.secrets).await {
-                Ok(secrets) => secrets,
-                Err(error) => {
-                    mounts.stop().await;
-                    return Err(error);
-                }
-            };
-            let container = build::container(template, &record.template, volumes, &mounts, secrets).await;
+            let container = build::container(template, &record.template, volumes, &mounts).await;
             let image = container.image.clone();
             let mut last = String::new();
             let mut opened = None;
@@ -269,16 +267,23 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     touched: touched.clone(),
                     inflight: Arc::new(Inflight::new()),
                     services: Mutex::new(None),
+                    declared: record.template.secrets.clone(),
+                    binding: tool.secrets.clone(),
+                    secrets: Mutex::new(None),
                 });
                 match tools_run::execute(&handle, &tools_request::Frame(container.clone()), answerer.set()).await {
-                    Ok((id, handle)) => {
-                        opened = Some((identity, id.id, handle));
+                    Ok((id, handle, stream)) => {
+                        let secrets = answerer.secrets.lock().await.take();
+                        opened = Some((identity, id.id, handle, stream, secrets));
                         break;
                     }
-                    Err(error) => last = format!("{error:?}"),
+                    Err(error) => {
+                        secrets::abandon(daemon, &answerer).await;
+                        last = format!("{error:?}");
+                    }
                 }
             }
-            let Some((identity, id, handle)) = opened else {
+            let Some((identity, id, handle, stream, secrets)) = opened else {
                 mounts.stop().await;
                 return Err(StartError::Run(last));
             };
@@ -289,7 +294,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 name: tool.name.clone(),
             };
             let service = record.template.r#type.mode == Mode::Service;
-            (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service)
+            (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service, Some(stream), secrets)
         }
         Origin::Connected {
             daemon: name,
@@ -319,7 +324,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 daemon: name.clone(),
                 account: account.clone(),
             };
-            (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation, false)
+            (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation, false, None, None)
         }
     };
     let run = Arc::new(ToolRun {
@@ -341,6 +346,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         tasks: Mutex::new(Vec::new()),
         edits: Mutex::new(()),
         dependency: None,
+        secrets: Mutex::new(secrets),
     });
     {
         let mut conn = daemon.store.acquire().await?;
@@ -351,15 +357,18 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
     if let ToolHandle::Run(_) = run.handle {
         daemon.live.nudge_capacity(&run.provider);
     }
-    let waiter = {
-        let daemon = Arc::clone(daemon);
-        let run = Arc::clone(&run);
-        tokio::spawn(async move {
-            run.handle.wait().await;
-            stop::ended_tool(&daemon, run).await;
-        })
+    let watcher = match stream {
+        Some(stream) => tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream)),
+        None => {
+            let daemon = Arc::clone(daemon);
+            let run = Arc::clone(&run);
+            tokio::spawn(async move {
+                run.handle.wait().await;
+                stop::ended_tool(&daemon, run).await;
+            })
+        }
     };
-    let mut tasks = vec![waiter.abort_handle()];
+    let mut tasks = vec![watcher.abort_handle()];
     if !run.service {
         tasks.push(tokio::spawn(idle::idle_tool(Arc::clone(daemon), Arc::clone(&run))).abort_handle());
     }

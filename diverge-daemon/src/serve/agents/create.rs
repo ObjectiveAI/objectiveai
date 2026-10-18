@@ -43,6 +43,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     match inner::secrets(&mut tx, &standing, &template.template.secrets, &inner.secrets).await? {
         Secrets::Ok => {}
         Secrets::Mismatch(what) => return Ok(Frame::Error(reply::secrets(&what))),
+        Secrets::Missing(what) => return Ok(Frame::Error(reply::secrets(&what))),
         Secrets::Forbidden => return Ok(Frame::Forbidden),
     }
     match inner::providers(&mut tx, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts).await? {

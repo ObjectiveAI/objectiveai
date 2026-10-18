@@ -23,10 +23,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// One `Forbidden` with no `list` grant at all; else every key any
 /// `list` grant reaches that the request's filter lets through,
-/// oldest first, the first `count` of them, one frame each, never a
-/// value, then the word that the list is whole — and from then on
-/// each key added, changed or removed as the keys and the records
-/// binding them change, until the client cancels.
+/// oldest first, the first `count` of them, one frame each — its
+/// slots by number and who holds each, never a value — then the word
+/// that the list is whole; and from then on each key added, changed
+/// or removed as the keys, their slots' holds and the records binding
+/// them change, until the client cancels.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;

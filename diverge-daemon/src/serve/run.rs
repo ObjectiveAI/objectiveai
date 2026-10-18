@@ -14,14 +14,16 @@ use crate::daemon::Daemon;
 use crate::database;
 use crate::postgres;
 use crate::providers;
-use crate::store;
+use crate::store::{self, vault};
 
 /// Run the daemon on `config`, the file at `root`, under
 /// `<root>/daemon/`, until Ctrl-C or, on Unix, SIGTERM.
 ///
 /// In order: the directory is made; the database the configuration names is started, or
 /// named; the store is opened on it, its schema applied and root
-/// seeded into a fresh one; the daemon is built; the port is listened
+/// seeded into a fresh one; the daemon is built; every vault slot a
+/// run of an earlier daemon held is freed, since no run survives a
+/// restart; the port is listened
 /// on until the signal, every outgoing provider on record dialled
 /// meanwhile; the listener drains; the dials are ended, and their
 /// connections with them; and the database that was started is
@@ -58,6 +60,10 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
         config.accept_daemons,
         std::time::Duration::from_secs(config.capacity_poll_seconds),
     ));
+    if let Err(error) = clear_holders(&daemon).await {
+        postgres.stop().await;
+        return Err(Error::Store(error));
+    }
     if let Err(error) = providers::dial_all(&daemon).await {
         postgres.stop().await;
         return Err(Error::Store(error));
@@ -104,4 +110,13 @@ async fn shutdown() {
     {
         let _ = tokio::signal::ctrl_c().await;
     }
+}
+
+/// Every vault slot freed of its holder: what a run of an earlier
+/// daemon held, which no run of this one does. A store that refuses
+/// is the boot's failure.
+async fn clear_holders(daemon: &Daemon) -> Result<(), store::Error> {
+    let mut conn = daemon.store.acquire().await?;
+    vault::clear_holders(&mut conn).await?;
+    Ok(())
 }

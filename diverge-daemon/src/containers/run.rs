@@ -25,6 +25,7 @@ use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
 use super::mcp::Served;
+use super::secrets::Secrets;
 use super::{ConnectionId, Frames, Inflight, ToolKey};
 use crate::content::Pieces;
 use crate::store::dependency_tools::DependencyTool;
@@ -66,6 +67,15 @@ pub struct AgentRun {
     /// The messages enqueued and not yet landed, by key, with who
     /// sent each.
     pub messages: Mutex<HashMap<String, Creator>>,
+    /// The messages enqueued and not yet fated: entered before the run
+    /// is activated for each, left at its fate. What an inactive asks
+    /// before it activates the run again.
+    pub pending: Arc<Inflight>,
+    /// Its secrets, as its registration took them: the names its
+    /// program takes, the keys they are bound to, and the slots held
+    /// while it is active; `None` for a program that registered
+    /// nothing. Under its lock for every activation and inactive.
+    pub secrets: Mutex<Option<Secrets>>,
     /// The tasks that are the run's: the pump and the idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
     /// Taken for the length of one edit of the record while it runs:
@@ -214,7 +224,7 @@ impl ToolHandle {
     pub async fn wait(&self) {
         match self {
             ToolHandle::Run(handle) => {
-                let _ = handle.wait().await;
+                let _ = handle.ended().await;
             }
             ToolHandle::Connected(handle) => {
                 handle.wait().await;
@@ -277,12 +287,15 @@ pub struct ToolRun {
     /// Taken for the length of one edit of the record while it runs:
     /// two editors adding mounts are served one after the other.
     pub edits: Mutex<()>,
-    /// The tasks that are the run's: the waiter, and a connected
-    /// tool's idle clock.
+    /// The tasks that are the run's: the pump — a connected tool's
+    /// waiter — and a transient tool's idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
     /// What it is as a dependency tool, when it is one: the row, as
     /// it was when this run started.
     pub dependency: Option<DependencyTool>,
+    /// Its secrets, as for an agent's run; a connected tool's `None`,
+    /// since the daemon that runs it feeds its container.
+    pub secrets: Mutex<Option<Secrets>>,
 }
 
 impl ToolRun {

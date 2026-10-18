@@ -19,7 +19,7 @@ pub mod untag;
 pub enum Vault {
     /// Deleting a vault key.
     Delete(delete::Arguments),
-    /// Getting one vault key, with its value.
+    /// Getting one vault key, with its slots.
     Get(get::Arguments),
     /// Listing vault keys.
     List(list::Arguments),

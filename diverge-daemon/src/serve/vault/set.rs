@@ -1,4 +1,5 @@
-//! Setting a vault key: made, or its value replaced.
+//! Setting a vault key: made with its first value, a value appended,
+//! or one slot's value replaced.
 
 use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::vault::set::client::request;
@@ -21,10 +22,23 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// For a key the vault holds: `Forbidden` with no `set` grant over
-/// it; for a key it does not: `Forbidden` without the `set` make;
-/// else the key holding the value — made, or replaced, the records
-/// binding it made with the new value at their next start.
+/// The rules, in order:
+///
+/// 1. For a key the vault holds: `Forbidden` with no `set` grant over
+///    it; else the value appended as a new slot where none is named,
+///    or the slot named replaced — `Set`; `NotFound` for a slot the
+///    key does not have; `Locked` for one a running container holds,
+///    left as it is.
+/// 2. For a key it does not hold, a slot named: `NotFound` to a
+///    standing that holds `set` over any key or the `set` make, and
+///    `Forbidden` to one that holds neither, which is told nothing of
+///    what the vault has.
+/// 3. For a key it does not hold, no slot named: `Forbidden` without
+///    the `set` make; else the key made holding the value as its slot
+///    `0` — `Set`.
+///
+/// A key some record binds is set like any other: the next activation
+/// of the record's container may be handed the new value.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -32,6 +46,13 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     };
     let allowed = match vault::by_key(&mut tx, &frame.key, true).await? {
         Some(entry) => judge::vault::holds(&standing, Over::Set) && judge::vault::over(&standing, Over::Set, &entry),
+        None if frame.slot.is_some() => {
+            return Ok(if judge::vault::holds(&standing, Over::Set) || judge::vault::make(&standing, Make::Set) {
+                Frame::NotFound
+            } else {
+                Frame::Forbidden
+            });
+        }
         None => judge::vault::make(&standing, Make::Set),
     };
     if !allowed {
@@ -40,7 +61,11 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let creator = Creator::Client(Client {
         identity: standing.identity.clone(),
     });
-    vault::set(&mut tx, &frame.key, &frame.value, &creator).await?;
+    match vault::set(&mut tx, &frame.key, frame.slot, &frame.value, &creator).await? {
+        vault::Set::Created | vault::Set::Appended(_) | vault::Set::Replaced => {}
+        vault::Set::NotFound => return Ok(Frame::NotFound),
+        vault::Set::Locked => return Ok(Frame::Locked),
+    }
     tx.commit().await?;
     daemon.live.changed(Kind::Vault);
     Ok(Frame::Set)

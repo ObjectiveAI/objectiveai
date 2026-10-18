@@ -31,10 +31,12 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` with no `message` grant at all, or for an agent the
 /// grants do not reach; the error for an agent that is not there, or
 /// a container that could not be started; else the agent's container
-/// started if it was not up and the message enqueued under a key the
-/// daemon mints, the scope open until its fate is known: `Delivered`
-/// as the loop takes it, `Cancelled` when the client's one channel
-/// took it back first, or the container's own error.
+/// started if it was not up, activated for the message — its secrets
+/// taken and fed, which failing is the error — and the message
+/// enqueued under a key the daemon mints, the scope open until its
+/// fate is known: `Delivered` as the loop takes it, `Cancelled` when
+/// the client's one channel took it back first, or the container's
+/// own error.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -63,7 +65,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
     let sender = Creator::Client(Client {
         identity: standing.identity.clone(),
     });
-    let (key, fate) = message::enqueue_keyed(&run, frame.content, sender).await;
+    let (key, fate) = message::enqueue_keyed(daemon, &run, frame.content, sender).await;
     tokio::pin!(fate);
     let fate = tokio::select! {
         fate = &mut fate => fate,

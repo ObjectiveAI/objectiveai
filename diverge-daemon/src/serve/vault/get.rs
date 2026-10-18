@@ -1,4 +1,4 @@
-//! Getting one vault key, with its value.
+//! Getting one vault key, with its slots.
 
 use diverge_sdk::daemon::endpoints::vault::get::client::request;
 use diverge_sdk::daemon::endpoints::vault::get::server::response::Frame;
@@ -21,7 +21,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `get` grant at all; `NotFound`; `Forbidden` for
-/// a key the grants do not reach; else the key with its value.
+/// a key the grants do not reach; else the key with every slot — its
+/// number, who holds it, and its value.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {

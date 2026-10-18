@@ -4,7 +4,8 @@
 //! answerer traits for one run: it holds what the asks need — the
 //! daemon, which container, its account or its standing, the mounts,
 //! the served tools, what is in flight — and each trait's impl is
-//! one file. Real: the dependencies, deployed then and there; the `/daemon` pair,
+//! one file. Real: the registration — the dependencies deployed then
+//! and there, the secrets declared, taken and answered; the `/daemon` pair,
 //! served by the same session a socket gets; MCP, the served tools
 //! merged; FUSE, the mounts; OCI, answered from the other providers
 //! connected — the daemon holds no image itself, and finds a provider
@@ -16,10 +17,10 @@
 
 mod answerer;
 mod daemon;
-mod deployer;
 mod fuse;
 mod mcp;
 mod oci;
 mod postgres;
+mod registrar;
 
 pub use answerer::*;

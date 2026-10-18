@@ -1,4 +1,12 @@
 //! The five MCP exchanges over a run's served tools.
+//!
+//! Every exchange put to a served tool activates the tool's run first
+//! — its secrets taken and fed, the proxy's gate opened, see
+//! [`activate_tool`](crate::containers::activate_tool) — and is in
+//! flight into it from before that activation to its answer, so an
+//! inactive that crosses it finds the run busy and activates it
+//! again. An activation that fails is the exchange's error — a list
+//! that lists nothing from that tool, a call or a read refused.
 
 use std::collections::HashMap;
 use std::pin::Pin;
@@ -16,7 +24,7 @@ use tokio::sync::{Mutex, mpsc};
 use tokio::task::AbortHandle;
 
 use super::{Entry, Served, exposed, split};
-use crate::containers::{Key, ToolKey, ToolRun, tools};
+use crate::containers::{Key, ToolKey, ToolRun, activate_tool, tools};
 use crate::daemon::Daemon;
 use crate::store::DependencyToolId;
 use crate::store::tools::Tool;
@@ -140,6 +148,9 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
         let mut params = PaginatedRequestParams::default();
         attest(context, &mut params);
         let _flying = run.inflight.enter();
+        if activate_tool(&context.daemon, &run).await.is_err() {
+            continue;
+        }
         if let Ok(result) = run.handle.list_tools(Some(params)).await {
             run.touch();
             for mut tool in result.tools {
@@ -163,6 +174,9 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
         let mut params = PaginatedRequestParams::default();
         attest(context, &mut params);
         let _flying = run.inflight.enter();
+        if activate_tool(&context.daemon, &run).await.is_err() {
+            continue;
+        }
         if let Ok(result) = run.handle.list_resources(Some(params)).await {
             run.touch();
             for mut resource in result.resources {
@@ -191,6 +205,9 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     attest(context, &mut params);
     run.touch();
     let _flying = run.inflight.enter();
+    activate_tool(&context.daemon, &run)
+        .await
+        .map_err(|error| ErrorData::internal_error(error.0.to_string(), None))?;
     let mut result = run
         .handle
         .call_tool(params)
@@ -210,6 +227,10 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
             continue;
         };
         let _flying = run.inflight.enter();
+        if let Err(error) = activate_tool(&context.daemon, &run).await {
+            last = Some(error.0.to_string());
+            continue;
+        }
         match run.handle.read_resource(params.clone()).await {
             Ok(mut result) => {
                 run.touch();

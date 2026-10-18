@@ -7,7 +7,9 @@
 //! container of the agent's own: on any connected provider, tried in
 //! random order; its mounts the agent's paths served live from the
 //! agent's container; its secrets the agent's own, by the names its
-//! template declares, read from the vault at every start; its
+//! template declares, bound through the agent's binding and taken at
+//! the dependency's own registration, held and written back as any
+//! tool container's; its
 //! database scope the one its template names; its requests to the
 //! daemon judged by its template's grants; served to the agent under
 //! its template's id, short. A template declared twice, or one naming

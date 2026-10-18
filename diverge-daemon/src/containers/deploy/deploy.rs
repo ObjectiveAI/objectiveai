@@ -21,7 +21,7 @@ use crate::containers::fuse::Mounts;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
 use crate::containers::services;
-use crate::containers::{Inflight, Key, ToolHandle, ToolKey, ToolRun, build, provider, secrets, stop};
+use crate::containers::{Inflight, Key, ToolHandle, ToolKey, ToolRun, build, provider, pump_tool, secrets, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{Dependent, Fixed};
 use crate::serve::inner;
@@ -45,9 +45,9 @@ use crate::store::{self, AgentId, DependencyToolId, hash};
 /// template declared twice — one id twice — or one whose secrets are
 /// not names, or not names the agent binds, a tool container asking,
 /// an agent gone, a store that refuses the records, no provider to
-/// run on, a path of the agent's that cannot be served, a secret
-/// whose vault key is not set, or a provider that will not run one —
-/// every candidate tried — or a service whose start fails, is the
+/// run on, a path of the agent's that cannot be served, or a provider
+/// that will not run one — every candidate tried — or a service whose
+/// start fails, is the
 /// error, naming the dependency by its id where there is one, and
 /// every transient tool started is stopped.
 pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -> Result<(), Error> {
@@ -188,13 +188,15 @@ async fn record(
     Ok((tools, left))
 }
 
-/// One transient tool started: its secrets read from the vault
-/// through the agent's binding, its mounts served from the agent, its
+/// One transient tool started: its secrets bound through the agent's
+/// binding, to be taken at its own registration and held under the
+/// dependency tool as holder, its mounts served from the agent, its
 /// container run on the first candidate provider that will, its run
-/// entered as live under its row with a waiter — a run still live
+/// entered as live under its row with its pump — a run still live
 /// under the row, from an agent run that ended without it, stopped
 /// first, since a row has one run. The reason it could not be, in a
-/// sentence.
+/// sentence; a provider that refuses after the registration gives
+/// back what it took.
 async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent_container: &str, tool: &DependencyTool) -> Result<Arc<ToolRun>, String> {
     let daemon = &answerer.daemon;
     let dependencies::Mode::Transient {
@@ -215,14 +217,13 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
         disk: tool.declared.disk,
     };
     let candidates = provider::candidates(daemon, None, &needs).await.map_err(|error| error.to_string())?;
-    let bound = secrets::bind(&tool.declared.secrets, &agent.secrets)?;
-    let resolved = secrets::resolve(daemon, &bound).await.map_err(|error| error.to_string())?;
+    let binding = secrets::bind(&tool.declared.secrets, &agent.secrets)?;
     let mounts = Arc::new(
         Mounts::build_dependency(daemon, &answerer.provider, agent_container, fuse_file_mounts, fuse_directory_mounts)
             .await
             .map_err(|error| error.to_string())?,
     );
-    let container = build::dependency(&tool.template, &tool.declared, &mounts, resolved).await;
+    let container = build::dependency(&tool.template, &tool.declared, &mounts).await;
     let image = container.image.clone();
     let attestation = attestation::Tool::Dependency {
         image: image.clone(),
@@ -253,11 +254,15 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             touched: touched.clone(),
             inflight: Arc::clone(&answerer.inflight),
             services: Mutex::new(None),
+            declared: tool.declared.secrets.clone(),
+            binding: binding.clone(),
+            secrets: Mutex::new(None),
         });
         let opened = tools_run::execute(&handle, &tools_request::Frame(container.clone()), run_answerer.set()).await;
-        let (container_id, handle) = match opened {
+        let (container_id, handle, stream) = match opened {
             Ok(opened) => opened,
             Err(error) => {
+                secrets::abandon(daemon, &run_answerer).await;
                 last = format!("{error:?}");
                 continue;
             }
@@ -281,19 +286,13 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
             dependency: Some(tool.clone()),
+            secrets: Mutex::new(run_answerer.secrets.lock().await.take()),
         });
         daemon.live.insert_tool(Arc::clone(&run)).await;
         daemon.live.changed(Kind::DependencyTools);
         daemon.live.nudge_capacity(&run.provider);
-        let waiter = {
-            let daemon = Arc::clone(daemon);
-            let run = Arc::clone(&run);
-            tokio::spawn(async move {
-                run.handle.wait().await;
-                stop::ended_tool(&daemon, run).await;
-            })
-        };
-        run.tasks.lock().await.push(waiter.abort_handle());
+        let pumping = tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream));
+        run.tasks.lock().await.push(pumping.abort_handle());
         return Ok(run);
     }
     mounts.stop().await;

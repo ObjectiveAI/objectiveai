@@ -6,9 +6,11 @@
 //! that holds it and whose `within` reaches the key — `any`, or the
 //! vault list filter as [`filter::vault::test`] reads it; a tagging
 //! action by a grant that holds it, reaches the key, and covers every
-//! tag named. A key the vault does not hold yet — one a create or an
-//! edit binds ahead of its set — is reached by a grant whose `within`
-//! is `any` and by no other: see [`any`].
+//! tag named. A key the vault does not hold is reached by nobody — a
+//! create or an edit binds only a key the vault holds with a value —
+//! and whether a standing is told that the key is missing, rather
+//! than forbidden, is decided by a grant whose `within` is `any`:
+//! see [`any`].
 
 use diverge_sdk::daemon::endpoints::vault::list::client::request::Filter;
 use diverge_sdk::daemon::grant::vault::{Make, Over, Permission};
@@ -41,8 +43,10 @@ pub fn over(standing: &Standing, action: Over, entry: &Entry) -> bool {
 }
 
 /// Whether the standing holds `action` over every key there is, or
-/// could be: a grant of the action whose `within` is `any`. What a
-/// key the vault does not hold yet is judged by.
+/// could be: a grant of the action whose `within` is `any`. What
+/// decides whether a standing binding a key the vault does not hold
+/// is told that the key is missing — it could see any key, so the
+/// vault's contents are no secret from it — or forbidden.
 pub fn any(standing: &Standing, action: Over) -> bool {
     standing.vault().any(|permission| match permission {
         Permission::Over { actions, within } => actions.contains(&action) && within.is_any(),

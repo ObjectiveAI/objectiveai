@@ -144,6 +144,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         match inner::secrets(&mut tx, &standing, &template.template.secrets, &result.secrets).await? {
             Secrets::Ok => {}
             Secrets::Mismatch(what) => return Ok(Frame::Error(reply::secrets(&what))),
+            Secrets::Missing(what) => return Ok(Frame::Error(reply::secrets(&what))),
             Secrets::Forbidden => return Ok(Frame::Forbidden),
         }
     }
