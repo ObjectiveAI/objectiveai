@@ -1,7 +1,7 @@
 # diverge-provider-web
 
 The Diverge Provider Protocol specification site:
-<https://provider.diverge.network>.
+<https://protocol.diverge.network>.
 
 React-authored, rendered to static HTML at build time, and **zero
 JavaScript shipped** — no component carries a `client:*` directive, and

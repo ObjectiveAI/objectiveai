@@ -15,7 +15,7 @@ import { remarkInclude, remarkVersionLinks } from "./src/include.mjs";
 // component carries a `client:*` directive, and the build is checked
 // for the absence of <script> tags.
 export default defineConfig({
-  site: "https://provider.diverge.network",
+  site: "https://protocol.diverge.network",
   // One canonical URL per page. Crawlers punish duplicates, and a
   // trailing-slash policy chosen once means no 301 chains and no
   // split page identity.
@@ -24,9 +24,11 @@ export default defineConfig({
   markdown: {
     // Shiki highlights at build time into inline-styled spans — the
     // zero-JS gate stays true, and the raw .md twins keep plain fenced
-    // blocks. Dual themes; the swap is a few lines of CSS in Layout.
+    // blocks. One theme, since the site is dark-only; its token colors
+    // are the mark's family (gold, rose, iris on lavender), and Layout
+    // paints the block's background from the page's own palette.
     shikiConfig: {
-      themes: { light: "github-light", dark: "github-dark" },
+      theme: "rose-pine-moon",
     },
     // A fenced block whose meta names a crate file is that file, read
     // at build time, and a module's root-relative links are carried

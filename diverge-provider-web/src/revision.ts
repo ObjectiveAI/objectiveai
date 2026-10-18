@@ -24,4 +24,4 @@ if (!version) {
 export const REVISION: string = version[1];
 
 /** The site's absolute origin, for artifacts that need absolute URLs. */
-export const ORIGIN = "https://provider.diverge.network";
+export const ORIGIN = "https://protocol.diverge.network";
