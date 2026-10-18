@@ -12,16 +12,24 @@ use diverge_sdk::wire::connection::Connection;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
-use super::{Error, connection};
+use super::{Error, connection, stop_route};
 use crate::daemon::Daemon;
 
 /// Listen on `port`, on every interface, until `stop` says so; every
-/// WebSocket upgrade at any path is one [`connection`] served with
-/// `daemon`. A port that could not be bound is [`Error::Bind`]; a
-/// listener that stopped on its own is [`Error::Serve`].
+/// WebSocket upgrade at any path but `/stop` is one [`connection`]
+/// served with `daemon`, and a `POST /stop` is the daemon's own
+/// [`stop`](super::stop), the one request that is not the wire. When
+/// `stop` turns `true` the listener stops accepting, closes what is
+/// idle and waits for the requests in flight; the WebSocket sessions
+/// live in detached tasks and end with the process. A port that could
+/// not be bound is [`Error::Bind`]; a listener that stopped on its
+/// own is [`Error::Serve`].
 pub async fn listen(port: u16, mut stop: watch::Receiver<bool>, daemon: Arc<Daemon>) -> Result<(), Error> {
     let listener = TcpListener::bind(("0.0.0.0", port)).await.map_err(Error::Bind)?;
-    let router = Router::new().fallback(accept).with_state(daemon);
+    let router = Router::new()
+        .route("/stop", axum::routing::post(stop_route::stop))
+        .fallback(accept)
+        .with_state(daemon);
     axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(async move {
             let _ = stop.wait_for(|stopped| *stopped).await;

@@ -3,6 +3,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use tokio::sync::watch;
+
 use super::Live;
 use crate::database::Target;
 use crate::store::Store;
@@ -33,6 +35,11 @@ pub struct Daemon {
     /// cached an answer, before it asks again: `capacity_poll_seconds`
     /// of the configuration.
     pub capacity_poll: Duration,
+    /// The daemon's stop: sent `true` by a loopback `POST /stop` (see
+    /// [`stop`](crate::serve::stop)), or by the signal, and read by
+    /// the listener, which drains on it. Made by [`run`](crate::serve::run)
+    /// and held here so a handler can reach it.
+    pub stop: watch::Sender<bool>,
 }
 
 impl Daemon {
@@ -40,8 +47,8 @@ impl Daemon {
     /// `logs`, ending a run unused for `idle`, serving the database
     /// `database`, accepting other daemons when `accept_daemons`,
     /// asking every provider's capacity again after `capacity_poll`,
-    /// with nothing live yet.
-    pub fn new(store: Store, logs: PathBuf, idle: Duration, database: Target, accept_daemons: bool, capacity_poll: Duration) -> Self {
+    /// stopped through `stop`, with nothing live yet.
+    pub fn new(store: Store, logs: PathBuf, idle: Duration, database: Target, accept_daemons: bool, capacity_poll: Duration, stop: watch::Sender<bool>) -> Self {
         Daemon {
             store,
             live: Live::new(),
@@ -50,6 +57,7 @@ impl Daemon {
             database,
             accept_daemons,
             capacity_poll,
+            stop,
         }
     }
 }
