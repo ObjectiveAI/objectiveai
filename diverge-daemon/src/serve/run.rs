@@ -5,6 +5,7 @@ use std::pin::pin;
 use std::sync::Arc;
 
 use crate::config::Config;
+use diverge_sdk::file_lock;
 use futures_util::future::{self, Either};
 use tokio::sync::watch;
 
@@ -19,17 +20,28 @@ use crate::store::{self, vault};
 /// Run the daemon on `config`, the file at `root`, under
 /// `<root>/daemon/`, until Ctrl-C or, on Unix, SIGTERM.
 ///
-/// In order: the directory is made; the database the configuration names is started, or
-/// named; the store is opened on it, its schema applied and root
-/// seeded into a fresh one; the daemon is built; every vault slot a
-/// run of an earlier daemon held is freed, since no run survives a
-/// restart; the port is listened
-/// on until the signal, every outgoing provider on record dialled
-/// meanwhile; the listener drains; the dials are ended, and their
-/// connections with them; and the database that was started is
-/// stopped. A store that cannot be opened stops the
-/// database it just started before the error is returned.
+/// In order: the root is locked — one daemon per root, the lock file
+/// stamped with this process's id, and a root another daemon holds
+/// refused at once, before anything is made or started, naming the
+/// holder's id where it left one; a lock file a dead daemon left is
+/// taken like any other, since the kernel let its lock go with it —
+/// the directory is made; the database the configuration names is
+/// started, or named; the store is opened on it, its schema applied
+/// and root seeded into a fresh one; the daemon is built; every vault
+/// slot a run of an earlier daemon held is freed, since no run
+/// survives a restart; the port is listened on until the signal,
+/// every outgoing provider on record dialled meanwhile; the listener
+/// drains; the dials are ended, and their connections with them; the
+/// database that was started is stopped; and the lock is let go,
+/// last. A store that cannot be opened stops the database it just
+/// started before the error is returned.
 pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
+    let lock = root.join(diverge_sdk::daemon::LOCK_FILE);
+    let Some(held) = file_lock::try_exclusive(&lock).await.map_err(Error::Lock)? else {
+        let holder = file_lock::holder(&lock).await.map_err(Error::Lock)?;
+        return Err(Error::Locked { root, holder });
+    };
+    held.write(std::process::id().to_string().into_bytes()).await.map_err(Error::Lock)?;
     let dir = root.join("daemon");
     tokio::fs::create_dir_all(&dir).await.map_err(Error::Directory)?;
     let (postgres, url) = postgres::start(&config.postgres, &root).await.map_err(Error::Postgres)?;
@@ -85,6 +97,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     containers::stop_all(&daemon).await;
     daemon.live.stop_dials().await;
     postgres.stop().await;
+    drop(held);
     outcome
 }
 

@@ -2,6 +2,9 @@
 
 use std::fmt;
 use std::io;
+use std::path::PathBuf;
+
+use diverge_sdk::file_lock;
 
 use crate::config;
 
@@ -9,8 +12,8 @@ use crate::database;
 use crate::postgres;
 use crate::store;
 
-/// What [`run`](super::run) fails with: the configuration, the
-/// database, the store, or the port. A `main` returning one of these
+/// What [`run`](super::run) fails with: the configuration, the root's
+/// lock, the database, the store, or the port. A `main` returning one of these
 /// prints it, and that is the one report a failed start gets, so its
 /// `Debug` is its `Display`.
 pub enum Error {
@@ -18,6 +21,16 @@ pub enum Error {
     Runtime(io::Error),
     /// The root or the file could not be used.
     Config(config::Error),
+    /// The root's lock file could not be taken, written or read.
+    Lock(file_lock::Error),
+    /// Another daemon holds the root: the root, and the process id
+    /// the holder left in the lock file, where it left one.
+    Locked {
+        /// The root held.
+        root: PathBuf,
+        /// The holder's process id, as it wrote it.
+        holder: Option<String>,
+    },
     /// The local Postgres could not be started.
     Postgres(postgres::Error),
     /// The store could not be opened, or its schema applied.
@@ -37,6 +50,11 @@ impl fmt::Display for Error {
         match self {
             Error::Runtime(error) => write!(f, "the runtime could not be built: {error}"),
             Error::Config(error) => write!(f, "the configuration could not be used: {error}"),
+            Error::Lock(error) => write!(f, "the root could not be locked: {error}"),
+            Error::Locked { root, holder } => match holder {
+                Some(holder) => write!(f, "another daemon holds {}: process {holder}", root.display()),
+                None => write!(f, "another daemon holds {}", root.display()),
+            },
             Error::Postgres(error) => write!(f, "the local Postgres could not be started: {error}"),
             Error::Store(error) => write!(f, "the store could not be opened: {error}"),
             Error::Database(error) => write!(f, "{error}"),
@@ -58,6 +76,8 @@ impl std::error::Error for Error {
         match self {
             Error::Runtime(error) | Error::Bind(error) | Error::Serve(error) | Error::Directory(error) => Some(error),
             Error::Config(error) => Some(error),
+            Error::Lock(error) => Some(error),
+            Error::Locked { .. } => None,
             Error::Postgres(error) => Some(error),
             Error::Store(error) => Some(error),
             Error::Database(error) => Some(error),
