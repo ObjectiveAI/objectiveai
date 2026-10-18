@@ -1,14 +1,13 @@
 //! The begin scope of a run, whichever family's.
 
-use serde_json::Value;
-
 use diverge_sdk::wire::client::handle::SendError;
 use diverge_sdk::container_proxy::outside::endpoints::agents::begin::client::execute::{Chunks, ExecuteHandle as AgentsBegin};
 use diverge_sdk::container_proxy::outside::client::{Ask, Asks};
 use diverge_sdk::container_proxy::outside::endpoints::tools::begin::client::execute::{Events, ExecuteHandle as ToolsBegin};
-use diverge_sdk::provider::endpoints::containers::client::answered::{Daemon, Postgres, Schema, Secrets};
+use diverge_sdk::provider::endpoints::containers::client::answered::{Daemon, Info, Postgres, Secrets};
 use diverge_sdk::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError};
 use diverge_sdk::shared::containers::dependencies::Template;
+use diverge_sdk::shared::containers::info::Document;
 use diverge_sdk::shared::containers::secrets::{Declaration, Values};
 
 /// The begin scope on a container's proxy connection: the place the
@@ -17,8 +16,8 @@ use diverge_sdk::shared::containers::secrets::{Declaration, Values};
 /// One per run, made by [`Runs::begin`](super::family::Runs::begin),
 /// held by the [`Run`](super::run::Run) for the container's life. The
 /// two families' handles answer the proxy the same way, and ask it
-/// the same three things — a database half, the arguments' schema, a
-/// feed of the secrets — which is what the methods here are for;
+/// the same three things — a database half, the image's `/DIVERGE.md`,
+/// a feed of the secrets — which is what the methods here are for;
 /// what differs — the queue's exchanges, or the MCP five — the
 /// family's own `serve` reaches through the variant.
 #[derive(Debug)]
@@ -68,12 +67,16 @@ impl Begin {
         }
     }
 
-    /// What the arguments may be, as the container's server states
-    /// it: the schema channel on either family's begin.
-    pub(crate) async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
+    /// What the arguments may be, as the image states it: the info
+    /// channel on either family's begin, answered with the image's
+    /// `/DIVERGE.md` parsed — `None` for an image that ships none —
+    /// or the proxy's refusal, which is the file unreadable or not a
+    /// document. The proxy reads the file from the container's root;
+    /// the program is never asked.
+    pub(crate) async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
         match self {
-            Begin::Agents(begin) => begin.schema().await,
-            Begin::Tools(begin) => begin.schema().await,
+            Begin::Agents(begin) => begin.info().await,
+            Begin::Tools(begin) => begin.info().await,
         }
     }
 

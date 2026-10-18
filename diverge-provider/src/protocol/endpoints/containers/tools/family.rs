@@ -58,7 +58,7 @@ impl Family for Tools {
             },
             channel_request::Frame::Daemon(request) => Opened::Daemon(request.connection_id),
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
-            channel_request::Frame::Schema => Opened::Schema,
+            channel_request::Frame::Info => Opened::Info,
             channel_request::Frame::Secrets(values) => Opened::Secrets(values),
             channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),

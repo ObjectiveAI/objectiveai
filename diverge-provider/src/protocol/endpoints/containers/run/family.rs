@@ -162,8 +162,8 @@ pub(crate) enum Opened<E> {
     /// The caller's half of a database connection, by the id this end
     /// minted.
     Postgres(u32),
-    /// What the arguments may be.
-    Schema,
+    /// What the arguments may be: the image's `/DIVERGE.md`.
+    Info,
     /// The secrets' values, to feed the container: an activation's,
     /// after the registration's.
     Secrets(Values),
