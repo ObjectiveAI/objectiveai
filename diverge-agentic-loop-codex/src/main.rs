@@ -8,20 +8,21 @@
 //! so a run after the first resumes the same thread and a run beside
 //! it is refused — and streams its chunks back as server-sent
 //! events; `POST /enqueue` and `POST /dequeue` are the running loop's
-//! queue, taken at each turn's end; `GET /schema` is the JSON Schema
-//! of the agent value this image accepts; `POST /register` is that
-//! value, told once for the container's life before any run — a run
-//! before it is refused — answered with the agent's dependencies and
-//! the one secret its login method declares; `POST /secrets` is that
-//! secret's value, fed before every loop and held here; and
-//! `POST /secrets/collect` hands the rotating one back after the
-//! loop, as Codex left it. The run itself is [`run::run`]: the login
-//! made from the method and the fed secret, `config.toml` rendered
-//! from the agent, `codex exec --json` spawned per turn and its
-//! events converted into chunks, the thread resumed across turns and
-//! runs, its rollouts the continuation in the caller's database,
-//! reached through the proxy's loopback pgwire. The settled
-//! decisions are `HARNESS.md`.
+//! queue, taken at each turn's end; `--schema`, the program's one
+//! argument, prints the JSON Schema of the agent value this image
+//! accepts (see [`main`]); `POST /register` is that value, told once
+//! for the container's life before any run — a run before it is
+//! refused — answered with the agent's dependencies and the one
+//! secret its login method declares; `POST /secrets` is that secret's
+//! value, fed before every loop and held here; and `POST
+//! /secrets/collect` hands the rotating one back after the loop, as
+//! Codex left it. The run itself is [`run::run`]: the login made from
+//! the method and the fed secret, `config.toml` rendered from the
+//! agent, `codex exec --json` spawned per turn and its events
+//! converted into chunks, the thread resumed across turns and runs,
+//! its rollouts the continuation in the caller's database, reached
+//! through the proxy's loopback pgwire. The settled decisions are
+//! `HARNESS.md`.
 //!
 //! # Nothing of the proxy's before a request
 //!
@@ -63,6 +64,7 @@ mod run;
 mod secrets;
 
 use std::convert::Infallible;
+use std::io::Write as _;
 use std::sync::Arc;
 
 use axum::Json;
@@ -87,12 +89,62 @@ use crate::run::notification;
 /// A refusal: the status, and a JSON reason.
 type Refusal = (StatusCode, Json<Value>);
 
+/// The program: the server, or — on `--schema` — the schema.
+///
+/// The program takes one argument, `--schema`, and no other: exactly
+/// that prints the JSON Schema of [`Agent`] on stdout and exits 0
+/// ([`schema`]); no argument is the server, for the container's
+/// life; anything else — another argument, or more than one — is a
+/// usage line on stderr and exit 2. The image's ENTRYPOINT never
+/// passes the argument. It exists so the image's `/DIVERGE.md`,
+/// whose frontmatter is this schema and which the proxy reads for
+/// what the `arguments` may be, is generated from the type the run
+/// reads — `cargo run -- --schema`, by the assembler — and never
+/// written by hand, so the file and the type cannot disagree.
 fn main() {
+    let mut arguments = std::env::args_os().skip(1);
+    match (arguments.next(), arguments.next()) {
+        (None, None) => {}
+        (Some(argument), None) if argument == "--schema" => return schema(),
+        _ => {
+            usage();
+            std::process::exit(2);
+        }
+    }
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("the runtime could not be built");
     runtime.block_on(serve());
+}
+
+/// `--schema`: the JSON Schema of [`Agent`], pretty-printed on stdout
+/// with a trailing newline.
+///
+/// This is the one thing the program ever writes to stdout, and
+/// deliberately: stdout IS the answer, read whole by the assembler
+/// that writes `/DIVERGE.md`. Either failure is said on stderr and
+/// the exit is 1 — never a partial or empty schema passed off as
+/// the answer: serialising, which cannot fail (a [`schemars::Schema`]
+/// is a JSON value already), and the write, which can, when the
+/// reader closes the pipe early.
+fn schema() {
+    let text = match serde_json::to_string_pretty(&schemars::schema_for!(Agent)) {
+        Ok(text) => text,
+        Err(error) => {
+            let _ = writeln!(std::io::stderr(), "{error}");
+            std::process::exit(1);
+        }
+    };
+    if let Err(error) = writeln!(std::io::stdout(), "{text}") {
+        let _ = writeln!(std::io::stderr(), "{error}");
+        std::process::exit(1);
+    }
+}
+
+/// The usage line, on stderr, for arguments that are not the one.
+fn usage() {
+    let _ = writeln!(std::io::stderr(), "usage: diverge-agentic-loop-codex [--schema]");
 }
 
 /// The server, for the container's life.
@@ -103,7 +155,6 @@ async fn serve() {
     let app = axum::Router::new()
         .route("/register", axum::routing::post(register))
         .route("/run", axum::routing::post(run))
-        .route("/schema", axum::routing::get(schema))
         .route("/enqueue", axum::routing::post(enqueue))
         .route("/dequeue", axum::routing::post(dequeue))
         .route("/secrets", axum::routing::post(secrets_feed))
@@ -279,13 +330,6 @@ async fn register(
             })),
         )),
     }
-}
-
-/// `GET /schema`: what the `arguments` may be — the JSON Schema of
-/// [`Agent`], derived from the type the run reads, so the two cannot
-/// disagree.
-async fn schema() -> Json<schemars::Schema> {
-    Json(schemars::schema_for!(Agent))
 }
 
 /// `POST /enqueue`: a message for the running conversation's queue.
