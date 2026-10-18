@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::pin::pin;
 use std::sync::Arc;
 
+use diverge_sdk::file_lock;
 use futures_util::future::{self, Either};
 use tokio::sync::watch;
 use tokio::task::JoinSet;
@@ -13,15 +14,26 @@ use crate::config::Config;
 use super::{Error, Provider, dial, listen};
 
 /// Run the provider on `config`, the file at `root`,
-/// under `<root>/provider/`, until Ctrl-C or, on Unix, SIGTERM. The
-/// pieces are built by [`Provider::start`]; one task per
+/// under `<root>/provider/`, until Ctrl-C or, on Unix, SIGTERM. First
+/// the root is locked — one provider per root, the lock file stamped
+/// with this process's id, and a root another provider holds refused
+/// at once, before anything on disk is swept or started, naming the
+/// holder's id where it left one; a lock file a dead provider left is
+/// taken like any other, since the kernel let its lock go with it.
+/// The pieces are built by [`Provider::start`]; one task per
 /// peer of `clients.unbrokered` dials; the port is listened on until
 /// the signal, and then the listener drains, every dial task is
 /// ended, every container and loop mount of this provider is swept
 /// away, and the provider is dropped — the registry's server and the
-/// machine's tunnel with it. A port that could not be bound is the
-/// error, after the same sweep.
+/// machine's tunnel with it — and the lock let go, last. A port that
+/// could not be bound is the error, after the same sweep.
 pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
+    let lock = root.join(diverge_sdk::provider::LOCK_FILE);
+    let Some(held) = file_lock::try_exclusive(&lock).await.map_err(Error::Lock)? else {
+        let holder = file_lock::holder(&lock).await.map_err(Error::Lock)?;
+        return Err(Error::Locked { root, holder });
+    };
+    held.write(std::process::id().to_string().into_bytes()).await.map_err(Error::Lock)?;
     let dir = root.join("provider");
     let port = config.port;
     let peers = config.clients.as_ref().and_then(|clients| clients.unbrokered.clone()).unwrap_or_default();
@@ -42,6 +54,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     };
     dials.shutdown().await;
     provider.deployer.sweep().await;
+    drop(held);
     outcome
 }
 

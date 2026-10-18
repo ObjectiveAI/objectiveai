@@ -4,13 +4,16 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
+use diverge_sdk::file_lock;
+
 use crate::config;
 
 use crate::host::container_deployer;
 use crate::host::image_registry;
 
-/// What [`run`](super::run) fails with: the configuration, what it
-/// names on disk, a piece that could not be made, or the port. A `main` returning one of
+/// What [`run`](super::run) fails with: the configuration, the root's
+/// lock, what it names on disk, a piece that could not be made, or
+/// the port. A `main` returning one of
 /// these prints it, and that is the one report a failed start gets,
 /// so its `Debug` is its `Display`.
 pub enum Error {
@@ -18,6 +21,16 @@ pub enum Error {
     Runtime(io::Error),
     /// The root or the file could not be used.
     Config(config::Error),
+    /// The root's lock file could not be taken, written or read.
+    Lock(file_lock::Error),
+    /// Another provider holds the root: the root, and the process id
+    /// the holder left in the lock file, where it left one.
+    Locked {
+        /// The root held.
+        root: PathBuf,
+        /// The holder's process id, as it wrote it.
+        holder: Option<String>,
+    },
     /// A directory of the provider's could not be made.
     Directory(PathBuf, io::Error),
     /// A fixed volume's path is not an existing directory.
@@ -48,6 +61,11 @@ impl fmt::Display for Error {
         match self {
             Error::Runtime(error) => write!(f, "the runtime could not be built: {error}"),
             Error::Config(error) => write!(f, "the configuration could not be used: {error}"),
+            Error::Lock(error) => write!(f, "the root could not be locked: {error}"),
+            Error::Locked { root, holder } => match holder {
+                Some(holder) => write!(f, "another provider holds {}: process {holder}", root.display()),
+                None => write!(f, "another provider holds {}", root.display()),
+            },
             Error::Directory(path, error) => write!(f, "`{}` could not be made: {error}", path.display()),
             Error::FixedMissing(path) => write!(f, "the fixed volume `{}` is not a directory that exists", path.display()),
             Error::Capacity(path) => write!(f, "the store `{}` has a capacity of 0", path.display()),
@@ -73,6 +91,8 @@ impl std::error::Error for Error {
         match self {
             Error::Runtime(error) => Some(error),
             Error::Config(error) => Some(error),
+            Error::Lock(error) => Some(error),
+            Error::Locked { .. } => None,
             Error::Directory(_, error) => Some(error),
             Error::FixedMissing(_) | Error::Capacity(_) | Error::ImageCapacity(_) | Error::FixedName(_) => None,
             Error::Registry(error) => Some(error),
