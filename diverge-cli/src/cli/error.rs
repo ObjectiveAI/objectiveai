@@ -5,10 +5,12 @@ use std::io;
 
 use crate::config;
 use crate::document;
+use crate::lifecycle;
 use crate::run;
 
 /// What [`run`](super::run) fails with: the runtime, the
-/// configuration, a document, or a request. A `main` returning one of these prints it, and that
+/// configuration, a document, a request, or a program's start or
+/// stop. A `main` returning one of these prints it, and that
 /// is the one report a failed run gets, so its `Debug` is its
 /// `Display`.
 pub enum Error {
@@ -20,6 +22,8 @@ pub enum Error {
     Document(document::Error),
     /// A request could not be put, or its answers printed.
     Run(run::Error),
+    /// The daemon or the provider could not be started or stopped.
+    Lifecycle(lifecycle::Error),
 }
 
 impl fmt::Display for Error {
@@ -29,6 +33,7 @@ impl fmt::Display for Error {
             Error::Config(error) => write!(f, "{error}"),
             Error::Document(error) => write!(f, "{error}"),
             Error::Run(error) => write!(f, "{error}"),
+            Error::Lifecycle(error) => write!(f, "{error}"),
         }
     }
 }
@@ -46,6 +51,7 @@ impl std::error::Error for Error {
             Error::Config(error) => Some(error),
             Error::Document(error) => Some(error),
             Error::Run(error) => Some(error),
+            Error::Lifecycle(error) => Some(error),
         }
     }
 }
@@ -65,5 +71,11 @@ impl From<document::Error> for Error {
 impl From<run::Error> for Error {
     fn from(error: run::Error) -> Self {
         Error::Run(error)
+    }
+}
+
+impl From<lifecycle::Error> for Error {
+    fn from(error: lifecycle::Error) -> Self {
+        Error::Lifecycle(error)
     }
 }

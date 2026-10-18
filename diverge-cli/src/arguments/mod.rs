@@ -5,7 +5,9 @@
 //! `run` command's own tree — and `request-schema` and
 //! `response-schema` beneath each of
 //! its requests — is [`run`](crate::run)'s; which
-//! [`Document`] and which [`Action`] on it are [`Config`]'s.
+//! [`Document`] and which [`Action`] on it are [`Config`]'s; whether
+//! the daemon or the provider is started or stopped is
+//! [`Lifecycle`].
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -13,7 +15,9 @@
 mod arguments;
 mod command;
 mod config;
+mod lifecycle;
 
 pub use arguments::*;
 pub use command::*;
 pub use config::*;
+pub use lifecycle::*;
