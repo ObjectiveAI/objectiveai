@@ -35,6 +35,15 @@
 /// it. What a client dials by default.
 pub const DEFAULT_PORT: u16 = crate::container_proxy::outside::OUTSIDE_PORT + 1;
 
+/// The file under a daemon's root — its configuration directory —
+/// that a running daemon holds locked for its life, with its process
+/// id inside: one daemon per root, a second start refused at once,
+/// and the lock let go by the kernel when the holder dies. Named
+/// here, beside the port, so a client that starts or stops a daemon
+/// finds it where the daemon does; see
+/// [`file_lock`](crate::file_lock).
+pub const LOCK_FILE: &str = "daemon.lock";
+
 pub mod client;
 pub mod create;
 pub mod creator;

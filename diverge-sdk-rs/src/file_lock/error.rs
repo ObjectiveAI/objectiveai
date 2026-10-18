@@ -5,8 +5,9 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
-/// A lock that could not be taken. Each variant names the file, since
-/// a caller holding several is told which.
+/// A lock that could not be taken, or a lock file that could not be
+/// written or read. Each variant names the file, since a caller
+/// holding several is told which.
 #[derive(Debug)]
 pub enum Error {
     /// The file could not be created or opened for locking.
@@ -25,8 +26,16 @@ pub enum Error {
         /// What the operating system said.
         source: io::Error,
     },
-    /// The blocking task the lock was taken on did not finish: it
-    /// panicked, or the runtime is shutting down.
+    /// The held file could not be written, or could not be read for
+    /// what its holder left in it.
+    Write {
+        /// The lock file.
+        path: PathBuf,
+        /// What the operating system said.
+        source: io::Error,
+    },
+    /// The blocking task the lock was taken on, or written on, did
+    /// not finish: it panicked, or the runtime is shutting down.
     Blocking {
         /// The lock file.
         path: PathBuf,
@@ -44,6 +53,9 @@ impl fmt::Display for Error {
             Error::Lock { path, source } => {
                 write!(f, "locking {} failed: {source}", path.display())
             }
+            Error::Write { path, source } => {
+                write!(f, "the lock file {} could not be written or read: {source}", path.display())
+            }
             Error::Blocking { path, source } => {
                 write!(f, "the task locking {} did not finish: {source}", path.display())
             }
@@ -54,7 +66,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
-            Error::Open { source, .. } | Error::Lock { source, .. } => Some(source),
+            Error::Open { source, .. } | Error::Lock { source, .. } | Error::Write { source, .. } => Some(source),
             Error::Blocking { source, .. } => Some(source),
         }
     }

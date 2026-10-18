@@ -14,16 +14,20 @@
 //!
 //! [`wait_exclusive`] blocks until the lock is had; [`try_exclusive`]
 //! answers at once with `None` when another process holds it. Both
-//! create the file if it is absent and leave its contents alone. Where
-//! lock files live is the caller's decision, and the callers in this
-//! workspace keep every lock beside the thing it guards.
+//! create the file if it is absent and leave its contents alone. The
+//! contents are the holder's to write — [`Held::write`], its process
+//! id as the Diverge programs leave it — and anybody's to read
+//! without the lock, [`holder`], which is how a second starter names
+//! who holds a root and a stopper finds the process. Where lock files
+//! live is the caller's decision, and the callers in this workspace
+//! keep every lock beside the thing it guards.
 //!
 //! # Why the SDK
 //!
 //! More than one Diverge program takes turns at a directory — the
-//! Postgres supervisor at its install and its cluster, the daemon at
-//! what it spawns — and one lock shape, in one place, is how they
-//! agree. Nothing here crosses a wire; it is in this crate because it
+//! Postgres supervisor at its install and its cluster, the daemon and
+//! the provider at their root, each the only one on it — and one lock
+//! shape, in one place, is how they agree. Nothing here crosses a wire; it is in this crate because it
 //! is shared, as [`shared`](crate::shared) is.
 //!
 //! # Exclusive, and only that
