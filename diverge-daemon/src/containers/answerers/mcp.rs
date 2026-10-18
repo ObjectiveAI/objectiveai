@@ -18,6 +18,7 @@ impl Answerer {
             daemon: Arc::clone(&self.daemon),
             user: self.key,
             caller: self.caller.clone(),
+            sender: self.sender.clone(),
             served: Arc::clone(&self.served),
         }
     }

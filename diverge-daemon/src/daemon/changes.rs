@@ -43,6 +43,8 @@ pub enum Kind {
     Vault,
     /// The container connections open through the database.
     Postgres,
+    /// Events: the graph, an edge added or its count raised.
+    Events,
 }
 
 impl Kind {

@@ -174,4 +174,12 @@ impl Standing {
             _ => None,
         })
     }
+
+    /// The grants over the events.
+    pub fn events(&self) -> impl Iterator<Item = &grant::events::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::Events(permission) => Some(permission),
+            _ => None,
+        })
+    }
 }

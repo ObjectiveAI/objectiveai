@@ -65,11 +65,12 @@ pub async fn seed(conn: &mut PgConnection) -> Result<(), Error> {
 
 /// Every grant of every kind: every making action, every action over
 /// what exists reaching everything, both tagging actions over every
-/// tag, and both actions over the database. Dependency templates
-/// have no making action: a registration makes one.
+/// tag, both actions over the database, and the one over the events.
+/// Dependency templates have no making action: a registration makes
+/// one.
 pub fn every_grant() -> Vec<Grant> {
     use grant::{
-        accounts as ac, agents as ag, agents_templates as at, dependency_tools as de, postgres as pg,
+        accounts as ac, agents as ag, agents_templates as at, dependency_tools as de, events as ev, postgres as pg,
         providers_daemons as pd, providers_incoming as pi, providers_outgoing as po, roles as ro,
         standalone_tools as to, standalone_tools_templates as tt, vault as va, volumes as vo,
     };
@@ -238,5 +239,6 @@ pub fn every_grant() -> Vec<Grant> {
             tags: Within::Any,
         }),
         Grant::Postgres(pg::Permission(vec![pg::Action::Get, pg::Action::List])),
+        Grant::Events(ev::Permission(vec![ev::Action::List])),
     ]
 }

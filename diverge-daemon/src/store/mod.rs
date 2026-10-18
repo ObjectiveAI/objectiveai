@@ -15,7 +15,8 @@
 //! agents' programs declare — [`dependency_tools`] — one per
 //! template and owner, with the agents attached to it — [`agents`]
 //! and [`tools`] are the records of each kind, [`vault`] the keys
-//! their secrets bind, and [`volumes`] what
+//! their secrets bind, [`events`] the graph of who sent what to
+//! whom through the daemon, and [`volumes`] what
 //! the daemon keeps of a volume, which is its tags alone;
 //! loaded whole and written whole; [`hash`] is the one id that is a
 //! hash; [`counters`] is the once-and-for-all
@@ -63,6 +64,7 @@ pub mod agents_templates;
 pub mod counters;
 pub mod dependencies;
 pub mod dependency_tools;
+pub mod events;
 pub mod hash;
 pub mod in_use;
 pub mod providers_daemons;

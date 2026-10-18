@@ -3,6 +3,8 @@
 
 use std::sync::Arc;
 
+use diverge_sdk::daemon::creator::{Client, Creator};
+use diverge_sdk::daemon::endpoints::events::Action;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::channel_request;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::request;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::server::response::Frame;
@@ -65,6 +67,9 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
     let caller = Arc::new(Caller::Unbrokered {
         identity: standing.identity.clone(),
     });
+    let sender = Arc::new(Creator::Client(Client {
+        identity: standing.identity.clone(),
+    }));
     if !judge::standalone_tools::holds(&standing, Over::Connect) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
@@ -120,7 +125,7 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
                 match channel_request::Frame::decode(payload) {
                     Ok(channel_request::Frame::Disconnect) => break,
                     Ok(ask) => {
-                        tasks.spawn(answer(Arc::clone(daemon), Arc::clone(scope), Arc::clone(&run), Arc::clone(&caller), channel, ask));
+                        tasks.spawn(answer(Arc::clone(daemon), Arc::clone(scope), Arc::clone(&run), Arc::clone(&caller), Arc::clone(&sender), channel, ask));
                     }
                     Err(_) => scope.send_channel_response_finish(channel).await,
                 }
@@ -152,8 +157,11 @@ async fn over(ended: &mut tokio::sync::watch::Receiver<bool>) {
 /// no request and activate nothing, one per notification until the
 /// tool's stream ends. A disconnect never reaches here. Every
 /// exchange is a use of the tool, in flight into it from before its
-/// activation until it is answered.
-async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>, caller: Arc<Caller>, channel: u32, ask: channel_request::Frame) {
+/// activation until it is answered. A call and a read that reach the
+/// tool are on the graph, each one event from `sender` — the account
+/// the connect is served for, as a client — to the tool, however the
+/// tool answers; one the activation refused is not, nor is a listing.
+async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>, caller: Arc<Caller>, sender: Arc<Creator>, channel: u32, ask: channel_request::Frame) {
     run.touch();
     let _flying = run.inflight.enter();
     let activated = match &ask {
@@ -208,6 +216,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                 Ok(()) => {
                     let mut params = request.0;
                     attest_request(&mut params, &*caller);
+                    containers::events::record(&daemon, &sender, &run.sender, Action::Call).await;
                     match run.handle.call_tool(params).await {
                         Ok(mut result) => {
                             run.attest(result.meta.get_or_insert_default());
@@ -225,6 +234,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                 Ok(()) => {
                     let mut params = request.0;
                     attest_request(&mut params, &*caller);
+                    containers::events::record(&daemon, &sender, &run.sender, Action::Read).await;
                     match run.handle.read_resource(params).await {
                         Ok(mut result) => {
                             run.attest(result.meta.get_or_insert_default());

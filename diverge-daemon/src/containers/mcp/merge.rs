@@ -13,6 +13,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use futures_util::{Stream, StreamExt as _, stream};
+use diverge_sdk::daemon::creator::Creator;
+use diverge_sdk::daemon::endpoints::events::Action;
 use diverge_sdk::shared::mcp::attest_request;
 use diverge_sdk::shared::mcp::attestation;
 use rmcp::model::RequestParamsMeta;
@@ -24,7 +26,7 @@ use tokio::sync::{Mutex, mpsc};
 use tokio::task::AbortHandle;
 
 use super::{Entry, Served, exposed, split};
-use crate::containers::{Key, ToolKey, ToolRun, activate_tool, tools};
+use crate::containers::{Key, ToolKey, ToolRun, activate_tool, events, tools};
 use crate::daemon::Daemon;
 use crate::store::DependencyToolId;
 use crate::store::tools::Tool;
@@ -44,6 +46,9 @@ pub struct Context {
     /// it sends outward; none for a tool container, which sends
     /// nothing outward.
     pub caller: Option<attestation::Caller>,
+    /// The container as a sender: who its calls and reads are from,
+    /// as the graph records them.
+    pub sender: Creator,
     /// The served set.
     pub served: Arc<Mutex<Served>>,
 }
@@ -191,7 +196,9 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
 /// The call, to the tool its prefix names, by the name that tool
 /// knows: in flight into the tool from the ask to the answer, which
 /// holds the tool's run up — a detach meanwhile serves the tool no
-/// more from that instant, and this call is answered still.
+/// more from that instant, and this call is answered still. On the
+/// graph once it reaches the run: one `call` event from the container
+/// to the tool, however the tool answers.
 pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
     let Some((prefix, name)) = split(&params.name) else {
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
@@ -208,6 +215,7 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     activate_tool(&context.daemon, &run)
         .await
         .map_err(|error| ErrorData::internal_error(error.0.to_string(), None))?;
+    events::record(&context.daemon, &context.sender, &run.sender, Action::Call).await;
     let mut result = run
         .handle
         .call_tool(params)
@@ -217,7 +225,9 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     Ok(result)
 }
 
-/// The read, from the first served tool that answers it.
+/// The read, from the first served tool that answers it: on the graph
+/// as one `read` event from the container to that tool, and to no
+/// tool that did not.
 pub async fn read_resource(context: &Context, mut params: ReadResourceRequestParams) -> Result<ReadResourceResult, ErrorData> {
     attest(context, &mut params);
     let keys = context.served.lock().await.keys();
@@ -235,6 +245,7 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
             Ok(mut result) => {
                 run.touch();
                 run.attest(result.meta.get_or_insert_default());
+                events::record(&context.daemon, &context.sender, &run.sender, Action::Read).await;
                 return Ok(result);
             }
             Err(error) => last = Some(error),

@@ -17,7 +17,7 @@
 //! and handed by [`dispatch`] to its handler — [`accounts`],
 //! [`roles`], [`providers`], [`agents`], [`standalone_tools`],
 //! [`dependency_tools`],
-//! [`volumes`], [`vault`] and [`postgres`] have one per request, every request
+//! [`volumes`], [`vault`], [`postgres`] and [`events`] have one per request, every request
 //! of the wire served — or, when the request carries `relay`, by
 //! [`relay`], this daemon as a conduit to another; what the file
 //! operations of every family share is [`files`]. A credential that admits a provider rather
@@ -66,6 +66,7 @@ pub use stop_route::*;
 pub mod accounts;
 pub mod agents;
 pub mod dependency_tools;
+pub mod events;
 pub mod files;
 pub mod inner;
 pub mod postgres;

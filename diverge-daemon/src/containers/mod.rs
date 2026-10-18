@@ -42,6 +42,8 @@
 //! run for work, its values taken and fed, [`inactive_agent`] and
 //! [`inactive_tool`] write back what it made of them, and
 //! [`pump_tool`] reads a tool container's activity to its end;
+//! [`events`] writes the graph of who sent what to whom, at the
+//! seams the exchanges pass through;
 //! [`Opened`] is a run as a file operation works on it, and
 //! [`files`] the operations — the container's tree whole, a file
 //! read, a file written — with the daemon's mounts included.
@@ -72,6 +74,7 @@ pub mod secrets;
 
 pub mod answerers;
 pub mod deploy;
+pub mod events;
 pub mod fuse;
 pub mod images;
 pub mod mcp;
