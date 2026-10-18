@@ -18,9 +18,12 @@
 //! one directory of running containers and one registry of accepting
 //! daemons — built once by
 //! [`Provider::start`]; [`run`] builds it, listens and dials, waits
-//! for Ctrl-C or SIGTERM, and stops: the listener drained, the dials
-//! ended, every container and loop mount of this provider swept away,
-//! and the registry and the tunnel gone with the provider. [`Error`]
+//! for Ctrl-C or SIGTERM — or for [`stop`], a loopback `POST /stop`
+//! on the same port, the one plain HTTP request the provider
+//! answers — and stops: the listener drained, every session dropped,
+//! the dials ended, every container and loop mount of this provider
+//! swept away, and the registry and the tunnel gone with the
+//! provider. [`Error`]
 //! is why the provider could not start or could not listen, the one
 //! report a failed start gets; the provider prints nothing else.
 //!
@@ -34,6 +37,7 @@ mod listen;
 mod peers;
 mod provider;
 mod run;
+mod stop_route;
 
 pub use dial::*;
 pub use error::*;
@@ -41,3 +45,4 @@ pub use listen::*;
 pub use peers::*;
 pub use provider::*;
 pub use run::*;
+pub use stop_route::*;

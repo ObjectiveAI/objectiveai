@@ -12,17 +12,23 @@ use diverge_sdk::wire::connection::Connection;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
-use super::{Error, Provider};
+use super::{Error, Provider, stop_route};
 
 /// Listen on `port`, on every interface, until `stop` says so: every
-/// request at every path is a WebSocket upgrade, and each upgrade is
-/// one connection served by [`Provider::accept`]. A request that
-/// is not an upgrade is answered as axum answers one. When `stop`
-/// turns `true` the listener closes and what was accepted is left to
-/// finish on its own.
+/// request at every path but `/stop` is a WebSocket upgrade, and each
+/// upgrade is one connection served by [`Provider::accept`]; a
+/// `POST /stop` is the provider's own [`stop`](super::stop), the one
+/// request that is not the protocol. A request that is neither is
+/// answered as axum answers one. When `stop` turns `true` the
+/// listener stops accepting, closes what is idle and waits for the
+/// requests in flight; what was upgraded is every connection's own to
+/// close, on the same stop.
 pub async fn listen(provider: Arc<Provider>, port: u16, mut stop: watch::Receiver<bool>) -> Result<(), Error> {
     let listener = TcpListener::bind(("0.0.0.0", port)).await.map_err(Error::Bind)?;
-    let router = Router::new().fallback(accept).with_state(provider);
+    let router = Router::new()
+        .route("/stop", axum::routing::post(stop_route::stop))
+        .fallback(accept)
+        .with_state(provider);
     axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(async move {
             let _ = stop.wait_for(|stopped| *stopped).await;
