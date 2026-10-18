@@ -9,8 +9,8 @@ use crate::run::{Emitter, Error, Target};
 
 pub mod delete;
 pub mod get;
+pub mod insert;
 pub mod list;
-pub mod set;
 pub mod tag;
 pub mod untag;
 
@@ -21,10 +21,10 @@ pub enum Vault {
     Delete(delete::Arguments),
     /// Getting one vault key, with its slots.
     Get(get::Arguments),
+    /// Inserting a value into one vault key.
+    Insert(insert::Arguments),
     /// Listing vault keys.
     List(list::Arguments),
-    /// Setting one vault key.
-    Set(set::Arguments),
     /// Putting tags on a vault key.
     Tag(tag::Arguments),
     /// Taking tags off a vault key.
@@ -36,8 +36,8 @@ pub async fn run(command: Vault, target: &Target<'_>, emitter: &mut Emitter) -> 
     match command {
         Vault::Delete(arguments) => delete::run(arguments, target, emitter).await,
         Vault::Get(arguments) => get::run(arguments, target, emitter).await,
+        Vault::Insert(arguments) => insert::run(arguments, target, emitter).await,
         Vault::List(arguments) => list::run(arguments, target, emitter).await,
-        Vault::Set(arguments) => set::run(arguments, target, emitter).await,
         Vault::Tag(arguments) => tag::run(arguments, target, emitter).await,
         Vault::Untag(arguments) => untag::run(arguments, target, emitter).await,
     }

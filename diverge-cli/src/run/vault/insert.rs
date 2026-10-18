@@ -1,12 +1,12 @@
-//! `diverge run vault set`: setting one vault key, as
-//! [`set`](diverge_sdk::daemon::endpoints::vault::set) states it.
+//! `diverge run vault insert`: inserting one value into a vault key, as
+//! [`insert`](diverge_sdk::daemon::endpoints::vault::insert) states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::vault::set::{client::request, server::response};
+use diverge_sdk::daemon::endpoints::vault::insert::{client::request, server::response};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Setting one vault key.
+/// Inserting one value into a vault key.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -30,10 +30,10 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>("diverge run vault set", emitter).await;
+            return request_schema::<request::Frame>("diverge run vault insert", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>("diverge run vault set", emitter).await;
+            return response_schema::<response::Frame>("diverge run vault insert", emitter).await;
         }
         None => {}
     }

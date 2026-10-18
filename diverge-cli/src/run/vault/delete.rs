@@ -1,12 +1,13 @@
-//! `diverge run vault delete`: deleting a vault key, as
-//! [`delete`](diverge_sdk::daemon::endpoints::vault::delete) states it.
+//! `diverge run vault delete`: deleting a vault key, or one of its
+//! values, as [`delete`](diverge_sdk::daemon::endpoints::vault::delete)
+//! states it.
 
 use clap::Args;
 use diverge_sdk::daemon::endpoints::vault::delete::{client::request, server::response};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Deleting a vault key.
+/// Deleting a vault key, or one of its values.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
