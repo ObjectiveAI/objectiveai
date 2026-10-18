@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the tree in the postcard wire format, a varint count of nodes followed by that many nodes, or with the byte 1 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the tree in the postcard wire format, a varint count of nodes followed by that many nodes; is the byte 1, 2 or 3 alone when a running container, a FUSE serve or an operation holds the volume; is the byte 4 alone when the server keeps no volume; or begins with the byte 5 followed by an error as one JSON value; and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -9,8 +9,12 @@ The server sends exactly one response on the scope. The response
 finish follows the response, and no frame follows the finish.
 
 ```text
-[0][tree, postcard …]
-[1][error JSON …]
+[0][tree, postcard …]    the tree
+[1]                      not walked: a running container holds the volume
+[2]                      not walked: a FUSE serve holds the volume
+[3]                      not walked: another operation holds the volume
+[4]                      not walked: the server keeps no volume
+[5][error JSON …]        not walked
 ```
 
 - **The sequence.** Exactly one response precedes the response
@@ -34,22 +38,41 @@ finish follows the response, and no frame follows the finish.
 - **Paths.** Every `name` is the name of a node in its directory. The
   directory the request named has no node of its own: the tree
   carries its entries.
-- **The error.** A payload whose first byte is `1` carries an error
+- **The refusals, and their order.** The server decides the bytes
+  `1`, `2` and `3` in the order [Capabilities](/capabilities/#the-hold)
+  states for an operation, the first rule that applies deciding. On
+  a server that keeps no volume, the byte `4` is the only response,
+  sent before anything is looked up. Every refusal states that the
+  tree was not sent and that nothing changed. A client ignores every
+  byte that follows the byte `1`, `2`, `3` or `4`.
+- **Mounted.** A payload that is the byte `1` and nothing else states
+  that a running container of the client holds the volume at the
+  time of the request.
+- **FUSE served.** A payload that is the byte `2` and nothing else
+  states that a [volumes::fuse_serve](/endpoints/volumes-fuse-serve/)
+  of the client holds the volume at the time of the request.
+- **Held.** A payload that is the byte `3` and nothing else states
+  that the volume is under a [volumes::stat](/endpoints/volumes-stat/),
+  a [volumes::read](/endpoints/volumes-read/), a
+  [volumes::write](/endpoints/volumes-write/), another
+  `volumes::filetree`, a [volumes::edit](/endpoints/volumes-edit/) or
+  a [volumes::delete](/endpoints/volumes-delete/) at the time of the
+  request.
+- **Unsupported.** A payload that is the byte `4` and nothing else
+  states that the server holds out none of the three mode objects
+  and keeps no volume, as [Capabilities](/capabilities/#the-volume-modes)
+  provides.
+- **The error.** A payload whose first byte is `5` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, a payload whose bytes after `0` do not
-  decode as the tree, and a payload whose bytes after `1` are not one
+  is none of `0` to `5`, a payload whose bytes after `0` do not
+  decode as the tree, and a payload whose bytes after `5` are not one
   JSON value are malformed.
 
-The response is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/filetree/server/response/frame.rs`:
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/filetree/server/response/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/filetree/server/response/frame.rs
-```
-
-and the node by `diverge-provider-sdk-rs/src/shared/filetree/response/node.rs`:
-
-```rust include=diverge-provider-sdk-rs/src/shared/filetree/response/node.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/filetree/server/response/frame.rs
 ```

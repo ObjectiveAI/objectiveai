@@ -1,6 +1,6 @@
 //! Usage statistics from OpenRouter responses.
 
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response;
 use serde::Deserialize;
 
 /// Token usage and cost statistics from OpenRouter.

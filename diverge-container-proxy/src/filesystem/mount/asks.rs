@@ -6,7 +6,7 @@
 //! answer, through [`crate::ask`], made from the FUSE thread over the
 //! runtime handle's `block_on`. Every failure of the transport, and
 //! every error the caller answers, is `EIO` to the program; a
-//! mutation the caller refuses because its storage keeps nothing is
+//! mutation the caller refuses because the volume is read only is
 //! `EROFS`; nothing at the path is `ENOENT`. What the caller refused
 //! is not the program's to know, and nothing here refuses anything on
 //! the caller's behalf.
@@ -14,10 +14,10 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use diverge_provider_sdk::container_proxy_endpoints::fuse::mount::server::channel_request::{Frame, Path, Read, Rename, Setattr, Truncate, Write};
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::containers::fuse;
-use diverge_provider_sdk::shared::containers::fuse::stat::Stat;
+use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::server::channel_request::{Frame, Path, Read, Rename, Setattr, Truncate, Write};
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::containers::fuse;
+use diverge_sdk::shared::containers::fuse::stat::Stat;
 use fuser::Errno;
 use tokio::runtime::Handle;
 
@@ -55,7 +55,7 @@ impl Asks {
     fn ack(answer: &[u8]) -> Result<(), Errno> {
         match fuse::ack::Frame::decode(answer) {
             Ok(fuse::ack::Frame::Ok) => Ok(()),
-            Ok(fuse::ack::Frame::Ephemeral) => Err(Errno::EROFS),
+            Ok(fuse::ack::Frame::ReadOnly) => Err(Errno::EROFS),
             Ok(fuse::ack::Frame::Error(_)) | Err(_) => Err(Errno::EIO),
         }
     }

@@ -6,15 +6,15 @@ use serde::{Deserialize, Serialize};
 /// Ollama Cloud (the hosted service, not a local ollama — that is
 /// [`custom`](super::custom::Provider)).
 ///
-/// APPLICATION: the harness sets `OLLAMA_API_KEY` to
-/// [`api_key`](Self::api_key) in the gateway's process environment
-/// before Hermes starts.
+/// APPLICATION: the harness sets `OLLAMA_API_KEY` to the
+/// secret's value in the gateway's process environment before
+/// Hermes starts.
+///
+/// SECRET: `OLLAMA_API_KEY`, fixed — the API key, under that name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `ollama-cloud`.
     pub provider: OllamaCloud,
-    /// The API key, applied as `OLLAMA_API_KEY`.
-    pub api_key: String,
 }
 
 /// [`Provider`]'s discriminator.

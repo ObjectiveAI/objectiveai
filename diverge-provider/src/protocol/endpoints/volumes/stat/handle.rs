@@ -1,0 +1,107 @@
+//! Answering a stat, from a scope and a manager.
+
+use diverge_sdk::provider::endpoints::volumes::stat::server::response;
+use diverge_sdk::wire::encode::{Encode, Writer};
+use diverge_sdk::provider::endpoints::volumes::refusal;
+use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
+use crate::protocol::hold::Held;
+use diverge_sdk::provider::endpoints::volumes::stat::client::request;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use crate::protocol::volume::Volume as _;
+use crate::protocol::volume_manager::VolumeManager;
+use diverge_sdk::shared::error::Error;
+
+/// Examine the volume and end the scope.
+///
+/// One question, one answer, done — so this consumes the scope rather
+/// than handing it back. There is nothing a provider does with a
+/// stat's scope afterwards.
+///
+/// # Under the exclusive hold
+///
+/// The volume is [`got`](VolumeManager::get) and then
+/// [`locked`](crate::protocol::volume::Volume::lock) for the length of
+/// the examination, so what is reported is the volume at rest, with
+/// no container writing to it. A volume held at all is the stat
+/// refused with the endpoint's own word for who has it —
+/// [`Mounted`](response::Frame::Mounted),
+/// [`FuseServed`](response::Frame::FuseServed) or
+/// [`Held`](response::Frame::Held) — and the hold never waits. The
+/// hold is given back whatever the examination answered. A provider
+/// whose capabilities keep no volumes answers
+/// [`Unsupported`](response::Frame::Unsupported) first.
+///
+/// # Every failure becomes a frame
+///
+/// A name the caller has no volume by is [`refusal::unknown`]; a
+/// manager or a volume that will not answer is its error, flattened.
+/// The endpoint has one place to put a failure, so there is nothing
+/// else to say.
+///
+/// A response that will not ENCODE is the one failure with nowhere to
+/// go, and the scope simply finishes without an answer. A caller reads
+/// that as a provider that said nothing, which is what happened.
+///
+/// # The request arrives decoded
+///
+/// [`server::handle`](crate::protocol::handle::handle) reads every
+/// request once to dispatch it, and hands the result here — so a
+/// malformed request never reaches this function, and nothing in it
+/// decodes one.
+pub async fn handle<M>(
+    scope: ScopeHandle,
+    request: request::Frame,
+    client_identity: &str,
+    manager: &M,
+    capabilities: &Capabilities,
+) where
+    M: VolumeManager,
+    M::Error: Into<Error>,
+{
+    if !capabilities.volumes() {
+        let mut buffer = Vec::new();
+        if response::Frame::Unsupported.encode(&mut Writer::new(&mut buffer)).is_ok() {
+            scope.send_response(&buffer).await;
+        }
+        scope.send_response_finish().await;
+        return;
+    }
+    let frame = match stat(manager, client_identity, &request.name).await {
+        Ok(stat) => response::Frame::Stat(stat),
+        Err(frame) => frame,
+    };
+
+    let mut buffer = Vec::new();
+    if frame.encode(&mut Writer::new(&mut buffer)).is_ok() {
+        scope.send_response(&buffer).await;
+    }
+    scope.send_response_finish().await;
+}
+
+/// The volume found, locked, examined, and unlocked; or the one
+/// refusal the endpoint answers with, whichever step it came from.
+async fn stat<M>(
+    manager: &M,
+    client_identity: &str,
+    name: &str,
+) -> Result<response::Stat, response::Frame>
+where
+    M: VolumeManager,
+    M::Error: Into<Error>,
+{
+    let volume = match manager.get(client_identity, name).await {
+        Ok(Some(volume)) => volume,
+        Ok(None) => return Err(response::Frame::Error(refusal::unknown(name))),
+        Err(error) => return Err(response::Frame::Error(error.into())),
+    };
+    if let Err(held) = volume.lock().await {
+        return Err(match held {
+            Held::Mounted => response::Frame::Mounted,
+            Held::FuseServed => response::Frame::FuseServed,
+            Held::Locked => response::Frame::Held,
+        });
+    }
+    let stat = volume.stat().await;
+    volume.unlock().await;
+    stat.map_err(|error| response::Frame::Error(error.into()))
+}

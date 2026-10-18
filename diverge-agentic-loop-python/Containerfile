@@ -33,8 +33,7 @@ WORKDIR /build
 # workspace lockfile rides into the crate so the resolved versions
 # hold; cargo prunes the entries the crate does not use, which is why
 # the build does not pass --locked.
-COPY diverge-provider-sdk-rs diverge-provider-sdk-rs
-COPY diverge-container-proxy-sdk-rs diverge-container-proxy-sdk-rs
+COPY diverge-sdk-rs diverge-sdk-rs
 COPY diverge-agentic-loop-python diverge-agentic-loop-python
 COPY Cargo.lock diverge-agentic-loop-python/Cargo.lock
 
@@ -58,6 +57,9 @@ WORKDIR /root
 COPY --from=build \
     /build/diverge-agentic-loop-python/target/release/diverge-agentic-loop-python \
     /usr/local/bin/diverge-agentic-loop-python
+
+# The image's arguments schema and its description, read by the proxy.
+COPY diverge-agentic-loop-python/DIVERGE.md /DIVERGE.md
 
 # The loop's own server, on the loopback: 8080, or whatever `PORT`
 # names. Nothing is exposed — the proxy the host injects is the only

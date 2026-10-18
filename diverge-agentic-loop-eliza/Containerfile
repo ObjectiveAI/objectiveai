@@ -39,8 +39,7 @@ WORKDIR /build
 # does not pass --locked. Of the eliza crate only the manifest and the
 # sources ride: reports/ and the pinned elizaOS tree under sources/
 # are research, not the build's.
-COPY diverge-provider-sdk-rs diverge-provider-sdk-rs
-COPY diverge-container-proxy-sdk-rs diverge-container-proxy-sdk-rs
+COPY diverge-sdk-rs diverge-sdk-rs
 COPY diverge-agentic-loop-eliza/Cargo.toml diverge-agentic-loop-eliza/Cargo.toml
 COPY diverge-agentic-loop-eliza/src diverge-agentic-loop-eliza/src
 COPY Cargo.lock diverge-agentic-loop-eliza/Cargo.lock
@@ -84,6 +83,9 @@ RUN mkdir -p /var/lib/eliza
 COPY --from=build \
     /build/diverge-agentic-loop-eliza/target/release/diverge-agentic-loop-eliza \
     /usr/local/bin/diverge-agentic-loop-eliza
+
+# The image's arguments schema and its description, read by the proxy.
+COPY diverge-agentic-loop-eliza/DIVERGE.md /DIVERGE.md
 
 # The harness's own server, on the loopback: 8080, or whatever `PORT`
 # names. Nothing is exposed — the proxy the host injects is the only

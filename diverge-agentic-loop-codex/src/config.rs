@@ -8,7 +8,10 @@
 //! provider, the `diverge` entry and its selection. Sandbox and
 //! approval are not here: they ride the argv as
 //! `--dangerously-bypass-approvals-and-sandbox`, so there is one
-//! spelling of that decision.
+//! spelling of that decision. Nothing of the login is here either:
+//! the method puts its secret in a variable or a file, and the one
+//! key that names a variable, the provider's `env_key`, names the
+//! one the `api_key` method sets.
 //!
 //! Written before every run: the agent never changes, but the file
 //! is the run's, and a mounted home may not carry one.
@@ -71,7 +74,7 @@ pub fn render(agent: &Agent) -> Result<String, toml::ser::Error> {
             Provider {
                 name: DIVERGE,
                 base_url: &provider.base_url,
-                env_key: crate::auth::API_KEY,
+                env_key: crate::auth::CODEX_API_KEY,
                 wire_api: "responses",
             },
         );
@@ -81,7 +84,7 @@ pub fn render(agent: &Agent) -> Result<String, toml::ser::Error> {
     mcp_servers.insert(
         DIVERGE,
         McpServer {
-            url: diverge_container_proxy_sdk::mcp_url(),
+            url: diverge_sdk::container_proxy::inside::mcp_url(),
         },
     );
     toml::to_string(&Config {

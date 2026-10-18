@@ -7,19 +7,23 @@ read from its current documentation (the configuration reference,
 authentication, sandboxing, approvals and non-interactive pages of
 learn.chatgpt.com) and from `codex-rs/exec/src/cli.rs` on `main` on
 2026-09-09, against `@openai/codex` 0.153.4, the version the image
-pins; nothing here has been run.
+pins; the login facts (§Auth) from `codex-rs/core/src/auth.rs` and
+its credential store at `rust-v0.163.0` on 2026-10-18, checked
+against the pinned `0.153.4`; nothing here has been run.
 
 ## What is built
 
-The whole container, never run: the agent vocabulary with its schema;
-the server (`main.rs`, hermes's); cc's three-phase claim and hermes's
-queue; the login from a mount or the vault's key (`auth.rs`);
-`config.toml` rendered from the agent (`config.rs`); the thread's
-rollouts as the
+The whole container, never run: the agent vocabulary with its schema,
+the login method among it (`agent/auth.rs`); the server (`main.rs`,
+hermes's); cc's three-phase claim and hermes's queue; the secrets as
+the proxy feeds and collects them (`secrets.rs`) and the login made
+from the method and the fed value (`auth.rs`); `config.toml` rendered
+from the agent (`config.rs`); the thread's rollouts as the
 continuation in the caller's database (`continuation.rs`); and
 the run (`run/`): `codex exec --json` spawned per turn
 (`process.rs`), its events converted into chunks (`convert.rs`), the
-queue taken at the turn's end, the rollouts harvested.
+queue taken at the turn's end, the rotating secret read back, the
+rollouts harvested.
 
 ## The run: one `codex exec` per turn
 
@@ -29,8 +33,8 @@ message's text on stdin (argv caps one argument at 128 KiB on Linux,
 and joined queue messages can exceed it) and its images as files under
 the temporary directory, one `-i` each, removed when the turn ends;
 audio and a binary resource that is not an image refuse the message
-(`400`), `CODEX_HOME=/root/.codex` and the login's variable in
-the environment, cwd the harness's (the caller's mounts are wherever
+(`400`), `CODEX_HOME=/root/.codex` and the login method's variables
+in the environment, cwd the harness's (the caller's mounts are wherever
 the caller put them), stderr passed through, `kill_on_drop`. The
 bypass flag is the source's own for "environments that are externally
 sandboxed"; the config carries no `sandbox_mode` or `approval_policy`,
@@ -111,8 +115,9 @@ CREATE TABLE IF NOT EXISTS codex_files (
   compressed), replacing the rows whole in one transaction beside the
   thread row.
 - Nothing else travels: not the state database (an index), not
-  `history.jsonl` (display history), not `config.toml` and
-  `auth.json` (the harness's and the caller's).
+  `history.jsonl` (display history), not `config.toml` (the
+  harness's), not `auth.json` (the fed secret's — written before the
+  loop and handed back through the collect, never a row).
 
 ## The stream is `codex exec --json`, and `response/` is its vocabulary
 
@@ -188,10 +193,14 @@ nothing else:
   ABSENT IS `disabled` (nothing is on by omission). A search is
   Codex's own, never one of the caller's tool calls on the stream.
 - `provider` → `model_providers.diverge = { name = "diverge",
-  base_url, env_key = "OPENAI_API_KEY", wire_api = "responses" }` and
-  `model_provider = "diverge"`. Keyed by the `OPENAI_API_KEY` the run
-  found (below); beside a ChatGPT login it fails as itself, in Codex's
-  words. Absent, Codex's own `openai` provider.
+  base_url, env_key = "CODEX_API_KEY", wire_api = "responses" }` and
+  `model_provider = "diverge"`. Keyed by the variable the `api_key`
+  method sets (below), so a provider REQUIRES `auth.method =
+  "api_key"` and the registration refuses any other method beside
+  one (`400`, `{kind: "auth"}`). Absent, Codex's own `openai`
+  provider, with whatever method the agent names.
+- `auth` → nothing in the file: the method's variables on the
+  process, or its file under `$CODEX_HOME` (below).
 
 Every absent `Option` leaves its key unset, so Codex applies its own
 default for the model — except `web_search`, above.
@@ -210,33 +219,82 @@ execpolicy rules, `shell_environment_policy` (the harness renders the
 process environment itself), `--image` and `--output-schema` (the
 wire is text and chunks).
 
-## Auth: a mount first, then the vault's key, and only both missing refuses
+## Auth: the agent names the method, the proxy feeds the one secret
 
-The agent says nothing about how Codex logs in (user ruling
-2026-09-09). At each run's start the harness looks, in order:
+The agent names HOW Codex logs in and never with what (user ruling
+2026-10-18: every container but cc takes its auth as a secret, and
+codex supports every Codex auth mode). `auth` is REQUIRED, tagged
+`method`, and each method declares ONE secret by a fixed name the
+template must declare; the registration answers that name with its
+mode, the proxy feeds its value on `POST /secrets` before every
+loop, and the run puts the value where Codex reads it. The four,
+from Codex's own credential store (`rust-v0.163.0`, checked against
+the pinned `0.153.4`):
 
-1. **A mounted `auth.json`** at `$CODEX_HOME/auth.json`. The caller
-   serves it through a FUSE mount on the container request, exactly
-   as cc's caller serves Claude Code's credentials; its kind (API key
-   or ChatGPT tokens) is the caller's choice and the harness never
-   reads it. Codex refreshes ChatGPT tokens in place, on the mount,
-   so the caller's copy is the current one without any cycle of the
-   harness's. Found, the vault is never asked.
-2. **The vault's `OPENAI_API_KEY`**: a STATIC secret, read once per
-   run and put in the process environment, where Codex's `env_key`
-   looks. No lock, no set.
+| `method` | declares | mode | where it goes |
+| --- | --- | --- | --- |
+| `api_key` | `OPENAI_API_KEY` | fixed | the variable `CODEX_API_KEY` |
+| `access_token` | `CODEX_ACCESS_TOKEN` | fixed | the variable `CODEX_ACCESS_TOKEN` |
+| `auth_file` | `CODEX_AUTH` | rotating | `$CODEX_HOME/auth.json`, whole |
+| `workload_identity { federation_rule_id, context? }` | `OPENAI_IDENTITY_TOKEN` | fixed | `$CODEX_HOME/identity-token`, named by `OPENAI_IDENTITY_TOKEN_FILE`, with `OPENAI_FEDERATION_RULE_ID` and, when given, `OPENAI_WORKLOAD_IDENTITY_CONTEXT` from the arguments |
 
-Neither: the run is refused, naming both places. The vault's OAuth
-document (`OPENAI_CODEX_OAUTH`) is NOT a source (user ruling
-2026-09-09): a login that refreshes is the caller's to serve live,
-which is what the FUSE mount is for, and the harness writes no
-`auth.json` of its own. A ChatGPT login bills the caller's
-subscription; an API key bills the platform at API rates — Codex's
-docs keep the two systems apart, and so does this order. The vault is
-touched only at the run, never at startup: the proxy may not be up
-before a request.
+The facts the table rests on:
 
-Nothing about credentials rides the agent value, the schema or a row.
+- `OPENAI_API_KEY` in the ENVIRONMENT is not a credential source for
+  the built-in `openai` provider: its `env_key` is `None`, and the
+  variable only prefills the interactive login. The earlier design,
+  which put the key in the environment under that name, logged
+  nothing in unless a custom `provider` named it as `env_key`. `CODEX_API_KEY`
+  is the credential store's TOP precedence — above `auth.json` — and
+  `codex exec` honours it. So the fed `OPENAI_API_KEY` is handed to
+  Codex as `CODEX_API_KEY`, and the provider entry's `env_key` is
+  `CODEX_API_KEY` too, which is why a provider requires `api_key`.
+- `CODEX_ACCESS_TOKEN` carries a personal access token (`at-…`) or
+  an Agent Identity JWT, read after `CODEX_API_KEY`.
+- `auth.json` (`AuthDotJson`) is `auth_mode?`, `OPENAI_API_KEY`,
+  `tokens {id_token, access_token, refresh_token, account_id}`,
+  `last_refresh`, `agent_identity?`, `personal_access_token?`,
+  `bedrock_api_key?`, `bedrock_access_keys?`; `auth_mode` is
+  inferred when absent. Any of its kinds is a valid `CODEX_AUTH`,
+  and the harness never reads what kind it is. When a ChatGPT login
+  refreshes, Codex rewrites the file IN PLACE (open, truncate, write,
+  `0600`): `tokens.{id,access,refresh}_token` and `last_refresh`
+  rotate — proactively five minutes before the access token's expiry
+  or eight days after `last_refresh`, reactively on a `401`. That is
+  why `CODEX_AUTH` is `rotating`: the file is written from the fed
+  object before every loop and read back after the loop's last turn
+  (`tokio::fs::read` → JSON) into what the collect answers, so the
+  next activation finds the refreshed login. The harness's own write
+  is a plain write under root's umask; the `0600` is Codex's, on its
+  rewrite. A file that cannot be read back, or is not JSON, leaves
+  the fed value to answer the collect — the collect must carry every
+  name asked. The other three methods hand nothing back.
+- Workload identity is selected by `OPENAI_IDENTITY_TOKEN_FILE` +
+  `OPENAI_FEDERATION_RULE_ID` (+ optional
+  `OPENAI_WORKLOAD_IDENTITY_CONTEXT`); the token is a `fixed` secret
+  written to a file under the home because that is how Codex takes
+  it.
+- `preferred_auth_method` no longer exists, `forced_login_method` is
+  unneeded (the method already fixes which login is written), and
+  `wire_api` must be `responses`.
+
+The run (`run/mod.rs`) takes a snapshot of the fed values once at
+its start — a feed that lands mid-loop is the next loop's — resolves
+the method over it (`auth.rs`: the declared name absent, or of the
+wrong JSON type, is the run's refusal `{kind: "secrets"}`, naming the
+name and never a value), writes the method's file under the home
+before `config.toml` and the first turn, and spawns every turn with
+`CODEX_HOME` plus the method's variables. The FUSE-mounted
+`auth.json` of the earlier design was the workaround for rotation,
+and is gone: the rotating secret is the protocol's own cycle. A
+ChatGPT login bills the caller's subscription; an API key bills the
+platform at API rates — Codex's docs keep the two apart, and so does
+the method. The proxy is touched only at the run, never at startup.
+
+Nothing about credentials rides the agent value, the schema or a row:
+the method does, the value is the secret's, and `auth.json` goes
+back through the collect. No value of a secret is ever formatted
+into an error or a log — names only.
 
 ## What a live run has to prove
 
@@ -249,9 +307,11 @@ Nothing about credentials rides the agent value, the schema or a row.
 3. `mcp_servers.diverge` with a bare `url` (Streamable HTTP, no
    bearer) connecting to the proxy's inside port, listing the
    caller's tools, and reading resources.
-4. A MOUNTED `auth.json` — the FUSE mount's single file — accepted
-   headless and refreshed in place on the mount, the caller's copy
-   following.
+4. A `CODEX_AUTH` written to `$CODEX_HOME/auth.json` before the
+   loop, accepted headless, rewritten in place by Codex on a ChatGPT
+   refresh, and collected after the loop with the rotated tokens in
+   it; and `CODEX_API_KEY` alone logging `codex exec` in with no
+   `auth.json` at all.
 5. `wire_api = "responses"` against the Diverge relay.
 6. `codex exec resume <SESSION_ID>` across container restarts once
    the rollout files are restored from the database, with the SQLite

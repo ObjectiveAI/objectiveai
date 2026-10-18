@@ -11,6 +11,13 @@ pub fn absolute(components: &[String]) -> Option<PathBuf> {
     if components.is_empty() {
         return None;
     }
+    directory(components)
+}
+
+/// `/` joined with `components` — the root itself for an empty list,
+/// which names a directory where it names no file — or `None` for a
+/// component that is not a name, by [`absolute`]'s rule.
+pub fn directory(components: &[String]) -> Option<PathBuf> {
     let mut path = PathBuf::from("/");
     for component in components {
         if component.is_empty()

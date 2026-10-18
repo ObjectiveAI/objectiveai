@@ -1,0 +1,31 @@
+---
+title: 'Daemon'
+summary: 'Tag 5: the server announces a daemon connection a program in the container opened, under a connection id it minted; the client answers with everything the daemon says on it, one server frame per channel response, and its channel response finish closes the connection.'
+order: 5
+draft: false
+---
+
+The server opens this channel when the container's proxy announces a daemon connection, its own half of it, on the begin scope. It is the server's
+half of the connection; the client's half is a
+[daemon](/endpoints/containers-tools-run/client/daemon/) channel the client opens, quoting the same id.
+
+- **The request.** The tag byte `5` followed by a connection id, four
+  bytes, that the server minted. [Request](/endpoints/containers-tools-run/server/daemon/request/)
+  states its form.
+- **The response.** What the daemon says, as channel responses, each
+  one server frame, and the channel response finish, which closes the
+  program's socket. [Response](/endpoints/containers-tools-run/server/daemon/response/) states
+  the sequence.
+- **The id.** The server chooses the id and keeps it unique among the
+  daemon connections it has announced and the client has not
+  finished. It may reuse an id after both halves of its connection have finished. Daemon connections and database connections
+  number independently: an id of one never names the other.
+- **Before the other half.** The server reads nothing from the
+  program until the client has opened its half. The daemon protocol
+  is client-first, so nothing is expected on this channel before then;
+  what arrives all the same is held, and written to the program first,
+  in order.
+- **The account.** The daemon serves the connection for the account
+  the container was created under. No credential passes on either
+  half.
+- **The conduit.** The server relays each channel response onto the proxy's daemon channel as one channel response, in order, and finishes it when the channel finishes. The server reads neither a frame nor an answer.

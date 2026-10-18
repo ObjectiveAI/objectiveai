@@ -1,0 +1,79 @@
+//! The members an agent's create and a tool's create share.
+
+use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
+
+use crate::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
+
+/// Everything a container is made of that its template does not say and
+/// its name is not: the template, the secrets' vault keys, the
+/// provider pin and its volumes, the FUSE mounts. The account is a
+/// tool's alone, on its own create:
+/// an agent container holds none and asks the daemon nothing.
+/// Flattened into an
+/// [agent's](crate::daemon::endpoints::agents::create) and a
+/// [tool's](crate::daemon::endpoints::standalone_tools::create) create, so its
+/// members are the request's own.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
+pub struct Inner {
+    /// The template the container is made from, by its id — the hash
+    /// its family's `templates::create` answered. An id no template of
+    /// the caller's has, or one of the other family, is the create's
+    /// error. The template's image, limits and arguments are
+    /// the container's for its life.
+    pub template: String,
+    /// Which vault key each secret the template declares is: the
+    /// secret's name, as the template's `secrets` names it, to the
+    /// key as [`vault`](crate::daemon::endpoints::vault) holds it.
+    /// Every name the template declares, and no other, else the
+    /// create's `secrets` error; naming a key takes the `use` grant
+    /// over it, and the key must be one the vault holds with at least
+    /// one value, else the same error. Which values the container is
+    /// fed, and whether it holds them or reads them, is decided at
+    /// every activation by the mode its program declared for the
+    /// name; see [`secrets`](crate::shared::containers::secrets).
+    /// Ordered as given, and kept so. Absent, the template declares
+    /// none.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub secrets: IndexMap<String, String>,
+    /// The one provider the container runs on, and the volumes of that
+    /// provider made visible inside it. See [`Provider`].
+    ///
+    /// Absent, the container runs on whichever provider the daemon
+    /// chooses, and mounts no volume: a volume is a provider's own
+    /// and does not carry across, so a container with state on a
+    /// provider's disk is a container of that provider. The
+    /// container's for its life, and never the template's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<Provider>,
+    /// Files of providers' volumes served LIVE across the daemon,
+    /// mounted one each over FUSE.
+    ///
+    /// Each names a file by a provider, a volume of that provider's
+    /// and a path in it, and its path in the container — see
+    /// [`FuseMount`]; each may name a different provider. Every one
+    /// is mounted before the container runs, and every read and every
+    /// write of a piece inside the container is one ask, forwarded by
+    /// the daemon to the volume's provider and served from the
+    /// volume's file in place. The file is
+    /// overwritten in place only; a program that replaces its file by
+    /// rename needs a directory mount. Its container path is no other
+    /// mount's, and lies inside none, as every mount's.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fuse_file_mounts: Vec<FuseMount>,
+    /// Directories of providers' volumes served LIVE across the
+    /// daemon, mounted one each over FUSE.
+    ///
+    /// Each names a directory by a provider, a volume of that
+    /// provider's and a path in it, and its path in the container —
+    /// see [`FuseMount`]; each may name a different provider. The
+    /// whole tree under the volume path is what the container sees:
+    /// every listing, stat, read or write of a piece, truncation,
+    /// change of attributes, creation, removal and rename inside the
+    /// container is one ask, forwarded by the daemon to the volume's
+    /// provider and served from the volume's tree in place. No other
+    /// mount may lie inside it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fuse_directory_mounts: Vec<FuseMount>,
+}

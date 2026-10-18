@@ -1,6 +1,6 @@
 ---
 title: 'Overview'
-summary: 'The normative definition of the Diverge Provider Protocol, revision 2.3.0: the protocol by which a caller directs a provider’s server to run agent and tool containers, to join a tool container, to manage volumes and to check images, over one framed WebSocket connection; and the external interface of the proxy the provider places inside every container.'
+summary: 'The normative definition of the Diverge Provider Protocol, revision 2.3.0: the protocol by which a caller directs a provider’s server to run agent and tool containers, to manage volumes and to check images, over one framed WebSocket connection; and the external interface of the proxy the provider places inside every container.'
 order: 0
 draft: false
 ---
@@ -53,12 +53,16 @@ more.
 | [WebSocket](/websocket/) | the transport: version 13, binary frames, the handshake |
 | [Frames](/frames/) | the frame, the scope, the channel, and what ends each |
 | [Authorization](/authorization/) | the credential that precedes every connection of the Protocol |
+| [Capabilities](/capabilities/) | the parts of the Endpoints layer a server holds out, and what it answers past them |
 | [Container Proxy](/container-proxy/) | the one connection between the provider's server and the proxy inside a container |
-| [Container Proxy Endpoints](/container-proxy-endpoints/) | the six scopes on that connection |
-| [Endpoints](/endpoints/) | the sixteen scopes a client opens on the Protocol |
+| [Container Proxy Endpoints](/container-proxy-endpoints/) | the seven scopes on that connection |
+| [Endpoints](/endpoints/) | the twenty-four scopes a client opens on the Protocol, served as the server's capabilities state |
 
-The reference crate, [`diverge-provider-sdk`](https://docs.rs/diverge-provider-sdk),
-implements the protocol and is versioned with this document. Where a
+The reference crate, [`diverge-sdk`](https://docs.rs/diverge-sdk),
+defines the protocol — its wire, its frames and its client half — and
+is versioned with this document; the server half that implements it
+for a provider is the `protocol` module of the `diverge-provider`
+crate. Where a
 page of this document includes a file of the crate, the file is part
 of this specification.
 

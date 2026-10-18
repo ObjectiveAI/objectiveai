@@ -1,0 +1,129 @@
+//! Running a container: the protocol's `ContainerDeployer` and
+//! `Container`, supplied by this crate, with podman.
+//!
+//! # What a deploy is
+//!
+//! One `podman run`, and what has to be true before and after it. A
+//! container is RUNNING and its proxy LISTENING when a deploy
+//! returns, so the steps are ordered and every one of them is undone
+//! when a later one fails: the container's `disk` and `memory` are
+//! taken from the two caps the configuration sets, and refused when
+//! the running set would pass one; then, beside each other, every
+//! volume mount is resolved through the
+//! [`VolumeManager`](crate::host::volume_manager::VolumeManager) and, for a
+//! stored volume, loop-mounted on a directory of the provider's,
+//! while the image is found, pulled unless the store has it, and the
+//! image cache measured and trimmed; then the
+//! container is started with the proxy binary bound in, port `14979`
+//! published to a loopback port podman picks, `/dev/fuse` and the
+//! privilege to mount, and no environment but the request's; the
+//! proxy is started inside it with `podman exec` and the deploy waits
+//! until it answers on the published port.
+//!
+//! # The proxy
+//!
+//! `diverge-container-proxy`, a static Linux program, beside the
+//! provider's own executable. It is bound read-only at
+//! `/.diverge/diverge-container-proxy` inside every container and
+//! started as a second process there, beside the image's own
+//! entrypoint; the `podman exec` that starts it is held for the
+//! container's life, so its end is seen. The proxy reads no
+//! environment and takes no argument.
+//!
+//! # Root, or the machine
+//!
+//! Podman is rootful on every host. On Linux it is the provider's
+//! own, run from the provider's account, so the provider is root
+//! there, and a deployer refuses to be made otherwise. On macOS and
+//! Windows podman runs in a machine, kept wholly — description,
+//! connection and disk — under `storage_path`, since every podman
+//! invocation is told so; the deployer brings it to what the
+//! configuration says before anything else is asked of podman: made
+//! if there is none, podman inside it as root, on macOS its memory
+//! the configured `memory` and its view every directory a mount
+//! needs — each store, each fixed volume, the provider's directory
+//! and the executable's, since a machine there sees `$HOME` and what
+//! it was made with and nothing else, where WSL on Windows mounts
+//! every drive — and running. A machine on macOS that does not see a
+//! directory the configuration has since named is remade seeing it,
+//! which empties its image cache and drops any image loaded into it
+//! by hand. A changed storage path is a fresh machine under the new
+//! one, and the machine under the old path is left as it was, for
+//! the operator to stop or remove when they choose.
+//!
+//! # The images
+//!
+//! An image is a digest, and references stating where its bytes may
+//! be fetched; where they come from is this provider's decision. The
+//! caller's own images are looked in first: an image the caller
+//! built on this provider, in its pool of the client image store, is
+//! pulled from the provider's own registry, which serves the pool
+//! under the identity's hash — a confirmation and no bytes where the
+//! cache holds the copy still — and run as its id, with nobody
+//! asked. Then the cache, by the digest alone — the name an image is
+//! held under there, or no name, does not matter, except that an
+//! image pulled from the provider's own registry, named under
+//! `127.0.0.1:` and nothing else, is not the provider's own and is
+//! passed over — and an image there is run as its id, with nothing
+//! pulled and nobody asked. Any other is looked for
+//! everywhere else at once: every referenced registry the
+//! configuration lists, asked as `<registry>/<name>@<digest>` with
+//! the credential listed through an auth file the provider writes
+//! for podman — a reference naming a registry not listed is ignored
+//! — and the caller, asked on its scope whether it holds the image,
+//! which answers the path it holds it under. The first to say yes is
+//! the source, and the image is pulled from there: from a registry
+//! as the reference names it; from the caller through the provider's
+//! own registry, which listens on this host's loopback and fetches
+//! from the caller by digest — on Linux podman pulls on the host and
+//! reaches it there; on macOS and Windows podman pulls inside its
+//! machine, and reaches the registry through one SSH tunnel the
+//! provider opens into the machine with the machine's own settings,
+//! for the provider's life. An image nowhere is the run's error.
+//!
+//! Podman evicts nothing from its image store, so the provider does:
+//! whenever the store's count passes `image_cache_disk`, images are
+//! removed until it does not — one the provider never recorded
+//! before one it did, then the least recently run first — never one
+//! a container runs, never one whose config carries the label
+//! `diverge.network/keep`, and never, while a pull of the provider's
+//! is in flight, one the provider has not recorded, since that may
+//! be the one arriving. A store still over the cap after that
+//! refuses the run.
+//!
+//! # What is here
+//!
+//! [`ContainerDeployer`] is the deployer, [`Container`] a container it
+//! started, [`Error`] what a deploy fails with. [`Limit`](crate::host::Limit) is one cap
+//! with a count against it, [`Images`] the image cache's bookkeeping,
+//! [`Source`] where an image was found, and `deploy`, `mounts`,
+//! `root` on Linux and `machine` and `tunnel` on the hosts with a
+//! machine the steps.
+//!
+//! Its own files are flattened into it, so everything is named
+//! through this module and not through the file it lives in.
+
+mod container;
+mod container_deployer;
+mod deploy;
+mod error;
+mod images;
+#[cfg(not(target_os = "linux"))]
+mod machine;
+mod mounts;
+#[cfg(target_os = "linux")]
+mod root;
+mod shared;
+mod source;
+#[cfg(not(target_os = "linux"))]
+mod tunnel;
+
+pub use container::*;
+pub use container_deployer::*;
+pub use error::*;
+pub use images::*;
+pub use mounts::{descend, tool_path};
+pub use shared::*;
+pub use source::*;
+#[cfg(not(target_os = "linux"))]
+pub use tunnel::*;

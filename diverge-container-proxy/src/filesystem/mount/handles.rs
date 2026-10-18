@@ -6,17 +6,25 @@
 //! writing. No bytes: a read is asked as it comes and a write lands as
 //! it comes, so there is nothing to hold between them and nothing to
 //! store on a close.
+//!
+//! Every call here is made from the filesystem's own thread, the one
+//! fuser runs the callbacks on, which is no runtime's — so the lock
+//! is taken blocking, for a lookup, and never from a task.
 
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, MutexGuard};
 
 use fuser::{Errno, FileHandle};
+use tokio::sync::Mutex;
 
 /// Every open handle, by its number.
 pub struct Handles {
-    open: Mutex<BTreeMap<u64, Open>>,
-    next: AtomicU64,
+    table: Mutex<Table>,
+}
+
+/// What the lock protects: the next number, and every open handle.
+struct Table {
+    next: u64,
+    open: BTreeMap<u64, Open>,
 }
 
 /// One open handle.
@@ -29,25 +37,27 @@ struct Open {
 impl Handles {
     pub fn new() -> Self {
         Handles {
-            open: Mutex::new(BTreeMap::new()),
-            next: AtomicU64::new(1),
+            table: Mutex::new(Table {
+                next: 1,
+                open: BTreeMap::new(),
+            }),
         }
-    }
-
-    fn lock(&self) -> MutexGuard<'_, BTreeMap<u64, Open>> {
-        self.open.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     /// Open a handle on `path`.
     pub fn open(&self, path: String, writable: bool) -> FileHandle {
-        let fh = self.next.fetch_add(1, Ordering::Relaxed);
-        self.lock().insert(fh, Open { path, writable });
+        let mut table = self.table.blocking_lock();
+        let fh = table.next;
+        table.next += 1;
+        table.open.insert(fh, Open { path, writable });
         FileHandle(fh)
     }
 
     /// The handle's path, and whether it may write.
     pub fn get(&self, fh: FileHandle) -> Result<(String, bool), Errno> {
-        self.lock()
+        self.table
+            .blocking_lock()
+            .open
             .get(&fh.0)
             .map(|handle| (handle.path.clone(), handle.writable))
             .ok_or(Errno::EBADF)
@@ -55,12 +65,12 @@ impl Handles {
 
     /// Forget the handle.
     pub fn release(&self, fh: FileHandle) {
-        self.lock().remove(&fh.0);
+        self.table.blocking_lock().open.remove(&fh.0);
     }
 
     /// An entry moved: every handle on it, or under it, follows.
     pub fn retarget(&self, from: &str, to: &str) {
-        for handle in self.lock().values_mut() {
+        for handle in self.table.blocking_lock().open.values_mut() {
             if handle.path == from {
                 handle.path = to.to_string();
             } else if let Some(rest) = handle.path.strip_prefix(from).and_then(|rest| rest.strip_prefix('/')) {

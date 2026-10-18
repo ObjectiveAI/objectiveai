@@ -1,6 +1,6 @@
 //! The request-side message the `user` records replay.
 
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response;
 use serde::Deserialize;
 
 use super::content_block::{

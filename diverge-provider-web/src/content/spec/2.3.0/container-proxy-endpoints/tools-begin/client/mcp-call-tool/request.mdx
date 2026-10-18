@@ -1,12 +1,12 @@
 ---
 title: 'Request'
-summary: 'The payload of the channel request: the tag byte 4 and the request of the channel.'
+summary: 'The payload of the channel request: the tag byte 5 and the request of the channel.'
 order: 1
 draft: false
 ---
 
 ```text
-[4][params JSON …]
+[5][params JSON …]
 ```
 
 - **The params.** The params of the MCP method `tools/call`, as JSON.
@@ -14,12 +14,12 @@ draft: false
   stated is answered by a channel response finish that no channel
   response precedes, and the server does nothing else for it.
 
-The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_request/frame.rs`:
+The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/tools/begin/client/channel_request/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_request/frame.rs
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/tools/begin/client/channel_request/frame.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/mcp/call_tool/request/request.rs`:
+and by `diverge-sdk-rs/src/shared/mcp/call_tool/request/request.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/mcp/call_tool/request/request.rs
+```rust include=diverge-sdk-rs/src/shared/mcp/call_tool/request/request.rs
 ```

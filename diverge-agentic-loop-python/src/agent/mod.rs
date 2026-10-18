@@ -2,12 +2,15 @@
 //! caller states them.
 //!
 //! This is what the `arguments` on the container's request must
-//! be, and every type here derives its JSON Schema so `GET /schema`
-//! can say so — [`schemars::schema_for!`] over [`Agent`] is the
-//! whole answer. One member is not this image's to define:
-//! `mcp_tools`, the tool containers the agent depends on, in the form
-//! the provider's wire gives a tool, passed back whole as the
-//! registration's answer.
+//! be, and every type here derives its JSON Schema so `--schema`
+//! can print it — [`schemars::schema_for!`] over [`Agent`] is the
+//! whole document, carried by the image's `/DIVERGE.md`, the one
+//! place the proxy reads it from. One member is not this image's to
+//! define: `dependencies`, the tool containers the agent depends on,
+//! each a dependency tool template exactly as the SDK's
+//! `shared::containers::dependencies::Template` states one — its
+//! schema in `/DIVERGE.md`, the list itself as the registration's
+//! answer.
 //!
 //! No model. The agent IS the source: every turn runs it against the
 //! whole conversation, and what its last expression evaluates to is
@@ -18,7 +21,7 @@
 //!   this container is a Python agent by arrival.
 //! - `memory` and `disk`: ceilings are the container request's
 //!   business, set by whoever runs the container, not the agent's
-//!   vocabulary. (A tool the agent asks for under `mcp_tools` names
+//!   vocabulary. (A tool the agent asks for under `dependencies` names
 //!   its own, which are that tool container's.)
 //! - Any in-process reach back into the container — the CLI's
 //!   `objectiveai.execute`: the script calls tools only through the

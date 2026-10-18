@@ -243,12 +243,12 @@ CARGO_TOMLS=(
   diverge-agentic-loop-eliza/Cargo.toml
   diverge-agentic-loop-hermes/Cargo.toml
   diverge-container-proxy/Cargo.toml
-  diverge-container-proxy-sdk-rs/Cargo.toml
   diverge-agentic-loop-openrouter/Cargo.toml
-  diverge-broker-sdk/Cargo.toml
-  diverge-daemon-sdk-rs/Cargo.toml
-  diverge-provider-sdk-rs/Cargo.toml
-  diverge-provider-server/Cargo.toml
+  diverge-sdk-rs/Cargo.toml
+  diverge-provider/Cargo.toml
+  diverge-postgres/Cargo.toml
+  diverge-daemon/Cargo.toml
+  diverge-cli/Cargo.toml
   objectiveai-sdk-rs/Cargo.toml
   objectiveai-sdk-rs-cffi/Cargo.toml
   objectiveai-sdk-rs-macros/Cargo.toml

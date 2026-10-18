@@ -7,28 +7,41 @@
 //! that path with no shim — and the entry process's environment, for
 //! the plugins whose own helpers fall back to it. The map beats a
 //! setting the `agents` row persisted, for every key it names, so the
-//! vault's copy of a secret is always what the runtime sees. Nothing
-//! goes on the character's `settings` or `secrets`, so nothing lands
-//! in the row encrypted.
+//! value the proxy fed for a secret is always what the runtime sees.
+//! Nothing goes on the character's `settings` or `secrets`, so
+//! nothing lands in the row encrypted.
 //!
 //! The harness renders exactly one setting of its own, `POSTGRES_URL`,
 //! for the database adapter the entry loads; every other setting is a
 //! plugin's, given by the caller on that plugin's entry, and every
-//! secret is the vault's under the key the caller named. Nothing is
-//! rendered for a plugin the caller did not list, pre-installed or
-//! not.
+//! secret is the fed value under the name the caller named. Nothing
+//! is rendered for a plugin the caller did not list, pre-installed or
+//! not. The two values in the environment that are nobody's setting
+//! — the vault passphrase and the settings salt — are the lineage's,
+//! minted with its row.
 
 use std::collections::BTreeMap;
 
+use diverge_sdk::shared::containers::secrets::Values;
 use serde_json::Value;
 
 use crate::agent::{Agent, Character};
-use crate::vault;
 
 /// Where Eliza keeps its own state on disk — its vault under
 /// `.vault-pglite/` above all. Fixed: a caller who wants it to outlive
 /// the container mounts a volume here.
 pub const STATE_DIR: &str = "/var/lib/eliza";
+
+/// The passphrase Eliza's own vault derives its master key from:
+/// the lineage's, minted with its row, and the process environment's
+/// under this name.
+pub const PASSPHRASE: &str = "ELIZA_VAULT_PASSPHRASE";
+
+/// The salt Eliza encrypts settings with, the lineage's under this
+/// name. Stable for the lineage: `initialize()` merges the `agents`
+/// row's settings back into the character, and a decrypt under a
+/// different salt throws.
+pub const SALT: &str = "SECRET_SALT";
 
 /// What the entry constructs the runtime with.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,12 +64,12 @@ pub struct Rendered {
     pub enable_documents: bool,
 }
 
-/// Render the agent with the secrets the vault gave (static and
-/// rotating alike, by setting name), the database URL, and the two
-/// minted process secrets.
+/// Render the agent with the secrets the proxy fed (fixed and
+/// rotating alike, by setting name, each as the text a setting is),
+/// the database URL, and the lineage's passphrase and salt.
 pub fn render(
     agent: &Agent,
-    secrets: &BTreeMap<String, String>,
+    secrets: &Values,
     postgres_url: String,
     passphrase: &str,
     salt: &str,
@@ -76,17 +89,19 @@ pub fn render(
         }
     }
 
-    // The vault's values last, so a plugin setting cannot shadow a
+    // The fed values last, so a plugin setting cannot shadow a
     // secret of the same name.
     for (key, value) in secrets {
-        settings.insert(key.clone(), value.clone());
+        if let Some(text) = text(value) {
+            settings.insert(key.clone(), text);
+        }
     }
 
     let mut env = settings.clone();
     env.insert("ELIZA_STATE_DIR".to_string(), STATE_DIR.to_string());
-    env.insert(vault::PASSPHRASE.to_string(), passphrase.to_string());
+    env.insert(PASSPHRASE.to_string(), passphrase.to_string());
     env.insert("ELIZA_VAULT_DISABLE_KEYCHAIN".to_string(), "1".to_string());
-    env.insert(vault::SALT.to_string(), salt.to_string());
+    env.insert(SALT.to_string(), salt.to_string());
     env.insert(
         "ELIZA_DISABLE_TRAJECTORY_LOGGING".to_string(),
         "1".to_string(),
@@ -151,8 +166,9 @@ fn character(character: &Character, advanced_memory: Option<bool>, advanced_plan
 /// A setting value as the string Eliza carries: text as-is, booleans
 /// and numbers spelled out (Eliza reads `"true"` and `"false"` back as
 /// booleans), objects and arrays as their JSON, and null as nothing
-/// to set.
-fn text(value: &Value) -> Option<String> {
+/// to set. A fed secret takes the same shape, so a rotated value read
+/// back is compared against its fed value rendered this way.
+pub fn text(value: &Value) -> Option<String> {
     match value {
         Value::Null => None,
         Value::String(text) => Some(text.clone()),

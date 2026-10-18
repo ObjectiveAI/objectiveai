@@ -1,0 +1,38 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 13 and the request of the channel.'
+order: 1
+draft: false
+---
+
+The payload of the channel request is the tag byte followed by the
+request as JSON, read as [Notation](/endpoints/#notation) provides:
+
+```text
+[13][request JSON …]
+```
+
+- **`container_path`.** Where the mount appears inside the container,
+  as components from the root. The rules the path of a FUSE mount of
+  the [request](/endpoints/containers-tools-run/request/) meets hold: the path is not the
+  root, and no component is empty, `.` or `..`. The path is no mount's
+  the server holds, lies inside none, and holds none.
+- **`id`.** The client's id for the mount, a string, echoed on every
+  ask the server relays for the mount; not one the server holds a
+  FUSE mount under.
+- **`kind`.** The string `file` or the string `directory`: a file
+  mount or a directory mount, as the [request](/endpoints/containers-tools-run/request/)
+  page defines the two.
+- **Malformed.** A channel request whose payload does not decode as
+  stated is answered by a channel response finish that no channel
+  response precedes, and the server does nothing else for it.
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/run/client/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/tools/run/client/channel_request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/fuse_mount/request/request.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/fuse_mount/request/request.rs
+```

@@ -1,0 +1,43 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0]                  the mount is made
+[1]                  the path overlaps a mount the container holds
+[2]                  the id is one the container holds a FUSE mount under
+[3][error JSON …]    the proxy did not make the mount
+```
+
+- **The sequence.** Exactly one channel response, followed by the
+  channel response finish. The server sends the byte `0` or the byte
+  `3` after the proxy has answered, and the byte `1` or `2` without
+  asking the proxy. A channel response finish that no
+  channel response precedes states that the request did not decode,
+  or that the proxy's connection ended before the proxy answered;
+  nothing is mounted.
+- **Mounted.** The byte `0` and nothing after it: the mount is
+  serving at the path. Every ask of the id follows the channel
+  response finish.
+- **Overlaps.** The byte `1` and nothing after it: the path is a
+  mount's the container holds, lies inside one, or holds one — a
+  volume mount's or a FUSE mount's, the request's or one made since.
+  Nothing is mounted.
+- **Taken.** The byte `2` and nothing after it: the id is one the
+  container holds a FUSE mount under. Nothing is mounted.
+- **The error.** After the byte `3`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page: the
+  proxy's refusal of the mount, in the proxy's words. Nothing is
+  mounted, and the id and the path are free.
+
+The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/run/server/channel_response/fuse_mount/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/tools/run/server/channel_response/fuse_mount/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/fuse_mount/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/fuse_mount/response/frame.rs
+```

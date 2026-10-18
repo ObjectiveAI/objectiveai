@@ -3,9 +3,9 @@
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use diverge_provider_sdk::CHUNK_SIZE;
-use diverge_provider_sdk::shared::containers::fuse;
-use diverge_provider_sdk::shared::containers::fuse::stat::Stat;
+use diverge_sdk::CHUNK_SIZE;
+use diverge_sdk::shared::containers::fuse;
+use diverge_sdk::shared::containers::fuse::stat::Stat;
 use fuser::{FileAttr, FileType, FopenFlags, INodeNo, KernelConfig, TimeOrNow};
 
 /// How long the kernel may believe an attribute: not at all — the

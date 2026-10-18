@@ -10,21 +10,28 @@ use serde::{Deserialize, Serialize};
 /// APPLICATION: the harness sets `CUSTOM_BASE_URL` to
 /// [`base_url`](Self::base_url) in the gateway's process environment
 /// before Hermes starts, and writes the same URL as `model.base_url`
-/// in the config it already owns, beside `model.api_key` when
-/// [`api_key`](Self::api_key) is present — Hermes reads that key only
-/// next to a configured URL. With no key, Hermes supplies its own
-/// `no-key-required` placeholder — the keyless case is the endpoint's
-/// business, not a protocol gap.
+/// in the config it already owns. When [`api_key`](Self::api_key)
+/// is `true` the secret's value is written beside it as
+/// `model.api_key` — the config, not the environment, because
+/// `CUSTOM_API_KEY` is not a variable Hermes reads: the key is read
+/// from the config only, and only next to a configured URL. With no
+/// key, Hermes supplies its own `no-key-required` placeholder — the
+/// keyless case is the endpoint's business, not a protocol gap.
+///
+/// SECRET: `CUSTOM_API_KEY`, fixed — the API key the endpoint
+/// expects; declared only when [`api_key`](Self::api_key) is `true`,
+/// and none otherwise.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `custom`.
     pub provider: Custom,
     /// The endpoint, applied as `CUSTOM_BASE_URL` and `model.base_url`.
     pub base_url: String,
-    /// The API key the endpoint expects, if it expects one; applied
-    /// as `model.api_key`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub api_key: Option<String>,
+    /// Whether the endpoint expects a key: `true` declares the
+    /// `CUSTOM_API_KEY` secret, whose fed value becomes
+    /// `model.api_key`; absent or `false` is the keyless endpoint.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub api_key: bool,
 }
 
 /// [`Provider`]'s discriminator.

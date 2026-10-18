@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use diverge_container_proxy_sdk::port;
+use diverge_sdk::container_proxy::inside::port;
 use rmcp::model::{ClientInfo, ClientResult, ServerNotification, ServerRequest};
 use rmcp::service::{NotificationContext, RequestContext, RunningService, ServiceExt as _};
 use rmcp::transport::StreamableHttpClientTransport;

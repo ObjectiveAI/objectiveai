@@ -1,13 +1,11 @@
 //! The toolsets' contribution: which are exposed, their credentials
-//! as environment, their backend pins, spotify's login as a vault
-//! document.
+//! as the secrets the plan declares, their endpoints as environment,
+//! their backend pins.
 
-use diverge_provider_sdk::shared::containers::vault::keys;
-
-use super::{Document, Plan, PrepareError, Target};
+use super::{Plan, PrepareError, Secret, Target};
 use crate::agent::Toolsets;
 use crate::agent::toolsets::browser::Remote;
-use crate::agent::toolsets::web::{Extract, Search};
+use crate::agent::toolsets::web::{Extract, Keyed, Search};
 
 /// Add the toolsets to the plan.
 ///
@@ -33,10 +31,11 @@ use crate::agent::toolsets::web::{Extract, Search};
 ///
 /// # Arguments
 ///
-/// Each structure's credentials become the variables the SDK's
-/// toolset docs name; a web slot also pins its backend; an
-/// ElevenLabs key pins `tts.provider`; the generation toolsets pin
-/// `fal`; spotify's login is a vault document bound for `auth.json`.
+/// Each structure's credentials are the secrets the agent's toolset
+/// docs name, declared here bound for the environment; its endpoints
+/// are plain variables; a web slot also pins its backend; ElevenLabs
+/// pins `tts.provider`; the generation toolsets pin `fal`; spotify's
+/// login is a rotating secret bound for `auth.json`.
 pub fn apply(
     toolsets: &Toolsets,
     skills: bool,
@@ -47,28 +46,16 @@ pub fn apply(
     if let Some(web) = &toolsets.web {
         if let Some(search) = &web.search {
             let backend = match search {
-                Search::Tavily { tavily_api_key } => {
-                    plan.set("TAVILY_API_KEY", tavily_api_key.clone())?;
-                    "tavily"
-                }
-                Search::Exa { exa_api_key } => {
-                    plan.set("EXA_API_KEY", exa_api_key.clone())?;
-                    "exa"
-                }
-                Search::Parallel { parallel_api_key } => {
-                    plan.set("PARALLEL_API_KEY", parallel_api_key.clone())?;
-                    "parallel"
-                }
-                Search::Keenable { keenable_api_key } => {
-                    plan.set("KEENABLE_API_KEY", keenable_api_key.clone())?;
-                    "keenable"
-                }
-                Search::Brave { brave_search_api_key } => {
-                    plan.set(
-                        "BRAVE_SEARCH_API_KEY",
-                        brave_search_api_key.clone(),
-                    )?;
-                    "brave-free"
+                Search::Keyed(keyed) => {
+                    let (name, backend) = match keyed {
+                        Keyed::Tavily => ("TAVILY_API_KEY", "tavily"),
+                        Keyed::Exa => ("EXA_API_KEY", "exa"),
+                        Keyed::Parallel => ("PARALLEL_API_KEY", "parallel"),
+                        Keyed::Keenable => ("KEENABLE_API_KEY", "keenable"),
+                        Keyed::BraveFree => ("BRAVE_SEARCH_API_KEY", "brave-free"),
+                    };
+                    env(plan, name)?;
+                    backend
                 }
                 Search::Searxng { searxng_url } => {
                     plan.set("SEARXNG_URL", searxng_url.clone())?;
@@ -77,8 +64,8 @@ pub fn apply(
             };
             plan.search_backend = Some(backend);
         }
-        if let Some(Extract::Firecrawl { firecrawl_api_key }) = &web.extract {
-            plan.set("FIRECRAWL_API_KEY", firecrawl_api_key.clone())?;
+        if let Some(Extract::Firecrawl) = &web.extract {
+            env(plan, "FIRECRAWL_API_KEY")?;
             plan.extract_backend = Some("firecrawl");
         }
     }
@@ -89,15 +76,9 @@ pub fn apply(
             Some(Remote::Cdp { cdp_url }) => {
                 plan.set("BROWSER_CDP_URL", cdp_url.clone())?;
             }
-            Some(Remote::Browserbase {
-                browserbase_api_key,
-                browserbase_project_id,
-            }) => {
-                plan.set("BROWSERBASE_API_KEY", browserbase_api_key.clone())?;
-                plan.set(
-                    "BROWSERBASE_PROJECT_ID",
-                    browserbase_project_id.clone(),
-                )?;
+            Some(Remote::Browserbase(_)) => {
+                env(plan, "BROWSERBASE_API_KEY")?;
+                env(plan, "BROWSERBASE_PROJECT_ID")?;
                 plan.browserbase = true;
             }
             None => {}
@@ -111,28 +92,28 @@ pub fn apply(
     switch(&mut on, "vision", toolsets.vision.unwrap_or(false));
     switch(&mut on, "video", toolsets.video.unwrap_or(false));
 
-    if let Some(image_gen) = &toolsets.image_gen {
-        plan.set("FAL_KEY", image_gen.fal_key.clone())?;
+    if toolsets.image_gen.unwrap_or(false) {
+        env(plan, "FAL_KEY")?;
         plan.image_gen = true;
     }
-    switch(&mut on, "image_gen", toolsets.image_gen.is_some());
+    switch(&mut on, "image_gen", toolsets.image_gen.unwrap_or(false));
 
-    if let Some(video_gen) = &toolsets.video_gen {
-        plan.set("FAL_KEY", video_gen.fal_key.clone())?;
+    if toolsets.video_gen.unwrap_or(false) {
+        env(plan, "FAL_KEY")?;
         plan.video_gen = true;
     }
-    switch(&mut on, "video_gen", toolsets.video_gen.is_some());
+    switch(&mut on, "video_gen", toolsets.video_gen.unwrap_or(false));
 
-    if let Some(x_search) = &toolsets.x_search {
-        plan.set("XAI_API_KEY", x_search.api_key.clone())?;
+    if toolsets.x_search.unwrap_or(false) {
+        env(plan, "XAI_API_KEY")?;
     }
-    switch(&mut on, "x_search", toolsets.x_search.is_some());
+    switch(&mut on, "x_search", toolsets.x_search.unwrap_or(false));
 
-    if let Some(tts) = &toolsets.tts
-        && let Some(elevenlabs_api_key) = &tts.elevenlabs_api_key
-    {
-        plan.set("ELEVENLABS_API_KEY", elevenlabs_api_key.clone())?;
-        plan.tts_elevenlabs = true;
+    if let Some(tts) = &toolsets.tts {
+        if tts.elevenlabs {
+            env(plan, "ELEVENLABS_API_KEY")?;
+            plan.tts_elevenlabs = true;
+        }
     }
     switch(&mut on, "tts", toolsets.tts.is_some());
 
@@ -145,21 +126,30 @@ pub fn apply(
 
     if let Some(homeassistant) = &toolsets.homeassistant {
         plan.set("HASS_URL", homeassistant.url.clone())?;
-        plan.set("HASS_TOKEN", homeassistant.token.clone())?;
+        env(plan, "HASS_TOKEN")?;
     }
     switch(&mut on, "homeassistant", toolsets.homeassistant.is_some());
 
     if let Some(spotify) = &toolsets.spotify {
         plan.set("HERMES_SPOTIFY_CLIENT_ID", spotify.client_id.clone())?;
-        plan.documents.push(Document {
-            key: keys::SPOTIFY_OAUTH,
+        plan.declare(Secret {
+            name: "SPOTIFY_OAUTH",
             target: Target::AuthEntry("spotify"),
-        });
+        })?;
     }
     switch(&mut on, "spotify", toolsets.spotify.is_some());
 
     plan.toolsets = on;
     Ok(())
+}
+
+/// Declare one secret bound for the gateway's environment, under
+/// its own name.
+fn env(plan: &mut Plan, name: &'static str) -> Result<(), PrepareError> {
+    plan.declare(Secret {
+        name,
+        target: Target::Env,
+    })
 }
 
 /// Decide one toolset's place in the list: in when its switch is

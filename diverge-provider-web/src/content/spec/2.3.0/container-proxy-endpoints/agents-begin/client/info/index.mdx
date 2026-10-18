@@ -1,0 +1,26 @@
+---
+title: 'Info'
+summary: 'Tag 1: the client asks for the image’s /DIVERGE.md; the server reads the file from the root of the container’s filesystem, parses it, and answers with exactly one channel response, the document, missing, or an error, and the channel response finish; the container’s program is asked nothing.'
+order: 1
+draft: false
+---
+
+The client opens this channel to learn what the arguments the
+container holds may be: the image's `/DIVERGE.md`, which is the JSON
+Schema of the arguments and the text beneath it. The server reads the
+file from the root of the container's filesystem, parses it, and
+answers with what it read. The server asks the container's program
+nothing.
+
+- **The request.** The tag byte `1` and nothing more.
+  [Request](/container-proxy-endpoints/agents-begin/client/info/request/) states its form.
+- **The response.** Exactly one channel response — the document,
+  missing, or an error — and the channel response finish.
+  [Response](/container-proxy-endpoints/agents-begin/client/info/response/) states the sequence.
+- **The file.** The server reads `/DIVERGE.md` at the root of the
+  container's filesystem, a symbolic link followed, once per channel
+  of this section, and holds nothing of it between channels.
+- **Missing.** An image that ships no `/DIVERGE.md` is answered by the
+  byte `1`. That is a fact about the image and not a failure. An
+  image that places at `/DIVERGE.md` anything that is not a regular
+  file — a directory — is answered the same way.

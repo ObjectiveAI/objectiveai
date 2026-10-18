@@ -1,21 +1,23 @@
 ---
 title: 'volumes::edit'
-summary: 'Tag 12: a client names a volume from its listing and states a change to it, its size, its persist mode, or both; the server sends exactly one response stating that the volume has what was stated, that the server has insufficient capacity for the size, that the content of the volume exceeds the size, or an error, and the scope finishes; the size and the persist mode are the only properties an edit changes.'
+summary: 'Tag 12: a client names a volume from its listing and states a change to it, its size, its mode, or both; the server sends exactly one response stating that the volume has what was stated, that the server has insufficient capacity for the size, that the content of the volume exceeds the size, or an error, and the scope finishes; the size and the mode are the only properties an edit changes.'
 order: 12
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`12` followed by the name of a volume and a change: a size, a persist
-mode, or both. The server sends exactly one response, which states
+`12` followed by the name of a volume and a change: a size, a mode, or
+both. The server sends exactly one response, which states
 that the volume has what was stated, that the server has
 insufficient capacity for the size stated, that the content of the
-volume exceeds the size stated, or an error. The response finish
+volume exceeds the size stated, that the server keeps no volume of
+the mode stated, that something holds the volume, that the server
+keeps no volume, or an error. The response finish
 follows the response, and no frame follows the finish.
 
 - **The request.** The request carries the name of one volume and
-  one change, which is one of three kinds: a size in bytes, a persist
-  mode, or a size and a persist mode together.
+  one change, which is one of three kinds: a size in bytes, a mode,
+  or a size and a mode together.
   [Request](/endpoints/volumes-edit/request/) states its form.
 - **The volume named.** The client names a volume by the `name` its
   [volumes::list](/endpoints/volumes-list/) listing gave it. The
@@ -32,24 +34,28 @@ follows the response, and no frame follows the finish.
   size stated. From that moment, every
   [volumes::list](/endpoints/volumes-list/) listing and every
   [volumes::stat](/endpoints/volumes-stat/) response of the client
-  reports that size as `bytes`, until a later edit changes it.
-- **The persist mode.** A change that states a persist mode states
-  the mode the volume has after the edit, `true` or `false`, as
-  [volumes::create](/endpoints/volumes-create/) defines the two. When
-  the server sends the byte `0`, the volume has the mode stated. From
-  that moment, every listing and every stat of the client reports
-  that mode as `persist`, until a later edit changes it, and every
-  container the client mounts the volume in after that moment is
+  reports that size as `bytes`, and every list scope the client holds
+  open is sent the volume as changed, until a later edit changes it.
+- **The mode.** A change that states a mode states the mode the
+  volume has after the edit, `persistent`, `ephemeral` or
+  `read_only`, as [volumes::create](/endpoints/volumes-create/)
+  defines the three. When the server sends the byte `0`, the volume
+  has the mode stated. From that moment, every listing and every stat
+  of the client reports that mode as `mode`, and every list scope the
+  client holds open is sent the volume as changed, until a later edit
+  changes it, and every container the client mounts the volume in
+  after that moment, and every FUSE serve of it after that moment, is
   bound under that mode. The content of the volume is as it was: a
-  volume made `false` holds what it held, and a volume made `true`
-  holds what it held.
-- **Both, or neither.** A change that states a size and a persist
-  mode is one edit. When the server sends the byte `0`, the volume
+  volume made `ephemeral` or `read_only` holds what it held, and a
+  volume made `persistent` holds what it held, which is what it had
+  before any run or serve under `ephemeral`.
+- **Both, or neither.** A change that states a size and a mode is
+  one edit. When the server sends the byte `0`, the volume
   has both. When the server sends the byte `1` or the byte `2`, the
-  volume has neither: its persist mode is as it was before the
-  request, as its size is. The server does not change the persist
-  mode of a volume whose size it refuses.
-- **What an edit changes.** The size and the persist mode are the
+  volume has neither: its mode is as it was before the
+  request, as its size is. The server does not change the mode of
+  a volume whose size it refuses.
+- **What an edit changes.** The size and the mode are the
   only properties an edit changes: the name, the content, the bytes
   in use and the hash of the content are as they were before the
   request. [Response](/endpoints/volumes-edit/response/) states the
@@ -67,17 +73,43 @@ follows the response, and no frame follows the finish.
   the byte `0` for a size that the content of the volume exceeds. A
   client that wants the smaller size removes content from the volume,
   by a container in which the volume is mounted, and asks again.
-- **A mounted volume is not edited.** The server does not change the
-  size or the persist mode of a volume that is mounted in any running
-  container at the time of the request — a volume may be mounted in
-  several at once — or that is under a stat, another edit or a
-  delete. A request naming such a volume is answered with an error,
-  and the volume has the size and the persist mode it had before the
-  request. A client that needs either changed stops every container
-  that has it, or waits for their end, and sends another request.
+- **A held volume is not edited.** The server does not change the size or the mode of a
+  volume that a running container of the client holds, that a
+  [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) of the
+  client holds, or that is under a
+  [volumes::stat](/endpoints/volumes-stat/),
+  [volumes::read](/endpoints/volumes-read/),
+  [volumes::write](/endpoints/volumes-write/),
+  [volumes::filetree](/endpoints/volumes-filetree/),
+  [volumes::edit](/endpoints/volumes-edit/) or
+  [volumes::delete](/endpoints/volumes-delete/), at the time of the
+  request. A request naming such a volume is answered with the
+  refusal the [response](/endpoints/volumes-edit/response/) states for who holds it —
+  `Mounted`, `FuseServed` or `Held` — decided in the order
+  [Capabilities](/capabilities/#the-hold) states for an operation,
+  and nothing is changed. The server holds the volume to itself from
+  the moment it accepts the request until the response finish, and
+  a run, a FUSE serve or another operation naming the volume is
+  refused for as long as it does.
+- **The mode must be kept.** A change that states a mode — as `Mode`,
+  or as `Both` — for which the server holds out no
+  [mode object](/capabilities/#the-mode-object) is answered with
+  `ModeUnsupported`, the byte `3`, after the server has found the
+  volume in the client's listing and before it holds the volume; the
+  volume has the size and the mode it had before the request, and
+  every container that mounts it and every FUSE serve of it is
+  unaffected.
 - **The error.** An error states that nothing was changed, for a
-  reason other than capacity or content: the volume has the size and
-  the persist mode it had before the request, and every listing and
-  every stat reports them. A volume absent from the client's listing is answered
-  with an error. A volume mounted in a running container, or served on any
-  [volumes::serve](/endpoints/volumes-serve/) scope, at the time of the request is answered with an error.
+  reason other than capacity, content, the mode or a hold: the
+  volume has the size and the mode it had before the request, and
+  every listing and every stat reports them. A volume absent from
+  the client's listing is answered with an error. A volume that
+  something holds, and a change naming a mode the server does not
+  keep, are each answered with the refusal the response states,
+  which is not an error.
+- **No volume at all.** A server that holds out none of the three
+  mode objects of [Capabilities](/capabilities/#the-volume-modes)
+  keeps no volume and answers every request of this endpoint with
+  exactly one response, the byte `7` alone, and the response
+  finish, before anything is looked up. Every other requirement of
+  this page holds for a server that keeps volumes.

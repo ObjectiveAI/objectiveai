@@ -1,0 +1,176 @@
+//! A running agent container, and everything a caller can do with
+//! it.
+
+use std::fmt;
+use std::sync::Arc;
+
+use bytes::Bytes;
+use futures_util::Stream;
+use rmcp::model::ContentBlock;
+
+use super::super::channel_request;
+use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
+use crate::wire::encode::{Encode, Writer};
+use crate::provider::endpoints::containers::agents::run::server;
+use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, FuseMount, Info, Secrets};
+use crate::provider::endpoints::containers::client::{OpenError, Scoped, UnaryError, WaitError};
+use crate::shared::containers::fuse::Kind;
+use crate::shared::containers::info::Document;
+use crate::shared::containers::secrets::Values;
+use crate::shared::containers::{dequeue, enqueue, fuse_mount, read, transfer, write_path};
+
+/// The scope a run opened, held for the container's life.
+///
+/// Every channel a caller may open into an agent container is a
+/// method here: the tree watched, a file read or written, one more
+/// mount made, the image's DIVERGE.md, the queue's two verbs, the
+/// secrets' feed, and the stop. What the agent says
+/// is not: it is the [`ExecuteStream`](super::ExecuteStream) `execute` handed back
+/// beside this. Each opens its own channel, so several may be in flight
+/// at once. Clones share the scope, and [`wait`](Self::wait) on any
+/// of them reports the same end.
+///
+/// # Dropping it does nothing
+///
+/// No destructor sends a frame: a destructor could not await, could
+/// not report a failure, and could not be skipped when a caller
+/// wanted the container to outlive the value. Ending a run is
+/// [`stop`](Self::stop), or the connection going.
+#[derive(Debug, Clone)]
+pub struct ExecuteHandle(Arc<Scoped>);
+
+/// One channel request of this family, as its bytes.
+fn payload(frame: &channel_request::Frame) -> Result<Vec<u8>, serde_json::Error> {
+    let mut bytes = Vec::new();
+    frame.encode(&mut Writer::new(&mut bytes))?;
+    Ok(bytes)
+}
+
+impl ExecuteHandle {
+    pub(super) fn new(scoped: Arc<Scoped>) -> Self {
+        ExecuteHandle(scoped)
+    }
+
+    /// The scope's number, as this end minted it.
+    pub fn scope(&self) -> u32 {
+        self.0.scope()
+    }
+
+    /// The run's end: `Ok` when the scope finishes as it should — a
+    /// stop, or the container's own end — and the provider's error
+    /// when it ended that way. Resolves once and answers the same way
+    /// again after.
+    ///
+    /// # It reads nothing
+    ///
+    /// The main stream is the conversation, and the
+    /// [`ExecuteStream`](super::ExecuteStream) `execute` handed back is its reader.
+    /// This waits for that reader to reach the end, so that no chunk
+    /// is lost to a caller who only wanted to know the run is over; a
+    /// caller that wants the end and not the conversation drains the
+    /// chunks.
+    pub async fn wait(&self) -> Result<(), WaitError<server::response::FrameError>> {
+        self.0.ended().await
+    }
+
+    /// Stop the container. Nothing answers on the channel this opens;
+    /// what answers is the scope's own finish, on [`wait`](Self::wait).
+    pub async fn stop(&self) -> Result<(), OpenError> {
+        let payload = payload(&channel_request::Frame::Stop).map_err(OpenError::Request)?;
+        self.0.bare(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Watch the container's tree: a snapshot, then every change.
+    pub async fn filetree(&self) -> Result<FiletreeStream, OpenError> {
+        let payload = payload(&channel_request::Frame::Filetree).map_err(OpenError::Request)?;
+        self.0.open::<Filetree>(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Read one file out of the container, as path components from
+    /// its root.
+    pub async fn read(&self, path: Vec<String>) -> Result<ReadStream, OpenError> {
+        let payload = payload(&channel_request::Frame::Read(read::request::Request { path }))
+            .map_err(OpenError::Request)?;
+        self.0.open::<Read>(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Write one file into the container, whole, from `content`'s
+    /// pieces; resolves when it is at the path. A piece that fails
+    /// ends the content with an error the provider sees, and the
+    /// provider's own answer is what comes back.
+    pub async fn write<S, E>(&self, path: Vec<String>, content: S) -> Result<(), UnaryError<WritePath>>
+    where
+        S: Stream<Item = Result<Bytes, E>> + Send + 'static,
+        E: fmt::Display + Send + 'static,
+    {
+        self.0
+            .write::<WritePath, S, E>(
+                move |write_id| {
+                    payload(&channel_request::Frame::Write(write_path::request::Request {
+                        write_id,
+                        path,
+                    }))
+                },
+                content,
+            )
+            .await
+    }
+
+    /// Copy one file out of this container into the container under
+    /// `id`, at `destination`, without the bytes passing through here;
+    /// resolves when it is at the destination. The caller must be
+    /// running, or connected to, both containers, or the provider
+    /// refuses.
+    pub async fn transfer(&self, path: Vec<String>, id: String, destination: Vec<String>) -> Result<(), UnaryError<Transfer>> {
+        let payload = payload(&channel_request::Frame::Transfer(transfer::request::Request { path, id, destination }))
+            .map_err(UnaryError::Request)?;
+        self.0.unary::<Transfer>(&payload).await
+    }
+
+    /// What the arguments may be: the image's `/DIVERGE.md`, parsed —
+    /// its schema and its body — or `None` for an image that ships
+    /// none.
+    pub async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
+        let payload = payload(&channel_request::Frame::Info).map_err(UnaryError::Request)?;
+        self.0.unary::<Info>(&payload).await
+    }
+
+    /// A message for the agent — starting a loop when none runs,
+    /// queued when one does — answered with its fate whenever that
+    /// is known, which may be long after the ask; nothing times it
+    /// out. What the agent says arrives on the scope's main stream.
+    pub async fn enqueue(&self, key: String, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, content }))
+            .map_err(UnaryError::Request)?;
+        self.0.unary::<Enqueue>(&payload).await
+    }
+
+    /// Withdraw every message waiting under `key`: whether any was.
+    pub async fn dequeue(&self, key: String) -> Result<dequeue::response::Frame, UnaryError<Dequeue>> {
+        let payload = payload(&channel_request::Frame::Dequeue(dequeue::request::Request { key }))
+            .map_err(UnaryError::Request)?;
+        self.0.unary::<Dequeue>(&payload).await
+    }
+
+    /// One more file or directory served into the container at
+    /// `container_path`, under `id`, while it runs: the provider's one
+    /// answer — made, or why not — once the proxy has answered, and
+    /// before any ask of the id. The mount lives until the run ends.
+    pub async fn fuse_mount(&self, container_path: Vec<String>, id: String, kind: Kind) -> Result<fuse_mount::response::Frame, UnaryError<FuseMount>> {
+        let payload = payload(&channel_request::Frame::FuseMount(fuse_mount::request::Request { container_path, id, kind }))
+            .map_err(UnaryError::Request)?;
+        self.0.unary::<FuseMount>(&payload).await
+    }
+
+    /// Feed the program its secrets' `values`, every name it
+    /// declared, at an activation: resolves once the program holds
+    /// them, relayed through the provider to the proxy, which
+    /// delivers nothing to the program until it does. The first feed
+    /// is not this: it answers the registration, before the id. A
+    /// refusal is [`Refused`](UnaryError::Refused), the program's
+    /// own words through the proxy, and is the activation's error.
+    pub async fn secrets(&self, values: Values) -> Result<(), UnaryError<Secrets>> {
+        let payload = payload(&channel_request::Frame::Secrets(values)).map_err(UnaryError::Request)?;
+        self.0.unary::<Secrets>(&payload).await
+    }
+}

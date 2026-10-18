@@ -2,7 +2,7 @@
 
 This directory is the specification of the Diverge Provider Protocol,
 published at `https://protocol.diverge.network`. The specification is
-the protocol's normative definition. `diverge-provider-sdk` implements
+the protocol's normative definition. `diverge-sdk` implements
 it, and each revision of the specification is the version of that
 crate. This file governs how the specification is written. It binds
 every page under `src/content/spec/`, and it binds me whenever I write
@@ -126,7 +126,7 @@ of payload.
   meta names the file relative to the workspace root:
 
   ````text
-  ```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/client_request.rs
+  ```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/client_request.rs
   ```
   ````
 
@@ -260,14 +260,13 @@ linked from every channel that carries them: the container request
 and its mounts; the error value; the OCI manifest and blob answers;
 the authorize question and its answer; the tools declaration and its
 answer; write content; the Postgres
-pair; commands; the vault's five operations
-and its lock rule; the five MCP exchanges; the seven FUSE operations
+pair; commands; the five MCP exchanges; the seven FUSE operations
 with the file-and-directory rule; the filetree, read, and write
 forms; the schema form; the agent's loop, enqueue, and dequeue
 forms. Each
 form's page states its layout or declaration and the rules that are
-the form's own — the vault's lock semantics, FUSE's no-retry rule and
-the empty path — and nothing about which endpoint carries it; the
+the form's own — FUSE's no-retry rule and the empty path — and
+nothing about which endpoint carries it; the
 endpoint pages say that.
 
 ### Layer 8 — Container contracts (`/containers/`)
@@ -292,7 +291,7 @@ enumerates them and knows nothing of their text. Every revision looks
 the same; only its text differs.
 
 - **The latest module is the crate's version.** Its name is the
-  version in `diverge-provider-sdk-rs/Cargo.toml`, and the build fails
+  version in `diverge-sdk-rs/Cargo.toml`, and the build fails
   when no module has that name. Only the latest module is written to;
   every other is frozen.
 - **Only the latest module includes.** An `include=` fence reads the
@@ -335,7 +334,7 @@ static HTML; no JavaScript is shipped, and `pnpm build` runs
 `scripts/verify-static.mjs`, which fails the build on any `<script>`,
 resolves every `/llms.txt` link against `dist/`, and checks each
 page's anatomy. No component carries a `client:*` directive. The
-latest revision is read from `../diverge-provider-sdk-rs/Cargo.toml` at
+latest revision is read from `../diverge-sdk-rs/Cargo.toml` at
 build through `process.cwd()`. Dependency versions are never hand-written;
 `pnpm add` records them. The Astro dev server is a daemon that caches
 routes; it is restarted after a route file is added. The layout's

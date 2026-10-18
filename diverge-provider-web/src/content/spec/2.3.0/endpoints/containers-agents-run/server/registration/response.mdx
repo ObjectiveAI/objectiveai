@@ -1,0 +1,42 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the client answers with, what ends it, what a finish with nothing before it means, and what the server does with the answer: the byte 0 followed by the secrets’ first values is fed to the container before the id, and anything else is the run’s error.'
+order: 2
+draft: false
+---
+
+```text
+[0][values JSON …]   deployed: every dependency runs, and these are the secrets' first values
+[1][error JSON …]    not deployed
+```
+
+- **The sequence.** Exactly one channel response, followed by the
+  channel response finish. The byte `0` lets the run go on to its
+  feed and its id. The byte `1`, followed by exactly one JSON value
+  in the form defined on the [volumes::list response](/endpoints/volumes-list/response/)
+  page, is the run's error, in the client's words: the server stops
+  the container and sends the error as the scope's one response. A
+  channel response finish that no channel response precedes is the
+  run's error too.
+- **The values.** The bytes after the byte `0` are a JSON object
+  whose every member is a secret's name, as the declaration carried
+  it, to its value, any JSON value, in the order declared: every
+  name the program declared, and no other; the empty object for a
+  program that declared no secret. The server relays the object
+  verbatim on exactly one
+  [secrets](/container-proxy-endpoints/agents-begin/client/secrets/)
+  channel of the begin scope, reads none of it, and sends the id only
+  after the proxy has answered `Fed`.
+- **Malformed.** A channel response whose first byte is neither `0`
+  nor `1`, or whose bytes after `0` do not parse as the values, is
+  the run's error.
+
+The channel response is defined by `diverge-sdk-rs/src/shared/containers/registration/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/registration/response/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/secrets/values.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/secrets/values.rs
+```

@@ -2,30 +2,27 @@
 
 use std::sync::Arc;
 
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use tokio::sync::{Mutex, OnceCell, mpsc, watch};
+use diverge_sdk::shared::containers::secrets::{Declaration, Mode};
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use tokio::sync::{Mutex, Notify, OnceCell, mpsc, watch};
 
 use crate::agent::Cmd;
 use crate::begin::Family;
 use crate::filesystem::mount::Mounts;
 use crate::inside::mcp::{Gate, Peers};
-use crate::inside::postgres::Pairs;
+use crate::inside::pairs::Pairs;
 use crate::program::Upstream;
-use crate::stamp::Stamp;
-use crate::tool::Tool;
+use crate::tool::{Activity, Tool};
 
 /// The begin scope, once it has begun: the scope the proxy's own asks
-/// ride, which family's frames they are, and the container's image
-/// to put under `_meta` on what they carry.
+/// ride, and which family's frames they are.
 #[derive(Clone)]
 pub struct Begun {
     /// The scope, shared by every task that asks on it.
     pub scope: Arc<ScopeHandle>,
-    /// Whose twelve asks: the two families encode the same twelve,
-    /// each in its own frame.
+    /// Whose asks: the two families encode the same asks, each in its
+    /// own frame and each less what its container never makes.
     pub family: Family,
-    /// The container's image, for every MCP exchange relayed.
-    pub stamp: Stamp,
 }
 
 /// The one proxy: the connection's latches, the begin scope once it
@@ -45,13 +42,26 @@ pub struct Proxy {
     /// The agent's driver, set when an agent container begins. A tool
     /// container never sets it.
     commands: OnceCell<mpsc::UnboundedSender<Cmd>>,
+    /// The secrets the program declared at registration, by name and
+    /// mode: set once, before `Begun` goes out, and read by whichever
+    /// gate the container has.
+    declaration: OnceCell<Declaration>,
+    /// The run ending by the proxy's own hand — a collect that failed
+    /// — which the begin loop hears and finishes the scope on.
+    ending: Notify,
     /// The client the program's server is dialled with.
     pub upstream: Upstream,
     /// The MCP client a tool container's server is called through.
     pub tool: Tool,
+    /// A tool container's MCP exchanges in flight, and the gate they
+    /// wait behind. An agent container never touches it: its gate is
+    /// the driver's.
+    pub activity: Activity,
     /// The FUSE mounts made so far.
     pub mounts: Mounts,
     /// The database connections announced and not yet paired.
+    /// The daemon connections announced and not yet paired.
+    pub daemons: Pairs,
     pub pairs: Pairs,
     /// The MCP sessions the resident notifications stream addresses.
     pub peers: Peers,
@@ -67,9 +77,13 @@ impl Proxy {
             begun: Mutex::new(false),
             begin,
             commands: OnceCell::new(),
+            declaration: OnceCell::new(),
+            ending: Notify::new(),
             upstream: Upstream::new(),
             tool: Tool::new(),
+            activity: Activity::new(),
             mounts: Mounts::new(),
+            daemons: Pairs::new(),
             pairs: Pairs::new(),
             peers: Peers::new(),
             gate: Gate::new(),
@@ -128,5 +142,46 @@ impl Proxy {
     /// begin, so there is one driver.
     pub fn set_commands(&self, commands: mpsc::UnboundedSender<Cmd>) {
         let _ = self.commands.set(commands);
+    }
+
+    /// Keep the program's declaration. A second is dropped: there is
+    /// one registration, so there is one declaration.
+    pub fn set_declaration(&self, declaration: Declaration) {
+        let _ = self.declaration.set(declaration);
+    }
+
+    /// Whether the program takes any secret at all: the gate is
+    /// closed at the begin, and closed again by every inactive, only
+    /// then. A program that takes none has nothing to wait for, and a
+    /// program that has not registered takes nothing yet.
+    pub fn gated(&self) -> bool {
+        self.declaration.get().is_some_and(|declaration| !declaration.is_empty())
+    }
+
+    /// The names the program declared `rotating`, in the declaration's
+    /// order: what every inactive collects.
+    pub fn rotating(&self) -> Vec<String> {
+        self.declaration
+            .get()
+            .map(|declaration| {
+                declaration
+                    .iter()
+                    .filter(|(_, mode)| **mode == Mode::Rotating)
+                    .map(|(name, _)| name.clone())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// End the run: the `Error` is on the main stream already, and
+    /// the begin loop finishes the scope behind it.
+    pub fn end(&self) {
+        self.ending.notify_one();
+    }
+
+    /// The run ended by this end: resolves once [`end`](Self::end)
+    /// has been called, before or after.
+    pub async fn ended(&self) {
+        self.ending.notified().await;
     }
 }

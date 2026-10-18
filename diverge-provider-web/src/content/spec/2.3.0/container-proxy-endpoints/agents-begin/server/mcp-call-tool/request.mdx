@@ -1,29 +1,26 @@
 ---
 title: 'Request'
-summary: 'The payload of the channel request: the tag byte 9 and the request of the channel.'
+summary: 'The payload of the channel request: the tag byte 3 and the request of the channel.'
 order: 1
 draft: false
 ---
 
 ```text
-[9][params JSON …]
+[3][params JSON …]
 ```
 
 - **The params.** The params of the MCP method `tools/call`, as JSON,
-  as the program sent them, with one addition.
-- **The image.** The server sets `_meta["diverge.network/image"]` on
-  the params to an object of two fields, `{"name":…,"digest":…}`:
-  the `image` the begin request carried, verbatim. A value the
-  program set under that key is replaced. Every other member of
+  as the program sent them.
+- **`_meta`.** The server sets nothing under `_meta`. Every member of
   `_meta`, and every other member of the params, is sent as the
   program sent it.
 
-The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/server/channel_request/frame.rs`:
+The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/agents/begin/server/channel_request/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/server/channel_request/frame.rs
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/agents/begin/server/channel_request/frame.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/mcp/call_tool/request/request.rs`:
+and by `diverge-sdk-rs/src/shared/mcp/call_tool/request/request.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/mcp/call_tool/request/request.rs
+```rust include=diverge-sdk-rs/src/shared/mcp/call_tool/request/request.rs
 ```

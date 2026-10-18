@@ -1,0 +1,63 @@
+---
+title: 'images::oci'
+summary: 'Tag 19: a client opens a scope to pull what the server holds for it; the server sends nothing on the main stream and, for as long as the scope lives, answers on channels the client opens whether it holds an image for the client and under what name, a manifest by digest, and a blob by digest; the client disconnects, or its connection ends, and the response finish follows.'
+order: 19
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`19` and nothing more. The server sends no response on the scope,
+unless it keeps no client image, in which case it sends exactly one.
+The scope stays open: the client opens on it, as channels, the three asks
+the server makes of a client on a run scope — whether an image is
+held, a manifest, a blob — and the server answers each from what it
+holds for the client. The client ends the scope by opening the
+disconnect channel, or by its connection ending; the response finish
+follows the last answer, and no frame follows the finish.
+
+- **The request.** The request carries no parameter; the tag is the
+  whole of it. [Request](/endpoints/images-oci/request/) states its
+  form.
+- **The response.** [Response](/endpoints/images-oci/response/)
+  states that the main stream carries nothing but the finish on a
+  server that keeps client images, the one response a server that
+  keeps none sends, and when the finish comes.
+- **The channels.** The client opens the channels that
+  [Client Channels](/endpoints/images-oci/client/) defines: the three
+  asks, byte for byte the asks of
+  [containers::agents::run](/endpoints/containers-agents-run/) and
+  [containers::tools::run](/endpoints/containers-tools-run/) with the
+  client and the server exchanged, and the disconnect. The server
+  opens no channel on a pull scope.
+- **What is held for the client.** The server holds, for the client,
+  every image the client built on it by
+  [images::build](/endpoints/images-build/) and has not deleted — the
+  `client` source of [images::check](/endpoints/images-check/) — and
+  serves each byte for byte as it was at the end of its build. An
+  image another client built is not held for the client, however
+  alike the digest, and the server does not serve it. An image the
+  server holds on its own account is not served on a pull: the
+  server obtains nothing for a pull, an image not held for the
+  client is answered as not held, and no registry is asked.
+- **The client.** The client is the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. What is held for the client is held for that identity.
+- **Asks in flight at once.** A client may have any number of asks
+  open at once. The server answers each on its own channel, in
+  whatever order it answers them.
+- **The disconnect.** The client ends the scope by opening the
+  disconnect channel. The server answers every ask still open, sends
+  nothing on the disconnect's own channel, and sends the response
+  finish. A connection that closes with a pull scope open ends the
+  scope the same way.
+- **Not served.** A server that will not serve the pull sends the
+  response finish with no response before it and serves no channel.
+  A client cannot tell this from its own disconnect but by having
+  sent none.
+- **No image store.** A server that holds out no
+  [`images_store`](/capabilities/#images_store) capability holds no
+  image for any client and answers every request of this endpoint
+  with exactly one response on the main stream, the byte `0` alone,
+  and the response finish; it answers no channel the client opens on
+  the scope. Every other requirement of this page holds for a server
+  that holds the capability out.

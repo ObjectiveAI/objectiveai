@@ -1,37 +1,63 @@
 ---
 title: 'volumes::create'
-summary: 'Tag 10: a client names a volume, its size in bytes and its persist mode; the server sends exactly one response stating that the volume exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the volume persists until the client deletes it.'
+summary: 'Tag 10: a client names a volume, its size in bytes and its mode; the server sends exactly one response stating that the volume exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the volume persists until the client deletes it.'
 order: 10
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`10` followed by the name, the size and the persist mode of the
-volume. The server sends
+`10` followed by the name, the size and the mode of the volume. The server sends
 exactly one response, which states that the volume exists, that the
-server has insufficient capacity for it, or an error. The response
+server has insufficient capacity for it, that the server keeps no
+volume of the mode stated, that the server keeps no volume, or an
+error. The response
 finish follows the response, and no frame follows the finish.
 
 - **The request.** The request carries a name the client chooses, a
-  size in bytes, and whether the volume keeps what containers write
-  into it. [Request](/endpoints/volumes-create/request/) states its
-  form.
-- **The persist mode.** The request states `persist`, `true` or
-  `false`, and the volume has that mode from the moment it exists,
-  until a [volumes::edit](/endpoints/volumes-edit/) request changes
-  it. Every [volumes::list](/endpoints/volumes-list/) listing of the
-  client reports it as `persist`. When it is `true`, every change a
-  container makes to the volume is in the volume when the container
-  ends. When it is `false`, the volume is as it was before each run
-  when the container ends, and every container sees the content of
-  the volume as of that container's start. The mode is the volume's
-  and is the same for every container that mounts it; a mount states
-  nothing about it.
+  size in bytes, and the mode the volume starts in.
+  [Request](/endpoints/volumes-create/request/) states its form.
+- **The mode.** The request states `mode`, one of `persistent`,
+  `ephemeral` and `read_only`, and the volume has that mode from the
+  moment it exists, until a [volumes::edit](/endpoints/volumes-edit/)
+  request changes it. Every [volumes::list](/endpoints/volumes-list/)
+  listing of the client reports it as `mode`, and every listing the
+  client holds open reports a change to it. When it is
+  `persistent`, every change a container makes to the volume is in
+  the volume when the container ends, every change a
+  [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) makes is in
+  the volume, any number of running containers may mount the volume
+  at once — every one of them mounts the one volume, a change any of
+  them makes is in the volume for every other as the volume's
+  filesystem makes it visible, and the order of changes made at once
+  is the filesystem's and is not prescribed — and at most one FUSE
+  serve holds the volume at a time, never beside a running container.
+  When it is `ephemeral`, the
+  volume is as it was before each run when the container ends, every
+  container sees the content of the volume as of that container's
+  start, every FUSE serve changes a layer of its own that is
+  discarded at its finish, and any number of containers and FUSE
+  serves may hold the volume at once. When it is `read_only`, no
+  container and no FUSE serve changes the volume, and any number of
+  them may hold it at once. What a mode allows is the most any
+  server allows; what this server allows for a mode, and whether it
+  keeps volumes of the mode at all, is the
+  [mode object](/capabilities/#the-mode-object) it holds out for
+  the mode. Whatever the mode, a
+  [volumes::write](/endpoints/volumes-write/) request of the client
+  puts a file in the volume. The mode is the volume's and is the same
+  for every container that mounts it and every FUSE serve of it;
+  neither states anything about it.
+- **A mode the server does not keep.** A request whose `mode` is one
+  the server holds out no mode object for is answered with
+  `ModeUnsupported`, the byte `2`, before anything is reserved; no
+  volume, and no part of one, exists by that name as a result of the
+  request, and the client's listing is as it was.
 - **The volume.** When the server sends the byte `0`, the volume
   exists. From that moment, every
-  [volumes::list](/endpoints/volumes-list/) request by the client
-  lists the volume, under the name the client gave and with `bytes`
-  equal to the size the client gave, until a
+  [volumes::list](/endpoints/volumes-list/) scope the client opens
+  lists the volume, and every list scope the client holds open is
+  sent the volume as added, under the name the client gave and with
+  `bytes` equal to the size the client gave, until a
   [volumes::delete](/endpoints/volumes-delete/) request by the client
   deletes it. The end of the scope, and the end
   of every connection of the client, leave the volume in existence.
@@ -64,6 +90,12 @@ finish follows the response, and no frame follows the finish.
   The largest size the server can reserve at a given time is reported
   by [volumes::create_capacity](/endpoints/volumes-create-capacity/).
 - **The error.** An error states that the volume was not created, for
-  a reason other than capacity: no volume, and no part of one, exists
+  a reason other than capacity or the mode: no volume, and no part of one, exists
   by that name as a result of the request, and the client's listing
   is as it was before the request.
+- **No volume at all.** A server that holds out none of the three
+  mode objects of [Capabilities](/capabilities/#the-volume-modes)
+  keeps no volume and answers every request of this endpoint with
+  exactly one response, the byte `3` alone, and the response
+  finish, before anything is looked up. Every other requirement of
+  this page holds for a server that keeps volumes.

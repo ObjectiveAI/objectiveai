@@ -7,10 +7,13 @@ use super::{EXTERNAL_SKILLS, MCP_PROXY_NAME, Plan};
 /// The whole configuration Hermes reads at startup, as one JSON
 /// document (JSON is YAML, and Hermes parses YAML).
 ///
-/// - `model`: the provider's id and the model; `base_url` and
-///   `api_key` for the `custom` provider alone (Hermes reads the key
-///   only beside a configured URL). Selection is THIS key — never
-///   `auth.json`'s `active_provider`.
+/// - `model`: the provider's id and the model; `base_url` for the
+///   `custom` provider alone, and `api_key` beside it when the
+///   custom provider declared one — `api_key` is that secret's fed
+///   value, handed in by [`prepare`](super::prepare), since Hermes
+///   reads the key only beside a configured URL and only from the
+///   config. Selection is THIS key — never `auth.json`'s
+///   `active_provider`.
 /// - `security.protected_instruction_files: false`: the second of
 ///   the yolo trio (the first is the environment's
 ///   `HERMES_YOLO_MODE`, the third is on the MCP entry below).
@@ -26,15 +29,15 @@ use super::{EXTERNAL_SKILLS, MCP_PROXY_NAME, Plan};
 /// Nothing else: session retention pruning stays at Hermes's
 /// default (off), memory limits stay at Hermes's, and the config
 /// version is left for Hermes to stamp.
-pub fn render(plan: &Plan) -> Value {
+pub fn render(plan: &Plan, api_key: Option<&str>) -> Value {
     let mut model = Map::new();
     model.insert("provider".to_string(), Value::String(plan.provider.clone()));
     model.insert("default".to_string(), Value::String(plan.model.clone()));
     if let Some(base_url) = &plan.base_url {
         model.insert("base_url".to_string(), Value::String(base_url.clone()));
     }
-    if let Some(api_key) = &plan.api_key {
-        model.insert("api_key".to_string(), Value::String(api_key.clone()));
+    if let Some(api_key) = api_key {
+        model.insert("api_key".to_string(), Value::String(api_key.to_string()));
     }
 
     let mut config = Map::new();
@@ -82,7 +85,7 @@ pub fn render(plan: &Plan) -> Value {
         "mcp_servers".to_string(),
         json!({
             MCP_PROXY_NAME: {
-                "url": diverge_container_proxy_sdk::mcp_url(),
+                "url": diverge_sdk::container_proxy::inside::mcp_url(),
                 "trust": "full",
                 "elicitation": { "enabled": false },
                 "sampling": { "enabled": false },

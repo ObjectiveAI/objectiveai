@@ -22,10 +22,9 @@ bytes = { version = "1.11.1", default-features = false }
 # version.sh would have to chase. `server`: the frame-level session
 # that reads the one connection and the scope handles that answer it,
 # and the container proxy protocol's own frames.
-diverge-provider-sdk = { path = "../diverge-provider-sdk-rs", features = ["server"] }
+diverge-sdk = { path = "../diverge-sdk-rs" }
 # The inside of the container, stated once: the loopback ports the
 # program dials, and the agent server's own contract.
-diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk-rs" }
 # `Stream` on a body, the fan-out's `join_all`, and the binds joined.
 futures-util = { version = "0.3.33", default-features = false }
 # The filesystem watch behind a tree: inotify, on the images this
@@ -39,6 +38,8 @@ rmcp = { version = "3.1.2", default-features = false, features = ["server", "tra
 # A refusal the far side sent, rendered whole into a tool result; the
 # errors this crate mints in the protocol's one shape.
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# The secrets a begin carries, name by name in the order given.
+indexmap = { version = "2.14.0", features = ["serde"] }
 # The agent's server, dialed: each of its five calls is one HTTP call
 # to the loopback. No TLS — it is the loopback. `json` reads a fate or
 # an outcome; `stream` reads the loop's events as they land.

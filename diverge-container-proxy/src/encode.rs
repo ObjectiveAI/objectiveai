@@ -1,6 +1,6 @@
 //! A frame, as the bytes a payload carries.
 
-use diverge_provider_sdk::encode::{Encode, Writer};
+use diverge_sdk::wire::encode::{Encode, Writer};
 
 /// One frame's bytes; `None` is a frame that would not serialize,
 /// which a JSON value never is.

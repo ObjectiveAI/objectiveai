@@ -1,0 +1,19 @@
+---
+title: 'Server Channels'
+summary: 'The one channel the server opens on the scope: its half of each daemon connection a connector opens, announced under an id the server minted.'
+order: 4
+draft: false
+---
+
+The server opens exactly one kind of channel on an accept scope. Its
+channel request carries no tag: the payload is the request itself, as
+JSON.
+
+| Tag | Channel |
+|-----|---------|
+| — | [connection](/endpoints/daemons-accept/server/connection/) |
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/channel_request/frame.rs
+```

@@ -16,16 +16,18 @@ use serde::{Deserialize, Serialize};
 ///
 /// A setting is read through the runtime the harness constructs —
 /// `getSetting`, which a plugin wrote with `setSetting` — and a
-/// non-string value goes to the vault as its JSON; a file goes as
-/// its bytes; an entry of Eliza's own vault is read through the
-/// `@elizaos/vault` library with the master key the harness holds,
-/// and goes as its decrypted value. Nothing else is a channel:
-/// Eliza's cache and its tables are the database, and a credential
-/// does not live there (see [`Secret`](super::Secret)). A read-back that finds nothing
-/// new is not an error — the plugin may not have rotated — but a
-/// read-back that finds nothing at all is a warning at the run's
-/// end, naming the key, so the caller learns their copy may be stale
-/// before the next login fails.
+/// non-string value is handed back as its JSON text; a file is
+/// handed back as its UTF-8 text, and one that is not text is left
+/// unread, said non-fatally; an entry of Eliza's own vault is read
+/// through the `@elizaos/vault` library with the master key the
+/// lineage holds, and handed back as its decrypted value. Nothing
+/// else is a channel: Eliza's cache and its tables are the database,
+/// and a credential does not live there (see [`Secret`](super::Secret)).
+/// A read-back that finds nothing new is not an error — the plugin
+/// may not have rotated — but a read-back that finds nothing at all
+/// is a warning at the run's end, naming the secret, so the caller
+/// learns the value handed back is the one fed before the next login
+/// fails.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum Rotates {

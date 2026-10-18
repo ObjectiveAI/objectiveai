@@ -1,0 +1,86 @@
+//! `diverge run agents download`: downloading a file or a directory out
+//! of an agent, as
+//! [`download`](diverge_sdk::daemon::endpoints::agents::download)
+//! states it.
+
+use std::path::PathBuf;
+
+use bytes::Bytes;
+use clap::Args;
+use diverge_sdk::daemon::client::stream::{ExecuteStream, OpenError};
+use diverge_sdk::daemon::endpoints::agents::download::{
+    client::execute, client::request, server::response,
+};
+use diverge_sdk::wire::client::handle::Handle;
+
+use crate::run::shape::download::Line;
+use crate::run::shape::{Answer, Download, Downloaded};
+use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
+
+/// Downloading a file or a directory out of an agent.
+#[derive(Debug, Clone, PartialEq, Eq, Args)]
+#[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
+pub struct Arguments {
+    /// What the request carries, as a JSON object: see
+    /// [`request::Frame`]; `relay` among its members has another daemon
+    /// serve it, as an account held there. Absent, `{}`.
+    #[arg(value_name = "BODY")]
+    pub body: Option<String>,
+    /// The local file a file download is written to, or the local
+    /// directory a directory download is written under, every parent
+    /// made.
+    #[arg(long = "path", value_name = "LOCAL")]
+    pub local: PathBuf,
+    /// What is beneath the request: `request-schema`, the JSON Schema
+    /// of the body it takes, or `response-schema`, the JSON Schema of
+    /// every line it prints — printed in place of putting any request.
+    #[command(subcommand)]
+    pub below: Option<Below>,
+}
+
+/// The request put, every file written under the local path, one
+/// line per file written printed, and every other answer as it comes:
+/// each a [`Line`].
+pub async fn run(
+    arguments: Arguments,
+    target: &Target<'_>,
+    emitter: &mut Emitter,
+) -> Result<(), Error> {
+    match arguments.below {
+        Some(Below::RequestSchema(_)) => {
+            return request_schema::<request::Frame>("diverge run agents download", emitter).await;
+        }
+        Some(Below::ResponseSchema(_)) => {
+            return response_schema::<Line<Answer>>("diverge run agents download", emitter).await;
+        }
+        None => {}
+    }
+    let request: request::Frame = body(arguments.body.as_deref())?;
+    let handle = target.dial().await?;
+    shape::download(&handle, &request, &arguments.local, emitter).await
+}
+
+impl Download for request::Frame {
+    type Item = execute::Item;
+    type Failure = response::FrameError;
+
+    async fn execute(
+        &self,
+        handle: &Handle,
+    ) -> Result<ExecuteStream<Self::Item, Self::Failure>, OpenError<serde_json::Error>> {
+        execute::execute(handle, self).await
+    }
+}
+
+impl Downloaded for execute::Item {
+    type Answer = Answer;
+
+    fn chunk(self) -> Result<(Vec<String>, Bytes), Answer> {
+        match self {
+            execute::Item::Chunk { path, body } => Ok((path, body)),
+            execute::Item::NotFound => Err(Answer::NotFound),
+            execute::Item::Forbidden => Err(Answer::Forbidden),
+            execute::Item::Error(error) => Err(Answer::Error(error)),
+        }
+    }
+}

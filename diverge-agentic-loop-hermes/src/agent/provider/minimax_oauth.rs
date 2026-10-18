@@ -4,22 +4,23 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// MiniMax over OAuth. Single-use rotating refresh tokens, so the
-/// credential is a RESOURCE: the caller provides its current state,
-/// the run rotates it, and the rotated state is surfaced back to
-/// the caller instead of silently burning their login. (Keyed
-/// MiniMax is [`minimax`](super::minimax::Provider) /
+/// credential is a ROTATING secret: the caller holds its current
+/// state, the run rotates it, and the rotated state is collected
+/// back instead of silently burning their login. (Keyed MiniMax is
+/// [`minimax`](super::minimax::Provider) /
 /// [`minimax_cn`](super::minimax_cn::Provider).)
 ///
-/// APPLICATION: the document lives in the vault under
-/// [`MINIMAX_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::MINIMAX_OAUTH). The harness locks that
-/// key for the run, reads the document, and writes it as the
+/// APPLICATION: the harness writes the fed document as the
 /// `providers.minimax-oauth` entry of `$HERMES_HOME/auth.json`
 /// before Hermes starts — provider selection rides the config the
 /// harness already owns, never the file's `active_provider`. On
-/// token refresh Hermes rewrites the entry in place; at the run's
-/// end the rewritten document is set back under the key, and the
-/// key unlocked. Nothing about it is an argument: choosing this
-/// provider is the whole ask.
+/// token refresh Hermes rewrites the entry in place; after the
+/// gateway exits the entry is read back as the run left it and
+/// handed to the proxy's collect. Nothing about it is an argument:
+/// choosing this provider is the whole ask.
+///
+/// SECRET: `MINIMAX_OAUTH`, rotating — the OAuth state document, a
+/// JSON object, exactly as Hermes keeps the entry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `minimax-oauth`.

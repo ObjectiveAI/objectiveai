@@ -1,8 +1,8 @@
 //! The program's server as a client, and the errors every call
 //! shares.
 
-use diverge_container_proxy_sdk::port;
-use diverge_provider_sdk::shared::error::Error;
+use diverge_sdk::container_proxy::inside::port;
+use diverge_sdk::shared::error::Error;
 
 /// The HTTP client every call dials the program's server with.
 ///

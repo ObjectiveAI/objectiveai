@@ -5,15 +5,15 @@ use serde::{Deserialize, Serialize};
 
 /// Kilo Code's gateway.
 ///
-/// APPLICATION: the harness sets `KILOCODE_API_KEY` to
-/// [`api_key`](Self::api_key) in the gateway's process environment
-/// before Hermes starts.
+/// APPLICATION: the harness sets `KILOCODE_API_KEY` to the
+/// secret's value in the gateway's process environment before
+/// Hermes starts.
+///
+/// SECRET: `KILOCODE_API_KEY`, fixed — the API key, under that name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `kilocode`.
     pub provider: Kilocode,
-    /// The API key, applied as `KILOCODE_API_KEY`.
-    pub api_key: String,
 }
 
 /// [`Provider`]'s discriminator.

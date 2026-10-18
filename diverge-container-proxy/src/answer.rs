@@ -1,8 +1,8 @@
 //! What comes back on a channel the proxy opened, one frame at a time.
 
 use bytes::Bytes;
-use diverge_provider_sdk::frame::client::ClientFrame;
-use diverge_provider_sdk::server::channel::Channel;
+use diverge_sdk::wire::frame::client::ClientFrame;
+use diverge_sdk::wire::server::channel::Channel;
 
 /// One thing the server said on a channel of the proxy's.
 pub enum Answer {

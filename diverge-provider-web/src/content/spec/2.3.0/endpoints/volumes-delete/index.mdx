@@ -24,9 +24,10 @@ the response, and no frame follows the finish.
   error.
 - **The deletion.** When the server sends the byte `0`, the volume no
   longer exists, and its content is gone. From that moment, every
-  [volumes::list](/endpoints/volumes-list/) request by the client
-  omits the volume: no listing the server sends after the byte `0`
-  contains it. The name then names no volume of the client, and every
+  [volumes::list](/endpoints/volumes-list/) scope the client opens
+  omits the volume, and every list scope the client holds open that
+  was sent the volume as added is sent it as removed: no listing the
+  server sends as whole after the byte `0` contains it. The name then names no volume of the client, and every
   request naming it is answered with an error, until a
   [volumes::create](/endpoints/volumes-create/) request by the client
   makes a new volume of that name. Deletion is not emptying: a client
@@ -36,15 +37,30 @@ the response, and no frame follows the finish.
 - **One request.** The request is the whole of the exchange. No frame
   precedes it, no confirmation follows it, and the deletion is not
   reversible.
-- **A volume mounted.** When, at the time of the request, the volume
-  is mounted in any running container or served on any
-  [volumes::serve](/endpoints/volumes-serve/) scope — a volume may be mounted or served in several at once — or
-  is under a stat, an edit or another delete,
-  the server does not delete it and sends the byte `1`. The volume,
-  its content, and the client's listing are as they were before the
-  request. The server does not send the byte `0` for a volume that
-  is mounted at the time of the request.
+- **A held volume is not deleted.** When, at the time of the request,
+  a running container of the client holds the volume, a
+  [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) of the
+  client holds it, or it is under a
+  [volumes::stat](/endpoints/volumes-stat/),
+  [volumes::read](/endpoints/volumes-read/),
+  [volumes::write](/endpoints/volumes-write/),
+  [volumes::filetree](/endpoints/volumes-filetree/),
+  [volumes::edit](/endpoints/volumes-edit/) or another
+  `volumes::delete`, the server does not delete it and answers with
+  the refusal the [response](/endpoints/volumes-delete/response/)
+  states for who holds it — `Mounted`, the byte `1`; `FuseServed`,
+  the byte `2`; `Held`, the byte `3` — decided in the order
+  [Capabilities](/capabilities/#the-hold) states for an operation.
+  The volume, its content, and the client's listing are as they were
+  before the request. The server does not send the byte `0` for a
+  volume anything holds at the time of the request.
 - **The error.** An error states that the server did not delete the
-  volume, for a reason other than a mount. The volume remains in
+  volume, for a reason other than a hold. The volume remains in
   existence, its content is as it was, and the client's listing shows
   it as before the request.
+- **No volume at all.** A server that holds out none of the three
+  mode objects of [Capabilities](/capabilities/#the-volume-modes)
+  keeps no volume and answers every request of this endpoint with
+  exactly one response, the byte `4` alone, and the response
+  finish, before anything is looked up. Every other requirement of
+  this page holds for a server that keeps volumes.

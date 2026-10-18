@@ -1,7 +1,8 @@
 //! What the queue holds, and what the server's channels say to it.
 
-use diverge_provider_sdk::shared::containers::enqueue;
-use diverge_provider_sdk::shared::error::Error;
+use diverge_sdk::shared::containers::enqueue;
+use diverge_sdk::shared::containers::secrets::Values;
+use diverge_sdk::shared::error::Error;
 use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;
 
@@ -49,6 +50,15 @@ pub enum Cmd {
         key: String,
         /// Where the count and the loop's state go.
         reply: oneshot::Sender<DequeueReply>,
+    },
+    /// The secrets, fed: the server's values for the program, which
+    /// open the gate once the program has applied them.
+    Feed {
+        /// The values, by name.
+        values: Values,
+        /// Where the word that they were applied — or the program's
+        /// refusal, in its own words — goes.
+        reply: oneshot::Sender<Result<(), Error>>,
     },
 }
 

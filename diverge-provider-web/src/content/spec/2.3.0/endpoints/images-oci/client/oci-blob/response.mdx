@@ -1,0 +1,25 @@
+---
+title: 'Response'
+summary: 'The server answers with the bytes of the blob in zero or more channel responses, each a piece in order, and the channel response finish; a finish with nothing before it states that the server does not hold the digest for the client.'
+order: 2
+draft: false
+---
+
+```text
+[bytes …]      zero or more, the blob
+```
+
+- **The sequence.** Zero or more channel responses, each a piece of
+  the blob verbatim with no tag and no header, in order; the pieces
+  concatenated are the blob. The channel response finish follows the
+  last. A channel response finish that no channel response precedes
+  states that the server does not hold the digest for the client.
+- **The pieces.** The server sends no piece larger than 2 MiB. A
+  client appends each piece to what arrived before and measures
+  nothing; the finish says the blob is whole, and a channel that
+  closes without its finish states that the blob did not all arrive.
+
+The channel response is defined by `diverge-sdk-rs/src/shared/containers/oci/blob/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/blob/response/frame.rs
+```

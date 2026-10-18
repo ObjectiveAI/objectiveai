@@ -1,0 +1,124 @@
+---
+title: 'volumes::fuse_serve'
+summary: 'Tag 8: a client names a volume from its listing and a cap for an ephemeral layer; the server holds the volume as a mount holds it, answers Serving once, and for as long as the scope lives answers on channels the client opens the nine asks a FUSE mount makes, from the volume as its mode allows, a piece at a time, and streams the tree of the volume as served; the client stops the scope.'
+order: 8
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`8` followed by the name of a volume and `overlay_disk`. The server
+sends exactly one response, which is `Serving`, one of five
+refusals, or an error.
+After `Serving` the scope stays open: the client opens on it, as
+channels, the nine asks a FUSE mount makes of a client — a stat, a
+read of a piece, a write of a piece, a truncate, a setattr, a listing,
+a removal, a rename and a mkdir — and the server answers each from
+the volume, as the volume's mode allows. The client's stop ends the
+scope: the response finish follows the last answer, and no frame
+follows the finish. After a refusal or an error the response finish
+follows it, and no channel is served.
+
+- **The request.** The request carries the name of one volume and
+  `overlay_disk`, the cap of the layer an ephemeral volume is served
+  on. [Request](/endpoints/volumes-fuse-serve/request/) states its form.
+- **The volume named.** The client names a volume by the `name` its
+  [volumes::list](/endpoints/volumes-list/) listing gave it. The
+  server resolves the name against the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. A name that is not in the client's listing is answered
+  with an error. A client cannot name another client's volume.
+- **The response.** [Response](/endpoints/volumes-fuse-serve/response/) states the one response
+  and what follows it.
+- **The channels.** The client opens the channels that
+  [Client Channels](/endpoints/volumes-fuse-serve/client/) defines: the nine asks, the
+  stop, and the filetree. The server opens no channel on a FUSE serve
+  scope.
+- **The tree as served.** A [filetree](/endpoints/volumes-fuse-serve/client/filetree/)
+  channel carries the tree of the volume as this FUSE serve sees it — for
+  an `ephemeral` volume, the volume under the layer of the FUSE serve —
+  as a snapshot, followed by one channel response per change the
+  asks of this FUSE serve make, until the scope ends. A `read_only`
+  volume's stream is the snapshot and nothing after it. No
+  `volumes::filetree` of a served volume is answered while the FUSE serve
+  holds it; the filetree channel is the one view of a served volume's
+  tree.
+- **A served volume is a mounted volume.** The server holds the volume
+  as a running container that mounts it holds it, from the moment it
+  sends `Serving` until the response finish. While it holds it, a
+  `volumes::stat`, `volumes::read`, `volumes::write`,
+  `volumes::filetree`, `volumes::edit` or `volumes::delete` naming
+  the volume is answered with that endpoint's `FuseServed`. A volume
+  that is under one of those six at the time of the request is not
+  served: the request is answered with `Held`, the byte `3`.
+- **Who may hold a served volume.** The volume's `mode`, as the
+  listing reports it, says at most: an `ephemeral` or a `read_only`
+  volume may be held by any number of FUSE serves and any number of
+  running containers at once, and a `persistent` volume by one FUSE
+  serve at a time, never beside a running container. What this
+  server allows for each mode is the
+  [mode object](/capabilities/#the-mode-object) it holds out:
+  `fuse_serve`, `fuse_serve_many` and `mount_and_fuse_serve`. A
+  volume of a mode the server holds out no mode object for, or whose
+  mode object has `fuse_serve` `false`, is not served: the request
+  is answered with `Unsupported`, the byte `5`. A volume another FUSE
+  serve holds, where `fuse_serve_many` is `false`, is answered with
+  `FuseServed`, the byte `2`; a volume a running container holds,
+  where `mount_and_fuse_serve` is `false`, is answered with
+  `Mounted`, the byte `1`. The server decides the refusals in the
+  order [Capabilities](/capabilities/#the-hold) states for a FUSE
+  serve; a run naming a volume a FUSE serve holds is refused as
+  [containers::agents::run](/endpoints/containers-agents-run/)
+  states.
+- **No volume at all.** A server that holds out none of the three
+  mode objects answers every request of this endpoint with
+  `Unsupported`, the byte `5`, before anything is looked up, as
+  [Capabilities](/capabilities/#the-volume-modes) provides.
+- **The request states the mode.** A FUSE serve names the `mode` it means
+  the volume to have. The server compares it with the volume's
+  `mode` after it holds the volume: a volume in another mode is not
+  served, the request is answered with the mode the volume is in,
+  the hold is given back, and nothing changes. A FUSE serve never changes
+  a volume's mode; only [volumes::edit](/endpoints/volumes-edit/)
+  does.
+- **The asks are the mount's.** Each ask is, byte for byte, the ask a
+  FUSE mount's scope carries on the container proxy, with no id: the
+  scope is the volume, as the mount scope is the mount. Each answer is
+  the answer that ask defines. A client that bridges a FUSE mount on
+  one provider to a volume on another relays each ask and each answer
+  as it is.
+- **Every piece crosses as it is.** A read is one piece at an offset,
+  a write lands one piece in place, and a stat is the entry's kind,
+  size, mode, owner, group and times as the volume records them at the
+  time of the answer. The server buffers no content of the volume on
+  the client's behalf: what a write asks for is in the volume, or in
+  the FUSE serve's layer, when the answer is `ok`.
+- **Asks in flight at once.** A client may have any number of asks open
+  at once. The server answers each on its own channel, in whatever
+  order it answers them.
+- **The three modes.** A `persistent` volume is changed in place:
+  every mutation the server answers `ok` is in the volume. An
+  `ephemeral` volume is served on a layer of the FUSE serve's own: the
+  serve starts from the volume as it is, every mutation the server
+  answers `ok` is in the layer and is seen by every later ask of the
+  same FUSE serve, nothing of the layer is in the volume, and the layer is
+  discarded at the finish; the layer holds at most `overlay_disk`
+  bytes, a mutation that would need room past that is answered with
+  an error and the volume and the layer are as they were, and the
+  serve continues. A `read_only` volume answers every stat, read and
+  listing as any volume does, and answers every write, truncate,
+  setattr, removal, rename and mkdir with the read-only byte: the
+  change is refused, and the volume is as it was.
+- **The stop.** The client ends the scope by opening the stop channel.
+  The server answers every ask still open, sends the response finish,
+  and gives the volume back. The server sends nothing on the stop's
+  own channel. A connection that closes with a FUSE serve scope open ends
+  the scope the same way: the server gives the volume back.
+- **The error.** An error states that the volume is not served, and
+  that nothing was determined about the volume. A volume absent from
+  the client's listing, an `ephemeral` volume whose `overlay_disk`
+  the server cannot set aside, and a volume the server could not open
+  are each answered with an error. A volume that something holds,
+  a volume not in the mode the request means, and a volume of a mode
+  the server does not FUSE serve are each answered with the refusal
+  the [response](/endpoints/volumes-fuse-serve/response/) states for
+  it, which is not an error.

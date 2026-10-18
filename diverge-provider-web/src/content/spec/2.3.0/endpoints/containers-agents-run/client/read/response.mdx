@@ -23,12 +23,12 @@ draft: false
 - **The error.** After the byte `1`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page: the proxy's
   error as the server received it, or the server's own.
 
-The channel response is defined by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/channel_response/read/frame.rs`:
+The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/channel_response/read/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/channel_response/read/frame.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/channel_response/read/frame.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/containers/read/response/frame.rs`:
+and by `diverge-sdk-rs/src/shared/containers/read/response/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/read/response/frame.rs
+```rust include=diverge-sdk-rs/src/shared/containers/read/response/frame.rs
 ```

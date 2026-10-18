@@ -1,0 +1,88 @@
+//! The five things an agent asks of an MCP server.
+//!
+//! [`list_tools`], [`list_resources`], [`call_tool`] and
+//! [`read_resource`] are one exchange each: a request opens a channel
+//! and one frame answers it. [`notifications`] is the fifth and the
+//! odd one — nothing is asked, and frames arrive for as long as the
+//! channel lives.
+//!
+//! # Why five, and why these five
+//!
+//! Because that is what an MCP server is, once the transport is taken
+//! off it. Streamable HTTP has ONE url: a client POSTs a JSON-RPC
+//! message to it for the first four, and opens a stream with a bare
+//! `GET` on the same url for the fifth. The verb is the whole of the
+//! distinction there; a tag byte is the whole of it here.
+//!
+//! # Why they are shared
+//!
+//! Because more than one scope carries them, in more than one
+//! direction. An [`agents`](crate::provider::endpoints::containers::agents)
+//! run scope has the container inside asking a caller's servers; a
+//! [`tools`](crate::provider::endpoints::containers::tools) run scope
+//! has the caller asking a server the provider is holding, and never
+//! the other way, since a tool container makes no tool call outward;
+//! and the
+//! [`proxy`](crate::container_proxy::outside::endpoints::agents::begin) inside the agent container relays
+//! the first of those one hop earlier.
+//!
+//! Same five exchanges, opposite ways round. A shape defined once per
+//! endpoint would be four definitions that agree until they do not.
+//!
+//! # Who is on the other side, under `_meta`
+//!
+//! A container never addresses one server over another: it sees its
+//! proxy, and the caller merges its servers into one list. So the
+//! caller says who is which, under one `_meta` key — [`KEY`],
+//! `diverge.network` — whose value is one object tagged `kind`, the
+//! [`Caller`](attestation::Caller) on a request and the
+//! [`Tool`](attestation::Tool) on an answer, set by [`attest`]; and
+//! the one that says so is the daemon. On the four requests an
+//! agent's program sends outward the daemon sets the caller — `kind`
+//! `agent`: the agent's image, template, index and name — on the
+//! params before it forwards the call, so a tool container that
+//! receives it knows which agent is calling; and on the four an
+//! outside client puts over a connect, the serving daemon sets the
+//! caller too — `kind` `unbrokered`: the identity it authorized the
+//! connection as, and nothing the client said of itself — before the
+//! exchange reaches the tool. On what
+//! a tool container's own server answers — the result of each of the
+//! four, each tool and each resource of a list, and each notification
+//! — the daemon sets the tool as it relays the answer back, so a
+//! program that reads a merged list knows which tool serves each:
+//! `kind` `created`, `connected` or `dependency`, each with the
+//! tool's image and template — a connected tool's as the daemon that
+//! runs it told on the connect, this daemon's stamp replacing that
+//! daemon's, which is not trusted. And on every chunk an agent says,
+//! which is not MCP but has the same `_meta` at its top level, the
+//! daemon sets the agent as it keeps the chunk, so a reader of the
+//! log knows which agent spoke. The daemon replaces a value set under
+//! the key and leaves every other key as it was sent; the proxy and
+//! the provider's server set nothing under `_meta` and relay all of
+//! it as sent. The key's form is MCP's own rule for `_meta` names: a
+//! prefix of dotted labels — here the prefix alone. The side that
+//! receives it reads it back as its type through [`attestation`]: a
+//! tool reads a request's caller, an agent an answer's tool.
+//!
+//! # What is not here
+//!
+//! Initialization, capabilities, prompts, completion, sampling,
+//! elicitation, and everything else MCP has. Not because they are
+//! unimportant but because nothing carries them yet, and a frame
+//! nothing sends is a frame nobody has had to be right about.
+//!
+//! Adding one is adding a module here and a variant to whichever
+//! channel request wants it.
+
+mod frame_error;
+mod meta;
+
+pub use frame_error::*;
+pub use meta::*;
+
+pub mod attestation;
+pub mod call_tool;
+pub mod list_resources;
+pub mod list_tools;
+pub mod notifications;
+pub mod read_resource;

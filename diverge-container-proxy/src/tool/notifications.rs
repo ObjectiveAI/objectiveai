@@ -1,13 +1,12 @@
 //! What the container's server says on its own account, for as long
 //! as the channel lives.
 
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::mcp::notifications::response;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::mcp::notifications::response;
 use tokio::sync::broadcast;
 
 use super::Tool;
 use crate::encode::encoded;
-use crate::stamp::Stamp;
 use crate::reply::reply;
 
 /// Subscribe, then relay: one frame per notification, the container's
@@ -18,7 +17,7 @@ use crate::reply::reply;
 /// notification is a nudge, not a record. Only the responder finishes
 /// a channel, and this one has nothing to finish for: the connection
 /// ending takes it.
-pub async fn notifications(tool: &Tool, stamp: &Stamp, scope: &ScopeHandle, channel: u32) {
+pub async fn notifications(tool: &Tool, scope: &ScopeHandle, channel: u32) {
     let mut receiver = tool.subscribe();
     if let Err(error) = tool.client().await {
         reply(scope, channel, encoded(&response::Frame::Error(error))).await;
@@ -26,8 +25,7 @@ pub async fn notifications(tool: &Tool, stamp: &Stamp, scope: &ScopeHandle, chan
     }
     loop {
         match receiver.recv().await {
-            Ok(mut notification) => {
-                stamp.notification(&mut notification);
+            Ok(notification) => {
                 let Some(payload) = encoded(&response::Frame::Notification(notification)) else {
                     continue;
                 };

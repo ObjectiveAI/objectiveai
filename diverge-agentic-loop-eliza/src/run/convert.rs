@@ -1,6 +1,6 @@
 //! The entry's lines, as the container's chunks.
 
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, AssistantTextContentChunk, AssistantToolCallChunk, NotificationChunk,
     ToolResponseChunk, UsageChunk,
 };

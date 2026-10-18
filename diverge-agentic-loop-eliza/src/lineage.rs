@@ -4,9 +4,12 @@
 //! Eliza. The harness remembers only what ties a run to that state
 //! and keeps a later run honest against it — one row of one table:
 //! the agent id every Eliza id derives from, the room the
-//! conversation is, and each caller plugin with the version the
+//! conversation is, each caller plugin with the version the
 //! registry resolved, so a lineage is never resumed against a plugin
-//! that changed under it.
+//! that changed under it, and the two values Eliza's own stores are
+//! keyed by — the vault passphrase and the settings salt — minted
+//! with the row and never changed, since a store opened under
+//! another would not open.
 //!
 //! Read at the top of every run and cached in memory after the first,
 //! as cc caches its session id; written BEFORE the runtime starts —
@@ -28,16 +31,21 @@ const CREATE: &str = "CREATE TABLE IF NOT EXISTS eliza_lineage (\
     id smallint PRIMARY KEY CHECK (id = 1), \
     agent_id uuid NOT NULL, \
     room text NOT NULL, \
-    plugins jsonb NOT NULL)";
+    plugins jsonb NOT NULL, \
+    vault_passphrase text NOT NULL, \
+    secret_salt text NOT NULL)";
 
 /// The row, its uuid and jsonb as text so no driver feature is owed.
 const SELECT: &str = "SELECT agent_id::text, room, \
-    plugins::text FROM eliza_lineage WHERE id = 1";
+    plugins::text, vault_passphrase, secret_salt \
+    FROM eliza_lineage WHERE id = 1";
 
-/// The row, made or replaced.
+/// The row, made or replaced. The passphrase and the salt are
+/// written when the row is made and never updated: a lineage keeps
+/// the pair it was minted with.
 const UPSERT: &str = "INSERT INTO eliza_lineage \
-    (id, agent_id, room, plugins) \
-    VALUES (1, CAST($1 AS uuid), $2, CAST($3 AS jsonb)) \
+    (id, agent_id, room, plugins, vault_passphrase, secret_salt) \
+    VALUES (1, CAST($1 AS uuid), $2, CAST($3 AS jsonb), $4, $5) \
     ON CONFLICT (id) DO UPDATE SET agent_id = EXCLUDED.agent_id, \
     room = EXCLUDED.room, \
     plugins = EXCLUDED.plugins";
@@ -56,6 +64,16 @@ pub struct Lineage {
     /// Each caller plugin, on either list, with the version the
     /// registry resolved.
     pub plugins: Vec<Resolved>,
+    /// The passphrase Eliza's own vault derives its master key from:
+    /// minted with the row, and the entry process environment's
+    /// after, under [`settings::PASSPHRASE`](crate::settings::PASSPHRASE).
+    pub vault_passphrase: String,
+    /// The salt Eliza encrypts settings with, under
+    /// [`settings::SALT`](crate::settings::SALT): minted with the row,
+    /// and stable for the lineage, since `initialize()` merges the
+    /// `agents` row's settings back into the character and a decrypt
+    /// under a different salt throws.
+    pub secret_salt: String,
     /// Whether the row exists in the database: `false` for a fresh
     /// lineage until [`save`](Self::save).
     pub persisted: bool,
@@ -74,8 +92,9 @@ pub struct Resolved {
 impl Lineage {
     /// The lineage: the cache after the first look; else the table made
     /// and the row read, or — no row — a fresh lineage with a minted
-    /// agent id, not yet persisted. Cached either way, so a fresh
-    /// lineage whose save failed keeps its id for the next attempt.
+    /// agent id, passphrase and salt, not yet persisted. Cached either
+    /// way, so a fresh lineage whose save failed keeps what it minted
+    /// for the next attempt.
     pub async fn load(pool: &PgPool) -> Result<Self, Error> {
         if let Some(lineage) = cached() {
             return Ok(lineage);
@@ -89,6 +108,8 @@ impl Lineage {
                     agent_id: row.get(0),
                     room: row.get(1),
                     plugins: serde_json::from_str(&plugins)?,
+                    vault_passphrase: row.get(3),
+                    secret_salt: row.get(4),
                     persisted: true,
                 }
             }
@@ -96,6 +117,8 @@ impl Lineage {
                 agent_id: uuid::Uuid::new_v4().to_string(),
                 room: ROOM.to_string(),
                 plugins: Vec::new(),
+                vault_passphrase: mint(),
+                secret_salt: mint(),
                 persisted: false,
             },
         };
@@ -116,6 +139,8 @@ impl Lineage {
             .bind(&self.agent_id)
             .bind(&self.room)
             .bind(encoded)
+            .bind(&self.vault_passphrase)
+            .bind(&self.secret_salt)
             .execute(pool)
             .await?;
         self.plugins = plugins;
@@ -123,6 +148,17 @@ impl Lineage {
         cache(self);
         Ok(())
     }
+}
+
+/// A value the harness owns and nobody provisions: two v4 uuids, 64
+/// hex characters — more than the twelve the vault library wants of
+/// a passphrase.
+fn mint() -> String {
+    format!(
+        "{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    )
 }
 
 fn cached() -> Option<Lineage> {

@@ -1,66 +1,182 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response: the id, the volume that refused the run, or an error; after the id it sends nothing until the finish, and the finish that ends a running container carries no error.'
+summary: 'The server sends the id, one of five refusals, or an error, as the first response; after the id it sends active whenever an exchange is in flight where none was and inactive carrying the rotating secrets whenever the last in flight is answered, and nothing else until the finish but the proxy’s error, relayed, when the secrets could not be collected; the finish carries no error.'
 order: 2
 draft: false
 ---
 
-The server sends exactly one response on the scope: the id, the
-volume that refused the run, or an error. The response finish ends
-the scope. No frame bearing the scope follows the finish.
+The server sends the id; or one of five refusals — the volume that
+refused the run, named, and why; or an error; and, after the id,
+zero or more periods of activity: for each, the word that an MCP
+exchange is in flight where none was, and the word that the last in
+flight was answered, carrying the rotating secrets the program
+handed back, for the life of the run. The response finish ends the
+scope. No frame bearing the scope follows the finish.
 
 ```text
-[0][id JSON …]                  once, when the container is running
-[1][volume-held JSON …]         once, when a named volume is under a stat, an edit or a delete
-[2][error JSON …]               once, when it is not running for another reason
+[0][id JSON …]                          once, when the container is running
+[1][volume-held JSON …]                 once, when an operation holds a named volume
+[2][volume-mounted JSON …]              once, when a running container holds a named volume and the server mounts a volume of its mode once
+[3][volume-fuse-served JSON …]          once, when a FUSE serve holds a named volume and the server does not mount a volume of its mode beside one
+[4][volume-mount-unsupported JSON …]    once, when the server does not mount a volume of a named volume's mode
+[5][volume-mode JSON …]                 once, when a named volume is not in the mode its mount names
+[6][error JSON …]                       once, when it is not running for another reason, or after the id when the proxy ends the begin with an error
+[7]                                     active: an exchange is in flight where none was
+[8][values JSON …]                      inactive: the last exchange in flight was answered, and these are the rotating secrets
 ```
 
 - **The sequence.** Before the id, the server sends no response.
-  The first response is the id, the volume that refused the run, or
-  an error. A refusal and an error are each followed by the response
-  finish, and the container is not running and will not be. After
-  the id, the server sends no response until the finish,
-  and the finish carries no error: a run that ended after its id
-  ended by the client's stop, by the container's own end, or by the
-  client's connection ending. A response finish that no response
-  precedes states that the request was not served, as
+  The first response is the id, one of the five refusals, or an
+  error. A refusal and an error before the id are each followed by
+  the response finish, and the container is not running and will not
+  be. After the id, the server sends zero or more periods of
+  activity, and no other response until the finish but, at most
+  once, the error with which the proxy ended the begin scope, the
+  byte `6` followed by it, which the response finish follows. A
+  period of activity is exactly one response whose payload is the
+  byte `7` and nothing else, followed by exactly one response whose
+  first byte is `8`, or, where the proxy could not collect the
+  rotating secrets, by the error. The finish carries no error: a run
+  that ended after its id ended by the client's stop, by the
+  container's own end, by the proxy's error, or by the client's
+  connection ending. A response finish that no response precedes
+  states that the request was not served, as
   [Endpoints](/endpoints/) provides, or that the run ended before the
   server had an id to send.
 - **The id.** A payload whose first byte is `0` carries the id after
   that byte as JSON, an object with the member `id`, a string. The
-  server sends it after every FUSE mount is complete and, for an
-  agent container, after the agent is registered.
+  server sends it after every FUSE mount is complete and after the
+  container is registered and, where its program declared a secret,
+  fed, as [containers::tools::run](/endpoints/containers-tools-run/)
+  states.
+- **The refusals, and their order.** The server decides
+  the bytes `1` to `5` for each distinct `volume_name` the request
+  names, in the order first named, in the order
+  [Capabilities](/capabilities/#the-hold) states, the first rule that
+  applies deciding; a refusal of any volume gives back every volume
+  held for the request before it. Every refusal is sent before the
+  server fetches or deploys anything, the finish follows it, and the
+  container was not started.
 - **Volume held.** A payload whose first byte is `1` carries, after
   that byte as JSON, an object with the member `name`, a string: the
   `volume_name` of a volume the request named that is under a
   [volumes::stat](/endpoints/volumes-stat/),
+  [volumes::read](/endpoints/volumes-read/),
+  [volumes::write](/endpoints/volumes-write/),
+  [volumes::filetree](/endpoints/volumes-filetree/),
   [volumes::edit](/endpoints/volumes-edit/) or
   [volumes::delete](/endpoints/volumes-delete/) at the time of the
-  request. A volume mounted in another container does not refuse a
-  run: a volume may be mounted in any number of containers at once.
-  The server sends it before it fetches or deploys anything, and the
-  finish follows. The container was not started.
-- **The error.** A payload whose first byte is `2` carries an error
+  request.
+- **Volume mounted.** A payload whose first byte is `2` carries, after
+  that byte as JSON, an object with the member `name`, a string: the
+  `volume_name` of a volume the request named that a running
+  container of the client holds at the time of the request, on a
+  server whose [mode object](/capabilities/#the-mode-object) for the
+  volume's mode has `mount_many` `false`. A volume a running
+  container holds does not refuse a run where `mount_many` is `true`.
+- **Volume FUSE served.** A payload whose first byte is `3` carries,
+  after that byte as JSON, an object with the member `name`, a
+  string: the `volume_name` of a volume the request named that a
+  [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) of the
+  client holds at the time of the request, on a server whose mode
+  object for the volume's mode has `mount_and_fuse_serve` `false`. A
+  volume a FUSE serve holds does not refuse a run where
+  `mount_and_fuse_serve` is `true`.
+- **Volume mount unsupported.** A payload whose first byte is `4`
+  carries, after that byte as JSON, an object with the member `name`,
+  a string: the `volume_name` of a volume the request named whose
+  `mode` the server holds out no mode object for, or whose mode
+  object has `mount` `false`. The volume is as it was.
+- **Volume mode.** A payload whose first byte is `5` carries, after
+  that byte as JSON, an object with the members `name`, a string, and
+  `mode`, a string: the `volume_name` of a volume the request named
+  under a `mode` the volume is not in, and the mode the volume is in,
+  as the client's listing reports it, one of `persistent`,
+  `ephemeral` and `read_only`. The volume is as it was. A request
+  naming one volume under two modes is answered the same way, with
+  the mode the volume is in.
+- **The error.** A payload whose first byte is `6` carries an error
   after that byte, exactly one JSON value in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
-  This revision prescribes nothing about its content.
+  Before the id, this revision prescribes nothing about its content.
+  After the id, the server sends it only when the proxy ends the
+  begin scope with an error, as the
+  [begin response](/container-proxy-endpoints/tools-begin/response/)
+  states, and the bytes after the byte `6` are the proxy's error
+  verbatim: it names a secret and carries no value.
+- **Active and inactive.** A payload that is the byte `7` and
+  nothing else states that an MCP exchange is in flight where none
+  was: one of the four exchanges the client opens into the
+  container's own MCP server — on an
+  [mcp-list-tools](/endpoints/containers-tools-run/client/mcp-list-tools/),
+  [mcp-list-resources](/endpoints/containers-tools-run/client/mcp-list-resources/),
+  [mcp-call-tool](/endpoints/containers-tools-run/client/mcp-call-tool/) or
+  [mcp-read-resource](/endpoints/containers-tools-run/client/mcp-read-resource/)
+  channel; an
+  [mcp-notifications](/endpoints/containers-tools-run/client/mcp-notifications/)
+  channel is no exchange — is about to be delivered, and none was in
+  flight. A payload whose first byte is `8` states that the last
+  exchange in flight was answered and the program handed back its
+  rotating secrets. The server sends each exactly as the proxy sent
+  it on the
+  [begin response](/container-proxy-endpoints/tools-begin/response/),
+  where the proxy produces both and relays neither from the program.
+  The server sends no byte `7` before the id, none while a period of
+  activity is open, and no byte `8` while none is.
+- **The values.** The bytes after the byte `8` are a JSON object
+  whose every member is the name of a secret the container's program
+  declared `rotating`, to the value the program leaves in it, any
+  JSON value: every `rotating` name the program declared, and no
+  other; the empty object for a program that declared none
+  `rotating`. The server sends the object exactly as the proxy sent
+  it and reads none of it. From the byte `8` the container holds no
+  values, and the proxy delivers no exchange to a program that
+  declared a secret until the client feeds them again on the
+  [secrets](/endpoints/containers-tools-run/client/secrets/) channel.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0`, `1` and `2`, a payload whose bytes after `0` do not
-  parse as the id, a payload whose bytes after `1` do not parse as
-  the refusal and a payload whose bytes after `2` are not one JSON
-  value are malformed.
+  is none of `0` to `8`, a payload whose bytes after `0` do not parse
+  as the id, a payload whose bytes after `1`, `2`, `3`, `4` or `5` do
+  not parse as that refusal, a payload whose bytes after `8` do not
+  parse as the values, and a payload whose bytes after `6` are not
+  one JSON value are malformed. A payload whose first byte is `7` is
+  read by that byte alone; bytes after it are not read.
 
-The response is defined by `diverge-provider-sdk-rs/src/endpoints/containers/tools/run/server/response/frame.rs`:
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/run/server/response/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/endpoints/containers/tools/run/server/response/frame.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/tools/run/server/response/frame.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/containers/response/id.rs`:
+and by `diverge-sdk-rs/src/shared/containers/response/id.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/response/id.rs
+```rust include=diverge-sdk-rs/src/shared/containers/response/id.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/containers/response/volume_held.rs`:
+and by `diverge-sdk-rs/src/shared/containers/response/volume_held.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/response/volume_held.rs
+```rust include=diverge-sdk-rs/src/shared/containers/response/volume_held.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/response/volume_mounted.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/response/volume_mounted.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/response/volume_fuse_served.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/response/volume_fuse_served.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/response/volume_mount_unsupported.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/response/volume_mount_unsupported.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/response/volume_mode.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/response/volume_mode.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/secrets/values.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/secrets/values.rs
 ```

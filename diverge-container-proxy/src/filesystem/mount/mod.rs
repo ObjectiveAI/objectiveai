@@ -2,7 +2,7 @@
 //! on the server's request and kept for the proxy's life, its
 //! contents the caller's.
 //!
-//! The SDK's [`fuse`](diverge_provider_sdk::shared::containers::fuse)
+//! The SDK's [`fuse`](diverge_sdk::shared::containers::fuse)
 //! module states the semantics of both kinds; `file` and
 //! `directory` are the filesystems that keep them, `asks` the nine
 //! exchanges with the caller they are built on — each one channel
@@ -33,7 +33,7 @@ use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
 use std::path::Path;
 use std::sync::Arc;
 
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use tokio::runtime::Handle;
 
 pub use mounts::*;

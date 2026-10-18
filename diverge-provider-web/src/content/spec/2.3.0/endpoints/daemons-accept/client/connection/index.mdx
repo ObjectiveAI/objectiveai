@@ -1,0 +1,30 @@
+---
+title: 'Connection'
+summary: 'Tag 0: the acceptor opens its half of a daemon connection the server announced, quoting the connection id; the server sends everything the connector sends on it, one client frame per channel response, and the channel response finish when the connector hangs up.'
+order: 0
+draft: false
+---
+
+The acceptor opens this channel as its half of a daemon connection
+the server announced on a
+[connection](/endpoints/daemons-accept/server/connection/) channel of
+its own, quoting the connection id. Opening it takes the connection.
+The server sends on it everything the connector sends.
+
+- **The request.** The tag byte `0` followed by the connection id,
+  four bytes.
+  [Request](/endpoints/daemons-accept/client/connection/request/)
+  states its form.
+- **The response.** The frames the connector sent, as channel
+  responses, each one client frame, and the channel response finish
+  when the connector hangs up.
+  [Response](/endpoints/daemons-accept/client/connection/response/)
+  states the sequence.
+- **Taking the connection.** The connection is taken when the
+  acceptor opens this channel: the server then answers the connect
+  scope with the byte `0`. A connection the acceptor has not taken
+  carries nothing.
+- **One half per connection.** A connection id the server did not
+  announce on this scope, an id whose half was already opened, and an
+  id whose server's half the acceptor has finished are each answered
+  by a channel response finish that no channel response precedes.

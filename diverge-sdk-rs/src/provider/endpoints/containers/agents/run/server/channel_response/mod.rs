@@ -1,0 +1,22 @@
+//! The answers a provider sends on the channels a caller opened.
+//!
+//! [`filetree`] is the container's tree, [`read`] a file's bytes,
+//! [`write_path`] whether one landed, [`transfer`] whether one landed
+//! in another container, [`fuse_mount`] whether one more mount asked
+//! for while the container runs is made, [`postgres`] what the
+//! container wrote on a database connection, [`info`] what its
+//! arguments may be — the image's DIVERGE.md. [`enqueue`] and [`dequeue`] are the fates of what a caller
+//! sent the agent — the family's own, each an alias of the shape
+//! [`shared::containers`](crate::shared::containers) defines.
+//! What the agent says is not here: it rides the scope's own main
+//! stream, [`response`](super::response).
+
+pub mod dequeue;
+pub mod enqueue;
+pub mod filetree;
+pub mod fuse_mount;
+pub mod info;
+pub mod postgres;
+pub mod read;
+pub mod transfer;
+pub mod write_path;

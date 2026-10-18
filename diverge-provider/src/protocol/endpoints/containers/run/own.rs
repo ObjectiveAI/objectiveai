@@ -1,0 +1,35 @@
+//! What the provider asks a caller for on its own account.
+
+/// The provider's own asks, before the container's: what a run
+/// handler needs from the caller that no container asked for. The
+/// two authorizations are not here: they are the tools family's
+/// alone, asked by a connect and a listing rather than by the run
+/// handler, and built as that family's own ask. Each
+/// family carries these as its own frame type — see
+/// [`Runs::Ask`](super::family::Runs::Ask), which every one converts
+/// into — so the machinery names them once, here, and a family says
+/// how they are spelled.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Own<'a> {
+    /// A manifest of an image the caller holds, by digest.
+    OciManifest(&'a str),
+    /// A blob of such an image, by digest.
+    OciBlob(&'a str),
+    /// Whether the caller holds an image, by digest, and under what
+    /// name.
+    OciHas(&'a str),
+    /// A daemon connection the proxy announced, by an id of this
+    /// end's own: the tools family's alone, since an agent container
+    /// asks for none. See
+    /// [`daemon`](diverge_sdk::shared::containers::daemon).
+    Daemon(u32),
+    /// This end's half of a database connection, by the id it minted.
+    Postgres(u32),
+}
+
+/// An ask a family does not have: what a family answers for an
+/// [`Own`] its wire carries no frame for — an agent container's
+/// daemon connection — so that the machinery, which names every ask
+/// once, hears that this one is not to be put.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Unasked;

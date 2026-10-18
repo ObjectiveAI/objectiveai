@@ -1,0 +1,23 @@
+---
+title: 'Info'
+summary: 'Tag 6: the client asks for the image’s /DIVERGE.md; the server opens an info channel on the container’s begin scope and relays exactly one channel response, the document parsed, missing, or an error, and the channel response finish.'
+order: 6
+draft: false
+---
+
+The client opens this channel to learn what the arguments the
+container was made with may be: the image's `/DIVERGE.md`, which is
+the JSON Schema of the arguments and the text beneath it. The server
+opens an info channel on the begin scope of the container's proxy
+and relays its answer.
+
+- **The request.** The tag byte `6` and nothing more.
+  [Request](/endpoints/containers-tools-run/client/info/request/) states its form.
+- **The response.** Exactly one channel response — the document,
+  missing, or an error — and the channel response finish.
+  [Response](/endpoints/containers-tools-run/client/info/response/) states the
+  sequence.
+- **The document.** The document is the image's. The server relays it
+  as the proxy sent it and reads neither its schema nor its body.
+- **Missing.** An image that ships no `/DIVERGE.md` is answered by the
+  byte `1`. That is a fact about the image and not a failure.

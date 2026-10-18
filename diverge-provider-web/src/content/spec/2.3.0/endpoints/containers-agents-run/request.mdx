@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 0 followed by the request as JSON: the image, the limits, the mounts and the arguments.'
+summary: 'The payload is the tag byte 0 followed by the request as JSON: the image, the template id, the limits, the mounts and the arguments; no secret rides it.'
 order: 1
 draft: false
 ---
@@ -12,23 +12,41 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 [0][container JSON …]
 ```
 
-- **`image`.** An object of two fields: `{"name":…,"digest":…}`.
-  `name` is a repository path without a host; `digest` is
-  `<algorithm>:<hex>`, the manifest digest, which identifies the
-  image. The request names no source: where the server obtains the
-  image is the server's own.
+- **`image`.** An object of two fields: `{"digest":…,"references":…}`.
+  `digest` is `<algorithm>:<hex>`, the manifest digest, which
+  identifies the image; `references` is an array of objects of
+  `registry` and `name`, each a registry host and a repository path
+  under which the bytes may be fetched, absent when empty, as
+  [images::check](/endpoints/images-check/request/) states them. The
+  request names no source beyond them: the server looks in what it
+  holds first, asks the referenced registries its policy lists, and
+  may take the image from the client.
+- **`template`.** A string: the id of the template the container is
+  made from, as the client names it — an agent template's, a tool
+  template's, or a dependency tool template's. The server carries it
+  verbatim in the begin scope's request beside `arguments`, so the
+  container's program is told which template it runs as, and reads
+  it for nothing else.
 - **`memory`, `disk`.** Limits in bytes: the memory the container may
   use, and the bytes the container may write to its own filesystem.
   Neither governs a mount.
 - **`volume_mounts`.** Ordered; the server applies them in order.
   `volume_name` is a `name` in the client's listing; `volume_relative_path`
   and `container_path` are components. An empty `container_path`
-  names the root, which the server refuses. Whether the changes the
-  container makes to the volume are in the volume when the container
-  ends is the volume's `persist`, as the client's listing reports it:
-  `true`, every change is in the volume; `false`, the volume is as it
-  was before the run. The container sees the volume's content as of
-  its start either way, and a mount states nothing about it.
+  names the root, which the server refuses. What becomes of the
+  changes the container makes to the volume is the volume's `mode`,
+  as the client's listing reports it: `persistent`, every change is
+  in the volume when the container ends; `ephemeral`, the volume is
+  as it was before the run, and the container sees the volume's
+  content as of its start; `read_only`, the container cannot change
+  it. `mode` is the mode the mount means the volume to have, one of
+  the strings `persistent`, `ephemeral` and `read_only`. A mount
+  does not change the volume's mode: a volume whose mode differs
+  from `mode` refuses the run, as the [response](/endpoints/containers-agents-run/response/) states. A request may name one
+  volume at several paths; it is one running container holding the
+  volume, and it
+  names one mode for it, a request naming it under two modes being
+  refused the same way.
 - **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path
   and an `id` the client chose. Every one is mounted before the id
   is sent. A directory mount is a tree the client serves: every entry
@@ -46,35 +64,43 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 
 - **`arguments`.** Any JSON value. The server relays it verbatim in
   the begin request it opens on the proxy and does not read it. What
-  the value may be is what the container's
-  [schema](/endpoints/containers-agents-run/client/schema/) channel answers.
+  the value may be is what the image's `/DIVERGE.md` states, which the
+  container's [info](/endpoints/containers-agents-run/client/info/)
+  channel answers.
+- **No secret.** The request carries no secret, and the server holds
+  none. Which secrets the container's program takes is its own
+  answer at its registration, carried to the client on the
+  [registration](/endpoints/containers-agents-run/server/registration/)
+  channel; their values are the client's answer there and, after
+  every `Inactive`, on the
+  [secrets](/endpoints/containers-agents-run/client/secrets/) channel.
 
 - **Malformed.** A payload with no byte, a payload whose first byte
   is not `0`, and a payload whose bytes after the tag do not
   parse as the request are malformed. [Endpoints](/endpoints/) states
   how a server answers a request it cannot read.
 
-The request is defined by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/client/request/frame.rs`:
+The request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/client/request/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/client/request/frame.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/agents/run/client/request/frame.rs
 ```
 
-The container is defined by `diverge-provider-sdk-rs/src/shared/containers/request/container.rs`:
+The container is defined by `diverge-sdk-rs/src/shared/containers/request/container.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/request/container.rs
+```rust include=diverge-sdk-rs/src/shared/containers/request/container.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/containers/request/image.rs`:
+and by `diverge-sdk-rs/src/shared/containers/request/image.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/request/image.rs
+```rust include=diverge-sdk-rs/src/shared/containers/request/image.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/containers/request/volume_mount.rs`:
+and by `diverge-sdk-rs/src/shared/containers/request/volume_mount.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/request/volume_mount.rs
+```rust include=diverge-sdk-rs/src/shared/containers/request/volume_mount.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/containers/request/fuse_mount.rs`:
+and by `diverge-sdk-rs/src/shared/containers/request/fuse_mount.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/request/fuse_mount.rs
+```rust include=diverge-sdk-rs/src/shared/containers/request/fuse_mount.rs
 ```

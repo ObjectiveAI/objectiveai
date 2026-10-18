@@ -1,0 +1,183 @@
+//! One ask a run scope's provider makes, owned.
+
+use bytes::Bytes;
+use rmcp::model::{CallToolRequestParams, PaginatedRequestParams, ReadResourceRequestParams};
+
+use crate::provider::endpoints::containers::{agents, tools};
+use crate::shared::containers::fuse::Attrs;
+use crate::shared::containers::dependencies::Template;
+use crate::shared::containers::secrets::Declaration;
+
+/// A server-opened channel request on a run scope, with nothing
+/// borrowed: what the serving loop hands to a task.
+///
+/// The two families' `server::channel_request::Frame`s carry the same
+/// asks with the same payloads, each family less what its container
+/// never asks — the agents family has the five MCP exchanges outward,
+/// which a tool container never makes, and no daemon connection,
+/// which an agent container never opens; both have the registration,
+/// a tool's with no dependencies in it — and borrow from the frame
+/// they were decoded from; this is the one owned form both convert
+/// into, so the answer to each is written once. Which family it came
+/// from does not matter to the answer: the caller's stores, servers
+/// and dialer are the same behind either.
+#[derive(Debug, Clone)]
+pub enum Ask {
+    /// The manifest of an image the caller holds, by digest.
+    OciManifest(String),
+    /// A blob of an image the caller holds, by digest.
+    OciBlob(String),
+    /// Whether the caller holds an image: its digest.
+    OciHas(String),
+    /// The container's registration: the dependencies it declared, to
+    /// deploy, and the secrets it takes, to resolve, with the run's
+    /// id.
+    Registration {
+        /// The run's id, told before the id response.
+        id: String,
+        /// The dependency tool templates, in the order declared;
+        /// empty for a tool container.
+        dependencies: Vec<Template>,
+        /// The secrets the program takes, each by name to its mode,
+        /// in the order declared.
+        secrets: Declaration,
+    },
+    /// The content of a write this caller started, by its id.
+    Write(u32),
+    /// A database connection the container opened, by the id the
+    /// provider minted.
+    Postgres(u32),
+    /// A daemon connection the container's program opened, by the id
+    /// the provider minted.
+    Daemon(u32),
+    /// `tools/list`.
+    McpListTools(Option<PaginatedRequestParams>),
+    /// `resources/list`.
+    McpListResources(Option<PaginatedRequestParams>),
+    /// `tools/call`.
+    McpCallTool(CallToolRequestParams),
+    /// `resources/read`.
+    McpReadResource(ReadResourceRequestParams),
+    /// The servers' notifications, for as long as the channel lives.
+    McpNotifications,
+    /// A piece of a mounted file read: the mount's id, the path, the
+    /// offset, the length.
+    FuseRead(String, String, u64, u32),
+    /// A piece of a mounted file written in place: the id, the path,
+    /// the offset, the bytes.
+    FuseWrite(String, String, u64, Bytes),
+    /// A mounted directory listed: the id, the path.
+    FuseList(String, String),
+    /// A mounted entry removed: the id, the path.
+    FuseRemove(String, String),
+    /// A mounted entry renamed: the id, from, to.
+    FuseRename(String, String, String),
+    /// A mounted directory made: the id, the path.
+    FuseMkdir(String, String),
+    /// A mounted entry described: the id, the path.
+    FuseStat(String, String),
+    /// A mounted file cut or extended: the id, the path, the size.
+    FuseTruncate(String, String, u64),
+    /// A mounted entry's attributes set: the id, the path, which.
+    FuseSetattr(String, String, Attrs),
+}
+
+impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
+    fn from(frame: agents::run::server::channel_request::Frame<'_>) -> Self {
+        use agents::run::server::channel_request::Frame;
+        match frame {
+            Frame::OciManifest(request) => Ask::OciManifest(request.digest),
+            Frame::OciBlob(request) => Ask::OciBlob(request.digest),
+            Frame::OciHas(request) => Ask::OciHas(request.digest),
+            Frame::Registration(request) => Ask::Registration {
+                id: request.id.into_owned(),
+                dependencies: request.dependencies.into_owned(),
+                secrets: request.secrets.into_owned(),
+            },
+            Frame::Write(request) => Ask::Write(request.write_id),
+            Frame::Postgres(request) => Ask::Postgres(request.connection_id),
+            Frame::McpListTools(request) => Ask::McpListTools(request.0),
+            Frame::McpListResources(request) => Ask::McpListResources(request.0),
+            Frame::McpCallTool(request) => Ask::McpCallTool(request.0),
+            Frame::McpReadResource(request) => Ask::McpReadResource(request.0),
+            Frame::McpNotifications(_) => Ask::McpNotifications,
+            Frame::FuseRead(request) => Ask::FuseRead(
+                request.id.to_string(),
+                request.path.to_string(),
+                request.offset,
+                request.length,
+            ),
+            Frame::FuseWrite(request) => Ask::FuseWrite(
+                request.id.to_string(),
+                request.path.to_string(),
+                request.offset,
+                Bytes::copy_from_slice(request.bytes),
+            ),
+            Frame::FuseList(target) => Ask::FuseList(target.id.to_string(), target.path.to_string()),
+            Frame::FuseRemove(target) => {
+                Ask::FuseRemove(target.id.to_string(), target.path.to_string())
+            }
+            Frame::FuseRename(request) => Ask::FuseRename(
+                request.id.to_string(),
+                request.from.to_string(),
+                request.to.to_string(),
+            ),
+            Frame::FuseMkdir(target) => Ask::FuseMkdir(target.id.to_string(), target.path.to_string()),
+            Frame::FuseStat(target) => Ask::FuseStat(target.id.to_string(), target.path.to_string()),
+            Frame::FuseTruncate(request) => {
+                Ask::FuseTruncate(request.id.to_string(), request.path.to_string(), request.size)
+            }
+            Frame::FuseSetattr(request) => {
+                Ask::FuseSetattr(request.id.to_string(), request.path.to_string(), request.attrs)
+            }
+        }
+    }
+}
+
+impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
+    fn from(frame: tools::run::server::channel_request::Frame<'_>) -> Self {
+        use tools::run::server::channel_request::Frame;
+        match frame {
+            Frame::OciManifest(request) => Ask::OciManifest(request.digest),
+            Frame::OciBlob(request) => Ask::OciBlob(request.digest),
+            Frame::OciHas(request) => Ask::OciHas(request.digest),
+            Frame::Registration(request) => Ask::Registration {
+                id: request.id.into_owned(),
+                dependencies: request.dependencies.into_owned(),
+                secrets: request.secrets.into_owned(),
+            },
+            Frame::Write(request) => Ask::Write(request.write_id),
+            Frame::Postgres(request) => Ask::Postgres(request.connection_id),
+            Frame::Daemon(request) => Ask::Daemon(request.connection_id),
+            Frame::FuseRead(request) => Ask::FuseRead(
+                request.id.to_string(),
+                request.path.to_string(),
+                request.offset,
+                request.length,
+            ),
+            Frame::FuseWrite(request) => Ask::FuseWrite(
+                request.id.to_string(),
+                request.path.to_string(),
+                request.offset,
+                Bytes::copy_from_slice(request.bytes),
+            ),
+            Frame::FuseList(target) => Ask::FuseList(target.id.to_string(), target.path.to_string()),
+            Frame::FuseRemove(target) => {
+                Ask::FuseRemove(target.id.to_string(), target.path.to_string())
+            }
+            Frame::FuseRename(request) => Ask::FuseRename(
+                request.id.to_string(),
+                request.from.to_string(),
+                request.to.to_string(),
+            ),
+            Frame::FuseMkdir(target) => Ask::FuseMkdir(target.id.to_string(), target.path.to_string()),
+            Frame::FuseStat(target) => Ask::FuseStat(target.id.to_string(), target.path.to_string()),
+            Frame::FuseTruncate(request) => {
+                Ask::FuseTruncate(request.id.to_string(), request.path.to_string(), request.size)
+            }
+            Frame::FuseSetattr(request) => {
+                Ask::FuseSetattr(request.id.to_string(), request.path.to_string(), request.attrs)
+            }
+        }
+    }
+}
