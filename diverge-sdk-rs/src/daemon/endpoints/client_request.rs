@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{accounts, agents, dependency_tools, postgres, providers, roles, standalone_tools, vault, volumes};
+use super::{accounts, agents, dependency_tools, events, postgres, providers, roles, standalone_tools, vault, volumes};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -250,6 +250,8 @@ pub enum ClientRequest<'a> {
     VaultTag(vault::tag::client::request::Frame),
     /// Tag `108`. Take tags off a vault key.
     VaultUntag(vault::untag::client::request::Frame),
+    /// Tag `109`. List the events, narrowed, and keep the list.
+    EventsList(events::list::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -377,6 +379,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VaultList(frame) => frame.encode(out),
             ClientRequest::VaultTag(frame) => frame.encode(out),
             ClientRequest::VaultUntag(frame) => frame.encode(out),
+            ClientRequest::EventsList(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -728,6 +731,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             108 => vault::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VaultUntag)
                 .ok(),
+            109 => events::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::EventsList)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -846,6 +852,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::VaultList(_) => f.write_str("vault list"),
             ClientRequest::VaultTag(_) => f.write_str("vault tag"),
             ClientRequest::VaultUntag(_) => f.write_str("vault untag"),
+            ClientRequest::EventsList(_) => f.write_str("events list"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
@@ -967,6 +974,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "vault/list" => Some(106),
         "vault/tag" => Some(107),
         "vault/untag" => Some(108),
+        "events/list" => Some(109),
         _ => None,
     }
 }
@@ -1085,6 +1093,7 @@ impl ClientRequest<'_> {
             ClientRequest::VaultList(_) => "vault/list",
             ClientRequest::VaultTag(_) => "vault/tag",
             ClientRequest::VaultUntag(_) => "vault/untag",
+            ClientRequest::EventsList(_) => "events/list",
             ClientRequest::Invalid(_) => "",
         }
     }

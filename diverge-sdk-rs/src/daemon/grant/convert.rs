@@ -188,6 +188,7 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
             },
         }),
         permission::Grant::Postgres(permission) => Grant::Postgres(permission),
+        permission::Grant::Events(permission) => Grant::Events(permission),
     })
 }
 

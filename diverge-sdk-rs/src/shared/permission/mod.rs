@@ -5,7 +5,7 @@
 //! A GRANT is one permission over one kind of thing the daemon holds
 //! — agents, agent templates, standalone tools, their templates,
 //! dependency tools, outgoing providers, incoming credentials, daemons,
-//! accounts, roles, volumes, the vault, the database — and on the wire it is
+//! accounts, roles, volumes, the vault, the database, the events — and on the wire it is
 //! one object with one member, named
 //! for the kind, whose value is the kind's permission: `{"agents":…}`,
 //! `{"volumes":…}`. The shapes are the daemon's own, stated in
@@ -28,8 +28,8 @@
 //! template is meant to travel — handed from one caller to another,
 //! hashed the same everywhere — and a name is one daemon's word for
 //! one thing, while a tag is a convention a template may assume. The
-//! database, of which there is one, is a bare array of actions, as it
-//! is for the daemon.
+//! database and the events, of each of which there is one, are a bare
+//! array of actions each, as they are for the daemon.
 //!
 //! # The actions are defined once
 //!
@@ -66,6 +66,7 @@ pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
 pub mod dependency_tools;
+pub mod events;
 pub mod postgres;
 pub mod providers_daemons;
 pub mod providers_incoming;

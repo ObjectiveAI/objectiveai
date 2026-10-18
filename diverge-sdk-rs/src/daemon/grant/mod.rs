@@ -3,7 +3,7 @@
 //! A GRANT is one permission over one kind of thing the daemon holds —
 //! agents, agent templates, standalone tools, their templates,
 //! dependency tools, outgoing providers, incoming credentials, daemons,
-//! accounts, roles, volumes, the vault, the database — and a
+//! accounts, roles, volumes, the vault, the database, the events — and a
 //! [role](crate::daemon::endpoints::roles) is a
 //! list of them, held by
 //! [accounts](crate::daemon::endpoints::accounts). On the wire a grant
@@ -33,10 +33,11 @@
 //! of them.
 //! `{"agents":{"actions":["tag"],"within":"any","tags":["crew","idle"]}}`.
 //! - **Over the one thing.** For the database, of which the daemon
-//!   serves exactly one, a bare array of its actions,
-//! `{"postgres":["get","connections"]}`: there is nothing to name and
-//! nothing to narrow, so holding the action is the whole of it, as for
-//! making.
+//!   serves exactly one, and the events, one graph of which it keeps,
+//! a bare array of the kind's actions,
+//! `{"postgres":["get","connections"]}`, `{"events":["list"]}`: there
+//! is nothing to name and nothing to narrow, so holding the action is
+//! the whole of it, as for making.
 //!
 //! Each shape is its own variant with its own members, and an object
 //! that is none of them does not decode: an action of one shape among
@@ -95,12 +96,12 @@
 //! and re-exported here: the grants a dependency tool template carries
 //! are made of the same actions, reaching by tags alone, and a grant
 //! here reaches by the kind's own filter. Every kind but the database
-//! carries tags — agents, templates, tools, dependency templates,
-//! providers, credentials, daemons, accounts, roles, volumes and the
-//! vault's keys alike
-//! — so every kind but the database has the tagging shape; every kind
-//! but the database and dependency templates, which a registration
-//! makes, has the making shape. A grant that names nothing becomes one of
+//! and the events carries tags — agents, templates, tools, dependency
+//! templates, providers, credentials, daemons, accounts, roles,
+//! volumes and the vault's keys alike
+//! — so every kind but the database and the events has the tagging
+//! shape; every kind but the database, the events and dependency
+//! templates, which a registration makes, has the making shape. A grant that names nothing becomes one of
 //! these by [`From`]: the same actions, reaching by a filter of the
 //! tags alone, which is how a dependency tool's requests are judged.
 
@@ -124,3 +125,4 @@ pub mod roles;
 pub mod vault;
 pub mod volumes;
 pub use crate::shared::permission::postgres;
+pub use crate::shared::permission::events;
