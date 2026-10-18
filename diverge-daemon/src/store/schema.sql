@@ -224,6 +224,10 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS tools_created_index
     ON diverge.tools (template, index) WHERE kind = 'created';
+-- A connected tool's once-and-for-all index counts among tools joined
+-- to one daemon's one tool.
+CREATE UNIQUE INDEX IF NOT EXISTS tools_connected_index
+    ON diverge.tools (connected_daemon, connected_tool, index) WHERE kind = 'connected';
 
 -- A tool attached to an agent; `seq` is the order of attaching.
 CREATE TABLE IF NOT EXISTS diverge.attachments (
@@ -308,69 +312,3 @@ CREATE TABLE IF NOT EXISTS diverge.dependencies (
     id       TEXT PRIMARY KEY,
     template JSONB NOT NULL
 );
-
--- What an earlier daemon made, brought up to the above: every
--- statement idempotent, as the rest are.
-ALTER TABLE diverge.providers_outgoing ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
-ALTER TABLE diverge.providers_incoming ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
-ALTER TABLE diverge.agents DROP COLUMN IF EXISTS deployer;
--- An agent holds no account: it asks the daemon nothing.
-ALTER TABLE diverge.agents DROP COLUMN IF EXISTS account;
-DROP TABLE IF EXISTS diverge.routes;
--- Admissions gave way to exposures, which are held in memory alone.
-DROP TABLE IF EXISTS diverge.admissions;
--- Services and what agents depend on are dependency tools and their
--- attachments; a scope's role is computed from its tool, not kept.
-DROP TABLE IF EXISTS diverge.service_owners, diverge.service_attachments, diverge.services, diverge.agent_dependencies, diverge.scopes;
--- A dependency template is its body alone: tags, the time and the
--- maker are each tool's.
-ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS tags;
-ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS created;
-ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS creator;
--- A daemon record's credential moved to its accounts (2026-10-14).
-ALTER TABLE diverge.providers_daemons DROP COLUMN IF EXISTS mode;
-ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS connected_account TEXT;
-ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS deleted;
--- A connected tool names a daemon record and a tool, not a provider,
--- an id and an authorization: a tool joined the old way joins nothing
--- any more, and goes.
-ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS connected_daemon TEXT;
-ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS connected_tool JSONB;
-DELETE FROM diverge.tools WHERE kind = 'connected' AND connected_daemon IS NULL;
-ALTER TABLE diverge.tools DROP CONSTRAINT IF EXISTS tools_origin_whole;
-ALTER TABLE diverge.tools DROP COLUMN IF EXISTS connected_provider;
-ALTER TABLE diverge.tools DROP COLUMN IF EXISTS connected_id;
-ALTER TABLE diverge.tools DROP COLUMN IF EXISTS authorization;
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'tools_origin_daemon') THEN
-        ALTER TABLE diverge.tools ADD CONSTRAINT tools_origin_daemon CHECK (
-            (kind = 'created' AND template IS NOT NULL
-                AND connected_daemon IS NULL AND connected_tool IS NULL)
-            OR (kind = 'connected' AND template IS NULL AND provider IS NULL
-                AND connected_daemon IS NOT NULL AND connected_tool IS NOT NULL)
-        );
-    END IF;
-END $$;
--- After the columns above exist on every database: a connected tool's
--- once-and-for-all index counts among tools joined to one daemon's one
--- tool.
-CREATE UNIQUE INDEX IF NOT EXISTS tools_connected_index
-    ON diverge.tools (connected_daemon, connected_tool, index) WHERE kind = 'connected';
--- A record binds each secret its template declares to a vault key
--- (2026-10-16).
-ALTER TABLE diverge.agents ADD COLUMN IF NOT EXISTS secrets JSONB NOT NULL DEFAULT '{}';
-ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS secrets JSONB NOT NULL DEFAULT '{}';
--- A vault key holds its values in slots (2026-10-18): the one value
--- an earlier daemon kept on the key becomes its slot 0, once, and the
--- column goes.
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'diverge' AND table_name = 'vault' AND column_name = 'value'
-    ) THEN
-        EXECUTE 'INSERT INTO diverge.vault_slots (key, slot, value) SELECT key, 0, value FROM diverge.vault ON CONFLICT DO NOTHING';
-    END IF;
-END $$;
-ALTER TABLE diverge.vault DROP COLUMN IF EXISTS value;

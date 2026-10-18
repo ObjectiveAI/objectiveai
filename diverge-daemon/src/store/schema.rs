@@ -11,6 +11,9 @@ const SCHEMA: &str = include_str!("schema.sql");
 /// FRESH — had no `diverge.accounts` table before this — which is
 /// what decides whether root is seeded. Every statement is
 /// idempotent, so a database that has the schema is left as it is.
+/// Nothing here brings an older database forward: the schema is
+/// made whole on a fresh database, and a database an earlier shape
+/// of it made is not carried over.
 pub async fn apply(conn: &mut PgConnection) -> Result<bool, Error> {
     let fresh: bool = sqlx::query_scalar("SELECT to_regclass('diverge.accounts') IS NULL")
         .fetch_one(&mut *conn)
