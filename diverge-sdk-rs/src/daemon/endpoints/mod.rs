@@ -12,7 +12,7 @@
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a credential of providers that dial in, get one, list them, take one out, replace one; add a daemon to connect to, get one, list them, forget one, replace its mode or its links, tag one and untag one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
-//! | [`vault`] | set a value of a key — making the key, appending the value or replacing a slot's; get one key with every value and who holds each; list them by name, narrowed, never by value; delete one no agent or tool binds, or one free value of it; tag one and untag one |
+//! | [`vault`] | insert a value into a key — making the key, appending the value or replacing a slot's; get one key with every value and who holds each; list them by name, narrowed, never by value; delete one no agent or tool binds, or one free value of it; tag one and untag one |
 //! | [`volumes`] | create a volume on a provider; get one; list them across providers, narrowed; delete one; change its size or mode; walk one for its use and its hash; download files out of one, upload files into one, transfer files out of one; see one's tree |
 //! | [`postgres`] | see which database containers are served, the daemon's own or a remote one, as the daemon is configured; list the container connections open through it |
 //!
@@ -129,7 +129,7 @@
 //! | `101` | [`standalone_tools::attach_agent_template`] |
 //! | `102` | [`standalone_tools::detach_agent_template`] |
 //! | `103` | [`vault::get`] |
-//! | `104` | [`vault::set`] |
+//! | `104` | [`vault::insert`] |
 //! | `105` | [`vault::delete`] |
 //! | `106` | [`vault::list`] |
 //! | `107` | [`vault::tag`] |

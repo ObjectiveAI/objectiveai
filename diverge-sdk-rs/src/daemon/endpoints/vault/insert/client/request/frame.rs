@@ -1,4 +1,4 @@
-//! What a client's request frame carries for a set.
+//! What a client's request frame carries for an insert.
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::shared::relay::Relay;
 use serde_json::Value;
 
-/// Ask the daemon to set a value of a vault key, by name: make the
-/// key, where the vault holds no key of the name — the `set` make,
-/// the value its slot `0` — or, where it does — `set` over the key —
+/// Ask the daemon to insert a value into a vault key, by name: make the
+/// key, where the vault holds no key of the name — the `insert` make,
+/// the value its slot `0` — or, where it does — `insert` over the key —
 /// append the value as one more slot, or replace the value of the
 /// slot named.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -71,7 +71,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A vault set request frame that could not be read.
+/// A vault insert request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -89,12 +89,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("vault set request frame is empty"),
+            FrameError::Empty => f.write_str("vault insert request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected vault set request tag {TAG}, found {tag}")
+                write!(f, "expected vault insert request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "vault set request did not parse: {error}")
+                write!(f, "vault insert request did not parse: {error}")
             }
         }
     }

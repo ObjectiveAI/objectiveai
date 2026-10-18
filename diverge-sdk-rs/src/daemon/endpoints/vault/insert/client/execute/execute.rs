@@ -5,7 +5,7 @@ use super::super::super::server::response;
 use crate::daemon::client::one_shot;
 use crate::wire::client::handle::Handle;
 
-/// What a vault set could not do: the machinery, never the daemon's
+/// What a vault insert could not do: the machinery, never the daemon's
 /// answer, which [`execute`] hands back whole.
 pub type ExecuteError = one_shot::Error<serde_json::Error, response::FrameError>;
 

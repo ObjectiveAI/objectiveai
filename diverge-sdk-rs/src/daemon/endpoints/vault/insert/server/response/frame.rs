@@ -1,4 +1,4 @@
-//! What a server's response frame carries for a set.
+//! What a server's response frame carries for an insert.
 
 use serde::Serialize;
 use std::fmt;
@@ -7,12 +7,12 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A set's answer: the key holds the value, no such key or slot,
+/// An insert's answer: the key holds the value, no such key or slot,
 /// the slot is locked, forbidden, or a failure.
 ///
-/// A set is one question and one reply, so there is exactly one of
+/// An insert is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
-/// with one byte saying which — `0` for [`Set`](Self::Set), `1` for
+/// with one byte saying which — `0` for [`Inserted`](Self::Inserted), `1` for
 /// [`NotFound`](Self::NotFound), `2` for [`Locked`](Self::Locked),
 /// `3` for [`Forbidden`](Self::Forbidden), `4` for
 /// [`Error`](Self::Error) — and only the error carries anything after
@@ -20,7 +20,7 @@ use crate::shared::error::Error;
 ///
 /// # Answers, and one failure
 ///
-/// [`Set`](Self::Set) is the ANSWER, whether the key was made, the
+/// [`Inserted`](Self::Inserted) is the ANSWER, whether the key was made, the
 /// value appended or a slot's value replaced: the three are one
 /// request, and a caller that wants to know which gets first.
 /// [`NotFound`](Self::NotFound) and [`Locked`](Self::Locked) are
@@ -28,7 +28,7 @@ use crate::shared::error::Error;
 /// the key it was named on — is not there, or it is and a running
 /// container holds it, and in either case nothing changed and
 /// nothing is retried. An [`Error`](Self::Error) is the absence of an
-/// answer: the daemon could not set the value, for whatever reason it
+/// answer: the daemon could not insert the value, for whatever reason it
 /// knows, and the key is as it was.
 ///
 /// # Forbidden
@@ -52,7 +52,7 @@ use crate::shared::error::Error;
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// The key holds the value. Tag `0`.
-    Set,
+    Inserted,
     /// The slot named is not there — no key has the name, or the key
     /// has no slot of the number; nothing changed. Tag `1`.
     NotFound,
@@ -71,8 +71,8 @@ pub enum Frame {
     Error(Error),
 }
 
-/// Tag for [`Frame::Set`].
-const SET: u8 = 0;
+/// Tag for [`Frame::Inserted`].
+const INSERTED: u8 = 0;
 
 /// Tag for [`Frame::NotFound`].
 const NOT_FOUND: u8 = 1;
@@ -95,8 +95,8 @@ impl Encode for Frame {
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Set => {
-                out.extend_from_slice(&[SET]);
+            Frame::Inserted => {
+                out.extend_from_slice(&[INSERTED]);
                 Ok(())
             }
             Frame::NotFound => {
@@ -127,7 +127,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            SET => Ok(Frame::Set),
+            INSERTED => Ok(Frame::Inserted),
             NOT_FOUND => Ok(Frame::NotFound),
             LOCKED => Ok(Frame::Locked),
             FORBIDDEN => Ok(Frame::Forbidden),
@@ -137,7 +137,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A set response frame that could not be read.
+/// An insert response frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -151,9 +151,9 @@ pub enum FrameError {
 impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("vault set response frame is empty"),
-            FrameError::UnknownTag(tag) => write!(f, "unknown vault set response frame tag {tag}"),
-            FrameError::Error(error) => write!(f, "vault set error did not parse: {error}"),
+            FrameError::Empty => f.write_str("vault insert response frame is empty"),
+            FrameError::UnknownTag(tag) => write!(f, "unknown vault insert response frame tag {tag}"),
+            FrameError::Error(error) => write!(f, "vault insert error did not parse: {error}"),
         }
     }
 }
