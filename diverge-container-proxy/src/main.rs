@@ -27,8 +27,16 @@
 //! For either kind of container the proxy registers the arguments and
 //! the id of the template the container is made from
 //! with the program's own server on the loopback when the server
-//! begins, hands the server the dependencies the program answered with, and
-//! asks the program for their schema when the server asks. It sets
+//! begins, hands the server the dependencies the program answered
+//! with and the secrets it takes — by name and mode, never a value —
+//! and asks the program for their schema when the server asks. The
+//! values of those secrets the server feeds on a channel of the begin
+//! scope, before the container's first work and again at every
+//! activation; the proxy hands each feed to the program and delivers
+//! nothing to it until the program has applied the values, and when
+//! the container goes inactive — an agent's loop ended, a tool's last
+//! exchange out — collects the rotating ones back from the program
+//! and sends them with the word. It sets
 //! nothing under `_meta` on any MCP exchange it relays, in either
 //! direction, and nothing on any chunk the agent says: who is on
 //! either end is the daemon's to attest, not the proxy's. For an
