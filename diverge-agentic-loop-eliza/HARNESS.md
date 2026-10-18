@@ -493,9 +493,8 @@ not answer `500`; the run's one `Err` — lineage, a declared secret
 not fed, install, the entry failing before ready — is a `500` in its
 own words; a run with nothing to say is `empty_run`; then the chunks
 as server-sent events, the first item pulled before the status is
-chosen), `GET /schema` (`schemars::schema_for!(Agent)`), `POST /enqueue`
-(held until the fate is known), `POST /dequeue`. Nothing of the
-proxy's is touched before a request.
+chosen), `POST /enqueue` (held until the fate is known),
+`POST /dequeue`. Nothing of the proxy's is touched before a request.
 
 ## The runtime image (see also the Containerfile header)
 

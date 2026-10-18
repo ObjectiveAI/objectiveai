@@ -23,7 +23,7 @@ axum = { version = "0.8.9" }
 # URL, and the MCP URL the entry's diverge plugin dials.
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The agent's JSON Schema, derived from the agent types for
-# `GET /schema`.
+# `--schema`.
 schemars = { version = "1.2.2" }
 # The run's outbound stream, as a generator.
 async-stream = { version = "0.3.6" }
