@@ -1,9 +1,9 @@
-//! Setting a vault key: made with its first value, a value appended,
-//! or one slot's value replaced.
+//! Inserting a value into a vault key: the key made with it as its
+//! first value, the value appended, or one slot's value replaced.
 
 use diverge_sdk::daemon::creator::{Client, Creator};
-use diverge_sdk::daemon::endpoints::vault::set::client::request;
-use diverge_sdk::daemon::endpoints::vault::set::server::response::Frame;
+use diverge_sdk::daemon::endpoints::vault::insert::client::request;
+use diverge_sdk::daemon::endpoints::vault::insert::server::response::Frame;
 use diverge_sdk::daemon::grant::vault::{Make, Over};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
@@ -12,7 +12,7 @@ use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, vault};
 
-/// Answer the set and finish the scope.
+/// Answer the insert and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
     let answer = match serve(frame, who, daemon).await {
         Ok(answer) => answer,
@@ -24,20 +24,20 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// The rules, in order:
 ///
-/// 1. For a key the vault holds: `Forbidden` with no `set` grant over
+/// 1. For a key the vault holds: `Forbidden` with no `insert` grant over
 ///    it; else the value appended as a new slot where none is named,
-///    or the slot named replaced — `Set`; `NotFound` for a slot the
+///    or the slot named replaced — `Inserted`; `NotFound` for a slot the
 ///    key does not have; `Locked` for one a running container holds,
 ///    left as it is.
 /// 2. For a key it does not hold, a slot named: `NotFound` to a
-///    standing that holds `set` over any key or the `set` make, and
+///    standing that holds `insert` over any key or the `insert` make, and
 ///    `Forbidden` to one that holds neither, which is told nothing of
 ///    what the vault has.
 /// 3. For a key it does not hold, no slot named: `Forbidden` without
-///    the `set` make; else the key made holding the value as its slot
-///    `0` — `Set`.
+///    the `insert` make; else the key made holding the value as its slot
+///    `0` — `Inserted`.
 ///
-/// A key some record binds is set like any other: the next activation
+/// A key some record binds is inserted into like any other: the next activation
 /// of the record's container may be handed the new value.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
@@ -45,15 +45,15 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::Forbidden);
     };
     let allowed = match vault::by_key(&mut tx, &frame.key, true).await? {
-        Some(entry) => judge::vault::holds(&standing, Over::Set) && judge::vault::over(&standing, Over::Set, &entry),
+        Some(entry) => judge::vault::holds(&standing, Over::Insert) && judge::vault::over(&standing, Over::Insert, &entry),
         None if frame.slot.is_some() => {
-            return Ok(if judge::vault::holds(&standing, Over::Set) || judge::vault::make(&standing, Make::Set) {
+            return Ok(if judge::vault::holds(&standing, Over::Insert) || judge::vault::make(&standing, Make::Insert) {
                 Frame::NotFound
             } else {
                 Frame::Forbidden
             });
         }
-        None => judge::vault::make(&standing, Make::Set),
+        None => judge::vault::make(&standing, Make::Insert),
     };
     if !allowed {
         return Ok(Frame::Forbidden);
@@ -61,12 +61,12 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let creator = Creator::Client(Client {
         identity: standing.identity.clone(),
     });
-    match vault::set(&mut tx, &frame.key, frame.slot, &frame.value, &creator).await? {
-        vault::Set::Created | vault::Set::Appended(_) | vault::Set::Replaced => {}
-        vault::Set::NotFound => return Ok(Frame::NotFound),
-        vault::Set::Locked => return Ok(Frame::Locked),
+    match vault::insert(&mut tx, &frame.key, frame.slot, &frame.value, &creator).await? {
+        vault::Insert::Created | vault::Insert::Appended(_) | vault::Insert::Replaced => {}
+        vault::Insert::NotFound => return Ok(Frame::NotFound),
+        vault::Insert::Locked => return Ok(Frame::Locked),
     }
     tx.commit().await?;
     daemon.live.changed(Kind::Vault);
-    Ok(Frame::Set)
+    Ok(Frame::Inserted)
 }

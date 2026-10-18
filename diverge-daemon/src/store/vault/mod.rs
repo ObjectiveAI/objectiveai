@@ -3,7 +3,7 @@
 //!
 //! [`Entry`] is one as the store holds it — its [`Slot`]s, each with
 //! the holder locking it, and the agents and tools binding it beside;
-//! [`all`] and [`by_key`] load; [`set`], [`set_tags`] and [`delete`]
+//! [`all`] and [`by_key`] load; [`insert`], [`set_tags`] and [`delete`]
 //! write, each inside whatever transaction the caller holds. A run's
 //! secrets go through four more, each in the caller's transaction:
 //! [`acquire`] takes one free slot of a key for a holder — a random
@@ -28,7 +28,7 @@ mod load;
 mod read;
 mod release;
 mod row;
-mod set;
+mod insert;
 mod tags;
 mod write_back;
 
@@ -39,6 +39,6 @@ pub use entry::*;
 pub use load::*;
 pub use read::*;
 pub use release::*;
-pub use set::*;
+pub use insert::*;
 pub use tags::*;
 pub use write_back::*;

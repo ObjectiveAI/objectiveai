@@ -227,9 +227,9 @@ pub fn every_grant() -> Vec<Grant> {
             within: Within::Any,
             tags: Within::Any,
         }),
-        Grant::Vault(va::Permission::Make(vec![va::Make::Set])),
+        Grant::Vault(va::Permission::Make(vec![va::Make::Insert])),
         Grant::Vault(va::Permission::Over {
-            actions: vec![va::Over::Get, va::Over::List, va::Over::Set, va::Over::Delete, va::Over::Use],
+            actions: vec![va::Over::Get, va::Over::List, va::Over::Insert, va::Over::Delete, va::Over::Use],
             within: Within::Any,
         }),
         Grant::Vault(va::Permission::Tags {

@@ -1,4 +1,4 @@
-//! Setting a vault key: one value of it.
+//! Inserting a value into a vault key.
 
 use diverge_sdk::daemon::creator::Creator;
 use serde_json::Value;
@@ -7,9 +7,9 @@ use sqlx::{PgConnection, Row as _};
 
 use crate::store::Error;
 
-/// What a set came to.
+/// What an insert came to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Set {
+pub enum Insert {
     /// The key, made, holding the value as its slot `0`.
     Created,
     /// The key the vault held, the value appended as the slot named.
@@ -39,7 +39,7 @@ pub enum Set {
 ///
 /// Tags, the time and the maker are as they were. The caller holds
 /// the key's row locked, which serializes the appends.
-pub async fn set(conn: &mut PgConnection, key: &str, slot: Option<u32>, value: &Value, creator: &Creator) -> Result<Set, Error> {
+pub async fn insert(conn: &mut PgConnection, key: &str, slot: Option<u32>, value: &Value, creator: &Creator) -> Result<Insert, Error> {
     let Some(slot) = slot else {
         let made = sqlx::query("INSERT INTO diverge.vault (key, creator) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING RETURNING key")
             .bind(key)
@@ -57,7 +57,7 @@ pub async fn set(conn: &mut PgConnection, key: &str, slot: Option<u32>, value: &
         .fetch_one(&mut *conn)
         .await?;
         let appended: i32 = row.try_get("slot")?;
-        return Ok(if made { Set::Created } else { Set::Appended(u32::try_from(appended).unwrap_or(0)) });
+        return Ok(if made { Insert::Created } else { Insert::Appended(u32::try_from(appended).unwrap_or(0)) });
     };
     let number = i32::try_from(slot).unwrap_or(i32::MAX);
     let row = sqlx::query("SELECT holder FROM diverge.vault_slots WHERE key = $1 AND slot = $2 FOR UPDATE")
@@ -66,11 +66,11 @@ pub async fn set(conn: &mut PgConnection, key: &str, slot: Option<u32>, value: &
         .fetch_optional(&mut *conn)
         .await?;
     let Some(row) = row else {
-        return Ok(Set::NotFound);
+        return Ok(Insert::NotFound);
     };
     let holder: Option<Json<Creator>> = row.try_get("holder")?;
     if holder.is_some() {
-        return Ok(Set::Locked);
+        return Ok(Insert::Locked);
     }
     sqlx::query("UPDATE diverge.vault_slots SET value = $3 WHERE key = $1 AND slot = $2")
         .bind(key)
@@ -78,5 +78,5 @@ pub async fn set(conn: &mut PgConnection, key: &str, slot: Option<u32>, value: &
         .bind(Json(value))
         .execute(&mut *conn)
         .await?;
-    Ok(Set::Replaced)
+    Ok(Insert::Replaced)
 }

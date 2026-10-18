@@ -1,7 +1,7 @@
 //! Judging requests over the vault.
 //!
-//! The shape of [`roles`](super::roles): the one making action — a
-//! set of a key the vault does not hold — is held or it is not,
+//! The shape of [`roles`](super::roles): the one making action — an
+//! insert into a key the vault does not hold — is held or it is not,
 //! judged by nothing else; an action over a key is allowed by a grant
 //! that holds it and whose `within` reaches the key — `any`, or the
 //! vault list filter as [`filter::vault::test`] reads it; a tagging
@@ -20,7 +20,7 @@ use super::Standing;
 use super::filter;
 use crate::store::vault::Entry;
 
-/// Whether the standing may set a key the vault does not hold.
+/// Whether the standing may make a key the vault does not hold.
 pub fn make(standing: &Standing, action: Make) -> bool {
     standing
         .vault()

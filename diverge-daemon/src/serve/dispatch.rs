@@ -131,7 +131,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::DependencyToolsUpload(frame) => dependency_tools::upload::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsTransfer(frame) => dependency_tools::transfer::handle(scope, frame, who, daemon).await,
         ClientRequest::VaultGet(frame) => vault::get::handle(scope, frame, who, daemon).await,
-        ClientRequest::VaultSet(frame) => vault::set::handle(scope, frame, who, daemon).await,
+        ClientRequest::VaultInsert(frame) => vault::insert::handle(scope, frame, who, daemon).await,
         ClientRequest::VaultDelete(frame) => vault::delete::handle(scope, frame, who, daemon).await,
         ClientRequest::VaultList(frame) => vault::list::handle(scope, frame, who, daemon).await,
         ClientRequest::VaultTag(frame) => vault::tag::handle(scope, frame, who, daemon).await,
