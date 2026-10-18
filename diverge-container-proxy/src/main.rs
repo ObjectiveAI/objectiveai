@@ -27,9 +27,11 @@
 //! For either kind of container the proxy registers the arguments and
 //! the id of the template the container is made from
 //! with the program's own server on the loopback when the server
-//! begins, hands the server the dependencies the program answered
-//! with and the secrets it takes — by name and mode, never a value —
-//! and asks the program for their schema when the server asks. The
+//! begins, and hands the server the dependencies the program answered
+//! with and the secrets it takes — by name and mode, never a value.
+//! What the arguments may be is the image's `/DIVERGE.md`, which the
+//! proxy reads from the container's root at every ask and answers
+//! with, parsed; the program is never asked. The
 //! values of those secrets the server feeds on a channel of the begin
 //! scope, before the container's first work and again at every
 //! activation; the proxy hands each feed to the program and delivers
@@ -56,6 +58,7 @@ mod begin;
 mod connection;
 mod encode;
 mod filesystem;
+mod info;
 mod inside;
 mod own;
 mod paths;

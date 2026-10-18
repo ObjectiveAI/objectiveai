@@ -7,11 +7,12 @@
 //! takes, by name and mode; the values of those come after `Begun`,
 //! on a secrets channel the server opens, and the container's gate
 //! is closed until the first does. [`agents()`] then starts the
-//! queue's driver and serves the family's channels — the schema, the
-//! queue's two verbs, the feed, the server's half of each database
-//! connection — for the connection's life, and [`tools()`] serves the
-//! schema, the feed, and the exchanges with the tool container's MCP
-//! server. Both publish the scope to every surface inside the
+//! queue's driver and serves the family's channels — the image's
+//! `/DIVERGE.md`, the queue's two verbs, the feed, the server's half
+//! of each database connection — for the connection's life, and
+//! [`tools()`] serves the document, the feed, and the exchanges with
+//! the tool container's MCP server. Both publish the scope to every
+//! surface inside the
 //! container, which is the moment the container's own asks can go
 //! out; and both finish the scope when the proxy ends the run — a
 //! collect of the rotating secrets that failed — since each begin's

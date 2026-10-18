@@ -8,8 +8,10 @@
 //! whenever messages wait and no loop runs; `/enqueue` for each
 //! message while one does; `/dequeue` when the server clears the
 //! queue. The calls every container answers — `/register`,
-//! `/schema`, `/secrets`, `/secrets/collect` — are
-//! [`program`](crate::program)'s. The queue itself is
+//! `/secrets`, `/secrets/collect` — are [`program`](crate::program)'s;
+//! what the arguments may be is the image's `/DIVERGE.md`, which
+//! [`info`](crate::info) reads from the root and asks of no program.
+//! The queue itself is
 //! the proxy's, held by one [`driver()`] task that never
 //! awaits the agent's server directly, so nothing the server asks of
 //! the queue can wait on a call the loop holds open.

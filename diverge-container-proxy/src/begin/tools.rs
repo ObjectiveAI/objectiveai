@@ -1,5 +1,6 @@
-//! A tool container's begin: the arguments registered, the schema and
-//! the exchanges with the tool's own MCP server served.
+//! A tool container's begin: the arguments registered, the image's
+//! `/DIVERGE.md` and the exchanges with the tool's own MCP server
+//! served.
 
 use std::sync::Arc;
 
@@ -13,7 +14,7 @@ use diverge_sdk::shared::error::Error;
 use super::Family;
 use crate::encode::encoded;
 use crate::proxy::{Begun, Proxy};
-use crate::{inside, program, tool};
+use crate::{info, inside, program, tool};
 
 /// Serve the begin for the connection's life.
 ///
@@ -28,8 +29,9 @@ use crate::{inside, program, tool};
 /// secret, closed until the server's first feed for one that does.
 /// The scope is published to every surface inside the container, and
 /// every channel the server opens on the scope is served on a task
-/// of its own: the schema once, one exchange with the tool's server
-/// each — its answer as the tool's server gave it, the exchange
+/// of its own: the image's `/DIVERGE.md` read from the root at every
+/// ask, the program asked nothing; one exchange with the tool's
+/// server each — its answer as the tool's server gave it, the exchange
 /// entered and left as the container's activity — the notifications
 /// for as long as the channel lives, a feed of the secrets answered
 /// once the program has applied them, the server's half of a
@@ -86,8 +88,8 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
             Ok(channel_request::Frame::Postgres(request)) => {
                 tokio::spawn(inside::postgres::attach(proxy, scope, channel, request.connection_id));
             }
-            Ok(channel_request::Frame::Schema) => {
-                tokio::spawn(program::schema(proxy, scope, channel));
+            Ok(channel_request::Frame::Info) => {
+                tokio::spawn(info::info(scope, channel));
             }
             Ok(channel_request::Frame::McpListTools(request)) => {
                 tokio::spawn(async move { tool::list_tools(&proxy, &scope, channel, request).await });
