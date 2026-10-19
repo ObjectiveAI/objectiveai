@@ -23,17 +23,18 @@ use crate::host::tools::podman;
 /// or a fixed volume added since it was made — is stopped, removed
 /// and made again seeing them, which empties its image cache and
 /// drops any image loaded into it by hand, to be loaded again. A
-/// machine whose disk is not under `storage` is podman not keeping
-/// the machine where the environment put it, and the provider cannot
-/// run on a machine it does not control: the refusal names the disk,
-/// and a machine the provider itself just made is removed again
-/// first.
+/// machine whose SSH key is not under `storage` — the key is kept in
+/// podman's data home, beside the disk, and the inspection reports
+/// the key and not the disk — is podman not keeping the machine
+/// where the environment put it, and the provider cannot run on a
+/// machine it does not control: the refusal names the key, and a
+/// machine the provider itself just made is removed again first.
 pub(super) async fn ensure(memory: u64, storage: &Path, shares: &[PathBuf]) -> Result<(), Error> {
     let Some(machine) = podman::machine().await.map_err(Error::Podman)? else {
         return make(memory, storage, shares).await;
     };
-    if !machine.image.starts_with(storage) {
-        return Err(Error::Machine(machine.image));
+    if !machine.ssh.identity.starts_with(storage) {
+        return Err(Error::Machine(machine.ssh.identity));
     }
     if cfg!(target_os = "macos") && !sees_all(&machine.mounts, shares) {
         if machine.state == "running" {
@@ -62,7 +63,7 @@ pub(super) async fn ensure(memory: u64, storage: &Path, shares: &[PathBuf]) -> R
     Ok(())
 }
 
-/// A machine made, its disk checked to be under `storage`, and
+/// A machine made, its SSH key checked to be under `storage`, and
 /// started.
 async fn make(memory: u64, storage: &Path, shares: &[PathBuf]) -> Result<(), Error> {
     init(memory, shares).await?;
@@ -70,17 +71,17 @@ async fn make(memory: u64, storage: &Path, shares: &[PathBuf]) -> Result<(), Err
         .await
         .map_err(Error::Podman)?
         .ok_or_else(|| Error::Machine(PathBuf::new()))?;
-    if !made.image.starts_with(storage) {
-        let _ = podman::podman(["machine", "rm", "--force"]).await;
-        return Err(Error::Machine(made.image));
+    if !made.ssh.identity.starts_with(storage) {
+        let _ = podman::podman(["machine", "rm", "--force", podman::MACHINE]).await;
+        return Err(Error::Machine(made.ssh.identity));
     }
     start().await
 }
 
-/// `podman machine init`: root inside, and on macOS the memory and
-/// every share, as `--volume <path>:<path>` — the same path inside
-/// as on the host, which is what the machine's view of a host path
-/// assumes.
+/// `podman machine init <machine>`: root inside, and on macOS the
+/// memory and every share, as `--volume <path>:<path>` — the same
+/// path inside as on the host, which is what the machine's view of
+/// a host path assumes.
 async fn init(memory: u64, shares: &[PathBuf]) -> Result<(), Error> {
     let mib = mib(memory).to_string();
     let volumes: Vec<String> = fewest(shares)
@@ -99,14 +100,19 @@ async fn init(memory: u64, shares: &[PathBuf]) -> Result<(), Error> {
     machine_command(args).await
 }
 
-/// `podman machine start`.
+/// `podman machine start <machine>`.
 async fn start() -> Result<(), Error> {
     machine_command(["start"]).await
 }
 
-/// `podman machine <args>`, required to succeed.
+/// `podman machine <args> <machine>`, required to succeed: the
+/// machine is named last, after the subcommand and its flags, as
+/// every machine subcommand takes it.
 async fn machine_command<'a>(args: impl IntoIterator<Item = &'a str>) -> Result<(), Error> {
-    let args: Vec<&str> = std::iter::once("machine").chain(args).collect();
+    let args: Vec<&str> = std::iter::once("machine")
+        .chain(args)
+        .chain(std::iter::once(podman::MACHINE))
+        .collect();
     podman::podman(args)
         .await
         .map_err(Error::Podman)?
