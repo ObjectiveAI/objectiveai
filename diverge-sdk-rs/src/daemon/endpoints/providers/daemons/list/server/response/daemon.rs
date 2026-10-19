@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::endpoints::providers::daemons::{Account, Link};
 
@@ -39,4 +40,13 @@ pub struct Daemon {
     /// them. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+}
+
+/// Keyed by the name.
+impl Keyed for Daemon {
+    type Key = String;
+
+    fn key(&self) -> String {
+        self.name.clone()
+    }
 }

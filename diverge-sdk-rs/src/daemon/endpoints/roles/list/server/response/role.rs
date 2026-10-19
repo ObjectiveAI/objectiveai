@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::endpoints::accounts::Reference;
 use crate::daemon::grant::Grant;
@@ -42,4 +43,13 @@ pub struct Role {
     /// the tool of the client's that did so through the daemon. One
     /// [`Creator`](crate::daemon::creator::Creator), the direct maker.
     pub creator: Creator,
+}
+
+/// Keyed by the name.
+impl Keyed for Role {
+    type Key = String;
+
+    fn key(&self) -> String {
+        self.name.clone()
+    }
 }

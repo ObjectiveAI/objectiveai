@@ -17,6 +17,10 @@
 //! [`filetree`] is a live filesystem view — a container's filetree
 //! channel answers with one, and so does the proxy's tree channel
 //! that feeds it.
+//!
+//! [`listing`] is a list stream's vocabulary and the list a consumer
+//! keeps from it — every list of the daemon's and the provider's
+//! tells the same changes, and is folded the same way.
 //! [`containers`] is everything the three container scopes have in
 //! common, which is everything but one exchange each: asking for a
 //! container, working with its files, and the asks it makes back.
@@ -41,15 +45,17 @@
 //!
 //! The reason they live here rather than in whichever endpoint used
 //! them first: a shape defined twice is two shapes that agree until
-//! they do not, and the fold in
-//! [`Root::update`](filetree::response::Root::update) is exactly the
-//! kind of thing that would stop agreeing quietly.
+//! they do not, and the folds in
+//! [`Root::update`](filetree::response::Root::update) and
+//! [`Listing::push`](listing::Listing::push) are exactly the kind of
+//! thing that would stop agreeing quietly.
 
 pub mod canonical;
 pub mod containers;
 pub mod daemons;
 pub mod error;
 pub mod filetree;
+pub mod listing;
 pub mod mcp;
 pub mod permission;
 pub mod relay;

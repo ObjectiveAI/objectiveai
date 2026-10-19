@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
 use crate::daemon::endpoints::agents::logs::server::response::Provider;
@@ -73,4 +74,14 @@ pub struct Agent {
     /// off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+}
+
+/// Keyed by the template and the index, which together name the
+/// agent once and for all; the name is not in it.
+impl Keyed for Agent {
+    type Key = (String, u64);
+
+    fn key(&self) -> (String, u64) {
+        (self.template.clone(), self.index)
+    }
 }

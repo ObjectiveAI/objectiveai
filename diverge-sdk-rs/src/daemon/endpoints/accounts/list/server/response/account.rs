@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::endpoints::accounts::Credential;
 
@@ -44,4 +45,17 @@ pub struct Account {
     /// the tool of the client's that did so through the daemon. One
     /// [`Creator`](crate::daemon::creator::Creator), the direct maker.
     pub creator: Creator,
+}
+
+/// Keyed by the credential's identity, else the name: an account has
+/// one or the other, and neither changes while it is listed.
+impl Keyed for Account {
+    type Key = String;
+
+    fn key(&self) -> String {
+        match &self.credential {
+            Some(credential) => credential.identity.clone(),
+            None => self.name.clone().unwrap_or_default(),
+        }
+    }
 }

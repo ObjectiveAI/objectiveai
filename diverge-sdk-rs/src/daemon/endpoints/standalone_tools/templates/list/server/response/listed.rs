@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::endpoints::standalone_tools::templates::Template;
 
@@ -37,4 +38,13 @@ pub struct Listed {
     /// The template, as it was handed in: the bytes the id is the
     /// hash of.
     pub template: Template,
+}
+
+/// Keyed by the id.
+impl Keyed for Listed {
+    type Key = String;
+
+    fn key(&self) -> String {
+        self.id.clone()
+    }
 }

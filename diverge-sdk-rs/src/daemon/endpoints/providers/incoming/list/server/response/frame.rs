@@ -6,6 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
+use crate::shared::listing::Change;
 
 use super::Incoming;
 
@@ -154,6 +155,35 @@ impl Decode<'_> for Frame {
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
+        }
+    }
+}
+
+impl Frame {
+    /// What this frame tells a listing — a [`Change`], for
+    /// [`Listing::push`](crate::shared::listing::Listing::push) — or
+    /// the frame itself where it tells a listing nothing: forbidden, or a failure,
+    /// the answers that end the scope.
+    pub fn change(self) -> Result<Change<Incoming>, Frame> {
+        match self {
+            Frame::Added(item) => Ok(Change::Added(item)),
+            Frame::Changed(item) => Ok(Change::Changed(item)),
+            Frame::Removed(item) => Ok(Change::Removed(item)),
+            Frame::Listed => Ok(Change::Listed),
+            other => Err(other),
+        }
+    }
+}
+
+/// Every change has a frame: what a server sends for what its
+/// listing tells.
+impl From<Change<Incoming>> for Frame {
+    fn from(change: Change<Incoming>) -> Frame {
+        match change {
+            Change::Added(item) => Frame::Added(item),
+            Change::Changed(item) => Frame::Changed(item),
+            Change::Removed(item) => Frame::Removed(item),
+            Change::Listed => Frame::Listed,
         }
     }
 }

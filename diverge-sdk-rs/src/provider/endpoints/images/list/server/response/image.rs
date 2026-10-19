@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
+
 /// An image the caller built on the provider, under the name it gave.
 ///
 /// [`name`](Self::name) is what to call it, [`digest`](Self::digest)
@@ -39,4 +41,14 @@ pub struct Image {
     pub bytes: u64,
     /// When the build ended, in SECONDS since the Unix epoch.
     pub created: u64,
+}
+
+/// Keyed by the name: an image whose digest differs is removed and
+/// added, under the same key.
+impl Keyed for Image {
+    type Key = String;
+
+    fn key(&self) -> String {
+        self.name.clone()
+    }
 }

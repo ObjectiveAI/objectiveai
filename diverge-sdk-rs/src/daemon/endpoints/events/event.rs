@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
 use super::Action;
 use crate::daemon::creator::Creator;
 
@@ -32,4 +33,14 @@ pub struct Event {
     /// one more at every occurrence since. Never `0`, and never less
     /// than it was.
     pub count: u64,
+}
+
+/// Keyed by the id: a `Changed` event is the whole record with its
+/// count raised, and lands on the one with its id.
+impl Keyed for Event {
+    type Key = u64;
+
+    fn key(&self) -> u64 {
+        self.id
+    }
 }

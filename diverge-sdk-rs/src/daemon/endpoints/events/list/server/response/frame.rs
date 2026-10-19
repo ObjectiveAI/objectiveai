@@ -6,6 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
+use crate::shared::listing::Change;
 
 use crate::daemon::endpoints::events::Event;
 
@@ -145,6 +146,22 @@ impl Decode<'_> for Frame {
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
+        }
+    }
+}
+
+impl Frame {
+    /// What this frame tells a listing — a [`Change`], for
+    /// [`Listing::push`](crate::shared::listing::Listing::push) — or
+    /// the frame itself where it tells a listing nothing: forbidden,
+    /// or a failure, the answers that end the scope. No frame is
+    /// `Removed`, since no event is ever taken away.
+    pub fn change(self) -> Result<Change<Event>, Frame> {
+        match self {
+            Frame::Added(item) => Ok(Change::Added(item)),
+            Frame::Changed(item) => Ok(Change::Changed(item)),
+            Frame::Listed => Ok(Change::Listed),
+            other => Err(other),
         }
     }
 }
