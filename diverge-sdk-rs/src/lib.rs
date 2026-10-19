@@ -10,6 +10,7 @@
 //! | [`container_proxy`] | the proxy beside every container's program, from both sides: [`outside`](container_proxy::outside), the WebSocket a provider opens into it; [`inside`](container_proxy::inside), the loopback the program dials it on |
 //! | [`file_lock`] | one exclusive lock per file across processes, let go on drop — how Diverge programs take turns at a directory; nothing of it crosses a wire |
 //! | [`postgres_supervisor`] | the two lines a daemon and the `diverge-postgres` it runs beside itself exchange over that program's stdio: the ready line out, the shutdown line in |
+//! | [`process`] | how a Diverge program spawns another: with no console window, on the one host that would open one; nothing of it crosses a wire |
 //!
 //! # Nothing is optional
 //!
@@ -49,6 +50,7 @@ pub mod container_proxy;
 pub mod daemon;
 pub mod file_lock;
 pub mod postgres_supervisor;
+pub mod process;
 pub mod provider;
 pub mod shared;
 pub mod wire;

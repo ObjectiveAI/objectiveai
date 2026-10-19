@@ -59,7 +59,7 @@ serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
 # `net` and `rt` for the sockets and the tasks of both halves; `sync`
 # for every queue between them, and the in-container client's
 # once-made session; `fs` for `file_lock`'s files.
-tokio = { version = "1.53.1", default-features = false, features = ["fs", "net", "rt", "sync"] }
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "net", "process", "rt", "sync"] }
 # The outgoing socket: `stream` names it, `connect` is the one place
 # this crate dials — the provider's server into the proxy inside a
 # container, see `provider::server::proxy`.
