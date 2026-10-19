@@ -1,4 +1,4 @@
-//! The three programs, by where the extraction put them.
+//! The four programs, by where the extraction put them.
 
 use std::path::{Path, PathBuf};
 
@@ -30,6 +30,13 @@ impl Binaries {
     /// What makes a cluster.
     pub fn initdb(&self) -> PathBuf {
         self.program("initdb")
+    }
+
+    /// What asks a postmaster whether it accepts connections: its
+    /// answer is the protocol's, so a server that accepts the socket
+    /// while it is still starting up says no.
+    pub fn pg_isready(&self) -> PathBuf {
+        self.program("pg_isready")
     }
 
     /// `home/bin/<name>`, with `.exe` on Windows.
