@@ -6,12 +6,13 @@ use diverge_sdk::daemon::endpoints::events::Event;
 use diverge_sdk::daemon::endpoints::events::list::client::request::{self, Filter};
 use diverge_sdk::daemon::endpoints::events::list::server::response::Frame;
 use diverge_sdk::daemon::grant::events::Action;
+use diverge_sdk::shared::listing::Change;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use tokio::sync::broadcast;
 
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
-use crate::serve::stream::{self, Change};
+use crate::serve::stream;
 use crate::serve::{files, reply};
 use crate::store::{self, events};
 

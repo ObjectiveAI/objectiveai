@@ -13,7 +13,7 @@ use super::Failure;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
 use crate::logs;
-use crate::serve::stream::{self, Change, Source};
+use crate::serve::stream::{self, Source};
 use crate::serve::reply;
 use crate::store::{AgentId, agents, tools};
 
@@ -51,12 +51,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing(scope, daemon, &[Kind::Agents], frame.count, &source, |change| match change {
-        Change::Added(agent) => Frame::Added(agent),
-        Change::Changed(agent) => Frame::Changed(agent),
-        Change::Removed(agent) => Frame::Removed(agent),
-        Change::Listed => Frame::Listed,
-    })
+    stream::listing(scope, daemon, &[Kind::Agents], frame.count, &source, Frame::from)
     .await
 }
 

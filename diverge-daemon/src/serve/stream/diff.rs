@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use super::Change;
+use diverge_sdk::shared::listing::Change;
 
 /// Every difference between `known`, the listing as last sent, and
 /// `now`, the listing as read: a key in `now` and not in `known` is

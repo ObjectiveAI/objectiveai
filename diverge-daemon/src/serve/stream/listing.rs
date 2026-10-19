@@ -1,10 +1,11 @@
 //! The loop every list kept open runs.
 
+use diverge_sdk::shared::listing::Change;
 use diverge_sdk::wire::encode::Encode;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use tokio::sync::broadcast;
 
-use super::{Change, Source, diff};
+use super::{Source, diff};
 use crate::daemon::{Daemon, Kind};
 use crate::serve::{files, reply};
 

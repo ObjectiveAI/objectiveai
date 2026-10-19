@@ -14,7 +14,7 @@ use crate::containers::ToolKey;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::filter::standalone_tools::Facts;
 use crate::judge::{self, Standing, Who, filter};
-use crate::serve::stream::{self, Change, Source};
+use crate::serve::stream::{self, Source};
 use crate::serve::reply;
 use crate::store::{self, ToolId, agents, tools, tools_templates};
 
@@ -52,12 +52,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing(scope, daemon, &[Kind::StandaloneTools], frame.count, &source, |change| match change {
-        Change::Added(tool) => Frame::Added(tool),
-        Change::Changed(tool) => Frame::Changed(tool),
-        Change::Removed(tool) => Frame::Removed(tool),
-        Change::Listed => Frame::Listed,
-    })
+    stream::listing(scope, daemon, &[Kind::StandaloneTools], frame.count, &source, Frame::from)
     .await
 }
 
