@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter objectiveai-web run dev",
     "build:js": "pnpm --filter @objectiveai/sdk run build",
+    "build:diverge-js": "pnpm --filter @diverge/sdk run build",
     "build:web": "pnpm --filter objectiveai-web run build",
     "build": "pnpm run build:js && pnpm run build:web"
   },

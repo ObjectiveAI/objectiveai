@@ -618,6 +618,38 @@ jobs:
           fi
           pnpm publish --access public --no-git-checks --provenance
 
+  publish-diverge-javascript:
+    name: SDK · diverge javascript (npm)
+    needs: [check-version, publish-javascript]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Pinned together with the npm below, as the job above is.
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Upgrade npm to a Trusted-Publishing-aware version
+        run: npm install -g npm@12.0.1
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        # Unlike @objectiveai/sdk, this package bakes nothing in: its
+        # dist is not committed, and is built here from the checkout.
+        run: pnpm --filter @diverge/sdk run build
+      - name: Publish to npm
+        working-directory: diverge-sdk-js
+        # OIDC Trusted Publishing under the `diverge` npm org, which
+        # exists before the first publish — no token.
+        run: |
+          if npm view "@diverge/sdk@${{ needs.check-version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "@diverge/sdk@${{ needs.check-version.outputs.version }} already on npm — skip"
+            exit 0
+          fi
+          pnpm publish --access public --no-git-checks --provenance
+
   publish-golang:
     name: SDK · golang (git tag)
     # Independent of the rust→python→js chain: the Go SDK is just a git tag
