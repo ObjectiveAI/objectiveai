@@ -1,0 +1,161 @@
+/* The theme: every colour the app uses, in one place. Nothing else in the
+   app names a colour; it names one of these roles. Copy this file, change
+   the values, and the whole app follows.
+
+   A theme is five colours, and nothing else:
+     --ground   the background
+     --raised   cards, the rail, the icon's body
+     --accent   links, the main button, the wordmark
+     --ink      words
+     --here     where you are, and nothing else
+   Every other colour is mixed from those five, below, the same way in every
+   theme. The first theme, plum and gold, comes from the protocol site
+   (diverge-provider-web/src/layouts/Layout.astro on main, the palette of
+   2026-09-14). A theme is one block, `[data-theme="<id>"]`, setting the five;
+   plum and gold is the default, so its block is also plain `:root`. The
+   picker's swatches set data-theme on themselves to show a theme's five while
+   another is on. Add a block and src/theme.test.ts checks it with the rest.
+
+   The roles:
+     --bg, --rail          the ground everything sits on
+     --surface, -2, -3     raised things: cards, buttons, a hovered row
+     --line, --line-strong edges; a strong edge marks something you can press
+     --line-bad            the edge round something that went wrong
+     --text, -2, -3        words, from most to least said
+     --accent, --on-accent the one action that goes ahead; words on it
+     --accent-hover        that action under the mouse
+     --here                where you are, and nothing else: a --mark-wide bar
+                           under the open tab and down the side of the row
+                           you're on. Never words.
+     --warn, --warn-soft   something to know before you act
+     --ok, --bad (+ -soft) how something went; --bad-hover is a danger button under the mouse
+
+   The one rule every theme keeps: each pair of words-on-background the app
+   uses reads at 7:1 or better (WCAG AAA), and each edge of something you can
+   press or type into, each bar that marks where you are, each status dot,
+   and the focus ring, reads at 3:1 against what's around it.
+   src/theme.test.ts checks every pair, in every theme block in this file;
+   any break fails the build.
+
+   Status colours (ok / bad) are NOT from the site — it never needed them.
+   They are the only invented values here, and the product owner's to replace. */
+
+/* plum and gold, the default */
+:root, [data-theme="plum"] {
+  --ground: #11000e;
+  --raised: #22091d;
+  --accent: #ffb2ff;
+  --ink: #fbeacd;
+  --here: #eba52a;
+}
+
+/* navy and orange */
+[data-theme="navy"] {
+  --ground: #000411;
+  --raised: #090f22;
+  --accent: #b2c5ff;
+  --ink: #fbd5cd;
+  --here: #eb4a2a;
+}
+
+:root {
+  color-scheme: dark;
+  /* Checkboxes, radios and other native controls take the theme's accent. */
+  accent-color: var(--accent);
+
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 21px;
+  /* Code, addresses and paths: 0.92 of the words around them, never under --text-xs. */
+  --text-mono: max(var(--text-xs), 0.92em);
+  --leading: 1.6;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+
+  /* The bar that marks where you are, and the coloured edge of a card. */
+  --mark: 4px;
+
+  /* The height of a button, a field or a select: one height, so they line up. Small buttons, chips you press
+     and icon buttons sit at the floor, --hit-min. Controls set their own line-height (1.2): the reading
+     line-height (1.6) is for paragraphs, and inside a square box it reads as padding. */
+  --control: 32px;
+  --hit-min: 28px;
+
+  --rail-width: 244px;
+  /* The reading width: a line of text inside a card or a page stops here (well under 90 characters). */
+  --measure: 63ch;
+  --strip-height: 38px;
+
+  /* mixed from the five, in every theme */
+  --rule: color-mix(in srgb, var(--raised) 91%, var(--ink));
+  /* Behind something that wants you before you act: a knock, a heads-up. Mixed with the accent, never --here. */
+  --note: color-mix(in srgb, var(--raised) 88%, var(--accent));
+
+  /* roles, built only from the five */
+  --bg: var(--ground);
+  --rail: var(--ground);
+  --surface: var(--raised);
+  --surface-2: color-mix(in srgb, var(--raised) 55%, var(--rule));
+  --surface-3: var(--rule);
+  --line: var(--rule);
+  /* The edge of anything you can press or type into: 3:1 on every surface. */
+  --line-strong: color-mix(in srgb, var(--rule) 60%, var(--ink));
+  /* Under the mouse, the edge lights up to the ink: one cue for every button, row, tab, chip and field. The
+     fill alone can't show a hover here (the surfaces are 1.1–1.3:1 apart), so the edge does. */
+  --line-hover: var(--ink);
+  --text: var(--ink);
+  /* Words step evenly, 100 / 90 / 80. Muted (80%) reads 7:1 on every surface, the rule and a note included. */
+  --text-2: color-mix(in srgb, var(--ink) 90%, var(--ground));
+  --text-3: color-mix(in srgb, var(--ink) 80%, var(--ground));
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--ground));
+  --accent-hover: color-mix(in srgb, var(--accent) 78%, var(--ink));
+  --on-accent: var(--ground);
+  --warn: var(--accent);
+  --warn-soft: var(--note);
+  --user: var(--raised);
+
+  /* invented: status the site never needed */
+  --ok: #9dd9ae;
+  --ok-soft: color-mix(in srgb, #9dd9ae 12%, var(--ground));
+  --bad: #ff9a8f;
+  --bad-soft: color-mix(in srgb, #ff9a8f 14%, var(--ground));
+  --bad-hover: color-mix(in srgb, #ff9a8f 88%, var(--ink));
+  --line-bad: color-mix(in srgb, var(--bad) 45%, var(--line));
+  /* Words and the edge on a danger button. */
+  --on-bad: var(--ground);
+
+  --focus: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+  --shadow: none;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: var(--leading);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+input, textarea, [contenteditable], .selectable { user-select: text; cursor: auto; }
+code, pre, .mono { font-family: var(--font-mono); font-size: var(--text-mono); }
+:focus-visible { outline: none; box-shadow: var(--focus); }
+h1, h2, h3, p { margin: 0; }
