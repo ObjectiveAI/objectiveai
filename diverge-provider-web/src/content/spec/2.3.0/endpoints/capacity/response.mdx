@@ -1,0 +1,55 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response, whose payload is one JSON object with the members volumes_disk, images_disk, container_memory and container_disk, each a count of bytes, with no tag and no length, and the response finish follows it.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope. The response
+finish follows the response, and no frame follows the finish.
+
+```text
+[capacity JSON …]
+```
+
+```json
+{"volumes_disk":107374182400,"images_disk":53687091200,"container_memory":4294967296,"container_disk":17179869184}
+```
+
+- **The payload.** The payload of the response is one JSON object,
+  read as [Notation](/endpoints/#notation) provides, running to the
+  end of the frame. No tag precedes it and no length prefixes it.
+  The object has exactly four members, `volumes_disk`, `images_disk`,
+  `container_memory` and `container_disk`, and the server sends no
+  other member.
+- **`volumes_disk`.** An integer: the largest size, in bytes, a new
+  volume of the client could have as of the instant of the response
+  — the room of one place a volume could be made in, and not the sum
+  of the server's room. A client reads it only where the server holds
+  out at least one [volume mode](/capabilities/#the-volume-modes).
+- **`images_disk`.** An integer: the number of bytes the client could
+  still add to the client image store, as of the instant of the
+  response. A client reads it only where the server holds out
+  [`images_store`](/capabilities/#images_store).
+- **`container_memory`.** An integer: the number of bytes of memory a
+  container run of the client could still reserve, as of the instant
+  of the response.
+- **`container_disk`.** An integer: the number of bytes of overlay
+  disk a container run of the client could still reserve, as of the
+  instant of the response.
+- **Each integer.** Each member is an integer no less than `0` and no
+  greater than `18446744073709551615`. `0` is an answer: no room.
+- **The sequence.** Exactly one response precedes the response
+  finish, and nothing follows the finish. A response finish that no
+  response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides.
+- **Malformed.** A payload that is not valid UTF-8, a payload that is
+  not exactly one JSON object, an object with any of the four members
+  absent, and a member that is not an integer within the range stated
+  are malformed. A member this revision does not define is ignored.
+
+The response is defined by
+`diverge-sdk-rs/src/provider/endpoints/capacity/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/capacity/server/response/frame.rs
+```

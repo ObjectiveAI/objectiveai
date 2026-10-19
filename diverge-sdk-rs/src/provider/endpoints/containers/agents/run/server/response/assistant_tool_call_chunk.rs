@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 /// form possible: a fragment of a JSON object is not a JSON object,
 /// but a fragment of a string is a string.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct AssistantToolCallChunk {
     /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: AssistantToolCallChunkType,
@@ -46,6 +47,7 @@ pub struct AssistantToolCallChunk {
 
 /// [`AssistantToolCallChunk`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum AssistantToolCallChunkType {
     #[serde(rename = "assistant_tool_call")]
     #[default]

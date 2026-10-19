@@ -28,8 +28,8 @@ futures-util = { version = "0.3.33", default-features = false, features = ["std"
 # are made of; the session itself is the container SDK's.
 rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
 # The agent's JSON Schema, derived from the agent types for
-# `GET /schema`; `indexmap2` for the `requirements` map.
-schemars = { version = "1.2.1", features = ["indexmap2"] }
+# `--schema`; `indexmap2` for the `requirements` map.
+schemars = { version = "1.2.2", features = ["indexmap2"] }
 # The requirements map: ordered, so the same set always serializes —
 # and installs — identically.
 indexmap = { version = "2.14.0", features = ["serde"] }

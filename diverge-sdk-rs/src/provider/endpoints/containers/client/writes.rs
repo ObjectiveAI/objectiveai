@@ -3,10 +3,10 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::pin::Pin;
-use std::sync::Mutex;
 
 use bytes::Bytes;
 use futures_util::Stream;
+use tokio::sync::Mutex;
 
 use crate::shared::error::Error;
 
@@ -46,8 +46,8 @@ impl Writes {
 
     /// Keep `content` until the provider asks for it, under a fresh
     /// id.
-    pub(crate) fn register(&self, content: Content) -> u32 {
-        let mut pending = self.pending.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    pub(crate) async fn register(&self, content: Content) -> u32 {
+        let mut pending = self.pending.lock().await;
         let mut write_id = pending.next;
         while pending.content.contains_key(&write_id) {
             write_id = write_id.wrapping_add(1);
@@ -59,20 +59,20 @@ impl Writes {
 
     /// The content under `write_id`, if the provider's ask names a
     /// write this end started; taken, so a second ask finds nothing.
-    pub(crate) fn take(&self, write_id: u32) -> Option<Content> {
-        self.pending
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .content
-            .remove(&write_id)
+    pub(crate) async fn take(&self, write_id: u32) -> Option<Content> {
+        self.pending.lock().await.content.remove(&write_id)
     }
 }
 
 impl fmt::Debug for Writes {
+    /// How many are pending, when the lock is free to ask; a lock
+    /// somebody holds is reported as such rather than waited for.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let pending = self.pending.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        f.debug_struct("Writes")
-            .field("pending", &pending.content.len())
-            .finish()
+        let mut debug = f.debug_struct("Writes");
+        match self.pending.try_lock() {
+            Ok(pending) => debug.field("pending", &pending.content.len()),
+            Err(_) => debug.field("pending", &"locked"),
+        };
+        debug.finish()
     }
 }

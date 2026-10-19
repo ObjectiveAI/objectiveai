@@ -1,0 +1,65 @@
+[package]
+name = "diverge-cli"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The Diverge CLI — the daemon's client as a program: its daemons and accounts from one `cli.yaml`, every request of the daemon's wire from the command line"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "diverge"
+path = "src/main.rs"
+
+[dependencies]
+# Path-only: this crate rides the workspace and is never published, so
+# the SDK is named by where it lives rather than by a version pin
+# version.sh would have to chase.
+diverge-sdk = { path = "../diverge-sdk-rs" }
+# The daemon's and the provider's documents as Rust, so an edit of
+# `daemon.yaml` or `provider.yaml` is refused by the type its program
+# reads it with; path-only, as the SDK is.
+diverge-daemon = { path = "../diverge-daemon" }
+diverge-provider = { path = "../diverge-provider" }
+# The arguments: the one parser every command hangs off, derived.
+clap = { version = "4.6.0", features = ["derive"] }
+# The document `cli.yaml` is, as Rust.
+serde = { version = "1.0.229", features = ["derive"] }
+# The YAML it is written in.
+serde_yaml_ng = "0.10.0"
+# The daemons and the accounts, by name, in the order the document
+# gives them.
+indexmap = { version = "2.14.2", features = ["serde"] }
+# Where in the document a value was wrong, in a parse error.
+serde_path_to_error = "0.1.20"
+# What a document is on the CLI's side: JSON, keys in the order the
+# document gives them, which is what a jq program sees and what
+# `config get` prints.
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+# The jq a `config get` narrows by, a `config set` edits with, and a
+# `run --jq` prints through: the language, its standard definitions,
+# and its values over JSON.
+jaq-core = "2.2.1"
+jaq-std = "2.1.2"
+jaq-json = { version = "1.1.3", features = ["serde_json"] }
+# The runtime: the files read and written, stdout, the socket to a
+# daemon, a run's timeout, and the daemon or the provider spawned by
+# `start` as a detached child.
+tokio = { version = "1.53.1", features = ["fs", "io-std", "io-util", "macros", "net", "process", "rt", "rt-multi-thread", "time"] }
+# The socket to a daemon, dialled.
+tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["connect"] }
+# The socket split into its two halves, and a stream read frame by
+# frame; an upload's content as a stream of one piece.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# The bytes of a download's chunk and an upload's piece.
+bytes = "1.11.1"
+# The MCP request and result types of the one exchange a connect
+# run puts; `schemars`: the result's schema, for `response-schema`.
+rmcp = { version = "3.1.2", default-features = false, features = ["schemars"] }
+# The JSON Schema of a request's body, as `request-schema` prints it.
+schemars = "1.2.2"

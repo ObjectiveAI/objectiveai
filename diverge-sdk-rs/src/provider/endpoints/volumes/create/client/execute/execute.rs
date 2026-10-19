@@ -85,6 +85,8 @@ pub async fn execute(
         response::Frame::InsufficientCapacity => {
             Err(ExecuteError::InsufficientCapacity)
         }
+        response::Frame::ModeUnsupported => Err(ExecuteError::ModeUnsupported),
+        response::Frame::Unsupported => Err(ExecuteError::Unsupported),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
@@ -121,6 +123,12 @@ pub enum ExecuteError {
     Response(response::FrameError),
     /// The provider cannot reserve that many bytes. Nothing exists.
     InsufficientCapacity,
+    /// The provider has no volumes of the mode asked for. Nothing
+    /// changed.
+    ModeUnsupported,
+    /// The provider keeps no volumes. The protocol's defined refusal,
+    /// not a failure.
+    Unsupported,
     /// The provider could not do it, and said so.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -152,6 +160,10 @@ impl fmt::Display for ExecuteError {
             ExecuteError::InsufficientCapacity => f.write_str(
                 "the provider has insufficient capacity for a volume of that size",
             ),
+            ExecuteError::ModeUnsupported => {
+                f.write_str("the provider has no volumes of the mode asked for")
+            }
+            ExecuteError::Unsupported => f.write_str("the provider keeps no volumes"),
             ExecuteError::Provider(_) => {
                 f.write_str("the provider could not complete the volume creation")
             }
@@ -174,6 +186,8 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Closed
             | ExecuteError::Unanswered
             | ExecuteError::InsufficientCapacity
+            | ExecuteError::ModeUnsupported
+            | ExecuteError::Unsupported
             | ExecuteError::Provider(_) => None,
         }
     }

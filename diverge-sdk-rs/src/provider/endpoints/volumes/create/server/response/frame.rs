@@ -13,13 +13,16 @@ use crate::shared::error::Error;
 /// leads with one byte saying which — `0` for
 /// [`Created`](Self::Created), `1` for
 /// [`InsufficientCapacity`](Self::InsufficientCapacity), `2` for
-/// [`Error`](Self::Error) — and for the first two there is nothing
-/// after it, because saying so IS the whole message.
+/// [`ModeUnsupported`](Self::ModeUnsupported), `3` for
+/// [`Unsupported`](Self::Unsupported), `4` for [`Error`](Self::Error)
+/// — and for the first four there is nothing after it, because saying
+/// so IS the whole message.
 ///
 /// | the scope ends with | means |
 /// |----------------------|-------|
 /// | [`Created`](Self::Created), then a finish | the volume exists and a listing will show it |
 /// | [`InsufficientCapacity`](Self::InsufficientCapacity), then a finish | the provider cannot reserve that many bytes, and nothing exists |
+/// | [`ModeUnsupported`](Self::ModeUnsupported), then a finish | the provider has no volumes of the mode asked for, and nothing exists |
 /// | an [`Error`](Self::Error), then a finish | it does not exist, for some other reason, and nothing partial does |
 ///
 /// # Insufficient capacity is an answer, not an error
@@ -29,7 +32,10 @@ use crate::shared::error::Error;
 /// with an [`Error`](Self::Error) a caller could not tell from any
 /// other failure. The distinction is what a caller acts on: a size
 /// the provider has no room for is one to ask smaller, and a failure
-/// is not.
+/// is not. A mode the provider's
+/// [`info`](crate::provider::endpoints::info) holds out no capability
+/// for is [`ModeUnsupported`](Self::ModeUnsupported), likewise: a
+/// mode to ask otherwise, or a provider to ask elsewhere.
 ///
 /// # Why it does not answer with the volume
 ///
@@ -63,7 +69,17 @@ pub enum Frame {
     /// The provider cannot reserve that many bytes, and nothing
     /// exists. Tag `1`.
     InsufficientCapacity,
-    /// A failure. Tag `2`.
+    /// The provider has no volumes of the mode asked for, and nothing
+    /// exists. Tag `2`.
+    ModeUnsupported,
+    /// The provider keeps no volumes: no mode is among its capabilities,
+    /// see [`info`](crate::provider::endpoints::info), and every volume
+    /// endpoint answers this. Tag `3`.
+    ///
+    /// Carries nothing. Nothing exists; a caller asks another
+    /// provider.
+    Unsupported,
+    /// A failure. Tag `4`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -76,8 +92,14 @@ const CREATED: u8 = 0;
 /// Tag for [`Frame::InsufficientCapacity`].
 const INSUFFICIENT_CAPACITY: u8 = 1;
 
+/// Tag for [`Frame::ModeUnsupported`].
+const MODE_UNSUPPORTED: u8 = 2;
+
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 3;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 4;
 
 /// A tag, and for a failure the JSON after it. Postcard encodes the
 /// rest of [`volumes`](crate::provider::endpoints::volumes) and encodes nothing
@@ -106,6 +128,14 @@ impl Encode for Frame {
                 out.extend_from_slice(&[INSUFFICIENT_CAPACITY]);
                 Ok(())
             }
+            Frame::ModeUnsupported => {
+                out.extend_from_slice(&[MODE_UNSUPPORTED]);
+                Ok(())
+            }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -124,6 +154,8 @@ impl Decode<'_> for Frame {
         match *tag {
             CREATED => Ok(Frame::Created),
             INSUFFICIENT_CAPACITY => Ok(Frame::InsufficientCapacity),
+            MODE_UNSUPPORTED => Ok(Frame::ModeUnsupported),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
@@ -137,7 +169,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

@@ -1,5 +1,5 @@
-//! The delete response: deleted, no such agent, the agent active, or
-//! a failure.
+//! The delete response: deleted, no such agent, the agent active,
+//! forbidden, or a failure.
 
 mod frame;
 

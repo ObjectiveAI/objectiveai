@@ -1,0 +1,13 @@
+//! Grants over volumes.
+//!
+//! What a role may allow over volumes, in the three shapes
+//! [`grant`](crate::daemon::grant) states: [`Make`], the action that
+//! brings one into being, and [`Over`], the actions over those that
+//! exist — both defined once in
+//! [`shared::permission`](crate::shared::permission) and re-exported;
+//! and [`Permission`], one grant's worth of either, or of tagging.
+
+mod permission;
+
+pub use crate::shared::permission::volumes::{Make, Over};
+pub use permission::*;

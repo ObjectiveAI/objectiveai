@@ -37,21 +37,39 @@ the finish.
   its form.
 - **A snapshot, not a watch.** The response is the whole of the
   exchange. The server sends no change after it, and every
-  `Directory` in the tree has `changes` `0`. A client that needs the
+  `Directory` in the tree has `changes` `0`.
+  A volume being served is watched, as the FUSE serve sees it, by the
+  [filetree](/endpoints/volumes-fuse-serve/client/filetree/) channel of its
+  serve; this request is answered with an error while a FUSE serve holds
+  the volume. A client that needs the
   tree as it is later sends another request.
-- **A mounted volume is not walked.** The server does not walk a
-  volume that is mounted in any running container, or served on any
-  [volumes::serve](/endpoints/volumes-serve/) scope, at the time of the request — a volume may be mounted or
-  served in several at once — or that is
-  under a stat, a read, a write, a filetree, an edit or a delete. A
-  request naming such a volume is answered with an error, and nothing is determined about the volume. A
-  client that needs the tree stops every container that has it, or
-  waits for their end, and sends another request. The server holds
-  the volume to itself from the moment it accepts the request until
-  the finish, and a run naming the volume is refused for as long as
-  it does.
+- **A held volume is not walked.** The server does not walk a
+  volume that a running container of the client holds, that a
+  [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) of the
+  client holds, or that is under a
+  [volumes::stat](/endpoints/volumes-stat/),
+  [volumes::read](/endpoints/volumes-read/),
+  [volumes::write](/endpoints/volumes-write/),
+  [volumes::filetree](/endpoints/volumes-filetree/),
+  [volumes::edit](/endpoints/volumes-edit/) or
+  [volumes::delete](/endpoints/volumes-delete/), at the time of the
+  request. A request naming such a volume is answered with the
+  refusal the [response](/endpoints/volumes-filetree/response/) states for who holds it —
+  `Mounted`, `FuseServed` or `Held` — decided in the order
+  [Capabilities](/capabilities/#the-hold) states for an operation,
+  and nothing is changed. The server holds the volume to itself from
+  the moment it accepts the request until the response finish, and
+  a run, a FUSE serve or another operation naming the volume is
+  refused for as long as it does.
 - **The error.** An error states that the tree was not sent, and that
   nothing was determined about the volume. A volume absent from the
-  client's listing, a volume mounted in a running container or
-  served at the time of the request, a path that is not of the stated form, and a
-  path that names no directory are each answered with an error.
+  client's listing, a path that is not of the stated form, and a path
+  that names no directory are each answered with an error. A volume
+  that something holds is answered with the refusal the response
+  states, which is not an error.
+- **No volume at all.** A server that holds out none of the three
+  mode objects of [Capabilities](/capabilities/#the-volume-modes)
+  keeps no volume and answers every request of this endpoint with
+  exactly one response, the byte `4` alone, and the response
+  finish, before anything is looked up. Every other requirement of
+  this page holds for a server that keeps volumes.

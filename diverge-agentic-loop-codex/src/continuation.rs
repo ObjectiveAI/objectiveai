@@ -9,7 +9,9 @@
 //! files ARE the continuation, and the index is Codex's to rebuild.
 //! Nothing else travels: not the state database, not the display
 //! history, not the config and the login, which are the harness's
-//! and the vault's.
+//! and the secret's — `auth.json` is written from the fed secret
+//! before every loop and handed back to the collect after, never a
+//! row.
 //!
 //! Two tables, reached through the proxy's loopback pgwire: the
 //! thread row — the id `exec resume` takes, and the last cumulative

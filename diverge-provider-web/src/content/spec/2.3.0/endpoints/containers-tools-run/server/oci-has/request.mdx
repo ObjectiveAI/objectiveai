@@ -9,10 +9,11 @@ draft: false
 [2][request JSON …]
 ```
 
-- **`name`.** The repository path of the image, as the request of
-  the run names it.
 - **`digest`.** The manifest digest, `<algorithm>:<hex>`, as the
   request of the run names it.
+- **No name.** The ask names no repository. The client's store is
+  keyed by digest, and the repository path the client holds the image
+  under is the client's to answer.
 
 The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/run/server/channel_request/frame.rs`:
 

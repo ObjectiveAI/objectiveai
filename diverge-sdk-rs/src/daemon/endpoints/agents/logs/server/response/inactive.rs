@@ -14,6 +14,7 @@ use super::Provider;
 /// the two bracket every chunk produced there; nothing between an
 /// `inactive` and the next `active` was said by the agent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Inactive {
     /// Always `inactive`.
     pub r#type: InactiveType,
@@ -24,6 +25,7 @@ pub struct Inactive {
 
 /// [`Inactive`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum InactiveType {
     #[serde(rename = "inactive")]
     #[default]

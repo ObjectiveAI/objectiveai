@@ -17,6 +17,7 @@ use super::Identity;
 /// revision a provider answered on the protocol's `version` scope
 /// say, lands beside it without moving anything.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Provider {
     /// Who the provider is. See [`Identity`].
     pub identity: Identity,

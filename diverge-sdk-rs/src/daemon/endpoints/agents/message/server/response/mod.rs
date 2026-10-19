@@ -1,4 +1,4 @@
-//! The message response: delivered, cancelled, or a failure.
+//! The message response: delivered, cancelled, forbidden, or a failure.
 
 mod frame;
 

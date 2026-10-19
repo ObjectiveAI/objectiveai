@@ -12,30 +12,19 @@ The server opens each of these channels on the scope, as [Channels](/frames/chan
 | `0` | [oci-manifest](/endpoints/containers-tools-run/server/oci-manifest/) |
 | `1` | [oci-blob](/endpoints/containers-tools-run/server/oci-blob/) |
 | `2` | [oci-has](/endpoints/containers-tools-run/server/oci-has/) |
-| `3` | [authorize](/endpoints/containers-tools-run/server/authorize/) |
-| `4` | [tools](/endpoints/containers-tools-run/server/tools/) |
-| `5` | [write-bytes](/endpoints/containers-tools-run/server/write-bytes/) |
-| `6` | [postgres](/endpoints/containers-tools-run/server/postgres/) |
-| `7` | [command](/endpoints/containers-tools-run/server/command/) |
-| `8` | [vault-get](/endpoints/containers-tools-run/server/vault-get/) |
-| `9` | [vault-set](/endpoints/containers-tools-run/server/vault-set/) |
-| `10` | [vault-delete](/endpoints/containers-tools-run/server/vault-delete/) |
-| `11` | [vault-lock](/endpoints/containers-tools-run/server/vault-lock/) |
-| `12` | [vault-unlock](/endpoints/containers-tools-run/server/vault-unlock/) |
-| `13` | [mcp-list-tools](/endpoints/containers-tools-run/server/mcp-list-tools/) |
-| `14` | [mcp-list-resources](/endpoints/containers-tools-run/server/mcp-list-resources/) |
-| `15` | [mcp-call-tool](/endpoints/containers-tools-run/server/mcp-call-tool/) |
-| `16` | [mcp-read-resource](/endpoints/containers-tools-run/server/mcp-read-resource/) |
-| `17` | [mcp-notifications](/endpoints/containers-tools-run/server/mcp-notifications/) |
-| `18` | [fuse-read](/endpoints/containers-tools-run/server/fuse-read/) |
-| `19` | [fuse-write](/endpoints/containers-tools-run/server/fuse-write/) |
-| `20` | [fuse-list](/endpoints/containers-tools-run/server/fuse-list/) |
-| `21` | [fuse-remove](/endpoints/containers-tools-run/server/fuse-remove/) |
-| `22` | [fuse-rename](/endpoints/containers-tools-run/server/fuse-rename/) |
-| `23` | [fuse-mkdir](/endpoints/containers-tools-run/server/fuse-mkdir/) |
-| `24` | [fuse-stat](/endpoints/containers-tools-run/server/fuse-stat/) |
-| `25` | [fuse-truncate](/endpoints/containers-tools-run/server/fuse-truncate/) |
-| `26` | [fuse-setattr](/endpoints/containers-tools-run/server/fuse-setattr/) |
+| `3` | [write-bytes](/endpoints/containers-tools-run/server/write-bytes/) |
+| `4` | [postgres](/endpoints/containers-tools-run/server/postgres/) |
+| `5` | [daemon](/endpoints/containers-tools-run/server/daemon/) |
+| `6` | [fuse-read](/endpoints/containers-tools-run/server/fuse-read/) |
+| `7` | [fuse-write](/endpoints/containers-tools-run/server/fuse-write/) |
+| `8` | [fuse-list](/endpoints/containers-tools-run/server/fuse-list/) |
+| `9` | [fuse-remove](/endpoints/containers-tools-run/server/fuse-remove/) |
+| `10` | [fuse-rename](/endpoints/containers-tools-run/server/fuse-rename/) |
+| `11` | [fuse-mkdir](/endpoints/containers-tools-run/server/fuse-mkdir/) |
+| `12` | [fuse-stat](/endpoints/containers-tools-run/server/fuse-stat/) |
+| `13` | [fuse-truncate](/endpoints/containers-tools-run/server/fuse-truncate/) |
+| `14` | [fuse-setattr](/endpoints/containers-tools-run/server/fuse-setattr/) |
+| `15` | [registration](/endpoints/containers-tools-run/server/registration/) |
 
 The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/run/server/channel_request/frame.rs`:
 

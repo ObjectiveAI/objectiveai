@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 /// is there so that it can land beside these two without moving
 /// either.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(tag = "kind")]
 pub enum Identity {
     /// The daemon dialled the provider. `kind: "outgoing"`.
@@ -44,7 +45,7 @@ pub enum Identity {
     /// credential. `kind: "incoming_unbrokered"`.
     ///
     /// The identity is what the daemon's judging of the credential
-    /// answered: the string a key names, or a hook returns — the same
+    /// answered: the identity the credential names — the same
     /// form a provider identifies its own connectors by, the daemon
     /// being the provider's mirror in this. The credential itself is
     /// never here; it is a secret, and the identity is what it

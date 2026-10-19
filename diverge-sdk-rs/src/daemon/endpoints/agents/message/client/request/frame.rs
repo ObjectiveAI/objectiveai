@@ -4,6 +4,9 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
+use crate::shared::relay::Relay;
+
+use crate::daemon::reference;
 
 /// Ask the daemon to send an agent a message.
 ///
@@ -15,11 +18,18 @@ use serde::{Deserialize, Serialize};
 /// that cannot take one refuses the whole message, and the scope's
 /// error carries its words.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The agent's name, as its create gave it.
-    pub name: String,
+    /// The agent: by its name, as its create gave it, or by its
+    /// template and its index, which name it once and for all. See
+    /// [`reference::Agent`].
+    pub agent: reference::Agent,
     /// The message's content, in order.
     pub content: Vec<ContentBlock>,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -34,7 +44,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 2;
+const TAG: u8 = 3;
 
 /// JSON, as the enqueue is on the provider's wire: the content is
 /// MCP's, and MCP is JSON.

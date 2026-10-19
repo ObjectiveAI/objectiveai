@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the file is at the path or the byte 1 followed by an error as one JSON value, once the content channel has finished or the write has failed, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the file is at the path; exactly the byte 1, 2 or 3 when a running container, a FUSE serve or an operation holds the volume; exactly the byte 4 when the server keeps no volume; or the byte 5 followed by an error as one JSON value; once the content channel has finished or the write has failed, or before the content is asked for; and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -10,18 +10,49 @@ finish follows the response, and no frame follows the finish.
 
 ```text
 [0]                  written: the file is at the path
-[1][error JSON …]    not written, and nothing partial is
+[1]                  not written: a running container holds the volume
+[2]                  not written: a FUSE serve holds the volume
+[3]                  not written: another operation holds the volume
+[4]                  not written: the server keeps no volume
+[5][error JSON …]    not written, and nothing partial is
 ```
 
 - **The sequence.** Exactly one response precedes the response
-  finish, and nothing follows the finish. The response is sent only
-  once the content channel has finished, or the write has failed. A
-  response finish that no response precedes states that the request
-  was not served, as [Endpoints](/endpoints/) provides.
+  finish, and nothing follows the finish. The byte `0` is sent only
+  once the content channel has finished; a refusal is sent before the
+  content channel is opened; an error is sent before the content
+  channel is opened, or once the write has failed. A response finish
+  that no response precedes states that the request was not served,
+  as [Endpoints](/endpoints/) provides.
 - **Written.** A payload whose first byte is `0` states that the file
   is at the path, whole. The server sends nothing after the byte `0`,
   and a client ignores every byte that follows it.
-- **The error.** A payload whose first byte is `1` carries an error
+- **The refusals, and their order.** The server decides the bytes
+  `1`, `2` and `3` in the order [Capabilities](/capabilities/#the-hold)
+  states for an operation, the first rule that applies deciding. On
+  a server that keeps no volume, the byte `4` is the only response,
+  sent before anything is looked up. Every refusal states that
+  nothing was written, that the content was not asked for, and that
+  the destination is as it was. A client ignores every byte that
+  follows the byte `1`, `2`, `3` or `4`.
+- **Mounted.** A payload that is the byte `1` and nothing else states
+  that a running container of the client holds the volume at the
+  time of the request.
+- **FUSE served.** A payload that is the byte `2` and nothing else
+  states that a [volumes::fuse_serve](/endpoints/volumes-fuse-serve/)
+  of the client holds the volume at the time of the request.
+- **Held.** A payload that is the byte `3` and nothing else states
+  that the volume is under a [volumes::stat](/endpoints/volumes-stat/),
+  a [volumes::read](/endpoints/volumes-read/), another
+  `volumes::write`, a [volumes::filetree](/endpoints/volumes-filetree/),
+  a [volumes::edit](/endpoints/volumes-edit/) or a
+  [volumes::delete](/endpoints/volumes-delete/) at the time of the
+  request.
+- **Unsupported.** A payload that is the byte `4` and nothing else
+  states that the server holds out none of the three mode objects
+  and keeps no volume, as [Capabilities](/capabilities/#the-volume-modes)
+  provides.
+- **The error.** A payload whose first byte is `5` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
@@ -30,15 +61,10 @@ finish follows the response, and no frame follows the finish.
   that nothing partial is, and that the destination is as it was
   before the request.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, and a payload whose bytes after `1` are not
+  is none of `0` to `5`, and a payload whose bytes after `5` are not
   one JSON value are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/write/server/response/frame.rs`:
 
 ```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/write/server/response/frame.rs
-```
-
-and by `diverge-sdk-rs/src/shared/containers/write_path/response/frame.rs`:
-
-```rust include=diverge-sdk-rs/src/shared/containers/write_path/response/frame.rs
 ```

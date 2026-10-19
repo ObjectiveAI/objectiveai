@@ -42,6 +42,20 @@ installs. Nothing of the proxy's is touched. System python, no venv,
 by ruling: `--break-system-packages` holds on Debian's guarded
 interpreter and on the official image's unguarded one alike.
 
+## Secrets: none declared, both calls served
+
+The registration's answer carries `secrets: {}`: there is no model,
+so no credential, and the script is handed nothing but the
+conversation and the caller's lists. The two calls of the inside
+contract are served anyway (`secrets.rs`, the common port): `POST
+/secrets` holds the fed values whole, replacing the last feed, and
+answers `204`; `POST /secrets/collect` answers every name asked with
+the value it was fed, a name never fed `500 {kind: "secrets"}`
+naming the name and never a value. Declaring none, the proxy feeds
+nothing and collects nothing; the handlers are the contract, not a
+path. A Python agent that wants a secret would declare it in
+`Agent::declaration` and add it to the stdin `Feed`; not now.
+
 ## The run: `python3 harness.py agent.py`, once per turn
 
 cwd `/root`, the image's environment, stdin one JSON object

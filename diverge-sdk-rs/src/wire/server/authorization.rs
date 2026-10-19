@@ -2,7 +2,7 @@
 
 /// What a provider brings to a connection's handshake.
 ///
-/// The argument [`handle`](crate::provider::server::handle::handle) takes where
+/// The argument `handle` takes where
 /// `client_identity` used to be, and the fact it encodes is the one the
 /// old parameter hid: WHERE an identity comes from depends on which
 /// side dialled. Whichever side dialled authenticates — that is the

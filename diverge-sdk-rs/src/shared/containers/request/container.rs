@@ -11,7 +11,11 @@ use super::{FuseMount, Image, VolumeMount};
 /// every kind of container — the arguments included, which either
 /// kind is handed once: what differs between an agent and a tool
 /// server is what a caller says into it once it runs, on a channel,
-/// not here.
+/// not here. No secret is here either: which secrets a container
+/// takes is its program's answer at registration, and their values
+/// are fed on a channel at every activation — see
+/// [`secrets`](crate::shared::containers::secrets) — so a request
+/// carries none, and a provider never holds one.
 /// What a caller may not choose is not here at all rather than here
 /// and ignored — the container's name, its published ports, its
 /// entrypoint and its environment are the provider's, because they
@@ -21,8 +25,17 @@ use super::{FuseMount, Image, VolumeMount};
 /// ignored is a field callers will believe in.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Container {
-    /// The image: a name and a digest. See [`Image`].
+    /// The image: a digest and its references. See [`Image`].
     pub image: Image,
+    /// The template the container is made from, by id: the caller's
+    /// word for what this container is an instance of — an agent
+    /// template's id, a tool template's, or a dependency tool
+    /// template's, each the lowercase hexadecimal SHA-256 of the
+    /// template's canonical bytes. The provider hands it to the
+    /// container beside the arguments, at its registration, and reads
+    /// nothing of it: it is the program's to know which template it
+    /// runs as.
+    pub template: String,
     /// How much memory the container may have, in BYTES.
     ///
     /// A ceiling, not a hint. A process that exceeds what the
@@ -91,8 +104,8 @@ pub struct Container {
     /// takes — an agent's model and tools, a tool server's own knobs
     /// — and a wire that typed it would have to be revised for every
     /// image that ever ran. The provider hands it to the container
-    /// and does not read it; what the value MAY be is what
-    /// [`schema`](crate::shared::containers::schema) answers, for
-    /// either kind of container.
+    /// and does not read it; what the value MAY be is what the image's
+    /// [`info`](crate::shared::containers::info) answers — its
+    /// DIVERGE.md — for either kind of container.
     pub arguments: Value,
 }

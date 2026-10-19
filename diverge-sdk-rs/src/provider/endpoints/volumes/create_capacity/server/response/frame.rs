@@ -10,8 +10,10 @@ use crate::shared::error::Error;
 ///
 /// One of these on channel `0`, then the scope finishes. A payload
 /// leads with one byte saying which — `0` for
-/// [`Capacity`](Self::Capacity), `1` for [`Error`](Self::Error) — and
-/// the rest is that variant's own bytes.
+/// [`Capacity`](Self::Capacity), `1` for
+/// [`Unsupported`](Self::Unsupported), `2` for [`Error`](Self::Error)
+/// — and the rest is that variant's own bytes, of which `Unsupported`
+/// has none.
 ///
 /// # It is a fact about an instant, not a reservation
 ///
@@ -28,7 +30,14 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The number of bytes, as of now. Tag `0`.
     Capacity(u64),
-    /// A failure. Tag `1`.
+    /// The provider keeps no volumes: no mode is among its capabilities,
+    /// see [`info`](crate::provider::endpoints::info), and every volume
+    /// endpoint answers this. Tag `1`.
+    ///
+    /// Carries nothing. Nothing was looked at; a caller asks another
+    /// provider.
+    Unsupported,
+    /// A failure. Tag `2`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -38,8 +47,11 @@ pub enum Frame {
 /// Tag for [`Frame::Capacity`].
 const CAPACITY: u8 = 0;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 1;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 1;
+const ERROR: u8 = 2;
 
 /// Two variants, two formats, and the tag chooses between them.
 ///
@@ -65,6 +77,10 @@ impl Encode for Frame {
                     .map(|_| ())
                     .map_err(FrameEncodeError::Capacity)
             }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out).map_err(FrameEncodeError::Error)
@@ -84,6 +100,7 @@ impl Decode<'_> for Frame {
             CAPACITY => postcard::from_bytes(rest)
                 .map(Frame::Capacity)
                 .map_err(FrameDecodeError::Capacity),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameDecodeError::Error),
@@ -128,7 +145,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The number did not parse.
     Capacity(postcard::Error),

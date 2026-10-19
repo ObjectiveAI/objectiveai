@@ -38,6 +38,8 @@ rmcp = { version = "3.1.2", default-features = false, features = ["server", "tra
 # A refusal the far side sent, rendered whole into a tool result; the
 # errors this crate mints in the protocol's one shape.
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# The secrets a begin carries, name by name in the order given.
+indexmap = { version = "2.14.0", features = ["serde"] }
 # The agent's server, dialed: each of its five calls is one HTTP call
 # to the loopback. No TLS — it is the loopback. `json` reads a fate or
 # an outcome; `stream` reads the loop's events as they land.

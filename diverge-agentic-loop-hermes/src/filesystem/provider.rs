@@ -1,9 +1,8 @@
-//! The provider's contribution: its credential as environment, its
-//! id as the config's selection, its login as a vault document.
+//! The provider's contribution: its id as the config's selection,
+//! its credentials as the secrets the plan declares, its endpoint
+//! facts as environment.
 
-use diverge_sdk::shared::containers::vault::keys;
-
-use super::{Document, Plan, PrepareError, Target, VERTEX_FILE};
+use super::{Plan, PrepareError, Secret, Target, VERTEX_FILE};
 use super::HERMES_HOME;
 use crate::agent::Provider;
 use crate::agent::provider::bedrock;
@@ -12,14 +11,19 @@ use crate::agent::provider::bedrock;
 ///
 /// `model.provider` is the variant's own marker, serialized — the
 /// SDK's kebab-case ids ARE Hermes's provider ids, so no table maps
-/// one to the other. Then each variant's mechanism, as the SDK's
-/// provider docs state it: the key-only majority set one variable;
-/// copilot, azure-foundry, custom, zai, bedrock and vertex set their
-/// several; opencode-free sets nothing; and the four OAuth-state
-/// providers name their vault document — three as `auth.json`
-/// entries, qwen as the CLI's token file (its `providers.qwen-oauth`
-/// marker is a setup-wizard artifact the gateway never reads, and is
-/// not written).
+/// one to the other. Then each variant's mechanism, as the agent's
+/// provider docs state it: the key-only majority declare one secret
+/// bound for the environment, under the variable's own name; copilot
+/// its token the same way; azure-foundry and zai a key beside a
+/// plain endpoint variable; custom its endpoint and, when asked, the
+/// one secret bound for `model.api_key` (Hermes reads a custom key
+/// from the config, not the environment); bedrock the name set its
+/// auth mode fixes; vertex the document bound for the service-account
+/// file; opencode-free nothing; and the four OAuth-state providers
+/// declare their rotating document — three as `auth.json` entries,
+/// qwen as the CLI's token file (its `providers.qwen-oauth` marker is
+/// a setup-wizard artifact the gateway never reads, and is not
+/// written).
 pub fn apply(provider: &Provider, plan: &mut Plan) -> Result<(), PrepareError> {
     plan.provider = serde_json::to_value(provider)?
         .get("provider")
@@ -28,40 +32,29 @@ pub fn apply(provider: &Provider, plan: &mut Plan) -> Result<(), PrepareError> {
         .unwrap_or_default();
 
     match provider {
-        Provider::Actual(p) => plan.set("ACTUAL_API_KEY", p.api_key.clone()),
-        Provider::AiGateway(p) => {
-            plan.set("AI_GATEWAY_API_KEY", p.api_key.clone())
-        }
-        Provider::Alibaba(p) => plan.set("DASHSCOPE_API_KEY", p.api_key.clone()),
-        Provider::AlibabaCodingPlan(p) => {
-            plan.set("ALIBABA_CODING_PLAN_API_KEY", p.api_key.clone())
-        }
-        Provider::Anthropic(p) => {
-            plan.set("ANTHROPIC_API_KEY", p.api_key.clone())
-        }
-        Provider::Arcee(p) => plan.set("ARCEEAI_API_KEY", p.api_key.clone()),
+        Provider::Actual(_) => env(plan, "ACTUAL_API_KEY"),
+        Provider::AiGateway(_) => env(plan, "AI_GATEWAY_API_KEY"),
+        Provider::Alibaba(_) => env(plan, "DASHSCOPE_API_KEY"),
+        Provider::AlibabaCodingPlan(_) => env(plan, "ALIBABA_CODING_PLAN_API_KEY"),
+        Provider::Anthropic(_) => env(plan, "ANTHROPIC_API_KEY"),
+        Provider::Arcee(_) => env(plan, "ARCEEAI_API_KEY"),
         Provider::AzureFoundry(p) => {
-            plan.set("AZURE_FOUNDRY_API_KEY", p.api_key.clone())?;
+            env(plan, "AZURE_FOUNDRY_API_KEY")?;
             plan.set("AZURE_FOUNDRY_BASE_URL", p.base_url.clone())
         }
         Provider::Bedrock(p) => {
-            match &p.auth {
-                bedrock::Auth::BearerToken { bearer_token } => {
-                    plan.set("AWS_BEARER_TOKEN_BEDROCK", bearer_token.clone())?;
+            match p.auth {
+                bedrock::Auth::BearerToken => {
+                    env(plan, "AWS_BEARER_TOKEN_BEDROCK")?;
                 }
-                bedrock::Auth::AccessKey {
-                    access_key_id,
-                    secret_access_key,
-                    session_token,
-                } => {
-                    plan.set("AWS_ACCESS_KEY_ID", access_key_id.clone())?;
-                    plan.set(
-                        "AWS_SECRET_ACCESS_KEY",
-                        secret_access_key.clone(),
-                    )?;
-                    if let Some(session_token) = session_token {
-                        plan.set("AWS_SESSION_TOKEN", session_token.clone())?;
-                    }
+                bedrock::Auth::AccessKey => {
+                    env(plan, "AWS_ACCESS_KEY_ID")?;
+                    env(plan, "AWS_SECRET_ACCESS_KEY")?;
+                }
+                bedrock::Auth::SessionToken => {
+                    env(plan, "AWS_ACCESS_KEY_ID")?;
+                    env(plan, "AWS_SECRET_ACCESS_KEY")?;
+                    env(plan, "AWS_SESSION_TOKEN")?;
                 }
             }
             if let Some(region) = &p.region {
@@ -69,97 +62,71 @@ pub fn apply(provider: &Provider, plan: &mut Plan) -> Result<(), PrepareError> {
             }
             Ok(())
         }
-        Provider::Commandcode(p) => {
-            plan.set("COMMANDCODE_API_KEY", p.api_key.clone())
-        }
-        Provider::CommandcodeAnthropic(p) => {
-            plan.set("COMMANDCODE_API_KEY", p.api_key.clone())
-        }
-        Provider::Copilot(p) => {
-            plan.set("COPILOT_GITHUB_TOKEN", p.github_token.clone())
-        }
+        Provider::Commandcode(_) => env(plan, "COMMANDCODE_API_KEY"),
+        Provider::CommandcodeAnthropic(_) => env(plan, "COMMANDCODE_API_KEY"),
+        Provider::Copilot(_) => env(plan, "COPILOT_GITHUB_TOKEN"),
         // The URL twice: the env var is what Hermes resolves first,
         // and the config key is what unlocks `model.api_key` — a key
         // is only read beside a configured base URL.
         Provider::Custom(p) => {
             plan.set("CUSTOM_BASE_URL", p.base_url.clone())?;
             plan.base_url = Some(p.base_url.clone());
-            plan.api_key = p.api_key.clone();
+            if p.api_key {
+                plan.declare(Secret {
+                    name: "CUSTOM_API_KEY",
+                    target: Target::ModelApiKey,
+                })?;
+            }
             Ok(())
         }
-        Provider::Deepinfra(p) => {
-            plan.set("DEEPINFRA_API_KEY", p.api_key.clone())
-        }
-        Provider::Deepseek(p) => plan.set("DEEPSEEK_API_KEY", p.api_key.clone()),
-        Provider::Fireworks(p) => {
-            plan.set("FIREWORKS_API_KEY", p.api_key.clone())
-        }
+        Provider::Deepinfra(_) => env(plan, "DEEPINFRA_API_KEY"),
+        Provider::Deepseek(_) => env(plan, "DEEPSEEK_API_KEY"),
+        Provider::Fireworks(_) => env(plan, "FIREWORKS_API_KEY"),
         // GEMINI_API_KEY, never GOOGLE_API_KEY: Hermes checks the
         // latter first, and it must not be set.
-        Provider::Gemini(p) => plan.set("GEMINI_API_KEY", p.api_key.clone()),
-        Provider::Gmi(p) => plan.set("GMI_API_KEY", p.api_key.clone()),
-        Provider::Huggingface(p) => plan.set("HF_TOKEN", p.api_key.clone()),
-        Provider::Kilocode(p) => plan.set("KILOCODE_API_KEY", p.api_key.clone()),
-        Provider::KimiCoding(p) => plan.set("KIMI_API_KEY", p.api_key.clone()),
-        Provider::KimiCodingCn(p) => {
-            plan.set("KIMI_CN_API_KEY", p.api_key.clone())
-        }
-        Provider::MetaAi(p) => plan.set("MODEL_API_KEY", p.api_key.clone()),
-        Provider::Minimax(p) => plan.set("MINIMAX_API_KEY", p.api_key.clone()),
-        Provider::MinimaxCn(p) => {
-            plan.set("MINIMAX_CN_API_KEY", p.api_key.clone())
-        }
-        Provider::MinimaxOauth(_) => {
-            plan.documents.push(Document {
-                key: keys::MINIMAX_OAUTH,
-                target: Target::AuthEntry("minimax-oauth"),
-            });
-            Ok(())
-        }
-        Provider::NebiusTokenFactory(p) => {
-            plan.set("NEBIUS_API_KEY", p.api_key.clone())
-        }
-        Provider::Nous(_) => {
-            plan.documents.push(Document {
-                key: keys::NOUS_OAUTH,
-                target: Target::AuthEntry("nous"),
-            });
-            Ok(())
-        }
-        Provider::Novita(p) => plan.set("NOVITA_API_KEY", p.api_key.clone()),
-        Provider::Nvidia(p) => plan.set("NVIDIA_API_KEY", p.api_key.clone()),
-        Provider::OllamaCloud(p) => plan.set("OLLAMA_API_KEY", p.api_key.clone()),
-        Provider::OpenaiCodex(_) => {
-            plan.documents.push(Document {
-                key: keys::OPENAI_CODEX_OAUTH,
-                target: Target::AuthEntry("openai-codex"),
-            });
-            Ok(())
-        }
+        Provider::Gemini(_) => env(plan, "GEMINI_API_KEY"),
+        Provider::Gmi(_) => env(plan, "GMI_API_KEY"),
+        Provider::Huggingface(_) => env(plan, "HF_TOKEN"),
+        Provider::Kilocode(_) => env(plan, "KILOCODE_API_KEY"),
+        Provider::KimiCoding(_) => env(plan, "KIMI_API_KEY"),
+        Provider::KimiCodingCn(_) => env(plan, "KIMI_CN_API_KEY"),
+        Provider::MetaAi(_) => env(plan, "MODEL_API_KEY"),
+        Provider::Minimax(_) => env(plan, "MINIMAX_API_KEY"),
+        Provider::MinimaxCn(_) => env(plan, "MINIMAX_CN_API_KEY"),
+        Provider::MinimaxOauth(_) => plan.declare(Secret {
+            name: "MINIMAX_OAUTH",
+            target: Target::AuthEntry("minimax-oauth"),
+        }),
+        Provider::NebiusTokenFactory(_) => env(plan, "NEBIUS_API_KEY"),
+        Provider::Nous(_) => plan.declare(Secret {
+            name: "NOUS_OAUTH",
+            target: Target::AuthEntry("nous"),
+        }),
+        Provider::Novita(_) => env(plan, "NOVITA_API_KEY"),
+        Provider::Nvidia(_) => env(plan, "NVIDIA_API_KEY"),
+        Provider::OllamaCloud(_) => env(plan, "OLLAMA_API_KEY"),
+        Provider::OpenaiCodex(_) => plan.declare(Secret {
+            name: "OPENAI_CODEX_OAUTH",
+            target: Target::AuthEntry("openai-codex"),
+        }),
         // Keyless: Hermes short-circuits it to an anonymous
         // placeholder before any credential check.
         Provider::OpencodeFree(_) => Ok(()),
-        Provider::OpencodeGo(p) => {
-            plan.set("OPENCODE_GO_API_KEY", p.api_key.clone())
-        }
-        Provider::OpencodeZen(p) => {
-            plan.set("OPENCODE_ZEN_API_KEY", p.api_key.clone())
-        }
-        Provider::Openrouter(p) => {
-            plan.set("OPENROUTER_API_KEY", p.api_key.clone())
-        }
-        Provider::QwenOauth(_) => {
-            plan.documents.push(Document {
-                key: keys::QWEN_OAUTH,
-                target: Target::QwenCreds,
-            });
-            Ok(())
-        }
-        Provider::Router(p) => plan.set("RAMP_ROUTER_API_KEY", p.api_key.clone()),
-        Provider::Stepfun(p) => plan.set("STEPFUN_API_KEY", p.api_key.clone()),
-        Provider::Upstage(p) => plan.set("UPSTAGE_API_KEY", p.api_key.clone()),
+        Provider::OpencodeGo(_) => env(plan, "OPENCODE_GO_API_KEY"),
+        Provider::OpencodeZen(_) => env(plan, "OPENCODE_ZEN_API_KEY"),
+        Provider::Openrouter(_) => env(plan, "OPENROUTER_API_KEY"),
+        Provider::QwenOauth(_) => plan.declare(Secret {
+            name: "QWEN_OAUTH",
+            target: Target::QwenCreds,
+        }),
+        Provider::Router(_) => env(plan, "RAMP_ROUTER_API_KEY"),
+        Provider::Stepfun(_) => env(plan, "STEPFUN_API_KEY"),
+        Provider::Upstage(_) => env(plan, "UPSTAGE_API_KEY"),
         Provider::Vertex(p) => {
-            plan.vertex = Some(p.service_account_json.clone());
+            plan.declare(Secret {
+                name: "VERTEX_SERVICE_ACCOUNT_JSON",
+                target: Target::VertexFile,
+            })?;
             plan.set(
                 "VERTEX_CREDENTIALS_PATH",
                 format!("{HERMES_HOME}/{VERTEX_FILE}"),
@@ -172,14 +139,23 @@ pub fn apply(provider: &Provider, plan: &mut Plan) -> Result<(), PrepareError> {
             }
             Ok(())
         }
-        Provider::Xai(p) => plan.set("XAI_API_KEY", p.api_key.clone()),
-        Provider::Xiaomi(p) => plan.set("XIAOMI_API_KEY", p.api_key.clone()),
+        Provider::Xai(_) => env(plan, "XAI_API_KEY"),
+        Provider::Xiaomi(_) => env(plan, "XIAOMI_API_KEY"),
         Provider::Zai(p) => {
-            plan.set("GLM_API_KEY", p.api_key.clone())?;
+            env(plan, "GLM_API_KEY")?;
             if let Some(base_url) = &p.base_url {
                 plan.set("GLM_BASE_URL", base_url.clone())?;
             }
             Ok(())
         }
     }
+}
+
+/// Declare one secret bound for the gateway's environment, under
+/// its own name.
+fn env(plan: &mut Plan, name: &'static str) -> Result<(), PrepareError> {
+    plan.declare(Secret {
+        name,
+        target: Target::Env,
+    })
 }

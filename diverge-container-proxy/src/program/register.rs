@@ -1,24 +1,43 @@
-//! The arguments, told to the program's server once: `POST
-//! /register`, answered with the tools the program depends on.
+//! The arguments and the template, told to the program's server
+//! once: `POST /register`, answered with the dependencies the program
+//! declares and the secrets it takes.
 
 use diverge_sdk::container_proxy::inside::register::request::Request;
 use diverge_sdk::container_proxy::inside::register::response::Response;
-use diverge_sdk::shared::containers::tools::Tool;
+use diverge_sdk::shared::containers::dependencies::Template;
+use diverge_sdk::shared::containers::secrets::Declaration;
 use diverge_sdk::shared::error::Error;
 use reqwest::header::CONTENT_TYPE;
 use serde_json::Value;
 
 use super::{Upstream, refused, status_error};
 
-/// Register `arguments` with the program's server. A `2xx` is the
-/// arguments held for the container's life, and its body the tools
-/// the program depends on, which `Begun` carries; a non-`2xx` is the
+/// What the program's server answered the registration with.
+pub struct Registered {
+    /// The dependencies the program declares, which an agent
+    /// container's `Begun` carries and a tool container's begin
+    /// drops.
+    pub dependencies: Vec<Template>,
+    /// The secrets the program takes, by name, each `fixed` or
+    /// `rotating`: what the proxy feeds the program at every
+    /// activation, and — the rotating ones — collects from it at
+    /// every inactive. Empty is a program that takes none, whose
+    /// gate is never closed.
+    pub secrets: Declaration,
+}
+
+/// Register `arguments` and `template`, the id of the template the
+/// container is made from, with the program's server. A `2xx` is the
+/// two held for the container's life, and its body the dependencies
+/// the program declares and the secrets it takes; a non-`2xx` is the
 /// image refusing them, in its own words, and a server that cannot be
 /// reached is the refusal too. So is a `2xx` whose body is not the
-/// response: the tools are part of registration, and a registration
-/// the proxy cannot read has not happened.
-pub async fn register(upstream: &Upstream, arguments: Value) -> Result<Vec<Tool>, Error> {
-    let body = serde_json::to_vec(&Request { arguments }).map_err(|error| {
+/// response: the dependencies and the declaration are part of
+/// registration, and a registration the proxy cannot read has not
+/// happened. No value of any secret is here: values arrive on the
+/// begin scope's secrets channel, after `Begun`.
+pub async fn register(upstream: &Upstream, arguments: Value, template: String) -> Result<Registered, Error> {
+    let body = serde_json::to_vec(&Request { arguments, template }).map_err(|error| {
         Error(serde_json::json!({
             "kind": "program",
             "error": format!("the arguments did not serialize: {error}"),
@@ -38,7 +57,10 @@ pub async fn register(upstream: &Upstream, arguments: Value) -> Result<Vec<Tool>
     };
     let body = response.bytes().await.map_err(|error| refused(&error))?;
     serde_json::from_slice::<Response>(&body)
-        .map(|response| response.tools)
+        .map(|response| Registered {
+            dependencies: response.dependencies,
+            secrets: response.secrets,
+        })
         .map_err(|error| {
             Error(serde_json::json!({
                 "kind": "program",

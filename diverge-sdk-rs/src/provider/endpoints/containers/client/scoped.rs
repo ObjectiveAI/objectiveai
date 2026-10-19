@@ -33,10 +33,9 @@ use crate::shared::error::Error;
 /// connection, the provider's error, a frame that cannot be there —
 /// is kept as an [`Ending`] and answered again, the same way, to
 /// every later reader and to every `ended`. Nothing a
-/// provider sends on the main stream is read and thrown away: a
-/// family whose main stream carries items hands them out as a
-/// stream; a family whose main stream carries nothing after the
-/// first response reads it only to hear the end.
+/// provider sends on the main stream is read and thrown away: each
+/// family hands its items out as a stream, and `ended` waits for
+/// that stream's reader to reach the end.
 pub struct Scoped {
     handle: Handle,
     scope: u32,
@@ -144,17 +143,17 @@ impl Scoped {
         E: fmt::Display + Send + 'static,
     {
         let content = content.map(|piece| piece.map_err(|error| Error(serde_json::Value::String(error.to_string()))));
-        let write_id = self.writes.register(Box::pin(content));
+        let write_id = self.writes.register(Box::pin(content)).await;
         let payload = match encode(write_id) {
             Ok(payload) => payload,
             Err(error) => {
-                self.writes.take(write_id);
+                self.writes.take(write_id).await;
                 return Err(UnaryError::Request(error));
             }
         };
         let result = self.unary::<A>(&payload).await;
         if result.is_err() {
-            self.writes.take(write_id);
+            self.writes.take(write_id).await;
         }
         result
     }
@@ -208,29 +207,8 @@ impl Scoped {
         }
     }
 
-    /// The scope's end, for a family whose main stream carries nothing
-    /// after its first response.
-    ///
-    /// Resolves when the main stream finishes: `Ok` for the run over
-    /// or the connection closed as it should, `Err` for the provider's
-    /// own error frame, the connection dying first, or a frame that
-    /// should not be there. `decode` never yields an item, so this is
-    /// `read` to the end. An end once known is answered
-    /// again the same way to every later call.
-    pub(crate) async fn wait<R, D>(&self, decode: D) -> Result<(), WaitError<R>>
-    where
-        D: Fn(&[u8]) -> Result<Decoded<Infallible>, R>,
-        R: fmt::Display,
-    {
-        match self.read(decode).await {
-            Ok(Some(never)) => match never {},
-            Ok(None) => Ok(()),
-            Err(error) => Err(error),
-        }
-    }
-
-    /// The scope's end, without reading the main stream: for a family
-    /// whose main stream carries items, which somebody else is
+    /// The scope's end, without reading the main stream: both
+    /// families' main streams carry items, which somebody else is
     /// reading.
     ///
     /// Resolves when whoever reads the stream reads its end, and

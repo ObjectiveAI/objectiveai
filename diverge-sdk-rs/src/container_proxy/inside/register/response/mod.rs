@@ -1,4 +1,5 @@
-//! The answer: the tools the program depends on.
+//! The answer: the dependencies the program declares, and the secrets
+//! it takes.
 
 mod response;
 

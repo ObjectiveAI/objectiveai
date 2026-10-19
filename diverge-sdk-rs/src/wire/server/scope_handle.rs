@@ -31,12 +31,11 @@ use crate::wire::frame::server::ServerFrame;
 ///
 /// Every method here takes `&self`, so an [`Arc`] of one is enough for
 /// several tasks to answer the same scope at once. Which is what a
-/// two-directional endpoint
-/// needs: an
-/// [`agent container`](crate::provider::endpoints::containers::agents) relays
-/// chunks down while relaying tool calls out, and a handle that had to be held
-/// exclusively would have put a queue and an arbiter between those two
-/// jobs for no reason but the signature.
+/// two-directional endpoint needs: an [`agent
+/// container`](crate::provider::endpoints::containers::agents) relays
+/// chunks down while relaying tool calls out, and a handle that had to
+/// be held exclusively would have put a queue and an arbiter between
+/// those two jobs for no reason but the signature.
 ///
 /// The state that makes that safe is guarded rather than exclusive:
 /// the socket was already behind a lock, and the channel minter and the
@@ -210,9 +209,9 @@ impl ScopeHandle {
     /// Nothing is taken off the queue by a poll that does not complete,
     /// so this can lose a `select` and be called again without dropping
     /// a channel request. Which is what a stream-shaped scope needs — a
-    /// [`containers`](crate::provider::endpoints::containers) run serving a
-    /// filetree channel races this against the tree it is relaying,
-    /// and one of the two loses every time round.
+    /// [`containers`](crate::provider::endpoints::containers) run
+    /// serving a filetree channel races this against the tree it is
+    /// relaying, and one of the two loses every time round.
     pub async fn recv_channel_request(&self) -> Option<Bytes> {
         self.channel_request_receiver.lock().await.recv().await
     }
@@ -270,17 +269,17 @@ impl ScopeHandle {
     /// the inbox, and this closes it. A handler's serve loop has
     /// returned before it finishes.
     ///
-    /// [`client::handle::Handle`](crate::wire::client::handle::Handle) cannot
-    /// do this and does not try: a client does not decide when its
-    /// scope ends, it finds out.
+    /// [`client::handle::Handle`](crate::wire::client::handle::Handle)
+    /// cannot do this and does not try: a client does not decide when
+    /// its scope ends, it finds out.
     ///
     /// # The inbox closes first, and this is where it matters most
     ///
     /// A client may reuse a scope number the instant it reads this
     /// finish. If the number still looked live when the reused
-    /// [`Request`](crate::wire::frame::client::ClientFrame::Request) arrived,
-    /// a [`Session`](super::session::Session) would take it for a
-    /// duplicate and discard it — a legitimate request dropped in
+    /// [`Request`](crate::wire::frame::client::ClientFrame::Request)
+    /// arrived, a [`Session`](super::session::Session) would take it
+    /// for a duplicate and discard it — a legitimate request dropped in
     /// silence, and a client hanging on a scope that was never
     /// answered.
     ///
@@ -298,9 +297,9 @@ impl ScopeHandle {
     /// opens it.
     ///
     /// For the things a provider needs from a caller mid-scope: serving
-    /// an image, reaching a database, running a command. Comes back
-    /// with the number and the stream the client's answer will arrive
-    /// on — see [`Channel`].
+    /// an image, reaching a database, carrying a daemon frame. Comes
+    /// back with the number and the stream the client's answer will
+    /// arrive on — see [`Channel`].
     ///
     /// The payload is written as given, tag and all. This layer does
     /// not know what a channel request says; see
@@ -498,8 +497,8 @@ struct Minter {
     /// one says where a frame GOES; this one says what has been handed
     /// out and not yet taken back, which is the question a minter asks
     /// and a router never does. The same split
-    /// [`client::handle::Handle`](crate::wire::client::handle::Handle) makes
-    /// against its own router.
+    /// [`client::handle::Handle`](crate::wire::client::handle::Handle)
+    /// makes against its own router.
     ///
     /// A set, because there is nothing to store against a number. What
     /// arrives on a channel goes to a receiver somebody else holds; the

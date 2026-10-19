@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 /// to return it and the model would use to say it — one content
 /// model across the whole loop rather than one per direction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct UserResourceChunk {
     /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: UserResourceChunkType,
@@ -33,6 +34,7 @@ pub struct UserResourceChunk {
 
 /// [`UserResourceChunk`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum UserResourceChunkType {
     #[serde(rename = "user_resource")]
     #[default]

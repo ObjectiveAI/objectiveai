@@ -14,7 +14,7 @@ publish = false
 # the SDKs are named by where they live rather than by version pins
 # version.sh would have to chase. The provider SDK is the vocabulary —
 # the agent, the chunks; the container SDK is the proxy beside this
-# program — the request, the chunks' way out, the vault, the database.
+# program — the request, the chunks' way out, the secrets, the database.
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The loop's door: an HTTP server on the loopback the proxy forwards
 # to — `/run` as server-sent events, the queue's two verbs, the
@@ -27,8 +27,8 @@ futures-util = { version = "0.3.33", default-features = false, features = ["std"
 # container SDK's.
 rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
 # The agent's JSON Schema, derived from the agent types for
-# `GET /schema`; `indexmap2` for the `logit_bias` map.
-schemars = { version = "1.2.1", features = ["indexmap2"] }
+# `--schema`; `indexmap2` for the `logit_bias` map.
+schemars = { version = "1.2.2", features = ["indexmap2"] }
 # The map types the OpenRouter shapes carry: ordered, so the same
 # request always serializes identically.
 indexmap = { version = "2.14.0", features = ["serde"] }

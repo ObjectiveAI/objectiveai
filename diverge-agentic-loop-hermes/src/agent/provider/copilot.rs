@@ -5,20 +5,20 @@ use serde::{Deserialize, Serialize};
 
 /// GitHub Copilot (token exchange).
 ///
-/// APPLICATION: the harness sets `COPILOT_GITHUB_TOKEN` to
-/// [`github_token`](Self::github_token) in the gateway's process
-/// environment before Hermes starts; Hermes performs the
-/// GitHub-token → Copilot-api-token exchange on its own, and setting
-/// the var also suppresses its `gh auth token` fallback.
+/// APPLICATION: the harness sets `COPILOT_GITHUB_TOKEN` to the
+/// secret's value in the gateway's process environment before
+/// Hermes starts; Hermes performs the GitHub-token →
+/// Copilot-api-token exchange on its own, and setting the var also
+/// suppresses its `gh auth token` fallback.
+///
+/// SECRET: `COPILOT_GITHUB_TOKEN`, fixed — the GitHub token the
+/// exchange starts from. Must be an OAuth or fine-grained token
+/// (`gho_`/`ghu_`/`github_pat_`) — Hermes rejects classic `ghp_`
+/// PATs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `copilot`.
     pub provider: Copilot,
-    /// The GitHub token the exchange starts from, applied as
-    /// `COPILOT_GITHUB_TOKEN`. Must be an OAuth or fine-grained
-    /// token (`gho_`/`ghu_`/`github_pat_`) — Hermes rejects classic
-    /// `ghp_` PATs.
-    pub github_token: String,
 }
 
 /// [`Provider`]'s discriminator.

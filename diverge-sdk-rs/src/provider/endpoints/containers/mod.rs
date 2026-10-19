@@ -1,5 +1,5 @@
-//! Containers: one substrate, and the two things a caller does with
-//! it.
+//! Containers: one substrate, the two things a caller does with it,
+//! and a way into either's files.
 //!
 //! A provider runs a container for a caller — an image, limits, the
 //! caller's mounts — and the caller then works with what runs inside.
@@ -12,32 +12,35 @@
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
+//! And one scope of neither family: [`fuse_serve`] names a container the
+//! caller is running, of either family, and a directory of it, and
+//! answers the nine FUSE asks from it live — the volume FUSE serve's own
+//! vocabulary, with a container at the far end — so that a mount
+//! elsewhere can be a running container's directory.
+//!
 //! Everything else is identical, and it is most of the wire: the
-//! request that makes a container carries its arguments — a JSON
-//! value the image defines, fixed for the container's life — and a
-//! `schema` channel says what they may be; each family has a `run`
-//! that owns the container's life, and the tools
-//! family also has a `connect` that joins one by id and authorization
-//! — an agent container is its runner's alone; every scope reads and
-//! writes files, watches the tree, and relays what the container asks
-//! of the caller — its database connections, its commands, its vault,
-//! its tool calls outward. All of that is defined once, in
+//! request that makes a container carries its arguments — a JSON value
+//! the image defines, fixed for the container's life — and an `info`
+//! channel answers the image's DIVERGE.md, which says what they may
+//! be; each family has a `run` that owns the container's life; every
+//! scope reads and writes files, watches the
+//! tree, and relays what the container asks of the caller — its
+//! database connections, its daemon connection, its tool
+//! calls outward. All of that is defined once, in
 //! [`shared::containers`](crate::shared::containers), and each scope's
-//! frames wrap or alias it. The three scopes' channel tags are laid out
-//! so the shared part comes first and identically, and the family's
-//! own exchange takes the tags after it.
+//! frames wrap or alias it. The two runs' channel tags are laid out so
+//! the shared part comes first and identically, and the family's own
+//! exchange takes the tags after it.
 //!
 //! # The main stream is the id, and then the agent
 //!
 //! A run answers with the container's
 //! [`Id`](crate::shared::containers::response::Id). An agent
 //! container's stream then carries the agent's chunks for as long as
-//! the container runs; a tool container's carries nothing more, and a
-//! connect answers with nothing at all. An error ends the scope.
-//! Everything else a caller reads — a filetree, a file — is a channel
-//! the caller opens, so a caller that wants none of it pays for none
-//! of it, and two callers on one tool container can each subscribe
-//! to what they want.
+//! the container runs; a tool container's carries nothing more. An
+//! error ends the scope. Everything else a caller reads — a filetree,
+//! a file — is a channel the caller opens, so a caller that wants none
+//! of it pays for none of it.
 //!
 //! # Why one family is not enough
 //!
@@ -52,27 +55,19 @@
 //! # And a way to use them
 //!
 //! Each scope's `client::execute` performs the exchange rather than
-//! describing it: hand it a [`Handle`](crate::wire::client::handle::Handle),
-//! the request and — for a run — the caller's
+//! describing it: hand it a
+//! [`Handle`](crate::wire::client::handle::Handle), the request and —
+//! for a run — the caller's
 //! [`Answerers`](crate::provider::client::Answerers), and get back the
-//! container's id and a handle that holds the scope for the
-//! container's life, opens every channel the caller may open, and
-//! answers every channel the provider opens. What the three share is
-//! [`client`], written once.
+//! container's id and a handle that holds the scope for the container's
+//! life, opens every channel the caller may open, and answers every
+//! channel the provider opens. What the two share is [`client`],
+//! written once.
 //!
-//! # And a way to serve them
-//!
-//! Each scope's `server::handle` answers the request: a run brings
-//! the container up in order — content, registry, deploy, the proxy
-//! dialled and begun, every mount made — sends the id, and then
-//! relays everything the container asks and serves everything the
-//! caller opens until the run ends; a connect asks the runner and, on a yes,
-//! serves the connector the same way. What the three share is
-//! [`server`], written once.
 
 pub mod agents;
+pub mod fuse_serve;
 pub mod tools;
 
 pub mod client;
 
-pub mod server;

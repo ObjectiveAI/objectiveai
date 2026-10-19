@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 /// which would have made "the loop warned me" and "the loop failed"
 /// different shapes to parse rather than different values in one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct NotificationChunk {
     /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: NotificationChunkType,
@@ -59,6 +60,7 @@ pub struct NotificationChunk {
 
 /// [`NotificationChunk`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum NotificationChunkType {
     #[serde(rename = "notification")]
     #[default]

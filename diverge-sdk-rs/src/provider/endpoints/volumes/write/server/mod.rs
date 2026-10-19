@@ -9,14 +9,12 @@
 //!
 //! # And a way to answer it
 //!
-//! [`handle`] performs the exchange rather than describing it: hand it
+//! the provider crate's `handle` performs the exchange rather than describing it: hand it
 //! the [`ScopeHandle`](crate::wire::server::scope_handle::ScopeHandle) a
 //! [`Session`](crate::wire::server::session::Session) yielded, whose caller
 //! it is, and a
-//! [`VolumeManager`](crate::provider::server::volume_manager::VolumeManager), and
+//! `VolumeManager`, and
 //! it collects the content and puts the file in place.
 
 pub mod channel_request;
 pub mod response;
-
-pub mod handle;

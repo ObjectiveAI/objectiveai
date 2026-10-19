@@ -1,13 +1,14 @@
-//! Editing what an agent mounts, by name.
+//! Editing an agent: a patch to its name and its mounts.
 //!
-//! One request, one answer. A client names an agent of its own and
-//! states its mounts anew — the volumes of the provider it is pinned
-//! to, and the files and directories served over FUSE — and the
-//! daemon answers that the agent has them, that no agent has that
-//! name, that the agent is active and was left as it is, or that it
-//! failed, and the scope finishes. The mounts are the one thing about
-//! an agent that changes after its [`create`](super::create): its
-//! image, its limits, its provider and its arguments are for its life.
+//! One request, one answer. A client names an agent of its own and a
+//! patch — see [`patch`](crate::daemon::patch) — to the agent's
+//! editable members; the daemon applies it, whole or not at all, and
+//! answers that the agent is as the result states, that no agent is
+//! the one named, that the agent is active and its mounts were left as
+//! they are, that the name is another's, or that it failed, and the
+//! scope finishes. What changes about an agent after its
+//! [`create`](super::create) is its name and its mounts: its image, its
+//! limits, its provider and its arguments are for its life.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer

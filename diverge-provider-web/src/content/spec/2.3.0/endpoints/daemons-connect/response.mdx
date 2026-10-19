@@ -1,0 +1,53 @@
+---
+title: 'Response'
+summary: 'The server sends the byte 0 once when the acceptor takes the connection, then one response per server frame the acceptor sends, the byte 2 before each; or exactly one error, the byte 1, and the finish.'
+order: 2
+draft: false
+---
+
+The server sends the byte `0` once, when the acceptor takes the
+connection, and from then on one response per frame the acceptor
+sends; or exactly one error and the response finish. No frame bearing
+the scope follows the finish.
+
+```text
+[0]                  once, when the acceptor took the connection
+[1][error JSON …]    once, when it did not, and the finish follows
+[2][frame …]         per server frame of the acceptor's, after the byte 0
+```
+
+- **The sequence.** The first response is the byte `0` or an error.
+  An error is followed by the response finish, and the connection
+  never opened. After the byte `0`, the server sends zero or more
+  frame responses, then the finish, and the finish carries no error:
+  the acceptor hung up, the connector hung up, the accept scope
+  ended, or the connector's connection ended. A response finish that
+  no response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides.
+- **The error.** A payload whose first byte is `1` carries, after
+  that byte, exactly one JSON value in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  The server sends `{"kind":"missing"}` for an identity no accept
+  scope is open under and `{"kind":"denied"}` for an acceptor that
+  declined the connection or whose accept scope ended before it took
+  the connection.
+- **The frame.** A payload whose first byte is `2` carries, after
+  that byte, exactly one server frame of the daemon protocol, laid
+  out as [Frames](/frames/) lays out a server frame, verbatim as the
+  acceptor sent it: the type byte `2`, a response; `3`, a response
+  finish; `4`, a channel request the acceptor opened; `5`, a channel
+  response; `6`, a channel response finish; never `0`. The scope and
+  the channel in it are the connector's own, as it minted them.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is none of `0`, `1` and `2`, and a payload whose bytes after the
+  byte `1` do not parse as one JSON value are malformed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/connect/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/connect/server/response/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/daemon/server/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/daemon/server/frame.rs
+```

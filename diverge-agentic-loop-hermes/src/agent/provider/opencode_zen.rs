@@ -5,15 +5,15 @@ use serde::{Deserialize, Serialize};
 
 /// OpenCode Zen.
 ///
-/// APPLICATION: the harness sets `OPENCODE_ZEN_API_KEY` to
-/// [`api_key`](Self::api_key) in the gateway's process environment
-/// before Hermes starts.
+/// APPLICATION: the harness sets `OPENCODE_ZEN_API_KEY` to the
+/// secret's value in the gateway's process environment before
+/// Hermes starts.
+///
+/// SECRET: `OPENCODE_ZEN_API_KEY`, fixed — the API key, under that name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `opencode-zen`.
     pub provider: OpencodeZen,
-    /// The API key, applied as `OPENCODE_ZEN_API_KEY`.
-    pub api_key: String,
 }
 
 /// [`Provider`]'s discriminator.

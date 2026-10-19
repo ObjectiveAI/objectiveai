@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the answer or with the byte 1 followed by an error, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the answer, with the byte 1 followed by an error, or is the byte 2 alone when the request named no source the server has, and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -11,6 +11,7 @@ finish follows the response, and no frame follows the finish.
 ```text
 [0][answer JSON …]
 [1][error JSON …]
+[2]
 ```
 
 - **The sequence.** Exactly one response precedes the response
@@ -20,23 +21,38 @@ finish follows the response, and no frame follows the finish.
 - **The answer.** A payload whose first byte is `0` carries the
   answer as JSON after that byte. The answer is exactly one of two
   objects: `{"type":"available"}` or `{"type":"unavailable"}`. The
-  available answer states that the server could obtain the image
-  without the client's help — from what it holds, or from a source
-  of its own — for a container request naming the requested name and
-  digest, at the time of the answer. It reserves nothing, and a later
-  container request naming the image may fail. The unavailable
-  answer states that the server could not; a container request
-  naming the image may still succeed where the client holds the
-  image. It states no reason: an image the server cannot obtain and
+  available answer states that at least one source the request asked
+  for has the image, at the time of the answer, for a container
+  request naming the requested digest: the client's own images, built
+  on the server by [images::build](/endpoints/images-build/) and no
+  other client's, where `client` was asked and the server holds out
+  the `images_store` capability; a referenced registry in the
+  server's `images_registries`, where `registries` was asked. The server
+  does not answer available on account of an image it holds on its
+  own account.
+  It reserves nothing, and a later container request naming the
+  image may fail. The unavailable answer states that no source asked
+  has it; a container request naming the image may still succeed
+  where the client holds the image, or where a source not asked has
+  it. It states no reason and names no source: an image the server cannot obtain and
   an image the server could obtain and will not serve to this client
   receive the same answer.
 - **The error.** A payload whose first byte is `1` carries an error
   as JSON after that byte. The error states that the server did not
   answer the question and that nothing was determined about the
   image. An error is not an unavailable answer.
+- **No source.** A payload that is the byte `2` and nothing else
+  states that the request asked for no source the server has — it
+  asked for neither source, or only for `client` on a server that
+  holds out no [`images_store`](/capabilities/#images_store)
+  capability, or only for `registries` on a server whose
+  [`images_registries`](/capabilities/#images_registries) is empty,
+  or for both on a server that has neither — that the server looked
+  nowhere, and that nothing is determined about the image. A payload whose first byte is `2` is read by that byte
+  alone; bytes after it are not read.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, and a payload whose bytes after the first
-  do not parse as the answer or as the error are malformed.
+  is none of `0`, `1` and `2`, and a payload whose bytes after `0` or
+  `1` do not parse as the answer or as the error are malformed.
 
 The response frame is defined by
 `diverge-sdk-rs/src/provider/endpoints/images/check/server/response/frame.rs`:

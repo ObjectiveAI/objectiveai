@@ -1,6 +1,6 @@
 ---
 title: 'Connection'
-summary: 'The client opens exactly one connection to the server, for the life of the container; the begin scope comes first and once, every mount before the rest; the connection ending ends every scope on it, and nothing is re-asked.'
+summary: 'The client opens exactly one connection to the server, for the life of the container; the begin scope comes first and once, every mount of the request before the rest and any further mount at any time after; the connection ending ends every scope on it, and nothing is re-asked.'
 order: 1
 draft: false
 ---
@@ -26,9 +26,12 @@ this page states, and nothing survives it.
   first begin continues.
 - **The mounts.** After the begin has been answered, the client opens
   one [fuse::mount](/container-proxy-endpoints/fuse-mount/) scope per
-  mount, and opens no other scope until every mount has been
-  answered.
-- **The rest.** After every mount has been answered, the client opens
+  mount of the container's request, and opens no other scope until
+  every one of them has been answered. After that the client opens a
+  further mount scope at any time, for the life of the connection,
+  beside whatever other scopes are open; the server serves one
+  opened then as it serves one opened before.
+- **The rest.** After every mount of the request has been answered, the client opens
   [filesystem::tree](/container-proxy-endpoints/filesystem-tree/),
   [filesystem::read](/container-proxy-endpoints/filesystem-read/) and
   [filesystem::write](/container-proxy-endpoints/filesystem-write/)

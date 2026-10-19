@@ -5,7 +5,6 @@ use serde_json::Value;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::request::Image;
 
 /// Begin the server's work on a tool container, and hand it its
 /// arguments.
@@ -14,19 +13,23 @@ use crate::shared::containers::request::Image;
 /// [`arguments`](crate::shared::containers::request::Container::arguments)
 /// of the request that made the container, typed to the same depth
 /// for the same reason — a JSON value, because the image defines what
-/// it takes, and what the value may be is what
-/// [`schema`](crate::shared::containers::schema) answers. They ride
+/// it takes, and what the value may be is what the image's
+/// [`info`](crate::shared::containers::info) answers. They ride
 /// the begin rather than a channel of their own because they are
 /// handed over exactly once, first, and never change: the container
 /// that has begun is a container that holds its arguments, and
 /// [`Begun`](super::super::super::server::response::Frame::Begun) says both.
 ///
-/// The image rides beside them for the proxy's own use: the proxy
-/// cannot see what image it runs in, and it puts the name and the
-/// digest under `_meta` on every MCP exchange it relays — see
-/// [`shared::mcp`](crate::shared::mcp) — so that whoever is on the
-/// other end of a tool call knows which image is calling, and which
-/// image is serving.
+/// The template rides beside them: the id of the template the
+/// container is made from, as the run request named it, handed to
+/// the program with them and read by nothing else. No secret does:
+/// which secrets the program takes is its own answer, carried back on
+/// `Begun`, and their values follow on a
+/// [`Secrets`](super::super::channel_request::Frame::Secrets) channel
+/// once the caller has them. The proxy sets nothing under `_meta` on
+/// what it relays — who is on either end of a tool call is the
+/// daemon's to attest, see [`shared::mcp`](crate::shared::mcp) — so
+/// it has no need of the image it runs in, and is not told it.
 ///
 /// # Once, and first
 ///
@@ -38,9 +41,10 @@ use crate::shared::containers::request::Image;
 pub struct Frame {
     /// The arguments, as the image defines them.
     pub arguments: Value,
-    /// The image the container was made from, name and digest, as the
-    /// run request named it.
-    pub image: Image,
+    /// The template the container is made from, by id, as the
+    /// [`template`](crate::shared::containers::request::Container::template)
+    /// of the request that made the container names it.
+    pub template: String,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -92,7 +96,7 @@ pub enum FrameError {
     /// assumed which request it held, and was wrong, will — which is
     /// the point of checking a tag rather than skipping it.
     UnexpectedTag(u8),
-    /// The arguments did not parse.
+    /// The request did not parse.
     Body(serde_json::Error),
 }
 

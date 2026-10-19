@@ -1,0 +1,55 @@
+---
+title: 'Registration'
+summary: 'Tag 15: the server asks the client to register the container, carrying the run’s id and the secrets the program takes, each by name to its mode, verbatim and with no dependencies; the client answers with exactly one channel response, deployed with the secrets’ first values or an error, and the channel response finish; the server feeds the values to the container before it sends the id, and anything but a deploy and a feed is the run’s error.'
+order: 15
+draft: false
+---
+
+The server opens this channel when the `Begun` the proxy answered its
+begin with carries one or more secrets: the secrets the container's
+program declared it takes when it was registered, each by name to the
+mode it takes it in, whose values the client supplies. The client's
+answer decides whether the run goes on, and carries the first values
+of the secrets.
+
+- **When.** After the begin has been answered and before the id is
+  sent, beside the FUSE mounts. Exactly once per run, and never on a
+  connect scope. The server opens no registration channel when the
+  declaration of secrets is empty, and feeds nothing to such a
+  container.
+- **No dependencies.** A tool container declares no dependencies: the
+  `dependencies` member of the request is absent on every
+  registration channel of a tools-run scope, and a list the
+  container's program answers its registration with is not carried.
+- **The id.** The server mints the run's id before it opens the
+  channel, and enters the container among those it runs before it
+  asks: a [containers::fuse_serve](/endpoints/containers-fuse-serve/) naming
+  the id is answered while the channel is open. The id the request
+  carries is the id the server sends as the response after the
+  channel has ended and the values have been fed, and no other. The
+  container is listed by nothing and found by no connect before the
+  response.
+- **The request.** The tag byte `15` followed by the run's id and the
+  declaration as JSON.
+  [Request](/endpoints/containers-tools-run/server/registration/request/) states its form.
+- **The response.** Exactly one channel response, deployed with the
+  values or an error, and the channel response finish.
+  [Response](/endpoints/containers-tools-run/server/registration/response/) states the sequence.
+- **The feed.** When the answer is the byte `0`, the server opens
+  exactly one [secrets](/container-proxy-endpoints/tools-begin/client/secrets/)
+  channel on the begin scope of the container's proxy, carrying the
+  values the answer carried, verbatim, and reads its answer to its
+  finish. The proxy's `Fed` lets the run go on to its id. The proxy's
+  error, and a channel response finish that no channel response
+  precedes, are the run's error: the server stops the container. The
+  server sends the id only after `Fed`.
+- **Verbatim.** The server relays the declaration as the proxy sent
+  it and the values as the client sent them, and reads none of them:
+  not the names, not the modes, not the values.
+- **What the client does.** The client answers, under every name the
+  declaration carries, one value: for a `rotating` name a value it
+  locks to the container until the `Inactive` that ends the
+  container's activity hands it back, and for a `fixed` name a value
+  it reads and never takes back. A tool container running as a
+  dependency of an agent is answered with values resolved through
+  the vault key that agent binds the same name to.

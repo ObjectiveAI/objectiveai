@@ -4,21 +4,22 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The ChatGPT Codex backend, over external OAuth. Single-use
-/// rotating refresh tokens, so the credential is a RESOURCE: the
-/// caller provides its current state, the run rotates it, and the
-/// rotated state is surfaced back to the caller instead of silently
-/// burning their login.
+/// rotating refresh tokens, so the credential is a ROTATING secret:
+/// the caller holds its current state, the run rotates it, and the
+/// rotated state is collected back instead of silently burning
+/// their login.
 ///
-/// APPLICATION: the document lives in the vault under
-/// [`OPENAI_CODEX_OAUTH`](diverge_sdk::shared::containers::vault::keys::OPENAI_CODEX_OAUTH). The harness
-/// locks that key for the run, reads the document, and writes it as
-/// the `providers.openai-codex` entry of `$HERMES_HOME/auth.json`
-/// before Hermes starts — provider selection rides the config the
-/// harness already owns, never the file's `active_provider`. On
-/// token refresh Hermes rewrites the entry in place; at the run's
-/// end the rewritten document is set back under the key, and the
-/// key unlocked. Nothing about it is an argument: choosing this
+/// APPLICATION: the harness writes the fed document as the
+/// `providers.openai-codex` entry of `$HERMES_HOME/auth.json` before
+/// Hermes starts — provider selection rides the config the harness
+/// already owns, never the file's `active_provider`. On token
+/// refresh Hermes rewrites the entry in place; after the gateway
+/// exits the entry is read back as the run left it and handed to the
+/// proxy's collect. Nothing about it is an argument: choosing this
 /// provider is the whole ask.
+///
+/// SECRET: `OPENAI_CODEX_OAUTH`, rotating — the OAuth state
+/// document, a JSON object, exactly as Hermes keeps the entry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `openai-codex`.

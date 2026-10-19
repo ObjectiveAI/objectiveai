@@ -34,12 +34,15 @@ use serde::{Deserialize, Serialize};
 /// volume was made and changed only by an edit of it — the same for
 /// every container that mounts it, and not a mount's to say; a mount
 /// only states which mode it means the volume to have. So is how
-/// many may hold it: any number of containers and serves for an
+/// many may hold it: any number of containers and FUSE serves for an
 /// ephemeral or a read-only volume, one at a time for a persistent
 /// one.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub struct VolumeMount {
     /// Which volume, by the name the provider's listing gives it.
+    /// Naming it takes the `mount` grant over it: see
+    /// [`grant`](crate::daemon::grant).
     pub volume_name: String,
     /// How far into that volume to start, as path components
     /// relative to it.
@@ -49,16 +52,18 @@ pub struct VolumeMount {
     pub volume_relative_path: Vec<String>,
     /// The mode the volume is meant to be in: `persistent`, it keeps
     /// what is written into it; `ephemeral`, every change is discarded
-    /// afterwards, with the container or with the serve; `read_only`,
+    /// afterwards, with the container or with the FUSE serve; `read_only`,
     /// nothing changes it. The mode is the volume's own, on its
     /// provider — its listing reports it,
     /// [`volumes::create`](crate::provider::endpoints::volumes::create)
     /// states it and
     /// [`volumes::edit`](crate::provider::endpoints::volumes::edit)
     /// changes it; see [`Mode`] — and this states which mode this
-    /// mount means the volume to have. What the daemon does with a
-    /// volume whose mode differs at the create, this revision does
-    /// not state.
+    /// mount means the volume to have. The daemon sends it to the
+    /// provider with the mount, and a volume in another mode refuses
+    /// the run — or, for a mount served across providers, its FUSE serve —
+    /// which is the agent's or tool's start error; nothing changes a
+    /// volume's mode but a `volumes edit`.
     pub volume_mode: Mode,
     /// Where it appears inside the container, as path components from
     /// the container's root.

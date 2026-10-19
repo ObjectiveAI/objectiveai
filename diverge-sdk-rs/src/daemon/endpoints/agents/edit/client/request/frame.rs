@@ -2,68 +2,58 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::agents::create::client::request::{FuseMount, VolumeMount};
+use crate::daemon::patch::Patch;
+use crate::daemon::reference;
+use crate::shared::relay::Relay;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to change what an agent mounts, by name.
+/// Ask the daemon to change an agent: a patch to its editable
+/// members — its name and its mounts.
 ///
-/// The name is the one a
-/// [`create`](crate::daemon::endpoints::agents::create) gave the
-/// agent, compared as the daemon compares names and not read. The
-/// three lists are absolute: what the agent mounts after the edit is
-/// exactly what they state, each list replacing the agent's list of
-/// that kind whole, an empty list leaving the agent with no mount of
-/// that kind. A mount the agent already has is kept where the new
-/// list names it the same; a mount the new list leaves out is gone;
-/// a mount the new list adds is made. An agent that is active — one
-/// with a loop running — is not edited, and the daemon says so with a
-/// variant of its own, because a caller acts on it differently from a
-/// failure: wait for the loop to end, and ask again. The agent's
-/// image, limits, provider and arguments are not edited: they are
-/// its for its life.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// The agent is named by its name or by its template and its index, as
+/// [`reference`](crate::daemon::reference) states. The patch is
+/// applied to the agent's [`Editable`](super::Editable) document, whole or not at all,
+/// and the result is the agent from then on. An agent whose container
+/// is running takes one kind of change: FUSE mounts appended to
+/// either list, each mounted into the running container before the
+/// edit persists — the edit answers once the provider has mounted
+/// them, and what the provider mounted is what persists; a result
+/// differing in anything else is answered `Active`, and nothing
+/// changed. The agent's image, limits, provider and arguments are not
+/// edited: they are its for its life; which vault key each of its
+/// secrets is, is.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The agent's name, as its create gave it.
-    pub name: String,
-    /// Volumes of the provider the agent is pinned to, as the
-    /// create's [`Provider`](crate::daemon::endpoints::agents::create::client::request::Provider)
-    /// names them: see [`VolumeMount`]. An agent pinned to no
-    /// provider mounts no volume, and a request that names one for
-    /// such an agent is the edit's error. Ordered, and applied in
-    /// order; no mount's path, in any list, is a prefix of another's.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub volume_mounts: Vec<VolumeMount>,
-    /// Files of providers' volumes served live across the daemon,
-    /// mounted one each over FUSE: see [`FuseMount`], and the
-    /// create's
-    /// [`fuse_file_mounts`](crate::daemon::endpoints::agents::create::client::request::Frame::fuse_file_mounts).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_file_mounts: Vec<FuseMount>,
-    /// Directories of providers' volumes served live across the
-    /// daemon, mounted one each over FUSE: see [`FuseMount`], and the
-    /// create's
-    /// [`fuse_directory_mounts`](crate::daemon::endpoints::agents::create::client::request::Frame::fuse_directory_mounts).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_directory_mounts: Vec<FuseMount>,
+    /// The agent: by its name, as its create gave it, or by its
+    /// template and its index, which name it once and for all. See
+    /// [`reference::Agent`].
+    pub agent: reference::Agent,
+    /// The patch: see [`Patch`], and [`Editable`](super::Editable) for the document it
+    /// is applied to. Empty, nothing changes.
+    pub patch: Patch,
+    /// Served by another daemon, as one of the accounts this daemon
+    /// holds on it: see [`Relay`]. Absent, served here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<Relay>,
 }
-
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
-const TAG: u8 = 5;
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
+const TAG: u8 = 6;
 
-/// JSON, as the create is: the same mount types, and the same reader
-/// for every request of the agents family.
+/// JSON, as the create is: the same types, and the same reader for
+/// every request of the agents family.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;

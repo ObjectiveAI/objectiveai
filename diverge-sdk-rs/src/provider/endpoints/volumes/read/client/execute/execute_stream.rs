@@ -68,6 +68,10 @@ impl Stream for ExecuteStream {
             Ok(response::Frame::Body(body)) => {
                 Poll::Ready(Some(Ok(bytes.slice_ref(body.0))))
             }
+            Ok(response::Frame::Mounted) => self.end(ExecuteStreamError::Mounted),
+            Ok(response::Frame::FuseServed) => self.end(ExecuteStreamError::FuseServed),
+            Ok(response::Frame::Held) => self.end(ExecuteStreamError::Held),
+            Ok(response::Frame::Unsupported) => self.end(ExecuteStreamError::Unsupported),
             Ok(response::Frame::Error(error)) => {
                 self.end(ExecuteStreamError::Refused(error))
             }
@@ -87,9 +91,20 @@ pub enum ExecuteStreamError {
     Misrouted,
     /// A response that is not this scope's.
     Response(response::FrameError),
+    /// The volume is mounted in a running container, and nothing was
+    /// read.
+    Mounted,
+    /// A FUSE serve holds the volume, and nothing was read.
+    FuseServed,
+    /// Another operation — a stat, a read, a write, a filetree, an
+    /// edit or a delete — has the volume to itself, and nothing was
+    /// read.
+    Held,
+    /// The provider keeps no volumes, and nothing was read.
+    Unsupported,
     /// The file was not read, or not all of it: the provider's own
-    /// words. A volume the caller cannot see, one mounted somewhere,
-    /// a path that names no file.
+    /// words. A volume the caller cannot see, a path that names no
+    /// file.
     Refused(Error),
 }
 
@@ -106,6 +121,16 @@ impl fmt::Display for ExecuteStreamError {
                 f.write_str("a frame that cannot be on a main stream arrived")
             }
             ExecuteStreamError::Response(error) => write!(f, "{error}"),
+            ExecuteStreamError::Mounted => {
+                f.write_str("the volume is mounted in a running container and nothing was read")
+            }
+            ExecuteStreamError::FuseServed => {
+                f.write_str("a FUSE serve holds the volume and nothing was read")
+            }
+            ExecuteStreamError::Held => {
+                f.write_str("another operation has the volume to itself and nothing was read")
+            }
+            ExecuteStreamError::Unsupported => f.write_str("the provider keeps no volumes"),
             ExecuteStreamError::Refused(_) => {
                 f.write_str("the provider ended the volume read with an error")
             }
@@ -120,6 +145,10 @@ impl std::error::Error for ExecuteStreamError {
             ExecuteStreamError::Response(error) => Some(error),
             ExecuteStreamError::Closed
             | ExecuteStreamError::Misrouted
+            | ExecuteStreamError::Mounted
+            | ExecuteStreamError::FuseServed
+            | ExecuteStreamError::Held
+            | ExecuteStreamError::Unsupported
             | ExecuteStreamError::Refused(_) => None,
         }
     }

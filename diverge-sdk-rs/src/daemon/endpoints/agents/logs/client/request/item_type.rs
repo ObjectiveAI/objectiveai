@@ -47,6 +47,7 @@ use serde::{Deserialize, Serialize};
 /// [`UsageChunk`]: crate::provider::endpoints::containers::agents::run::server::response::UsageChunk
 /// [`NotificationChunk`]: crate::provider::endpoints::containers::agents::run::server::response::NotificationChunk
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub enum ItemType {
     /// One text block of a delivered message.
     #[serde(rename = "user_text_content")]

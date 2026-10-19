@@ -6,8 +6,10 @@ use serde::{Deserialize, Serialize};
 use super::VolumeMount;
 use crate::daemon::endpoints::agents::logs::server::response::Identity;
 
-/// Pin the agent to one provider, and mount that provider's volumes
-/// in it.
+/// Pin an agent, or a tool, to one provider, and mount that
+/// provider's volumes in it. Named on the create and never on a
+/// template: a template is shareable, and a provider is one daemon's
+/// acquaintance.
 ///
 /// A volume is a provider's own: named in that provider's listing,
 /// kept on that provider's disk, and meaning nothing to any other.
@@ -28,6 +30,7 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 /// judging of the provider's credential answered. A provider the
 /// daemon does not know by that identity is the create's error.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Provider {
     /// Which provider. See [`Identity`].
     pub identity: Identity,

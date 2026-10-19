@@ -3,23 +3,23 @@
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::mcp::read_resource::{request, response};
 
-use super::{Tool, outcome};
+use super::outcome;
 use crate::encode::encoded;
-use crate::stamp::Stamp;
+use crate::proxy::Proxy;
 use crate::reply::reply;
 
-/// One exchange: the result, the container's image under `_meta`, or
-/// the error, then the finish.
-pub async fn read_resource(tool: &Tool, stamp: &Stamp, scope: &ScopeHandle, channel: u32, request: request::Request) {
-    let frame = match tool.client().await {
+/// One exchange, entered and left as the container's activity: the
+/// result, the container's image under `_meta`, or the error, then
+/// the finish.
+pub async fn read_resource(proxy: &Proxy, scope: &ScopeHandle, channel: u32, request: request::Request) {
+    proxy.activity.enter(scope).await;
+    let frame = match proxy.tool.client().await {
         Err(error) => response::Frame::Error(error),
         Ok(client) => match outcome(client.read_resource(request.0).await) {
-            Ok(mut result) => {
-                stamp.meta(&mut result.meta);
-                response::Frame::Result(result)
-            }
+            Ok(result) => response::Frame::Result(result),
             Err(error) => response::Frame::Error(error),
         },
     };
     reply(scope, channel, encoded(&frame)).await;
+    proxy.activity.leave(proxy, scope).await;
 }

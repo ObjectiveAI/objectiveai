@@ -1,10 +1,11 @@
 //! Edit request data.
 //!
-//! What a caller hands the daemon to change an agent's mounts: its
-//! name, and the three lists of mounts as they are to be. The mount
-//! types are the [`create`](crate::daemon::endpoints::agents::create)'s
-//! own, named from there.
+//! What a caller hands the daemon to change an agent: which agent, and
+//! the [`Patch`](crate::daemon::patch::Patch) to its [`Editable`]
+//! members — its name, its mounts.
 
+mod editable;
 mod frame;
 
+pub use editable::*;
 pub use frame::*;

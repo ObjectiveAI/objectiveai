@@ -27,7 +27,6 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
-use std::sync::{Mutex, MutexGuard};
 use std::time::SystemTime;
 
 use diverge_sdk::shared::containers::fuse;
@@ -37,6 +36,8 @@ use fuser::{
     ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry, ReplyOpen, ReplyWrite, TimeOrNow,
     WriteFlags,
 };
+
+use tokio::sync::{Mutex, MutexGuard};
 
 use super::asks::Asks;
 use super::attrs::{self, ATTR_TTL, OPEN};
@@ -190,8 +191,10 @@ impl MountedDirectory {
         }
     }
 
+    /// The inode table, taken blocking: every caller is a callback on
+    /// the filesystem's own thread, which is no runtime's.
     fn inodes(&self) -> MutexGuard<'_, Inodes> {
-        self.inodes.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+        self.inodes.blocking_lock()
     }
 
     /// The path an inode names.

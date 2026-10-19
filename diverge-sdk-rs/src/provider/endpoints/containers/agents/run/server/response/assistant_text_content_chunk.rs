@@ -16,6 +16,7 @@ use super::Logprob;
 /// tool would use to return it — one content model across the whole
 /// loop rather than one per direction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct AssistantTextContentChunk {
     /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: AssistantTextContentChunkType,
@@ -39,6 +40,7 @@ pub struct AssistantTextContentChunk {
 
 /// [`AssistantTextContentChunk`]'s discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(schemars::JsonSchema)]
 pub enum AssistantTextContentChunkType {
     #[serde(rename = "assistant_text_content")]
     #[default]

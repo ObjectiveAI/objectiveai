@@ -12,25 +12,30 @@ use crate::shared::error::Error;
 /// One of these on channel `0`, then the scope finishes. A payload
 /// leads with one byte saying which — `0` for
 /// [`Deleted`](Self::Deleted), `1` for [`Mounted`](Self::Mounted), `2`
-/// for [`Error`](Self::Error) — and for the first two there is nothing
+/// for [`FuseServed`](Self::FuseServed), `3` for [`Held`](Self::Held),
+/// `4` for [`Unsupported`](Self::Unsupported), `5` for
+/// [`Error`](Self::Error) — and for all but the last there is nothing
 /// after it, because saying so IS the whole message.
 ///
 /// | the scope ends with | means |
 /// |----------------------|-------|
 /// | [`Deleted`](Self::Deleted), then a finish | the volume is gone and a listing will not show it |
 /// | [`Mounted`](Self::Mounted), then a finish | it is mounted in a running container, and nothing was changed |
+/// | [`FuseServed`](Self::FuseServed), then a finish | a FUSE serve holds it, and nothing was changed |
+/// | [`Held`](Self::Held), then a finish | another operation has it to itself, and nothing was changed |
 /// | an [`Error`](Self::Error), then a finish | it is not gone, for some other reason, and a caller should assume it is intact |
 ///
-/// # Mounted is an answer, not an error
+/// # Mounted, FUSE served and held are answers, not errors
 ///
-/// A provider MUST refuse to delete a volume that is mounted in a
-/// running container at the time of the request, and it says so with
-/// [`Mounted`](Self::Mounted) rather than with an
-/// [`Error`](Self::Error) a caller could not tell from any other
-/// failure. The distinction is what a caller acts on: a mounted
-/// volume is one to stop the container over and ask again, and a
-/// failure is not. On the server half the handler answers it from
-/// the volume's [`lock`](crate::provider::server::volume::Volume::lock), which
+/// A provider MUST refuse to delete a volume that something holds at
+/// the time of the request — a running container, a FUSE serve, or
+/// another operation — and it says which with
+/// [`Mounted`](Self::Mounted), [`FuseServed`](Self::FuseServed) or
+/// [`Held`](Self::Held) rather than with an [`Error`](Self::Error) a
+/// caller could not tell from any other failure. The distinction is
+/// what a caller acts on: a container or a FUSE serve to stop, an
+/// operation to wait for, and then ask again; a failure is neither. On the server half the handler answers it from
+/// the volume's `lock`, which
 /// a running container holds for its life; the manager is never
 /// asked.
 ///
@@ -60,7 +65,27 @@ pub enum Frame {
     /// Nothing was changed: the volume, its content, and the listing
     /// are as they were.
     Mounted,
-    /// A failure. Tag `2`.
+    /// A FUSE serve holds the volume, and it was not deleted.
+    /// Tag `2`.
+    ///
+    /// Nothing was changed; a caller stops the FUSE serve and asks
+    /// again.
+    FuseServed,
+    /// Another operation — a stat, a read, a write, a filetree, an
+    /// edit or a delete — has the volume to itself, and it was not
+    /// deleted. Tag `3`.
+    ///
+    /// Nothing was changed; a caller waits for it to end and asks
+    /// again.
+    Held,
+    /// The provider keeps no volumes: no mode is among its capabilities,
+    /// see [`info`](crate::provider::endpoints::info), and every volume
+    /// endpoint answers this. Tag `4`.
+    ///
+    /// Carries nothing. Nothing was looked at; a caller asks another
+    /// provider.
+    Unsupported,
+    /// A failure. Tag `5`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -73,8 +98,17 @@ const DELETED: u8 = 0;
 /// Tag for [`Frame::Mounted`].
 const MOUNTED: u8 = 1;
 
+/// Tag for [`Frame::FuseServed`].
+const FUSE_SERVED: u8 = 2;
+
+/// Tag for [`Frame::Held`].
+const HELD: u8 = 3;
+
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 4;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 5;
 
 /// A tag, and for a failure the JSON after it. Postcard encodes the
 /// rest of [`volumes`](crate::provider::endpoints::volumes) and encodes nothing
@@ -103,6 +137,18 @@ impl Encode for Frame {
                 out.extend_from_slice(&[MOUNTED]);
                 Ok(())
             }
+            Frame::FuseServed => {
+                out.extend_from_slice(&[FUSE_SERVED]);
+                Ok(())
+            }
+            Frame::Held => {
+                out.extend_from_slice(&[HELD]);
+                Ok(())
+            }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -121,6 +167,9 @@ impl Decode<'_> for Frame {
         match *tag {
             DELETED => Ok(Frame::Deleted),
             MOUNTED => Ok(Frame::Mounted),
+            FUSE_SERVED => Ok(Frame::FuseServed),
+            HELD => Ok(Frame::Held),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
@@ -134,7 +183,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

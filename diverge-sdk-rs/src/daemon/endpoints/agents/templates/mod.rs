@@ -1,0 +1,29 @@
+//! Agent templates: what an agent is made from, held by its hash.
+//!
+//! The shape and the id are the daemon's one
+//! [`template`](crate::daemon::template), typed `"agent"`
+//! here: everything about an agent that is not its name, not the
+//! provider it runs on, not its own mounts and not the account it
+//! runs under. A caller makes one
+//! with [`create`] and names it afterwards by its id, so the same
+//! template made twice is one template; an [`agent`](super) is
+//! created from a template by that id, with a name, a provider and
+//! mounts of its own; [`get`] answers one by id; [`list`] lists them,
+//! narrowed,
+//! with their tags and the tools attached to them; [`delete`] removes
+//! one no agent was made from, its attachments with it; [`tag`] and
+//! [`untag`] change a template's tags, which are the caller's and not
+//! in the template's hash. A tool attached to a template — by
+//! [`attach_agent_template`](crate::daemon::endpoints::standalone_tools::attach_agent_template)
+//! — is every agent's that is made from it.
+
+mod agent_type;
+
+pub use agent_type::*;
+
+pub mod create;
+pub mod delete;
+pub mod get;
+pub mod list;
+pub mod tag;
+pub mod untag;

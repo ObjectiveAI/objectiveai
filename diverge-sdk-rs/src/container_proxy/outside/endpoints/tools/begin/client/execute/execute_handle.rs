@@ -1,24 +1,25 @@
 //! The begin scope, held for the connection's life.
 
-use serde_json::Value;
-
 use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
-use crate::provider::endpoints::containers::client::answered::{
-    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Schema,
+use crate::provider::endpoints::containers::client::answered::{Daemon, Info,
+    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Secrets,
 };
 use crate::provider::endpoints::containers::client::{Answered, ChannelStream, OpenError, UnaryError, unary};
-use crate::shared::containers::postgres;
+use crate::shared::containers::info::Document;
+use crate::shared::containers::secrets::Values;
+use crate::shared::containers::{daemon, postgres};
 use crate::shared::mcp;
 
 /// The begin scope a tool container's server holds.
 ///
 /// Every channel the server may open on it is a method here — the
-/// arguments' schema, the five MCP exchanges into the container's
-/// server, the server's half of a database connection — and so is answering a channel the proxy
-/// opened, by the proxy's own channel number. Clones share the scope,
-/// which is how a connector's exchanges ride the runner's begin.
+/// image's DIVERGE.md, the five MCP exchanges into the container's
+/// server, the secrets' feed, the server's half of a database
+/// connection — and so is answering a channel the proxy opened, by
+/// the proxy's own channel number. Clones share the scope, which is
+/// how a connector's exchanges ride the runner's begin.
 ///
 /// # Dropping it does nothing
 ///
@@ -47,10 +48,13 @@ impl ExecuteHandle {
         self.scope
     }
 
-    /// What the arguments may be: the image's JSON Schema for them.
-    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
-        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
-        unary::<Schema>(&self.handle, self.scope, &payload).await
+    /// What the arguments may be: the image's `/DIVERGE.md`, parsed —
+    /// its schema and its body — or `None` for an image that ships
+    /// none. The proxy reads the file from the container's root; the
+    /// program is never asked.
+    pub async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
+        let payload = payload(&channel_request::Frame::Info).map_err(UnaryError::Request)?;
+        unary::<Info>(&self.handle, self.scope, &payload).await
     }
 
     /// What tools the container's server has.
@@ -96,6 +100,33 @@ impl ExecuteHandle {
             mcp::notifications::request::Request,
         ))
         .map_err(OpenError::Request)?;
+        let channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(OpenError::Send)?;
+        Ok(ChannelStream::new(channel.response_receiver))
+    }
+
+    /// Feed the program its secrets' `values`, every name it
+    /// declared: resolves once the program holds them, which opens
+    /// the gate the proxy holds every exchange behind. Once before
+    /// the run's id goes out, and at every activation after, relaying
+    /// the caller's own feed; the proxy's refusal is
+    /// [`Refused`](UnaryError::Refused), the program's own words.
+    pub async fn secrets(&self, values: Values) -> Result<(), UnaryError<Secrets>> {
+        let payload = payload(&channel_request::Frame::Secrets(values)).map_err(UnaryError::Request)?;
+        unary::<Secrets>(&self.handle, self.scope, &payload).await
+    }
+
+    /// The server's half of a daemon connection the proxy announced,
+    /// quoting the id the proxy minted: what comes back is every client
+    /// frame the program sent on it, until the finish, which is the
+    /// program's socket ended. See
+    /// [`daemon`](crate::shared::containers::daemon).
+    pub async fn daemon(&self, connection_id: u32) -> Result<ChannelStream<Daemon>, OpenError> {
+        let payload = payload(&channel_request::Frame::Daemon(daemon::request::Daemon { connection_id }))
+            .map_err(OpenError::Request)?;
         let channel = self
             .handle
             .send_channel_request(self.scope, &payload)

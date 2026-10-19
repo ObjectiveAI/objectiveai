@@ -1,8 +1,10 @@
 //! The channels a provider opens on a caller during a run.
 //!
-//! Twenty-seven, and the same twenty-seven in both families: six the
-//! provider asks on its own account, twenty-one it relays from the
-//! container. See [`Frame`].
+//! Twenty: five the provider asks on its own account, fifteen it
+//! relays from the container. The tools family has the same five of
+//! its own — its registration carries no dependencies, which a tool
+//! container is never asked about — and eleven relayed. See
+//! [`Frame`].
 
 mod frame;
 
