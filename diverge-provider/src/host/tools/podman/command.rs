@@ -14,11 +14,14 @@ use crate::host::tools::Error;
 static STORAGE: OnceCell<PathBuf> = OnceCell::const_new();
 
 /// The name of the provider's machine, on the hosts with one: the
-/// name podman gives a machine made without one. Every machine
-/// subcommand names it, since podman's "default" machine is whichever
-/// one was made first on the host, and may be another program's.
+/// provider's own, never `podman-machine-default`, which is the name
+/// podman gives a machine made without one and so the name any other
+/// program's machine, or a person's, is likely to carry. Every
+/// machine subcommand names it, since podman's "default" machine is
+/// whichever one was made first on the host, and may be another
+/// program's.
 #[cfg(not(target_os = "linux"))]
-pub const MACHINE: &str = "podman-machine-default";
+pub const MACHINE: &str = "diverge-provider";
 
 /// The connection every other subcommand is told to use, on the
 /// hosts with a machine: the rootful connection podman registers for
@@ -26,7 +29,7 @@ pub const MACHINE: &str = "podman-machine-default";
 /// machine runs as root. Podman's default connection is likewise
 /// whichever machine was registered first, and is not changed.
 #[cfg(not(target_os = "linux"))]
-const CONNECTION: &str = "podman-machine-default-root";
+const CONNECTION: &str = "diverge-provider-root";
 
 /// Tell every podman invocation to come where podman's data is:
 /// `containers.podman.storage_path`, resolved. Once; a second call
