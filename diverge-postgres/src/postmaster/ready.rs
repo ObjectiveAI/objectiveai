@@ -3,6 +3,7 @@
 use std::process::Stdio;
 use std::time::Duration;
 
+use diverge_sdk::process;
 use tokio::process::{Child, Command};
 
 use super::Error;
@@ -34,17 +35,17 @@ pub async fn ready(binaries: &Binaries, child: &mut Child, port: u16) -> Result<
         if let Some(status) = child.try_wait().map_err(Error::Wait)? {
             return Err(Error::Exited(status));
         }
-        let status = Command::new(binaries.pg_isready())
+        let mut probe = Command::new(binaries.pg_isready());
+        probe
             .arg("-h")
             .arg("127.0.0.1")
             .arg("-p")
             .arg(port.to_string())
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .await
-            .map_err(Error::Probe)?;
+            .stderr(Stdio::null());
+        process::no_window(&mut probe);
+        let status = probe.status().await.map_err(Error::Probe)?;
         if status.code() == Some(ACCEPTING) {
             return Ok(());
         }

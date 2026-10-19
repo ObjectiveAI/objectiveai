@@ -3,6 +3,7 @@
 use std::net::SocketAddr;
 use std::path::Path;
 
+use diverge_sdk::process;
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use tokio::time::{Duration, sleep};
@@ -61,6 +62,7 @@ impl Tunnel {
                 .arg("-R")
                 .arg(format!("{port}:127.0.0.1:{}", registry.port()))
                 .arg(format!("{}@127.0.0.1", ssh.user));
+            process::no_window(&mut command);
             let mut child = start("ssh", command).map_err(Error::Ssh)?;
             // One second: how long `ssh` takes to connect, be refused
             // a forward, and exit.

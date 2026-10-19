@@ -6,6 +6,7 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use diverge_sdk::postgres_supervisor::{Command, Ready};
+use diverge_sdk::process;
 use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 use tokio::process::{Child, ChildStdin};
 
@@ -43,7 +44,8 @@ pub struct Local {
 /// has the program stop what it left.
 pub async fn spawn(root: &Path, max_connections: u32) -> Result<(Local, String), Error> {
     let path = beside()?;
-    let mut child = tokio::process::Command::new(&path)
+    let mut supervisor = tokio::process::Command::new(&path);
+    supervisor
         .arg("--root")
         .arg(root)
         .arg("--max-connections")
@@ -51,9 +53,9 @@ pub async fn spawn(root: &Path, max_connections: u32) -> Result<(Local, String),
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .kill_on_drop(false)
-        .spawn()
-        .map_err(|source| Error::Spawn { path, source })?;
+        .kill_on_drop(false);
+    process::no_window(&mut supervisor);
+    let mut child = supervisor.spawn().map_err(|source| Error::Spawn { path, source })?;
     let stdin = child.stdin.take().expect("stdin was asked for piped");
     let stdout = child.stdout.take().expect("stdout was asked for piped");
     let mut lines = BufReader::new(stdout).lines();

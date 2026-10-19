@@ -4,6 +4,7 @@ use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 
+use diverge_sdk::process;
 use tokio::process::Command;
 
 use super::{Error, PASSWORD};
@@ -52,6 +53,7 @@ pub async fn init(dir: &Path, binaries: &Binaries) -> Result<(), Error> {
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
+    process::no_window(&mut initdb);
     let output = tokio::time::timeout(TIMEOUT, initdb.output())
         .await
         .map_err(|_| Error::Timeout)?

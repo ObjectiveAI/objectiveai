@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
+use diverge_sdk::process;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::io::AsyncWriteExt as _;
@@ -55,18 +56,18 @@ where
     let mut line = serde_json::to_vec(input).map_err(Error::Encode)?;
     line.push(b'\n');
 
-    let mut child = Command::new(&program)
-        .args(args)
+    let mut hook = Command::new(&program);
+    hook.args(args)
         .current_dir(&folder)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .kill_on_drop(true)
-        .spawn()
-        .map_err(|source| Error::Spawn {
-            program: program.display().to_string(),
-            source,
-        })?;
+        .kill_on_drop(true);
+    process::no_window(&mut hook);
+    let mut child = hook.spawn().map_err(|source| Error::Spawn {
+        program: program.display().to_string(),
+        source,
+    })?;
 
     // Taken out and dropped after the write, so the hook sees EOF and
     // knows the line is whole.

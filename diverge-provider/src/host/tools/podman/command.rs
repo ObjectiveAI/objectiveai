@@ -2,6 +2,8 @@
 
 use std::ffi::OsStr;
 use std::path::PathBuf;
+
+use diverge_sdk::process;
 use tokio::process::Command;
 use tokio::sync::OnceCell;
 
@@ -72,6 +74,7 @@ where
     #[cfg(not(target_os = "linux"))]
     command.arg("--connection").arg(CONNECTION);
     command.args(args);
+    process::no_window(&mut command);
     command
 }
 
