@@ -8,7 +8,7 @@ importers:
 
   .: {}
 
-  diverge-desktop:
+  diverge-viewer:
     dependencies:
       '@tauri-apps/api':
         specifier: ^2.10.1

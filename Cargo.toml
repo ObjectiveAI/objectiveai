@@ -36,10 +36,10 @@ members = [
     "tests/plugins/daemon-echo-plugin",
     "tests/plugins/stderr-plugin",
     "objectiveai-viewer/src-tauri",
-    # The Diverge desktop app. Links diverge-sdk by path, so it
+    # The Diverge viewer. Links diverge-sdk by path, so it
     # lives here until the SDK is published.
-    "diverge-desktop/src-tauri",
-    "diverge-desktop/room",
+    "diverge-viewer/src-tauri",
+    "diverge-viewer/room",
     "tests/objectiveai-tests",
     "tests/objectiveai-api-tests",
     "tests/objectiveai-cli-tests",

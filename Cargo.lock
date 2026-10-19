@@ -2030,66 +2030,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diverge-desktop"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum",
- "base64 0.22.1",
- "bip39",
- "chacha20poly1305",
- "chrono",
- "dirs",
- "diverge-desktop-room",
- "diverge-sdk",
- "futures",
- "getrandom 0.2.17",
- "hex",
- "hkdf",
- "indexmap 2.14.2",
- "jaq-core",
- "jaq-json",
- "jaq-std",
- "reqwest 0.12.28",
- "rmcp 3.1.2",
- "schemars 1.2.2",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "subtle",
- "tauri",
- "tauri-build",
- "tokio",
- "tokio-util",
- "ts-rs",
- "zeroize",
-]
-
-[[package]]
-name = "diverge-desktop-room"
-version = "0.1.0"
-dependencies = [
- "axum",
- "chacha20poly1305",
- "chrono",
- "curve25519-dalek",
- "diverge-sdk",
- "ed25519-dalek",
- "getrandom 0.2.17",
- "hex",
- "hkdf",
- "hmac 0.12.1",
- "indexmap 2.14.2",
- "reqwest 0.12.28",
- "rmcp 3.1.2",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tokio",
- "zeroize",
-]
-
-[[package]]
 name = "diverge-postgres"
 version = "2.3.0"
 dependencies = [
@@ -2150,6 +2090,66 @@ dependencies = [
  "tokio-tungstenite 0.29.0",
  "uuid",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "diverge-viewer"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "bip39",
+ "chacha20poly1305",
+ "chrono",
+ "dirs",
+ "diverge-sdk",
+ "diverge-viewer-room",
+ "futures",
+ "getrandom 0.2.17",
+ "hex",
+ "hkdf",
+ "indexmap 2.14.2",
+ "jaq-core",
+ "jaq-json",
+ "jaq-std",
+ "reqwest 0.12.28",
+ "rmcp 3.1.2",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "subtle",
+ "tauri",
+ "tauri-build",
+ "tokio",
+ "tokio-util",
+ "ts-rs",
+ "zeroize",
+]
+
+[[package]]
+name = "diverge-viewer-room"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "chacha20poly1305",
+ "chrono",
+ "curve25519-dalek",
+ "diverge-sdk",
+ "ed25519-dalek",
+ "getrandom 0.2.17",
+ "hex",
+ "hkdf",
+ "hmac 0.12.1",
+ "indexmap 2.14.2",
+ "reqwest 0.12.28",
+ "rmcp 3.1.2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "zeroize",
 ]
 
 [[package]]

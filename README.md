@@ -22,7 +22,7 @@ export PATH="$HOME/.objectiveai/bin:$PATH"
 |---|---|---|
 | `objectiveai` | CLI + embedded viewer | [latest](https://github.com/ObjectiveAI/objectiveai/releases/latest) |
 | `objectiveai-api` | API server | [latest](https://github.com/ObjectiveAI/objectiveai/releases/latest) |
-| `objectiveai-viewer` | Standalone Tauri desktop app | [latest](https://github.com/ObjectiveAI/objectiveai/releases/latest) |
+| `objectiveai-viewer` | Standalone Tauri viewer | [latest](https://github.com/ObjectiveAI/objectiveai/releases/latest) |
 
 Supported platforms: Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64, Windows x86_64. See [Binaries & self-hosting](#binaries--self-hosting) for per-binary detail.
 
@@ -203,7 +203,7 @@ The server is streaming-first: every layer produces a typed stream of chunks and
 
 ### `objectiveai-viewer`
 
-Standalone Tauri desktop application. Presents the same UI that the CLI embeds as a sidecar, but runs as a first-class window manager process rather than being spawned in-process by a CLI command. Reach for it when you want the viewer always open and decoupled from CLI invocations.
+Standalone Tauri viewerlication. Presents the same UI that the CLI embeds as a sidecar, but runs as a first-class window manager process rather than being spawned in-process by a CLI command. Reach for it when you want the viewer always open and decoupled from CLI invocations.
 
 ### MCP (served by the daemon)
 
