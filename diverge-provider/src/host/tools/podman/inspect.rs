@@ -7,6 +7,8 @@ use serde::Deserialize;
 
 use tokio::process::Command;
 
+#[cfg(not(target_os = "linux"))]
+use super::MACHINE;
 use super::{command, podman};
 use crate::host::tools::{Error, capture};
 
@@ -176,8 +178,6 @@ pub struct Machine {
     pub rootful: bool,
     /// Its memory, in MiB, as podman counts it.
     pub memory: u64,
-    /// Its disk image on this host.
-    pub image: std::path::PathBuf,
     /// The host directories it was made seeing, each at the same
     /// path inside; empty where podman lists none.
     pub mounts: Vec<std::path::PathBuf>,
@@ -194,11 +194,15 @@ pub struct MachineSsh {
     pub port: u16,
     /// The user inside the machine.
     pub user: String,
-    /// The private key on this host that user is reached with.
+    /// The private key on this host that user is reached with: a
+    /// file podman keeps under its data home, beside the machine's
+    /// disk, so where it is says where podman keeps the machine.
     pub identity: std::path::PathBuf,
 }
 
-/// One machine of `podman machine inspect --format json`.
+/// One machine of `podman machine inspect`, whose answer is a JSON
+/// array of one. The disk is not reported, so none is read; the
+/// mounts are reported where there are any.
 #[cfg(not(target_os = "linux"))]
 #[derive(Deserialize)]
 struct MachineRow {
@@ -208,8 +212,6 @@ struct MachineRow {
     rootful: bool,
     #[serde(rename = "Resources")]
     resources: ResourcesRow,
-    #[serde(rename = "Image")]
-    image: ImageRow,
     #[serde(rename = "Mounts", default)]
     mounts: Vec<MountRow>,
     #[serde(rename = "SSHConfig")]
@@ -232,22 +234,6 @@ struct ResourcesRow {
     memory: u64,
 }
 
-/// The `Image` of one machine.
-#[cfg(not(target_os = "linux"))]
-#[derive(Deserialize)]
-struct ImageRow {
-    #[serde(rename = "ImagePath")]
-    path: PathRow,
-}
-
-/// A path as podman writes one.
-#[cfg(not(target_os = "linux"))]
-#[derive(Deserialize)]
-struct PathRow {
-    #[serde(rename = "Path")]
-    path: std::path::PathBuf,
-}
-
 /// The `SSHConfig` of one machine.
 #[cfg(not(target_os = "linux"))]
 #[derive(Deserialize)]
@@ -259,11 +245,6 @@ struct SshRow {
     #[serde(rename = "RemoteUsername")]
     user: String,
 }
-
-/// The name podman gives a machine made without one, which is the
-/// one the provider makes and the only one it inspects.
-#[cfg(not(target_os = "linux"))]
-const MACHINE: &str = "podman-machine-default";
 
 /// One row of `podman machine list`: the name is all that is read.
 #[cfg(not(target_os = "linux"))]
@@ -279,7 +260,10 @@ struct ListRow {
 /// may name machines other programs made, and then the inspection
 /// of the one by name — never of "the default", which podman
 /// resolves to the same name and refuses as missing when a machine
-/// of another name is the only one.
+/// of another name is the only one. The inspection is asked with no
+/// `--format`: its plain answer is JSON, and `--format json`, which
+/// the listing takes, is to the inspection a template that prints
+/// the word.
 #[cfg(not(target_os = "linux"))]
 pub async fn machine() -> Result<Option<Machine>, Error> {
     let listed = capture("podman", command(["machine", "list", "--format", "json"])).await?;
@@ -289,7 +273,7 @@ pub async fn machine() -> Result<Option<Machine>, Error> {
     if !rows.iter().any(|row| row.name == MACHINE) {
         return Ok(None);
     }
-    let answer = capture("podman", command(["machine", "inspect", "--format", "json", MACHINE])).await?;
+    let answer = capture("podman", command(["machine", "inspect", MACHINE])).await?;
     let mut rows: Vec<MachineRow> = serde_json::from_str(&answer).map_err(|_| Error::Output {
         program: "podman".to_string(),
     })?;
@@ -300,7 +284,6 @@ pub async fn machine() -> Result<Option<Machine>, Error> {
         state: row.state.to_lowercase(),
         rootful: row.rootful,
         memory: row.resources.memory,
-        image: row.image.path.path,
         mounts: row.mounts.into_iter().map(|mount| mount.source).collect(),
         ssh: MachineSsh {
             port: row.ssh.port,
