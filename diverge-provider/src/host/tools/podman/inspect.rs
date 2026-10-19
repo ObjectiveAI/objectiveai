@@ -260,19 +260,36 @@ struct SshRow {
     user: String,
 }
 
-/// The default machine, or `None` where podman lists none. Asked as
-/// two questions: the list, which is empty rather than an error when
-/// there is no machine, and then the inspection of the default.
+/// The name podman gives a machine made without one, which is the
+/// one the provider makes and the only one it inspects.
+#[cfg(not(target_os = "linux"))]
+const MACHINE: &str = "podman-machine-default";
+
+/// One row of `podman machine list`: the name is all that is read.
+#[cfg(not(target_os = "linux"))]
+#[derive(Deserialize)]
+struct ListRow {
+    #[serde(rename = "Name")]
+    name: String,
+}
+
+/// The provider's machine, [`MACHINE`], or `None` where podman does
+/// not list one of that name. Asked as two questions: the list,
+/// which is empty rather than an error when there is no machine and
+/// may name machines other programs made, and then the inspection
+/// of the one by name — never of "the default", which podman
+/// resolves to the same name and refuses as missing when a machine
+/// of another name is the only one.
 #[cfg(not(target_os = "linux"))]
 pub async fn machine() -> Result<Option<Machine>, Error> {
     let listed = capture("podman", command(["machine", "list", "--format", "json"])).await?;
-    let rows: Vec<serde_json::Value> = serde_json::from_str(&listed).map_err(|_| Error::Output {
+    let rows: Vec<ListRow> = serde_json::from_str(&listed).map_err(|_| Error::Output {
         program: "podman".to_string(),
     })?;
-    if rows.is_empty() {
+    if !rows.iter().any(|row| row.name == MACHINE) {
         return Ok(None);
     }
-    let answer = capture("podman", command(["machine", "inspect", "--format", "json"])).await?;
+    let answer = capture("podman", command(["machine", "inspect", "--format", "json", MACHINE])).await?;
     let mut rows: Vec<MachineRow> = serde_json::from_str(&answer).map_err(|_| Error::Output {
         program: "podman".to_string(),
     })?;
