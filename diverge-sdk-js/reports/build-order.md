@@ -113,6 +113,28 @@ Depends on: step 3 (volumes' records). Done when a volume is
 uploaded from the SDK, its tree watched, and downloaded back
 byte-identical.
 
+**Done 2026-10-20.** The content piece and the provider's write
+content answer at their Rust paths; `daemon/client/upload.ts`, the
+shape where this side answers the channels the daemon opens, each
+file's content from a `Source` the caller supplies; the four
+endpoints, the download's `Item` carrying the chunk's bytes beside
+the JSON-form `Frame`, the filetree's tree decoded from postcard.
+Fifty examples agree between the schemas and the CLI's, the CLI's
+eight file leaves having been mended so that their schema
+subcommands answer without `--path`. Live, daemon and provider
+together, thirty-two checks: a file uploaded from a `Uint8Array`
+and a directory from an async iterable whose one piece crossed
+`CHUNK_SIZE`; the tree seen whole and at a subtree, a file's path
+refused as `not_directory`; the directory and the file downloaded
+back byte-identical, the large file in more than one chunk, the
+paths in bytewise order; a directory and a file transferred into a
+second volume and read back identical; a source that refused, and
+one that threw partway, each the daemon's honest error and nothing
+landed. Noted for the daemon, not the SDK: a transfer within one
+volume is answered `held` (the read holds what the write asks
+for), and for a few milliseconds after an errored upload the volume
+is still reported held.
+
 ## 5. Agents and their templates
 
 Nineteen endpoints. Templates: create, get, list, delete, tag,

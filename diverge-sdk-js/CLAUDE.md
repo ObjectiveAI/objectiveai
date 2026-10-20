@@ -101,7 +101,15 @@ tag table is stated once, in the module, as the Rust states it.
 - `client/execute.ts`: `execute(handle, frame)`, performing the
   exchange over one of `daemon/client`'s shapes — `one_shot`
   returning the response frame, `stream.executeCancellable`
-  returning the stream and its `Cancel`, `pending`.
+  returning the stream and its `Cancel`, `pending`, `stream.execute`
+  for a download, which has no cancel, and `upload`, whose `execute`
+  takes a `Source` as well: the function asked for each file's
+  content, a `Uint8Array` or an async iterable of them.
+- `server/channel_request/frame.ts` on an upload: what the daemon
+  asks on each content channel it opens, JSON with no tag; and
+  `client/channel_response/frame.ts`, what this side answers it
+  with, re-exported from the provider's `volumes.write`, since the
+  exchange is the same.
 - `server/response/frame.ts`: the response `Frame` schema in its
   JSON form — the externally tagged snake-case union the CLI prints,
   `{"found":…}`, `"not_found"` — the tag consts, and `decode(bytes)`,
@@ -109,7 +117,11 @@ tag table is stated once, in the module, as the Rust states it.
   so a decoded frame is a validated one. A list's frame also exports
   `change(frame)`, a `Change` or `null` for the answers that end the
   scope, and the record beside it (`account.ts`, `role.ts`) exports
-  the schema and its `key`.
+  the schema and its `key`. A variant whose payload is not JSON —
+  a download's chunk, a filetree's postcard tree — is decoded by its
+  own codec: the tree into the `Node`s the schema states, the chunk
+  into an `Item` the stream yields, a frame with the chunk's bytes,
+  beside the JSON-form `Frame` that `json(item)` writes it as.
 - `index.ts` barrels at every level, `export * as client`, `export
   * as server`, `export * as request`, `export * as response`.
 
