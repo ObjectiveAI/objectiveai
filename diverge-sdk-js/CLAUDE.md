@@ -53,7 +53,25 @@ what the CLI prints — never the wire bytes:
 - a generic Rust type is a FUNCTION of its parameter schemas:
   `within(only)`, `template(type)`;
 - a rule across members (`overlay_disk` present exactly when the
-  mode is `ephemeral`) is a `.refine` with a message naming it.
+  mode is `ephemeral`) is a `.refine` with a message naming it;
+- an untagged enum of structs each with a one-value `type` is a
+  `z.discriminatedUnion("type", ...)` in declaration order — the same
+  acceptance, with errors that name the kind; a struct flattening an
+  untagged enum is a `z.intersection` of its own members and the
+  union (a log's `ItemWrapper`, a user part).
+
+## MCP's shapes are MCP's
+
+Where the Rust uses rmcp — a message's content blocks, a tool
+result, `_meta` — this package uses the Model Context Protocol's own
+zod schemas from `@modelcontextprotocol/core`, imported where they
+are used and never renamed. They were checked member for member
+against rmcp 3.1.2: the same tags and names, three validations
+stricter in the specification's direction (`data` and `blob` must be
+base64, `priority` within 0..=1, `lastModified` an ISO datetime),
+and `CallToolResult`'s `content` defaulting to `[]` as rmcp's own
+deserialize does. What this SDK adds to MCP — the attestation in
+`_meta` — is `shared.mcp`.
 
 Where a Rust doc is stale against its code, the code wins and the
 doc is not carried: the postgres action is `list`, not

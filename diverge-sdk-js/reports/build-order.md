@@ -149,6 +149,19 @@ Depends on: step 4 (download, upload, filetree). Done when an agent
 is created from a template, messaged, its logs streamed and its
 filetree watched, from the SDK.
 
+**Done 2026-10-20, without the live run.** Nineteen endpoints; the
+attestation vocabulary in `shared.mcp`; the fourteen chunk kinds of
+an agent's run at the provider's path, which the logs items are
+made of; the MCP shapes themselves from `@modelcontextprotocol/core`
+2.3.1, checked member for member against rmcp 3.1.2 before it was
+taken as a dependency. Two hundred examples agree between the
+schemas and the CLI's, the two that schemars cannot state — a
+template's flat `type` — checked by zod alone. By the user's
+ruling nothing was dialled: an agent created, messaged, its log
+streamed and its tree watched from this SDK remains unproven, and
+the first family to need an image and a running provider is still
+waiting for that run.
+
 ## 6. Standalone tools, their templates, and connect
 
 Twenty-three endpoints, and the last shape: `standalone_tools/connect`
