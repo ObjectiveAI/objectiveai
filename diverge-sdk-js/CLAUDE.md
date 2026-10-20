@@ -27,15 +27,50 @@ The doc comment is the Rust's, carried over as JSDoc on the const.
 The schema states the JSON FORM of the type — what serde writes and
 what the CLI prints — never the wire bytes:
 
-- an externally tagged enum (serde's default, `snake_case`) is
-  `z.union([z.object({ added: Account }), …, z.literal("listed")])`;
-- an internally tagged one (`#[serde(tag = "type")]`) is
-  `z.discriminatedUnion("type", [...])`;
 - `Option<T>` is `.nullable()` where serde writes `null` and
   `.optional()` where it skips the member; a `Vec` is `z.array`; a
   `u64` is `z.number()` and never a `bigint`;
 - a recursive type names its TS type first and annotates the schema
-  `z.ZodType<T>` with `z.lazy`.
+  `z.ZodType<T>` with `z.lazy`;
+- an internally tagged enum (`tag = "x"`) is `z.discriminatedUnion("x", [...])`,
+  each variant `z.object({ x: z.literal(...), ...members })`, never
+  strict, since serde ignores what it does not know there;
+- an externally tagged enum (`rename_all` alone) is a `z.union` of
+  one-key `z.strictObject`s, a unit variant the bare `z.literal`;
+- an untagged enum with `deny_unknown_fields` is a `z.union` of
+  `z.strictObject`s in DECLARATION ORDER, since serde tries them in
+  order and the strictness is what tells the shapes apart;
+- `flatten` spreads the members into the parent (`.extend`, or a
+  spread of `.shape`); a flattened tagged enum becomes a discriminated
+  union of the parent extended per variant;
+- a `transparent` newtype is the inner schema;
+- a `Vec` or a map skipped when empty is `.optional()` too — absent
+  means empty, and the schema states the wire, so never `.default([])`;
+- `serde_json::Value` is `z.json()`; `u64` is `z.number().int().nonnegative()`;
+  `DateTime<Utc>` is `z.iso.datetime({ offset: true })`; `IpAddr` is
+  `z.union([z.ipv4(), z.ipv6()])`; `IndexMap<String, String>` is
+  `z.record(z.string(), z.string())`;
+- a generic Rust type is a FUNCTION of its parameter schemas:
+  `within(only)`, `template(type)`;
+- a rule across members (`overlay_disk` present exactly when the
+  mode is `ephemeral`) is a `.refine` with a message naming it.
+
+Where a Rust doc is stale against its code, the code wins and the
+doc is not carried: the postgres action is `list`, not
+`connections`; a connected tool reference is daemon, account and
+tool, not a pair.
+
+## Checking a schema against the Rust
+
+The CLI prints the SDK's own JSON Schema for every request and
+response: `diverge run <family> <request> request-schema` and
+`response-schema`. A schema here is checked by feeding one JSON
+example per variant to both — the zod schema, and Python
+`jsonschema` against the CLI's `$defs` — and seeing both accept and
+both reject the same values. Two things the CLI's schema cannot say:
+`format: date-time` is not checked without `rfc3339-validator`, and
+a template's flat `type` member is absent from the schema though
+serde requires it on the wire.
 
 ## Module path is export path
 

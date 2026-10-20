@@ -38,6 +38,14 @@ Depends on: the base. Done when every type an endpoint of steps 2
 through 7 names exists, so that no later step writes a shared type
 beside an endpoint.
 
+**Done 2026-10-20.** Everything above, plus what the catalogue
+showed the grants reach by: the twelve list filters, the provider
+identity, the create request's pieces, the two template types, and
+the provider's volume mode. Ninety-eight examples accepted and
+rejected alike by the zod schemas and by the CLI's JSON Schemas.
+Not vocabulary, left to their steps: the provider status and the
+provider types it embeds (step 3), MCP and the attestation (step 6).
+
 ## 2. Accounts and roles
 
 The two simplest families, fourteen endpoints, and the endpoint
