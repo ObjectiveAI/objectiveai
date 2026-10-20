@@ -5,11 +5,13 @@
 // encodings, the client half that mints scopes and channels, and the
 // proxy half that asks a Tauri app's Rust to do so. `shared` is the
 // shapes more than one endpoint is made of. `daemon` is the daemon
-// protocol: its exchange shapes and its endpoints.
+// protocol: its exchange shapes and its endpoints. `provider` is the
+// provider protocol, as far as the daemon's records reach into it.
 
 export * as wire from "./wire/index.js";
 export * as shared from "./shared/index.js";
 export * as daemon from "./daemon/index.js";
+export * as provider from "./provider/index.js";
 
 /**
  * The most bytes one frame of content carries, anywhere in this
