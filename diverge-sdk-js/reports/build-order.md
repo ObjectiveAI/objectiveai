@@ -81,6 +81,22 @@ delete name slots.
 Depends on: step 2, whose pattern this repeats. Done when every list
 of the seven families folds live and every unary answers.
 
+**Done 2026-10-20.** Forty-one endpoints (the count above was
+wrong by three), the provider-protocol `info` and `capacity`
+answers the provider records embed, and the generator lifted into
+a module every later family drives. One hundred and nine examples
+agree between the schemas and the CLI's. Live, daemon and provider
+together, with a `provider.yaml` written for the run (one fixed
+credential, one volume store): an outgoing provider added and seen
+connected on a list held open, with its version and capacity; a
+volume created, listed, walked, tagged and deleted; an incoming
+credential's key minted and rotated; a daemon record with an
+account; the vault's slots appended, replaced, deleted and refused
+as `last`; the database mode and the two empty lists. The one
+answer not as asked: a volume's resize is the provider's honest
+error on this host, `resize2fs` not being installed inside the
+podman machine; a gap of the machine image, not of the SDK.
+
 ## 4. Download, upload and the filetree
 
 The two shapes the base lacks, with volumes as their first user.

@@ -114,7 +114,11 @@ tag table is stated once, in the module, as the Rust states it.
   * as server`, `export * as request`, `export * as response`.
 
 Family-level types sit at the family's root as the Rust's do
-(`accounts/credential.ts`, `accounts/definition.ts`). Every `execute`
+(`accounts/credential.ts`, `accounts/definition.ts`). A provider
+protocol answer a daemon record embeds — a provider's `info`, its
+`capacity` — is the same schema at the provider's own path,
+`provider/endpoints/<request>/server/response/frame.ts`, loose
+where the Rust ignores what it does not know. Every `execute`
 takes a `Handle` and never knows which kind it was handed. There are
 no path strings and no registries: an endpoint is reached by
 importing it, `daemon.endpoints.accounts.get.client.execute(handle, { account: { name: "ci" } })`.
