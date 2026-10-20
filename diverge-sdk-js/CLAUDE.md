@@ -91,14 +91,33 @@ tag table is stated once, in the module, as the Rust states it.
 
 ## An endpoint is a folder of functions
 
-`daemon/endpoints/<family>/<request>/` holds `client/request.ts`
-(the request schema, its `TAG`, its `encode`), `server/response.ts`
-(the response schema and its `decode`) and `client/execute.ts`, whose
-`execute(handle, request)` performs the exchange over one of
-`daemon/client`'s shapes: `one_shot`, `stream` (with a `Cancel`),
-`pending`. Every `execute` takes a `Handle` and never knows which
-kind it was handed. There are no path strings and no registries: an
-endpoint is reached by importing it.
+`daemon/endpoints/<family>/<request>/`, as the Rust has it:
+
+- `client/request/frame.ts`: the request `Frame` schema, its
+  `TAG`, and `encode(frame)` — the tag, then the frame as JSON.
+  Siblings beside it as the Rust has them: a list's `filter.ts`, an
+  edit's `editable.ts`.
+- `client/channel_request/frame.ts` on a list: the one-byte cancel.
+- `client/execute.ts`: `execute(handle, frame)`, performing the
+  exchange over one of `daemon/client`'s shapes — `one_shot`
+  returning the response frame, `stream.executeCancellable`
+  returning the stream and its `Cancel`, `pending`.
+- `server/response/frame.ts`: the response `Frame` schema in its
+  JSON form — the externally tagged snake-case union the CLI prints,
+  `{"found":…}`, `"not_found"` — the tag consts, and `decode(bytes)`,
+  which reads the tag and parses the variant's JSON by its schema,
+  so a decoded frame is a validated one. A list's frame also exports
+  `change(frame)`, a `Change` or `null` for the answers that end the
+  scope, and the record beside it (`account.ts`, `role.ts`) exports
+  the schema and its `key`.
+- `index.ts` barrels at every level, `export * as client`, `export
+  * as server`, `export * as request`, `export * as response`.
+
+Family-level types sit at the family's root as the Rust's do
+(`accounts/credential.ts`, `accounts/definition.ts`). Every `execute`
+takes a `Handle` and never knows which kind it was handed. There are
+no path strings and no registries: an endpoint is reached by
+importing it, `daemon.endpoints.accounts.get.client.execute(handle, { account: { name: "ci" } })`.
 
 ## Two handles, one seam
 

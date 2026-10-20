@@ -58,6 +58,17 @@ first patch; list is the first listing folded live.
 Depends on: step 1. Done when both families run live, including a
 list kept open across a create and a delete and folded correctly.
 
+**Done 2026-10-20.** Fourteen endpoints in the pattern CLAUDE.md
+now states. Seventy-five examples accepted and rejected alike by
+the schemas and by the CLI's JSON Schemas. Live as root: a roles
+list held open saw the role added, changed as accounts took it, and
+removed; an account created with a credential dialled in with the
+key it was answered; edit, tag, untag, filtered lists, `exists`,
+`in_use`, `not_found` all as the Rust states. One daemon bug found
+and fixed on the way: a held role's delete answered `error` rather
+than `in_use`, since PostgreSQL reports a RESTRICT refusal as
+`23001`, which sqlx does not count as a foreign key violation.
+
 ## 3. The record families without containers
 
 Providers outgoing, incoming and daemons, with daemons' accounts;
