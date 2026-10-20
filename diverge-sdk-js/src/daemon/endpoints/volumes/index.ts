@@ -17,3 +17,7 @@ export * as edit from "./edit/index.js";
 export * as tag from "./tag/index.js";
 export * as untag from "./untag/index.js";
 export * as stat from "./stat/index.js";
+export * as download from "./download/index.js";
+export * as upload from "./upload/index.js";
+export * as transfer from "./transfer/index.js";
+export * as filetree from "./filetree/index.js";
