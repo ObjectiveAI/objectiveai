@@ -10,7 +10,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "sideEffects": false,
   "scripts": {
@@ -38,6 +39,9 @@
     "directory": "diverge-sdk-js"
   },
   "homepage": "https://diverge.network",
+  "bugs": {
+    "url": "https://github.com/ObjectiveAI/objectiveai/issues"
+  },
   "author": {
     "name": "Diverge",
     "email": "admin@diverge.network",
