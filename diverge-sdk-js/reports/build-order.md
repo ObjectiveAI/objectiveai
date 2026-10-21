@@ -174,6 +174,21 @@ download, upload, transfer, filetree, and the templates' six.
 Depends on: step 5. Done when a tool is created, connected, its
 tools listed and one called, from the SDK.
 
+**Done 2026-10-20, without the live run.** Twenty-three endpoints
+and the last shape: the five MCP exchanges as `shared.mcp` frames
+over MCP's own schemas, the server's error carried whole, the
+provider protocol's channel readers mirrored at their path, and
+`connect` — a scope this side opens channels on — handed back as an
+`ExecuteHandle` whose methods are the exchanges. Two hundred and
+thirty-four examples agree between the schemas and the CLI's, the
+MCP frames by zod alone since the CLI prints no schema for a
+channel's frames. By the standing ruling nothing was dialled: a
+tool created, connected, listed and called from this SDK remains
+unproven. Found on the way: the CLI's `connect call-tool` and
+`connect read-resource` leaves cannot print their schema
+subcommands, a required option in the way as the file leaves' was
+before step 4 mended them.
+
 ## 7. Dependency tools
 
 Nine endpoints: list, get, delete, tag, untag, filetree, download,

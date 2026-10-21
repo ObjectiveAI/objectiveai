@@ -70,8 +70,12 @@ against rmcp 3.1.2: the same tags and names, three validations
 stricter in the specification's direction (`data` and `blob` must be
 base64, `priority` within 0..=1, `lastModified` an ISO datetime),
 and `CallToolResult`'s `content` defaulting to `[]` as rmcp's own
-deserialize does. What this SDK adds to MCP — the attestation in
-`_meta` — is `shared.mcp`.
+deserialize does. What this SDK adds to MCP — the five exchanges as
+frames, the server's error whole, the attestation in `_meta` — is
+`shared.mcp`. A notification is `ServerNotificationSchema.or(NotificationSchema)`,
+since rmcp reads any `{method, params?}` as a custom notification
+and the specification's nine would refuse one. The one `.default()`
+in the tree is a tool template's `mode`, which serde defaults too.
 
 Where a Rust doc is stale against its code, the code wins and the
 doc is not carried: the postgres action is `list`, not
@@ -128,6 +132,15 @@ tag table is stated once, in the module, as the Rust states it.
   `client/channel_response/frame.ts`, what this side answers it
   with, re-exported from the provider's `volumes.write`, since the
   exchange is the same.
+- A connect is the one scope THIS side opens channels on: its
+  `client/channel_request/frame.ts` is the six-way union with the
+  exchange's own `encode` after the tag, its
+  `server/channel_response/` re-exports the `shared.mcp` frames, and
+  its `client/execute/` is a directory — `execute` reading the one
+  answer into an `ExecuteHandle`, whose methods open the channels
+  over the provider protocol's readers,
+  `provider.endpoints.containers.client.{unary, ChannelStream}`, as
+  the Rust borrows them.
 - `server/response/frame.ts`: the response `Frame` schema in its
   JSON form — the externally tagged snake-case union the CLI prints,
   `{"found":…}`, `"not_found"` — the tag consts, and `decode(bytes)`,
