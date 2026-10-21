@@ -43,6 +43,10 @@ on:
         description: 'Re-run even if v<version> already exists (idempotent guards skip what is already published)'
         type: boolean
         default: false
+      publish-diverge-sdk:
+        description: 'Also publish @diverge/sdk to npm (prepared, not yet released: off until asked)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # create the release, upload zips, push the go tag
@@ -621,7 +625,10 @@ jobs:
   publish-diverge-javascript:
     name: SDK · diverge javascript (npm)
     needs: [check-version, publish-javascript]
-    if: needs.check-version.outputs.should-release == 'true'
+    # Gated on its own input as well as the version: the package is
+    # prepared for npm but not yet released, so a release run leaves it
+    # alone until dispatched with `publish-diverge-sdk=true`.
+    if: needs.check-version.outputs.should-release == 'true' && inputs.publish-diverge-sdk == true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
