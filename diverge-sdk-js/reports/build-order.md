@@ -223,3 +223,23 @@ README read once more as a stranger would, a release dry run.
 Depends on: step 7, and the viewer's port to the current SDK, which
 is its own branch. Done when `@diverge/sdk@2.3.0` is on npm and the
 viewer lists accounts through it.
+
+**Prepared 2026-10-20; not published, by ruling, and the viewer
+untouched.** What was done: two stray files a generator had been
+writing beside the tree since step 3 removed, with the cause; the
+package shipping `src` beside `dist` so its maps resolve, and a
+`bugs` address; the README read once more as a stranger would — an
+install line that says why zod is named, a first exchange and an
+upload shown end to end, `provider` and `shared.mcp` among what is
+here, and a status that says what has and has not run live — its
+snippets compiled against the built package; and the release
+workflow's `@diverge/sdk` job gated on its own dispatch input,
+`publish-diverge-sdk`, off by default, so a release run publishes
+nothing here until asked. The pack dry run: 3,886 files, 4.9 MB
+unpacked, 568 kB packed, nothing written and nothing sent. Left
+open, as this step's other half: the proxy proven through the
+viewer's Rust side, and the publish — one `pnpm publish --access
+public` from `diverge-sdk-js`, or the workflow input, when the user
+says so. A LICENSE file is the one thing a first publish might
+still want; the sibling package ships none and the manifest names
+MIT.
