@@ -200,6 +200,14 @@ Depends on: step 6. Done when every tag in the daemon's table has
 its folder, which a count of `endpoints/**/client/request.ts`
 confirms.
 
+**Done 2026-10-20, without the live run.** Nine endpoints in the
+shapes the earlier steps set, the `Listed` record with the agents
+that depend on it and its run, keyed by the template's id and the
+owner. The table is whole: a count of `endpoints/**/execute.ts`
+answers one hundred and ten, the connect's `execute/execute.ts`
+counted once. Eighty-five examples agree between the schemas and
+the CLI's. By the standing ruling nothing was dialled.
+
 ## 8. The proxy, proven, and the first publish
 
 The proxy handle has only been type-checked: no Rust implements its
