@@ -1,6 +1,6 @@
 # Example tool containers
 
-Four tool containers to build as the first Diverge examples. Each is
+Five tool containers to build as the first Diverge examples. Each is
 one image whose program is an MCP server with several tools, and each
 leans on a different part of what a tool container can do:
 
@@ -10,8 +10,9 @@ leans on a different part of what a tool container can do:
 | `taskboard` | one shared board used by many agents at once, told apart by who calls | service, template |
 | `memory` | a notebook in the tool's Postgres database | transient |
 | `workspace` | a volume mounted into the container as files | transient |
+| `alarm` | wake-ups an agent sets for itself, fired on the tool's own clock | service, global |
 
-`courier`, `memory` and `taskboard` are built; `workspace` is not. The design rests on what the SDK states
+`courier`, `memory`, `taskboard` and `alarm` are built; `workspace` is not. The design rests on what the SDK states
 today, cited below, and on two facts worth repeating up front: no tool
 container has yet run live, and the daemon has no image-build
 endpoint, so these images are built through the provider protocol's
@@ -218,6 +219,37 @@ that it cannot.
 container; as a service, several agents share one desk. Both are
 useful; the example ships transient and says how to make it a
 service.
+
+## `alarm`: wake-ups an agent sets for itself
+
+The one example that acts on its own clock rather than only answering
+calls. An agent sets an alarm with a note, and when it is due the tool
+messages that agent exactly `<alarm>\n{note}\n</alarm>` through the
+daemon, which starts the agent if it is not running.
+
+**Built:** `examples/alarm/` (crate `diverge-example-alarm`, binary
+`alarm`), with its `Containerfile` and `DIVERGE.md`. It is a
+**dependency tool** declared by agents' images, a `service` (shown
+with `scope: global`; any scope works, since every alarm names its
+agent), granted `agents` `message` within `self`. A service, because
+a service is kept running while agents are attached, and a transient
+tool would stop with the agent's run.
+
+**How it works.** One Postgres table of alarms, each naming the
+attested agent that set it. A scheduler task runs beside the server
+for the container's life: it fires every due alarm inside one
+transaction (`for update skip locked`), then sleeps until the soonest
+alarm left, or until a call sets or cancels one. An alarm that cannot
+be sent when due is dropped; an overdue alarm fires once when the tool
+comes back, and a recurring one's missed repeats are skipped.
+
+**Tools.**
+
+| tool | does |
+|---|---|
+| `set_alarm(note, at? \| in_seconds? \| cron?)` | sets an alarm for the caller: once at an RFC 3339 time, once after a delay, or on a five-field cron pattern in UTC; answers its id and first due time |
+| `list_alarms()` | the caller's alarms, soonest first |
+| `cancel_alarm(alarm)` | cancels one of the caller's alarms |
 
 ## How the examples are laid out
 

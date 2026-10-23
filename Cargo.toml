@@ -24,6 +24,7 @@ members = [
     "examples/courier",
     "examples/memory",
     "examples/taskboard",
+    "examples/alarm",
     "objectiveai-sdk-rs",
     "objectiveai-json-schema/builder",
     "objectiveai-sdk-rs-wasm-js",

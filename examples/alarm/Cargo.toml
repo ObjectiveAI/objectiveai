@@ -1,0 +1,45 @@
+[package]
+name = "diverge-example-alarm"
+version = "0.1.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "An example Diverge tool container: alarms an agent sets to wake itself later, once or on a schedule"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[[bin]]
+name = "alarm"
+path = "src/main.rs"
+
+[dependencies]
+# The SDK, by path: the container's contract with the proxy beside it
+# (registration, secrets, the daemon, Postgres), the caller the daemon
+# attests on every MCP request, and the daemon's endpoints the alarm
+# messages through.
+diverge-sdk = { path = "../../diverge-sdk-rs" }
+# The program's door: an HTTP server on the loopback the proxy dials,
+# `/register`, the secrets' two paths, and the MCP server at `/mcp`.
+axum = { version = "0.8.9" }
+# The MCP server, over Streamable HTTP; the same version the SDK's
+# content blocks and attestation are written against.
+rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
+# Each tool's parameters state their own JSON Schema; `--schema`
+# states the arguments'.
+schemars = { version = "1.2.2" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+# The alarms: the tool's database, through the proxy's loopback
+# pgwire. `chrono` for every time an alarm keeps.
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
+chrono = { version = "0.4.39", default-features = false, features = ["std", "serde", "clock"] }
+# A recurring alarm's schedule: a five-field cron pattern, its next
+# time found in UTC. Exactly 3.0.0: the 3.0.1 and 4.x releases ask
+# for chrono 0.4.42 or later, and the workspace holds chrono at
+# exactly 0.4.39.
+croner = { version = "=3.0.0" }
+# The runtime under the listener, the lazily made pool and daemon
+# connection, the scheduler's sleep and wake, and the task each
+# message's answer is read on.
+tokio = { version = "1.53.1", default-features = false, features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
