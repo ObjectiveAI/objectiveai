@@ -3,6 +3,8 @@
 use std::fmt;
 use std::io;
 
+use diverge_sdk::keyring;
+
 use crate::config;
 use crate::document;
 use crate::lifecycle;
@@ -24,6 +26,16 @@ pub enum Error {
     Run(run::Error),
     /// The daemon or the provider could not be started or stopped.
     Lifecycle(lifecycle::Error),
+    /// The root's keyring refused, or could not be opened.
+    Keyring(keyring::Error),
+    /// Stdin could not be read.
+    Stdin(io::Error),
+    /// Stdout could not be written.
+    Stdout(io::Error),
+    /// The key on stdin was empty.
+    EmptyKey,
+    /// A link was not made whole: which step, and why.
+    Link(String),
 }
 
 impl fmt::Display for Error {
@@ -34,6 +46,11 @@ impl fmt::Display for Error {
             Error::Document(error) => write!(f, "{error}"),
             Error::Run(error) => write!(f, "{error}"),
             Error::Lifecycle(error) => write!(f, "{error}"),
+            Error::Keyring(error) => write!(f, "{error}"),
+            Error::Stdin(error) => write!(f, "stdin could not be read: {error}"),
+            Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
+            Error::EmptyKey => f.write_str("the key on stdin was empty"),
+            Error::Link(why) => write!(f, "the link was not made: {why}"),
         }
     }
 }
@@ -52,6 +69,9 @@ impl std::error::Error for Error {
             Error::Document(error) => Some(error),
             Error::Run(error) => Some(error),
             Error::Lifecycle(error) => Some(error),
+            Error::Keyring(error) => Some(error),
+            Error::Stdin(error) | Error::Stdout(error) => Some(error),
+            Error::EmptyKey | Error::Link(_) => None,
         }
     }
 }
@@ -71,6 +91,12 @@ impl From<document::Error> for Error {
 impl From<run::Error> for Error {
     fn from(error: run::Error) -> Self {
         Error::Run(error)
+    }
+}
+
+impl From<keyring::Error> for Error {
+    fn from(error: keyring::Error) -> Self {
+        Error::Keyring(error)
     }
 }
 

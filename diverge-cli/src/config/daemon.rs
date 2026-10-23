@@ -9,6 +9,10 @@ use super::Account;
 /// not say: the account a fresh daemon seeds.
 pub const ROOT: &str = "root";
 
+/// The keyring entry a fresh daemon seeds the root account's key in:
+/// the default account's key, on the daemon's own host.
+pub const ROOT_KEY: &str = "daemon/accounts/root";
+
 /// A daemon the CLI may dial: where, and as whom.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

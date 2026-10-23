@@ -40,6 +40,7 @@
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
+use std::path::Path;
 use std::time::Duration;
 
 use clap::{Args, Subcommand};
@@ -143,10 +144,11 @@ pub enum Command {
 /// its account: the leaf run — within `--timeout`, when one is given
 /// — dialling the daemon if its command line puts a request, and
 /// every answer printed.
-pub async fn run(selected: &Selected<'_>, run: Run) -> Result<(), Error> {
+pub async fn run(root: &Path, selected: &Selected<'_>, run: Run) -> Result<(), Error> {
     let mut emitter = Emitter::new(run.jq)?;
     let target = Target {
         address: &selected.daemon.address,
+        root,
         key: &selected.account.key,
     };
     let exchange = async { dispatch(run.command, &target, &mut emitter).await };

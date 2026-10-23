@@ -8,10 +8,14 @@
 //! or not — else `.diverge` under the home directory, as every
 //! Diverge program finds its root but for the working directory's
 //! turn; see [`config`]. The document names daemons by address, each
-//! with named accounts by key and a default account, and a default
-//! daemon; with no file it is the built-in default, the daemon `local`
-//! on this host at the daemon's own default port, as the account
-//! `root` with the key a fresh daemon seeds.
+//! with named accounts by the keyring entry of their key and a
+//! default account, and a default daemon; with no file it is the
+//! built-in default, the daemon `local` on this host at the daemon's
+//! own default port, as the account `root` by the entry a fresh
+//! daemon seeds its key in, `daemon/accounts/root`. No key is in the
+//! document: every key is in the root's keyring, `keyring.db`, which
+//! the command `keyring` lists, mints into, sets and removes from, and
+//! no command prints.
 //!
 //! [`arguments`] is the command line; [`cli`] runs it. Every request of
 //! the daemon's wire is reached under the one command `run`, as a
@@ -28,7 +32,8 @@
 //! binary beside this one, spawned detached and waited for until it
 //! holds the root's lock — and stop it, by one `POST /stop` on its
 //! own port from this host, waited for until the lock is free; see
-//! [`lifecycle`].
+//! [`lifecycle`]. The command `link provider` links the daemon to
+//! the provider on the root: see [`cli::link`].
 
 pub mod arguments;
 pub mod cli;

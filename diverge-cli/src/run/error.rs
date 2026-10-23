@@ -17,6 +17,11 @@ pub enum Error {
     /// `--arguments` is not a JSON object: where in it, and what was
     /// wrong.
     Arguments(serde_path_to_error::Error<serde_json::Error>),
+    /// The root's keyring could not be opened or read: what it said.
+    Keyring(String),
+    /// The root's keyring holds no entry of the name the account's
+    /// key names.
+    NoKey(String),
     /// The daemon could not be dialled.
     Dial(String),
     /// The credential could not be presented.
@@ -56,6 +61,8 @@ impl fmt::Display for Error {
         match self {
             Error::Body(error) => write!(f, "the body is not what the request takes: {error}"),
             Error::Arguments(error) => write!(f, "`--arguments` is not a JSON object: {error}"),
+            Error::Keyring(error) => write!(f, "the keyring could not be read: {error}"),
+            Error::NoKey(entry) => write!(f, "the keyring holds no `{entry}`, the account's key"),
             Error::Dial(error) => write!(f, "the daemon could not be dialled: {error}"),
             Error::Authorize(error) => write!(f, "the credential could not be presented: {error}"),
             Error::Rejected => write!(
@@ -86,6 +93,8 @@ impl std::error::Error for Error {
             Error::Jq(error) => Some(error),
             Error::Stdout(error) => Some(error),
             Error::Rejected
+            | Error::Keyring(_)
+            | Error::NoKey(_)
             | Error::Dial(_)
             | Error::Authorize(_)
             | Error::Exchange(_)

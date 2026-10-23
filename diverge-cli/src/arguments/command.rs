@@ -2,7 +2,7 @@
 
 use clap::Subcommand;
 
-use super::{Config, Lifecycle};
+use super::{Config, Keyring, Lifecycle, Link};
 use crate::run::Run;
 
 /// The commands. Every request of the daemon's wire goes under
@@ -17,6 +17,15 @@ pub enum Command {
     Run(Run),
     /// Read, rewrite or edit one of the four documents in the root.
     Config(Config),
+    /// List, mint, set or remove a key in the root's keyring, the one
+    /// store of keys every Diverge program on the host shares. No
+    /// command prints a key.
+    #[command(subcommand)]
+    Keyring(Keyring),
+    /// Link the daemon to a provider: the key minted, the provider
+    /// told to accept it, the daemon told to dial presenting it.
+    #[command(subcommand)]
+    Link(Link),
     /// Start or stop the daemon on the root: see
     /// [`lifecycle`](crate::lifecycle).
     #[command(subcommand)]

@@ -15,6 +15,8 @@ mod error;
 mod run;
 
 pub mod config;
+pub mod keyring;
+pub mod link;
 
 pub use error::*;
 pub use run::*;

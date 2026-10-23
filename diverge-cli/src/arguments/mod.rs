@@ -15,9 +15,13 @@
 mod arguments;
 mod command;
 mod config;
+mod keyring;
 mod lifecycle;
+mod link;
 
 pub use arguments::*;
 pub use command::*;
 pub use config::*;
+pub use keyring::*;
 pub use lifecycle::*;
+pub use link::*;
