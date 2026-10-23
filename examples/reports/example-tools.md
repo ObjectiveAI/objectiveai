@@ -6,7 +6,7 @@ leans on a different part of what a tool container can do:
 
 | example | what it shows | mode |
 |---|---|---|
-| `courier` | a tool acting on the daemon as an account: messaging other agents | transient |
+| `courier` | an inbox between agents: Postgres for the mail, the daemon to notify | transient |
 | `taskboard` | one shared instance used by many agents at once, told apart by who calls | service |
 | `memory` | the caller's own Postgres database, kept per agent | transient |
 | `workspace` | a volume mounted into the container as files | transient |
@@ -56,41 +56,76 @@ daemon's `standalone_tools` family.
   `idle_seconds` with no holds). A service is one container shared
   by every agent attached to it.
 
-## `courier`: messaging other agents
+## `courier`: an inbox between agents
 
-A tool through which an agent writes to another agent. It is the one
-example that acts on the daemon itself.
+Mail between agents. Every agent that uses the courier has an inbox
+of conversations; an agent opens a conversation with another agent on
+a topic, or answers inside one it already has. The courier never puts
+a message's words into an agent's own conversation. It only tells the
+recipient that something arrived, and the recipient opens its inbox
+when it chooses: the agent pulls its mail, nothing is pushed.
 
-**How it works.** The tool is created under an account whose roles
-let it list agents and message them. When an agent calls `send`, the
-courier reads the attested caller from `_meta`, puts a sender line in
-front of the text, and calls `agents.message` on the daemon for the
-recipient. The message lands in the recipient's conversation as user
-content, so the recipient sees it on its next turn, from a sender it
-can trust: the line is written from the daemon's attestation, not
-from anything the calling agent claimed.
+**The notification.** Whenever a message is added to a conversation,
+the courier sends every other participant, through the daemon's
+`agents.message`, exactly this and nothing else:
+
+```text
+<courier>
+You have a new message
+</courier>
+```
+
+It names no sender, no topic and no conversation. To learn more the
+agent calls the courier's listers. The courier acts on the daemon as
+the account the tool was created under, so that account needs a
+grant to message the agents that use it.
+
+**Conversations.** A conversation is between two agents, the one who
+opened it and the one it was opened with. It has an id, the topic it
+was opened on, and its messages in order. The topic is set when the
+conversation is opened and never changes. Each message records its
+sender, which is the attested caller of the call that sent it (the
+daemon's word, never what the sending agent claims), its text and
+when it was sent. Each participant has its own read mark: a message
+is unread for a participant until a lister has shown it to them. A
+participant's own messages are read for them from the start.
 
 **Tools.**
 
 | tool | does |
 |---|---|
-| `directory()` | lists the agents the courier's account can reach: name, template and index, whether each is active, when each was last active |
-| `send(to, text)` | messages one agent, prefixed with the attested sender; answers whether the message was delivered or is waiting |
-| `broadcast(tag, text)` | messages every agent carrying a tag, and reports each delivery |
-| `status(to)` | whether an agent is working or idle, and when it was last active, without messaging it |
+| `start(to, topic, text)` | opens a new conversation with an agent on a topic, with its first message; answers the conversation's id |
+| `reply(conversation, text)` | adds a message to a conversation the caller is in |
+| `conversations(include_read?)` | the caller's conversations: by default only those with unread messages, each with its id, the other agent, the topic, how many messages are unread and when the last one came. With `include_read`, every conversation |
+| `messages(conversation, include_read?)` | one conversation's messages: by default only the unread ones, oldest first. With `include_read`, the whole conversation. Every message it shows is marked read for the caller |
 
-**Arguments.** Optional: a list of tags the courier may broadcast to,
-and whether to deliver to agents that are not active (otherwise the
-message queues as the daemon queues it).
+`to` names an agent as the daemon names one: by its name, or by its
+template and index. A conversation with an agent that does not exist,
+or one the caller is not in, is refused in words.
+
+**State.** Conversations and read marks live in Postgres, through the
+proxy, so the inbox survives the container stopping. The container is
+one per tool, shared by every agent attached to it, so every inbox is
+in one place. Transient mode suffices for that; service mode would
+only keep it warm.
+
+**Arguments.** None to start with.
 
 **Open questions.**
-- The account's roles are the whole permission model: which grants
-  the example's setup creates (an `agents` list and `message` grant,
-  narrowed by tag or not) should be written down in the example.
-- A reply is just another `send`. Whether the courier should also
-  offer an `inbox` of messages received is a design choice; the
-  simple answer is no, since the recipient's own conversation already
-  holds them.
+- Whether notifications coalesce. As stated, every message sends one.
+  An agent that has not yet read its inbox could be sent one
+  notification until it does; the stated rule is one per message.
+- Whether an agent can find whom to write to. `start` needs a name
+  or a template and index; the courier offers no directory of agents.
+  An agent learns names the way it learns anything else: from its
+  instructions, or from a message it received.
+- Whether a conversation can have more than two agents. Two to
+  start; a group thread is the same tables with a participant list.
+- Which grant the tool's account holds: `agents.message` over the
+  agents that use the courier, and nothing broader. The example's
+  setup writes it down.
+- A client over a connect (`kind: unbrokered`) has a stable identity
+  too and could have an inbox; to start, only agents do.
 
 ## `taskboard`: one tool, shared by the agents that use it
 
@@ -195,5 +230,6 @@ image is built.
    the first live run of a tool container.
 2. `workspace`: adds a volume mount.
 3. `taskboard`: adds service mode and several agents at once.
-4. `courier`: adds the tool's own account and the daemon access, the
-   most moving parts.
+4. `courier`: builds on `memory`'s Postgres and the attestation, and
+   adds the tool's own account and the daemon access, the most moving
+   parts.
