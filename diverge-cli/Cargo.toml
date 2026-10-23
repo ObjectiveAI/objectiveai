@@ -54,8 +54,6 @@ jaq-json = { version = "1.1.3", features = ["serde_json"] }
 # daemon, a run's timeout, and the daemon or the provider spawned by
 # `start` as a detached child.
 tokio = { version = "1.53.1", features = ["fs", "io-std", "io-util", "macros", "net", "process", "rt", "rt-multi-thread", "time"] }
-# The socket to a daemon, dialled.
-tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["connect"] }
 # The socket split into its two halves, and a stream read frame by
 # frame; an upload's content as a stream of one piece.
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }

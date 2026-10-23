@@ -21,7 +21,8 @@
 //! daemon as that account, a conduit, and the answers come back as
 //! the request's own.
 //!
-//! The selected daemon is the [`Target`], [`dial`]ed as the selected
+//! The selected daemon is the [`Target`], dialled with the SDK's
+//! [`dial`](diverge_sdk::wire::client::dial::dial) as the selected
 //! account by the leaf that puts a request; the leaf decodes its
 //! [`body`] as the SDK's own request type and puts it
 //! through the [`shape`] its exchange has, printing every answer
@@ -47,10 +48,8 @@ use crate::config::Selected;
 
 mod below;
 mod body;
-mod dial;
 mod emit;
 mod error;
-mod refusing;
 mod request_schema;
 mod response_schema;
 mod target;
@@ -70,10 +69,8 @@ pub mod volumes;
 
 pub use below::*;
 pub use body::*;
-pub use dial::*;
 pub use emit::*;
 pub use error::*;
-pub use refusing::*;
 pub use request_schema::*;
 pub use response_schema::*;
 pub use target::*;
