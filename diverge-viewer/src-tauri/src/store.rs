@@ -43,40 +43,16 @@ pub struct Format {
     pub keep_previous: bool,
 }
 
-/// Your keys: your account, personas and your agents' keys. Version 2
-/// added the account; a version 1 file reads as one with no account yet.
-/// Version 3 added local agents (an agent's kind, its display name, and
-/// whether it was removed): a build from before reads a version 3 file as
-/// newer and leaves it alone, never dropping them.
-pub const KEYS: Format = Format { name: "keys", version: 3, keep_previous: true };
-/// Each key's last counter. Never behind the clock, so losing it locks nobody out.
-pub const COUNTERS: Format = Format { name: "counters", version: 1, keep_previous: false };
-/// Your agents' allowances, room by room.
-pub const ALLOWANCES: Format = Format { name: "allowances", version: 1, keep_previous: true };
 /// Saved Views.
 pub const VIEWS: Format = Format { name: "views", version: 1, keep_previous: true };
 /// The names you gave your machines.
 pub const MACHINE_NAMES: Format = Format { name: "machine names", version: 1, keep_previous: true };
-/// What the app last stated each agent mounts.
-pub const AGENT_MOUNTS: Format = Format { name: "agent mounts", version: 1, keep_previous: true };
-/// Your asks' thread ids, and the one thread each belongs to.
-pub const THREADS: Format = Format { name: "threads", version: 1, keep_previous: true };
-/// Your copy of one room's record.
-pub const RECORD_COPY: Format = Format { name: "record copy", version: 1, keep_previous: true };
-
-/// Your card, every part with who sees it.
-pub const PROFILE_CARD: Format = Format { name: "profile card", version: 1, keep_previous: true };
-
-/// The local agents the door is served to: each one's token, as a sha256,
-/// and the port the door was given once.
-pub const DOOR_AGENTS: Format = Format { name: "door agents", version: 1, keep_previous: true };
-
 /// The theme you picked; none until you pick one, and the app shows the default.
 pub const THEME: Format = Format { name: "theme", version: 1, keep_previous: true };
 
-/// Every kind of file the app itself keeps (the stand-in keeps two more of its own).
+/// Every kind of file the app keeps.
 #[allow(dead_code)] // read by the test that every kind has words on screen
-pub const FORMATS: &[Format] = &[KEYS, COUNTERS, ALLOWANCES, VIEWS, MACHINE_NAMES, AGENT_MOUNTS, THREADS, RECORD_COPY, DOOR_AGENTS, PROFILE_CARD, THEME];
+pub const FORMATS: &[Format] = &[VIEWS, MACHINE_NAMES, THEME];
 
 /// Why a file can't be used.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -231,27 +207,6 @@ fn parse<T: DeserializeOwned>(bytes: &[u8], format: Format) -> Read<T> {
         Some(Ok(t)) => Read::Good(t),
         _ => Read::Unusable(Why::Damaged),
     }
-}
-
-/// The version a kept file says it is, without reading what it holds: 0
-/// for one from before files carried a version; `None` if it won't read.
-pub fn version_on_disk(path: &Path) -> Option<u32> {
-    let value: Value = serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
-    match value.as_object() {
-        Some(o) if o.contains_key("file") && o.contains_key("version") => o.get("version").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()),
-        _ => Some(0),
-    }
-}
-
-/// Keep a copy of a file under another name, owner-only and synced, once:
-/// a copy already there is left as it is.
-pub fn keep_copy(from: &Path, to: &Path) -> std::io::Result<()> {
-    if to.exists() {
-        return Ok(());
-    }
-    write_new(to, &std::fs::read(from)?)?;
-    sync_dir(to);
-    Ok(())
 }
 
 /// Move a file out of the way, untouched, under a name that says why.
@@ -450,9 +405,11 @@ pub const IN_USE_FILE: &str = ".in-use";
 
 /// What a copy of the app that doesn't hold its folder answers, because another copy does.
 /// The same words are the screen's, in `src/strings.ts`.
+#[cfg(test)]
 pub const IN_USE: &str = "Another copy of this app is using this folder, so this one changes nothing in it: nothing is saved or sent from here.";
 /// What it answers when it couldn't tell whether another copy does.
 /// The same words are the screen's, in `src/strings.ts`.
+#[cfg(test)]
 pub const UNCHECKED: &str = "This copy of the app couldn't make sure no other copy is using this folder, so it changes nothing in it: nothing is saved or sent from here.";
 
 /// Whether this copy of the app holds its folder.
@@ -473,6 +430,7 @@ impl Hold {
     }
 
     /// What this copy answers when it doesn't hold its folder.
+    #[cfg(test)]
     pub fn refusal(&self) -> Option<&'static str> {
         match self {
             Hold::Held(_) => None,
@@ -724,12 +682,7 @@ pub mod tests {
     #[test]
     fn every_kind_of_file_has_words_on_screen() {
         let screen = include_str!("../../src/strings.ts");
-        // Only the stand-in adds to the list.
-        #[cfg_attr(not(feature = "stand-in"), allow(unused_mut))]
-        let mut formats = FORMATS.to_vec();
-        #[cfg(feature = "stand-in")]
-        formats.extend([crate::spaces::stub::ROOMS, crate::daemon::stub::store::VOLUMES]);
-        for f in formats {
+        for f in FORMATS {
             assert!(screen.contains(&format!("\"{}\": \"", f.name)), "src/strings.ts words the {} file", f.name);
         }
     }

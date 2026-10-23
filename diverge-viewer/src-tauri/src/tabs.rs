@@ -14,17 +14,12 @@ pub struct Tabs {
 
 pub fn key_of(tab: &TabKind) -> String {
     match tab {
-        TabKind::Agent { name } => format!("agent:{name}"),
+        TabKind::Agent { template, index, .. } => format!("agent:{template}:{index}"),
         TabKind::NewAgent => "new-agent".into(),
         TabKind::Storage => "storage".into(),
         TabKind::Machines => "machines".into(),
         TabKind::Views => "views".into(),
-        TabKind::Home => "home".into(),
-        TabKind::Inbox => "inbox".into(),
-        TabKind::Profile => "profile".into(),
-        TabKind::Spaces => "spaces".into(),
-        TabKind::Space { id } => format!("space:{id}"),
-        TabKind::Door { invite } => format!("door:{}", &diverge_viewer_room::seal::digest(invite.as_bytes())[..12]),
+        TabKind::Settings => "settings".into(),
     }
 }
 
