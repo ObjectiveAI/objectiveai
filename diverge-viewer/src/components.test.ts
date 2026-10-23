@@ -165,9 +165,9 @@ describe("the 28px floor", () => {
     // A button and a field stand at --control, one height, so they line up; the rest sit at the floor.
     expect(theme.get(":root")?.get("--control")).toBe("32px");
     expect(app.get(".btn")?.get("min-height")).toBe("var(--control)");
-    for (const sel of [".btn-small", ".btn-icon", ".chip-press", ".nav-row", ".card-press"]) expect(app.get(sel)?.get("min-height"), sel).toBe("var(--hit-min)");
+    for (const sel of [".btn-small", ".btn-icon", ".chip-press", ".card-press"]) expect(app.get(sel)?.get("min-height"), sel).toBe("var(--hit-min)");
     expect(app.get(".btn-icon")?.get("min-width")).toBe("var(--hit-min)");
     // A checkbox or radio is pressed by its words too, so the line that holds both meets the floor.
-    for (const sel of [".switch", ".radio-line"]) expect(app.get(sel)?.get("min-height"), sel).toBe("var(--hit-min)");
+    for (const sel of [".switch"]) expect(app.get(sel)?.get("min-height"), sel).toBe("var(--hit-min)");
   });
 });

@@ -40,7 +40,7 @@ describe("theme.css", () => {
     expect([...names].sort()).toEqual([...FIVE].sort());
   });
   it("every theme has a name on screen", () => {
-    expect(Object.keys(t.profile.themes).sort()).toEqual(Object.keys(THEMES).sort());
+    expect(Object.keys(t.settings.themes).sort()).toEqual(Object.keys(THEMES).sort());
   });
   it("the default sets each of the five as a colour, and nothing else is a bare colour", () => {
     const hex = [...base].filter(([, v]) => /^#[0-9a-f]{6}$/i.test(v)).map(([k]) => k);

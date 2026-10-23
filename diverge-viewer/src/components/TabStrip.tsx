@@ -1,27 +1,15 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { opens, rove } from "../lib/keys";
-import { spaceTitle as nameOf } from "../lib/format";
 import type { TabKind } from "../bindings/TabKind";
 import type { TabsSnapshot } from "../bindings/TabsSnapshot";
-import { useShared } from "../lib/context";
+import { agentKey, useShared } from "../lib/context";
 import { t } from "../strings";
 import { Button, Dot, Icon } from "./ui";
-
-/** An invite's title, for its tab only: the app reads invites properly in Rust. */
-function inviteTitle(text: string): string {
-  try {
-    const body = text.replace(/^diverge-invite:/, "").replace(/-/g, "+").replace(/_/g, "/");
-    const json = JSON.parse(decodeURIComponent(escape(atob(body + "===".slice((body.length + 3) % 4)))));
-    return String(json.title ?? "");
-  } catch {
-    return "";
-  }
-}
 
 function title(tab: TabKind): string {
   switch (tab.kind) {
     case "agent":
-      return tab.name;
+      return tab.name ?? `${t.rail.unnamed} ${tab.index}`;
     case "new_agent":
       return t.create.title;
     case "storage":
@@ -30,29 +18,13 @@ function title(tab: TabKind): string {
       return t.machines.title;
     case "views":
       return t.views.title;
-    case "home":
-      return t.home.title;
-    case "inbox":
-      return t.inbox.title;
-    case "profile":
-      return t.profile.title;
-    case "spaces":
-      return t.spaces.title;
-    case "space":
-      return spaceTitle(tab.id);
-    case "door":
-      return `${t.door.fromDm}: ${inviteTitle(tab.invite)}`;
+    case "settings":
+      return t.settings.title;
   }
 }
 
-let spaceTitles: Record<string, string> = {};
-function spaceTitle(id: string): string {
-  return spaceTitles[id] ?? id;
-}
-
 export function TabStrip(props: { snapshot: TabsSnapshot; onFocus: (key: string) => void; onClose: (key: string) => void }) {
-  const { agents, spaces } = useShared();
-  spaceTitles = Object.fromEntries(spaces.map((s) => [s.id, nameOf(s)]));
+  const { agents } = useShared();
   const { tabs, focused } = props.snapshot;
   // Roving focus: Tab enters the strip once, at the tab you're on; arrow keys, Home and End move along it,
   // and Enter or Space opens the tab they're on.
@@ -81,7 +53,7 @@ export function TabStrip(props: { snapshot: TabsSnapshot; onFocus: (key: string)
   return (
     <div className="strip" role="tablist" aria-orientation="horizontal" ref={strip}>
       {tabs.map(({ key, tab }) => {
-        const agent = tab.kind === "agent" ? agents.find((a) => a.name === tab.name) : undefined;
+        const agent = tab.kind === "agent" ? agents.find((a) => agentKey(a) === key) : undefined;
         const name = title(tab);
         return (
           <div
@@ -97,7 +69,7 @@ export function TabStrip(props: { snapshot: TabsSnapshot; onFocus: (key: string)
             // The browser shows a focused tab only as far as it already peeks out of the strip: show all of it.
             onFocus={(e) => e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" })}
           >
-            {agent ? <Dot state={agent.active ? "working" : agent.last_active ? "idle" : "never"} /> : null}
+            {agent ? <Dot state={agent.active ? "working" : agent.lastActive ? "idle" : "never"} /> : null}
             <span className="tab-title">{name}</span>
             <Button kind="icon" label={`${t.common.close} ${name}`} onMouseDown={(e) => e.stopPropagation()} onClick={() => props.onClose(key)}>
               <Icon name="close" />

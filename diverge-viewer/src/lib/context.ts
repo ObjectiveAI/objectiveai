@@ -1,25 +1,16 @@
 import { createContext, useContext } from "react";
-import type { AgentView } from "../bindings/AgentView";
 import type { AppInfo } from "../bindings/AppInfo";
-import type { CardView } from "../bindings/CardView";
-import type { KnockView } from "../bindings/KnockView";
-import type { SpaceSummary } from "../bindings/SpaceSummary";
 import type { TabKind } from "../bindings/TabKind";
 
+/** One agent as the rail and the tabs name it: the daemon's own key, and the name beside. */
+export type AgentRef = { template: string; index: number; name: string | null; active: boolean; lastActive: string | null };
+
 export type Shared = {
-  agents: AgentView[];
-  listedAt: number;
-  refreshAgents: () => Promise<void>;
+  /** The agents, as the daemon lists them, kept current. */
+  agents: AgentRef[];
+  /** Whether the daemon is reached: nothing lists until it is. */
+  connected: boolean;
   info: AppInfo | null;
-  spaces: SpaceSummary[];
-  homeId: string | null;
-  refreshSpaces: () => Promise<void>;
-  knocks: KnockView[];
-  cards: CardView[];
-  /** Cards withdrawn because their agent stopped waiting: nothing answers them. */
-  withdrawn: CardView[];
-  answerCard: (id: number, answer: string) => Promise<void>;
-  answerKnock: (knockId: number, yes: boolean) => Promise<void>;
   open: (tab: TabKind) => void;
   close: (key: string) => void;
 };
@@ -30,4 +21,9 @@ export function useShared(): Shared {
   const value = useContext(SharedContext);
   if (!value) throw new Error("outside the app");
   return value;
+}
+
+/** The tab key of an agent: the daemon's key, as Rust spells it. */
+export function agentKey(a: { template: string; index: number }): string {
+  return `agent:${a.template}:${a.index}`;
 }

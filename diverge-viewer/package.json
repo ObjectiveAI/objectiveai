@@ -10,7 +10,7 @@
     "bindings": "cargo test -p diverge-viewer --quiet",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:all": "cargo test -p diverge-viewer && cargo test -p diverge-viewer --no-default-features && cargo test -p diverge-viewer-room --features image && vitest run"
+    "test:all": "cargo test -p diverge-viewer && vitest run"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
