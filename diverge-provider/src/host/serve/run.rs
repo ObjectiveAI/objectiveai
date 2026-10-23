@@ -5,11 +5,13 @@ use std::pin::pin;
 use std::sync::Arc;
 
 use diverge_sdk::file_lock;
+use diverge_sdk::keyring::Keyring;
 use futures_util::future::{self, Either};
 use tokio::sync::watch;
 use tokio::task::JoinSet;
 
 use crate::config::Config;
+use crate::host::keys::Keys;
 
 use super::{Error, Provider, dial, listen};
 
@@ -22,6 +24,8 @@ use super::{Error, Provider, dial, listen};
 /// at once, before anything on disk is swept or started, naming the
 /// holder's id where it left one; a lock file a dead provider left is
 /// taken like any other, since the kernel let its lock go with it.
+/// The keys the document names are read from the root's keyring, and
+/// an entry it does not hold stops the start.
 /// The stop is made, and the pieces are built around it by
 /// [`Provider::start`]; one task per
 /// peer of `clients.unbrokered` dials; the port is listened on until
@@ -45,8 +49,10 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     let dir = root.join("provider");
     let port = config.port;
     let peers = config.clients.as_ref().and_then(|clients| clients.unbrokered.clone()).unwrap_or_default();
+    let keyring = Keyring::open(&root).await.map_err(Error::Keyring)?;
+    let keys = Arc::new(Keys::resolve(&config, &keyring).await.map_err(Error::Keys)?);
     let (stop, _) = watch::channel(false);
-    let provider = Arc::new(Provider::start(config, dir, stop).await?);
+    let provider = Arc::new(Provider::start(config, dir, stop, keys).await?);
     let mut dials = JoinSet::new();
     for peer in peers {
         dials.spawn(dial(Arc::clone(&provider), peer));

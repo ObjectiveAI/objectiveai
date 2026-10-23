@@ -10,6 +10,7 @@ use futures_util::future;
 use super::{Error, Slot, Taken};
 use crate::config::auth::{Auth, Hook, HookInput, HookOutput, Key, Unbrokered};
 use crate::host::hook;
+use crate::host::keys::Keys;
 use crate::host::serve::{Peers, digest};
 
 /// The provider's authorizer for one connection: the ways the `auth`
@@ -21,6 +22,8 @@ pub struct UnbrokeredAuthorizer {
     /// The ways, in the configuration's order. Empty is a provider
     /// that accepts no dialling peer.
     ways: Vec<Unbrokered>,
+    /// The keys the ways name, by entry.
+    keys: Arc<Keys>,
     /// The `hooks/` directory of the provider.
     hooks_dir: PathBuf,
     /// The peers connected now, where an accepted credential is held.
@@ -40,12 +43,13 @@ enum Judgement {
 }
 
 impl UnbrokeredAuthorizer {
-    /// An authorizer over the `auth` section, absent or present, with
-    /// the provider's `hooks/` directory, for one connection: what it
-    /// takes in `peers` it leaves in `taken`.
-    pub fn new(auth: Option<Auth>, hooks_dir: PathBuf, peers: Arc<Peers>, taken: Slot) -> Self {
+    /// An authorizer over the `auth` section, absent or present, the
+    /// keys its ways name, and the provider's `hooks/` directory, for
+    /// one connection: what it takes in `peers` it leaves in `taken`.
+    pub fn new(auth: Option<Auth>, keys: Arc<Keys>, hooks_dir: PathBuf, peers: Arc<Peers>, taken: Slot) -> Self {
         UnbrokeredAuthorizer {
             ways: auth.and_then(|auth| auth.unbrokered).unwrap_or_default(),
+            keys,
             hooks_dir,
             peers,
             taken,
@@ -55,18 +59,22 @@ impl UnbrokeredAuthorizer {
     /// One way's judgement of the credential.
     async fn judge(&self, way: &Unbrokered, credential: &str, address: IpAddr) -> Judgement {
         match way {
-            Unbrokered::Key(key) => Self::key(key, credential, address),
+            Unbrokered::Key(key) => self.key(key, credential, address),
             Unbrokered::Hook(hook) => self.hook(hook, credential, address).await,
         }
     }
 
-    /// A key: the credential equals it, and the address is the key's
-    /// where the key names one.
-    fn key(key: &Key, credential: &str, address: IpAddr) -> Judgement {
+    /// A key: the credential equals the key its entry keeps, and the
+    /// address is the key's where the key names one. An entry not read
+    /// refuses.
+    fn key(&self, key: &Key, credential: &str, address: IpAddr) -> Judgement {
         if key.address.is_some_and(|allowed| allowed != address) {
             return Judgement::Refused;
         }
-        if !equal(key.key.as_bytes(), credential.as_bytes()) {
+        let Some(kept) = self.keys.get(&key.key) else {
+            return Judgement::Refused;
+        };
+        if !equal(kept.expose().as_bytes(), credential.as_bytes()) {
             return Judgement::Refused;
         }
         Judgement::Accepted(key.identity.clone())

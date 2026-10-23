@@ -33,7 +33,8 @@
 //! for every host through `notify`. What the provider is told is the
 //! one `provider.yaml`, [`crate::config`], read from the root the
 //! provider finds; the provider keeps its state under
-//! `<root>/provider/`.
+//! `<root>/provider/`. [`keys`] are the keys the document names, read
+//! from the root's keyring once, at start.
 //! [`serve`] is the provider running: the pieces built once, a
 //! WebSocket accepted on its port or dialled to each peer it is told
 //! of, every connection handed to the protocol's dispatch, and the
@@ -49,6 +50,7 @@ pub mod hook;
 pub mod image_checker;
 pub mod image_manager;
 pub mod image_registry;
+pub mod keys;
 pub mod oci_store;
 pub mod serve;
 pub mod tools;

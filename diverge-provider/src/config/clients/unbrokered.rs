@@ -10,8 +10,10 @@ pub struct Unbrokered {
     /// resolver answers for or an IP address, `[…]:port` for an IPv6
     /// address.
     pub address: String,
-    /// The credential the provider presents as the connection's first
-    /// frame.
+    /// The name of the entry in the root's
+    /// [`keyring`](diverge_sdk::keyring) whose key the provider
+    /// presents as the connection's first frame. The document holds no
+    /// key.
     pub key: String,
     /// Who the peer is: the string every handler and every capability
     /// receives as the client's identity. Supplied, not learned; the

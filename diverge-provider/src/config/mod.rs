@@ -30,16 +30,16 @@
 //! port: 14979
 //! auth:
 //!   unbrokered:
-//!     - key: 5f1c…
+//!     - key: provider/acme
 //!       identity: acme
 //!       address: 203.0.113.7
-//!     - key: 9a0e…
+//!     - key: provider/bolt
 //!       identity: bolt
 //!     - authorize_hook: peers
 //! clients:
 //!   unbrokered:
 //!     - address: hub.example.com:7000
-//!       key: c31d…
+//!       key: provider/hub
 //!       identity: hub
 //! containers:
 //!   podman:
@@ -48,7 +48,7 @@
 //!       - host: ghcr.io
 //!         credential:
 //!           username: bolt
-//!           password: ghp_…
+//!           password: registry/ghcr
 //!     storage_path: /mnt/podman
 //!     image_cache_disk: 107374182400
 //!     container_overlay_disk: 214748364800
@@ -67,6 +67,11 @@
 //!   path: /mnt/images
 //!   capacity: 274877906944
 //! ```
+//!
+//! No key and no password is in the document: each `key`, and a
+//! registry's `password`, names an entry of the root's
+//! [`keyring`](diverge_sdk::keyring), read at start — see
+//! [`keys`](crate::host::keys).
 //!
 //! [`Error`] is why the root or the file could not be used.
 //!

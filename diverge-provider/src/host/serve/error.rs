@@ -5,11 +5,13 @@ use std::io;
 use std::path::PathBuf;
 
 use diverge_sdk::file_lock;
+use diverge_sdk::keyring;
 
 use crate::config;
 
 use crate::host::container_deployer;
 use crate::host::image_registry;
+use crate::host::keys;
 
 /// What [`run`](super::run) fails with: the configuration, the root's
 /// lock, what it names on disk, a piece that could not be made, or
@@ -23,6 +25,10 @@ pub enum Error {
     Config(config::Error),
     /// The root's lock file could not be taken, written or read.
     Lock(file_lock::Error),
+    /// The root's keyring could not be opened.
+    Keyring(keyring::Error),
+    /// A key the document names could not be read from the keyring.
+    Keys(keys::Error),
     /// Another provider holds the root: the root, and the process id
     /// the holder left in the lock file, where it left one.
     Locked {
@@ -62,6 +68,8 @@ impl fmt::Display for Error {
             Error::Runtime(error) => write!(f, "the runtime could not be built: {error}"),
             Error::Config(error) => write!(f, "the configuration could not be used: {error}"),
             Error::Lock(error) => write!(f, "the root could not be locked: {error}"),
+            Error::Keyring(error) => write!(f, "the keyring could not be opened: {error}"),
+            Error::Keys(error) => write!(f, "{error}"),
             Error::Locked { root, holder } => match holder {
                 Some(holder) => write!(f, "another provider holds {}: process {holder}", root.display()),
                 None => write!(f, "another provider holds {}", root.display()),
@@ -92,6 +100,8 @@ impl std::error::Error for Error {
             Error::Runtime(error) => Some(error),
             Error::Config(error) => Some(error),
             Error::Lock(error) => Some(error),
+            Error::Keyring(error) => Some(error),
+            Error::Keys(error) => Some(error),
             Error::Locked { .. } => None,
             Error::Directory(_, error) => Some(error),
             Error::FixedMissing(_) | Error::Capacity(_) | Error::ImageCapacity(_) | Error::FixedName(_) => None,

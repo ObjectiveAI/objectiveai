@@ -1,15 +1,18 @@
-//! A key the credential must equal.
+//! A key the credential must equal, by its keyring entry.
 
 use std::net::IpAddr;
 
 use serde::{Deserialize, Serialize};
 
-/// A credential that must equal `key`, and must come from `address`
-/// when one is written; a peer that presents it is `identity`.
+/// A credential that must equal the key the keyring keeps as `key`,
+/// and must come from `address` when one is written; a peer that
+/// presents it is `identity`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Key {
-    /// The string the credential must equal, byte for byte.
+    /// The name of the entry in the root's
+    /// [`keyring`](diverge_sdk::keyring) whose key the credential must
+    /// equal, byte for byte. The document holds no key.
     pub key: String,
     /// Who a peer that presents the key is: the string every handler
     /// and every capability receives as the client's identity. The

@@ -22,6 +22,7 @@ use diverge_sdk::wire::server::session::Session;
 
 use crate::config::Config;
 use crate::config::auth::Auth;
+use crate::host::keys::Keys;
 use crate::config::volumes::Volumes;
 
 use super::{Error, Peers};
@@ -49,6 +50,9 @@ pub struct Provider {
     auth: Option<Auth>,
     /// `<root>/provider/hooks/`, for that authorizer.
     hooks_dir: PathBuf,
+    /// The keys the document names, for that authorizer and for every
+    /// dial.
+    pub(super) keys: Arc<Keys>,
     /// The deployer, held to the end so its tunnel lives as long.
     pub(super) deployer: Arc<ContainerDeployer>,
     /// The volumes.
@@ -106,8 +110,9 @@ impl Provider {
     /// the directory. The store is handed to the registry, the
     /// deployer, the checker, the OCI store, the reporter and the
     /// manager. `stop` is the caller's, made before anything here, so
-    /// the signal and the stop route send on the one sender.
-    pub async fn start(config: Config, dir: PathBuf, stop: watch::Sender<bool>) -> Result<Self, Error> {
+    /// the signal and the stop route send on the one sender. `keys` are
+    /// the keys the document names, read already.
+    pub async fn start(config: Config, dir: PathBuf, stop: watch::Sender<bool>, keys: Arc<Keys>) -> Result<Self, Error> {
         ready(&config, &dir).await?;
         let capabilities = Arc::new(capabilities(&config));
         podman::configure(config.containers.podman.storage_path.clone());
@@ -124,7 +129,7 @@ impl Provider {
         let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone(), scratch));
         let registries = config.containers.podman.registries.clone();
         let deployer = Arc::new(
-            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares, disk, store.clone())
+            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares, disk, store.clone(), &keys)
                 .await
                 .map_err(Error::Deployer)?,
         );
@@ -135,6 +140,7 @@ impl Provider {
         Ok(Provider {
             auth: config.auth,
             hooks_dir,
+            keys,
             deployer,
             volumes,
             checker,
@@ -162,7 +168,7 @@ impl Provider {
     pub async fn accept(&self, connection: Connection, address: IpAddr) {
         let taken: Slot = Arc::new(Mutex::new(None));
         let authorization = Authorization::Incoming {
-            unbrokered: UnbrokeredAuthorizer::new(self.auth.clone(), self.hooks_dir.clone(), Arc::clone(&self.peers), Arc::clone(&taken)),
+            unbrokered: UnbrokeredAuthorizer::new(self.auth.clone(), Arc::clone(&self.keys), self.hooks_dir.clone(), Arc::clone(&self.peers), Arc::clone(&taken)),
         };
         self.connection(connection, authorization, address).await;
         if let Some(held) = taken.lock().await.take() {

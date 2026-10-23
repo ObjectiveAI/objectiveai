@@ -12,18 +12,23 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use super::Provider;
 use crate::config::clients::Unbrokered;
 
-/// Dial `peer` at `ws://<address>/`, present its key as the first
-/// frame under its identity, serve the connection until it ends,
-/// wait five seconds, and dial again — whether the connection ended
-/// or the dial failed, and forever: this ends only when the task it
-/// runs in is ended.
+/// Dial `peer` at `ws://<address>/`, present the key its entry names
+/// as the first frame under its identity, serve the connection until
+/// it ends, wait five seconds, and dial again — whether the connection
+/// ended or the dial failed, and forever: this ends only when the task
+/// it runs in is ended.
 pub async fn dial(provider: Arc<Provider>, peer: Unbrokered) {
     let url = format!("ws://{}/", peer.address);
+    // Read at start for every entry the document names, so a peer's
+    // is there; a document changed since is read at the next start.
+    let Some(key) = provider.keys.get(&peer.key).cloned() else {
+        return;
+    };
     loop {
         if let Ok((socket, _)) = connect_async(url.as_str()).await {
             let address = peer_ip(&socket);
             let authorization = Authorization::Outgoing {
-                auth: Auth::Unbrokered(peer.key.clone()),
+                auth: Auth::Unbrokered(key.expose().to_string()),
                 client_identity: peer.identity.clone(),
             };
             provider.connection(Connection::Outgoing(socket), authorization, address).await;
