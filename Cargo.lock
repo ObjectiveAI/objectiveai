@@ -1993,6 +1993,7 @@ dependencies = [
  "schemars 1.2.2",
  "serde",
  "serde_json",
+ "tauri",
  "tokio",
  "tokio-tungstenite 0.29.0",
  "uuid",

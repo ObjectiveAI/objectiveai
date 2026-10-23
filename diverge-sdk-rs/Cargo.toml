@@ -12,9 +12,15 @@ readme = "README.md"
 keywords = ["llm", "ai", "swarm", "provider"]
 publish = true
 
-# No features. Every half of every protocol is here for every
+# One feature. Every half of every protocol is here for every
 # dependent, so nothing a reader names is behind a flag and no two
-# builds of this crate disagree about what exists.
+# builds of this crate disagree about what exists. `tauri-proxy` adds
+# the Tauri commands a desktop app registers for its page's proxy
+# handle, and nothing of any protocol: Tauri does not build where most
+# dependents do (the musl images inside containers have no windowing
+# system), so it is the one thing a dependent asks for.
+[features]
+tauri-proxy = ["dep:tauri"]
 
 [dependencies]
 # The incoming socket: axum's WebSocket, `ws` alone — enough to name
@@ -64,6 +70,9 @@ tokio = { version = "1.53.1", default-features = false, features = ["fs", "net",
 # this crate dials — the provider's server into the proxy inside a
 # container, see `provider::server::proxy`.
 tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["stream", "connect"] }
+# `tauri-proxy` only: the commands, the managed state and the
+# channels a page's proxy handle is answered on.
+tauri = { version = "2.10.3", default-features = false, optional = true }
 # Container ids, minted by the provider's server.
 uuid = { version = "1.18.1", default-features = false, features = ["v4"] }
 

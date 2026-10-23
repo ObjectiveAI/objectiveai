@@ -11,16 +11,22 @@
 //! | [`file_lock`] | one exclusive lock per file across processes, let go on drop — how Diverge programs take turns at a directory; nothing of it crosses a wire |
 //! | [`postgres_supervisor`] | the two lines a daemon and the `diverge-postgres` it runs beside itself exchange over that program's stdio: the ready line out, the shutdown line in |
 //! | [`process`] | how a Diverge program spawns another: with no console window, on the one host that would open one; nothing of it crosses a wire |
+//! | `tauri_proxy` | with the `tauri-proxy` feature: the commands a Tauri app registers so its page speaks to a daemon through the TypeScript SDK's proxy handle |
 //!
-//! # Nothing is optional
+//! # Nothing is optional, but one thing
 //!
-//! There are no features. Every half of every protocol compiles for
-//! every dependent — a caller carries the daemon's frames it never
-//! serves, a program inside a container carries the wire it never
-//! speaks — so that nothing a reader names is behind a flag and no
-//! two builds of this crate disagree about what exists. What that
-//! costs is compile time; what it buys is one crate that is the same
-//! crate everywhere.
+//! Every half of every protocol compiles for every dependent — a
+//! caller carries the daemon's frames it never serves, a program
+//! inside a container carries the wire it never speaks — so that
+//! nothing a reader names is behind a flag and no two builds of this
+//! crate disagree about what exists. What that costs is compile time;
+//! what it buys is one crate that is the same crate everywhere.
+//!
+//! The one feature, `tauri-proxy`, adds `tauri_proxy`: Tauri commands,
+//! and nothing of any protocol. It is behind a flag because Tauri is a
+//! GUI framework that does not build where most dependents do — the
+//! images that run inside containers have no windowing system — and
+//! every rule it keeps is in [`wire::proxy`], which every build has.
 //!
 //! # More than one wire format
 //!
@@ -53,6 +59,8 @@ pub mod postgres_supervisor;
 pub mod process;
 pub mod provider;
 pub mod shared;
+#[cfg(feature = "tauri-proxy")]
+pub mod tauri_proxy;
 pub mod wire;
 
 /// The most bytes one frame of content carries, anywhere in this
