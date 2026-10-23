@@ -30,8 +30,11 @@ and worktree inherits it.
 - **One copy of the app per folder** (`store::hold`): the app holds `.in-use` in its folder with the system's file lock
   while it runs. A second copy on the same folder (or one that can't tell) reads the files as they are, writes
   nothing, and the screens say why.
-- **Setup** is `AppState::open(data)` (actions.rs); main.rs builds the menu and picks the folder: the one
-  `DIVERGE_DATA_DIR` names, the system's place for the app otherwise.
+- **The root** is the daemon's rule (`diverge-viewer/config`, crate `diverge-viewer-config`): `--config <dir>`,
+  else `DIVERGE_CONFIG`, else `~/.diverge`. `<root>/viewer.yaml` says which daemon and as whom (`daemon.address`,
+  `daemon.key`; absent = `ws://127.0.0.1:14980/` as `root`); `diverge config viewer get|set|patch` edits it with
+  the same type. `<root>/viewer/` holds every file the app keeps. **Setup** is `AppState::open(folder)`
+  (actions.rs); main.rs resolves the root, loads the document, builds the menu.
 - **The menu** (main.rs): ⌘N new agent, ⌘W closes a TAB (never the window), ⌘, settings; the page handles ⌘3–9
   and ⌘[ ⌘]. ⌘+ ⌘− ⌘0 (Ctrl on Windows and Linux) zoom the whole window: the window's `zoomHotkeysEnabled` and the
   `core:webview:allow-set-webview-zoom` permission. Keep those keys off the menu (`src/window.test.ts`).
@@ -67,6 +70,6 @@ the product's owner says. **Nothing private enters this repo**, in files or comm
 
 ## Run it
 `pnpm install` (from the repo root) then `cd diverge-viewer && pnpm tauri dev`. Every test, in one command:
-`pnpm test:all` (the app's Rust tests, which also write the bindings, and vitest). A second copy with its own
-files: `DIVERGE_DATA_DIR=/some/folder pnpm tauri dev`. In a plain browser (`pnpm dev`, http://localhost:1430)
+`pnpm test:all` (the app's Rust tests, which also write the bindings, and vitest). A second copy on its own
+root: `DIVERGE_CONFIG=/some/root pnpm tauri dev`. In a plain browser (`pnpm dev`, http://localhost:1430)
 nothing answers for the app or the daemon, and the screens say so.

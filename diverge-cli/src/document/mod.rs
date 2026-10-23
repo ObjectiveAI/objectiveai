@@ -1,11 +1,11 @@
-//! The three documents in the root, as the CLI reads, rewrites and
+//! The four documents in the root, as the CLI reads, rewrites and
 //! patches them.
 //!
 //! The root holds one document per program — `daemon.yaml`,
-//! `provider.yaml`, `cli.yaml` — and this module handles all three the
-//! same way: a document is [`read`] as its program reads it, the
-//! built-in defaults where there is no file, and held as JSON on this
-//! side; a jq program is [`run`](crate::jq::run) over it, for a `get`
+//! `provider.yaml`, `viewer.yaml`, `cli.yaml` — and this module
+//! handles all four the same way: a document is [`read`] as its
+//! program reads it, the built-in defaults where there is no file, and
+//! held as JSON on this side; a jq program is [`run`](crate::jq::run) over it, for a `get`
 //! to narrow it and for a `set` to rewrite it, and a JSON Patch —
 //! [`patch`] read from the command line, applied as the SDK applies
 //! every patch — changes places in it, whole or not at all; what a

@@ -1868,6 +1868,7 @@ dependencies = [
  "diverge-daemon",
  "diverge-provider",
  "diverge-sdk",
+ "diverge-viewer-config",
  "futures-util",
  "indexmap 2.14.2",
  "jaq-core",
@@ -2004,12 +2005,24 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "diverge-sdk",
+ "diverge-viewer-config",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tokio",
  "ts-rs",
+]
+
+[[package]]
+name = "diverge-viewer-config"
+version = "0.1.0"
+dependencies = [
+ "diverge-sdk",
+ "serde",
+ "serde_path_to_error",
+ "serde_yaml_ng",
+ "tokio",
 ]
 
 [[package]]

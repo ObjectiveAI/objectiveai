@@ -5,6 +5,12 @@
 //! SDK, frame by frame over the proxy commands, and asks Rust for the
 //! app's own things — tabs, the theme, saved Views, the names it gave
 //! machines — through [`actions`]. See `diverge-viewer/CLAUDE.md`.
+//!
+//! The root — `--config <dir>`, else `DIVERGE_CONFIG`, else `~/.diverge`
+//! — is the one directory every Diverge program on the host shares:
+//! `<root>/viewer.yaml` says which daemon and as whom
+//! (`diverge_viewer_config`), and `<root>/viewer/` holds every file the
+//! app keeps.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -36,9 +42,15 @@ fn main() {
                 let _ = app.emit("menu://action", event.id().as_ref().to_owned());
             });
 
-            // Every file the app keeps is in one folder: DIVERGE_DATA_DIR's, when it names one.
-            let data = actions::data_dir(std::env::var_os(actions::DATA_DIR_VAR), || app.path().app_data_dir())?;
-            app.manage(AppState::open(data));
+            // The root, as the daemon and the provider find theirs; the
+            // document in it; the app's own folder under it.
+            let (root, config) = tauri::async_runtime::block_on(async {
+                let root = diverge_viewer_config::root(std::env::args_os().skip(1)).await?;
+                let config = diverge_viewer_config::load(&root).await?;
+                Ok::<_, diverge_viewer_config::Error>((root, config))
+            })?;
+            app.manage(config);
+            app.manage(AppState::open(root.join(actions::FOLDER)));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

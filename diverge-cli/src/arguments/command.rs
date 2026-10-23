@@ -15,7 +15,7 @@ pub enum Command {
     /// Put one request to a daemon, as an account of it: see
     /// [`run`](crate::run).
     Run(Run),
-    /// Read, rewrite or edit one of the three documents in the root.
+    /// Read, rewrite or edit one of the four documents in the root.
     Config(Config),
     /// Start or stop the daemon on the root: see
     /// [`lifecycle`](crate::lifecycle).

@@ -32,19 +32,9 @@ const VIEWS_FILE: &str = "views.json";
 const MACHINE_NAMES_FILE: &str = "machine_names.json";
 const THEME_FILE: &str = "theme.json";
 
-/// The variable that puts the app's files in a folder of your choosing:
-/// for a second copy of the app beside the first.
-pub const DATA_DIR_VAR: &str = "DIVERGE_DATA_DIR";
-
-/// Where the app keeps its files: the folder [`DATA_DIR_VAR`] names, when
-/// it names one (a relative one from where the app started); the system's
-/// place for this app otherwise.
-pub fn data_dir<E>(from_env: Option<std::ffi::OsString>, system: impl FnOnce() -> Result<PathBuf, E>) -> Result<PathBuf, E> {
-    match from_env.filter(|v| !v.is_empty()).map(PathBuf::from) {
-        Some(dir) => Ok(std::path::absolute(&dir).unwrap_or(dir)),
-        None => system(),
-    }
-}
+/// The app's own folder under the root, beside `viewer.yaml`: every
+/// file the app keeps is in it, as the daemon's are in `daemon/`.
+pub const FOLDER: &str = "viewer";
 
 impl AppState {
     /// The app over its folder: every file it keeps, read as the folder

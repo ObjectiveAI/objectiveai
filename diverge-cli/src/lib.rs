@@ -21,9 +21,9 @@
 //! `request-schema` beneath the request prints, and whose every answer
 //! `response-schema` states; see [`run`]. The
 //! command `config` reads, rewrites and edits the
-//! three documents in the root — the daemon's, the provider's and the
-//! CLI's own — through jq, as JSON on this side, an edit being one
-//! place set or deleted by a jq path; see [`document`]. The commands
+//! four documents in the root — the daemon's, the provider's, the
+//! viewer's and the CLI's own — through jq, as JSON on this side, an
+//! edit being one place set or deleted by a jq path; see [`document`]. The commands
 //! `daemon` and `provider` start the program on the root — its own
 //! binary beside this one, spawned detached and waited for until it
 //! holds the root's lock — and stop it, by one `POST /stop` on its

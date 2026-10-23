@@ -26,6 +26,9 @@ diverge-sdk = { path = "../diverge-sdk-rs" }
 # reads it with; path-only, as the SDK is.
 diverge-daemon = { path = "../diverge-daemon" }
 diverge-provider = { path = "../diverge-provider" }
+# The viewer's `viewer.yaml` likewise: a crate beside the app, since a
+# Tauri app is not a library.
+diverge-viewer-config = { path = "../diverge-viewer/config" }
 # The arguments: the one parser every command hangs off, derived.
 clap = { version = "4.6.0", features = ["derive"] }
 # The document `cli.yaml` is, as Rust.
