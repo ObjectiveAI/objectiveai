@@ -176,7 +176,12 @@ and routes what comes back. `wire.proxy.handle(transport)` makes a
 handle over a Tauri app's `invoke` and `Channel`, where the Rust side
 holds the connection and this side asks it frame by frame; the
 transport is structurally typed, so this package never imports
-`@tauri-apps/api`. Above the handle nothing differs.
+`@tauri-apps/api`. Above the handle nothing differs, closure
+included: each proxy channel ends with one empty message, and a
+command's refusal carries its kind (`wire/proxy/commands.ts`).
+`wire.proxy.status` and `reset` are the link's two commands; the
+Rust side of all six is the Rust SDK's `tauri_proxy` (feature
+`tauri-proxy`).
 
 ## House rules
 

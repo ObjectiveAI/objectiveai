@@ -49,9 +49,32 @@ const handle = wire.proxy.handle({
 });
 ```
 
-The app's Rust side implements four commands, each a thin call on
-its handle. Bytes cross as byte arrays; a channel message is one
-whole wire frame, header included.
+The app's Rust side is the Rust SDK's `diverge_sdk::tauri_proxy`,
+with the crate's `tauri-proxy` feature: the app manages one
+`TauriProxy` and registers its six commands beside its own.
+
+```rust
+tauri::Builder::default()
+    .manage(diverge_sdk::tauri_proxy::TauriProxy::new(address, key))
+    .invoke_handler(tauri::generate_handler![
+        diverge_sdk::tauri_proxy::wire_request,
+        diverge_sdk::tauri_proxy::wire_channel_request,
+        diverge_sdk::tauri_proxy::wire_channel_response,
+        diverge_sdk::tauri_proxy::wire_channel_response_finish,
+        diverge_sdk::tauri_proxy::wire_status,
+        diverge_sdk::tauri_proxy::wire_reset,
+    ])
+```
+
+The page dials and learns how the link stands with
+`wire.proxy.status(transport)`, and dials again after the connection
+ended with `wire.proxy.reset(transport)`. Above the handle, the two
+makers behave the same: when the connection ends, every open stream
+fails with `closed` and every later send with a `connection` send
+error, until the page dials again. The contract the six commands
+keep — every channel carries whole frames and then one empty
+message, a refusal carries its kind — is stated in
+`src/wire/proxy/commands.ts`.
 
 | command | arguments | answers |
 |---|---|---|
@@ -59,12 +82,8 @@ whole wire frame, header included.
 | `wire_channel_request` | `scope`, `payload`, `responses: Channel` | the channel number |
 | `wire_channel_response` | `scope`, `channel`, `payload` | nothing |
 | `wire_channel_response_finish` | `scope`, `channel` | nothing |
-
-`responses` receives every frame answering the scope, ending with
-its finish; `requests` receives every channel request the daemon
-opens on the scope, which the app answers through the last two
-commands. A channel request's `responses` receives that channel's
-answers, ending with its finish.
+| `wire_status` | none | a `WireStatus` |
+| `wire_reset` | none | nothing |
 
 ## A first exchange
 
@@ -148,6 +167,7 @@ database, the events and the file exchanges over a volume have run
 live against a daemon from this package. Agents, standalone tools,
 dependency tools and the connect have not yet: they are mirrored and
 schema-checked, and their live run waits on a provider with an image
-to run. The proxy handle is type-checked and its contract is stated
-above; the Rust that answers it belongs to the app that embeds this
-package.
+to run. The proxy handle has listed agents and templates live through the
+viewer's Tauri side; the end-of-channel contract and the Rust SDK's
+`tauri_proxy`, which the viewer now uses, are compiled and
+type-checked but not yet run live.

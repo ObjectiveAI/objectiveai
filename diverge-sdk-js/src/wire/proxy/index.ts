@@ -13,3 +13,5 @@
 export * from "./transport.js";
 export * from "./commands.js";
 export * from "./handle.js";
+export * from "./status.js";
+export * from "./link.js";

@@ -38,9 +38,18 @@
 // `connection`. The handle throws `SendError(kind, cause)`.
 //
 // A CONNECTION THAT ENDED STAYS ENDED. Every send on it is refused
-// `connection` until the app dials again; no command dials on the
-// page's behalf. Dialling is the app's own act, as `wire.client.dial`
-// is a socket client's.
+// `connection` until the page asks to dial again; no send dials on
+// the page's behalf, as no socket client's send does.
+//
+// THE LINK'S TWO COMMANDS. `wire_status()` dials when nothing has been
+// dialled since the link was made or reset, and answers how the link
+// stands, a `WireStatus`; a link that is down stays down. `wire_reset()`
+// puts the link back to not yet dialled, so the next use dials.
+// Neither is refused. `status` and `reset` here invoke them.
+//
+// The Rust SDK's `diverge_sdk::tauri_proxy` (the `tauri-proxy`
+// feature) is all six commands; an app registers them and manages
+// one `TauriProxy`.
 //
 // What the contract buys is parity: over a socket, the connection
 // ending closes every receiver, so every open stream fails with
@@ -59,6 +68,10 @@ export const WIRE_CHANNEL_REQUEST = "wire_channel_request";
 export const WIRE_CHANNEL_RESPONSE = "wire_channel_response";
 /** `(scope, channel)`: end that answer. */
 export const WIRE_CHANNEL_RESPONSE_FINISH = "wire_channel_response_finish";
+/** `() -> WireStatus`: how the link stands, dialling from idle. */
+export const WIRE_STATUS = "wire_status";
+/** `()`: back to not yet dialled. */
+export const WIRE_RESET = "wire_reset";
 
 /** What a command rejects with: the Rust handle's send error, in this package's two kinds. */
 export interface Refusal {
