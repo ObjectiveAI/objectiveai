@@ -7,11 +7,11 @@ leans on a different part of what a tool container can do:
 | example | what it shows | mode |
 |---|---|---|
 | `courier` | an inbox between agents: Postgres for the mail, the daemon to notify | service, global |
-| `taskboard` | one shared instance used by many agents at once, told apart by who calls | service |
+| `taskboard` | one shared board used by many agents at once, told apart by who calls | service, template |
 | `memory` | a notebook in the tool's Postgres database | transient |
 | `workspace` | a volume mounted into the container as files | transient |
 
-`courier` and `memory` are built; the other two are not. The design rests on what the SDK states
+`courier`, `memory` and `taskboard` are built; `workspace` is not. The design rests on what the SDK states
 today, cited below, and on two facts worth repeating up front: no tool
 container has yet run live, and the daemon has no image-build
 endpoint, so these images are built through the provider protocol's
@@ -129,30 +129,35 @@ only keep it warm.
 - A client over a connect (`kind: unbrokered`) has a stable identity
   too and could have an inbox; to start, only agents do.
 
-## `taskboard`: one tool, shared by the agents that use it
+## `taskboard`: one board, shared by the agents that use it
 
-A shared board of tasks. It runs as a service, so every agent
-attached to it talks to the same container and sees the same state.
-The attested caller is what tells the agents apart.
+A shared board of tasks. Every agent that reaches the tool's database
+works from the same board, and the attested caller is what tells the
+agents apart.
 
-**How it works.** The board lives in the container's memory, or in
-Postgres for a board that survives the service being retired. Every
-mutating call records the attested caller, so `claim` knows who holds
-a task and `complete` can refuse anyone but the holder.
+**Built:** `examples/taskboard/` (crate `diverge-example-taskboard`,
+binary `taskboard`), with its `Containerfile` and `DIVERGE.md`. It is
+a **dependency tool** declared by agents' images, a `service` (shown
+with `scope: template`; `global` is legal), with no arguments, no
+secrets and no permissions. It is pull only: nothing is sent to an
+agent when the board changes.
+
+**How it works.** Two Postgres tables, tasks and comments. Every
+mutating call records the attested caller, so a claim knows who holds
+a task. Every change of a task's state is one conditional statement,
+so a claim is atomic and only the holder completes or releases.
 
 **Tools.**
 
 | tool | does |
 |---|---|
-| `post(title, detail)` | adds an open task; answers its id |
-| `list(state?)` | the board, or the open, claimed or done tasks, each with who claimed or finished it |
-| `claim(id)` | takes an open task; atomic, so two agents can never hold the same one |
-| `complete(id, result)` | marks the caller's task done with its result |
-| `release(id)` | gives the caller's task back to open |
-| `comment(id, text)` and `thread(id)` | a running discussion on one task |
-
-**Arguments.** Optional: whether only the poster may delete a task,
-and whether the board persists to Postgres.
+| `create_task(title, detail)` | posts an open task; answers its id |
+| `list_tasks(state?, limit?)` | the board, or the open, claimed or done tasks, oldest first, each with who posted, who holds and its comment count |
+| `claim_task(task)` | takes an open task; atomic, so two agents can never hold the same one |
+| `complete_task(task, result)` | marks the caller's task done with its result |
+| `release_task(task)` | gives the caller's task back to open |
+| `delete_task(task)` | deletes a task the caller posted, in any state, with its comments |
+| `create_comment(task, text)` and `list_comments(task)` | a running discussion on one task |
 
 **Why this one.** It shows the thing a service tool is for:
 coordination among agents through one shared object. Two alternatives
