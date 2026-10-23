@@ -5,8 +5,10 @@
 //! nothing to resume, which is why this is one type and not a module of
 //! them.
 
+mod active;
 mod filter;
 mod frame;
 
+pub use active::*;
 pub use filter::*;
 pub use frame::*;

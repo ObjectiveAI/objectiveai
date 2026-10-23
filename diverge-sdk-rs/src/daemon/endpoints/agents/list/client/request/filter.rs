@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
 
+use super::Active;
+
 /// The filter over agents: every member optional, and every one given a
 /// condition a agent passes or does not. In a [list
 /// request](super::Frame) it is flattened into the request and narrows
@@ -31,10 +33,17 @@ pub struct Filter {
     /// and then made by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
-    /// Whether active — a loop running in it — `true`, or not, `false`;
-    /// absent, either.
+    /// Whether active now — `true`, or not, `false` — or ever:
+    /// `"ever"`, active at some time, or `"never"`, the agents that
+    /// have never run. See [`Active`]. Absent, any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub active: Option<bool>,
+    pub active: Option<Active>,
+    /// Depending on any one of these dependency tool templates, by id:
+    /// an agent whose LAST registration declared one of them, as its
+    /// `dependencies` say. Absent when empty, and then whatever it
+    /// depends on, or nothing.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dependency_tool_templates: Vec<String>,
     /// Every one of these among the agent's tags, as
     /// [`tag`](crate::daemon::endpoints::agents::tag) put them. Absent
     /// when empty, and then any tags.

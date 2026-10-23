@@ -68,6 +68,15 @@ pub struct Agent {
     /// attachments from the other side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<key::Tool>,
+    /// The dependency templates its LAST registration declared, by
+    /// id, in the order it first declared them, each once: what it
+    /// depends on now, as
+    /// [`dependency_tools`](crate::daemon::endpoints::dependency_tools)
+    /// lists the same attachments from the other side. A registration
+    /// replaces them whole. Absent when empty — an agent that never
+    /// registered, or declared nothing.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dependencies: Vec<String>,
     /// Its tags, sorted bytewise: what
     /// [`tag`](crate::daemon::endpoints::agents::tag) put on it and
     /// [`untag`](crate::daemon::endpoints::agents::untag) has not taken
