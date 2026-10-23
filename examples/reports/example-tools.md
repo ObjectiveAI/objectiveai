@@ -6,12 +6,12 @@ leans on a different part of what a tool container can do:
 
 | example | what it shows | mode |
 |---|---|---|
-| `courier` | an inbox between agents: Postgres for the mail, the daemon to notify | transient |
+| `courier` | an inbox between agents: Postgres for the mail, the daemon to notify | service, global |
 | `taskboard` | one shared instance used by many agents at once, told apart by who calls | service |
-| `memory` | the caller's own Postgres database, kept per agent | transient |
+| `memory` | a notebook in the tool's Postgres database | transient |
 | `workspace` | a volume mounted into the container as files | transient |
 
-None of this has been built. The design rests on what the SDK states
+`courier` and `memory` are built; the other two are not. The design rests on what the SDK states
 today, cited below, and on two facts worth repeating up front: no tool
 container has yet run live, and the daemon has no image-build
 endpoint, so these images are built through the provider protocol's
@@ -160,29 +160,31 @@ for the same slot were considered: a `ballot` (propose, vote, tally)
 and a two-player `chess` game between agents. The task board shows
 the most, since it uses ownership as well as shared state.
 
-## `memory`: a notebook on the caller's database
+## `memory`: a notebook in the tool's database
 
-A persistent notebook. It uses Postgres through the proxy, and keys
-every note by the attested caller, so each agent has its own notes,
-with an area the agents may share on purpose.
+A persistent notebook. It uses Postgres through the proxy, and the
+notebook is that database and nothing narrower: the tool tells no
+caller apart and records no owner, so every agent that reaches the
+same database shares the same notes.
 
-**How it works.** On registration the program creates its table if
-absent. Each note holds its owner (the attested caller), its text,
-its tags and when it was made. `recall` is a text search (Postgres
-full-text search to start; embeddings later, if ever).
+**Built:** `examples/memory/` (crate `diverge-example-memory`, binary
+`memory`), with its `Containerfile` and `DIVERGE.md`. It is a
+**dependency tool** declared by agents' images, `transient`, with no
+arguments, no secrets and no permissions. Intended per agent;
+whose notebook it is follows from how it is declared, never from the
+tool.
+
+**How it works.** On the first tool call the program makes its one
+table if absent. Each note holds its text, its tags and when it was
+made, with a stored English full-text vector of its text.
 
 **Tools.**
 
 | tool | does |
 |---|---|
-| `remember(text, tags?)` | keeps a note for the caller; answers its id |
-| `recall(query, tags?, shared?)` | the caller's notes that match, best first, and the shared ones if asked |
-| `forget(id)` | deletes one of the caller's notes |
-| `share(id)` | moves one of the caller's notes into the shared area, still marked as theirs |
-
-**Open question.** Whether a connect client (`kind: unbrokered`)
-gets its own notebook keyed by its identity, or only agents do. The
-simple answer is yes: the attestation gives either kind a stable key.
+| `remember(text, tags?)` | keeps a note; answers its id |
+| `recall(query?, tags?, limit?)` | the notes carrying every tag given; with `query`, those whose text matches it as a web search (`websearch_to_tsquery`), best first; without, the newest first. At most 20 unless `limit` says |
+| `forget(id)` | deletes a note |
 
 ## `workspace`: files on a mounted volume
 
@@ -228,10 +230,10 @@ image is built.
 
 ## Order
 
-1. `memory`: the smallest surface (Postgres and the attestation), and
+1. `memory`: the smallest surface (Postgres alone), and
    the first live run of a tool container.
 2. `workspace`: adds a volume mount.
 3. `taskboard`: adds service mode and several agents at once.
-4. `courier`: builds on `memory`'s Postgres and the attestation, and
-   adds the tool's own account and the daemon access, the most moving
+4. `courier`: builds on `memory`'s Postgres, and adds the attestation,
+   the dependency grants and the daemon access, the most moving
    parts.

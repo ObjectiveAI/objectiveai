@@ -1952,6 +1952,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-example-memory"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "diverge-sdk",
+ "rmcp 3.1.2",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "diverge-postgres"
 version = "2.3.0"
 dependencies = [

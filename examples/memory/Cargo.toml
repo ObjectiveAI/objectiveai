@@ -1,0 +1,36 @@
+[package]
+name = "diverge-example-memory"
+version = "0.1.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "An example Diverge tool container: a notebook of notes kept in the tool's database"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[[bin]]
+name = "memory"
+path = "src/main.rs"
+
+[dependencies]
+# The SDK, by path: the container's contract with the proxy beside it
+# (registration, secrets, Postgres).
+diverge-sdk = { path = "../../diverge-sdk-rs" }
+# The program's door: an HTTP server on the loopback the proxy dials,
+# `/register`, the secrets' two paths, and the MCP server at `/mcp`.
+axum = { version = "0.8.9" }
+# The MCP server, over Streamable HTTP; the same version the SDK's
+# content blocks and attestation are written against.
+rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
+# Each tool's parameters state their own JSON Schema; `--schema`
+# states the arguments'.
+schemars = { version = "1.2.2" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+# The notes: the tool's database, through the proxy's loopback pgwire.
+# `chrono` for the time each note keeps.
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
+chrono = { version = "0.4.39", default-features = false, features = ["std", "serde", "clock"] }
+# The runtime under the listener and the lazily made pool.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }

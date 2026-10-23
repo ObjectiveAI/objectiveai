@@ -22,6 +22,7 @@ members = [
     "diverge-cli",
     "diverge-viewer/config",
     "examples/courier",
+    "examples/memory",
     "objectiveai-sdk-rs",
     "objectiveai-json-schema/builder",
     "objectiveai-sdk-rs-wasm-js",

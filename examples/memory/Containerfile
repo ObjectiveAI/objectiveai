@@ -1,0 +1,55 @@
+# The memory tool image: a notebook of notes, a musl binary on
+# Alpine.
+#
+# The container proxy is NOT in this image. The host injects it at
+# runtime, and it may not be up at all until a request comes, which is
+# why the memory tool touches nothing of the proxy's (the database)
+# until a tool is called.
+#
+# Build from the WORKSPACE ROOT, since the crate rides a path
+# dependency on the SDK:
+#
+#     podman build -f examples/memory/Containerfile .
+#
+# A provider builds from one volume directory, the context; the same
+# layout uploaded to a volume (`diverge-sdk-rs/`, `examples/memory/`
+# and `Cargo.lock` at its root) is that context.
+#
+# Digests pinned from Docker Hub on 2026-08-26, as the agent images'
+# are; bump deliberately.
+
+# rust:1.98.0-alpine3.24: the musl toolchain is the image's default
+# target, so what it builds runs on the Alpine below.
+FROM docker.io/library/rust:1.98.0-alpine3.24@sha256:a10e64dd139b7387337c7fbe8aca31b959b57b2fd4c8ae20a02cf1d6ea424dce AS build
+
+# `ring` (rustls' crypto, under sqlx) compiles C; build-base is the
+# whole musl C toolchain.
+RUN apk add --no-cache build-base
+
+WORKDIR /build
+
+# Only what this image needs, in its workspace layout. The workspace
+# manifest itself is NOT copied, so the crate builds as its own root
+# and the absent sibling members are never asked for. The workspace
+# lockfile rides into the crate so the resolved versions hold; cargo
+# prunes the entries the crate does not use, which is why the build
+# does not pass --locked.
+COPY diverge-sdk-rs diverge-sdk-rs
+COPY examples/memory examples/memory
+COPY Cargo.lock examples/memory/Cargo.lock
+
+RUN cargo build --release --manifest-path examples/memory/Cargo.toml
+
+# alpine:latest, by digest.
+FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+
+COPY --from=build /build/examples/memory/target/release/memory /usr/local/bin/memory
+
+# The image's arguments schema and its description, read by the proxy.
+COPY examples/memory/DIVERGE.md /DIVERGE.md
+
+# The memory tool's own server, on the loopback: 8080, or whatever `PORT`
+# names. Nothing is exposed: the proxy the host injects is the only
+# thing that dials it, and it is beside it.
+
+ENTRYPOINT ["/usr/local/bin/memory"]
