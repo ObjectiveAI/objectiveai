@@ -40,6 +40,10 @@ pub struct Agent {
     pub created: DateTime<Utc>,
     /// Who made it.
     pub creator: Creator,
+    /// The dependency templates its last registration declared, by
+    /// id, each once, in the order first declared: read with the row
+    /// from the dependency attachments, never stored on it.
+    pub dependencies: Vec<String>,
 }
 
 impl Agent {
@@ -77,6 +81,7 @@ impl Agent {
             provider: self.last_provider.clone().map(|identity| logs::Provider { identity }),
             logs_index,
             tools,
+            dependencies: self.dependencies.clone(),
             tags: self.tags.clone(),
         }
     }

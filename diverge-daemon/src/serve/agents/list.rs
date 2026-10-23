@@ -51,7 +51,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing(scope, daemon, &[Kind::Agents], frame.count, &source, Frame::from)
+    stream::listing(scope, daemon, &[Kind::Agents, Kind::DependencyTools], frame.count, &source, Frame::from)
     .await
 }
 
