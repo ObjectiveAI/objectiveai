@@ -9,8 +9,7 @@
 
 import { daemon } from "@diverge/sdk";
 import { useEffect, useState } from "react";
-import { errorText } from "./app";
-import { handle } from "./daemon";
+import { handle, whyFailed } from "./daemon";
 import { t } from "../strings";
 
 /** An agent once and for all: its template and its index, the daemon's own key. */
@@ -80,7 +79,7 @@ export function useLogs(request: LogsRequest | null, enabled: boolean): Log {
         }
         if (!stopped) setLog((l) => ({ ...l, done: true }));
       } catch (error) {
-        if (!stopped) setLog((l) => ({ ...l, ended: errorText(error) }));
+        if (!stopped) setLog((l) => ({ ...l, ended: whyFailed(error) }));
       }
     })();
     return () => {

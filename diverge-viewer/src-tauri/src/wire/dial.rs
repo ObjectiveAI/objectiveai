@@ -1,5 +1,6 @@
 //! The daemon, dialled as an account.
 
+use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr};
 
 use diverge_sdk::wire::client::authorization::{Auth, Authorization};
@@ -16,14 +17,16 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use super::{Error, Refusing};
 
 /// The daemon at `address` dialled, the account's `key` presented as
-/// the one credential frame, and the connection split: the router
-/// reading on a task of its own, the handle every request is put on.
-/// The address is dialled as given when it carries a scheme —
-/// `wss://daemon.example/` — and as `ws://<address>/` otherwise. A
-/// socket that could not be made is [`Error::Dial`]; the daemon
-/// answers the credential with nothing, admitting or closing, so a
-/// key it refuses is seen as the first request's scope closing.
-pub async fn dial(address: &str, key: &str) -> Result<Handle, Error> {
+/// the one credential frame, and the connection split: the handle
+/// every request is put on, and the router's run — the read loop,
+/// which the caller spawns and whose completion is the connection's
+/// end, however it ended. The address is dialled as given when it
+/// carries a scheme — `wss://daemon.example/` — and as
+/// `ws://<address>/` otherwise. A socket that could not be made is
+/// [`Error::Dial`]; the daemon answers the credential with nothing,
+/// admitting or closing, so a key it refuses is seen as the first
+/// request's scope closing.
+pub async fn dial(address: &str, key: &str) -> Result<(Handle, impl Future<Output = ()> + Send + 'static), Error> {
     let (socket, _) = connect_async(url(address)).await.map_err(|error| Error::Dial(error.to_string()))?;
     let peer = peer_ip(&socket);
     let presented = Authorization::<Refusing>::Outgoing { auth: Auth::Unbrokered(key.to_string()), provider_identity: address.to_string() };
@@ -33,10 +36,10 @@ pub async fn dial(address: &str, key: &str) -> Result<Handle, Error> {
     let (registration_sender, registration_receiver) = mpsc::unbounded_channel();
     let (closed_sender, closed_receiver) = mpsc::unbounded_channel();
     let router = Router::new(stream, registration_receiver, closed_sender);
-    tauri::async_runtime::spawn(async move {
+    let ran = async move {
         let _ = router.run().await;
-    });
-    Ok(Handle::new(sink, registration_sender, closed_receiver))
+    };
+    Ok((Handle::new(sink, registration_sender, closed_receiver), ran))
 }
 
 /// The URL for `address`: the address itself when it carries a

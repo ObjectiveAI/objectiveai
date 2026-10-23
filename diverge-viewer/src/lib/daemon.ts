@@ -43,6 +43,19 @@ function endedBy(frame: unknown): string {
 }
 
 /**
+ * Why an exchange failed, in words: the connection ending — a stream
+ * closed before its finish, or a send that could not go — is said as
+ * such, whichever way it was seen; anything else is the error's own
+ * text.
+ */
+export function whyFailed(error: unknown): string {
+  if (error instanceof daemon.client.StreamError && error.kind === "closed") return t.daemon.connectionLost;
+  if ((error instanceof daemon.client.OpenError || error instanceof daemon.client.OneShotError) && (error.kind === "send" || error.kind === "closed")) return t.daemon.connectionLost;
+  if (error instanceof wire.client.SendError && error.kind === "connection") return t.daemon.connectionLost;
+  return errorText(error);
+}
+
+/**
  * The list `spec` names, kept current while `enabled` and the
  * component lives: opened once, every frame folded, cancelled on the
  * way out. `spec` must be one object for the component's life (a
@@ -75,7 +88,7 @@ export function useListing<T, F>(spec: ListSpec<T, F>, enabled: boolean): Held<T
         }
         if (!stopped) setHeld((h) => (h.ended ? h : { ...h, ended: t.daemon.ended }));
       } catch (error) {
-        if (!stopped) setHeld((h) => ({ ...h, ended: errorText(error) }));
+        if (!stopped) setHeld((h) => ({ ...h, ended: whyFailed(error) }));
       }
     })();
     return () => {

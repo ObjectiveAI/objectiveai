@@ -38,6 +38,7 @@ export const t = {
     notConnectedShort: "Not connected",
     forbidden: "The account this connection holds may not do this.",
     ended: "The daemon stopped answering this list.",
+    connectionLost: "The connection to the daemon ended.",
     listEndedShort: "List ended",
   },
   accounts: {
