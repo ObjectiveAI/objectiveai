@@ -6,7 +6,9 @@
 //! comes back out — [`encode`] and [`decode`]; and the two frame-level
 //! halves, [`client`], which mints scopes and channels and routes what
 //! answers them, and [`server`], which is told about scopes and
-//! answers inside them. None of it names an endpoint: the
+//! answers inside them; and [`proxy`], what an app's native side
+//! needs to hold the [`client`] half for a page that holds no
+//! socket. None of it names an endpoint: the
 //! [`provider`](crate::provider), the [`daemon`](crate::daemon) and
 //! the [`container proxy`](crate::container_proxy) each define their
 //! own request vocabulary on top of this and nothing here knows which
@@ -24,4 +26,5 @@ pub mod connection;
 pub mod decode;
 pub mod encode;
 pub mod frame;
+pub mod proxy;
 pub mod server;
