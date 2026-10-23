@@ -30,7 +30,6 @@ export const app = {
   tabs: () => invoke<TabsSnapshot>("tabs_snapshot"),
   tabOpen: (tab: TabKind) => invoke<TabsSnapshot>("tabs_open", { tab }),
   tabClose: (key: string) => invoke<TabsSnapshot>("tabs_close", { key }),
-  tabFocus: (key: string) => invoke<TabsSnapshot>("tabs_focus", { key }),
   onTabs: (handler: (snapshot: TabsSnapshot) => void) => listen<TabsSnapshot>("tabs://changed", (event) => handler(event.payload)),
 };
 

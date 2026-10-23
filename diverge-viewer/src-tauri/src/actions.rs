@@ -81,7 +81,6 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("tabs_snapshot", "What is open"),
     ("tabs_open", "Open (or focus) a tab"),
     ("tabs_close", "Close a tab"),
-    ("tabs_focus", "Focus a tab"),
     ("actions_list", "This list"),
     ("app_info", "The folder the app keeps its files in, and whether this copy holds it"),
     ("files_set_aside", "Files the app couldn't use since it started: each set aside untouched, or left where it is; what it carried on from"),
@@ -206,13 +205,6 @@ pub fn tabs_open(app: AppHandle, state: State<'_, AppState>, tab: TabKind) -> Ta
 #[tauri::command]
 pub fn tabs_close(app: AppHandle, state: State<'_, AppState>, key: String) -> TabsSnapshot {
     let snapshot = state.tabs.lock().unwrap().close(&key);
-    let _ = app.emit("tabs://changed", snapshot.clone());
-    snapshot
-}
-
-#[tauri::command]
-pub fn tabs_focus(app: AppHandle, state: State<'_, AppState>, key: String) -> TabsSnapshot {
-    let snapshot = state.tabs.lock().unwrap().focus(&key);
     let _ = app.emit("tabs://changed", snapshot.clone());
     snapshot
 }

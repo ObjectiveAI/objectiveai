@@ -38,10 +38,11 @@ and worktree inherits it.
   `daemon.key`; absent = `ws://127.0.0.1:14980/` as `root`); `diverge config viewer get|set|patch` edits it with
   the same type. `<root>/viewer/` holds every file the app keeps. **Setup** is `AppState::open(folder)`
   (actions.rs); main.rs resolves the root and loads the document.
-- **No menu bar** (removed 2026-10-23 at the owner's word): main.rs builds no menu, so the window has no bar. The
-  page (App.tsx) handles every shortcut: ⌘N new agent, ⌘W closes a TAB (never the window), ⌘, settings, ⌘3–9 and
-  ⌘[ ⌘]. ⌘+ ⌘− ⌘0 (Ctrl on Windows and Linux) zoom the whole window: the window's `zoomHotkeysEnabled` and the
-  `core:webview:allow-set-webview-zoom` permission (`src/window.test.ts`).
+- **No menu bar and no tab strip** (both removed 2026-10-23 at the owner's word): main.rs builds no menu, and the
+  page shows only the page you're on — the rail is the way between them. Rust still keeps what is open (`tabs.rs`),
+  so a page you leave keeps its place; an agent's page closes when the agent is removed. The page (App.tsx) handles
+  the shortcuts: ⌘N new agent, ⌘, settings. ⌘+ ⌘− ⌘0 (Ctrl on Windows and Linux) zoom the whole window: the
+  window's `zoomHotkeysEnabled` and the `core:webview:allow-set-webview-zoom` permission (`src/window.test.ts`).
 - Never edit the SDK's crates or packages from here; a gap in them is a change there, on its own commit.
 
 ## Product laws

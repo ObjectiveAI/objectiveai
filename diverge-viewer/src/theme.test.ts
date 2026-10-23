@@ -146,7 +146,6 @@ const EDGES: [string, string, string][] = [
   ["--line-hover", "--surface-3", "the edge of anything under the mouse"],
   ["--on-accent", "--accent-hover", "the edge of the main button under the mouse (its words' colour: the ink would vanish on pink)"],
   ["--on-bad", "--bad-hover", "the edge of a danger button under the mouse"],
-  ["--here", "--bg", "the bar under the open tab"],
   ["--here", "--surface", "the bar beside the rail row you're on (the rail scrolls over the ground)"],
   ["--here", "--surface-2", "the bar beside the row you're on"],
   ["--accent", "--bg", "the main button, a field being typed in"],

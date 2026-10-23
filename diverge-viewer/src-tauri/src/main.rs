@@ -53,7 +53,6 @@ fn main() {
             actions::tabs_snapshot,
             actions::tabs_open,
             actions::tabs_close,
-            actions::tabs_focus,
             actions::actions_list,
             actions::app_info,
             actions::files_set_aside,

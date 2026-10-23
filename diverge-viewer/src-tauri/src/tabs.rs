@@ -49,12 +49,4 @@ impl Tabs {
         }
         self.snapshot()
     }
-
-    pub fn focus(&mut self, key: &str) -> TabsSnapshot {
-        if self.tabs.iter().any(|t| t.key == key) {
-            self.focused = Some(key.to_owned());
-            self.generation += 1;
-        }
-        self.snapshot()
-    }
 }

@@ -72,7 +72,7 @@
 
 /* The toggle's line is the floor's height, so it's as easy to press as a button. */
 
-/* Filters over one place's feed (Home's): chips, the picked one tinted. Not tabs — the strip is the only tabs. */
+/* Filters over one place's feed (Home's): chips, the picked one tinted. They narrow a list; they open nothing. */
 .filter-chips { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 
 /* Every scrolling area: when Tab scrolls something into view, it stops a step short of the edge so the
@@ -115,23 +115,6 @@
 .segmented button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow), 0 0 0 1px var(--line-strong); }
 .segmented button.on:focus-visible { box-shadow: var(--focus); }
 
-/* --- tab strip ------------------------------------------------------------ */
-/* A focused tab overlaps the strip's rule by a pixel, which made the strip scroll vertically — the stray scrollbar. */
-.strip { height: var(--strip-height); flex: none; display: flex; align-items: flex-end; gap: var(--space-1); padding: 0 var(--space-2); border-bottom: 1px solid var(--line); background: var(--rail); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-.strip::-webkit-scrollbar { display: none; }
-/* A tab holds its close button (28px), that button's 2px focus ring above and below, and its own 1px top edge,
-   so the strip, which clips, never cuts the ring. */
-.tab { display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2) 0 var(--space-3); border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--text-2); flex: 0 0 auto; min-width: 96px; max-width: 220px; cursor: pointer; border: 1px solid transparent; border-bottom: 0; }
-.tab-title { flex: 1; min-width: 0; }
-.tab:hover { color: var(--text); background: var(--surface-3); border-color: var(--line-hover); }
-/* The open tab: cream words in bold, the page's own ground, and the where-you-are bar along its foot. */
-.tab.on, .tab.on:hover { background: var(--bg); color: var(--text); border-color: var(--line); font-weight: 600; box-shadow: inset 0 calc(-1 * var(--mark)) 0 var(--here); }
-.tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
-.tab .btn-icon { opacity: 0; }
-.tab:hover .btn-icon, .tab.on .btn-icon, .tab:focus-within .btn-icon { opacity: 1; }
-/* The strip clips, so a tab's own focus ring is drawn inside it; on the open tab it joins the bar. */
-.tab:focus-visible { box-shadow: var(--focus) inset; }
-.tab.on:focus-visible { box-shadow: var(--focus) inset, inset 0 calc(-1 * var(--mark)) 0 var(--here); }
 
 /* --- empty, banners -------------------------------------------------------- */
 .empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); text-align: center; padding: var(--space-6); }

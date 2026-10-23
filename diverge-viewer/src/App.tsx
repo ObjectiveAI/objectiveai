@@ -4,7 +4,6 @@ import type { FileNoticeView } from "./bindings/FileNoticeView";
 import type { TabKind } from "./bindings/TabKind";
 import type { TabsSnapshot } from "./bindings/TabsSnapshot";
 import { Rail } from "./components/Rail";
-import { TabStrip } from "./components/TabStrip";
 import { Empty } from "./components/ui";
 import { SharedContext } from "./lib/context";
 import { app, errorText } from "./lib/app";
@@ -58,33 +57,22 @@ export function App() {
 
   const open = useCallback((tab: TabKind) => void app.tabOpen(tab).then(apply), [apply]);
   const close = useCallback((key: string) => void app.tabClose(key).then(apply), [apply]);
-  const focus = useCallback((key: string) => void app.tabFocus(key).then(apply), [apply]);
 
-  // Keyboard: the window has no menu, so the page handles every
-  // shortcut: ⌘N new agent, ⌘W closes a tab (never the window), ⌘,
-  // settings, ⌘3–9 (tabs by position) and ⌘[ / ⌘] (previous / next).
+  // Keyboard: the window has no menu and no tab strip, so the page
+  // handles the two shortcuts there are: ⌘N new agent, ⌘, settings.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
       if (e.key === "n") { e.preventDefault(); open({ kind: "new_agent" }); }
-      else if (e.key === "w") { e.preventDefault(); if (tabs.focused) close(tabs.focused); }
       else if (e.key === ",") { e.preventDefault(); open({ kind: "settings" }); }
-      else if (/^[3-9]$/.test(e.key)) {
-        const tab = tabs.tabs[Number(e.key) - 3];
-        if (tab) { e.preventDefault(); focus(tab.key); }
-      } else if (e.key === "]" || e.key === "[") {
-        const at = tabs.tabs.findIndex((t) => t.key === tabs.focused);
-        const next = tabs.tabs[(at + (e.key === "]" ? 1 : tabs.tabs.length - 1)) % Math.max(1, tabs.tabs.length)];
-        if (next) { e.preventDefault(); focus(next.key); }
-      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
     };
-  }, [tabs, open, close, focus]);
+  }, [open]);
 
-  // When a tab opens, focus goes to its page's heading, once the page has one.
+  // When a page opens, focus goes to its heading, once the page has one.
   const lastFocused = useRef<string | null>(null);
   useEffect(() => {
     const key = tabs.focused;
@@ -115,7 +103,6 @@ export function App() {
       <div className="shell">
         <Rail focused={tabs.focused} />
         <main className="stage">
-          <TabStrip snapshot={tabs} onFocus={focus} onClose={close} />
           {info && info.folder_held.state !== "yes" ? (
             <div className="banner banner-warn"><span className="banner-text">
               <strong>{info.folder_held.state === "in_use" ? t.folder.inUse : t.folder.unchecked}</strong> {t.folder.where}{" "}

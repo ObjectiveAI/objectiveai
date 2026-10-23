@@ -44,7 +44,7 @@ export function Segmented<T extends string>(props: { value: T; options: { value:
 }
 
 /** A row of filters over one place's feed (Home's): chips, the one picked tinted. They narrow a list; they
- *  don't open anything, so they aren't tabs — the strip is the only tabs. */
+ *  don't open anything. */
 export function Tabs<T extends string>(props: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; className?: string }) {
   return (
     <div className={`filter-chips${props.className ? ` ${props.className}` : ""}`} role="group">

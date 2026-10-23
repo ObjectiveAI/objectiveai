@@ -25,8 +25,7 @@
      --accent, --on-accent the one action that goes ahead; words on it
      --accent-hover        that action under the mouse
      --here                where you are, and nothing else: a --mark-wide bar
-                           under the open tab and down the side of the row
-                           you're on. Never words.
+                           down the side of the row you're on. Never words.
      --warn, --warn-soft   something to know before you act
      --ok, --bad (+ -soft) how something went; --bad-hover is a danger button under the mouse
 
@@ -98,7 +97,6 @@
   --rail-width: 244px;
   /* The reading width: a line of text inside a card or a page stops here (well under 90 characters). */
   --measure: 63ch;
-  --strip-height: 38px;
 
   /* mixed from the five, in every theme */
   --rule: color-mix(in srgb, var(--raised) 91%, var(--ink));
