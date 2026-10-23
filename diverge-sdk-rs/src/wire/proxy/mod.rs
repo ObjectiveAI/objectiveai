@@ -40,9 +40,17 @@
 //!   not being open; everything else — the socket gone, the router
 //!   gone, no connection, a dial that failed — is `connection`.
 //! - **A connection that ended stays ended.** Every send on it is
-//!   refused `connection` until the app dials again. No command dials
-//!   on the page's behalf; dialling is the app's own act, as
-//!   [`dial`](crate::wire::client) is a socket client's.
+//!   refused `connection` until the app dials again. No send dials on
+//!   the page's behalf; dialling is asked for, as
+//!   [`dial`](crate::wire::client::dial::dial) is a socket client's.
+//! - **The link's two commands.** `wire_status() -> WireStatus` dials
+//!   when nothing has been dialled since the link was made or reset,
+//!   and answers how the link stands — [`WireStatus`]; a link that is
+//!   down stays down. `wire_reset()` puts the link back to not yet
+//!   dialled, so the next use dials. Neither is refused. [`Link`]
+//!   keeps these rules; the Tauri commands that state them are
+//!   `crate::tauri_proxy`, with the `tauri-proxy`
+//!   feature.
 //!
 //! What this buys is parity: over a socket, the connection ending
 //! closes every receiver, and so every open stream fails with
@@ -51,7 +59,11 @@
 //! each command's refusal, and the page's code is the same code.
 
 pub mod forward;
+pub mod link;
 pub mod refusal;
+pub mod status;
 
 pub use forward::forward;
+pub use link::Link;
 pub use refusal::Refusal;
+pub use status::WireStatus;

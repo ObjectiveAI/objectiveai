@@ -33,6 +33,11 @@
 //! saying where frames should go before the request that causes them;
 //! closures come back, saying an entry is gone.
 //!
+//! [`dial`] is the whole of it for a daemon: the socket, the
+//! credential presented with the never-asked [`refusing`] authorizer,
+//! the split, and the router's run handed back for the caller to
+//! spawn.
+//!
 //! [`scope`] and [`channel`] are what a [`handle`] hands back — the
 //! two things a caller opens, each with the receivers its frames
 //! arrive on. Those three are data and nothing else, which is why
@@ -62,8 +67,10 @@ pub mod authorization;
 pub mod authorize;
 pub mod authorized;
 pub mod channel;
+pub mod dial;
 pub mod handle;
 pub mod registration;
 pub mod router;
+pub mod refusing;
 pub mod scope;
 pub mod unbrokered_authorizer;
