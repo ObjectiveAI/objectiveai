@@ -19,7 +19,7 @@
 //!
 //! ```ignore
 //! tauri::Builder::default()
-//!     .manage(diverge_sdk::tauri_proxy::TauriProxy::new("ws://127.0.0.1:14980/", "root"))
+//!     .manage(diverge_sdk::tauri_proxy::TauriProxy::new("ws://127.0.0.1:14980/", &key))
 //!     .invoke_handler(tauri::generate_handler![
 //!         diverge_sdk::tauri_proxy::wire_request,
 //!         diverge_sdk::tauri_proxy::wire_channel_request,
@@ -40,8 +40,10 @@
 //! await wire.proxy.reset(transport);  // after the connection ended: dial again on next use
 //! ```
 //!
-//! The address and the key never reach the page; where they come from
-//! — a configuration file, a prompt, a keychain — is the app's.
+//! The address and the key never reach the page. The key is a
+//! [`Key`](crate::keyring::Key), read from the host's
+//! [`keyring`](crate::keyring) by the entry the app's configuration
+//! names.
 //! [`COMMANDS`] names the six, for an app that lists or checks them.
 
 mod commands;
