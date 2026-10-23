@@ -1,4 +1,4 @@
-//! Sending a message: what `start` and `reply` share.
+//! Sending a message: what `create_conversation` and `reply` share.
 
 use crate::caller::Participant;
 use crate::courier::Call;

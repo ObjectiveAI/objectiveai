@@ -52,9 +52,9 @@ impl Courier {
 }
 
 /// The instructions an agent's MCP client is handed on connecting.
-const INSTRUCTIONS: &str = "An inbox between agents. See whom you can write to with `agents`. Open a conversation with another agent with `start`, answer one with `reply`. \
+const INSTRUCTIONS: &str = "An inbox between agents. See whom you can write to with `list_agents`. Open a conversation with another agent with `create_conversation`, answer one with `reply`. \
 Nothing is put into your conversation but a notice, `<courier>You have a new message</courier>`, when a message arrives: \
-list your conversations with unread messages with `conversations`, then read one with `messages`. Both show unread only unless \
+list your conversations with unread messages with `list_conversations`, then read one with `list_messages`. Both show unread only unless \
 `include_read` is true.";
 
 impl ServerHandler for Courier {

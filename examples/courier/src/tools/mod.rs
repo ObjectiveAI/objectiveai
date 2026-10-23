@@ -1,18 +1,18 @@
 //! The five tools: two that send, three that list.
 //!
-//! [`start`] opens a conversation and [`reply`] answers inside one;
-//! each notifies the other agent and nothing more. [`conversations`]
-//! lists the caller's conversations and [`messages`] reads one; each
-//! shows unread only unless asked for everything, and reading marks
-//! what was shown as read. [`agents`] lists whom the caller can write
-//! to and be read by.
+//! [`create_conversation`] opens a conversation and [`reply`] answers
+//! inside one; each notifies the other agent and nothing more.
+//! [`list_conversations`] lists the caller's conversations and
+//! [`list_messages`] reads one; each shows unread only unless asked
+//! for everything, and reading marks what was shown as read.
+//! [`list_agents`] lists whom the caller can write to and be read by.
 
-mod agents;
-mod conversations;
-mod messages;
+mod create_conversation;
+mod list_agents;
+mod list_conversations;
+mod list_messages;
 mod reply;
 mod send;
-mod start;
 
 use std::sync::Arc;
 
@@ -25,27 +25,27 @@ use crate::courier::Call;
 use crate::failure::Failure;
 
 /// Every tool's name, in the order they are listed.
-pub const NAMES: [&str; 5] = [agents::NAME, start::NAME, reply::NAME, conversations::NAME, messages::NAME];
+pub const NAMES: [&str; 5] = [list_agents::NAME, create_conversation::NAME, reply::NAME, list_conversations::NAME, list_messages::NAME];
 
 /// Every tool, as `tools/list` states them.
 pub fn all() -> Vec<Tool> {
     vec![
-        tool::<agents::Parameters>(agents::NAME, agents::DESCRIPTION),
-        tool::<start::Parameters>(start::NAME, start::DESCRIPTION),
+        tool::<list_agents::Parameters>(list_agents::NAME, list_agents::DESCRIPTION),
+        tool::<create_conversation::Parameters>(create_conversation::NAME, create_conversation::DESCRIPTION),
         tool::<reply::Parameters>(reply::NAME, reply::DESCRIPTION),
-        tool::<conversations::Parameters>(conversations::NAME, conversations::DESCRIPTION),
-        tool::<messages::Parameters>(messages::NAME, messages::DESCRIPTION),
+        tool::<list_conversations::Parameters>(list_conversations::NAME, list_conversations::DESCRIPTION),
+        tool::<list_messages::Parameters>(list_messages::NAME, list_messages::DESCRIPTION),
     ]
 }
 
 /// Call the tool `name` with `arguments`; its structured answer.
 pub async fn call(name: &str, call: Call<'_>, arguments: JsonObject) -> Result<Value, Failure> {
     match name {
-        agents::NAME => agents::call(call, parameters(arguments)?).await,
-        start::NAME => start::call(call, parameters(arguments)?).await,
+        list_agents::NAME => list_agents::call(call, parameters(arguments)?).await,
+        create_conversation::NAME => create_conversation::call(call, parameters(arguments)?).await,
         reply::NAME => reply::call(call, parameters(arguments)?).await,
-        conversations::NAME => conversations::call(call, parameters(arguments)?).await,
-        messages::NAME => messages::call(call, parameters(arguments)?).await,
+        list_conversations::NAME => list_conversations::call(call, parameters(arguments)?).await,
+        list_messages::NAME => list_messages::call(call, parameters(arguments)?).await,
         _ => Err(Failure::Parameters(format!("no tool named {name}"))),
     }
 }

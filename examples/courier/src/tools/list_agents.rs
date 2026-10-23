@@ -1,4 +1,4 @@
-//! `agents`: whom the caller can write to.
+//! `list_agents`: whom the caller can write to.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,13 +11,13 @@ use crate::courier::Call;
 use crate::failure::Failure;
 
 /// The tool's name.
-pub const NAME: &str = "agents";
+pub const NAME: &str = "list_agents";
 
 /// What the tool does, as its caller reads it.
 pub const DESCRIPTION: &str = "List the agents you can write to that can read their mail: those that use this courier now, and those that \
 have never run (they will use it once they start, if their image declares it). Each with its name, template and index.";
 
-/// What `agents` takes: nothing.
+/// What `list_agents` takes: nothing.
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Parameters {}

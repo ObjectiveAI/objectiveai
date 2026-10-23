@@ -58,7 +58,7 @@ daemon's `standalone_tools` family.
 
 ## `courier`: an inbox between agents
 
-**Built:** `examples/courier/` (crate `diverge-example-courier`, binary `courier`), with its `Containerfile` and `DIVERGE.md`. It is a **dependency tool** declared by agents' images (a `service` with `scope: global`, grants `self` and `never_active` over agents), keeps mail per template, has a fifth tool `agents` listing whom the caller can write to (attached, then never-run), and a send whose notification cannot be sent fails and keeps nothing.
+**Built:** `examples/courier/` (crate `diverge-example-courier`, binary `courier`), with its `Containerfile` and `DIVERGE.md`. It is a **dependency tool** declared by agents' images (a `service` with `scope: global`, grants `self` and `never_active` over agents), keeps mail per template, has a fifth tool `list_agents` listing whom the caller can write to (attached, then never-run), and a send whose notification cannot be sent fails and keeps nothing.
 
 Mail between agents. Every agent that uses the courier has an inbox
 of conversations; an agent opens a conversation with another agent on
@@ -96,10 +96,10 @@ participant's own messages are read for them from the start.
 
 | tool | does |
 |---|---|
-| `start(to, topic, text)` | opens a new conversation with an agent on a topic, with its first message; answers the conversation's id |
+| `create_conversation(to, topic, text)` | opens a new conversation with an agent on a topic, with its first message; answers the conversation's id |
 | `reply(conversation, text)` | adds a message to a conversation the caller is in |
-| `conversations(include_read?)` | the caller's conversations: by default only those with unread messages, each with its id, the other agent, the topic, how many messages are unread and when the last one came. With `include_read`, every conversation |
-| `messages(conversation, include_read?)` | one conversation's messages: by default only the unread ones, oldest first. With `include_read`, the whole conversation. Every message it shows is marked read for the caller |
+| `list_conversations(include_read?)` | the caller's conversations: by default only those with unread messages, each with its id, the other agent, the topic, how many messages are unread and when the last one came. With `include_read`, every conversation |
+| `list_messages(conversation, include_read?)` | one conversation's messages: by default only the unread ones, oldest first. With `include_read`, the whole conversation. Every message it shows is marked read for the caller |
 
 `to` names an agent as the daemon names one: by its name, or by its
 template and index. A conversation with an agent that does not exist,
@@ -117,7 +117,7 @@ only keep it warm.
 - Whether notifications coalesce. As stated, every message sends one.
   An agent that has not yet read its inbox could be sent one
   notification until it does; the stated rule is one per message.
-- Whether an agent can find whom to write to. `start` needs a name
+- Whether an agent can find whom to write to. `create_conversation` needs a name
   or a template and index; the courier offers no directory of agents.
   An agent learns names the way it learns anything else: from its
   instructions, or from a message it received.

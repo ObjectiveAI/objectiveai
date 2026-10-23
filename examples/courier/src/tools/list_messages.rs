@@ -1,4 +1,4 @@
-//! `messages`: read one conversation.
+//! `list_messages`: read one conversation.
 
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -9,17 +9,18 @@ use crate::failure::Failure;
 use crate::store;
 
 /// The tool's name.
-pub const NAME: &str = "messages";
+pub const NAME: &str = "list_messages";
 
 /// What the tool does, as its caller reads it.
 pub const DESCRIPTION: &str = "Read one of your conversations, oldest first. Only messages you have not read, unless include_read is true. \
 Every message shown is then read.";
 
-/// What `messages` takes.
+/// What `list_messages` takes.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Parameters {
-    /// The conversation, by the id `start` or `conversations` gave.
+    /// The conversation, by the id `create_conversation` or
+    /// `list_conversations` gave.
     pub conversation: i64,
     /// Show the whole conversation, read messages too. Absent, false.
     #[serde(default)]

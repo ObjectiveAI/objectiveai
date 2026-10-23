@@ -25,11 +25,11 @@ The agent reads its mail when it chooses, through five tools:
 
 | tool | parameters | does |
 |---|---|---|
-| `agents` | none | the agents the caller can write to and be read by: those that use this courier now, then those that have never run, each with its name, template and index |
-| `start` | `to` (`{"name": …}` or `{"template": …, "index": n}`), `topic`, `text` | opens a conversation with another agent on a topic, with its first message |
+| `list_agents` | none | the agents the caller can write to and be read by: those that use this courier now, then those that have never run, each with its name, template and index |
+| `create_conversation` | `to` (`{"name": …}` or `{"template": …, "index": n}`), `topic`, `text` | opens a conversation with another agent on a topic, with its first message |
 | `reply` | `conversation`, `text` | adds a message to one of the caller's conversations |
-| `conversations` | `include_read` (default false) | the caller's conversations with unread messages, newest first; all of them with `include_read` |
-| `messages` | `conversation`, `include_read` (default false) | one conversation's unread messages, oldest first, then marks them read; the whole conversation with `include_read` |
+| `list_conversations` | `include_read` (default false) | the caller's conversations with unread messages, newest first; all of them with `include_read` |
+| `list_messages` | `conversation`, `include_read` (default false) | one conversation's unread messages, oldest first, then marks them read; the whole conversation with `include_read` |
 
 A conversation is between two agents. Its topic is set when it is
 opened and never changes. Every message records its sender as the

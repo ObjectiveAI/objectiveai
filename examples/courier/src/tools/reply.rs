@@ -19,7 +19,8 @@ pub const DESCRIPTION: &str = "Add a message to one of your conversations. The o
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Parameters {
-    /// The conversation, by the id `start` or `conversations` gave.
+    /// The conversation, by the id `create_conversation` or
+    /// `list_conversations` gave.
     pub conversation: i64,
     /// The message.
     pub text: String,

@@ -1,4 +1,4 @@
-//! `conversations`: the caller's inbox.
+//! `list_conversations`: the caller's inbox.
 
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -9,13 +9,13 @@ use crate::failure::Failure;
 use crate::store;
 
 /// The tool's name.
-pub const NAME: &str = "conversations";
+pub const NAME: &str = "list_conversations";
 
 /// What the tool does, as its caller reads it.
 pub const DESCRIPTION: &str = "List your conversations, newest message first, each with its id, the other agent, its topic and how many \
 messages you have not read. Only conversations with unread messages, unless include_read is true.";
 
-/// What `conversations` takes.
+/// What `list_conversations` takes.
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Parameters {

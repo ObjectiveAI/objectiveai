@@ -1,4 +1,4 @@
-//! `start`: open a conversation with another agent.
+//! `create_conversation`: open a conversation with another agent.
 
 use diverge_sdk::daemon::reference;
 use schemars::JsonSchema;
@@ -10,13 +10,13 @@ use crate::courier::Call;
 use crate::failure::Failure;
 
 /// The tool's name.
-pub const NAME: &str = "start";
+pub const NAME: &str = "create_conversation";
 
 /// What the tool does, as its caller reads it.
 pub const DESCRIPTION: &str = "Open a new conversation with another agent, on a topic, with its first message. \
 The topic is fixed once the conversation is open. The other agent is told only that it has a new message.";
 
-/// What `start` takes.
+/// What `create_conversation` takes.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Parameters {
