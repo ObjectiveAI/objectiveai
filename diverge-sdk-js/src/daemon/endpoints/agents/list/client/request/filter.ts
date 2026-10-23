@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { Creator } from "../../../../../creator/creator.js";
+import { Active } from "./active.js";
 
 /**
  * The filter over agents: every member optional, and every one given
@@ -18,8 +19,10 @@ export const Filter = z.object({
   templates: z.array(z.string()).optional(),
   /** Made by any one of these, directly. Absent when empty, and then made by anybody. */
   creators: z.array(Creator).optional(),
-  /** Whether active — a loop running in it — `true`, or not, `false`; absent, either. */
-  active: z.boolean().optional(),
+  /** Whether active now — `true`, or not, `false` — or ever: `"ever"`, active at some time, or `"never"`, the agents that have never run. See `Active`. Absent, any. */
+  active: Active.optional(),
+  /** Depending on any one of these dependency tool templates, by id: an agent whose LAST registration declared one of them, as its `dependencies` say. Absent when empty, and then whatever it depends on, or nothing. */
+  dependency_tool_templates: z.array(z.string()).optional(),
   /** Every one of these among the thing's tags. Absent when empty, and then any tags. */
   all_tags: z.array(z.string()).optional(),
   /** Any one of these among the thing's tags; with `all_tags`, both hold. Absent when empty. */

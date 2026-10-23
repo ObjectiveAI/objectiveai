@@ -37,6 +37,8 @@ export const Agent = z.object({
   logs_index: z.number().int().nonnegative(),
   /** The `standalone_tools` it has: those attached to it directly, in the order they were attached, then those attached to its template, in theirs, one it has both ways once — each by its `key`, its origin and its index, with its name beside when it has one; empty for an agent with none. The tools list reports the same attachments from the other side. */
   tools: z.array(Tool).optional(),
+  /** The dependency templates its LAST registration declared, by id, in the order it first declared them, each once: what it depends on now, as `dependency_tools` lists the same attachments from the other side. A registration replaces them whole. Absent when empty — an agent that never registered, or declared nothing. */
+  dependencies: z.array(z.string()).optional(),
   /** Its tags, sorted bytewise: what `tag` put on it and `untag` has not taken off. Absent when empty. */
   tags: z.array(z.string()).optional(),
 });
