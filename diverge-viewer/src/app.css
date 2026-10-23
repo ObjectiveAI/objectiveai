@@ -182,21 +182,13 @@ input[type="text"], input[type="password"], input[type="number"], input:not([typ
 textarea { resize: vertical; line-height: 1.45; padding: var(--space-2); }
 input:hover, select:hover, textarea:hover { border-color: var(--line-hover); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus); }
-.invalid { border-color: var(--bad) !important; }
 
-.group { border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3) var(--space-3); margin: 0; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
-.group legend { font-size: var(--text-sm); font-weight: 600; padding: 0 var(--space-1); }
 .more > summary { cursor: pointer; font-size: var(--text-sm); font-weight: 550; color: var(--text-2); padding: var(--space-1) 0; }
 .more[open] > summary { margin-bottom: var(--space-2); }
-.switch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-1) var(--space-3); }
+
 .switch { display: flex; align-items: center; gap: var(--space-2); min-height: var(--hit-min); font-size: var(--text-sm); cursor: pointer; }
-.switch-line { flex-wrap: wrap; }
-.switch-line .field-hint { flex-basis: 100%; padding-left: var(--space-5); }
+
 .switch input { margin: 0; }
-.optional-body, .variant-body { padding-left: var(--space-3); border-left: 2px solid var(--line); margin-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-3); }
-.array-item, .map-row { display: flex; gap: var(--space-2); align-items: flex-start; }
-.array-item > .field, .array-item > .group, .map-value { flex: 1; min-width: 0; }
-.map-key { max-width: 180px; }
 
 .themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
 .theme { display: flex; flex-direction: column; gap: var(--space-2); border: 1px solid var(--line-strong); background: var(--bg); border-radius: var(--radius-md); padding: var(--space-3); }
@@ -212,37 +204,45 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .sw-ink { background: var(--ink); }
 .sw-here { background: var(--here); }
 
+/* --- the screens' shared parts ------------------------------------------------ */
+/* A page head with its actions beside the title; a row of controls; words as written, wrapped. */
+.head-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.head-row > .page-title, .head-row > h2, .head-row > h3 { margin-right: auto; }
+.toolbar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.toolbar > .field { flex: 1; }
+.pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* A list beside its detail: the list keeps the rail's width, the detail takes the rest. */
+.split { display: grid; grid-template-columns: var(--rail-width) 1fr; gap: var(--space-4); align-items: start; }
+.split-list { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.split-detail { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* --- conversation ---------------------------------------------------------------- */
+.convo .page-inner { max-width: none; }
+.turns { display: flex; flex-direction: column; gap: var(--space-3); }
+.turn { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-md); }
+.turn-user { background: var(--surface-2); border-left: var(--mark) solid var(--user); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); }
+.turn-quiet { font-size: var(--text-sm); color: var(--text-3); }
+.turn-meta { font-size: var(--text-xs); }
+.composer { display: flex; flex-direction: column; gap: var(--space-2); }
+
 /* --- files ------------------------------------------------------------------ */
-
+.tree { display: flex; flex-direction: column; gap: 0; }
+.tree-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 /* Each level of a tree sits one step in from the level above it. */
-
-/* A step above the first row and below the last, so their focus rings aren't cut by the scrolling edge. */
-
-/* A file's size is always muted, whichever row is picked. */
+.tree-children { padding-left: var(--space-4); }
+.template-row { display: flex; align-items: center; gap: var(--space-3); }
+.template-words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* --- machines ----------------------------------------------------------------- */
+/* A key the daemon minted, shown once: on its own line, as wide as it is. */
+.key-once { display: block; overflow-wrap: anywhere; }
 
 /* --- views ---------------------------------------------------------------------- */
+.lines { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
+.line { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
 
-/* --- storage ---------------------------------------------------------------- */
-
-/* --- a turn's work, folded ----------------------------------------------------- */
-
-/* --- Spaces ---------------------------------------------------------------------- */
-
-/* A choice about one member sits on its own line under them. */
-
-/* --- ask cards: an agent asks its person ------------------------------------------ */
-
-/* --- Home ---------------------------------------------------------------------- */
-
-/* The composer is one field: the words, and Show and Ask inside it at the bottom right. */
-
-/* --- Inbox ---------------------------------------------------------------------- */
-
-/* Thread names are already semibold, so the one you're on goes a step bolder as well as getting the bar. */
-
-/* --- profile, synthesis ---------------------------------------------------------- */
+/* --- markdown headings ------------------------------------------------------------ */
 
 .md h3 { font-size: var(--text-lg); font-weight: 650; margin-top: var(--space-2); }
 .md h4 { font-size: var(--text-md); font-weight: 650; margin-top: var(--space-2); }
