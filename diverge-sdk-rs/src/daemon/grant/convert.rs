@@ -9,9 +9,11 @@ use crate::shared::permission::{self, Tags, Within};
 /// no grant of the daemon's own can say it — the actions over agents
 /// that reach `self`, which the daemon judges by the dependency's own
 /// agents: the one a transient tool was deployed for, every one
-/// attached to a service. Nothing is widened: a filter of tags alone
-/// reaches what the tags test reaches and nothing else, and `self`
-/// reaches the dependency's agents and nothing else.
+/// attached to a service. `never_active` is a daemon grant of its own,
+/// its filter `{"active": "never"}`. Nothing is widened: a filter of
+/// tags alone reaches what the tags test reaches and nothing else,
+/// `self` reaches the dependency's agents and nothing else, and
+/// `never_active` the agents that have never run and nothing else.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Converted {
     /// The grants a role could hold, judged as a role's are.
@@ -45,6 +47,7 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
                 let within = match within {
                     permission::agents::Within::Any => Within::Any,
                     permission::agents::Within::Self_ => return Err(actions),
+                    permission::agents::Within::NeverActive => Within::Only(never_active()),
                     permission::agents::Within::Only(tags) => Within::Only(agents_filter(tags)),
                 };
                 agents::Permission::Over { actions, within }
@@ -199,6 +202,16 @@ impl<T> Within<T> {
             Within::Any => Within::Any,
             Within::Only(only) => Within::Only(f(only)),
         }
+    }
+}
+
+/// The agents that have never been active, as the daemon's own agents
+/// filter states them: what `never_active` reaches.
+fn never_active() -> crate::daemon::endpoints::agents::list::client::request::Filter {
+    use crate::daemon::endpoints::agents::list::client::request::{Active, Filter, History};
+    Filter {
+        active: Some(Active::History(History::Never)),
+        ..Default::default()
     }
 }
 
