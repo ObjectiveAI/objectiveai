@@ -5,14 +5,14 @@ import { DecodeError, jsonOf, splitTag } from "../../../../../../wire/decode.js"
 import { Error } from "../../../../../../shared/error.js";
 
 /**
- * An edit's answer: the account is as the result states, with a new
- * key when the patch set a credential; no account is the one named;
+ * An edit's answer: the account is as the result states, with the
+ * keyring entry of a new key when the patch set a credential; no account is the one named;
  * no such role; the name or the identity is another's; the result
  * would leave the account alone; forbidden; or a failure. Exactly
  * one per scope, before the finish.
  */
 export const Frame = z.union([
-  /** The account is as the request states. The new key the daemon minted, when the request set a credential, answered here and never again; `null` otherwise. Tag `0`. */
+  /** The account is as the request states. When the request set a credential, the name of the entry in the daemon's host's keyring the new key the daemon minted is kept in — never the key; `null` otherwise. Tag `0`. */
   z.strictObject({ edited: z.string().nullable() }),
   /** No account is the one named; nothing changed. Tag `1`. */
   z.literal("not_found"),

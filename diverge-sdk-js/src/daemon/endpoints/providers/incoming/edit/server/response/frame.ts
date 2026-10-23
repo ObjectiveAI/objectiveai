@@ -6,11 +6,11 @@ import { Error } from "../../../../../../../shared/error.js";
 
 /**
  * An edit's answer: the credential is as the result states and this
- * is its new key, none names the identity, the new identity is
+ * is its new key's keyring entry, none names the identity, the new identity is
  * another's, forbidden, or a failure.
  */
 export const Frame = z.union([
-  /** The credential is as the request states, and this is its new key, answered here and never again. Tag `0`. */
+  /** The credential is as the request states, and this is the name of the entry in the daemon's host's keyring its new key is kept in — never the key. Tag `0`. */
   z.strictObject({ edited: z.string() }),
   /** No credential names the identity; nothing changed. Tag `1`. */
   z.literal("not_found"),

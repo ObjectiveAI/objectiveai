@@ -2,6 +2,7 @@
 
 use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::grant::{self, Grant, Tagging, Within};
+use diverge_sdk::keyring::Keyring;
 use sqlx::PgConnection;
 
 use super::accounts;
@@ -10,21 +11,30 @@ use super::Error;
 use crate::judge::key;
 
 /// The name of the root role and of the root account, and the root
-/// account's credential identity and key, all four.
+/// account's credential identity, all three.
 const ROOT: &str = "root";
 
 /// Seed the root role and the root account.
 ///
 /// The role `root` holds [`every_grant`]; the account `root`, named
-/// and with a credential whose identity is `root`, holds the role,
-/// and its key is the word `root` — a fresh daemon is open to whoever
-/// reaches its port until that credential is rotated with an edit.
+/// and with a credential whose identity is `root`, holds the role.
+/// Its key is the keyring's entry `daemon/accounts/root`
+/// ([`key::account`]): the one already there — a database made again
+/// on the same host keeps its root key — or one minted here, kept
+/// before the transaction commits, since a key kept for a seed that
+/// never committed is the one the next seed takes. Only a program on
+/// this host, as this host's user, reads it.
 /// Both are ordinary records from then on: the account may be renamed,
 /// given another key, or deleted, and the role edited or deleted once
 /// nothing holds it. Root made itself, as far as the record says.
 /// Called only when the database had no `accounts` table, so a daemon
 /// whose root was deleted does not find it back at the next start.
-pub async fn seed(conn: &mut PgConnection) -> Result<(), Error> {
+pub async fn seed(conn: &mut PgConnection, keyring: &Keyring) -> Result<(), Error> {
+    let entry = key::account(ROOT);
+    let key = match keyring.get(&entry).await? {
+        Some(key) => key,
+        None => keyring.mint(&entry).await?,
+    };
     let creator = Creator::Client(Client {
         identity: ROOT.to_string(),
     });
@@ -50,7 +60,7 @@ pub async fn seed(conn: &mut PgConnection) -> Result<(), Error> {
             name: Some(ROOT.to_string()),
             identity: Some(ROOT.to_string()),
             address: None,
-            key_hash: Some(key::hash(ROOT)),
+            key_hash: Some(key.hash()),
             description: Some("the first account".to_string()),
             creator,
         },

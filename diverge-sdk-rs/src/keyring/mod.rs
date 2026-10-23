@@ -32,10 +32,12 @@
 //!    [`set`](Keyring::set) refuse a name already held; neither
 //!    replaces a key.
 //! 2. [`rotate`](Keyring::rotate) replaces the key of an entry that
-//!    exists, and refuses a name that does not.
-//! 3. [`list`](Keyring::list) answers names and when each was made,
+//!    exists with a new one, and refuses a name that does not.
+//! 3. [`replace`](Keyring::replace) keeps a given key as a name,
+//!    whether the name was held or not.
+//! 4. [`list`](Keyring::list) answers names and when each was made,
 //!    never a key.
-//! 4. Nothing here prints, logs, or answers a key.
+//! 5. Nothing here prints, logs, or answers a key.
 //!
 //! Behind the `keyring` feature: sqlx and SQLite do not build where
 //! most dependents do — the images inside containers — and nothing
@@ -49,6 +51,7 @@ mod keyring;
 mod list;
 mod mint;
 mod remove;
+mod replace;
 mod rotate;
 mod schema;
 mod set;

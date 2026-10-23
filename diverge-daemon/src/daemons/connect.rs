@@ -20,7 +20,8 @@ use crate::store::providers_daemons::Record;
 /// providers is reached through any of them — presenting the
 /// account's credential, the first that answers kept until it ends,
 /// and a watcher forgetting it then. No account of the name is
-/// [`Fail::NoAccount`]; a link whose provider is not connected is
+/// [`Fail::NoAccount`]; a key the account's mode names that the
+/// keyring does not hold is [`Fail::NoKey`]; a link whose provider is not connected is
 /// skipped; none connected is [`Fail::NoProvider`]; every one tried
 /// and refused is [`Fail::Refused`] with the last refusal.
 pub async fn connect(daemon: &Arc<Daemon>, record: &Record, account: &str) -> Result<Arc<Peer>, Fail> {
@@ -33,7 +34,12 @@ pub async fn connect(daemon: &Arc<Daemon>, record: &Record, account: &str) -> Re
     let Some(held) = record.account(account) else {
         return Err(Fail::NoAccount);
     };
-    let Mode::Unbrokered { authorization } = &held.mode;
+    let Mode::Unbrokered { key } = &held.mode;
+    let key = match daemon.keyring.get(key).await {
+        Ok(Some(key)) => key,
+        Ok(None) => return Err(Fail::NoKey(key.clone())),
+        Err(error) => return Err(Fail::Keyring(error.to_string())),
+    };
     let mut links: Vec<&Link> = record.links.iter().collect();
     links.shuffle(&mut rand::rng());
     let mut last = None;
@@ -44,7 +50,7 @@ pub async fn connect(daemon: &Arc<Daemon>, record: &Record, account: &str) -> Re
         let request = daemons_request::Frame {
             daemon: link.identity.clone(),
             mode: daemons::Mode::Unbrokered {
-                credential: authorization.clone(),
+                credential: key.expose().to_string(),
             },
         };
         match daemons_connect::execute(&handle, &request).await {

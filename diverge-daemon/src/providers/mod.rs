@@ -3,7 +3,7 @@
 //!
 //! An OUTGOING provider is dialled: [`dial`] is one task for the
 //! provider's life on record, connecting to its address, presenting
-//! the mode's authorization as the connection's first frame, and
+//! the key the mode names, read from the keyring, as the connection's first frame, and
 //! dialling again five seconds after the connection ends or the dial
 //! fails — as the provider's own dial does — until the task is ended
 //! by the provider's delete or the daemon's stop; [`dial_all`] starts

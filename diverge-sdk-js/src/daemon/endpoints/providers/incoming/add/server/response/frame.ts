@@ -5,11 +5,11 @@ import { DecodeError, jsonOf, splitTag } from "../../../../../../../wire/decode.
 import { Error } from "../../../../../../../shared/error.js";
 
 /**
- * An add's answer: the credential exists and this is its key, one for
+ * An add's answer: the credential exists and this is its key's keyring entry, one for
  * that identity exists already, forbidden, or a failure.
  */
 export const Frame = z.union([
-  /** The credential exists, and this is its key: the string a provider presents, byte for byte. Answered here and never again. Tag `0`. */
+  /** The credential exists, and this is the name of the entry in the daemon's host's keyring its key is kept in. Never the key, which no answer carries. Tag `0`. */
   z.strictObject({ added: z.string() }),
   /** A credential for that identity is there already; nothing changed. Tag `1`. */
   z.literal("exists"),

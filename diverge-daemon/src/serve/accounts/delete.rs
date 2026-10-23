@@ -6,7 +6,7 @@ use diverge_sdk::daemon::grant::accounts::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
-use crate::judge::{self, Standing, Who};
+use crate::judge::{self, Standing, Who, key};
 use crate::serve::reply;
 use crate::store::{self, accounts};
 
@@ -47,5 +47,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     tx.commit().await?;
     daemon.live.changed(Kind::Accounts);
     daemon.live.changed(Kind::Roles);
+    if let Some(identity) = &account.identity {
+        key::forget(&daemon.keyring, &key::account(identity)).await?;
+    }
     Ok(Frame::Deleted)
 }

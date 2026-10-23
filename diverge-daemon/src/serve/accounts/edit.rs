@@ -7,6 +7,7 @@ use diverge_sdk::daemon::endpoints::accounts::edit::client::request::{self, Edit
 use diverge_sdk::daemon::endpoints::accounts::edit::server::response::Frame;
 use diverge_sdk::daemon::grant::accounts::Over;
 use diverge_sdk::daemon::patch;
+use diverge_sdk::keyring::Key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{NamedRoles, named_roles};
@@ -71,13 +72,13 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     } else {
         None
     };
-    let mut minted = None;
+    let mut minted: Option<(String, Key)> = None;
     let (identity, address, key_hash): (Option<String>, Option<IpAddr>, Option<String>) = if patch::writes(&frame.patch, "/credential") {
         match result.credential {
             Some(credential) => {
-                let key = key::mint();
-                let hash = key::hash(&key);
-                minted = Some(key);
+                let key = Key::mint();
+                let hash = key.hash();
+                minted = Some((key::account(&credential.identity), key));
                 (Some(credential.identity), credential.address, Some(hash))
             }
             None => (None, None, None),
@@ -85,6 +86,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     } else {
         (account.identity.clone(), account.address, account.key_hash.clone())
     };
+    let gone = account.identity.as_ref().filter(|old| identity.as_ref() != Some(*old)).map(|old| key::account(old));
     let name = result.name;
     let credential_taken = account.identity.is_some() && identity.is_none();
     let name_taken = account.name.is_some() && name.is_none();
@@ -107,5 +109,12 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     tx.commit().await?;
     daemon.live.changed(Kind::Accounts);
     daemon.live.changed(Kind::Roles);
-    Ok(Frame::Edited(minted))
+    if let Some(gone) = gone {
+        key::forget(&daemon.keyring, &gone).await?;
+    }
+    let Some((entry, key)) = minted else {
+        return Ok(Frame::Edited(None));
+    };
+    key::keep(&daemon.keyring, &entry, &key).await?;
+    Ok(Frame::Edited(Some(entry)))
 }

@@ -7,16 +7,16 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A create's answer: the account exists, with its key when it has a
-/// credential, one like it exists already, no such role, forbidden, or
-/// a failure.
+/// A create's answer: the account exists, with the keyring entry its
+/// key is kept in when it has a credential, one like it exists
+/// already, no such role, forbidden, or a failure.
 ///
 /// A create is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Created`](Self::Created), `1`
 /// for [`Exists`](Self::Exists), `2` for [`NoRole`](Self::NoRole), `3`
 /// for [`Forbidden`](Self::Forbidden), `4` for [`Error`](Self::Error) —
-/// and the rest is that variant's own JSON: the key for the first,
+/// and the rest is that variant's own JSON: the entry for the first,
 /// nothing for the bare answers, the error for the last.
 ///
 /// # Answers, and one failure
@@ -48,9 +48,11 @@ use crate::shared::error::Error;
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The account exists, with its roles. The key the daemon minted,
-    /// when the request gave a credential, answered here and never
-    /// again; `null` for a named account with none. Tag `0`.
+    /// The account exists, with its roles. When the request gave a
+    /// credential, the name of the entry in the daemon's host's
+    /// [`keyring`](crate::keyring) the key the daemon minted is kept
+    /// in — never the key, which no answer carries; `null` for a
+    /// named account with none. Tag `0`.
     Created(Option<String>),
     /// The name or the identity is an account's already; nothing was
     /// created. Tag `1`.

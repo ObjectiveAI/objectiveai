@@ -26,11 +26,13 @@ const PAUSE: Duration = Duration::from_secs(5);
 ///
 /// Each round reads the provider's record — so an edit's new mode is
 /// what the next dial presents, and a provider forgotten ends the
-/// task — connects to its [`url`], presents the mode's authorization
-/// as the connection's first frame, and [`attach`]es: a provider that
+/// task — reads the key the mode names from the keyring, connects to
+/// its [`url`], presents the key as the connection's first frame, and
+/// [`attach`]es: a provider that
 /// answers its info is held and served until the connection ends,
 /// with the record's `last_connected` set as it opens and as it
-/// closes. Then the pause, and again. Ended only by the abort handle
+/// closes. A key the keyring does not hold is a round not dialled, as
+/// one refused is. Then the pause, and again. Ended only by the abort handle
 /// [`Live`](crate::daemon::Live) keeps for it, which drops whatever
 /// connection it holds.
 pub async fn dial(daemon: Arc<Daemon>, address: String) {
@@ -38,11 +40,13 @@ pub async fn dial(daemon: Arc<Daemon>, address: String) {
         let Ok(Some(provider)) = on_record(&daemon, &address).await else {
             return;
         };
-        if let Ok((socket, _)) = connect_async(url(&address)).await {
+        let Mode::Unbrokered { key } = &provider.mode;
+        if let Ok(Some(key)) = daemon.keyring.get(key).await
+            && let Ok((socket, _)) = connect_async(url(&address)).await
+        {
             let peer = peer_ip(&socket);
-            let Mode::Unbrokered { authorization } = provider.mode;
             let presented = Authorization::<Refusing>::Outgoing {
-                auth: Auth::Unbrokered(authorization),
+                auth: Auth::Unbrokered(key.expose().to_string()),
                 provider_identity: address.clone(),
             };
             if let Ok(Authorized { connection, .. }) = authorize(Connection::Outgoing(socket), presented, peer).await

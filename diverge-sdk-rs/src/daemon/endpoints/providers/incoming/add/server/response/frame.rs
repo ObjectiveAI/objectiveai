@@ -7,15 +7,15 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// An add's answer: the key, a credential for that identity already,
-/// forbidden, or a failure.
+/// An add's answer: the keyring entry the key is kept in, a credential
+/// for that identity already, forbidden, or a failure.
 ///
 /// An add is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Added`](Self::Added), `1` for
 /// [`Exists`](Self::Exists), `2` for [`Forbidden`](Self::Forbidden),
 /// `3` for [`Error`](Self::Error) — and the rest is that variant's own
-/// JSON: the key for the first, nothing for the bare answers, the error
+/// JSON: the entry for the first, nothing for the bare answers, the error
 /// for the last.
 ///
 /// # Answers, and one failure
@@ -46,9 +46,11 @@ use crate::shared::error::Error;
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The credential exists, and this is its key: the string a
-    /// provider presents, byte for byte, to be that identity. Answered
-    /// here and never again. Tag `0`.
+    /// The credential exists, and this is the name of the entry in the
+    /// daemon's host's [`keyring`](crate::keyring) its key is kept in:
+    /// what a provider on that host presents, by naming the entry, to
+    /// be that identity. Never the key, which no answer carries. Tag
+    /// `0`.
     Added(String),
     /// A credential for that identity is there already; nothing
     /// changed. Tag `1`.

@@ -3,6 +3,7 @@
 use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::providers::incoming::add::client::request;
 use diverge_sdk::daemon::endpoints::providers::incoming::add::server::response::Frame;
+use diverge_sdk::keyring::Key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
@@ -21,8 +22,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` without the `add` grant; `Exists` for an identity a
-/// credential names already; else the credential on record, and its
-/// key — minted here, answered here, and never again.
+/// credential names already; else the credential on record, and the
+/// keyring entry its key — minted here — is kept in once the record
+/// is committed. The key itself is answered to nobody.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -31,11 +33,12 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::providers_incoming::create(&standing) {
         return Ok(Frame::Forbidden);
     }
-    let minted = key::mint();
+    let minted = Key::mint();
+    let entry = key::provider(&frame.credential.identity);
     let new = providers_incoming::New {
         identity: frame.credential.identity,
         address: frame.credential.address,
-        key_hash: key::hash(&minted),
+        key_hash: minted.hash(),
         creator: Creator::Client(Client {
             identity: standing.identity.clone(),
         }),
@@ -46,5 +49,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     tx.commit().await?;
     daemon.live.changed(Kind::ProvidersIncoming);
-    Ok(Frame::Added(minted))
+    key::keep(&daemon.keyring, &entry, &minted).await?;
+    Ok(Frame::Added(entry))
 }

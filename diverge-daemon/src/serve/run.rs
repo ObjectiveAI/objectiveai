@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use crate::config::Config;
 use diverge_sdk::file_lock;
+use diverge_sdk::keyring::Keyring;
 use futures_util::future::{self, Either};
 use tokio::sync::watch;
 
@@ -51,8 +52,9 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     held.write(std::process::id().to_string().into_bytes()).await.map_err(Error::Lock)?;
     let dir = root.join("daemon");
     tokio::fs::create_dir_all(&dir).await.map_err(Error::Directory)?;
-    let (postgres, url) = postgres::start(&config.postgres, &root).await.map_err(Error::Postgres)?;
-    let store = match store::open(&url, postgres.is_local()).await {
+    let keyring = Keyring::open(&root).await.map_err(Error::Keyring)?;
+    let (postgres, url) = postgres::start(&config.postgres, &root, &keyring).await.map_err(Error::Postgres)?;
+    let store = match store::open(&url, postgres.is_local(), &keyring).await {
         Ok(store) => store,
         Err(error) => {
             postgres.stop().await;
@@ -74,6 +76,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     let (stop, _) = watch::channel(false);
     let daemon = Arc::new(Daemon::new(
         store,
+        keyring,
         logs,
         std::time::Duration::from_secs(config.idle_seconds),
         database,

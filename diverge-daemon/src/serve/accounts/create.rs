@@ -4,6 +4,7 @@ use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::accounts::Definition;
 use diverge_sdk::daemon::endpoints::accounts::create::client::request;
 use diverge_sdk::daemon::endpoints::accounts::create::server::response::Frame;
+use diverge_sdk::keyring::Key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{NamedRoles, named_roles};
@@ -26,8 +27,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// a role named; `NoRole` for a role the daemon does not have;
 /// `Exists` for a name or an identity another account has; else the
 /// account made, holding its roles from the first, with the key
-/// minted when a credential was given, answered here and never
-/// again.
+/// minted when a credential was given — kept in the keyring once the
+/// account is committed, and the entry it is kept in answered, never
+/// the key.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -45,12 +47,12 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Definition::Named { name, credential } => (Some(name), credential),
         Definition::Unnamed { credential } => (None, Some(credential)),
     };
-    let minted = credential.as_ref().map(|_| key::mint());
+    let minted = credential.as_ref().map(|credential| (key::account(&credential.identity), Key::mint()));
     let new = accounts::New {
         name,
         identity: credential.as_ref().map(|credential| credential.identity.clone()),
         address: credential.and_then(|credential| credential.address),
-        key_hash: minted.as_deref().map(key::hash),
+        key_hash: minted.as_ref().map(|(_, key)| key.hash()),
         description: frame.description,
         creator: Creator::Client(Client {
             identity: standing.identity.clone(),
@@ -64,5 +66,9 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     tx.commit().await?;
     daemon.live.changed(Kind::Accounts);
     daemon.live.changed(Kind::Roles);
-    Ok(Frame::Created(minted))
+    let Some((entry, key)) = minted else {
+        return Ok(Frame::Created(None));
+    };
+    key::keep(&daemon.keyring, &entry, &key).await?;
+    Ok(Frame::Created(Some(entry)))
 }

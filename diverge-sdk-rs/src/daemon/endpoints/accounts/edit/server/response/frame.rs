@@ -55,9 +55,10 @@ use crate::shared::error::Error;
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The account is as the request states. The new key the daemon
-    /// minted, when the request set a credential, answered here and
-    /// never again; `null` otherwise. Tag `0`.
+    /// The account is as the request states. When the request set a
+    /// credential, the name of the entry in the daemon's host's
+    /// [`keyring`](crate::keyring) the new key the daemon minted is
+    /// kept in — never the key; `null` otherwise. Tag `0`.
     Edited(Option<String>),
     /// No account is the one named; nothing changed. Tag `1`.
     NotFound,

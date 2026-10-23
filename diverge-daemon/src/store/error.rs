@@ -3,6 +3,8 @@
 use std::fmt;
 use std::net::AddrParseError;
 
+use diverge_sdk::keyring;
+
 /// What every store call fails with: the database, or a row holding
 /// something that is not what it should be.
 #[derive(Debug)]
@@ -19,6 +21,8 @@ pub enum Error {
         /// Why it is not an address.
         source: AddrParseError,
     },
+    /// The keyring a key is kept in refused, or could not be reached.
+    Keyring(keyring::Error),
 }
 
 impl fmt::Display for Error {
@@ -27,6 +31,7 @@ impl fmt::Display for Error {
             Error::Database(error) => write!(f, "the database: {error}"),
             Error::Json(error) => write!(f, "a record's JSON did not parse: {error}"),
             Error::Address { value, source } => write!(f, "the address `{value}` did not parse: {source}"),
+            Error::Keyring(error) => write!(f, "the keyring: {error}"),
         }
     }
 }
@@ -37,7 +42,14 @@ impl std::error::Error for Error {
             Error::Database(error) => Some(error),
             Error::Json(error) => Some(error),
             Error::Address { source, .. } => Some(source),
+            Error::Keyring(error) => Some(error),
         }
+    }
+}
+
+impl From<keyring::Error> for Error {
+    fn from(error: keyring::Error) -> Self {
+        Error::Keyring(error)
     }
 }
 

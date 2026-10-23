@@ -3,6 +3,7 @@
 use diverge_sdk::daemon::endpoints::providers::incoming::edit::client::request::{self, Editable};
 use diverge_sdk::daemon::endpoints::providers::incoming::edit::server::response::Frame;
 use diverge_sdk::daemon::grant::providers_incoming::Over;
+use diverge_sdk::keyring::Key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
@@ -54,11 +55,13 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Ok(result) => result,
         Err(what) => return Ok(Frame::Error(reply::patch(&what))),
     };
-    let minted = key::mint();
+    let minted = Key::mint();
+    let entry = key::provider(&result.credential.identity);
+    let gone = (credential.identity != result.credential.identity).then(|| key::provider(&credential.identity));
     let columns = providers_incoming::Columns {
         identity: result.credential.identity,
         address: result.credential.address,
-        key_hash: key::hash(&minted),
+        key_hash: minted.hash(),
     };
     if let providers_incoming::Updated::InUse = providers_incoming::update(&mut tx, credential.id, &columns).await? {
         return Ok(Frame::InUse);
@@ -66,5 +69,9 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     tx.commit().await?;
     daemon.live.changed(Kind::ProvidersIncoming);
     daemon.live.evict_provider(&credential.provider()).await;
-    Ok(Frame::Edited(minted))
+    if let Some(gone) = gone {
+        key::forget(&daemon.keyring, &gone).await?;
+    }
+    key::keep(&daemon.keyring, &entry, &minted).await?;
+    Ok(Frame::Edited(entry))
 }

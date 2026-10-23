@@ -17,12 +17,14 @@
 //!
 //! # Two secrets, two directions
 //!
-//! An outgoing provider's authorization is the provider's: the client
-//! gives it, a list and a get report the mode without it, and an edit
-//! replaces it whole, which is how one rotates. An incoming
-//! credential's key is the daemon's: the client never gives one — the
-//! daemon mints it when the credential is added or replaced, answers it
-//! in that response, once, and reports it never.
+//! No request and no answer carries a key; each names an entry in
+//! the daemon's host's [`keyring`](crate::keyring). An outgoing
+//! provider's key is the provider's: the client puts it in the keyring
+//! and names the entry in the mode, a list and a get report the mode
+//! without it, and an edit replaces the mode whole. An incoming
+//! credential's key is the daemon's: the daemon mints it when the
+//! credential is added or replaced, keeps it in the keyring, and
+//! answers the entry's name.
 //!
 //! # Where the daemon stands with each
 //!

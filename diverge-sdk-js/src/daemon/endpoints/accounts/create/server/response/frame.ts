@@ -5,14 +5,14 @@ import { DecodeError, jsonOf, splitTag } from "../../../../../../wire/decode.js"
 import { Error } from "../../../../../../shared/error.js";
 
 /**
- * A create's answer: the account exists, with its key when it has a
- * credential, one like it exists already, no such role, forbidden,
+ * A create's answer: the account exists, with the keyring entry its
+ * key is kept in when it has a credential, one like it exists already, no such role, forbidden,
  * or a failure. Exactly one per scope, before the finish. `exists`
  * and `no_role` are ANSWERS: the daemon looked, and nothing was
  * created; `error` is the absence of an answer.
  */
 export const Frame = z.union([
-  /** The account exists, with its roles. The key the daemon minted, when the request gave a credential, answered here and never again; `null` for a named account with none. Tag `0`. */
+  /** The account exists, with its roles. When the request gave a credential, the name of the entry in the daemon's host's keyring the key the daemon minted is kept in — never the key, which no answer carries; `null` for a named account with none. Tag `0`. */
   z.strictObject({ created: z.string().nullable() }),
   /** The name or the identity is an account's already; nothing was created. Tag `1`. */
   z.literal("exists"),
