@@ -58,6 +58,8 @@ daemon's `standalone_tools` family.
 
 ## `courier`: an inbox between agents
 
+**Built:** `examples/courier/` (crate `diverge-example-courier`, binary `courier`), with its `Containerfile` and `DIVERGE.md`. It runs as one `service`-mode tool, keeps mail per template, and a send whose notification cannot be sent fails and keeps nothing.
+
 Mail between agents. Every agent that uses the courier has an inbox
 of conversations; an agent opens a conversation with another agent on
 a topic, or answers inside one it already has. The courier never puts
