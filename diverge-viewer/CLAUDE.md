@@ -12,9 +12,10 @@ and worktree inherits it.
   The SDK's `dist` is built by the `sdk` script before `dev`, `build` and `typecheck` read it.
 - **Rust holds the one connection** — the daemon's address and credential, the socket, the router — and the page
   never does: the content security policy (tauri.conf.json) connects only to Tauri's IPC. The page's handle is
-  `wire.proxy.handle(...)` over four commands Rust implements as thin calls on its `diverge_sdk::wire::client::Handle`:
-  `wire_request`, `wire_channel_request`, `wire_channel_response`, `wire_channel_response_finish`. Frames cross as
-  bytes, one whole wire frame per channel message, header included (`src-tauri/src/wire/`).
+  `wire.proxy.handle(...)` over the Rust SDK's own runner, `diverge_sdk::tauri_proxy` (the `tauri-proxy` feature):
+  main.rs manages one `TauriProxy` from `viewer.yaml`'s daemon and registers its six commands — the four sends and
+  `wire_status`/`wire_reset`, which the page calls as `wire.proxy.status`/`reset`. Nothing of the wire is the
+  viewer's own; a connection that ends ends every open list, and "Dial again" is the reset.
 - **The app's own things stay in Rust** (`src-tauri/src/actions.rs`, the action registry): tabs (`tabs.rs`), the
   theme, saved Views (a title and a log request the page shapes), the names you gave machines, and what the app
   knows of its folder. Their view types (`src-tauri/src/view.rs`) generate `src/bindings/*.ts`

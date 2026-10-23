@@ -9,20 +9,25 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { daemon, shared, wire } from "@diverge/sdk";
 import { useEffect, useState } from "react";
-import type { WireStatus } from "../bindings/WireStatus";
 import { errorText } from "./app";
 import { t } from "../strings";
 
-/** The one handle: what every endpoint's `execute` is given. */
-export const handle: wire.client.Handle = wire.proxy.handle({
+/** How the page reaches the app's Rust: Tauri's `invoke` and its channels, which the SDK's proxy speaks over. */
+const transport: wire.proxy.Transport = {
   invoke: (command, args) => invoke(command, args),
   channel: () => new Channel(),
-});
+};
 
-/** The link's own commands: how it stands (dialling first), and dropping it so the next use dials again. */
+/** The one handle: what every endpoint's `execute` is given. */
+export const handle: wire.client.Handle = wire.proxy.handle(transport);
+
+/** How the link to the daemon stands, as the SDK states it. */
+export type WireStatus = wire.proxy.WireStatus;
+
+/** The link's own commands: how it stands (dialling from idle), and back to idle so the next use dials. */
 export const link = {
-  status: () => invoke<WireStatus>("wire_status"),
-  reset: () => invoke<null>("wire_reset"),
+  status: () => wire.proxy.status(transport),
+  reset: () => wire.proxy.reset(transport),
 };
 
 /** A list endpoint as the hook needs it: how to open it, what tells its items apart, and what each frame means to the fold. */

@@ -1,8 +1,7 @@
 import { createContext, useContext } from "react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { TabKind } from "../bindings/TabKind";
-import type { WireStatus } from "../bindings/WireStatus";
-import type { Agent, Held } from "./daemon";
+import type { Agent, Held, WireStatus } from "./daemon";
 
 export type Shared = {
   /** The agents, as the daemon lists them, kept current. */
