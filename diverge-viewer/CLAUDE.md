@@ -35,7 +35,9 @@ and worktree inherits it.
   nothing, and the screens say why.
 - **The root** is the daemon's rule (`diverge-viewer/config`, crate `diverge-viewer-config`): `--config <dir>`,
   else `DIVERGE_CONFIG`, else `~/.diverge`. `<root>/viewer.yaml` says which daemon and as whom (`daemon.address`,
-  `daemon.key`; absent = `ws://127.0.0.1:14980/` as `root`); `diverge config viewer get|set|patch` edits it with
+  `daemon.key`, the name of a keyring entry, never a key: main.rs reads the key from `<root>/keyring.db`, the SDK's
+  `keyring`, and an entry it does not hold stops the start; absent = `ws://127.0.0.1:14980/` as
+  `daemon/accounts/root`); `diverge config viewer get|set|patch` edits it with
   the same type. `<root>/viewer/` holds every file the app keeps. **Setup** is `AppState::open(folder)`
   (actions.rs); main.rs resolves the root and loads the document.
 - **No menu bar and no tab strip** (both removed 2026-10-23 at the owner's word): main.rs builds no menu, and the

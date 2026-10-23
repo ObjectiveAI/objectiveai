@@ -163,7 +163,7 @@ function StatusChip({ status }: { status: Status }) {
   }
 }
 
-/** Add a provider: one the daemon dials, with its key; or one that will dial the daemon, which is given a key. */
+/** Add a provider: one the daemon dials, presenting the key a keyring entry holds; or one that will dial the daemon, whose new key the daemon keeps in its keyring. */
 function Add() {
   const [way, setWay] = useState<"dial" | "accept">("dial");
   const [address, setAddress] = useState("");
@@ -178,7 +178,7 @@ function Add() {
     setMinted(null);
     try {
       if (way === "dial") {
-        const answer = await providers.outgoing.add.client.execute(handle, { address: address.trim(), mode: { unbrokered: { authorization: key } } });
+        const answer = await providers.outgoing.add.client.execute(handle, { address: address.trim(), mode: { unbrokered: { key: key.trim() } } });
         if (answer === "added") {
           setAddress("");
           setKey("");
@@ -212,7 +212,7 @@ function Add() {
             <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t.machines.addressPlaceholder} />
           </Field>
           <Field label={t.machines.key} hint={t.machines.keyNote} needed>
-            <input type="password" className="mono" value={key} onChange={(e) => setKey(e.target.value)} />
+            <input className="mono" value={key} onChange={(e) => setKey(e.target.value)} placeholder={t.machines.keyPlaceholder} />
           </Field>
         </div>
       ) : (
@@ -224,13 +224,13 @@ function Add() {
       )}
       {said ? <Card tone="bad">{said}</Card> : null}
       {minted ? (
-        <Card tone="warn">
+        <Card tone="quiet">
           <strong>{t.machines.mintedTitle}</strong>
           <span className="muted">{t.machines.mintedNote}</span>
           <span className="mono selectable key-once">{minted}</span>
         </Card>
       ) : null}
-      <Button kind="primary" onClick={() => void add()} disabled={busy || (way === "dial" ? !address.trim() || !key : !identity.trim())}>
+      <Button kind="primary" onClick={() => void add()} disabled={busy || (way === "dial" ? !address.trim() || !key.trim() : !identity.trim())}>
         {t.machines.save}
       </Button>
     </Section>

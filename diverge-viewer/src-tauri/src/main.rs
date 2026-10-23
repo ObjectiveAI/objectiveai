@@ -19,6 +19,7 @@ mod store;
 mod tabs;
 mod view;
 
+use diverge_sdk::keyring::Keyring;
 use tauri::Manager;
 
 use actions::AppState;
@@ -31,14 +32,21 @@ fn main() {
     tauri::Builder::default()
         .setup(|app| {
             // The root, as the daemon and the provider find theirs; the
-            // document in it; the app's own folder under it.
-            let (root, config) = tauri::async_runtime::block_on(async {
+            // document in it; the key it names, from the root's
+            // keyring; the app's own folder under the root. An entry
+            // the keyring does not hold stops the start, naming it.
+            let (root, config, key) = tauri::async_runtime::block_on(async {
                 let root = diverge_viewer_config::root(std::env::args_os().skip(1)).await?;
                 let config = diverge_viewer_config::load(&root).await?;
-                Ok::<_, diverge_viewer_config::Error>((root, config))
+                let keyring = Keyring::open(&root).await?;
+                let key = keyring
+                    .get(&config.daemon.key)
+                    .await?
+                    .ok_or_else(|| format!("the keyring holds no `{}`, the key viewer.yaml names", config.daemon.key))?;
+                Ok::<_, Box<dyn std::error::Error>>((root, config, key))
             })?;
             // The daemon's connection, held for the page: the SDK's runner.
-            app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(config.daemon.address, config.daemon.key));
+            app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(config.daemon.address, &key));
             app.manage(AppState::open(root.join(actions::FOLDER)));
             Ok(())
         })
