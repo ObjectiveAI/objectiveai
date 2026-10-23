@@ -22,8 +22,8 @@ pub enum Failure {
     ToSelf,
     /// The daemon names no such agent.
     NoAgent,
-    /// The courier's account may not do what the send needs: look the
-    /// agent up, or message it.
+    /// The courier's grants do not reach the agent: it does not use
+    /// this courier, and it has already run.
     Forbidden,
     /// The daemon could not be reached, or answered with an error.
     Daemon(String),
@@ -40,7 +40,7 @@ impl fmt::Display for Failure {
             Failure::NoConversation(id) => write!(f, "you have no conversation {id}"),
             Failure::ToSelf => f.write_str("a conversation is with another agent, not with yourself"),
             Failure::NoAgent => f.write_str("the daemon has no such agent"),
-            Failure::Forbidden => f.write_str("the courier's account may not reach that agent; nothing was sent"),
+            Failure::Forbidden => f.write_str("the courier's grants do not reach that agent; nothing was sent"),
             Failure::Daemon(why) => write!(f, "the daemon could not be asked: {why}; nothing was sent"),
             Failure::Store(why) => write!(f, "the mail could not be read or written: {why}"),
         }

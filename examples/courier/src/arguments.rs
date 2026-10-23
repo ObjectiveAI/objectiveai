@@ -9,11 +9,11 @@ use serde::{Deserialize, Serialize};
 /// one value; any member is refused, so a misspelled setting is never
 /// silently ignored.
 ///
-/// # How to run it
+/// # How it runs
 ///
-/// As ONE `service`-mode standalone tool that every agent taking part
-/// is attached to. The mail lives in the caller's Postgres, and only
-/// agents attached to the same courier share it.
+/// As a dependency tool: a service whose scope is `global`, declared
+/// by the image of every agent that takes part. One container, one
+/// database, shared by every agent that declares it.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Arguments {}

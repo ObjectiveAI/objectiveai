@@ -1942,6 +1942,7 @@ dependencies = [
  "axum",
  "chrono",
  "diverge-sdk",
+ "futures-util",
  "rmcp 3.1.2",
  "schemars 1.2.2",
  "serde",

@@ -34,6 +34,8 @@ serde_json = { version = "1.0.151", features = ["preserve_order"] }
 # `chrono` for the times each message and conversation keep.
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
 chrono = { version = "0.4.39", default-features = false, features = ["std", "serde", "clock"] }
+# The list stream the `agents` tool reads to its `listed`.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
 # The runtime under the listener, the lazily made pool and daemon
 # connection, and the task each notification's answer is read on.
 tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }

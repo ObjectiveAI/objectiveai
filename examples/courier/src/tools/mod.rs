@@ -1,11 +1,13 @@
-//! The four tools: two that send, two that list.
+//! The five tools: two that send, three that list.
 //!
 //! [`start`] opens a conversation and [`reply`] answers inside one;
 //! each notifies the other agent and nothing more. [`conversations`]
 //! lists the caller's conversations and [`messages`] reads one; each
 //! shows unread only unless asked for everything, and reading marks
-//! what was shown as read.
+//! what was shown as read. [`agents`] lists whom the caller can write
+//! to and be read by.
 
+mod agents;
 mod conversations;
 mod messages;
 mod reply;
@@ -23,11 +25,12 @@ use crate::courier::Call;
 use crate::failure::Failure;
 
 /// Every tool's name, in the order they are listed.
-pub const NAMES: [&str; 4] = [start::NAME, reply::NAME, conversations::NAME, messages::NAME];
+pub const NAMES: [&str; 5] = [agents::NAME, start::NAME, reply::NAME, conversations::NAME, messages::NAME];
 
 /// Every tool, as `tools/list` states them.
 pub fn all() -> Vec<Tool> {
     vec![
+        tool::<agents::Parameters>(agents::NAME, agents::DESCRIPTION),
         tool::<start::Parameters>(start::NAME, start::DESCRIPTION),
         tool::<reply::Parameters>(reply::NAME, reply::DESCRIPTION),
         tool::<conversations::Parameters>(conversations::NAME, conversations::DESCRIPTION),
@@ -38,6 +41,7 @@ pub fn all() -> Vec<Tool> {
 /// Call the tool `name` with `arguments`; its structured answer.
 pub async fn call(name: &str, call: Call<'_>, arguments: JsonObject) -> Result<Value, Failure> {
     match name {
+        agents::NAME => agents::call(call, parameters(arguments)?).await,
         start::NAME => start::call(call, parameters(arguments)?).await,
         reply::NAME => reply::call(call, parameters(arguments)?).await,
         conversations::NAME => conversations::call(call, parameters(arguments)?).await,
