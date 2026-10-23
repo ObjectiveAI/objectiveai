@@ -60,6 +60,9 @@ importers:
 
   diverge-viewer:
     dependencies:
+      '@diverge/sdk':
+        specifier: workspace:*
+        version: link:../diverge-sdk-js
       '@tauri-apps/api':
         specifier: ^2.10.1
         version: 2.10.1

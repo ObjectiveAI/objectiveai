@@ -19,7 +19,9 @@ export const t = {
   settings: {
     title: "Settings",
     daemon: "Daemon",
-    daemonNote: "Rust holds the connection; the page speaks the protocol through it.",
+    daemonNote: "Rust dials the daemon viewer.yaml names and holds the connection; the page speaks the protocol through it.",
+    accounts: "Accounts",
+    accountsNote: "The accounts this connection may see, as the daemon lists them, kept current.",
     theme: "Theme",
     themeNote: "How this app looks on this computer. Nobody else sees it.",
     // Every theme in theme.css, by its id there.
@@ -29,8 +31,20 @@ export const t = {
   },
   daemon: {
     connected: "Connected.",
-    notConnected: "This page doesn't reach the daemon yet: the connection comes in the next step.",
+    dialling: "Dialling…",
+    failed: "Not connected.",
+    redial: "Dial again",
+    notConnected: "The daemon isn't reached. Settings says why.",
     notConnectedShort: "Not connected",
+    forbidden: "The account this connection holds may not list this.",
+    ended: "The daemon stopped answering this list.",
+    listEndedShort: "List ended",
+  },
+  accounts: {
+    connected: "Connected",
+    roles: "Roles",
+    none: "No accounts listed.",
+    unnamed: "(no name)",
   },
   status: {
     working: "Working",

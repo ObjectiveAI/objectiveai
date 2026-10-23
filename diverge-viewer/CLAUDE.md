@@ -7,7 +7,9 @@ and worktree inherits it.
 - **The page speaks the daemon's protocol itself**, with the TypeScript SDK (`diverge-sdk-js`, `@diverge/sdk`,
   a path dependency of this package through the pnpm workspace, as the Rust crates depend on `diverge-sdk-rs`
   by path). Every daemon endpoint is `daemon.endpoints.<family>.<request>.client.execute(handle, frame)`; every
-  list is folded by `shared.listing.Listing` with the frame's `change()`; the answer is the frame.
+  list is folded by `shared.listing.Listing` with the frame's `change()`; the answer is the frame. The page's one
+  handle, the link's status and the list hook (`useListing`, `useAgents`, `useAccounts`) are `src/lib/daemon.ts`.
+  The SDK's `dist` is built by the `sdk` script before `dev`, `build` and `typecheck` read it.
 - **Rust holds the one connection** — the daemon's address and credential, the socket, the router — and the page
   never does: the content security policy (tauri.conf.json) connects only to Tauri's IPC. The page's handle is
   `wire.proxy.handle(...)` over four commands Rust implements as thin calls on its `diverge_sdk::wire::client::Handle`:
@@ -70,6 +72,6 @@ the product's owner says. **Nothing private enters this repo**, in files or comm
 
 ## Run it
 `pnpm install` (from the repo root) then `cd diverge-viewer && pnpm tauri dev`. Every test, in one command:
-`pnpm test:all` (the app's Rust tests, which also write the bindings, and vitest). A second copy on its own
+`pnpm test:all` (the app's Rust tests, which also write the bindings, the typecheck, and vitest). A second copy on its own
 root: `DIVERGE_CONFIG=/some/root pnpm tauri dev`. In a plain browser (`pnpm dev`, http://localhost:1430)
 nothing answers for the app or the daemon, and the screens say so.

@@ -18,6 +18,7 @@ mod actions;
 mod store;
 mod tabs;
 mod view;
+mod wire;
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::{Emitter, Manager};
@@ -49,7 +50,7 @@ fn main() {
                 let config = diverge_viewer_config::load(&root).await?;
                 Ok::<_, diverge_viewer_config::Error>((root, config))
             })?;
-            app.manage(config);
+            app.manage(wire::Wire::new(config.daemon));
             app.manage(AppState::open(root.join(actions::FOLDER)));
             Ok(())
         })
@@ -68,6 +69,12 @@ fn main() {
             actions::actions_list,
             actions::app_info,
             actions::files_set_aside,
+            wire::wire_request,
+            wire::wire_channel_request,
+            wire::wire_channel_response,
+            wire::wire_channel_response_finish,
+            wire::wire_status,
+            wire::wire_reset,
         ])
         .run(tauri::generate_context!())
         .expect("the app could not start");

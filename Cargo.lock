@@ -2003,14 +2003,17 @@ dependencies = [
 name = "diverge-viewer"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "chrono",
  "diverge-sdk",
  "diverge-viewer-config",
+ "futures-util",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tokio",
+ "tokio-tungstenite 0.29.0",
  "ts-rs",
 ]
 

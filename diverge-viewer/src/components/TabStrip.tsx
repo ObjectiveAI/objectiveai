@@ -53,7 +53,7 @@ export function TabStrip(props: { snapshot: TabsSnapshot; onFocus: (key: string)
   return (
     <div className="strip" role="tablist" aria-orientation="horizontal" ref={strip}>
       {tabs.map(({ key, tab }) => {
-        const agent = tab.kind === "agent" ? agents.find((a) => agentKey(a) === key) : undefined;
+        const agent = tab.kind === "agent" ? agents.items.find((a) => agentKey(a) === key) : undefined;
         const name = title(tab);
         return (
           <div
@@ -69,7 +69,7 @@ export function TabStrip(props: { snapshot: TabsSnapshot; onFocus: (key: string)
             // The browser shows a focused tab only as far as it already peeks out of the strip: show all of it.
             onFocus={(e) => e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" })}
           >
-            {agent ? <Dot state={agent.active ? "working" : agent.lastActive ? "idle" : "never"} /> : null}
+            {agent ? <Dot state={agent.active ? "working" : agent.last_active ? "idle" : "never"} /> : null}
             <span className="tab-title">{name}</span>
             <Button kind="icon" label={`${t.common.close} ${name}`} onMouseDown={(e) => e.stopPropagation()} onClick={() => props.onClose(key)}>
               <Icon name="close" />

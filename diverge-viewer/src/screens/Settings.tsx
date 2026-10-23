@@ -1,20 +1,37 @@
 import { useEffect, useState } from "react";
-import { Row, Section } from "../components/ui";
+import { Button, Card, Chip, Row, Section } from "../components/ui";
 import { app } from "../lib/app";
 import { useShared } from "../lib/context";
+import { useAccounts } from "../lib/daemon";
 import { t } from "../strings";
 
 export function Settings() {
-  const { connected, info } = useShared();
+  const { connected, link, redial, info } = useShared();
   return (
     <div className="page">
       <div className="page-inner">
         <h1 className="page-title">{t.settings.title}</h1>
         <Section title={t.settings.daemon} note={t.settings.daemonNote}>
           <p>
-            {connected ? null : <span className="working-dots" aria-hidden />} {connected ? t.daemon.connected : t.daemon.notConnected}
+            {link.state === "connected" ? (
+              t.daemon.connected
+            ) : link.state === "failed" ? (
+              <>
+                {t.daemon.failed} <span className="mono selectable">{link.message}</span>
+              </>
+            ) : (
+              <>
+                <span className="working-dots" aria-hidden /> {t.daemon.dialling}
+              </>
+            )}
           </p>
+          {link.state === "connected" || link.state === "failed" ? (
+            <Button kind="secondary" small onClick={redial}>
+              {t.daemon.redial}
+            </Button>
+          ) : null}
         </Section>
+        <Accounts connected={connected} />
         <ThemePicker />
         {info ? (
           <Section title={t.settings.folder} note={t.settings.folderNote}>
@@ -23,6 +40,38 @@ export function Settings() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** The accounts this connection may see, as the daemon lists them: the first thing the whole path proves. */
+function Accounts(props: { connected: boolean }) {
+  const held = useAccounts(props.connected);
+  if (!props.connected) return null;
+  return (
+    <Section title={t.settings.accounts} note={t.settings.accountsNote}>
+      {held.ended ? <p className="muted">{held.ended}</p> : null}
+      {held.listed && held.items.length === 0 ? <p className="muted">{t.accounts.none}</p> : null}
+      {held.items.map((a) => (
+        <Card key={a.credential?.identity ?? a.name ?? ""} tone="quiet">
+          <p>
+            <strong>{a.name ?? t.accounts.unnamed}</strong>
+            {a.credential ? (
+              <>
+                {" "}
+                <span className="mono selectable">{a.credential.identity}</span>
+              </>
+            ) : null}{" "}
+            {a.connected ? <Chip tone="ok">{t.accounts.connected}</Chip> : null}
+          </p>
+          {a.description ? <p className="muted">{a.description}</p> : null}
+          {a.roles && a.roles.length > 0 ? (
+            <p className="muted">
+              {t.accounts.roles}: {a.roles.join(", ")}
+            </p>
+          ) : null}
+        </Card>
+      ))}
+    </Section>
   );
 }
 

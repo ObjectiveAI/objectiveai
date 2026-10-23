@@ -18,15 +18,15 @@ export function Rail(props: { focused: string | null }) {
           <div className="rail-head">
             <span>{t.rail.agents}</span>
           </div>
-          {!connected ? <p className="rail-empty muted">{t.daemon.notConnectedShort}</p> : agents.length === 0 ? <p className="rail-empty muted">{t.rail.empty}</p> : null}
+          {!connected ? <p className="rail-empty muted">{t.daemon.notConnectedShort}</p> : agents.listed && agents.items.length === 0 ? <p className="rail-empty muted">{t.rail.empty}</p> : null}
           <ul className="rail-list">
-            {agents.map((a) => {
+            {agents.items.map((a) => {
               const key = agentKey(a);
-              const state = a.active ? "working" : a.lastActive ? "idle" : "never";
+              const state = a.active ? "working" : a.last_active ? "idle" : "never";
               const name = a.name ?? `${t.rail.unnamed} ${a.index}`;
               return (
                 <li key={key}>
-                  <Row className="rail-item" on={here(key)} onClick={() => open({ kind: "agent", template: a.template, index: a.index, name: a.name })} title={a.template}>
+                  <Row className="rail-item" on={here(key)} onClick={() => open({ kind: "agent", template: a.template, index: a.index, name: a.name ?? null })} title={a.template}>
                     <Dot state={state} />
                     <span className="rail-item-name">{name}</span>
                   </Row>
@@ -62,6 +62,10 @@ export function Rail(props: { focused: string | null }) {
       ) : !connected ? (
         <div className="stand-in-line" title={t.daemon.notConnected}>
           <span>{t.daemon.notConnectedShort}</span>
+        </div>
+      ) : agents.ended ? (
+        <div className="stand-in-line" title={agents.ended}>
+          <span>{t.daemon.listEndedShort}</span>
         </div>
       ) : null}
     </nav>

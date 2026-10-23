@@ -6,8 +6,10 @@ import type { TabsSnapshot } from "./bindings/TabsSnapshot";
 import { Rail } from "./components/Rail";
 import { TabStrip } from "./components/TabStrip";
 import { Empty } from "./components/ui";
-import { SharedContext, type AgentRef } from "./lib/context";
-import { app } from "./lib/app";
+import type { WireStatus } from "./bindings/WireStatus";
+import { SharedContext } from "./lib/context";
+import { app, errorText } from "./lib/app";
+import { link, useAgents } from "./lib/daemon";
 import { Conversation } from "./screens/Conversation";
 import { Machines } from "./screens/Machines";
 import { NewAgent } from "./screens/NewAgent";
@@ -17,9 +19,23 @@ import { Views } from "./screens/Views";
 import { t } from "./strings";
 
 export function App() {
-  // The agents, as the daemon lists them: nothing until the page reaches it.
-  const [agents] = useState<AgentRef[]>([]);
-  const [connected] = useState(false);
+  // The link, as Rust last said; asked once at start, and again when a
+  // list ends, since a list that ends may be a connection that went.
+  const [status, setStatus] = useState<WireStatus>({ state: "idle" });
+  const refreshLink = useCallback(() => {
+    link.status().then(setStatus).catch((error) => setStatus({ state: "failed", message: errorText(error) }));
+  }, []);
+  const redial = useCallback(() => {
+    setStatus({ state: "dialling" });
+    link.reset().then(refreshLink).catch((error) => setStatus({ state: "failed", message: errorText(error) }));
+  }, [refreshLink]);
+  useEffect(refreshLink, [refreshLink]);
+  const connected = status.state === "connected";
+  // The agents, as the daemon lists them, held open while the link is up.
+  const agents = useAgents(connected);
+  useEffect(() => {
+    if (agents.ended) refreshLink();
+  }, [agents.ended, refreshLink]);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [tabs, setTabs] = useState<TabsSnapshot>({ generation: 0, tabs: [], focused: null });
 
@@ -101,7 +117,7 @@ export function App() {
     return () => cancelAnimationFrame(frame);
   }, [tabs.focused]);
 
-  const shared = useMemo(() => ({ agents, connected, info, open, close }), [agents, connected, info, open, close]);
+  const shared = useMemo(() => ({ agents, connected, link: status, redial, info, open, close }), [agents, connected, status, redial, info, open, close]);
 
   return (
     <SharedContext.Provider value={shared}>
