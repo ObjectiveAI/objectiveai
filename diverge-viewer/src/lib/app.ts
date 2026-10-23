@@ -32,7 +32,6 @@ export const app = {
   tabClose: (key: string) => invoke<TabsSnapshot>("tabs_close", { key }),
   tabFocus: (key: string) => invoke<TabsSnapshot>("tabs_focus", { key }),
   onTabs: (handler: (snapshot: TabsSnapshot) => void) => listen<TabsSnapshot>("tabs://changed", (event) => handler(event.payload)),
-  onMenu: (handler: (id: string) => void) => listen<string>("menu://action", (e) => handler(e.payload)),
 };
 
 export function errorText(error: unknown): string {

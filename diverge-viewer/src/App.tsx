@@ -60,22 +60,15 @@ export function App() {
   const close = useCallback((key: string) => void app.tabClose(key).then(apply), [apply]);
   const focus = useCallback((key: string) => void app.tabFocus(key).then(apply), [apply]);
 
-  // Keyboard: the menu carries ⌘N/⌘W/⌘, in the app; the page handles
-  // ⌘3–9 (tabs by position) and ⌘[ / ⌘] (previous / next), and stands in
-  // for the menu in the browser preview.
+  // Keyboard: the window has no menu, so the page handles every
+  // shortcut: ⌘N new agent, ⌘W closes a tab (never the window), ⌘,
+  // settings, ⌘3–9 (tabs by position) and ⌘[ / ⌘] (previous / next).
   useEffect(() => {
-    const act = (id: string) => {
-      if (id === "new-agent") open({ kind: "new_agent" });
-      else if (id === "close-tab" && tabs.focused) close(tabs.focused);
-      else if (id === "go-settings") open({ kind: "settings" });
-    };
-    const unlisten = app.onMenu(act);
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
-      const inApp = "__TAURI_INTERNALS__" in window;
-      if (!inApp && e.key === "n") { e.preventDefault(); act("new-agent"); }
-      else if (!inApp && e.key === "w") { e.preventDefault(); act("close-tab"); }
-      else if (!inApp && e.key === ",") { e.preventDefault(); act("go-settings"); }
+      if (e.key === "n") { e.preventDefault(); open({ kind: "new_agent" }); }
+      else if (e.key === "w") { e.preventDefault(); if (tabs.focused) close(tabs.focused); }
+      else if (e.key === ",") { e.preventDefault(); open({ kind: "settings" }); }
       else if (/^[3-9]$/.test(e.key)) {
         const tab = tabs.tabs[Number(e.key) - 3];
         if (tab) { e.preventDefault(); focus(tab.key); }
@@ -88,7 +81,6 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
-      unlisten.then((stop) => stop()).catch(() => {});
     };
   }, [tabs, open, close, focus]);
 

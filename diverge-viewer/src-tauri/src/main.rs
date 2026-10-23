@@ -19,29 +19,17 @@ mod store;
 mod tabs;
 mod view;
 
-use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 use actions::AppState;
 
+/// The app: no menu of its own, so the window has no menu bar; the
+/// page handles every shortcut. On macOS the system's default menu
+/// stays in the system's bar, which is what gives text fields their
+/// Edit keys there.
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
-            // The menu: the OS's own Edit items (text fields need them), and
-            // the app's shortcuts. ⌘W closes a tab, not the window.
-            let app_menu = SubmenuBuilder::new(app, "Diverge").about(None).separator().services().separator().hide().hide_others().show_all().separator().quit().build()?;
-            let edit = SubmenuBuilder::new(app, "Edit").undo().redo().separator().cut().copy().paste().select_all().build()?;
-            let new_agent = MenuItemBuilder::with_id("new-agent", "New Agent").accelerator("CmdOrCtrl+N").build(app)?;
-            let close_tab = MenuItemBuilder::with_id("close-tab", "Close Tab").accelerator("CmdOrCtrl+W").build(app)?;
-            let settings = MenuItemBuilder::with_id("go-settings", "Settings").accelerator("CmdOrCtrl+,").build(app)?;
-            let go = SubmenuBuilder::new(app, "Go").item(&new_agent).separator().item(&settings).separator().item(&close_tab).build()?;
-            let window = SubmenuBuilder::new(app, "Window").minimize().maximize().separator().fullscreen().build()?;
-            let menu = MenuBuilder::new(app).items(&[&app_menu, &edit, &go, &window]).build()?;
-            app.set_menu(menu)?;
-            app.on_menu_event(|app, event| {
-                let _ = app.emit("menu://action", event.id().as_ref().to_owned());
-            });
-
             // The root, as the daemon and the provider find theirs; the
             // document in it; the app's own folder under it.
             let (root, config) = tauri::async_runtime::block_on(async {

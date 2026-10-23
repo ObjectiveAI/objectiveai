@@ -37,10 +37,11 @@ and worktree inherits it.
   else `DIVERGE_CONFIG`, else `~/.diverge`. `<root>/viewer.yaml` says which daemon and as whom (`daemon.address`,
   `daemon.key`; absent = `ws://127.0.0.1:14980/` as `root`); `diverge config viewer get|set|patch` edits it with
   the same type. `<root>/viewer/` holds every file the app keeps. **Setup** is `AppState::open(folder)`
-  (actions.rs); main.rs resolves the root, loads the document, builds the menu.
-- **The menu** (main.rs): ⌘N new agent, ⌘W closes a TAB (never the window), ⌘, settings; the page handles ⌘3–9
-  and ⌘[ ⌘]. ⌘+ ⌘− ⌘0 (Ctrl on Windows and Linux) zoom the whole window: the window's `zoomHotkeysEnabled` and the
-  `core:webview:allow-set-webview-zoom` permission. Keep those keys off the menu (`src/window.test.ts`).
+  (actions.rs); main.rs resolves the root and loads the document.
+- **No menu bar** (removed 2026-10-23 at the owner's word): main.rs builds no menu, so the window has no bar. The
+  page (App.tsx) handles every shortcut: ⌘N new agent, ⌘W closes a TAB (never the window), ⌘, settings, ⌘3–9 and
+  ⌘[ ⌘]. ⌘+ ⌘− ⌘0 (Ctrl on Windows and Linux) zoom the whole window: the window's `zoomHotkeysEnabled` and the
+  `core:webview:allow-set-webview-zoom` permission (`src/window.test.ts`).
 - Never edit the SDK's crates or packages from here; a gap in them is a change there, on its own commit.
 
 ## Product laws
