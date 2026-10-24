@@ -9,7 +9,7 @@ impl Identities<'_> {
     /// session begun with the old password does not outlive it. The
     /// answer is whether there was such an identity.
     pub async fn password(&self, subject: &str, password_hash: &str) -> Result<bool, Error> {
-        let mut transaction = self.store.pool.begin().await?;
+        let mut transaction = self.store.write().await?;
         let changed = sqlx::query("update identities set password_hash = ? where subject = ?")
             .bind(password_hash)
             .bind(subject)

@@ -9,7 +9,7 @@ impl Clients<'_> {
     /// redirect URIs are written in one transaction.
     pub async fn add(&self, client: &New) -> Result<(), Error> {
         client.check()?;
-        let mut transaction = self.store.pool.begin().await?;
+        let mut transaction = self.store.write().await?;
         let added = sqlx::query("insert into clients (id, kind, secret_hash, made) values (?, ?, ?, ?)")
             .bind(&client.id)
             .bind(client.kind.name())

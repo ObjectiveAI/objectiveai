@@ -71,7 +71,7 @@ create table if not exists device_codes (
     state     text not null check (state in ('pending', 'approved', 'denied')),
     subject   text references identities (subject) on delete cascade,
     auth_time integer,
-    check ((state = 'pending') = (subject is null)),
+    check ((state = 'approved') = (subject is not null)),
     check ((subject is null) = (auth_time is null))
 );
 create table if not exists refresh_chains (
