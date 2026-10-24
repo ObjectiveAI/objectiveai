@@ -1,5 +1,6 @@
 //! Answering a write, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use futures_util::StreamExt as _;
 
 use diverge_sdk::provider::endpoints::volumes::write::server::channel_request;
@@ -62,7 +63,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     capabilities: &Capabilities,
 ) where
@@ -95,7 +96,7 @@ pub async fn handle<M>(
 async fn write<M>(
     scope: &ScopeHandle,
     manager: &M,
-    client_identity: &str,
+    client_identity: &Identity,
     request: &request::Frame,
 ) -> Result<(), response::Frame>
 where

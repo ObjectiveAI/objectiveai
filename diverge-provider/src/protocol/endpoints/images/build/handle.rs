@@ -1,6 +1,7 @@
 //! Answering a build, from a scope, the image manager and the volume
 //! manager.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use futures_util::StreamExt as _;
@@ -54,7 +55,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 pub async fn handle<M, V>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     volume_manager: &V,
     changes: Arc<Changes>,
@@ -82,7 +83,7 @@ pub async fn handle<M, V>(
         },
     };
     let context = request.context.as_ref().map(|context| Context {
-        client_identity: client_identity.to_string(),
+        client_identity: client_identity.clone(),
         volume_name: context.volume_name.clone(),
         volume_relative_path: context.volume_relative_path.clone(),
     });
@@ -130,7 +131,7 @@ pub async fn handle<M, V>(
 /// the volume.
 async fn hold<V>(
     volume_manager: &V,
-    client_identity: &str,
+    client_identity: &Identity,
     context: &request::Context,
     capabilities: &Capabilities,
 ) -> Result<V::Volume, response::Frame>

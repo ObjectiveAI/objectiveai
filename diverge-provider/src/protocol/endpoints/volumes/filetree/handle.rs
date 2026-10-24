@@ -1,5 +1,6 @@
 //! Answering a filetree, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use diverge_sdk::provider::endpoints::volumes::filetree::server::response;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::provider::endpoints::volumes::filetree::client::request;
@@ -49,7 +50,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     capabilities: &Capabilities,
 ) where
@@ -81,7 +82,7 @@ pub async fn handle<M>(
 /// came from.
 async fn filetree<M>(
     manager: &M,
-    client_identity: &str,
+    client_identity: &Identity,
     request: &request::Frame,
 ) -> Result<Vec<diverge_sdk::shared::filetree::response::Node>, response::Frame>
 where

@@ -1,5 +1,6 @@
 //! Answering an edit, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use diverge_sdk::provider::endpoints::volumes::edit::server::response;
@@ -60,7 +61,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     changes: Arc<Changes>,
     capabilities: &Capabilities,
@@ -110,7 +111,7 @@ pub async fn handle<M>(
 /// volume is known to be the caller's and before the hold is asked.
 async fn edit<M>(
     manager: &M,
-    client_identity: &str,
+    client_identity: &Identity,
     name: &str,
     change: request::Change,
     mode_unsupported: bool,

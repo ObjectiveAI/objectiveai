@@ -1,5 +1,6 @@
 //! Putting a container somewhere.
 
+use diverge_sdk::shared::Identity;
 use std::future::Future;
 
 use super::caller::Caller;
@@ -248,7 +249,7 @@ pub trait ContainerDeployer: Send + Sync {
     /// nothing about the future it returns.
     fn deploy(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
         deployment: &Deployment,
         image: &Image,
         caller: &Caller,

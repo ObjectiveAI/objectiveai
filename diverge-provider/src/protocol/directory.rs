@@ -1,5 +1,6 @@
 //! The containers a provider is running, by id.
 
+use diverge_sdk::shared::Identity;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -49,7 +50,7 @@ pub struct Directory {
 /// One running container.
 struct Entry {
     /// The identity running the container.
-    runner: Arc<str>,
+    runner: Arc<Identity>,
     proxy: Handle,
     ended: watch::Sender<bool>,
 }
@@ -80,7 +81,7 @@ impl Directory {
     /// The container is running, for `runner`: from now until
     /// [`remove`](Self::remove), its runner's serves and transfers
     /// find it.
-    pub(crate) async fn insert(&self, id: String, runner: Arc<str>, proxy: Handle) {
+    pub(crate) async fn insert(&self, id: String, runner: Arc<Identity>, proxy: Handle) {
         let (ended, _) = watch::channel(false);
         let mut entries = self.entries.lock().await;
         entries.insert(id, Entry { runner, proxy, ended });
@@ -103,7 +104,7 @@ impl Directory {
     /// whether an id exists is not told to a caller that may not reach
     /// it. What a FUSE serve of the container asks, and what a transfer into
     /// it asks.
-    pub async fn runs(&self, id: &str, identity: &str) -> bool {
+    pub async fn runs(&self, id: &str, identity: &Identity) -> bool {
         self.entries
             .lock()
             .await

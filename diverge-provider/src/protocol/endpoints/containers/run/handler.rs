@@ -1,5 +1,6 @@
 //! One run, from its request to its finish.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use serde_json::Value;
@@ -62,7 +63,7 @@ use diverge_sdk::shared::error::Error;
 ///    volumes given back, every task ended, and the finish.
 pub(crate) async fn run<R, D, G, V>(
     scope: ScopeHandle,
-    client_identity: &str,
+    client_identity: &Identity,
     request: &Container,
     arguments: Value,
     deployer: &D,
@@ -122,7 +123,7 @@ pub(crate) async fn run<R, D, G, V>(
         }
     };
 
-    let identity: Arc<str> = Arc::from(client_identity);
+    let identity: Arc<Identity> = Arc::new(client_identity.clone());
     let prepared = match setup::prepare::<R, D, G, V::Volume>(&scope, &identity, request, arguments, deployer, registry, &held, &directory)
         .await
     {

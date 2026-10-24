@@ -1,6 +1,7 @@
 //! What a provider holds of an image for a caller, served to the
 //! caller's own asks.
 
+use diverge_sdk::shared::Identity;
 use std::future::Future;
 
 use bytes::Bytes;
@@ -41,15 +42,15 @@ pub trait OciStore: Send + Sync {
     /// Whether the image under `digest` is held for the caller, and
     /// the repository path it is held under, which a registry serving
     /// the caller would serve it as; `None` for one not held.
-    fn holds(&self, client_identity: &str, digest: &str) -> impl Future<Output = Option<String>> + Send;
+    fn holds(&self, client_identity: &Identity, digest: &str) -> impl Future<Output = Option<String>> + Send;
 
     /// The manifest under `digest`, held for the caller, or `None`.
-    fn manifest(&self, client_identity: &str, digest: &str) -> impl Future<Output = Option<Manifest>> + Send;
+    fn manifest(&self, client_identity: &Identity, digest: &str) -> impl Future<Output = Option<Manifest>> + Send;
 
     /// A blob's pieces, in order. Piece sizes are the store's; the
     /// handler re-splits at [`CHUNK_SIZE`](diverge_sdk::CHUNK_SIZE).
     type Blob: Stream<Item = Bytes> + Send + 'static;
 
     /// The blob under `digest`, held for the caller, or `None`.
-    fn blob(&self, client_identity: &str, digest: &str) -> impl Future<Output = Option<Self::Blob>> + Send;
+    fn blob(&self, client_identity: &Identity, digest: &str) -> impl Future<Output = Option<Self::Blob>> + Send;
 }

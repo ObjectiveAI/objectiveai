@@ -5,15 +5,19 @@ use std::pin::pin;
 use std::sync::Arc;
 
 use diverge_sdk::file_lock;
-use diverge_sdk::keyring::Keyring;
+use diverge_sdk::identities::{KeySets, Own};
 use futures_util::future::{self, Either};
 use tokio::sync::watch;
 use tokio::task::JoinSet;
 
 use crate::config::Config;
-use crate::host::keys::Keys;
+use crate::host::authenticator::ProviderAuthenticator;
 
 use super::{Error, Provider, dial, listen};
+
+/// How long an issuer's key set is held where its answer names no
+/// `max-age`.
+const KEY_SETS: std::time::Duration = std::time::Duration::from_secs(15 * 60);
 
 /// Run the provider on `config`, the file at `root`,
 /// under `<root>/provider/`, until Ctrl-C or, on Unix, SIGTERM — or
@@ -24,11 +28,11 @@ use super::{Error, Provider, dial, listen};
 /// at once, before anything on disk is swept or started, naming the
 /// holder's id where it left one; a lock file a dead provider left is
 /// taken like any other, since the kernel let its lock go with it.
-/// The keys the document names are read from the root's keyring, and
-/// an entry it does not hold stops the start.
+/// The provider's own identities are opened from the root's
+/// identities, and an issuer's keys are cached for every handshake.
 /// The stop is made, and the pieces are built around it by
 /// [`Provider::start`]; one task per
-/// peer of `clients.unbrokered` dials; the port is listened on until
+/// peer of `clients` dials; the port is listened on until
 /// the signal or the route sends the stop, and then, in order: the
 /// listener drains; every session, accepted or dialled, is dropped on
 /// the same stop, so every socket closes; every dial task is ended;
@@ -48,11 +52,12 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     held.write(std::process::id().to_string().into_bytes()).await.map_err(Error::Lock)?;
     let dir = root.join("provider");
     let port = config.port;
-    let peers = config.clients.as_ref().and_then(|clients| clients.unbrokered.clone()).unwrap_or_default();
-    let keyring = Keyring::open(&root).await.map_err(Error::Keyring)?;
-    let keys = Arc::new(Keys::resolve(&config, &keyring).await.map_err(Error::Keys)?);
+    let peers = config.clients.clone();
+    let key_sets = KeySets::new(KEY_SETS).map_err(Error::KeySets)?;
+    let own = Own::new(&root, config.identities.clone(), key_sets).await.map_err(Error::Identities)?;
+    let authenticator = Arc::new(ProviderAuthenticator::new(own, config.accepted.clone()));
     let (stop, _) = watch::channel(false);
-    let provider = Arc::new(Provider::start(config, dir, stop, keys).await?);
+    let provider = Arc::new(Provider::start(config, dir, stop, authenticator).await?);
     let mut dials = JoinSet::new();
     for peer in peers {
         dials.spawn(dial(Arc::clone(&provider), peer));

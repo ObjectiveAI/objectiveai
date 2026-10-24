@@ -1,5 +1,6 @@
 //! The store that serves the caller's pool.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use crate::host::image_manager::{Pieces, Store, pool};
@@ -27,7 +28,7 @@ impl oci_store::OciStore for OciStore {
     /// Held where the caller built an image of that digest: under
     /// `<hash>/<name>`, the repository path the provider's own
     /// registry serves it at.
-    async fn holds(&self, client_identity: &str, digest: &str) -> Option<String> {
+    async fn holds(&self, client_identity: &Identity, digest: &str) -> Option<String> {
         let store = self.store.as_ref()?;
         let (name, _) = store.find_digest(client_identity, digest).await?;
         Some(format!("{}/{name}", Store::hash(client_identity)))
@@ -36,7 +37,7 @@ impl oci_store::OciStore for OciStore {
     /// The manifest of the caller's image of that digest, from its
     /// pool: the record found first, so that a manifest is served
     /// under a digest the caller built and no other.
-    async fn manifest(&self, client_identity: &str, digest: &str) -> Option<Manifest> {
+    async fn manifest(&self, client_identity: &Identity, digest: &str) -> Option<Manifest> {
         let store = self.store.as_ref()?;
         store.find_digest(client_identity, digest).await?;
         let parsed = Digest::parse(digest)?;
@@ -47,7 +48,7 @@ impl oci_store::OciStore for OciStore {
 
     /// The blob of that digest in the caller's pool, and in no other
     /// identity's.
-    async fn blob(&self, client_identity: &str, digest: &str) -> Option<Pieces> {
+    async fn blob(&self, client_identity: &Identity, digest: &str) -> Option<Pieces> {
         let store = self.store.as_ref()?;
         let parsed = Digest::parse(digest)?;
         pool::blob(&store.pool_dir(client_identity), &parsed).await

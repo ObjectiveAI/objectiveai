@@ -1,5 +1,6 @@
 //! The store: the pools, the records, and the names.
 
+use diverge_sdk::shared::Identity;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -71,12 +72,14 @@ impl Store {
     }
 
     /// The identity as its pool is named: sixteen hexadecimal
-    /// characters of its SHA-256, so that it is one segment of a
+    /// characters of the SHA-256 of its issuer, a NUL and its subject,
+    /// so that it is one segment of a
     /// repository path and one directory's name whatever the identity
     /// is, and so that the identity itself is written nowhere a pull
     /// could read it.
-    pub fn hash(client_identity: &str) -> String {
-        hex::encode(&Sha256::digest(client_identity.as_bytes())[..8])
+    pub fn hash(client_identity: &Identity) -> String {
+        let pair = format!("{}\0{}", client_identity.issuer, client_identity.subject);
+        hex::encode(&Sha256::digest(pair.as_bytes())[..8])
     }
 
     /// Whether `text` is a pool's name as [`hash`](Self::hash) makes
@@ -86,7 +89,7 @@ impl Store {
     }
 
     /// Where the identity's pool is: `<images>/<hash>/`.
-    pub fn pool_dir(&self, client_identity: &str) -> PathBuf {
+    pub fn pool_dir(&self, client_identity: &Identity) -> PathBuf {
         self.pool_dir_of(&Store::hash(client_identity))
     }
 
@@ -101,13 +104,13 @@ impl Store {
     /// `127.0.0.1:<port>/<hash>/<name>`, the registry's repository
     /// being the pool. Every name under [`CLIENT_PREFIX`](podman::CLIENT_PREFIX)
     /// is one the cache's lookup by digest passes over.
-    pub fn reference(&self, port: u16, client_identity: &str, name: &str) -> String {
+    pub fn reference(&self, port: u16, client_identity: &Identity, name: &str) -> String {
         format!("{}{port}/{}/{name}", podman::CLIENT_PREFIX, Store::hash(client_identity))
     }
 
     /// The identity's lock, for a build or a delete of one of its
     /// names.
-    pub fn namespace(&self, client_identity: &str) -> Arc<Mutex<()>> {
+    pub fn namespace(&self, client_identity: &Identity) -> Arc<Mutex<()>> {
         Arc::clone(
             &self
                 .namespaces
@@ -117,18 +120,18 @@ impl Store {
     }
 
     /// Where the identity's records are, `<pool>/images/`.
-    fn records_dir(&self, client_identity: &str) -> PathBuf {
+    fn records_dir(&self, client_identity: &Identity) -> PathBuf {
         self.pool_dir(client_identity).join("images")
     }
 
     /// Where one record is.
-    fn record_path(&self, client_identity: &str, name: &str) -> PathBuf {
+    fn record_path(&self, client_identity: &Identity, name: &str) -> PathBuf {
         self.records_dir(client_identity).join(format!("{name}.json"))
     }
 
     /// The record under `name` for the identity, or `None` where
     /// there is none.
-    pub async fn read(&self, client_identity: &str, name: &str) -> Result<Option<Meta>, Error> {
+    pub async fn read(&self, client_identity: &Identity, name: &str) -> Result<Option<Meta>, Error> {
         match fs::read(self.record_path(client_identity, name)).await {
             Ok(bytes) => Ok(Some(serde_json::from_slice(&bytes)?)),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -138,7 +141,7 @@ impl Store {
 
     /// The record written, whole or not at all: to a sibling, then
     /// renamed over.
-    pub async fn write(&self, client_identity: &str, name: &str, meta: &Meta) -> Result<(), Error> {
+    pub async fn write(&self, client_identity: &Identity, name: &str, meta: &Meta) -> Result<(), Error> {
         fs::create_dir_all(self.records_dir(client_identity)).await?;
         let path = self.record_path(client_identity, name);
         let temporary = path.with_extension("tmp");
@@ -148,7 +151,7 @@ impl Store {
     }
 
     /// The record removed; one already gone is removed.
-    pub async fn remove(&self, client_identity: &str, name: &str) -> Result<(), Error> {
+    pub async fn remove(&self, client_identity: &Identity, name: &str) -> Result<(), Error> {
         match fs::remove_file(self.record_path(client_identity, name)).await {
             Ok(()) => Ok(()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -159,7 +162,7 @@ impl Store {
     /// Every record the identity has, by name, in the directory's
     /// order. An identity with no directory has none. A record that
     /// will not parse is the error.
-    async fn records(&self, client_identity: &str) -> Result<Vec<(String, Meta)>, Error> {
+    async fn records(&self, client_identity: &Identity) -> Result<Vec<(String, Meta)>, Error> {
         let mut entries = match fs::read_dir(self.records_dir(client_identity)).await {
             Ok(entries) => entries,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
@@ -183,7 +186,7 @@ impl Store {
     }
 
     /// Every image the identity has, as a listing reports them.
-    pub async fn list(&self, client_identity: &str) -> Result<Vec<Image>, Error> {
+    pub async fn list(&self, client_identity: &Identity) -> Result<Vec<Image>, Error> {
         Ok(self
             .records(client_identity)
             .await?
@@ -199,7 +202,7 @@ impl Store {
 
     /// The identity's image under `digest`, if it has one: its name
     /// and its record. A store that cannot be read has none.
-    pub async fn find_digest(&self, client_identity: &str, digest: &str) -> Option<(String, Meta)> {
+    pub async fn find_digest(&self, client_identity: &Identity, digest: &str) -> Option<(String, Meta)> {
         self.records(client_identity)
             .await
             .ok()?
@@ -213,7 +216,7 @@ impl Store {
     /// records name and nothing else. Under the identity's lock, so
     /// no build of the identity has a blob in the pool that its
     /// record does not name yet.
-    pub async fn prune(&self, client_identity: &str) -> Result<(), Error> {
+    pub async fn prune(&self, client_identity: &Identity) -> Result<(), Error> {
         let named: HashSet<String> = self
             .records(client_identity)
             .await?

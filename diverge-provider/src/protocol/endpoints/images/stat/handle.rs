@@ -1,5 +1,6 @@
 //! Answering a stat, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use diverge_sdk::provider::endpoints::images::refusal;
 use diverge_sdk::provider::endpoints::images::stat::client::request;
 use diverge_sdk::provider::endpoints::images::stat::server::response;
@@ -21,7 +22,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     capabilities: &Capabilities,
 ) where

@@ -1,5 +1,6 @@
 //! Relaying one daemon connection, from a scope and the acceptors.
 
+use diverge_sdk::shared::Identity;
 use std::net::IpAddr;
 use std::sync::Arc;
 
@@ -49,7 +50,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///
 /// [`server::handle`](crate::protocol::handle::handle) reads every
 /// request once to dispatch it, and hands the result here.
-pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity: &str, address: IpAddr, acceptors: Arc<Acceptors>) {
+pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity: &Identity, address: IpAddr, acceptors: Arc<Acceptors>) {
     let scope = Arc::new(scope);
     let Some(accepting) = acceptors.lookup(&request.daemon).await else {
         refuse(&scope, missing()).await;
@@ -58,9 +59,8 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
     let (connection_id, half) = accepting.open().await;
     let announced = announce::Frame(Connection {
         connection_id,
-        identity: client_identity.to_string(),
+        identity: client_identity.clone(),
         address,
-        mode: request.mode,
     });
     let Some(payload) = encoded(&announced) else {
         accepting.forget(connection_id).await;

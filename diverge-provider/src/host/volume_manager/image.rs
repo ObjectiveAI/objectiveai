@@ -11,6 +11,7 @@
 //! touches the file as a file — making it, sizing it, removing it —
 //! is `tokio::fs`.
 
+use diverge_sdk::shared;
 use std::io::{self, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -516,6 +517,6 @@ fn inside(components: &[String]) -> String {
 }
 
 /// Where a stored volume's image is: `<store>/<identity>/<name>`.
-pub fn image_path(store: &Path, client_identity: &str, name: &str) -> PathBuf {
-    store.join(client_identity).join(name)
+pub fn image_path(store: &Path, client_identity: &shared::Identity, name: &str) -> PathBuf {
+    store.join(super::directory(client_identity)).join(name)
 }

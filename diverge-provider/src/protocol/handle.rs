@@ -7,7 +7,6 @@ use std::sync::Arc;
 use futures_util::StreamExt as _;
 
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
-use diverge_sdk::wire::server::authorization::{self, Authorization};
 use super::acceptors::Acceptors;
 use super::capacity_reporter::CapacityReporter;
 use super::container_deployer::ContainerDeployer;
@@ -19,12 +18,11 @@ use super::oci_store::OciStore;
 use super::image_registry::ImageRegistry;
 use diverge_sdk::wire::server::received::Received;
 use diverge_sdk::wire::server::session::Session;
-use diverge_sdk::wire::server::unbrokered_authorizer::UnbrokeredAuthorizer;
 use super::volume_manager::VolumeManager;
+use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::decode::Decode;
 use crate::protocol::endpoints;
 use diverge_sdk::provider::endpoints::ClientRequest;
-use diverge_sdk::wire::frame::auth;
 use diverge_sdk::shared::error::Error;
 
 /// Serve a connection: every scope its client opens, for as long as it
@@ -39,13 +37,12 @@ use diverge_sdk::shared::error::Error;
 ///
 /// # What the arguments are
 ///
-/// [`Authorization`] is which side of this connection authenticates,
-/// and with what — see the handshake below, which is where the
-/// `client_identity` every handler receives now comes from. `address`
-/// is the peer the socket came from: it is handed to the
-/// [`UnbrokeredAuthorizer`] beside the credential, and it rides the
-/// announcement of a daemon connection to its acceptor. It is a signal
-/// rather than an identity.
+/// `client_identity` is the other end's [`Identity`], as the
+/// connection's handshake verified it — made before the session, in
+/// the host's accept or dial — and every handler receives it. `address`
+/// is the peer the socket came from: it rides the announcement of a
+/// daemon connection to its acceptor. It is a signal rather than an
+/// identity.
 ///
 /// The rest are what the provider supplies, shared because scopes run
 /// concurrently and the traits — returning `impl Future` — cannot be
@@ -62,65 +59,17 @@ use diverge_sdk::shared::error::Error;
 /// [`Acceptors`], one per provider likewise, through which a daemon
 /// connecting on this connection finds one accepting on any other.
 ///
-/// # The handshake comes first
+/// # The handshake is done before
 ///
-/// On an [`Outgoing`](Authorization::Outgoing) connection this end
-/// dialled, so this end authenticates: the credential goes out as the
-/// connection's first frame, before anything is read — nothing may
-/// precede it, by the auth frame's own rule — and the identity was
-/// carried in beside it, being a fact of the dial.
-///
-/// On an [`Incoming`](Authorization::Incoming) connection the peer
-/// dialled, so the peer speaks first, and the first thing it says must
-/// be who it is. A first frame that is not the credential, a
-/// credential that will not decode, and a credential the authorizer
-/// refuses are all [`Err`] — and all of them earn the peer NOTHING on
-/// the wire. A request from an unauthenticated peer is dropped with
-/// its scope unfinished, deliberately breaking the finish-always rule
-/// every handler obeys: a peer that has not authenticated cannot make
-/// this end compose a reply, and a finish frame is a reply. The close
-/// that follows the provider dropping everything is the whole answer,
-/// which is the no-answer rule the auth frame has documented from the
-/// start.
-///
-/// After the handshake a credential is never legitimate again, on
-/// either variant — a connection has one, presented by the side that
-/// dialled. One arriving anyway is [`HandleError::InvalidAuthorize`]:
-/// serving stops, the teardown below runs exactly as it would for the
-/// connection ending, and the error says why it ran early.
-///
-/// # Every scope runs in its own task
-///
-/// Not a preference — polling the [`Session`] is what runs the
-/// connection, so work done inline starves every scope of the frames
-/// that would feed it, including its own. The session's documentation
-/// makes the rule absolute, and this is the function that obeys it.
-///
-/// # A request nobody can read is finished, with nothing
-///
-/// [`ClientRequest::decode`] cannot fail; what it cannot read it
-/// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
-/// one is a finish with nothing in front. There is no other honest
-/// answer — twenty-four endpoints have twenty-four error vocabularies, and an
-/// invalid request names none of them — and a bare finish is already
-/// what the wire means by a request that could not be served. Every
-/// executor reads it as its own "unanswered".
-///
-/// # The ending drains, and never aborts
-///
-/// When the session yields [`None`] the connection is gone, and this
-/// DROPS the session — which severs every open scope's feeds, so the
-/// handlers still running find their receivers closed and wind down
-/// through their own teardown: containers stopped, registries cleaned,
-/// finishes sent into a socket that is no longer listening, harmlessly.
-///
-/// Then it waits for all of them. Aborting instead would tear through
-/// every one of those teardowns — and it would end runs a caller had
-/// already paid for, which is the wrong way round: the work was real,
-/// and a caller that leaves does not un-spend it.
-pub async fn handle<D, V, I, M, O, U, R, C>(
+/// The connection reaching here is past its
+/// [`handshake`](diverge_sdk::wire::handshake): each end's token, the
+/// connector's first, verified. A token arriving after it is
+/// [`HandleError::InvalidAuthorize`]: serving stops, the teardown below
+/// runs exactly as it would for the connection ending, and the error
+/// says why it ran early.
+pub async fn handle<D, V, I, M, O, R, C>(
     mut session: Session,
-    authorization: Authorization<U>,
+    client_identity: Arc<Identity>,
     address: IpAddr,
     deployer: Arc<D>,
     volume_manager: Arc<V>,
@@ -134,7 +83,7 @@ pub async fn handle<D, V, I, M, O, U, R, C>(
     image_changes: Arc<Changes>,
     acceptors: Arc<Acceptors>,
     capabilities: Arc<Capabilities>,
-) -> Result<(), HandleError<U::Error>>
+) -> Result<(), HandleError>
 where
     D: ContainerDeployer + 'static,
     D::Error: Into<Error>,
@@ -145,59 +94,14 @@ where
     M: ImageManager + 'static,
     M::Error: Into<Error>,
     O: OciStore + 'static,
-    U: UnbrokeredAuthorizer,
     R: ImageRegistry + 'static,
     R::Error: Into<Error>,
     C: CapacityReporter + 'static,
 {
-    // The handshake, before anything else. What comes out of it is the
-    // identity everything downstream receives — shared rather than
-    // cloned per scope, because every handler borrows it for the
-    // length of a call and a scope lives as long as it lives.
-    let client_identity: Arc<str> = match authorization {
-        Authorization::Outgoing { auth, client_identity } => {
-            // This end dialled, so this end authenticates, and the
-            // credential is the connection's first frame — sent before
-            // the first read, because nothing may precede it.
-            match &auth {
-                authorization::Auth::Unbrokered(credential) => {
-                    session.send_auth(auth::Auth::Unbrokered(credential)).await;
-                }
-            }
-            client_identity.into()
-        }
-        Authorization::Incoming { unbrokered } => {
-            // The peer dialled, so the peer speaks first, and the
-            // first thing it says must be who it is.
-            let Some(received) = session.next().await else {
-                // Gone before saying anything. Nothing was judged and
-                // nothing was served, which is the ordinary ending
-                // everywhere in this crate.
-                return Ok(());
-            };
-            let Received::Auth(payload) = received else {
-                // A request from a peer that never authenticated. The
-                // scope inside it drops UNFINISHED: a peer that has
-                // not authenticated cannot make this end compose a
-                // reply, and a finish frame is a reply.
-                return Err(HandleError::Unauthenticated);
-            };
-            let credential = match auth::Auth::decode(&payload) {
-                Ok(auth::Auth::Unbrokered(credential)) => credential,
-                Err(error) => return Err(HandleError::Auth(error)),
-            };
-            match unbrokered.authorize(credential, address).await {
-                Ok(identity) => identity.into(),
-                Err(error) => {
-                    return Err(HandleError::Unauthorized(error));
-                }
-            }
-        }
-    };
     // Owned here, so the drain at the bottom is over everything this
     // started and nothing else.
     let mut scopes = tokio::task::JoinSet::new();
-    // How the loop ended: the connection going is [`Ok`], a credential
+    // How the loop ended: the connection going is [`Ok`], a token
     // arriving after the handshake is not — and both endings run the
     // same teardown below, which is why this is a variable rather than
     // two exits.
@@ -210,11 +114,10 @@ where
 
         let (payload, scope) = match received {
             Received::Request(payload, scope) => (payload, scope),
-            // A connection has ONE credential, presented by the side
-            // that dialled, before everything. A second one — or a
-            // first on a connection where this end dialled — is a peer
-            // disagreeing with this one about what the handshake is,
-            // and nothing after that disagreement is worth serving.
+            // Each end sends ONE token, in the handshake that was done
+            // before this loop. Another is a peer disagreeing with this
+            // one about what the handshake is, and nothing after that
+            // disagreement is worth serving.
             Received::Auth(_) => {
                 outcome = Err(HandleError::InvalidAuthorize);
                 break;
@@ -474,7 +377,7 @@ where
     }
 
     // The connection is gone — or serving stopped early, over a
-    // credential that had no business arriving. Either way, dropping
+    // token that had no business arriving. Either way, dropping
     // the session is what tells every scope still being served: their
     // feeds close, and the handlers wind down on their own, containers
     // stopped and registries cleaned. The drain is never an abort, and
@@ -485,85 +388,30 @@ where
     outcome
 }
 
-/// A connection that was never served, or that stopped being.
+/// A connection that stopped being served early.
 ///
-/// What [`handle`] returns instead of `()`, and every variant is about
-/// the handshake — once a connection is authenticated, nothing that
-/// happens on it is an error HERE, because every failure after that
-/// point belongs to some scope and travels inside it.
-///
-/// # None of this reaches the peer
-///
-/// The auth frame's rule: an accepted credential is followed by the
-/// connection simply working, a rejected one by a close, and a peer
-/// that has not authenticated cannot make this end compose a reply —
-/// no bytes to amplify, no answer to read a reason out of. These
-/// variants are for the PROVIDER, which is the party that drops the
-/// connection when this returns and may want its log to say why.
+/// What [`handle`] returns instead of `()`. Once a connection is past
+/// its handshake, nothing that happens on it is an error HERE but a
+/// token arriving again, because every other failure belongs to some
+/// scope and travels inside it. None of this reaches the peer: it is
+/// for the provider, which drops the connection when this returns and
+/// may want its log to say why.
 #[derive(Debug)]
-pub enum HandleError<E> {
-    /// The peer's first frame was not its credential.
+pub enum HandleError {
+    /// A token arrived after the handshake.
     ///
-    /// Whatever it was — most likely a request, whose scope was
-    /// dropped unfinished, see [`handle`] — the peer skipped the
-    /// handshake, and nothing it sends is worth reading.
-    Unauthenticated,
-    /// The credential would not decode.
-    ///
-    /// A mode this version does not know, or a credential that was not
-    /// UTF-8. Not a refusal — nothing was ever judged — but the same
-    /// close, because a credential this end cannot read authenticates
-    /// nobody.
-    Auth(auth::AuthError),
-    /// The authorizer refused the credential, and this is its reason.
-    ///
-    /// The one variant that is a decision rather than a defect, in the
-    /// provider's own vocabulary — see
-    /// [`UnbrokeredAuthorizer::Error`].
-    Unauthorized(E),
-    /// A credential arrived after the handshake.
-    ///
-    /// A connection has one, presented by the side that dialled,
-    /// before everything else. A peer that presents another — or
-    /// presents one at all on a connection this end dialled — is
-    /// disagreeing about what the handshake is, and serving stopped
-    /// where the disagreement started.
+    /// Each end sends one, before everything else. A peer that presents
+    /// another is disagreeing about what the handshake is, and serving
+    /// stopped where the disagreement started.
     InvalidAuthorize,
 }
 
-impl<E> fmt::Display for HandleError<E> {
+impl fmt::Display for HandleError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            HandleError::Unauthenticated => {
-                f.write_str("the peer's first frame was not its credential")
-            }
-            HandleError::Auth(error) => {
-                write!(f, "the credential could not be read: {error}")
-            }
-            HandleError::Unauthorized(_) => {
-                f.write_str("the authorizer refused the credential")
-            }
-            HandleError::InvalidAuthorize => {
-                f.write_str("a credential arrived after the handshake")
-            }
+            HandleError::InvalidAuthorize => f.write_str("a token arrived after the handshake"),
         }
     }
 }
 
-/// [`Unauthorized`](HandleError::Unauthorized) is not the source, even
-/// though it wraps the reason: `E` is unbounded, like every provider
-/// error on this half, and a bound here would be charged to every
-/// implementation for a `source` chain nobody reads.
-impl<E> std::error::Error for HandleError<E>
-where
-    E: fmt::Debug,
-{
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            HandleError::Auth(error) => Some(error),
-            HandleError::Unauthenticated
-            | HandleError::Unauthorized(_)
-            | HandleError::InvalidAuthorize => None,
-        }
-    }
-}
+impl std::error::Error for HandleError {}

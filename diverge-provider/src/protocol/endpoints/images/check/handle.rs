@@ -1,6 +1,7 @@
 //! Answering an image check, from a scope and a checker.
 
 
+use diverge_sdk::shared::Identity;
 use diverge_sdk::provider::endpoints::images::check::server::response;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::provider::endpoints::images::check::client::request;
@@ -43,7 +44,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle<C>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     checker: &C,
     capabilities: &Capabilities,
 ) where

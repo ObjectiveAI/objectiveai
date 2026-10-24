@@ -1,5 +1,6 @@
 //! How much a caller may still use, asked of the provider.
 
+use diverge_sdk::shared::Identity;
 use std::future::Future;
 
 use diverge_sdk::provider::endpoints::capacity::server::response::Frame;
@@ -39,5 +40,5 @@ pub trait CapacityReporter: Send + Sync {
     type Error;
 
     /// The four numbers, for `client_identity`, as of now.
-    fn capacity(&self, client_identity: &str) -> impl Future<Output = Result<Frame, Self::Error>> + Send;
+    fn capacity(&self, client_identity: &Identity) -> impl Future<Output = Result<Frame, Self::Error>> + Send;
 }

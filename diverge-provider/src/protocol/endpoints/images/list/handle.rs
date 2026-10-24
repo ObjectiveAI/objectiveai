@@ -1,6 +1,7 @@
 //! Answering a listing, and keeping it answered, from a scope, a
 //! manager and the word of changes.
 
+use diverge_sdk::shared::Identity;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -48,7 +49,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 /// go, and is not sent; the listing goes on without it.
 pub async fn handle<M>(
     scope: ScopeHandle,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     changes: Arc<Changes>,
     capabilities: &Capabilities,

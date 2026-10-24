@@ -1,5 +1,6 @@
 //! Answering a container FUSE serve, from a scope and the directory.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -59,7 +60,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     directory: Arc<Directory>,
 ) {
     let Some(attached) = directory.lookup(&request.id).await else {

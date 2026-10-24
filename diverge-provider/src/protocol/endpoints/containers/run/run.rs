@@ -1,5 +1,6 @@
 //! What every task of a run shares.
 
+use diverge_sdk::shared::Identity;
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
@@ -28,7 +29,7 @@ pub(crate) struct Run {
     pub scope: Arc<ScopeHandle>,
     /// Whose scope this is: the identity of the caller that opened it,
     /// which a transfer's rule is checked against.
-    pub identity: Arc<str>,
+    pub identity: Arc<Identity>,
     /// Every container the provider is running, for a transfer to
     /// find the other one and to ask who may reach it.
     pub directory: Arc<Directory>,
@@ -71,7 +72,7 @@ pub(crate) struct Run {
 impl Run {
     pub(crate) fn new(
         scope: Arc<ScopeHandle>,
-        identity: Arc<str>,
+        identity: Arc<Identity>,
         directory: Arc<Directory>,
         proxy: Handle,
         begin: Begin,

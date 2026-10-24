@@ -1,5 +1,6 @@
 //! The reporter.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use diverge_sdk::provider::endpoints::capacity::server::response::Frame;
@@ -44,7 +45,7 @@ impl capacity_reporter::CapacityReporter for CapacityReporter {
     /// container numbers are what remains of the two caps. The
     /// identity narrows nothing: this host allots every caller the
     /// whole of the room.
-    async fn capacity(&self, client_identity: &str) -> Result<Frame, Error> {
+    async fn capacity(&self, client_identity: &Identity) -> Result<Frame, Error> {
         let (volumes_disk, images_disk) = future::join(
             volume_manager::VolumeManager::create_capacity(&*self.volumes, client_identity),
             async {

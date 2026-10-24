@@ -1,6 +1,7 @@
 //! The images a caller builds on the provider: the namespace, and the
 //! verbs that make and unmake its names.
 
+use diverge_sdk::shared::Identity;
 use std::future::Future;
 
 use futures_util::Stream;
@@ -88,7 +89,7 @@ pub trait ImageManager: Send + Sync {
     /// is not.
     fn list(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
     ) -> impl Future<Output = Result<Vec<Image>, Self::Error>> + Send;
 
     /// The caller's image under `name`, as a listing reports it and
@@ -101,7 +102,7 @@ pub trait ImageManager: Send + Sync {
     /// the provider unable to look.
     fn stat(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
         name: &str,
     ) -> impl Future<Output = Result<Option<Stat>, Self::Error>> + Send;
 
@@ -136,7 +137,7 @@ pub trait ImageManager: Send + Sync {
     /// manager reads the directory and writes nothing into it.
     fn build(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
         name: &str,
         containerfile: &str,
         context: Option<&Context>,
@@ -153,7 +154,7 @@ pub trait ImageManager: Send + Sync {
     /// image as it was.
     fn delete(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
         name: &str,
     ) -> impl Future<Output = Result<Option<Deletion>, Self::Error>> + Send;
 }

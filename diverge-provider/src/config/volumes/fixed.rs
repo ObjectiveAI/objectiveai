@@ -53,14 +53,14 @@ pub struct Fixed {
 /// What the hook receives on stdin, as one line of JSON.
 ///
 /// ```json
-/// {"identity": "acme", "volume": "datasets"}
+/// {"identity": {"issuer": "https://auth.example.com", "subject": "acme"}, "volume": "datasets"}
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HookInput {
-    /// The identity asking: the string the authorizer answered when
-    /// the client connected.
-    pub identity: String,
+    /// The identity asking: the `(issuer, subject)` its connection's
+    /// handshake verified.
+    pub identity: diverge_sdk::shared::Identity,
     /// The fixed volume's `name`, as the configuration wrote it.
     pub volume: String,
 }

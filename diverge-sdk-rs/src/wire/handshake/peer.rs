@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// The one identity of every party: a daemon's account, a provider a
 /// daemon is connected to, a daemon a provider serves. On the wire, as
 /// JSON, `{"issuer": …, "subject": …}`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Peer {
     /// The token's `iss`.

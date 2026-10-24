@@ -1,5 +1,6 @@
 //! Bringing a container up, in order.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use futures_util::future;
@@ -107,7 +108,7 @@ pub(crate) struct Mount {
 /// not out.
 pub(crate) async fn prepare<R, D, G, L>(
     scope: &Arc<ScopeHandle>,
-    client_identity: &Arc<str>,
+    client_identity: &Arc<Identity>,
     request: &Container,
     arguments: Value,
     deployer: &D,
@@ -274,7 +275,7 @@ async fn one_mount(proxy: &Handle, fuse_mount: &FuseMount, kind: Kind) -> Result
 }
 
 /// The deployment, from the request: what the deployer is handed.
-fn deployment(client_identity: &str, request: &Container) -> Deployment {
+fn deployment(client_identity: &Identity, request: &Container) -> Deployment {
     Deployment {
         memory: request.memory,
         disk: request.disk,
@@ -285,7 +286,7 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
             .volume_mounts
             .iter()
             .map(|mount| DeployedMount {
-                client_identity: client_identity.to_string(),
+                client_identity: client_identity.clone(),
                 volume_name: mount.volume_name.clone(),
                 volume_relative_path: mount.volume_relative_path.clone(),
                 container_path: mount.container_path.clone(),

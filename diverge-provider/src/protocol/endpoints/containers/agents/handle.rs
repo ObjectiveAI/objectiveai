@@ -1,6 +1,7 @@
 //! Running an agent container, from a scope and the provider's
 //! capabilities.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use super::Agents;
@@ -27,7 +28,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle<D, G, V>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     deployer: &D,
     registry: &G,
     manager: &V,

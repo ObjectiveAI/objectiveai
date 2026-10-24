@@ -2,6 +2,7 @@
 //! listings open: how a volume listing hears of a create, an edit or
 //! a delete, and an image listing of a build or a delete.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use tokio::sync::broadcast;
@@ -14,7 +15,7 @@ const CHANGES_BEHIND: usize = 256;
 #[derive(Debug, Clone)]
 pub struct Changed {
     /// Whose thing.
-    pub identity: Arc<str>,
+    pub identity: Arc<Identity>,
     /// Which thing, by name.
     pub name: String,
 }
@@ -59,9 +60,9 @@ impl Changes {
 
     /// The identity's thing by that name was made, changed or
     /// unmade. With no listing open, nothing.
-    pub fn changed(&self, identity: &str, name: &str) {
+    pub fn changed(&self, identity: &Identity, name: &str) {
         let _ = self.changes.send(Changed {
-            identity: Arc::from(identity),
+            identity: Arc::new(identity.clone()),
             name: name.to_string(),
         });
     }

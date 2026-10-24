@@ -4,34 +4,30 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
 use diverge_sdk::wire::connection::Connection;
-use diverge_sdk::wire::server::authorization::{Auth, Authorization};
+use diverge_sdk::wire::handshake::{self, Handshook};
 use tokio::net::TcpStream;
 use tokio::time::{Duration, sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
 use super::Provider;
-use crate::config::clients::Unbrokered;
+use crate::config::clients::Client;
 
-/// Dial `peer` at `ws://<address>/`, present the key its entry names
-/// as the first frame under its identity, serve the connection until
-/// it ends, wait five seconds, and dial again — whether the connection
-/// ended or the dial failed, and forever: this ends only when the task
-/// it runs in is ended.
-pub async fn dial(provider: Arc<Provider>, peer: Unbrokered) {
-    let url = format!("ws://{}/", peer.address);
-    // Read at start for every entry the document names, so a peer's
-    // is there; a document changed since is read at the next start.
-    let Some(key) = provider.keys.get(&peer.key).cloned() else {
-        return;
-    };
+/// Dial `client` — at its address, as `ws://<address>/` when it carries
+/// no scheme — make the handshake as the connector from its issuer,
+/// serve the connection under the peer's identity until it ends, wait
+/// five seconds, and dial again: whether the connection ended, the dial
+/// failed or the handshake did, and forever. It ends only when the task
+/// it runs in is ended. The peer is judged as a peer that dialled the
+/// provider is: its identity must be one `accepted` lists.
+pub async fn dial(provider: Arc<Provider>, client: Client) {
+    let url = if client.address.contains("://") { client.address.clone() } else { format!("ws://{}/", client.address) };
     loop {
         if let Ok((socket, _)) = connect_async(url.as_str()).await {
             let address = peer_ip(&socket);
-            let authorization = Authorization::Outgoing {
-                auth: Auth::Unbrokered(key.expose().to_string()),
-                client_identity: peer.identity.clone(),
-            };
-            provider.connection(Connection::Outgoing(socket), authorization, address).await;
+            let made = handshake::connect(Connection::Outgoing(socket), &client.issuer, provider.authenticator.as_ref(), address).await;
+            if let Ok(Handshook { connection, peer }) = made {
+                provider.held(connection, peer, address).await;
+            }
         }
         // Five seconds: long enough that a peer that is down is not
         // hammered, short enough that one that is back is served soon.

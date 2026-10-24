@@ -6,12 +6,12 @@
 //! and serves it with one call of its `handle` per connection. So
 //! this module owns both ends of the socket. [`listen`] accepts a
 //! WebSocket upgrade at any path on the configured port, on every
-//! interface, and each upgrade is one connection the peer
-//! authenticates with its first frame — one connection per identity
-//! and per credential, [`Peers`], a second being closed at its
-//! handshake; [`dial`] connects to one peer
-//! of `clients.unbrokered`, presents the configured key as the first
-//! frame, serves the connection for as long as it lasts, and dials
+//! interface, and each upgrade is one connection whose mutual
+//! handshake the provider answers as the connectee — one connection
+//! per identity, [`Peers`], a second being closed; [`dial`] connects
+//! to one peer of `clients`, makes the handshake as the connector from
+//! the peer's issuer, serves the connection for as long as it lasts,
+//! and dials
 //! again five seconds after it ends or fails, for the provider's
 //! life. [`Provider`] is what every connection is served with — the
 //! deployer, the volumes, the image checker, the registry, and the

@@ -1,6 +1,7 @@
 //! The manager: the stores, the fixed volumes, and every identity that
 //! has asked.
 
+use diverge_sdk::shared;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -48,7 +49,7 @@ pub struct VolumeManager {
     /// none.
     started: u64,
     /// Every identity that has asked, by identity.
-    identities: DashMap<String, Arc<Identity>>,
+    identities: DashMap<shared::Identity, Arc<Identity>>,
 }
 
 impl VolumeManager {
@@ -73,11 +74,11 @@ impl VolumeManager {
     /// time the identity is named and held from then on. Every caller
     /// that names the identity while its first load runs waits for
     /// that load rather than starting another.
-    pub async fn identity(&self, client_identity: &str) -> Arc<Identity> {
+    pub async fn identity(&self, client_identity: &shared::Identity) -> Arc<Identity> {
         let identity = Arc::clone(
             &self
                 .identities
-                .entry(client_identity.to_string())
+                .entry(client_identity.clone())
                 .or_insert_with(|| Arc::new(Identity::new(client_identity))),
         );
         identity.load(&self.reservation, &self.scratch).await;
@@ -94,12 +95,12 @@ impl VolumeManager {
     /// that does not answer — a manifest missing, a non-zero exit,
     /// an output that is not the expected one — is `false`, as the
     /// hook's output documents.
-    async fn authorized(&self, client_identity: &str, fixed: &Fixed) -> bool {
+    async fn authorized(&self, client_identity: &shared::Identity, fixed: &Fixed) -> bool {
         let Some(hook) = &fixed.authorize_hook else {
             return true;
         };
         let input = HookInput {
-            identity: client_identity.to_string(),
+            identity: client_identity.clone(),
             volume: fixed.name.clone(),
         };
         hook::run::<HookInput, HookOutput>(&self.hooks_dir, hook, &input)
@@ -123,7 +124,7 @@ impl VolumeManager {
 
     /// Every fixed volume the identity may see, listed — each asked
     /// beside every other.
-    async fn fixed_listing(&self, client_identity: &str) -> Result<Vec<response::Volume>, Error> {
+    async fn fixed_listing(&self, client_identity: &shared::Identity) -> Result<Vec<response::Volume>, Error> {
         let listed = future::try_join_all(
             self.fixed
                 .iter()
@@ -135,7 +136,7 @@ impl VolumeManager {
 
     /// One fixed volume, listed if the identity may see it: the hook
     /// and the filesystem asked at once.
-    async fn fixed_one(&self, client_identity: &str, fixed: &Fixed) -> Result<Option<response::Volume>, Error> {
+    async fn fixed_one(&self, client_identity: &shared::Identity, fixed: &Fixed) -> Result<Option<response::Volume>, Error> {
         let (authorized, listing) = future::join(
             self.authorized(client_identity, fixed),
             self.fixed_volume(fixed).listing(),
@@ -162,7 +163,7 @@ impl volume_manager::VolumeManager for VolumeManager {
 
     /// The fixed volumes the identity may see, then its stored ones,
     /// the two read at once.
-    async fn list(&self, client_identity: &str) -> Result<Vec<response::Volume>, Error> {
+    async fn list(&self, client_identity: &shared::Identity) -> Result<Vec<response::Volume>, Error> {
         let identity = self.identity(client_identity).await;
         let (mut fixed, stored) = future::try_join(
             self.fixed_listing(client_identity),
@@ -176,7 +177,7 @@ impl volume_manager::VolumeManager for VolumeManager {
     /// A fixed volume by that name, if the identity may see it, else
     /// the identity's stored volume by it. A run and a stat of a fixed
     /// volume both pass through its hook here.
-    async fn get(&self, client_identity: &str, name: &str) -> Result<Option<Volume>, Error> {
+    async fn get(&self, client_identity: &shared::Identity, name: &str) -> Result<Option<Volume>, Error> {
         if let Some(fixed) = self.fixed_named(name) {
             if !self.authorized(client_identity, fixed).await {
                 return Ok(None);
@@ -187,7 +188,7 @@ impl volume_manager::VolumeManager for VolumeManager {
     }
 
     /// The most room any one store has, as of now; `0` with no store.
-    async fn create_capacity(&self, _client_identity: &str) -> Result<u64, Error> {
+    async fn create_capacity(&self, _client_identity: &shared::Identity) -> Result<u64, Error> {
         Ok(self.reservation.rooms().await.into_iter().max().unwrap_or(0))
     }
 
@@ -202,7 +203,7 @@ impl volume_manager::VolumeManager for VolumeManager {
     /// first store that has them, by one atomic update and no I/O;
     /// the image is made, sized and formatted; and the volume is
     /// entered. A failure after the bytes were taken gives them back.
-    async fn create(&self, client_identity: &str, name: &str, bytes: u64, mode: Mode) -> Result<Creation, Error> {
+    async fn create(&self, client_identity: &shared::Identity, name: &str, bytes: u64, mode: Mode) -> Result<Creation, Error> {
         if !name::ok(name) || self.fixed_named(name).is_some() {
             return Err(Error::Name(name.to_string()));
         }
@@ -223,7 +224,7 @@ impl volume_manager::VolumeManager for VolumeManager {
         let path = image::image_path(&store.path, client_identity, name);
         let mode_path = mode::mode_path(&store.path, client_identity, name);
         let made = async {
-            fs::create_dir_all(store.path.join(client_identity)).await?;
+            fs::create_dir_all(store.path.join(super::directory(client_identity))).await?;
             mode::write_mode(&mode_path, ModeFile { mode }).await?;
             make_image(&path, bytes).await
         }
@@ -248,7 +249,7 @@ impl volume_manager::VolumeManager for VolumeManager {
 
     /// The room left in the volume's own store, as of now; `0` for a
     /// fixed volume, which is never resized.
-    async fn edit_capacity(&self, client_identity: &str, name: &str) -> Result<u64, Error> {
+    async fn edit_capacity(&self, client_identity: &shared::Identity, name: &str) -> Result<u64, Error> {
         let Some(volume) = self.get(client_identity, name).await? else {
             return Err(Error::Unknown(name.to_string()));
         };
@@ -261,7 +262,7 @@ impl volume_manager::VolumeManager for VolumeManager {
     /// The volume taken out of the identity, then its image removed.
     /// An image already gone is still a deletion. A fixed volume is
     /// refused.
-    async fn delete(&self, client_identity: &str, name: &str) -> Result<(), Error> {
+    async fn delete(&self, client_identity: &shared::Identity, name: &str) -> Result<(), Error> {
         if self.fixed_named(name).is_some() {
             return Err(Error::Fixed(name.to_string()));
         }

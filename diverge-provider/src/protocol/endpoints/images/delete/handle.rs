@@ -1,5 +1,6 @@
 //! Answering a deletion, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use diverge_sdk::provider::endpoints::images::delete::client::request;
@@ -26,7 +27,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     changes: Arc<Changes>,
     capabilities: &Capabilities,

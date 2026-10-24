@@ -1,5 +1,6 @@
 //! Answering a stat, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use diverge_sdk::provider::endpoints::volumes::stat::server::response;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::provider::endpoints::volumes::refusal;
@@ -51,7 +52,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     capabilities: &Capabilities,
 ) where
@@ -82,7 +83,7 @@ pub async fn handle<M>(
 /// refusal the endpoint answers with, whichever step it came from.
 async fn stat<M>(
     manager: &M,
-    client_identity: &str,
+    client_identity: &Identity,
     name: &str,
 ) -> Result<response::Stat, response::Frame>
 where

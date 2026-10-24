@@ -1,6 +1,7 @@
 //! Whether a provider would supply an image, asked before anything
 //! needs it.
 
+use diverge_sdk::shared::Identity;
 use std::future::Future;
 
 use diverge_sdk::provider::endpoints::images::check::server::response::Response;
@@ -111,7 +112,7 @@ pub trait ImageChecker: Send + Sync {
     /// back.
     fn check(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
         image: &Image,
         sources: &Sources,
     ) -> impl Future<Output = Result<Response, Self::Error>> + Send;

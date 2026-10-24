@@ -1,5 +1,6 @@
 //! The checker.
 
+use diverge_sdk::shared::Identity;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -60,7 +61,7 @@ impl image_checker::ImageChecker for ImageChecker {
     /// and no source with the image — is unavailable; a podman that
     /// could not be started, with no yes beside it, is the failure to
     /// answer.
-    async fn check(&self, client_identity: &str, image: &Image, sources: &Sources) -> Result<Response, Error> {
+    async fn check(&self, client_identity: &Identity, image: &Image, sources: &Sources) -> Result<Response, Error> {
         let named = image.references.iter().find(|reference| !name_ok(&reference.name));
         if let (true, Some(reference)) = (sources.registries, named) {
             return Err(Error::Name(reference.name.clone()));

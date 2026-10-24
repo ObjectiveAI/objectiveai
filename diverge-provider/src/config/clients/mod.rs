@@ -1,16 +1,15 @@
-//! The `clients` section of `provider.yaml`.
+//! The `clients` section of `provider.yaml`: the peers the provider
+//! dials.
 //!
-//! The peers the provider dials, and what it presents to each: the
-//! [`Unbrokered`] clients, each an address, a key and an identity.
-//! [`Clients`] holds them. A brokered mode is coming, and it will be
-//! a second list beside this one, because which mode a peer is
-//! dialled in is a fact of the configuration and not of the dial.
+//! Each [`Client`] is an address and the issuer the provider presents
+//! as to it — its own identity there, from the document's
+//! `identities`. The peer the provider reaches is judged by the same
+//! `accepted` list as a peer that dials the provider: the provider
+//! makes no distinction between the two.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
-mod clients;
-mod unbrokered;
+mod client;
 
-pub use clients::*;
-pub use unbrokered::*;
+pub use client::*;

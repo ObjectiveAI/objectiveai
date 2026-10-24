@@ -1,10 +1,12 @@
 //! The document itself.
 
+use std::collections::BTreeMap;
+
 use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
+use diverge_sdk::shared::Identity;
 use serde::{Deserialize, Serialize};
 
-use super::auth::Auth;
-use super::clients::Clients;
+use super::clients::Client;
 use super::containers::Containers;
 use super::images::Images;
 use super::volumes::Volumes;
@@ -12,11 +14,10 @@ use super::volumes::Volumes;
 /// The whole of `provider.yaml`: what the provider is told.
 ///
 /// An absent file is this type's [`Default`], and the provider runs
-/// on it: the proxy's own port, no peer accepted, no peer dialled, no
-/// volume, no client image store, and the [`Containers`] defaults.
-/// `port` and `containers` are always present — absent from the
-/// file, each is its default — and the other four sections are
-/// optional, an absent one meaning what its doc says. An unknown key is an error, so a misspelled
+/// on it: the proxy's own port, no identity of its own, no peer
+/// accepted, no peer dialled, no volume, no client image store, and the
+/// [`Containers`] defaults. Every section may be absent, meaning what
+/// its doc says. An unknown key is an error, so a misspelled
 /// setting is refused rather than ignored.
 ///
 /// Every path inside the file resolves relative to the root, the
@@ -33,14 +34,24 @@ pub struct Config {
     /// published to a loopback port podman picks.
     #[serde(default = "proxy_port")]
     pub port: u16,
-    /// How a peer that dials the provider is judged. Absent means no
-    /// dialling peer is accepted.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub auth: Option<Auth>,
-    /// The peers the provider dials. Absent means the provider dials
+    /// The provider's own identities: for each issuer, the subject
+    /// whose token it presents there, in every handshake from that
+    /// issuer — those it answers and those it makes. An issuer absent
+    /// here is one the provider trusts no token from, since it could not
+    /// answer from it. Each is an identity of the root's
+    /// [`identities`](diverge_sdk::identities), signed in beforehand.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub identities: BTreeMap<String, String>,
+    /// The identities the provider serves: a peer whose verified
+    /// `(issuer, subject)` is not here is closed in the handshake —
+    /// whichever end dialled, with no distinction between the two.
+    /// Absent, nobody is served.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub accepted: Vec<Identity>,
+    /// The peers the provider dials: see [`Client`]. Absent, it dials
     /// no one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub clients: Option<Clients>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub clients: Vec<Client>,
     /// The runtime the provider runs containers with, and what it
     /// gives it. Absent from the file means its [`Default`]: a
     /// provider runs containers before it has configured anything.
@@ -59,14 +70,16 @@ pub struct Config {
 }
 
 /// What a provider runs on before it has written a line of
-/// configuration: the proxy's port, nobody accepted, nobody dialled,
+/// configuration: the proxy's port, no identity, nobody accepted,
+/// nobody dialled,
 /// the [`Containers`] defaults, no volume, no client image store.
 impl Default for Config {
     fn default() -> Self {
         Config {
             port: proxy_port(),
-            auth: None,
-            clients: None,
+            identities: BTreeMap::new(),
+            accepted: Vec::new(),
+            clients: Vec::new(),
             containers: Containers::default(),
             volumes: None,
             images: None,

@@ -1,5 +1,6 @@
 //! Answering a FUSE serve, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -83,7 +84,7 @@ const CHANGES_BEHIND: usize = 256;
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     capabilities: &Capabilities,
 ) where

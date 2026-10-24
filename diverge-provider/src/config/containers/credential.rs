@@ -14,8 +14,6 @@ use serde::{Deserialize, Serialize};
 pub struct Credential {
     /// The username.
     pub username: String,
-    /// The name of the entry in the root's
-    /// [`keyring`](diverge_sdk::keyring) that keeps the password, or
-    /// the token standing as one. The document holds no password.
+    /// The password, or the token standing as one, as written.
     pub password: String,
 }

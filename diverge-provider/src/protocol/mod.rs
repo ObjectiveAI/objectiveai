@@ -92,13 +92,13 @@
 //! pulls nothing, and because no is an ANSWER here where it would be an
 //! error there.
 //!
-//! [`UnbrokeredAuthorizer`](diverge_sdk::wire::server::unbrokered_authorizer::UnbrokeredAuthorizer)
-//! is the fourth, and lives with the wire, being the wire's own
-//! handshake rather than this protocol's: every other trait is asked
-//! things on behalf of a caller, and this is the one that decides who
-//! the caller IS. It is consumed by [`handle`]
-//! itself rather than by any endpoint's handler, because a credential
-//! belongs to the connection and not to any scope on it.
+//! [`Authenticator`](diverge_sdk::wire::handshake::Authenticator) is
+//! the fourth, and lives with the wire, being the wire's own handshake
+//! rather than this protocol's: every other trait is asked things on
+//! behalf of a caller, and this is the one that decides who the caller
+//! IS. The handshake is made before [`handle`], by the host, because a
+//! token belongs to the connection and not to any scope on it; what
+//! [`handle`] receives is the caller's verified identity.
 //!
 //! [`image_registry`] is the fifth: the OCI registry a provider runs
 //! on its loopback for an image it takes from the CALLER, fed by

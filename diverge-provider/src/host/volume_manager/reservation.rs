@@ -132,16 +132,13 @@ impl Reservation {
 }
 
 /// The bytes every image in the store reserves between them: every
-/// identity's directory read beside every other, every image's length
-/// beside every other. A store that does not exist reserves nothing.
+/// identity's directory — an issuer's directory, and a subject's
+/// within it — read beside every other, every image's length beside
+/// every other. A store that does not exist reserves nothing.
 async fn scan(store: &Path) -> u64 {
-    let Ok(mut entries) = fs::read_dir(store).await else {
-        return 0;
-    };
-    let mut identities = Vec::new();
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        identities.push(entry.path());
-    }
+    let issuers = children(store).await;
+    let subjects = future::join_all(issuers.iter().map(|issuer| children(issuer))).await;
+    let identities: Vec<_> = subjects.into_iter().flatten().collect();
     future::join_all(identities.iter().map(|identity| scan_identity(identity)))
         .await
         .into_iter()
@@ -177,4 +174,16 @@ async fn image_length(image: &Path) -> u64 {
         .filter(|meta| meta.is_file())
         .map(|meta| meta.len())
         .unwrap_or(0)
+}
+
+/// Every entry of `dir`, by path; none where it cannot be read.
+async fn children(dir: &Path) -> Vec<std::path::PathBuf> {
+    let Ok(mut entries) = fs::read_dir(dir).await else {
+        return Vec::new();
+    };
+    let mut children = Vec::new();
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        children.push(entry.path());
+    }
+    children
 }

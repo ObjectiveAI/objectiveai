@@ -8,8 +8,9 @@
 //! - `<root>/provider.yaml` is read if present; absent means the
 //!   built-in defaults, [`Config::default`]. No other name or
 //!   extension is looked for — see [`load`].
-//! - [`Config`] is the document; [`auth`], [`clients`],
-//!   [`containers`], [`volumes`] and [`images`] its sections. A
+//! - [`Config`] is the document: its own `identities`, the `accepted`
+//!   identities, and its sections [`clients`], [`containers`],
+//!   [`volumes`] and [`images`]. A
 //!   section that is absent is its defaults; a key the document does
 //!   not have is refused, so a misspelled setting is refused rather
 //!   than ignored.
@@ -28,19 +29,16 @@
 //!
 //! ```yaml
 //! port: 14979
-//! auth:
-//!   unbrokered:
-//!     - key: provider/acme
-//!       identity: acme
-//!       address: 203.0.113.7
-//!     - key: provider/bolt
-//!       identity: bolt
-//!     - authorize_hook: peers
+//! identities:
+//!   https://auth.example.com: provider-1
+//! accepted:
+//!   - issuer: https://auth.example.com
+//!     subject: daemon-1
+//!   - issuer: https://auth.example.com
+//!     subject: hub
 //! clients:
-//!   unbrokered:
-//!     - address: hub.example.com:7000
-//!       key: provider/hub
-//!       identity: hub
+//!   - address: hub.example.com:7000
+//!     issuer: https://auth.example.com
 //! containers:
 //!   podman:
 //!     registries:
@@ -48,7 +46,7 @@
 //!       - host: ghcr.io
 //!         credential:
 //!           username: bolt
-//!           password: registry/ghcr
+//!           password: ghp_example
 //!     storage_path: /mnt/podman
 //!     image_cache_disk: 107374182400
 //!     container_overlay_disk: 214748364800
@@ -68,10 +66,11 @@
 //!   capacity: 274877906944
 //! ```
 //!
-//! No key and no password is in the document: each `key`, and a
-//! registry's `password`, names an entry of the root's
-//! [`keyring`](diverge_sdk::keyring), read at start — see
-//! [`keys`](crate::host::keys).
+//! Every handshake, whichever end dialled, presents the token of the
+//! provider's own identity at the peer's issuer — `identities` — and
+//! serves the peer only when its verified `(issuer, subject)` is in
+//! `accepted`. The tokens are the root's
+//! [`identities`](diverge_sdk::identities), signed in beforehand.
 //!
 //! [`Error`] is why the root or the file could not be used.
 //!
@@ -82,7 +81,6 @@ mod config;
 mod error;
 mod load;
 mod root;
-pub mod auth;
 pub mod clients;
 pub mod containers;
 pub mod images;

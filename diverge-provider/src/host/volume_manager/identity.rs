@@ -1,5 +1,6 @@
 //! One identity's stored volumes, by name.
 
+use diverge_sdk::shared;
 use std::sync::Arc;
 
 use dashmap::DashMap;
@@ -20,7 +21,7 @@ use crate::config::volumes::Store;
 #[derive(Debug)]
 pub struct Identity {
     /// The identity, as the store's directory is named.
-    client_identity: String,
+    client_identity: shared::Identity,
     /// Set once the stores have been read for this identity, so a
     /// second caller waits for the first read rather than starting one.
     loaded: OnceCell<()>,
@@ -32,9 +33,9 @@ pub struct Identity {
 }
 
 impl Identity {
-    pub(super) fn new(client_identity: &str) -> Self {
+    pub(super) fn new(client_identity: &shared::Identity) -> Self {
         Identity {
-            client_identity: client_identity.to_string(),
+            client_identity: client_identity.clone(),
             loaded: OnceCell::new(),
             namespace: Mutex::new(()),
             volumes: DashMap::new(),
@@ -69,7 +70,7 @@ impl Identity {
     /// one is examined at once. A directory that cannot be read holds
     /// no volumes.
     async fn load_store(&self, index: usize, store: &Store, reservation: &Arc<Reservation>, scratch: &Arc<Scratch>) {
-        let Ok(mut entries) = tokio::fs::read_dir(store.path.join(&self.client_identity)).await else {
+        let Ok(mut entries) = tokio::fs::read_dir(store.path.join(directory(&self.client_identity))).await else {
             return;
         };
         let mut found = Vec::new();
@@ -115,8 +116,8 @@ impl Identity {
         );
     }
 
-    /// The identity, as the store's directory is named.
-    pub fn client_identity(&self) -> &str {
+    /// The identity.
+    pub fn client_identity(&self) -> &shared::Identity {
         &self.client_identity
     }
 
@@ -153,4 +154,13 @@ impl Identity {
     pub fn remove(&self, name: &str) -> Option<Volume> {
         self.volumes.remove(name).map(|(_, volume)| volume)
     }
+}
+
+/// The directory under a store a caller's volumes are kept in: its
+/// issuer's and then its subject's
+/// [`path_name`](diverge_sdk::identities::path_name), two levels, so
+/// that every identity is a directory of its own whatever its issuer
+/// and its subject hold.
+pub fn directory(identity: &shared::Identity) -> std::path::PathBuf {
+    std::path::PathBuf::from(diverge_sdk::identities::path_name(&identity.issuer)).join(diverge_sdk::identities::path_name(&identity.subject))
 }

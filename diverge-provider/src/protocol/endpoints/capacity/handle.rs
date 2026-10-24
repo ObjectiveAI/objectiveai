@@ -1,5 +1,6 @@
 //! Answering a capacity request, from a scope and a reporter.
 
+use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
@@ -27,7 +28,7 @@ use crate::protocol::capacity_reporter::CapacityReporter;
 /// [`server::handle`](crate::protocol::handle::handle) reads every
 /// request once to dispatch it, so a scope arriving here already
 /// parsed as a capacity ask — which carried nothing.
-pub async fn handle<C>(scope: ScopeHandle, client_identity: &str, reporter: &C)
+pub async fn handle<C>(scope: ScopeHandle, client_identity: &Identity, reporter: &C)
 where
     C: CapacityReporter,
 {

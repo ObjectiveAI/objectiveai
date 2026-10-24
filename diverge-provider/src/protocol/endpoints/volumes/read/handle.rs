@@ -1,5 +1,6 @@
 //! Answering a read, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use std::pin::pin;
 
 use futures_util::StreamExt as _;
@@ -54,7 +55,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     capabilities: &Capabilities,
 ) where
@@ -108,7 +109,7 @@ async fn send(scope: &ScopeHandle, frame: &response::Frame<'_>) {
 /// was taken.
 async fn open<M>(
     manager: &M,
-    client_identity: &str,
+    client_identity: &Identity,
     request: &request::Frame,
 ) -> Result<(M::Volume, <M::Volume as crate::protocol::volume::Volume>::Read), response::Frame<'static>>
 where

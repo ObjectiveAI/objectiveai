@@ -1,5 +1,6 @@
 //! Building an image into the pool, telling the build as it goes.
 
+use diverge_sdk::shared::Identity;
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -29,7 +30,7 @@ struct Job {
     store: Arc<Store>,
     volumes: Arc<VolumeManager>,
     deployer: Arc<ContainerDeployer>,
-    client_identity: String,
+    client_identity: Identity,
     name: String,
     containerfile: String,
     context: Option<Context>,
@@ -69,7 +70,7 @@ pub fn build(
     store: Arc<Store>,
     volumes: Arc<VolumeManager>,
     deployer: Arc<ContainerDeployer>,
-    client_identity: &str,
+    client_identity: &Identity,
     name: &str,
     containerfile: &str,
     context: Option<&Context>,
@@ -78,7 +79,7 @@ pub fn build(
         store,
         volumes,
         deployer,
-        client_identity: client_identity.to_string(),
+        client_identity: client_identity.clone(),
         name: name.to_string(),
         containerfile: containerfile.to_string(),
         context: context.cloned(),

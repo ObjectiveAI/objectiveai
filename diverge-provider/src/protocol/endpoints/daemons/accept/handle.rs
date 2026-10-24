@@ -1,5 +1,6 @@
 //! Holding a daemon's accept scope, from a scope and the acceptors.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use diverge_sdk::provider::endpoints::daemons::accept::server::response::{self, Accepting};
@@ -30,7 +31,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///
 /// The provider's half of each connection is opened by the connect
 /// handler, on this scope, and read there; nothing here reads it.
-pub async fn handle(scope: ScopeHandle, client_identity: &str, acceptors: Arc<Acceptors>) {
+pub async fn handle(scope: ScopeHandle, client_identity: &Identity, acceptors: Arc<Acceptors>) {
     let scope = Arc::new(scope);
     let Some(accepting) = acceptors.take(client_identity, Arc::clone(&scope)).await else {
         send(&scope, response::Frame::Error(held())).await;
@@ -40,7 +41,7 @@ pub async fn handle(scope: ScopeHandle, client_identity: &str, acceptors: Arc<Ac
     send(
         &scope,
         response::Frame::Accepting(Accepting {
-            identity: client_identity.to_string(),
+            identity: client_identity.clone(),
         }),
     )
     .await;

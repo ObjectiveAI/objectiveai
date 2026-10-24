@@ -1,5 +1,6 @@
 //! The manager over the store.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use futures_util::{future, stream};
@@ -40,7 +41,7 @@ impl image_manager::ImageManager for ImageManager {
     type Error = Error;
 
     /// The identity's records; none with no store.
-    async fn list(&self, client_identity: &str) -> Result<Vec<Image>, Error> {
+    async fn list(&self, client_identity: &Identity) -> Result<Vec<Image>, Error> {
         match &self.store {
             Some(store) => store.list(client_identity).await,
             None => Ok(Vec::new()),
@@ -48,7 +49,7 @@ impl image_manager::ImageManager for ImageManager {
     }
 
     /// The identity's record under `name`, with its Containerfile.
-    async fn stat(&self, client_identity: &str, name: &str) -> Result<Option<Stat>, Error> {
+    async fn stat(&self, client_identity: &Identity, name: &str) -> Result<Option<Stat>, Error> {
         let Some(store) = &self.store else {
             return Ok(None);
         };
@@ -69,7 +70,7 @@ impl image_manager::ImageManager for ImageManager {
     type Build = Build;
 
     /// The build, on a task of its own; with no store, the one error.
-    async fn build(&self, client_identity: &str, name: &str, containerfile: &str, context: Option<&Context>) -> Self::Build {
+    async fn build(&self, client_identity: &Identity, name: &str, containerfile: &str, context: Option<&Context>) -> Self::Build {
         match &self.store {
             Some(store) => build(
                 Arc::clone(store),
@@ -89,7 +90,7 @@ impl image_manager::ImageManager for ImageManager {
     /// a container runs the copy in the cache; the copy removed from
     /// the cache too, where it can be. `None` for a name the identity
     /// has no image by.
-    async fn delete(&self, client_identity: &str, name: &str) -> Result<Option<Deletion>, Error> {
+    async fn delete(&self, client_identity: &Identity, name: &str) -> Result<Option<Deletion>, Error> {
         let Some(store) = &self.store else {
             return Ok(None);
         };

@@ -2,6 +2,7 @@
 //! caps, then the image and the mounts beside each other, then the
 //! run.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
@@ -34,7 +35,7 @@ const PROXY_INSIDE: &str = "/.diverge/diverge-container-proxy";
 /// any step after it.
 pub(super) async fn deploy(
     deployer: &ContainerDeployer,
-    client_identity: &str,
+    client_identity: &Identity,
     deployment: &Deployment,
     image: &Image,
     caller: &Caller,
@@ -55,7 +56,7 @@ pub(super) async fn deploy(
 /// made, the run; either failing undoes the other.
 async fn after_limits(
     deployer: &ContainerDeployer,
-    client_identity: &str,
+    client_identity: &Identity,
     deployment: &Deployment,
     image: &Image,
     caller: &Caller,
@@ -106,7 +107,7 @@ async fn after_limits(
 /// configuration lists and the caller first answers that it holds
 /// it, pulled from there, which answers the id. Every way counted in
 /// the cache. The source and the id.
-async fn obtain(deployer: &ContainerDeployer, client_identity: &str, image: &Image, caller: &Caller) -> Result<(Source, String), Error> {
+async fn obtain(deployer: &ContainerDeployer, client_identity: &Identity, image: &Image, caller: &Caller) -> Result<(Source, String), Error> {
     let (source, id) = match own(deployer, client_identity, &image.digest).await {
         Some(source) => {
             let id = pull(deployer, &source).await?;
@@ -130,7 +131,7 @@ async fn obtain(deployer: &ContainerDeployer, client_identity: &str, image: &Ima
 /// `127.0.0.1:<port>/<hash>/<name>@<digest>`, at the port podman
 /// reaches the registry by. `None` where there is no store, or the
 /// caller built no image of that digest.
-async fn own(deployer: &ContainerDeployer, client_identity: &str, digest: &str) -> Option<Source> {
+async fn own(deployer: &ContainerDeployer, client_identity: &Identity, digest: &str) -> Option<Source> {
     let store = deployer.store.as_ref()?;
     let (name, _) = store.find_digest(client_identity, digest).await?;
     let reference = store.reference(deployer.registry_port(), client_identity, &name);

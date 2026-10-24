@@ -1,5 +1,6 @@
 //! Answering a create-capacity question, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use diverge_sdk::provider::endpoints::volumes::create_capacity::server::response;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -28,7 +29,7 @@ use diverge_sdk::shared::error::Error;
 /// that as a provider that said nothing, which is what happened.
 pub async fn handle<M>(
     scope: ScopeHandle,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     capabilities: &Capabilities,
 ) where

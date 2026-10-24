@@ -1,5 +1,6 @@
 //! A stored volume's mode, kept beside its image.
 
+use diverge_sdk::shared;
 use std::path::{Path, PathBuf};
 
 use diverge_sdk::provider::endpoints::volumes::Mode;
@@ -22,8 +23,8 @@ pub struct ModeFile {
 /// the dotfile beside the image. A volume's name never begins with a
 /// dot — see [`ok`](super::ok) — so the mode file is never taken for
 /// a volume, and no volume is ever taken for a mode file.
-pub fn mode_path(store: &Path, client_identity: &str, name: &str) -> PathBuf {
-    store.join(client_identity).join(format!(".{name}"))
+pub fn mode_path(store: &Path, client_identity: &shared::Identity, name: &str) -> PathBuf {
+    store.join(super::directory(client_identity)).join(format!(".{name}"))
 }
 
 /// The mode file read: [`None`] when there is none, which is an image

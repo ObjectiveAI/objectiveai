@@ -1,5 +1,6 @@
 //! The deployer.
 
+use diverge_sdk::shared::Identity;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -17,7 +18,6 @@ use super::mounts::tool_path;
 use super::{Container, Error, Images, Shared, name_ok};
 use crate::host::Limit;
 use crate::host::image_manager::Store;
-use crate::host::keys::Keys;
 use crate::config::containers::{Containers, Podman};
 use crate::host::tools::{mount, podman};
 use crate::host::volume_manager::VolumeManager;
@@ -80,7 +80,6 @@ impl ContainerDeployer {
         shares: Vec<PathBuf>,
         disk: Arc<Limit>,
         store: Option<Arc<Store>>,
-        keys: &Keys,
     ) -> Result<Self, Error> {
         let proxy = proxy_beside_executable()?;
         #[cfg(target_os = "linux")]
@@ -104,7 +103,7 @@ impl ContainerDeployer {
         let auth_file = run_dir.join("auth.json");
         let (proxy_path, (), ()) = future::try_join3(
             proxy_present(&proxy),
-            write_auth_file(&auth_file, &containers.podman, keys),
+            write_auth_file(&auth_file, &containers.podman),
             sweep_all(&label, &mounts_dir),
         )
         .await?;
@@ -194,7 +193,7 @@ impl container_deployer::ContainerDeployer for ContainerDeployer {
     /// and the container run.
     async fn deploy(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
         deployment: &Deployment,
         image: &Image,
         caller: &Caller,
@@ -226,17 +225,14 @@ async fn proxy_present(proxy: &Path) -> Result<String, Error> {
 
 /// The auth file, in the form podman reads: every listed registry
 /// with a credential, as `user:password` in base64 under its host,
-/// the password the one its keyring entry keeps. Readable by the
+/// the password as the document writes it. Readable by the
 /// provider alone where the filesystem has owners. The one file a
 /// password is written to, since it is the one podman reads.
-async fn write_auth_file(path: &std::path::Path, podman: &Podman, keys: &Keys) -> Result<(), Error> {
+async fn write_auth_file(path: &std::path::Path, podman: &Podman) -> Result<(), Error> {
     let mut auths = serde_json::Map::new();
     for registry in &podman.registries {
         if let Some(credential) = &registry.credential {
-            let password = keys
-                .get(&credential.password)
-                .ok_or_else(|| std::io::Error::other(format!("the keyring holds no `{}`", credential.password)))?;
-            let pair = format!("{}:{}", credential.username, password.expose());
+            let pair = format!("{}:{}", credential.username, credential.password);
             auths.insert(registry.host.clone(), json!({ "auth": STANDARD.encode(pair) }));
         }
     }

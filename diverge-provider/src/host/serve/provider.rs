@@ -7,11 +7,11 @@ use std::pin::pin;
 use std::sync::Arc;
 
 use futures_util::future::{self, Either};
-use tokio::sync::Mutex;
 use tokio::sync::watch;
 
+use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::connection::Connection;
-use diverge_sdk::wire::server::authorization::Authorization;
+use diverge_sdk::wire::handshake::{self, Handshook};
 use crate::protocol::acceptors::Acceptors;
 use crate::protocol::directory::Directory;
 use crate::protocol::changes::Changes;
@@ -21,8 +21,6 @@ use super::capabilities::capabilities;
 use diverge_sdk::wire::server::session::Session;
 
 use crate::config::Config;
-use crate::config::auth::Auth;
-use crate::host::keys::Keys;
 use crate::config::volumes::Volumes;
 
 use super::{Error, Peers};
@@ -33,7 +31,7 @@ use crate::host::image_manager::{ImageManager, Store};
 use crate::host::image_registry::ImageRegistry;
 use crate::host::oci_store::OciStore;
 use crate::host::tools::podman;
-use crate::host::unbrokered_authorizer::{Slot, UnbrokeredAuthorizer};
+use crate::host::authenticator::ProviderAuthenticator;
 use crate::host::volume_manager::{self, Scratch, VolumeManager};
 use crate::host::Limit;
 
@@ -45,14 +43,9 @@ use crate::host::Limit;
 /// another.
 #[derive(Debug)]
 pub struct Provider {
-    /// The `auth` section, from which an authorizer is made for each
-    /// connection that dials in.
-    auth: Option<Auth>,
-    /// `<root>/provider/hooks/`, for that authorizer.
-    hooks_dir: PathBuf,
-    /// The keys the document names, for that authorizer and for every
-    /// dial.
-    pub(super) keys: Arc<Keys>,
+    /// The provider's side of every handshake: its own tokens, and the
+    /// identities it serves.
+    pub(super) authenticator: Arc<ProviderAuthenticator>,
     /// The deployer, held to the end so its tunnel lives as long.
     pub(super) deployer: Arc<ContainerDeployer>,
     /// The volumes.
@@ -71,7 +64,7 @@ pub struct Provider {
     /// The daemons accepting connections from other daemons, one map
     /// for the provider.
     acceptors: Arc<Acceptors>,
-    /// The peers connected now, one per identity and per credential.
+    /// The peers connected now, one connection per identity.
     peers: Arc<Peers>,
     /// Every change to any caller's volumes, for the listings open.
     volume_changes: Arc<Changes>,
@@ -110,9 +103,10 @@ impl Provider {
     /// the directory. The store is handed to the registry, the
     /// deployer, the checker, the OCI store, the reporter and the
     /// manager. `stop` is the caller's, made before anything here, so
-    /// the signal and the stop route send on the one sender. `keys` are
-    /// the keys the document names, read already.
-    pub async fn start(config: Config, dir: PathBuf, stop: watch::Sender<bool>, keys: Arc<Keys>) -> Result<Self, Error> {
+    /// the signal and the stop route send on the one sender.
+    /// `authenticator` is the provider's side of every handshake, made
+    /// already.
+    pub async fn start(config: Config, dir: PathBuf, stop: watch::Sender<bool>, authenticator: Arc<ProviderAuthenticator>) -> Result<Self, Error> {
         ready(&config, &dir).await?;
         let capabilities = Arc::new(capabilities(&config));
         podman::configure(config.containers.podman.storage_path.clone());
@@ -129,7 +123,7 @@ impl Provider {
         let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone(), scratch));
         let registries = config.containers.podman.registries.clone();
         let deployer = Arc::new(
-            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares, disk, store.clone(), &keys)
+            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares, disk, store.clone())
                 .await
                 .map_err(Error::Deployer)?,
         );
@@ -138,9 +132,7 @@ impl Provider {
         let capacity = Arc::new(CapacityReporter::new(Arc::clone(&volumes), store.clone(), Arc::clone(&deployer)));
         let images = Arc::new(ImageManager::new(store, Arc::clone(&volumes), Arc::clone(&deployer)));
         Ok(Provider {
-            auth: config.auth,
-            hooks_dir,
-            keys,
+            authenticator,
             deployer,
             volumes,
             checker,
@@ -158,30 +150,36 @@ impl Provider {
         })
     }
 
-    /// A connection a peer dialled, served for as long as it lasts:
-    /// the peer's first frame judged by an authorizer over the `auth`
-    /// section — made here since the protocol takes one by value per
-    /// connection and making one is a clone of the section — which
-    /// takes the identity and the credential among the peers
-    /// connected, and refuses a second connection on either; when the
-    /// connection is over, whatever it took is given back.
+    /// A connection a peer dialled: its handshake as the connectee —
+    /// see [`authenticator`](crate::host::authenticator) — and then the
+    /// connection served under the peer's identity, which it holds for
+    /// as long as it lasts. A handshake that fails, and an identity
+    /// another connection holds, close the connection with nothing
+    /// sent.
     pub async fn accept(&self, connection: Connection, address: IpAddr) {
-        let taken: Slot = Arc::new(Mutex::new(None));
-        let authorization = Authorization::Incoming {
-            unbrokered: UnbrokeredAuthorizer::new(self.auth.clone(), Arc::clone(&self.keys), self.hooks_dir.clone(), Arc::clone(&self.peers), Arc::clone(&taken)),
+        let Ok(Handshook { connection, peer }) = handshake::accept(connection, self.authenticator.as_ref(), address).await else {
+            return;
         };
-        self.connection(connection, authorization, address).await;
-        if let Some(held) = taken.lock().await.take() {
-            self.peers.release(&held.identity, &held.credential).await;
+        self.held(connection, peer, address).await;
+    }
+
+    /// A connection past its handshake, under `peer`: the identity
+    /// taken — a connection under an identity another holds is closed —
+    /// the connection served, and the identity let go.
+    pub async fn held(&self, connection: Connection, peer: Identity, address: IpAddr) {
+        if !self.peers.take(&peer).await {
+            return;
         }
+        self.connection(connection, Arc::new(peer.clone()), address).await;
+        self.peers.release(&peer).await;
     }
 
     /// One connection, served for as long as it lasts, or until the
     /// provider stops: the protocol's session over the socket and its
     /// `handle` with everything here, raced against `stop` turning
-    /// `true`. Why it ended is not kept — a peer that failed to
-    /// authenticate and a peer that hung up are both a connection that
-    /// is over, and there is nowhere to say which.
+    /// `true`. Why it ended is not kept — a peer that broke the
+    /// handshake's rule and a peer that hung up are both a connection
+    /// that is over, and there is nowhere to say which.
     ///
     /// # The stop closes the socket
     ///
@@ -197,12 +195,12 @@ impl Provider {
     /// stop removes every container of this provider by force, and the
     /// provider is dropped after it, so nothing a scope would have
     /// torn down outlives the stop.
-    pub async fn connection(&self, connection: Connection, authorization: Authorization<UnbrokeredAuthorizer>, address: IpAddr) {
+    async fn connection(&self, connection: Connection, client_identity: Arc<Identity>, address: IpAddr) {
         let session = Session::new(connection);
         let mut stop = self.stop.subscribe();
         let serving = pin!(handle(
             session,
-            authorization,
+            client_identity,
             address,
             Arc::clone(&self.deployer),
             Arc::clone(&self.volumes),

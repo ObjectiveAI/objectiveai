@@ -1,5 +1,6 @@
 //! The volumes a run holds, shared, and the giving back.
 
+use diverge_sdk::shared::Identity;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -101,7 +102,7 @@ impl<V: Volume> Held<V> {
     /// holds taken before it given back.
     pub async fn take<'a, M>(
         manager: &M,
-        client_identity: &str,
+        client_identity: &Identity,
         mounts: impl IntoIterator<Item = (&'a str, Mode)>,
         capabilities: &Capabilities,
     ) -> Result<Self, Refused>
