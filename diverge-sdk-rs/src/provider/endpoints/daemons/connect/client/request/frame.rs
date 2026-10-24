@@ -2,22 +2,19 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::shared::daemons::Mode;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// Ask the provider to connect this daemon to another.
 ///
 /// The acceptor by the identity the provider authorized its
-/// connection under — the one its accept was answered with — and the
-/// mode the connector authenticates to it in, which the provider
-/// relays to the acceptor unread.
+/// connection under — the one its accept was answered with. Who the
+/// connector is to the acceptor is the relayed connection's own
+/// handshake's to say, not the request's.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The daemon to reach, by its identity at this provider.
     pub daemon: String,
-    /// How the connector authenticates to it: see [`Mode`].
-    pub mode: Mode,
 }
 
 /// This frame's tag among the scope-opening requests.

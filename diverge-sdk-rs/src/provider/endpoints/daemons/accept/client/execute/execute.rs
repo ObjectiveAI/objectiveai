@@ -12,6 +12,7 @@ use super::Accepting;
 use crate::provider::client::Acceptor;
 use crate::provider::endpoints::containers::client::encoded;
 use crate::shared::containers::daemon;
+use crate::shared::daemons;
 use crate::shared::error::Error;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::decode::Decode as _;
@@ -94,10 +95,10 @@ async fn connection_answer<A: Acceptor>(handle: Handle, scope: u32, channel: u32
         while let Some(bytes) = own.response_receiver.recv().await {
             match frame::server::ServerFrame::decode(&bytes) {
                 Ok(frame::server::ServerFrame::ChannelResponse { payload, .. }) => {
-                    let Ok(frame) = daemon::client::Frame::decode(payload) else {
+                    let Ok(frame) = daemons::client::Owned::read(payload) else {
                         break;
                     };
-                    if from_connector.send(daemon::client::Owned::from(frame)).is_err() {
+                    if from_connector.send(frame).is_err() {
                         break;
                     }
                 }
@@ -106,10 +107,7 @@ async fn connection_answer<A: Acceptor>(handle: Handle, scope: u32, channel: u32
         }
     });
     while let Some(frame) = from_daemon.next().await {
-        let Some(bytes) = encoded(&frame.as_frame()) else {
-            break;
-        };
-        if handle.send_channel_response(scope, channel, &bytes).await.is_err() {
+        if handle.send_channel_response(scope, channel, frame.bytes()).await.is_err() {
             break;
         }
     }

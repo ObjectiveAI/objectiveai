@@ -17,6 +17,7 @@ use crate::wire::connection::Connection;
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame;
+use crate::wire::handshake::{self, Authenticator, Handshook};
 
 /// Connect to another daemon through the provider, and hold the
 /// connection.
@@ -29,9 +30,19 @@ use crate::wire::frame;
 /// handle as a socket would be: every response after the first is a
 /// server frame of the acceptor's, fed to the router; every client
 /// frame the handle writes is a channel response on the one channel
-/// the provider opens, the first of which is waited for. What comes
-/// back is the [`Connected`]: the handle, and the end.
-pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<Connected, ExecuteError> {
+/// the provider opens, the first of which is waited for. Before the
+/// split, the connection's [`handshake`](crate::wire::handshake) is
+/// made as its connector — this end's token from `issuer`, the
+/// acceptor's from the same issuer verified, both through
+/// `authenticator`; the acceptor's address is not known here, so it is
+/// judged as the unspecified address. What comes back is the
+/// [`Connected`]: the handle, the acceptor, and the end.
+pub async fn execute(
+    handle: &Handle,
+    request: &request::Frame,
+    issuer: &str,
+    authenticator: &dyn Authenticator,
+) -> Result<Connected, ExecuteError> {
     let mut payload = Vec::new();
     request.encode(&mut Writer::new(&mut payload)).map_err(ExecuteError::Request)?;
     let mut scope = handle.send_request(&payload).await.map_err(ExecuteError::Send)?;
@@ -49,19 +60,22 @@ pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<Connec
     }
     let (to_router, incoming) = mpsc::unbounded_channel::<Bytes>();
     let (outgoing, from_handle) = mpsc::unbounded_channel::<Bytes>();
-    let (sink, stream) = Connection::Local { incoming, outgoing }.split();
+    tokio::spawn(inward(scope.response_receiver, to_router));
+    tokio::spawn(outward(scope.request_receiver, from_handle, handle.clone(), scope.scope));
+    let unknown = std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED);
+    let Handshook { connection, peer } =
+        handshake::connect(Connection::Local { incoming, outgoing }, issuer, authenticator, unknown).await.map_err(ExecuteError::Handshake)?;
+    let (sink, stream) = connection.split();
     let (registration_sender, registration_receiver) = mpsc::unbounded_channel();
     let (closed_sender, closed_receiver) = mpsc::unbounded_channel();
     let router = Router::new(stream, registration_receiver, closed_sender);
     let daemon = Handle::new(sink, registration_sender, closed_receiver);
     let (ended, ended_receiver) = watch::channel(false);
-    tokio::spawn(inward(scope.response_receiver, to_router));
-    tokio::spawn(outward(scope.request_receiver, from_handle, handle.clone(), scope.scope));
     tokio::spawn(async move {
         let _ = router.run().await;
         ended.send_replace(true);
     });
-    Ok(Connected::new(daemon, ended_receiver))
+    Ok(Connected::new(daemon, peer, ended_receiver))
 }
 
 /// Every response after the first, the acceptor's server frames, fed
@@ -124,6 +138,10 @@ pub enum ExecuteError {
     /// The provider refused: no daemon accepts under the identity, or
     /// it declined.
     Provider(Error),
+    /// The relayed connection's handshake did not complete: this end
+    /// had no token, the acceptor hung up, or its answer was not
+    /// accepted.
+    Handshake(handshake::Error),
 }
 
 impl fmt::Display for ExecuteError {
@@ -137,6 +155,7 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Misrouted => f.write_str("a frame arrived that does not belong on the main stream"),
             ExecuteError::Response(error) => write!(f, "daemons connect answer did not parse: {error}"),
             ExecuteError::Provider(_) => f.write_str("the provider refused the connect"),
+            ExecuteError::Handshake(error) => write!(f, "the connection's handshake did not complete: {error}"),
         }
     }
 }
@@ -148,6 +167,7 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Request(error) => Some(error),
             ExecuteError::Frame(error) => Some(error),
             ExecuteError::Response(error) => Some(error),
+            ExecuteError::Handshake(error) => Some(error),
             ExecuteError::Closed | ExecuteError::Unanswered | ExecuteError::Misrouted | ExecuteError::Provider(_) => None,
         }
     }

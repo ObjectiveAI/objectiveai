@@ -22,10 +22,11 @@ use futures_util::{Sink, Stream};
 /// Neither arrangement changes a single frame — the same scopes, the
 /// same channels, the same sixteen requests going the same direction.
 ///
-/// The one place it shows is [`auth`](crate::wire::frame::auth): the end
-/// whose socket is [`Outgoing`](Self::Outgoing) sends the credential,
-/// because whichever side dialled authenticates. That is a fact about
-/// the connection rather than about either half.
+/// The one place it shows is the [`handshake`](crate::wire::handshake):
+/// the end whose socket is [`Outgoing`](Self::Outgoing) is the
+/// connector, and presents its token first; the other answers with its
+/// own. That is a fact about the connection rather than about either
+/// half.
 ///
 /// # Why one type
 ///

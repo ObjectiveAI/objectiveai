@@ -175,10 +175,9 @@ impl Router {
     /// Read frames until the connection ends.
     ///
     /// Returns when the stream ends — or, the one early exit, when a
-    /// credential arrives. A connection has ONE, presented by the side
-    /// that dialled, before this router existed:
-    /// [`authorize`](super::authorize::authorize) already consumed the
-    /// only lawful one, so a provider sending one now is disagreeing
+    /// token arrives. Each end sends ONE, in the
+    /// [`handshake`](crate::wire::handshake) that was done before this
+    /// router existed, so a far end sending one now is disagreeing
     /// with this end about what the handshake is, and nothing after
     /// that disagreement is worth routing. Either way this is dropped,
     /// and with it every sender in it — a peer that closed, a peer
@@ -227,7 +226,7 @@ impl Router {
             // untouched.
             let Ok(frame) = ServerFrame::decode(&bytes) else { continue };
             match frame {
-                // The connection's one credential was spent before this
+                // The connection's one token was spent before this
                 // router existed — see `run`. Ending here drops every
                 // sender, which is how consumers already learn a
                 // connection went.
@@ -403,27 +402,24 @@ impl Router {
     }
 }
 
-/// A credential arrived after the handshake.
+/// A token arrived after the handshake.
 ///
-/// What [`Router::run`] returns instead of ending cleanly, and the
-/// caller-half mirror of the server's
-/// `HandleError::InvalidAuthorize`:
-/// a connection has one credential, presented by the side that dialled
-/// before anything else, and
-/// [`authorize`](super::authorize::authorize) already consumed it. A
-/// provider presenting another is disagreeing about what the handshake
-/// is, and routing stopped where the disagreement started.
+/// What [`Router::run`] returns instead of ending cleanly: each end
+/// sends one token, in the [`handshake`](crate::wire::handshake) that
+/// was done before this router existed. A far end presenting another
+/// is disagreeing about what the handshake is, and routing stopped
+/// where the disagreement started.
 ///
 /// It reaches the party that spawned the router and nobody else — in
 /// particular, not the provider, which is owed no reply on the subject
-/// of credentials, and not the consumers, who see exactly what a
+/// of tokens, and not the consumers, who see exactly what a
 /// vanished connection shows them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct InvalidAuthorize;
 
 impl fmt::Display for InvalidAuthorize {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("a credential arrived after the handshake")
+        f.write_str("a token arrived after the handshake")
     }
 }
 

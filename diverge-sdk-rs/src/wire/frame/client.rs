@@ -26,7 +26,7 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// Decoding one is a second step the holder takes:
 /// [`ClientRequest::decode`](crate::provider::endpoints::ClientRequest) for a
-/// request, [`Auth::decode`](super::auth::Auth) for a credential. Which
+/// request, [`Auth::decode`](super::auth::Auth) for a token. Which
 /// is what lets one type serve both directions of the wire — a sender
 /// hands over bytes it encoded itself, and a receiver decodes when it
 /// is ready to act, rather than the envelope insisting on both.
@@ -40,21 +40,15 @@ use crate::wire::encode::{Encode, Writer};
 /// directions.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClientFrame<'a> {
-    /// Type `0`. The first frame of a connection, sent by whichever
-    /// side dialled. Nothing may precede it.
+    /// Type `0`. An end's token, the first frame it sends: the
+    /// connector's first, the connectee's in answer — see the
+    /// [`handshake`](crate::wire::handshake). Nothing precedes it in
+    /// either direction, and neither end sends a second.
     ///
     /// No scope and no channel: nothing has been established yet, and
-    /// this is what establishes it. The payload is arbitrary — what
-    /// counts as a credential is not this layer's business.
-    ///
-    /// There is no answer to it. A credential that is accepted is
-    /// followed by the connection simply working; one that is not is
-    /// followed by a close. A peer that has not authenticated cannot
-    /// make the far end compose anything, so a bad credential earns no
-    /// bytes to amplify and no reason to read.
+    /// this is what establishes it.
     Auth {
-        /// The credential bytes, mode byte included — see
-        /// [`Auth`](super::auth::Auth).
+        /// The token's bytes — see [`Auth`](super::auth::Auth).
         payload: &'a [u8],
     },
     /// Type `1`. A request that opens a scope.

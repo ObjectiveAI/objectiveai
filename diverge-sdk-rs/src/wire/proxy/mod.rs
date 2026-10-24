@@ -1,7 +1,7 @@
 //! The client half, held through an app's native side.
 //!
 //! A page in a Tauri app holds no socket. Its native side — Rust, in
-//! the app — dials, presents the credential and keeps the one
+//! the app — dials, makes the handshake and keeps the one
 //! [`Handle`](crate::wire::client::handle::Handle); the page asks it
 //! to send through four commands and receives what answers on the
 //! app's channels. The TypeScript SDK's proxy handle is the page's

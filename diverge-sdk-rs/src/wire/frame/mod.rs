@@ -182,48 +182,21 @@
 //!
 //! # Auth
 //!
-//! A connection may be dialled from either end: a client to a server,
-//! or a server to a client. Whichever side DIALLED sends an auth frame
-//! first. Nothing may precede it.
+//! Each end sends exactly one auth frame, its token, and it is the
+//! first frame it sends: the connector — the end that dialled — first,
+//! and the connectee in answer, from the same issuer. See the
+//! [`handshake`](crate::wire::handshake) for the rules.
 //!
-//! There is no answer. A credential that is accepted is followed by
-//! the connection simply working; one that is not is followed by a
-//! close, and by nothing else.
+//! A token one end does not accept is followed by a close, and by
+//! nothing else, in either direction. A peer that has not
+//! authenticated cannot make the far end compose a reply, so a bad
+//! token costs its sender a socket and earns it nothing: no bytes to
+//! amplify, and no answer to read a reason out of.
 //!
-//! That is deliberate, and it is the cheaper side of the trade. A peer
-//! that has not authenticated cannot make the far end compose a reply,
-//! so a bad credential costs its sender a socket and earns it nothing:
-//! no bytes to amplify, and no answer to read a reason out of. Wrong,
-//! expired and unknown are indistinguishable from outside, which is
-//! the point — a rejection that explains itself is an oracle.
-//!
-//! What it costs is diagnosis. An honest client with a stale token
-//! learns that its connection closed and not why, and has to work that
-//! out from what it knows rather than from what it was told.
-//!
-//! Both directions carry the frame, because either may be the side
-//! that dialled. Which end may send it is a fact about the connection
-//! rather than about any frame, so the types do not express it.
-//!
-//! Auth frames have no scope and no channel. They come before either
-//! exists, and are what makes it possible for one to.
-//!
-//! An auth frame carries bytes, like every other frame here. What they
-//! mean is [`Auth`](auth::Auth), and reading them is a second step the
-//! holder takes — there is nobody else to hand them to, since a
-//! credential belongs to the CONNECTION rather than to any scope, but
-//! that is a reason to decode them promptly and not a reason for the
-//! envelope to insist.
-//!
-//! What is INSIDE the credential is nobody's business here at all.
-//! [`Auth`](auth::Auth) says which mode it arrived in and hands back a
-//! string; what counts as an acceptable one is for the two ends to
-//! agree, and there is a second mode coming in which a broker is the
-//! one that agrees.
-//!
-//! Where a type exists in both directions it means the same thing in
-//! both, so `type` alone determines what a frame is. Nothing has to
-//! consult whether the scope happens to be zero.
+//! Both directions carry the frame, with one layout. Auth frames have
+//! no scope and no channel: they come before either exists, and are
+//! what makes it possible for one to. What a token says is
+//! [`Auth`](auth::Auth)'s to read and each end's to judge.
 
 pub mod auth;
 pub mod client;

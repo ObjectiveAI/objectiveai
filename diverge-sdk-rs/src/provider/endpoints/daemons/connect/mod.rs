@@ -1,7 +1,7 @@
 //! Connecting to another daemon, through the provider.
 //!
 //! A daemon opens the scope naming the daemon it wants by the identity
-//! the provider knows it by, and the mode it authenticates to it in.
+//! the provider knows it by.
 //! The provider finds the acceptor's accept scope, opens its half of
 //! the connection on it, and waits for the acceptor's own: a daemon
 //! not accepting here, or one that declines, is the scope's one
@@ -11,7 +11,10 @@
 //! up, which is the finish. The connector's own frames go the other
 //! way on the one channel the provider opens on the scope: the
 //! connector answers it with its client frames, one each, and
-//! finishes it to hang up.
+//! finishes it to hang up. The connection begins, as one on a socket
+//! does, with the [`handshake`](crate::wire::handshake): the
+//! connector's first frame is its token and the acceptor's its own,
+//! from the same issuer, both relayed unread.
 //!
 //! Split by who SENDS: [`client`] is the connector's traffic,
 //! [`server`] the provider's.

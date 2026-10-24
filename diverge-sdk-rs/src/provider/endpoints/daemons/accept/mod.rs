@@ -12,7 +12,9 @@
 //! channel of its own quoting the connection's id. The daemon's half
 //! carries the connector's client frames, the provider's half the
 //! daemon's server frames — a daemon connection as a pair of channels,
-//! as a container program's is. The scope ends by the daemon's stop or
+//! as a container program's is, and the first frame each way is that
+//! end's token, the relayed connection's
+//! [`handshake`](crate::wire::handshake). The scope ends by the daemon's stop or
 //! its connection ending, and every connection relayed on it ends
 //! with it.
 //!

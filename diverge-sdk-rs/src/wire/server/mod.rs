@@ -95,31 +95,19 @@
 //! client shares the thing that makes scopes; a server shares the
 //! scope.
 //!
-//! # Auth is a handshake in front
+//! # The handshake is in front
 //!
-//! Whichever side dialled authenticates. On an
-//! [`Incoming`](crate::wire::connection::Connection::Incoming)
-//! connection the peer's first frame must be its credential, judged
-//! by the [`unbrokered_authorizer`] this end supplies — the identity
-//! it produces is what everything downstream receives. On an
-//! [`Outgoing`](crate::wire::connection::Connection::Outgoing)
-//! connection this end sends the credential before reading anything,
-//! and the identity was never in question: this end dialled the peer,
-//! so it already knows who it is. [`authorization`] is the argument
-//! that says which. The provider's
-//! `handle` drives the handshake
-//! in front of its dispatch, and its error type is where a handshake
-//! that failed is reported — never to the peer, which is the auth
-//! frame's own no-answer rule. The client half tells the same story
-//! from the other chair: [`client::authorize`](crate::wire::client::authorize)
-//! presents this end's credential or judges the far end's.
+//! A connection reaches a [`session`] only once its
+//! [`handshake`](crate::wire::handshake) is done — this end the
+//! connector or the connectee, whichever it is — so a session never
+//! judges a token. A token that arrives after it is
+//! [`Received::Auth`](received::Received::Auth), a violation the
+//! holder ends the connection on.
 
 pub mod answer;
 pub mod answers;
-pub mod authorization;
 pub mod channel;
 mod notice;
 pub mod received;
 pub mod scope_handle;
 pub mod session;
-pub mod unbrokered_authorizer;

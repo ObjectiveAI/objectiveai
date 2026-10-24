@@ -1,4 +1,4 @@
-//! Who is dialling, and on whose word.
+//! Who is on the other end, and on whose word.
 
 use std::fmt;
 use std::str::{self, Utf8Error};
@@ -6,128 +6,65 @@ use std::str::{self, Utf8Error};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// The payload of an [`Auth`](super::client::ClientFrame::Auth)
-/// frame, in either direction.
+/// The payload of an [`Auth`](super::client::ClientFrame::Auth) frame,
+/// in either direction: a token.
 ///
-/// One type for both ends, because a connection may be dialled from
-/// either and whichever side dialled sends this. There is nothing
-/// asymmetric about presenting a credential.
+/// One type for both ends, because each end sends exactly one — the
+/// connector first, the connectee in answer — and the frame is the same
+/// whichever way it travels. See [`handshake`](crate::wire::handshake)
+/// for the rules of the exchange.
 ///
-/// A payload leads with one byte saying which mode — `0` for
-/// [`Unbrokered`](Self::Unbrokered) — and the rest is that mode's own
-/// bytes.
+/// # The token is the whole payload
 ///
-/// # A byte for one mode
+/// An RFC 7519 JWT as UTF-8, and nothing else: no mode byte, no length,
+/// since WebSocket delimits the message and there is one kind of token.
+/// Its `iss` names the issuer it is from, which is how the connectee
+/// knows which issuer to answer from.
 ///
-/// There is one mode today and the byte still ships, because there is
-/// a second one coming and a tag added later is a wire break. It is a
-/// synthetic header in the honest sense: nothing about an unbrokered
-/// credential needs discriminating, and the byte is there for what
-/// comes after it rather than for what is there now.
-///
-/// **Brokered** is the mode that is not here. A broker vouching for a
-/// peer is a different exchange with a different shape, not yet
-/// defined — and reserving tag
-/// `1` for it costs nothing while guessing at it would cost the
-/// design.
-///
-/// # There is still no answer
-///
-/// Whatever mode a credential arrives in, an accepted one is followed
-/// by the connection simply working and a rejected one by a close. A
-/// peer that has not authenticated cannot make the far end compose a
-/// reply, so a bad credential costs its sender a socket and earns it
-/// nothing: no bytes to amplify, and no answer to read a reason out
-/// of.
+/// What else is in it is not this layer's business: it is not parsed
+/// here, not checked beyond being UTF-8 and not empty, and not bounded
+/// in length. Each end judges the other's by its own means.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Auth<'a> {
-    /// The two ends already know each other. Tag `0`.
-    ///
-    /// No third party is involved and nobody is vouching. The
-    /// credential means whatever the two ends agreed it means before
-    /// either of them dialled.
-    ///
-    /// # The credential is text
-    ///
-    /// A string rather than bytes, because every credential this is
-    /// going to carry already is one — a bearer token, an API key, a
-    /// signed assertion. Bytes made a caller pick an encoding for
-    /// something that never needed one, and made a reader hold a blob
-    /// it could not print.
-    ///
-    /// What is IN the string is not this protocol's business. It is
-    /// not parsed, not validated beyond being UTF-8, and not
-    /// constrained in length — a far end that cannot make sense of one
-    /// closes the connection, which is the only thing it ever does
-    /// about a credential it does not like.
-    ///
-    /// It runs to the end of the payload, so it needs no length.
-    Unbrokered(&'a str),
-}
+pub struct Auth<'a>(pub &'a str);
 
-/// Tag for [`Auth::Unbrokered`].
-const UNBROKERED: u8 = 0;
-
-/// A tag and a string's own bytes. No serialization: a mode byte and
-/// one trailing field are not a shape a format would help with.
+/// The token's own bytes.
 impl Encode for Auth<'_> {
-    /// [`Infallible`](std::convert::Infallible): a known byte and a
-    /// string's own.
+    /// [`Infallible`](std::convert::Infallible): a string's own bytes.
     type Error = std::convert::Infallible;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        match self {
-            Auth::Unbrokered(credential) => {
-                out.extend_from_slice(&[UNBROKERED]);
-                out.extend_from_slice(credential.as_bytes());
-            }
-        }
+        out.extend_from_slice(self.0.as_bytes());
         Ok(())
     }
 }
 
 impl<'a> Decode<'a> for Auth<'a> {
-    /// Three ways to fail, and only one of them is a parse.
+    /// Empty, or not UTF-8.
     type Error = AuthError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
-        let (mode, rest) = bytes.split_first().ok_or(AuthError::Empty)?;
-        match *mode {
-            UNBROKERED => str::from_utf8(rest)
-                .map(Auth::Unbrokered)
-                .map_err(AuthError::Credential),
-            mode => Err(AuthError::UnknownMode(mode)),
+        if bytes.is_empty() {
+            return Err(AuthError::Empty);
         }
+        str::from_utf8(bytes).map(Auth).map_err(AuthError::Token)
     }
 }
 
-/// A credential that could not be read.
+/// A token that could not be read. Its receiver closes the connection,
+/// and sends nothing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthError {
-    /// No bytes at all, so not even a mode.
+    /// No bytes at all.
     Empty,
-    /// A mode this version does not define.
-    ///
-    /// Which is what a brokered credential will look like until
-    /// brokering exists. Rejected rather than skipped: a peer
-    /// authenticating in a mode this end cannot evaluate has not
-    /// authenticated, and treating an unreadable credential as absent
-    /// is friendlier than treating it as present.
-    UnknownMode(u8),
-    /// The credential was not UTF-8.
-    Credential(Utf8Error),
+    /// The token was not UTF-8.
+    Token(Utf8Error),
 }
 
 impl fmt::Display for AuthError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AuthError::Empty => f.write_str("auth payload is empty"),
-            AuthError::UnknownMode(mode) => {
-                write!(f, "unknown auth mode {mode}")
-            }
-            AuthError::Credential(error) => {
-                write!(f, "credential is not utf-8: {error}")
-            }
+            AuthError::Empty => f.write_str("the auth payload is empty"),
+            AuthError::Token(error) => write!(f, "the token is not utf-8: {error}"),
         }
     }
 }
@@ -135,8 +72,8 @@ impl fmt::Display for AuthError {
 impl std::error::Error for AuthError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            AuthError::Credential(error) => Some(error),
-            AuthError::Empty | AuthError::UnknownMode(_) => None,
+            AuthError::Token(error) => Some(error),
+            AuthError::Empty => None,
         }
     }
 }

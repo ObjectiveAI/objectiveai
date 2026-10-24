@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// names it by, and what the daemon names this provider by when it
 /// tells a connector where a container of its runs. The daemon does
 /// not choose it and may not know it until here: an outgoing
-/// connection presented a credential the provider mapped to it, an
+/// connection presented a token the provider mapped to it, an
 /// incoming one was dialled by the provider under a name of the
 /// provider's.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

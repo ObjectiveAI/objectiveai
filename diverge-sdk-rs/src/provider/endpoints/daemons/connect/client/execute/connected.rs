@@ -5,10 +5,12 @@ use std::fmt;
 use tokio::sync::watch;
 
 use crate::wire::client::handle::Handle;
+use crate::wire::handshake::Peer;
 
 /// A connection to another daemon, carried inside a connect scope: a
 /// handle on it, which is a client of the daemon protocol like any on
-/// a socket, and the connection's end.
+/// a socket, the acceptor its handshake verified, and the connection's
+/// end.
 ///
 /// # Dropping it ends it
 ///
@@ -20,12 +22,14 @@ use crate::wire::client::handle::Handle;
 pub struct Connected {
     /// The daemon reached, as a client reaches one.
     pub handle: Handle,
+    /// The acceptor, verified.
+    pub peer: Peer,
     ended: watch::Receiver<bool>,
 }
 
 impl Connected {
-    pub(super) fn new(handle: Handle, ended: watch::Receiver<bool>) -> Self {
-        Connected { handle, ended }
+    pub(super) fn new(handle: Handle, peer: Peer, ended: watch::Receiver<bool>) -> Self {
+        Connected { handle, peer, ended }
     }
 
     /// Resolves when the connection has ended: the acceptor hung up,

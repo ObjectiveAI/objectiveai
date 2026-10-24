@@ -16,8 +16,7 @@ pub enum Mode {
     Unbrokered {
         /// The name of the entry in the daemon's host's
         /// keyring that holds the key the daemon
-        /// presents in its
-        /// [`Auth::Unbrokered`](crate::wire::frame::auth::Auth::Unbrokered).
+        /// presents in its auth frame.
         /// A name, never the key: no request carries a key.
         key: String,
     },

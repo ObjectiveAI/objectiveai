@@ -7,7 +7,7 @@ use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
 use futures_util::stream::{SplitSink, SplitStream};
-use futures_util::{SinkExt as _, Stream, StreamExt as _};
+use futures_util::{Stream, StreamExt as _};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
@@ -15,14 +15,11 @@ use super::notice::Notice;
 use super::received::Received;
 use super::scope_handle::ScopeHandle;
 use crate::wire::connection::Connection;
-use crate::wire::encode::{Encode, Writer};
-use crate::wire::frame::auth::Auth;
 use crate::wire::frame::client::ClientFrame;
-use crate::wire::frame::server::ServerFrame;
 
 /// A connection's provider side: what a client starts on it.
 ///
-/// A [`Stream`] of [`Received`] — a credential, or a request beside
+/// A [`Stream`] of [`Received`] — a token, or a request beside
 /// the [`ScopeHandle`] that answers it — and that is the whole of a
 /// provider's outer loop: take an item, judge or serve it, take the
 /// next. See [`Received`] for why there are exactly two kinds and why
@@ -59,16 +56,12 @@ use crate::wire::frame::server::ServerFrame;
 /// if that work is itself waiting on the client, neither side moves
 /// again.
 ///
-/// # Auth flows through, in both directions
+/// # The handshake is done before
 ///
-/// A peer's credential arrives as [`Received::Auth`] and is judged by
-/// whoever holds this stream; the credential a provider owes on an
-/// [`Outgoing`](crate::wire::connection::Connection::Outgoing)
-/// connection goes out through the session too, sent by
-/// `handle` before it reads.
-/// This type carries them and takes no position on either — the
-/// handshake's rules live with the handshake, in
-/// `handle`.
+/// A session is built on a connection whose
+/// [`handshake`](crate::wire::handshake) is over, so it sends no token.
+/// One that arrives is yielded as [`Received::Auth`], for whoever holds
+/// this stream to end the connection on.
 #[derive(Debug)]
 pub struct Session {
     /// The read half of the connection.
@@ -240,33 +233,6 @@ impl Session {
             self.notice_sender.clone(),
             self.sink.clone(),
         ))
-    }
-
-    /// Present this end's credential, as the connection's first frame.
-    ///
-    /// The one thing a session ever writes: everything else a provider
-    /// says goes through the [`ScopeHandle`]s it hands out, and a
-    /// credential belongs to the connection rather than to any scope.
-    /// `handle` calls it
-    /// exactly once, on an
-    /// [`Outgoing`](super::authorization::Authorization::Outgoing)
-    /// connection, before it reads anything — "nothing may precede it"
-    /// is the frame's own rule.
-    ///
-    /// There is no answer to wait for and no failure to report: an
-    /// accepted credential is followed by the connection simply
-    /// working, a rejected one by a close, and a send that did not
-    /// land is a connection that is already over — which the very next
-    /// read will say.
-    pub async fn send_auth(&self, auth: Auth<'_>) {
-        let mut payload = Vec::new();
-        auth.encode(&mut Writer::new(&mut payload))
-            .unwrap_or_else(|error| match error {});
-        let mut buffer = Vec::new();
-        ServerFrame::Auth { payload: &payload }
-            .encode(&mut Writer::new(&mut buffer))
-            .unwrap_or_else(|error| match error {});
-        let _ = self.sink.lock().await.send(Bytes::from(buffer)).await;
     }
 
     /// Find a channel this end opened.

@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 use super::{Refusal, WireStatus};
 use crate::wire::client::dial::dial;
 use crate::wire::client::handle::{Handle, SendError};
+use crate::wire::handshake::Authenticator;
 
 /// What the link says when the socket ended under it.
 const ENDED: &str = "the connection to the daemon ended";
@@ -29,8 +30,11 @@ struct Inner {
     dials: u64,
 }
 
-/// A daemon's address and key, and the one connection to it, as a
-/// native side holds it for a page that speaks through the proxy.
+/// A daemon's address, the issuer and the authenticator its handshake
+/// is made with, and the one connection to it, as a native side holds
+/// it for a page that speaks through the proxy. Every dial presents a
+/// token the authenticator gives it then, so a redial never presents
+/// a token that expired.
 ///
 /// The rules, which are a socket client's:
 ///
@@ -48,15 +52,22 @@ struct Inner {
 /// [`handle`](Link::handle) is called from inside one.
 pub struct Link {
     address: String,
-    key: String,
+    issuer: String,
+    authenticator: Arc<dyn Authenticator>,
     inner: Arc<Mutex<Inner>>,
 }
 
 impl Link {
-    /// A link to the daemon at `address`, presenting `key`, not yet
-    /// dialled. See [`dial`] for what an address may be.
-    pub fn new(address: impl Into<String>, key: impl Into<String>) -> Link {
-        Link { address: address.into(), key: key.into(), inner: Arc::new(Mutex::new(Inner { state: State::Idle, dials: 0 })) }
+    /// A link to the daemon at `address`, its handshake made from
+    /// `issuer` through `authenticator`, not yet dialled. See [`dial`]
+    /// for what an address may be.
+    pub fn new(address: impl Into<String>, issuer: impl Into<String>, authenticator: Arc<dyn Authenticator>) -> Link {
+        Link {
+            address: address.into(),
+            issuer: issuer.into(),
+            authenticator,
+            inner: Arc::new(Mutex::new(Inner { state: State::Idle, dials: 0 })),
+        }
     }
 
     /// The handle: the connection that is up; or the one dialled now,
@@ -72,8 +83,8 @@ impl Link {
             State::Down(message) => return Err(Refusal::Connection(message.clone())),
             State::Idle => {}
         }
-        match dial(&self.address, &self.key).await {
-            Ok((handle, run)) => {
+        match dial(&self.address, &self.issuer, self.authenticator.as_ref()).await {
+            Ok((handle, run, _)) => {
                 inner.dials += 1;
                 let dialled = inner.dials;
                 inner.state = State::Up { handle: handle.clone(), dialled };
