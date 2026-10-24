@@ -1,6 +1,8 @@
 // The frame-level client: the half that mints scopes and channels.
 //
-// One socket, authenticated first, then split in two: `Router` is
+// One socket, its handshake first — each end's token, the
+// connector's first, the other's from the same issuer — then split
+// in two: `Router` is
 // the read loop — frames off the socket, forwarded WHOLE to whoever
 // registered for them — and `SocketHandle` is the write half and
 // what a caller keeps hold of. `dial` makes both. `Handle` is what
@@ -18,6 +20,8 @@ export * from "./receiver.js";
 export * from "./registry.js";
 export * from "./router.js";
 export * from "./socket_handle.js";
+export * from "./authenticator.js";
 export * from "./authorize.js";
+export * from "./handshake_error.js";
 export * from "./dial.js";
 export * from "./error.js";

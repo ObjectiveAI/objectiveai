@@ -1,6 +1,7 @@
-// Dialling a daemon: the socket, the credential, the two halves.
+// Dialling a daemon: the socket, the handshake, the two halves.
 
-import { Connection, ConnectionError } from "../connection.js";
+import { Connection } from "../connection.js";
+import type { Authenticator, Peer } from "./authenticator.js";
 import { authorize } from "./authorize.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
@@ -16,23 +17,19 @@ export function url(address: string): string {
 }
 
 /**
- * The daemon at `address` dialled, `key` presented as the one
- * credential frame, and the connection split: the router reading on
- * its own, the handle every request is put on. A socket that could
- * not be made is a `ConnectionError`; the daemon answers the
- * credential with nothing, admitting or closing, so a key it refuses
- * is seen as the first request's scope closing.
+ * The daemon at `address` dialled, the handshake made as its
+ * connector — this end's token from `issuer`, the daemon's own from
+ * the same issuer verified, both through `authenticator` — and the
+ * connection split: the router reading on its own, the handle every
+ * request is put on, and the daemon, verified. A socket that could
+ * not be made is a `ConnectionError`; a handshake that did not
+ * complete, a `HandshakeError`, the socket closed.
  */
-export async function dial(address: string, key: string): Promise<SocketHandle> {
+export async function dial(address: string, issuer: string, authenticator: Authenticator): Promise<{ handle: SocketHandle; peer: Peer }> {
   const connection = await Connection.open(url(address));
-  try {
-    authorize(connection, key);
-  } catch (cause) {
-    connection.close();
-    throw cause instanceof ConnectionError ? cause : new ConnectionError("send", cause);
-  }
+  const peer = await authorize(connection, issuer, authenticator);
   const registry = new Registry();
   const router = new Router(connection, registry);
   void router.run();
-  return new SocketHandle(connection, registry);
+  return { handle: new SocketHandle(connection, registry), peer };
 }

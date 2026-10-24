@@ -1,22 +1,31 @@
-// The credential frame's payload.
+// The auth frame's payload: a token.
 
 import { utf8 } from "../encode.js";
-
-/** The mode byte of a credential presented as itself. */
-const UNBROKERED = 0;
+import { text } from "../decode.js";
+import { FrameError } from "./error.js";
 
 /**
- * The payload of the one auth frame a client sends: a mode byte,
- * `0` for unbrokered, then the credential's UTF-8, running to the
- * end of the payload so that it needs no length. It is answered by
- * nothing: an accepted credential is followed by the connection
- * simply working, a rejected one by a close — wrong, expired and
- * unknown are indistinguishable from outside, which is the point.
+ * The payload of an auth frame, in either direction: the token, an
+ * RFC 7519 JWT, as UTF-8 — the whole payload, with no mode byte and
+ * no length. Each end sends exactly one, the connector's first and
+ * the connectee's in answer, from the same issuer.
  */
-export function unbrokered(credential: string): Uint8Array {
-  const text = utf8(credential);
-  const out = new Uint8Array(1 + text.length);
-  out[0] = UNBROKERED;
-  out.set(text, 1);
-  return out;
+export function auth(token: string): Uint8Array {
+  return utf8(token);
+}
+
+/**
+ * The token an auth frame's payload is. An empty payload, or one that
+ * is not UTF-8, is malformed: the `auth` error, and the reader closes
+ * the connection.
+ */
+export function readAuth(payload: Uint8Array): string {
+  if (payload.length === 0) {
+    throw new FrameError("auth");
+  }
+  try {
+    return text(payload);
+  } catch (cause) {
+    throw new FrameError("auth", undefined, cause);
+  }
 }

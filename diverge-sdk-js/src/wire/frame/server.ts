@@ -5,8 +5,8 @@ import { splitHeader } from "./header.js";
 import { FrameError } from "./error.js";
 
 /**
- * One frame as a server sends it: a credential, which a client
- * never expects after the handshake; a response or the finish on a
+ * One frame as a server sends it: its token, the handshake's
+ * answer, which a client never expects after it; a response or the finish on a
  * scope the client opened; a channel request the server opens
  * inside that scope; or a response or finish on a channel the
  * CLIENT opened. A `request` from a server is a type this side does

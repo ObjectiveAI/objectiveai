@@ -17,8 +17,8 @@ import type { Registry } from "./registry.js";
  * A frame nobody is waiting for is dropped, silently: a header too
  * short to read, a type this side does not define, a scope with no
  * entry, a channel with no entry inside a scope that has one. A
- * second credential after the handshake ends routing, as it ends
- * the connection. The socket ending closes every scope.
+ * token after the handshake ends routing, as it ends the
+ * connection: each end sends one, before the router exists. The socket ending closes every scope.
  */
 export class Router {
   readonly #connection: Connection;

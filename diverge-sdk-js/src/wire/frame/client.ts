@@ -5,7 +5,7 @@ import { joinHeader } from "./header.js";
 
 /**
  * One frame as a client sends it. A client sends five of the seven
- * types: its credential, a request that opens a scope, and the three
+ * types: its token, in the handshake, a request that opens a scope, and the three
  * channel frames — a channel it opens inside a scope, and the
  * responses and finish on a channel the SERVER opened, whose number
  * is quoted from the server's request rather than chosen. The
