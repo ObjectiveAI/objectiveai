@@ -38,7 +38,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::standalone_tools::make(&standing, Make::Register) {
         return Ok(Frame::Forbidden);
     }
-    if !daemon.remotes.iter().any(|remote| remote.name == frame.daemon) {
+    if !daemon.daemons.connect.iter().any(|remote| remote.name == frame.daemon) {
         return Ok(Frame::Error(reply::failure(&"the daemon named is none the configuration names")));
     }
     if !judge::daemons::holds(&standing, Action::Connect) {

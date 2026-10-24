@@ -29,12 +29,14 @@ pub type AcceptedFrames = Pin<Box<dyn Stream<Item = server::Owned> + Send>>;
 ///    the connector's token, its first frame, is verified against the
 ///    address the provider saw, and the daemon's own token from the
 ///    same issuer is the first frame the daemon sends.
-/// 2. **Admission.** The connector must be an account of this
-///    daemon's — another daemon reaches this one through the accounts
-///    system, and through nothing else. A provider's identity, and an
-///    identity that is nothing here, are declined.
-/// 3. **The session.** An admitted connector is served as the client
-///    it is, in-process, by the same session a socket gets.
+/// 2. **Admission.** The connector must be a daemon on
+///    `daemons.accepted` that no connection holds, which the
+///    connection then holds until it ends — see
+///    [`DaemonAuthenticator`](crate::judge::DaemonAuthenticator).
+/// 3. **The session.** An admitted connector is served, in-process, by
+///    the same session a socket gets, as the account its identity is
+///    here: its standing. A daemon on the list that is no account is
+///    declined, since there is nothing to serve it as.
 ///
 /// A connection declined is the half finished with nothing on it.
 pub struct DaemonAcceptor {
@@ -56,11 +58,16 @@ impl Acceptor for DaemonAcceptor {
             }
         });
         let Handshook { connection: wire, peer } =
-            handshake::accept(Wire::Local { incoming, outgoing }, &self.daemon.authenticator.expecting(Expected::Account), connection.address).await.ok()?;
-        let Ok(Some(Admitted::Client(who))) = self.daemon.authenticator.admit(&peer).await else {
+            handshake::accept(Wire::Local { incoming, outgoing }, &self.daemon.authenticator.expecting(Expected::Daemon), connection.address).await.ok()?;
+        let Ok(Some(Admitted::Client(who))) = self.daemon.authenticator.account(&peer).await else {
+            self.daemon.authenticator.release(Expected::Daemon, &peer).await;
             return None;
         };
-        tokio::spawn(serve::client(wire, who, Arc::clone(&self.daemon)));
+        let daemon = Arc::clone(&self.daemon);
+        tokio::spawn(async move {
+            serve::client(wire, who, Arc::clone(&daemon)).await;
+            daemon.authenticator.release(Expected::Daemon, &peer).await;
+        });
         Some(Box::pin(stream::unfold(from_session, |mut from_session| async move {
             loop {
                 let bytes = from_session.recv().await?;

@@ -25,7 +25,8 @@ const PAUSE: Duration = Duration::from_secs(5);
 /// [`handshake`](diverge_sdk::wire::handshake) as the connector — the
 /// daemon's token from `connect.issuer`, the provider's from the same
 /// issuer verified, and required to be one the configuration's
-/// `providers.accepted` lists — and [`attach`]es under the identity the
+/// `providers.accepted` lists that no connection holds, which it then
+/// holds — and [`attach`]es under the identity the
 /// provider answered as: a provider that answers its info is
 /// held and served until the connection ends. A handshake that fails
 /// — an identity not accepted among the ways — is a round not

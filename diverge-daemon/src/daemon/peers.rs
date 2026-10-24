@@ -9,9 +9,11 @@ use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;
 use diverge_sdk::wire::client::handle::Handle;
 
 /// Every provider the daemon holds a connection to, one slot per
-/// identity: no two connections hold one `(issuer, subject)`, whichever
-/// end dialled. A second connection under a held identity is refused
-/// at its attach and its socket closed without a word.
+/// identity. No two connections hold one `(issuer, subject)`, whichever
+/// end dialled: the handshake holds the identity, and refuses a second
+/// connection under it — see
+/// [`DaemonAuthenticator`](crate::judge::DaemonAuthenticator) — so a
+/// slot is never asked for twice.
 #[derive(Default)]
 pub struct Peers {
     /// One slot per identity connected, or being admitted.
@@ -62,15 +64,10 @@ pub enum Standing {
 }
 
 impl Peers {
-    /// Reserve the slot for `identity`: `false` when a connection
-    /// holds the identity already; else `true`, the slot pending and
-    /// the caller's to fill and to give back.
-    pub fn reserve(&mut self, identity: Identity) -> bool {
-        if self.slots.contains_key(&identity) {
-            return false;
-        }
+    /// Reserve the slot for `identity`, the handshake holding it: the
+    /// slot pending, and the caller's to fill and to give back.
+    pub fn reserve(&mut self, identity: Identity) {
         self.slots.insert(identity, Slot { standing: Standing::Pending });
-        true
     }
 
     /// The slot filled with where the daemon stands now; `false` when

@@ -28,11 +28,15 @@
 //!     - address: provider.example.com:14979
 //!       issuer: https://auth.example.com
 //! daemons:
-//!   - name: lab
-//!     issuer: https://auth.example.com
-//!     links:
-//!       - provider: { issuer: https://auth.example.com, subject: provider-1 }
-//!         daemon: { issuer: https://auth.example.com, subject: daemon-2 }
+//!   accepted:
+//!     - issuer: https://auth.example.com
+//!       subject: daemon-2
+//!   connect:
+//!     - name: lab
+//!       issuer: https://auth.example.com
+//!       links:
+//!         - provider: { issuer: https://auth.example.com, subject: provider-1 }
+//!           daemon: { issuer: https://auth.example.com, subject: daemon-2 }
 //! postgres:
 //!   kind: local
 //!   max_connections: 1024

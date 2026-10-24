@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use diverge_sdk::daemon::DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
 
-use super::{Postgres, Providers, Remote};
+use super::{Daemons, Postgres, Providers};
 
 /// The whole of `daemon.yaml`: what the daemon is told.
 ///
@@ -32,10 +32,9 @@ pub struct Config {
     /// The providers the daemon works with: see [`Providers`]. Absent,
     /// none.
     pub providers: Providers,
-    /// The other daemons this daemon reaches through its providers:
-    /// see [`Remote`]. Absent, none.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub daemons: Vec<Remote>,
+    /// The other daemons this daemon works with through its providers:
+    /// see [`Daemons`]. Absent, none.
+    pub daemons: Daemons,
     /// The database the daemon keeps its records in and serves to its
     /// containers: see [`Postgres`]. Read at start and never changed
     /// while the daemon runs: another database is another start.
@@ -76,7 +75,7 @@ impl Default for Config {
             port: DEFAULT_PORT,
             identities: BTreeMap::new(),
             providers: Providers::default(),
-            daemons: Vec::new(),
+            daemons: Daemons::default(),
             postgres: Postgres::default(),
             idle_seconds: 10,
             accept_daemons: true,

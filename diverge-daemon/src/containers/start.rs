@@ -297,7 +297,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
             (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service, Some(stream), secrets)
         }
         Origin::Connected { daemon: name, tool: remote } => {
-            let remote_daemon = daemon.remotes.iter().find(|remote| &remote.name == name).ok_or_else(|| StartError::NoDaemon(name.clone()))?;
+            let remote_daemon = daemon.daemons.connect.iter().find(|remote| &remote.name == name).ok_or_else(|| StartError::NoDaemon(name.clone()))?;
             let peer = daemons::connect(daemon, remote_daemon).await.map_err(StartError::Daemon)?;
             let request = connect_request::Frame {
                 tool: remote.clone(),

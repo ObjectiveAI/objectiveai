@@ -32,7 +32,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::daemons::holds(&standing, Action::Get) {
         return Ok(Frame::Forbidden);
     }
-    let Some(remote) = daemon.remotes.iter().find(|remote| remote.name == frame.name) else {
+    let Some(remote) = daemon.daemons.connect.iter().find(|remote| remote.name == frame.name) else {
         return Ok(Frame::NotFound);
     };
     let connected = daemon.live.is_daemon_connected(&remote.name).await;

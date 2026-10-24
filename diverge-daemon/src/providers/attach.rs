@@ -15,6 +15,7 @@ use tokio::sync::mpsc;
 
 use super::Error;
 use crate::daemon::Daemon;
+use crate::judge::Expected;
 
 /// The version a provider must answer to be used: this crate's own,
 /// read from the manifest at compile time. The daemon and the
@@ -46,11 +47,9 @@ pub struct Attached {
 /// Hold `connection`, already past its handshake, as the connection
 /// to the provider `identity`.
 ///
-/// The slot is reserved first: one held under the identity is
-/// [`Error::Held`], and the socket is
-/// dropped without a word, so that no second socket of one provider
-/// is ever admitted — and a reserved slot reads as no connection
-/// until it is filled. Then the socket is split into the SDK's client
+/// The handshake holds the identity already, so no second connection
+/// under it reaches here. The slot is reserved first, and a reserved
+/// slot reads as no connection until it is filled. Then the socket is split into the SDK's client
 /// router and handle; the provider is asked its info, with the router
 /// driven meanwhile, and one that does not answer is not a provider,
 /// [`Error::Info`], the slot given back and the socket dropped. A
@@ -66,9 +65,7 @@ pub struct Attached {
 /// what comes back is the rest of the connection's life, to be
 /// served.
 pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Daemon>) -> Result<Attached, Error> {
-    if !daemon.live.reserve_provider(identity.clone()).await {
-        return Err(Error::Held);
-    }
+    daemon.live.reserve_provider(identity.clone()).await;
     let (sink, stream) = connection.split();
     let (registration_sender, registration_receiver) = mpsc::unbounded_channel();
     let (closed_sender, closed_receiver) = mpsc::unbounded_channel();
@@ -87,6 +84,7 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
         Ok(answer) => answer,
         Err(error) => {
             daemon.live.disconnect_provider(&identity).await;
+            daemon.authenticator.release(Expected::Provider, &identity).await;
             return Err(Error::Info(error));
         }
     };
@@ -111,10 +109,11 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
 
 impl Attached {
     /// Drive the connection to its end — the socket ending — and give
-    /// the slot back.
+    /// the slot back, and the identity the handshake holds.
     pub async fn serve(self) {
         let Attached { daemon, identity, reading } = self;
         let _ = reading.await;
         daemon.live.disconnect_provider(&identity).await;
+        daemon.authenticator.release(Expected::Provider, &identity).await;
     }
 }

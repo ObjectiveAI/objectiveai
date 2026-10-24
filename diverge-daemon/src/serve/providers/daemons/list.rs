@@ -64,7 +64,8 @@ impl Source for Listed<'_> {
             let connected = self.daemon.live.connected_daemons().await;
             Ok(self
                 .daemon
-                .remotes
+                .daemons
+                .connect
                 .iter()
                 .filter_map(|remote| {
                     let connected = connected.contains(&remote.name);

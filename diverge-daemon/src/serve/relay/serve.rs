@@ -71,7 +71,7 @@ async fn judge_and_connect(relay: &Relay, who: Who, daemon: &Arc<Daemon>) -> Res
             return Err(Refusal::Forbidden);
         }
     }
-    let Some(remote) = daemon.remotes.iter().find(|remote| remote.name == relay.daemon) else {
+    let Some(remote) = daemon.daemons.connect.iter().find(|remote| remote.name == relay.daemon) else {
         return Err(Refusal::Error("the daemon named is none the configuration names".to_string()));
     };
     let peer = daemons::connect(daemon, remote).await.map_err(|fail| Refusal::Error(fail.to_string()))?;

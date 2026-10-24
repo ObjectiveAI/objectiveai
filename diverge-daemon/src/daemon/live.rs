@@ -177,14 +177,13 @@ impl Live {
         self.connected.lock().await.keys().copied().collect()
     }
 
-    /// Reserve the provider's slot for a connection being admitted:
-    /// `false` when a connection holds the identity already, and the
-    /// newcomer is refused; else `true`, the slot pending. Nothing is
-    /// said of it yet: a pending slot reads as no connection. What is
+    /// Reserve the provider's slot for a connection its handshake
+    /// admitted, holding its identity: the slot pending. Nothing is said
+    /// of it yet: a pending slot reads as no connection. What is
     /// reserved is given back with `disconnect_provider`, on every
     /// path.
-    pub async fn reserve_provider(&self, identity: Identity) -> bool {
-        self.providers.lock().await.reserve(identity)
+    pub async fn reserve_provider(&self, identity: Identity) {
+        self.providers.lock().await.reserve(identity);
     }
 
     /// The provider answered its info with the daemon's version: its
