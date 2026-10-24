@@ -6,11 +6,11 @@ use std::sync::Arc;
 
 use diverge_sdk::file_lock;
 use futures_util::future::{self, Either};
-use tokio::sync::watch;
+use tokio::sync::{RwLock, watch};
 
 use crate::config::Config;
 use crate::endpoints;
-use crate::signing::Signing;
+use crate::signing::{Live, Signing};
 use crate::store::Store;
 
 use super::{Error, Issuer, listen, shutdown};
@@ -41,10 +41,10 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     let store = Store::open(&root).await.map_err(Error::Store)?;
     let signing = Signing::load(&store).await.map_err(Error::Signing)?;
     let discovery = endpoints::document(&config).map_err(Error::Discovery)?;
-    let key_set = serde_json::to_string(&signing.key_set()).map_err(|error| Error::Discovery(error.to_string()))?;
+    let keys = RwLock::new(Live::new(signing).map_err(Error::Signing)?);
     let port = config.port;
     let (stop, _) = watch::channel(false);
-    let issuer = Arc::new(Issuer { config, store, signing, discovery, key_set, stop });
+    let issuer = Arc::new(Issuer { config, store, keys, discovery, stop });
     let listening = pin!(listen(Arc::clone(&issuer), port, issuer.stop.subscribe()));
     let signal = pin!(shutdown());
     let outcome = match future::select(listening, signal).await {

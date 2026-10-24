@@ -19,6 +19,8 @@ pub enum Error {
     Jwt(jsonwebtoken::errors::Error),
     /// The blocking task a key was drawn on panicked.
     Panicked,
+    /// The key set could not be written as JSON.
+    KeySet(serde_json::Error),
 }
 
 impl fmt::Display for Error {
@@ -29,6 +31,7 @@ impl fmt::Display for Error {
             Error::Pem(kid, why) => write!(f, "the signing key `{kid}` is not a PKCS#1 RSA key: {why}"),
             Error::Jwt(error) => write!(f, "a signing key could not be read: {error}"),
             Error::Panicked => f.write_str("the drawing of a signing key panicked"),
+            Error::KeySet(error) => write!(f, "the key set could not be written: {error}"),
         }
     }
 }
@@ -39,6 +42,7 @@ impl std::error::Error for Error {
             Error::Store(error) => Some(error),
             Error::Generate(error) => Some(error),
             Error::Jwt(error) => Some(error),
+            Error::KeySet(error) => Some(error),
             Error::Pem(..) | Error::Panicked => None,
         }
     }

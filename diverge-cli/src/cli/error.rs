@@ -42,6 +42,8 @@ pub enum Error {
     Signing(signing::Error),
     /// A password could not be hashed.
     Password(password::Error),
+    /// The signing key could not be rotated: why.
+    Rotate(String),
 }
 
 impl fmt::Display for Error {
@@ -59,6 +61,7 @@ impl fmt::Display for Error {
             Error::Issuer(error) => write!(f, "{error}"),
             Error::Signing(error) => write!(f, "{error}"),
             Error::Password(error) => write!(f, "{error}"),
+            Error::Rotate(why) => write!(f, "the signing key was not rotated: {why}"),
         }
     }
 }
@@ -83,6 +86,7 @@ impl std::error::Error for Error {
             Error::Issuer(error) => Some(error),
             Error::Signing(error) => Some(error),
             Error::Password(error) => Some(error),
+            Error::Rotate(_) => None,
         }
     }
 }

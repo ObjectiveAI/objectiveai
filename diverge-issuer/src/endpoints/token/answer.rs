@@ -55,7 +55,8 @@ struct Body {
 /// answer is sent, so a refresh token answered is one the issuer
 /// knows.
 pub async fn answer(issuer: &Issuer, grantee: Grantee, next: Next) -> Result<Response, OAuthError> {
-    let access = tokens::access(&issuer.config, &issuer.signing, &grantee.sub, &grantee.audience, CLIENT_ID, &grantee.scope)
+    let keys = issuer.keys.read().await;
+    let access = tokens::access(&issuer.config, &keys.signing, &grantee.sub, &grantee.audience, CLIENT_ID, &grantee.scope)
         .map_err(OAuthError::server)?;
     let id_token = match grantee.auth_time {
         Some(auth_time) if holds(&grantee.scope, OPENID) => {
@@ -65,10 +66,13 @@ pub async fn answer(issuer: &Issuer, grantee: Grantee, next: Next) -> Result<Res
                 auth_time,
                 access_token: &access.token,
             };
-            Some(tokens::id(&issuer.config, &issuer.signing, signed).map_err(OAuthError::server)?)
+            Some(tokens::id(&issuer.config, &keys.signing, signed).map_err(OAuthError::server)?)
         }
         _ => None,
     };
+    // Both tokens are signed: the keys are let go before the database
+    // is written to.
+    drop(keys);
     let refresh_token = match next {
         Next::None => None,
         Next::Rotated(token) => Some(token),

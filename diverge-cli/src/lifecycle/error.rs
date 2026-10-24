@@ -152,7 +152,7 @@ impl fmt::Display for Error {
             Error::Connect { port, source } => {
                 write!(f, "port {port} could not be connected to: {source}")
             }
-            Error::Exchange(error) => write!(f, "the stop could not be exchanged: {error}"),
+            Error::Exchange(error) => write!(f, "the request could not be exchanged: {error}"),
             Error::NoAnswer => write!(f, "the server closed the connection without answering"),
             Error::Answer(line) => write!(f, "the server's answer is not HTTP: `{line}`"),
             Error::Refused => write!(f, "the server refused the stop as not from this host"),

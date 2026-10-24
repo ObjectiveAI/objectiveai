@@ -24,7 +24,11 @@ pub async fn userinfo(State(issuer): State<Arc<Issuer>>, headers: HeaderMap) -> 
         .and_then(|value| value.split_once(' '))
         .filter(|(scheme, _)| scheme.eq_ignore_ascii_case("bearer"))
         .map(|(_, token)| token.trim());
-    match token.and_then(|token| tokens::verify(&issuer.config, &issuer.signing, token)) {
+    let verified = {
+        let keys = issuer.keys.read().await;
+        token.and_then(|token| tokens::verify(&issuer.config, &keys.signing, token))
+    };
+    match verified {
         Some(access) => Json(json!({ "sub": access.sub })).into_response(),
         None => {
             let mut response = StatusCode::UNAUTHORIZED.into_response();

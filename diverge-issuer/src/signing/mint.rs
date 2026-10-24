@@ -3,7 +3,7 @@
 use rsa::RsaPrivateKey;
 use rsa::pkcs1::{EncodeRsaPrivateKey as _, LineEnding};
 
-use super::Error;
+use super::{Error, Live, Signing, SigningKey};
 use crate::store::Store;
 use crate::store::keys::Record;
 use crate::tokens;
@@ -11,15 +11,20 @@ use crate::tokens;
 /// The size of a signing key's modulus, in bits.
 const BITS: usize = 2048;
 
-/// Mint a signing key — drawn on the blocking pool, since an RSA key is
-/// slow to find — and record it, PEM and all. The answer is the
-/// record.
-pub async fn mint(store: &Store) -> Result<Record, Error> {
+/// Draw a signing key — on the blocking pool, since an RSA key is slow
+/// to find — as a record, PEM and all, written nowhere yet.
+async fn draw() -> Result<Record, Error> {
     let drawn = tokio::task::spawn_blocking(|| RsaPrivateKey::new(&mut rsa::rand_core::OsRng, BITS));
     let key = drawn.await.map_err(|_| Error::Panicked)?.map_err(Error::Generate)?;
     let pem = key.to_pkcs1_pem(LineEnding::LF).map_err(|error| Error::Pem(String::new(), error.to_string()))?;
     let kid = tokens::mint()[..16].to_string();
-    let record = Record { kid, pem: pem.to_string(), made: crate::now() };
+    Ok(Record { kid, pem: pem.to_string(), made: crate::now() })
+}
+
+/// Mint a signing key and record it: what a start with no key does.
+/// The answer is the record.
+pub async fn mint(store: &Store) -> Result<Record, Error> {
+    let record = draw().await?;
     store.keys().add(&record).await.map_err(Error::Store)?;
     Ok(record)
 }
@@ -36,12 +41,21 @@ pub struct Rotated {
     pub signed_out: u64,
 }
 
-/// Rotate the signing key — see the [rules](super), rule 5: a new key
-/// minted, the old removed, and, with `sign_out`, every refresh chain
-/// revoked.
-pub async fn rotate(store: &Store, sign_out: bool) -> Result<Rotated, Error> {
-    let key = mint(store).await?;
-    let removed = store.keys().remove_all_but(&key.kid).await.map_err(Error::Store)?;
-    let signed_out = if sign_out { store.refresh().revoke_all().await.map_err(Error::Store)? } else { 0 };
-    Ok(Rotated { key, removed, signed_out })
+/// Rotate the signing key — see the [rules](super), rule 5. In order:
+///
+/// 1. A new key is drawn, and made ready to sign and to publish — the
+///    [`Live`] keys of it alone. Nothing is written yet, so a failure
+///    here changes nothing.
+/// 2. In one transaction, the new key is recorded, every other removed,
+///    and, with `sign_out`, every refresh chain revoked. A failure
+///    rolls the whole of it back.
+///
+/// The answer is what was done and the new live keys, which a running
+/// issuer swaps in — a step that cannot fail — so that its memory and
+/// its database never disagree.
+pub async fn rotate(store: &Store, sign_out: bool) -> Result<(Rotated, Live), Error> {
+    let record = draw().await?;
+    let live = Live::new(Signing::of(vec![SigningKey::from_pem(&record.kid, &record.pem)?]))?;
+    let (removed, signed_out) = store.keys().replace(&record, sign_out).await.map_err(Error::Store)?;
+    Ok((Rotated { key: record, removed, signed_out }, live))
 }

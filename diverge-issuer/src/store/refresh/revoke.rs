@@ -20,14 +20,4 @@ impl Refresh<'_> {
         Ok(revoked == 1)
     }
 
-    /// Revoke every chain there is: every identity signs in again. The
-    /// answer is how many were revoked now.
-    pub async fn revoke_all(&self) -> Result<u64, Error> {
-        let revoked = sqlx::query("update refresh_chains set revoked = ? where revoked is null")
-            .bind(crate::now())
-            .execute(&self.store.pool)
-            .await?
-            .rows_affected();
-        Ok(revoked)
-    }
 }

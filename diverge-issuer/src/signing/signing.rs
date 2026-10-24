@@ -27,10 +27,16 @@ impl Signing {
         Ok(Signing { keys })
     }
 
+    /// The keys given, the newest last: what a rotation makes of its
+    /// one new key. At least one.
+    pub(crate) fn of(keys: Vec<SigningKey>) -> Signing {
+        Signing { keys }
+    }
+
     /// The key that signs: the newest.
     pub fn current(&self) -> &SigningKey {
-        // `load` answers at least one key, and the list is never
-        // changed after.
+        // `load` and `of` answer at least one key, and the list is
+        // never changed after.
         &self.keys[self.keys.len() - 1]
     }
 

@@ -13,14 +13,33 @@ impl Keys<'_> {
         Ok(rows.into_iter().map(|(kid, pem, made)| Record { kid, pem, made }).collect())
     }
 
-    /// Remove every key but `kid`: what a rotation does once the new
-    /// key is recorded. The answer is how many were removed.
-    pub async fn remove_all_but(&self, kid: &str) -> Result<u64, Error> {
+    /// Record `record` and remove every other key, and, with
+    /// `sign_out`, revoke every refresh chain: one transaction, whole or
+    /// not at all. The answer is how many keys were removed and how
+    /// many chains revoked.
+    pub async fn replace(&self, record: &Record, sign_out: bool) -> Result<(u64, u64), Error> {
+        let mut transaction = self.store.write().await?;
+        sqlx::query("insert into keys (kid, pem, made) values (?, ?, ?)")
+            .bind(&record.kid)
+            .bind(&record.pem)
+            .bind(record.made)
+            .execute(&mut *transaction)
+            .await?;
         let removed = sqlx::query("delete from keys where kid <> ?")
-            .bind(kid)
-            .execute(&self.store.pool)
+            .bind(&record.kid)
+            .execute(&mut *transaction)
             .await?
             .rows_affected();
-        Ok(removed)
+        let signed_out = if sign_out {
+            sqlx::query("update refresh_chains set revoked = ? where revoked is null")
+                .bind(crate::now())
+                .execute(&mut *transaction)
+                .await?
+                .rows_affected()
+        } else {
+            0
+        };
+        transaction.commit().await?;
+        Ok((removed, signed_out))
     }
 }

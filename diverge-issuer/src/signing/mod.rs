@@ -11,24 +11,30 @@
 //! 3. The key signs, and it is the one published in the key set. Were
 //!    there more than one — a rotation stopped half way — the newest
 //!    signs and every one is published.
-//! 4. The key is read once, at the start: a rotation while the issuer
-//!    runs is seen at its next start.
-//! 5. A rotation — see [`rotate`] — mints a new key and removes the
-//!    old; with signing out, it also revokes every refresh chain. It
-//!    takes effect at the issuer's next start: from then on only the
-//!    new key signs and is published, so a token signed by an old key
-//!    no longer verifies once a verifier's cache of the key set lapses,
-//!    which [`jwks`](crate::endpoints::jwks) keeps to a minute.
+//! 4. The key is read at the start, and held — with the key set made
+//!    of it — as the issuer's [`Live`] keys.
+//! 5. A rotation — see [`rotate`] — draws a new key, and records it
+//!    and removes the old in one transaction; with signing out, it also
+//!    revokes every refresh chain in that transaction. A running issuer
+//!    rotates itself, on its loopback `POST /rotate` — see
+//!    [`serve`](crate::serve) — and swaps its live keys at once: from
+//!    then on only the new key signs and is published. A rotation made
+//!    while no issuer runs takes effect at its start. Either way a
+//!    token signed by the old key no longer verifies once a verifier's
+//!    cache of the key set lapses, which
+//!    [`jwks`](crate::endpoints::jwks) keeps to a minute.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
 mod error;
 mod key;
+mod live;
 mod mint;
 mod signing;
 
 pub use error::*;
 pub use key::*;
+pub use live::*;
 pub use mint::*;
 pub use signing::*;

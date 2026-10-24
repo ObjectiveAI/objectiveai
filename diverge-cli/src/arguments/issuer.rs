@@ -22,10 +22,10 @@ pub enum Issuer {
     #[command(subcommand)]
     Identities(IssuerIdentities),
     /// Rotate the key every token is signed with: a new key minted and
-    /// the old removed. From the issuer's next start only the new key
-    /// signs and is published, so a token signed before stops
-    /// verifying; a program signed in refreshes for a new one, unless
-    /// `--sign-out`.
+    /// the old removed. A running issuer rotates itself and signs with
+    /// the new key at once; one that is not running signs with it from
+    /// its start. A token signed before stops verifying; a program
+    /// signed in refreshes for a new one, unless `--sign-out`.
     Rotate {
         /// Revoke every refresh token as well: every identity signs in
         /// again.

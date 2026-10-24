@@ -15,8 +15,8 @@
 //!   with the holder's id; a program that exits first is reported
 //!   with its log.
 //! - [`stop`] puts `POST /stop` to the program's own port over a
-//!   loopback socket — the one HTTP exchange the CLI makes, hand
-//!   written over a TCP stream, see [`http::stop`], the one file
+//!   loopback socket — hand written over a TCP stream, as the
+//!   issuer's `POST /rotate` is too, see [`http::post`], the one file
 //!   here not flattened, since its `stop` is not [`stop`] — and ends
 //!   once the root's lock is free, polling it every 200 ms: the
 //!   server's close is the accept and the lock let go is the

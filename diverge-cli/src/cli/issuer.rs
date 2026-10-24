@@ -4,6 +4,7 @@ use std::path::Path;
 
 use diverge_issuer::store::Store;
 use diverge_issuer::{password, signing};
+use diverge_sdk::file_lock;
 use serde_json::json;
 use tokio::io::AsyncReadExt as _;
 
@@ -55,17 +56,53 @@ async fn identities(root: &Path, command: IssuerIdentities) -> Result<(), Error>
     print(&lines).await
 }
 
-/// The signing key rotated, printing what was done and that it holds
-/// from the issuer's next start.
+/// The signing key rotated, printing what was done and when it holds.
+/// The rules:
+///
+/// 1. **The issuer runs** — its root lock, `issuer.lock`, is held: the
+///    issuer rotates itself, on its loopback `POST /rotate`, and signs
+///    with the new key at once. Its answer is printed, with
+///    `"takes_effect":"now"`. A `403` is the route refused as not from
+///    this host; any other code is [`Error::Rotate`], with the
+///    issuer's words.
+/// 2. **The issuer does not run**: the CLI takes the root lock itself,
+///    so no issuer starts half way through, rotates in
+///    `issuer.sqlite`, and lets the lock go. The issuer signs with the
+///    new key from its start: `"takes_effect":"at the issuer's start"`.
 async fn rotate(root: &Path, sign_out: bool) -> Result<(), Error> {
+    let lock = root.join(diverge_issuer::LOCK_FILE);
+    let held = file_lock::try_exclusive(&lock)
+        .await
+        .map_err(|error| Error::Rotate(error.to_string()))?;
+    let Some(held) = held else {
+        let port = lifecycle::port(root, Program::Issuer).await?;
+        let query = format!("/rotate?sign_out={sign_out}");
+        let (code, body) = lifecycle::http::post(port, &query, "").await?;
+        return match code {
+            200 => {
+                let mut answer: serde_json::Value =
+                    serde_json::from_str(&body).map_err(|error| {
+                        Error::Rotate(format!("the issuer's answer is not JSON: {error}"))
+                    })?;
+                if let Some(object) = answer.as_object_mut() {
+                    object.insert("takes_effect".to_string(), json!("now"));
+                }
+                print(&[answer]).await
+            }
+            403 => Err(lifecycle::Error::Refused.into()),
+            _ => Err(Error::Rotate(format!("the issuer answered {code}: {body}"))),
+        };
+    };
     let store = Store::open(root).await?;
-    let rotated = signing::rotate(&store, sign_out).await?;
+    let rotated = signing::rotate(&store, sign_out).await;
+    drop(held);
+    let (rotated, _) = rotated?;
     print(&[json!({
         "kid": rotated.key.kid,
         "made": rotated.key.made,
         "removed": rotated.removed,
         "signed_out": rotated.signed_out,
-        "takes_effect": "at the issuer's next start",
+        "takes_effect": "at the issuer's start",
     })])
     .await
 }
