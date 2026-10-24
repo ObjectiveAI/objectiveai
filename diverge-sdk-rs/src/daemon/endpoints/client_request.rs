@@ -89,34 +89,10 @@ pub enum ClientRequest<'a> {
     StandaloneToolsTemplatesTag(standalone_tools::templates::tag::client::request::Frame),
     /// Tag `30`. Take tags off a tool template.
     StandaloneToolsTemplatesUntag(standalone_tools::templates::untag::client::request::Frame),
-    /// Tag `31`. Add a provider to dial.
-    ProvidersOutgoingAdd(providers::outgoing::add::client::request::Frame),
-    /// Tag `32`. Get one outgoing provider.
-    ProvidersOutgoingGet(providers::outgoing::get::client::request::Frame),
-    /// Tag `33`. List the caller's outgoing providers, narrowed.
-    ProvidersOutgoingList(providers::outgoing::list::client::request::Frame),
-    /// Tag `34`. Forget an outgoing provider.
-    ProvidersOutgoingDelete(providers::outgoing::delete::client::request::Frame),
-    /// Tag `35`. Replace an outgoing provider's mode.
-    ProvidersOutgoingEdit(providers::outgoing::edit::client::request::Frame),
-    /// Tag `36`. Put tags on an outgoing provider.
-    ProvidersOutgoingTag(providers::outgoing::tag::client::request::Frame),
-    /// Tag `37`. Take tags off an outgoing provider.
-    ProvidersOutgoingUntag(providers::outgoing::untag::client::request::Frame),
-    /// Tag `38`. Add a credential of incoming providers.
-    ProvidersIncomingAdd(providers::incoming::add::client::request::Frame),
-    /// Tag `39`. Get one credential.
-    ProvidersIncomingGet(providers::incoming::get::client::request::Frame),
-    /// Tag `40`. List the credentials, narrowed.
-    ProvidersIncomingList(providers::incoming::list::client::request::Frame),
-    /// Tag `41`. Take a credential out.
-    ProvidersIncomingDelete(providers::incoming::delete::client::request::Frame),
-    /// Tag `42`. Replace a credential.
-    ProvidersIncomingEdit(providers::incoming::edit::client::request::Frame),
-    /// Tag `43`. Put tags on a credential.
-    ProvidersIncomingTag(providers::incoming::tag::client::request::Frame),
-    /// Tag `44`. Take tags off a credential.
-    ProvidersIncomingUntag(providers::incoming::untag::client::request::Frame),
+    /// Tag `32`. Get one provider.
+    ProvidersGet(providers::get::client::request::Frame),
+    /// Tag `33`. List the providers, narrowed.
+    ProvidersList(providers::list::client::request::Frame),
     /// Tag `45`. Create an account.
     AccountsCreate(accounts::create::client::request::Frame),
     /// Tag `46`. Get one account.
@@ -191,20 +167,10 @@ pub enum ClientRequest<'a> {
     PostgresList(postgres::list::client::request::Frame),
     /// Tag `81`. Serve a tool to another daemon.
     StandaloneToolsConnect(standalone_tools::connect::client::request::Frame),
-    /// Tag `82`. Add a daemon to connect to.
-    ProvidersDaemonsAdd(providers::daemons::add::client::request::Frame),
     /// Tag `83`. Get one daemon.
     ProvidersDaemonsGet(providers::daemons::get::client::request::Frame),
-    /// Tag `84`. List the caller's daemons, narrowed.
+    /// Tag `84`. List the remote daemons, narrowed.
     ProvidersDaemonsList(providers::daemons::list::client::request::Frame),
-    /// Tag `85`. Forget a daemon.
-    ProvidersDaemonsDelete(providers::daemons::delete::client::request::Frame),
-    /// Tag `86`. Replace a daemon's mode or its links.
-    ProvidersDaemonsEdit(providers::daemons::edit::client::request::Frame),
-    /// Tag `87`. Put tags on a daemon.
-    ProvidersDaemonsTag(providers::daemons::tag::client::request::Frame),
-    /// Tag `88`. Take tags off a daemon.
-    ProvidersDaemonsUntag(providers::daemons::untag::client::request::Frame),
     /// Tag `89`. List the caller's dependency templates, narrowed.
     DependencyToolsList(dependency_tools::list::client::request::Frame),
     /// Tag `90`. Get one dependency template.
@@ -225,12 +191,6 @@ pub enum ClientRequest<'a> {
     /// Tag `97`. Transfer out of a running dependency tool's
     /// container.
     DependencyToolsTransfer(dependency_tools::transfer::client::request::Frame),
-    /// Tag `98`. Add an account to a daemon record.
-    ProvidersDaemonsAccountsAdd(providers::daemons::accounts::add::client::request::Frame),
-    /// Tag `99`. Replace an account's mode on a daemon record.
-    ProvidersDaemonsAccountsEdit(providers::daemons::accounts::edit::client::request::Frame),
-    /// Tag `100`. Forget an account on a daemon record.
-    ProvidersDaemonsAccountsDelete(providers::daemons::accounts::delete::client::request::Frame),
     /// Tag `101`. Attach a tool to every agent of a template.
     StandaloneToolsAttachAgentTemplate(standalone_tools::attach_agent_template::client::request::Frame),
     /// Tag `102`. Detach a tool from every agent of a template.
@@ -301,20 +261,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::StandaloneToolsTemplatesDelete(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsTemplatesTag(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsTemplatesUntag(frame) => frame.encode(out),
-            ClientRequest::ProvidersOutgoingAdd(frame) => frame.encode(out),
-            ClientRequest::ProvidersOutgoingGet(frame) => frame.encode(out),
-            ClientRequest::ProvidersOutgoingList(frame) => frame.encode(out),
-            ClientRequest::ProvidersOutgoingDelete(frame) => frame.encode(out),
-            ClientRequest::ProvidersOutgoingEdit(frame) => frame.encode(out),
-            ClientRequest::ProvidersOutgoingTag(frame) => frame.encode(out),
-            ClientRequest::ProvidersOutgoingUntag(frame) => frame.encode(out),
-            ClientRequest::ProvidersIncomingAdd(frame) => frame.encode(out),
-            ClientRequest::ProvidersIncomingGet(frame) => frame.encode(out),
-            ClientRequest::ProvidersIncomingList(frame) => frame.encode(out),
-            ClientRequest::ProvidersIncomingDelete(frame) => frame.encode(out),
-            ClientRequest::ProvidersIncomingEdit(frame) => frame.encode(out),
-            ClientRequest::ProvidersIncomingTag(frame) => frame.encode(out),
-            ClientRequest::ProvidersIncomingUntag(frame) => frame.encode(out),
+            ClientRequest::ProvidersGet(frame) => frame.encode(out),
+            ClientRequest::ProvidersList(frame) => frame.encode(out),
             ClientRequest::AccountsCreate(frame) => frame.encode(out),
             ClientRequest::AccountsGet(frame) => frame.encode(out),
             ClientRequest::AccountsList(frame) => frame.encode(out),
@@ -352,16 +300,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::PostgresGet(frame) => frame.encode(out),
             ClientRequest::PostgresList(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsConnect(frame) => frame.encode(out),
-            ClientRequest::ProvidersDaemonsAdd(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsGet(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsList(frame) => frame.encode(out),
-            ClientRequest::ProvidersDaemonsDelete(frame) => frame.encode(out),
-            ClientRequest::ProvidersDaemonsEdit(frame) => frame.encode(out),
-            ClientRequest::ProvidersDaemonsTag(frame) => frame.encode(out),
-            ClientRequest::ProvidersDaemonsUntag(frame) => frame.encode(out),
-            ClientRequest::ProvidersDaemonsAccountsAdd(frame) => frame.encode(out),
-            ClientRequest::ProvidersDaemonsAccountsEdit(frame) => frame.encode(out),
-            ClientRequest::ProvidersDaemonsAccountsDelete(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsAttachAgentTemplate(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsDetachAgentTemplate(frame) => frame.encode(out),
             ClientRequest::DependencyToolsList(frame) => frame.encode(out),
@@ -497,47 +437,11 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             30 => standalone_tools::templates::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::StandaloneToolsTemplatesUntag)
                 .ok(),
-            31 => providers::outgoing::add::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersOutgoingAdd)
+            32 => providers::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersGet)
                 .ok(),
-            32 => providers::outgoing::get::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersOutgoingGet)
-                .ok(),
-            33 => providers::outgoing::list::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersOutgoingList)
-                .ok(),
-            34 => providers::outgoing::delete::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersOutgoingDelete)
-                .ok(),
-            35 => providers::outgoing::edit::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersOutgoingEdit)
-                .ok(),
-            36 => providers::outgoing::tag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersOutgoingTag)
-                .ok(),
-            37 => providers::outgoing::untag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersOutgoingUntag)
-                .ok(),
-            38 => providers::incoming::add::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersIncomingAdd)
-                .ok(),
-            39 => providers::incoming::get::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersIncomingGet)
-                .ok(),
-            40 => providers::incoming::list::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersIncomingList)
-                .ok(),
-            41 => providers::incoming::delete::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersIncomingDelete)
-                .ok(),
-            42 => providers::incoming::edit::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersIncomingEdit)
-                .ok(),
-            43 => providers::incoming::tag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersIncomingTag)
-                .ok(),
-            44 => providers::incoming::untag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersIncomingUntag)
+            33 => providers::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersList)
                 .ok(),
             45 => accounts::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AccountsCreate)
@@ -650,26 +554,11 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             81 => standalone_tools::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::StandaloneToolsConnect)
                 .ok(),
-            82 => providers::daemons::add::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDaemonsAdd)
-                .ok(),
             83 => providers::daemons::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersDaemonsGet)
                 .ok(),
             84 => providers::daemons::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersDaemonsList)
-                .ok(),
-            85 => providers::daemons::delete::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDaemonsDelete)
-                .ok(),
-            86 => providers::daemons::edit::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDaemonsEdit)
-                .ok(),
-            87 => providers::daemons::tag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDaemonsTag)
-                .ok(),
-            88 => providers::daemons::untag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDaemonsUntag)
                 .ok(),
             89 => dependency_tools::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DependencyToolsList)
@@ -697,15 +586,6 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
                 .ok(),
             97 => dependency_tools::transfer::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DependencyToolsTransfer)
-                .ok(),
-            98 => providers::daemons::accounts::add::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDaemonsAccountsAdd)
-                .ok(),
-            99 => providers::daemons::accounts::edit::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDaemonsAccountsEdit)
-                .ok(),
-            100 => providers::daemons::accounts::delete::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDaemonsAccountsDelete)
                 .ok(),
             101 => standalone_tools::attach_agent_template::client::request::Frame::decode(bytes)
                 .map(ClientRequest::StandaloneToolsAttachAgentTemplate)
@@ -774,20 +654,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::StandaloneToolsTemplatesDelete(_) => f.write_str("standalone tools templates delete"),
             ClientRequest::StandaloneToolsTemplatesTag(_) => f.write_str("standalone tools templates tag"),
             ClientRequest::StandaloneToolsTemplatesUntag(_) => f.write_str("standalone tools templates untag"),
-            ClientRequest::ProvidersOutgoingAdd(_) => f.write_str("providers outgoing add"),
-            ClientRequest::ProvidersOutgoingGet(_) => f.write_str("providers outgoing get"),
-            ClientRequest::ProvidersOutgoingList(_) => f.write_str("providers outgoing list"),
-            ClientRequest::ProvidersOutgoingDelete(_) => f.write_str("providers outgoing delete"),
-            ClientRequest::ProvidersOutgoingEdit(_) => f.write_str("providers outgoing edit"),
-            ClientRequest::ProvidersOutgoingTag(_) => f.write_str("providers outgoing tag"),
-            ClientRequest::ProvidersOutgoingUntag(_) => f.write_str("providers outgoing untag"),
-            ClientRequest::ProvidersIncomingAdd(_) => f.write_str("providers incoming add"),
-            ClientRequest::ProvidersIncomingGet(_) => f.write_str("providers incoming get"),
-            ClientRequest::ProvidersIncomingList(_) => f.write_str("providers incoming list"),
-            ClientRequest::ProvidersIncomingDelete(_) => f.write_str("providers incoming delete"),
-            ClientRequest::ProvidersIncomingEdit(_) => f.write_str("providers incoming edit"),
-            ClientRequest::ProvidersIncomingTag(_) => f.write_str("providers incoming tag"),
-            ClientRequest::ProvidersIncomingUntag(_) => f.write_str("providers incoming untag"),
+            ClientRequest::ProvidersGet(_) => f.write_str("providers get"),
+            ClientRequest::ProvidersList(_) => f.write_str("providers list"),
             ClientRequest::AccountsCreate(_) => f.write_str("accounts create"),
             ClientRequest::AccountsGet(_) => f.write_str("accounts get"),
             ClientRequest::AccountsList(_) => f.write_str("accounts list"),
@@ -825,16 +693,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::PostgresGet(_) => f.write_str("postgres get"),
             ClientRequest::PostgresList(_) => f.write_str("postgres list"),
             ClientRequest::StandaloneToolsConnect(_) => f.write_str("standalone tools connect"),
-            ClientRequest::ProvidersDaemonsAdd(_) => f.write_str("providers daemons add"),
             ClientRequest::ProvidersDaemonsGet(_) => f.write_str("providers daemons get"),
             ClientRequest::ProvidersDaemonsList(_) => f.write_str("providers daemons list"),
-            ClientRequest::ProvidersDaemonsDelete(_) => f.write_str("providers daemons delete"),
-            ClientRequest::ProvidersDaemonsEdit(_) => f.write_str("providers daemons edit"),
-            ClientRequest::ProvidersDaemonsTag(_) => f.write_str("providers daemons tag"),
-            ClientRequest::ProvidersDaemonsUntag(_) => f.write_str("providers daemons untag"),
-            ClientRequest::ProvidersDaemonsAccountsAdd(_) => f.write_str("providers daemons accounts add"),
-            ClientRequest::ProvidersDaemonsAccountsEdit(_) => f.write_str("providers daemons accounts edit"),
-            ClientRequest::ProvidersDaemonsAccountsDelete(_) => f.write_str("providers daemons accounts delete"),
             ClientRequest::StandaloneToolsAttachAgentTemplate(_) => f.write_str("standalone tools attach agent template"),
             ClientRequest::StandaloneToolsDetachAgentTemplate(_) => f.write_str("standalone tools detach agent template"),
             ClientRequest::DependencyToolsList(_) => f.write_str("dependency tools list"),
@@ -896,20 +756,8 @@ pub fn tag(path: &str) -> Option<u8> {
         "standalone_tools/templates/delete" => Some(28),
         "standalone_tools/templates/tag" => Some(29),
         "standalone_tools/templates/untag" => Some(30),
-        "providers/outgoing/add" => Some(31),
-        "providers/outgoing/get" => Some(32),
-        "providers/outgoing/list" => Some(33),
-        "providers/outgoing/delete" => Some(34),
-        "providers/outgoing/edit" => Some(35),
-        "providers/outgoing/tag" => Some(36),
-        "providers/outgoing/untag" => Some(37),
-        "providers/incoming/add" => Some(38),
-        "providers/incoming/get" => Some(39),
-        "providers/incoming/list" => Some(40),
-        "providers/incoming/delete" => Some(41),
-        "providers/incoming/edit" => Some(42),
-        "providers/incoming/tag" => Some(43),
-        "providers/incoming/untag" => Some(44),
+        "providers/get" => Some(32),
+        "providers/list" => Some(33),
         "accounts/create" => Some(45),
         "accounts/get" => Some(46),
         "accounts/list" => Some(47),
@@ -947,13 +795,8 @@ pub fn tag(path: &str) -> Option<u8> {
         "postgres/get" => Some(79),
         "postgres/list" => Some(80),
         "standalone_tools/connect" => Some(81),
-        "providers/daemons/add" => Some(82),
         "providers/daemons/get" => Some(83),
         "providers/daemons/list" => Some(84),
-        "providers/daemons/delete" => Some(85),
-        "providers/daemons/edit" => Some(86),
-        "providers/daemons/tag" => Some(87),
-        "providers/daemons/untag" => Some(88),
         "dependency_tools/list" => Some(89),
         "dependency_tools/get" => Some(90),
         "dependency_tools/delete" => Some(91),
@@ -963,9 +806,6 @@ pub fn tag(path: &str) -> Option<u8> {
         "dependency_tools/download" => Some(95),
         "dependency_tools/upload" => Some(96),
         "dependency_tools/transfer" => Some(97),
-        "providers/daemons/accounts/add" => Some(98),
-        "providers/daemons/accounts/edit" => Some(99),
-        "providers/daemons/accounts/delete" => Some(100),
         "standalone_tools/attach_agent_template" => Some(101),
         "standalone_tools/detach_agent_template" => Some(102),
         "vault/get" => Some(103),
@@ -1015,20 +855,8 @@ impl ClientRequest<'_> {
             ClientRequest::StandaloneToolsTemplatesDelete(_) => "standalone_tools/templates/delete",
             ClientRequest::StandaloneToolsTemplatesTag(_) => "standalone_tools/templates/tag",
             ClientRequest::StandaloneToolsTemplatesUntag(_) => "standalone_tools/templates/untag",
-            ClientRequest::ProvidersOutgoingAdd(_) => "providers/outgoing/add",
-            ClientRequest::ProvidersOutgoingGet(_) => "providers/outgoing/get",
-            ClientRequest::ProvidersOutgoingList(_) => "providers/outgoing/list",
-            ClientRequest::ProvidersOutgoingDelete(_) => "providers/outgoing/delete",
-            ClientRequest::ProvidersOutgoingEdit(_) => "providers/outgoing/edit",
-            ClientRequest::ProvidersOutgoingTag(_) => "providers/outgoing/tag",
-            ClientRequest::ProvidersOutgoingUntag(_) => "providers/outgoing/untag",
-            ClientRequest::ProvidersIncomingAdd(_) => "providers/incoming/add",
-            ClientRequest::ProvidersIncomingGet(_) => "providers/incoming/get",
-            ClientRequest::ProvidersIncomingList(_) => "providers/incoming/list",
-            ClientRequest::ProvidersIncomingDelete(_) => "providers/incoming/delete",
-            ClientRequest::ProvidersIncomingEdit(_) => "providers/incoming/edit",
-            ClientRequest::ProvidersIncomingTag(_) => "providers/incoming/tag",
-            ClientRequest::ProvidersIncomingUntag(_) => "providers/incoming/untag",
+            ClientRequest::ProvidersGet(_) => "providers/get",
+            ClientRequest::ProvidersList(_) => "providers/list",
             ClientRequest::AccountsCreate(_) => "accounts/create",
             ClientRequest::AccountsGet(_) => "accounts/get",
             ClientRequest::AccountsList(_) => "accounts/list",
@@ -1066,16 +894,8 @@ impl ClientRequest<'_> {
             ClientRequest::PostgresGet(_) => "postgres/get",
             ClientRequest::PostgresList(_) => "postgres/list",
             ClientRequest::StandaloneToolsConnect(_) => "standalone_tools/connect",
-            ClientRequest::ProvidersDaemonsAdd(_) => "providers/daemons/add",
             ClientRequest::ProvidersDaemonsGet(_) => "providers/daemons/get",
             ClientRequest::ProvidersDaemonsList(_) => "providers/daemons/list",
-            ClientRequest::ProvidersDaemonsDelete(_) => "providers/daemons/delete",
-            ClientRequest::ProvidersDaemonsEdit(_) => "providers/daemons/edit",
-            ClientRequest::ProvidersDaemonsTag(_) => "providers/daemons/tag",
-            ClientRequest::ProvidersDaemonsUntag(_) => "providers/daemons/untag",
-            ClientRequest::ProvidersDaemonsAccountsAdd(_) => "providers/daemons/accounts/add",
-            ClientRequest::ProvidersDaemonsAccountsEdit(_) => "providers/daemons/accounts/edit",
-            ClientRequest::ProvidersDaemonsAccountsDelete(_) => "providers/daemons/accounts/delete",
             ClientRequest::StandaloneToolsAttachAgentTemplate(_) => "standalone_tools/attach_agent_template",
             ClientRequest::StandaloneToolsDetachAgentTemplate(_) => "standalone_tools/detach_agent_template",
             ClientRequest::DependencyToolsList(_) => "dependency_tools/list",

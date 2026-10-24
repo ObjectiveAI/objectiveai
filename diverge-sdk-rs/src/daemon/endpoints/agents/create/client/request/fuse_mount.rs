@@ -93,11 +93,8 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 pub struct FuseMount {
     /// Which provider holds the volume: the same object the create's
     /// [`Provider`](super::Provider) names one by, and an agent's log
-    /// names one by — `kind: "outgoing"` and the address the daemon
-    /// dials, or `kind: "incoming_unbrokered"` and the identity the
-    /// daemon's judging of the provider's credential answered. A
-    /// provider the daemon does not know by that identity is the
-    /// create's error.
+    /// names one by — its `(issuer, subject)`. A provider the daemon
+    /// does not accept by that identity is the create's error.
     pub provider: Identity,
     /// Which of that provider's volumes, by the name its listing gives
     /// it, as the daemon lists that provider's volumes. A name the

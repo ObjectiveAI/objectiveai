@@ -1,6 +1,6 @@
 //! A dependency tool template's grants, as grants of the daemon's.
 
-use super::{Grant, accounts, agents, agents_templates, dependency_tools, providers_daemons, providers_incoming, providers_outgoing, roles, standalone_tools, standalone_tools_templates, vault, volumes};
+use super::{Grant, accounts, agents, agents_templates, dependency_tools, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
 /// A dependency tool template's grants, as the daemon judges them:
@@ -105,43 +105,8 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
                 tags,
             },
         }),
-        permission::Grant::ProvidersOutgoing(permission) => Grant::ProvidersOutgoing(match permission {
-            permission::providers_outgoing::Permission::Make(makes) => providers_outgoing::Permission::Make(makes),
-            permission::providers_outgoing::Permission::Over { actions, within } => providers_outgoing::Permission::Over {
-                actions,
-                within: within.map(providers_outgoing_filter),
-            },
-            permission::providers_outgoing::Permission::Tags { actions, within, tags } => providers_outgoing::Permission::Tags {
-                actions,
-                within: within.map(providers_outgoing_filter),
-                tags,
-            },
-        }),
-        permission::Grant::ProvidersIncoming(permission) => Grant::ProvidersIncoming(match permission {
-            permission::providers_incoming::Permission::Make(makes) => providers_incoming::Permission::Make(makes),
-            permission::providers_incoming::Permission::Over { actions, within } => providers_incoming::Permission::Over {
-                actions,
-                within: within.map(providers_incoming_filter),
-            },
-            permission::providers_incoming::Permission::Tags { actions, within, tags } => providers_incoming::Permission::Tags {
-                actions,
-                within: within.map(providers_incoming_filter),
-                tags,
-            },
-        }),
-        permission::Grant::ProvidersDaemons(permission) => Grant::ProvidersDaemons(match permission {
-            permission::providers_daemons::Permission::Make(makes) => providers_daemons::Permission::Make(makes),
-            permission::providers_daemons::Permission::Over { actions, within, accounts } => providers_daemons::Permission::Over {
-                actions,
-                within: within.map(providers_daemons_filter),
-                accounts,
-            },
-            permission::providers_daemons::Permission::Tags { actions, within, tags } => providers_daemons::Permission::Tags {
-                actions,
-                within: within.map(providers_daemons_filter),
-                tags,
-            },
-        }),
+        permission::Grant::Providers(permission) => Grant::Providers(permission),
+        permission::Grant::Daemons(permission) => Grant::Daemons(permission),
         permission::Grant::Accounts(permission) => Grant::Accounts(match permission {
             permission::accounts::Permission::Make(makes) => accounts::Permission::Make(makes),
             permission::accounts::Permission::Over { actions, within } => accounts::Permission::Over {
@@ -249,30 +214,6 @@ fn standalone_tools_templates_filter(tags: Tags) -> crate::daemon::endpoints::st
 
 fn dependency_tools_filter(tags: Tags) -> crate::daemon::endpoints::dependency_tools::list::client::request::Filter {
     crate::daemon::endpoints::dependency_tools::list::client::request::Filter {
-        all_tags: tags.all_tags,
-        any_tags: tags.any_tags,
-        ..Default::default()
-    }
-}
-
-fn providers_outgoing_filter(tags: Tags) -> crate::daemon::endpoints::providers::outgoing::list::client::request::Filter {
-    crate::daemon::endpoints::providers::outgoing::list::client::request::Filter {
-        all_tags: tags.all_tags,
-        any_tags: tags.any_tags,
-        ..Default::default()
-    }
-}
-
-fn providers_incoming_filter(tags: Tags) -> crate::daemon::endpoints::providers::incoming::list::client::request::Filter {
-    crate::daemon::endpoints::providers::incoming::list::client::request::Filter {
-        all_tags: tags.all_tags,
-        any_tags: tags.any_tags,
-        ..Default::default()
-    }
-}
-
-fn providers_daemons_filter(tags: Tags) -> crate::daemon::endpoints::providers::daemons::list::client::request::Filter {
-    crate::daemon::endpoints::providers::daemons::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()

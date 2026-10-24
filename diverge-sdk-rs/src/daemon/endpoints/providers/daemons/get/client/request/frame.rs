@@ -10,10 +10,9 @@ use crate::shared::relay::Relay;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The daemon's name, as its add gave it.
+    /// The daemon's name, as the configuration gives it.
     pub name: String,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

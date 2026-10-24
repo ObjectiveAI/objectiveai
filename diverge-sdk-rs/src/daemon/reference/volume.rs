@@ -13,9 +13,7 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Volume {
-    /// The provider: `kind: "outgoing"` and the address the daemon
-    /// dials, or `kind: "incoming_unbrokered"` and the identity its
-    /// judging answered. See [`Identity`].
+    /// The provider, by its identity: see [`Identity`].
     pub provider: Identity,
     /// The name the provider lists the volume under, as a
     /// [`list`](crate::daemon::endpoints::volumes::list) reports it;

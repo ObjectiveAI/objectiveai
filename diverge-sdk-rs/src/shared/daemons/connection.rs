@@ -4,6 +4,8 @@ use std::net::IpAddr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::shared::Identity;
+
 /// A connector arriving: what the provider says of it when it opens
 /// the acceptor's half of the connection. The id correlates the two
 /// channels the connection is, as a container program's daemon
@@ -18,7 +20,7 @@ pub struct Connection {
     /// acceptor quotes when it opens its own half.
     pub connection_id: u32,
     /// The identity the provider authorized the connector under.
-    pub identity: String,
+    pub identity: Identity,
     /// Where the connector's connection to the provider came from, as
     /// the provider saw it.
     pub address: IpAddr,

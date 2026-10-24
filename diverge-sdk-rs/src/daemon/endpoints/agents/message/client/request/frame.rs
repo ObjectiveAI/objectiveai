@@ -26,8 +26,7 @@ pub struct Frame {
     pub agent: reference::Agent,
     /// The message's content, in order.
     pub content: Vec<ContentBlock>,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

@@ -21,7 +21,7 @@ pub struct Editable {
     /// once and for all only.
     #[serde(default)]
     pub name: Option<String>,
-    /// The account the tool runs under, by name: see the create's
+    /// The account the tool runs under, by identity: see the create's
     /// [`account`](crate::daemon::endpoints::standalone_tools::create::client::request::Frame::account).
     /// An account the daemon does not have is the edit's `NoAccount`,
     /// one the caller holds no `assign` grant over its `Forbidden`.
@@ -29,7 +29,7 @@ pub struct Editable {
     /// of the daemon is answered `Forbidden` from then on. Changes
     /// live.
     #[serde(default)]
-    pub account: Option<String>,
+    pub account: Option<crate::shared::Identity>,
     /// Volumes of the provider the create pinned the tool to, as it
     /// is to mount them: see [`VolumeMount`]. Ordered, and applied in
     /// order; no mount's path, in any list, is a prefix of another's.

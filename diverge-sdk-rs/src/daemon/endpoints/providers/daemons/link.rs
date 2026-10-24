@@ -3,22 +3,16 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
+use crate::shared::Identity;
 
-/// One link of a daemon record: a provider of the caller's, by the
-/// identity this daemon knows it by, and the identity the remote daemon
-/// is known by at that provider — what the provider protocol's
-/// `daemons::connect` names an acceptor by there. A daemon's links are
-/// every provider it is reachable through; a connection to it is opened
-/// through any one whose provider this daemon is connected to.
+/// One link of a remote daemon: a provider this daemon accepts, by its
+/// identity, and the identity the remote daemon is known by at that
+/// provider — the `(issuer, subject)` it accepts there under.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Link {
-    /// The provider, as this daemon names one: see [`Identity`]. One of
-    /// the caller's, outgoing or incoming, on record.
+    /// The provider, by its identity.
     pub provider: Identity,
-    /// The remote daemon's identity at that provider: what its
-    /// connection there is authorized under, which the provider answers
-    /// it when it accepts daemon connections.
-    pub identity: String,
+    /// The remote daemon, by its identity at that provider.
+    pub daemon: Identity,
 }

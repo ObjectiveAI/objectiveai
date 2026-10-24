@@ -25,10 +25,8 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 ///
 /// The same object the agent's log names a provider by, in an
 /// [`active`](crate::daemon::endpoints::agents::logs::server::response::Active)
-/// item: `kind: "outgoing"` and the address the daemon dials, or
-/// `kind: "incoming_unbrokered"` and the identity the daemon's
-/// judging of the provider's credential answered. A provider the
-/// daemon does not know by that identity is the create's error.
+/// item: its `(issuer, subject)`. A provider the daemon does not
+/// accept by that identity is the create's error.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Provider {

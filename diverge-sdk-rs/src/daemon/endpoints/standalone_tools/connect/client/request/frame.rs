@@ -19,8 +19,7 @@ pub struct Frame {
     /// connected tool is another daemon's and is served there, and
     /// naming one is a failure. See [`reference::Tool`].
     pub tool: reference::Tool,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

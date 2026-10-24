@@ -50,14 +50,11 @@ use crate::daemon::reference;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The daemon the tool is on, by the name of its record: see
-    /// [`providers::daemons`](crate::daemon::endpoints::providers::daemons).
-    /// A name no record of the caller's has is the register's error.
+    /// The daemon the tool is on, by its name in the configuration:
+    /// see [`providers::daemons`](crate::daemon::endpoints::providers::daemons).
+    /// A name no remote daemon has is the register's error. The
+    /// caller must hold the daemons grant's `connect`.
     pub daemon: String,
-    /// The account on that daemon this daemon reaches the tool as, by
-    /// the name the record's accounts give it. The caller must hold a
-    /// `connect` grant over the record as that account.
-    pub account: String,
     /// The tool, as that daemon names it: by its name there, or by its
     /// template and its index there. See [`reference::Tool`]. Compared
     /// by this daemon, and read by that one.
@@ -68,8 +65,7 @@ pub struct Frame {
     /// Absent, the tool has none, and is reached by that pair only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

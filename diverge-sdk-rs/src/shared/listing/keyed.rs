@@ -12,8 +12,7 @@
 ///   account has one or the other;
 /// - a role, a daemon record, a vault key, a provider's volume, an
 ///   image: its name;
-/// - an outgoing provider: its address; an incoming one: its
-///   credential's identity;
+/// - an account, a provider: its identity;
 /// - an agent: its template and its index; an agent template or a
 ///   standalone tool template: its id;
 /// - a standalone tool: its origin, less the members that may change,

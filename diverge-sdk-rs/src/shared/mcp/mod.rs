@@ -43,8 +43,8 @@
 //! params before it forwards the call, so a tool container that
 //! receives it knows which agent is calling; and on the four an
 //! outside client puts over a connect, the serving daemon sets the
-//! caller too — `kind` `unbrokered`: the identity it authorized the
-//! connection as, and nothing the client said of itself — before the
+//! caller too — `kind` `client`: the identity it established at the
+//! handshake, and nothing the client said of itself — before the
 //! exchange reaches the tool. On what
 //! a tool container's own server answers — the result of each of the
 //! four, each tool and each resource of a list, and each notification

@@ -59,3 +59,7 @@ pub mod listing;
 pub mod mcp;
 pub mod permission;
 pub mod relay;
+
+mod identity;
+
+pub use identity::*;

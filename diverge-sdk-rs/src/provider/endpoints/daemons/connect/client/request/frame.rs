@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::shared::Identity;
+
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -14,7 +16,7 @@ use crate::wire::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The daemon to reach, by its identity at this provider.
-    pub daemon: String,
+    pub daemon: Identity,
 }
 
 /// This frame's tag among the scope-opening requests.

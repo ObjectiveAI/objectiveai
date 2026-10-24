@@ -54,12 +54,9 @@ pub enum Origin {
     /// uses it and for `idle_seconds` after, and never starts or stops
     /// it itself.
     Connected {
-        /// The daemon the tool is on, by the name of its record, as
-        /// the register named it.
+        /// The daemon the tool is on, by its name in the configuration,
+        /// as the register named it.
         daemon: String,
-        /// The account on that daemon the tool is reached as, as the
-        /// register named it.
-        account: String,
         /// The tool, as that daemon names it and as the register
         /// named it: see [`reference::Tool`].
         tool: reference::Tool,

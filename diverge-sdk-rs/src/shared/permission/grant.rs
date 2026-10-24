@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{accounts, agents, agents_templates, dependency_tools, events, postgres, providers_daemons, providers_incoming, providers_outgoing, roles, standalone_tools, standalone_tools_templates, vault, volumes};
+use super::{accounts, agents, agents_templates, dependency_tools, daemons, events, postgres, providers, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 
 /// One grant that names nothing: a permission over one kind of thing
 /// the daemon holds, reaching by tags alone. Externally tagged by the
@@ -12,8 +12,7 @@ use super::{accounts, agents, agents_templates, dependency_tools, events, postgr
 /// [`permission`](crate::shared::permission) states. Snake case on the
 /// wire: `"agents"`, `"agents_templates"`, `"standalone_tools"`,
 /// `"standalone_tools_templates"`, `"dependency_tools"`,
-/// `"providers_outgoing"`,
-/// `"providers_incoming"`, `"providers_daemons"`, `"accounts"`,
+/// `"providers"`, `"daemons"`, `"accounts"`,
 /// `"roles"`, `"volumes"`, `"vault"`, `"postgres"`, `"events"` — the
 /// kinds of the daemon's [`Grant`](crate::daemon::grant::Grant), which
 /// is made of these.
@@ -32,12 +31,10 @@ pub enum Grant {
     StandaloneToolsTemplates(standalone_tools_templates::Permission),
     /// Over dependency tools: see [`dependency_tools::Permission`].
     DependencyTools(dependency_tools::Permission),
-    /// Over outgoing providers: see [`providers_outgoing::Permission`].
-    ProvidersOutgoing(providers_outgoing::Permission),
-    /// Over incoming credentials: see [`providers_incoming::Permission`].
-    ProvidersIncoming(providers_incoming::Permission),
-    /// Over daemons: see [`providers_daemons::Permission`].
-    ProvidersDaemons(providers_daemons::Permission),
+    /// Over the daemon's providers: see [`providers::Permission`].
+    Providers(providers::Permission),
+    /// Over the remote daemons it reaches: see [`daemons::Permission`].
+    Daemons(daemons::Permission),
     /// Over accounts: see [`accounts::Permission`].
     Accounts(accounts::Permission),
     /// Over roles: see [`roles::Permission`].

@@ -2,17 +2,16 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{agents, agents_templates, standalone_tools, standalone_tools_templates, dependency_tools, providers_outgoing, providers_incoming, providers_daemons, accounts, roles, vault, volumes, postgres, events};
+use super::{agents, agents_templates, standalone_tools, standalone_tools_templates, dependency_tools, providers, daemons, accounts, roles, vault, volumes, postgres, events};
 
 /// One grant: a permission over one kind of thing the daemon holds.
 /// Externally tagged by the kind's name — one object with one member,
-/// `{"agents":…}`, `{"providers_incoming":…}` — whose value is that
+/// `{"agents":…}`, `{"providers":…}` — whose value is that
 /// kind's [`Permission`](agents::Permission), in one of the shapes
 /// [`grant`](crate::daemon::grant) states. Snake case on the wire:
 /// `"agents"`, `"agents_templates"`, `"standalone_tools"`,
 /// `"standalone_tools_templates"`, `"dependency_tools"`,
-/// `"providers_outgoing"`, `"providers_incoming"`,
-/// `"providers_daemons"`, `"accounts"`, `"roles"`, `"volumes"`,
+/// `"providers"`, `"daemons"`, `"accounts"`, `"roles"`, `"volumes"`,
 /// `"vault"`, `"postgres"`, `"events"` — the kinds of
 /// [`shared::permission::Grant`](crate::shared::permission::Grant),
 /// which this is built of.
@@ -31,12 +30,10 @@ pub enum Grant {
     StandaloneToolsTemplates(standalone_tools_templates::Permission),
     /// Over dependency tools: see [`dependency_tools::Permission`].
     DependencyTools(dependency_tools::Permission),
-    /// Over outgoing providers: see [`providers_outgoing::Permission`].
-    ProvidersOutgoing(providers_outgoing::Permission),
-    /// Over incoming credentials: see [`providers_incoming::Permission`].
-    ProvidersIncoming(providers_incoming::Permission),
-    /// Over daemons: see [`providers_daemons::Permission`].
-    ProvidersDaemons(providers_daemons::Permission),
+    /// Over the daemon's providers: see [`providers::Permission`].
+    Providers(providers::Permission),
+    /// Over the remote daemons it reaches: see [`daemons::Permission`].
+    Daemons(daemons::Permission),
     /// Over accounts: see [`accounts::Permission`].
     Accounts(accounts::Permission),
     /// Over roles: see [`roles::Permission`].

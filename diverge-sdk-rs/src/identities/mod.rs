@@ -69,6 +69,10 @@
 //!    the token's issuer's keys, fetched once and cached until they
 //!    expire — see [`verify`] for its own rules.
 //!
+//! 10. **A program's own side.** [`Own`] is a program's identities —
+//!     one subject per issuer — and its verifying cache: what a
+//!     daemon's or a provider's handshake is built on.
+//!
 //! [`Token`] is a token handed out: it has no way out but
 //! [`expose`](Token::expose), and its memory is zeroed on drop. The
 //! file's own record has no public type at all.
@@ -86,6 +90,8 @@ mod list;
 mod login;
 mod name;
 mod oauth;
+mod own;
+mod path_name;
 mod record;
 mod refresh;
 mod remove;
@@ -97,5 +103,7 @@ pub use error::*;
 pub use identities::*;
 pub use login::*;
 pub use name::*;
+pub use own::*;
+pub use path_name::*;
 pub use token::*;
 pub use verify::*;

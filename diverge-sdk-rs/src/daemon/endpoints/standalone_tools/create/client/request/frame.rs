@@ -45,8 +45,8 @@ pub struct Frame {
     /// Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub inner: Inner,
-    /// The account the tool runs under, if any — a NAMED
-    /// [account](crate::daemon::endpoints::accounts), by its name: the
+    /// The account the tool runs under, if any — an
+    /// [account](crate::daemon::endpoints::accounts), by its identity: the
     /// identity it acts as toward the daemon, and what the daemon
     /// judges everything it asks of the daemon by, through the roles
     /// the account holds. One the daemon does not have is the create's
@@ -58,15 +58,14 @@ pub struct Frame {
     /// alone: an agent container holds no account and asks the daemon
     /// nothing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub account: Option<String>,
+    pub account: Option<crate::shared::Identity>,
     /// The name, if any: a string of the caller's choosing, unique
     /// among the caller's tools, by which the tool is reached
     /// afterwards beside its template and its index. Absent, the
     /// tool has none, and is reached once and for all only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

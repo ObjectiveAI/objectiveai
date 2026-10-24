@@ -14,8 +14,7 @@ use crate::daemon::reference;
 pub struct Frame {
     /// The agent: see [`reference::Agent`].
     pub agent: reference::Agent,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

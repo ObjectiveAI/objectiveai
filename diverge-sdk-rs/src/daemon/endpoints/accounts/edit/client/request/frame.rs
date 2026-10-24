@@ -9,26 +9,11 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// Ask the daemon to change an account: a patch to its editable
-/// members — its name, its credential, its description, its roles.
+/// members — its description and its roles.
 ///
-/// The patch is applied to the account's [`Editable`](super::Editable) document, whole
-/// or not at all, and the result is the account from then on.
-///
-/// # The key
-///
-/// A patch that writes at `/credential` or beneath it — an `add`, a
-/// `remove`, a `replace`, a `move` or a `copy` there — replaces the
-/// credential: the daemon mints a new key when the result has one,
-/// answered once, which is how a key rotates — a `replace` of the
-/// credential with itself — and how an address or an identity
-/// changes. A patch that writes elsewhere leaves the key. A `test`
-/// writes nothing.
-///
-/// # Never neither
-///
-/// An account has a name, a credential, or both. A result with
-/// neither is refused as leaving the account alone, and nothing
-/// changes.
+/// The patch is applied to the account's [`Editable`](super::Editable)
+/// document, whole or not at all, and the result is the account from
+/// then on.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
@@ -37,8 +22,7 @@ pub struct Frame {
     /// The patch: see [`Patch`], and [`Editable`](super::Editable) for the document it
     /// is applied to. Empty, nothing changes.
     pub patch: Patch,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

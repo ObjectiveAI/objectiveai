@@ -42,8 +42,7 @@ pub struct Frame {
     /// once. Absent, no cap.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub count: Option<u64>,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

@@ -23,14 +23,14 @@ use crate::wire::frame;
 pub struct Accepting {
     /// The identity the provider authorized the daemon's connection
     /// under: what connectors name it by.
-    pub identity: String,
+    pub identity: crate::shared::Identity,
     handle: Handle,
     scope: u32,
     responses: UnboundedReceiver<Bytes>,
 }
 
 impl Accepting {
-    pub(super) fn new(identity: String, handle: Handle, scope: u32, responses: UnboundedReceiver<Bytes>) -> Self {
+    pub(super) fn new(identity: crate::shared::Identity, handle: Handle, scope: u32, responses: UnboundedReceiver<Bytes>) -> Self {
         Accepting {
             identity,
             handle,

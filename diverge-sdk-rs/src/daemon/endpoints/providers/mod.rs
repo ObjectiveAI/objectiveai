@@ -1,58 +1,42 @@
-//! Providers: the two ways the daemon comes to be connected to one,
-//! and the daemons it reaches through them.
+//! Providers: the ones the daemon accepts, and the ones it dials.
 //!
-//! A provider is where containers run and volumes live, and the daemon
-//! reaches it one of two ways, which its
-//! [`Identity`](crate::daemon::endpoints::agents::logs::server::response::Identity)
-//! already tells apart. An [`outgoing`] provider the daemon DIALS: a
-//! client gives an address and a mode, by the mode's name as the
-//! provider server's own `auth` names its modes — `unbrokered`, with
-//! the credential the daemon presents as its own — and the daemon dials
-//! it for whatever it needs of it, presenting that credential first, as
-//! the wire rules. An [`incoming`] provider dials the daemon, and the
-//! daemon JUDGES its credential as a provider judges its own peers: by
-//! the credentials the client has added, each a key the daemon minted
-//! naming the identity a peer presenting it has; the key that equals
-//! the presented one decides, and none is a closed connection.
+//! A provider is where containers run and volumes live. Which providers
+//! the daemon works with is its configuration's, `daemon.yaml`, read at
+//! its start: the identities it accepts — each an `(issuer, subject)` —
+//! and the addresses it dials, each with the issuer it presents as. No
+//! request adds, edits or removes a provider. Whichever end dialled,
+//! the mutual handshake establishes the provider's
+//! [`Identity`](crate::shared::Identity), and the daemon works with a
+//! provider only when that identity is one it accepts — the same list
+//! for a provider it dialled as for one that dialled it. The daemon
+//! holds at most one connection per provider identity at a time.
 //!
-//! # Two secrets, two directions
-//!
-//! No request and no answer carries a key; each names an entry in
-//! the daemon's host's keyring. An outgoing
-//! provider's key is the provider's: the client puts it in the keyring
-//! and names the entry in the mode, a list and a get report the mode
-//! without it, and an edit replaces the mode whole. An incoming
-//! credential's key is the daemon's: the daemon mints it when the
-//! credential is added or replaced, keeps it in the keyring, and
-//! answers the entry's name.
+//! [`get`] answers one provider by its identity, and [`list`] lists
+//! them: every accepted identity, the address it is dialled at when the
+//! configuration dials it, and where the daemon stands with it.
 //!
 //! # Where the daemon stands with each
 //!
-//! A list or a get of either reports the daemon's [`Status`] with
-//! the provider: no connection; one the daemon uses, with the
-//! version and the capabilities the provider answered its `info`
-//! ask, cached for the connection's life; or one the daemon holds
-//! open and never uses, the provider's version not being the
-//! daemon's. The daemon asks a provider nothing its capabilities
-//! exclude, and counts it connected only once the answer is cached.
-//! Beside the status, an item carries the provider's latest
-//! `capacity` answer, which the daemon polls for and caches; a list
-//! kept open hears each new answer as the item changed.
+//! A list or a get reports the daemon's [`Status`] with the provider:
+//! no connection; one the daemon uses, with the version and the
+//! capabilities the provider answered its `info` ask, cached for the
+//! connection's life; or one the daemon holds open and never uses,
+//! the provider's version not being the daemon's. The daemon asks a
+//! provider nothing its capabilities exclude, and counts it connected
+//! only once the answer is cached. Beside the status, an item carries
+//! the provider's latest `capacity` answer, which the daemon polls for
+//! and caches; a list kept open hears each new answer as the item
+//! changed.
 //!
 //! # And the daemons beyond them
 //!
-//! A [`daemons`] record is another daemon the caller holds an account
-//! on, reached through a provider both are connected to and never
-//! otherwise: its name here, the mode this daemon authenticates to it
-//! in — an outgoing provider's modes, the credential one the remote
-//! holds as an incoming credential — and one link per provider it is
-//! reachable through, each a provider of the caller's and the identity
-//! the remote is known by there. A connected tool names one.
+//! [`daemons`] are the other daemons this daemon reaches through its
+//! providers, also its configuration's.
 
 mod status;
 
 pub use status::*;
 
 pub mod daemons;
-pub mod incoming;
-pub mod outgoing;
+pub mod get;
+pub mod list;
