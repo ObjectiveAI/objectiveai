@@ -30,6 +30,7 @@ pub async fn resize(image: &Path, bytes: u64) -> Result<(), Error> {
 async fn tool(program: &str, args: &[String]) -> Result<Finished, Error> {
     let mut command = tokio::process::Command::new(program);
     command.args(args);
+    diverge_sdk::process::no_window(&mut command);
     crate::host::tools::run(program, command).await
 }
 

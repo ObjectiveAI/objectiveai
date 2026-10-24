@@ -19,11 +19,11 @@ axum = { version = "0.8.9" }
 # the SDKs are named by where they live rather than by version pins
 # version.sh would have to chase. The provider SDK is the vocabulary —
 # the chunks, the fates; the container SDK is the proxy beside this
-# program — the vault, the database URL, and the MCP URL the entry's
-# diverge plugin dials.
+# program — the secrets' declaration, feed and collect, the database
+# URL, and the MCP URL the entry's diverge plugin dials.
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The agent's JSON Schema, derived from the agent types for
-# `GET /schema`.
+# `--schema`.
 schemars = { version = "1.2.2" }
 # The run's outbound stream, as a generator.
 async-stream = { version = "0.3.6" }
@@ -41,11 +41,12 @@ serde_json = { version = "1.0.151", features = ["preserve_order"] }
 # though the loopback negotiates none. No macros. Version: the
 # workspace lock's.
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "postgres", "tls-rustls"] }
-# The lineage's agent id, and the minted vault secrets: v4 uuids.
+# The lineage's agent id, and the passphrase and salt minted with
+# its row: v4 uuids.
 uuid = { version = "1.22.0", features = ["v4"] }
-# The runtime under the listener, `sync` for the queue's mutex and
-# the claim's Notify, `process` + `io-util` for the entry process and
-# its lines, `fs` for a rotated credential's file, `time` for the
-# vault lock's refresh. No `macros` — the runtime is built in main,
-# not attributed onto it.
-tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync", "time"] }
+# The runtime under the listener, `sync` for the queue's mutex, the
+# claim's Notify and the fed secrets' locks, `process` + `io-util`
+# for the entry process and its lines, `fs` for a rotated
+# credential's file. No `macros` — the runtime is built in main, not
+# attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync"] }

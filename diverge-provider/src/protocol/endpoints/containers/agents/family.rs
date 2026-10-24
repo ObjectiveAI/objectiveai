@@ -10,7 +10,7 @@ use bytes::Bytes;
 
 use diverge_sdk::provider::endpoints::containers::agents::run::client::channel_request;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::channel_response::write_bytes;
-use diverge_sdk::provider::endpoints::containers::agents::run::server::channel_response::{filetree, read, transfer, write_path};
+use diverge_sdk::provider::endpoints::containers::agents::run::server::channel_response::{filetree, fuse_mount, read, transfer, write_path};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::{channel_request as ask, response};
 use diverge_sdk::wire::client::handle::Handle;
 use diverge_sdk::container_proxy::outside::client::Ask;
@@ -21,7 +21,7 @@ use crate::protocol::endpoints::containers::run::family::{Family, Opened, Runs};
 use crate::protocol::endpoints::containers::run::own::{Own, Unasked};
 use crate::protocol::endpoints::containers::run::run::Run;
 use crate::protocol::endpoints::containers::run::serve::agent;
-use crate::protocol::endpoints::containers::run::setup::deployed;
+use crate::protocol::endpoints::containers::run::setup::registered;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::endpoints::containers::run::{encoded::encoded, render};
 use diverge_sdk::container_proxy::outside::endpoints::agents::begin::client::execute as begin;
@@ -29,7 +29,8 @@ use diverge_sdk::shared;
 use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
-use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, vault};
+use diverge_sdk::shared::containers::secrets::{Declaration, Values};
+use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, registration};
 use diverge_sdk::shared::mcp;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree as tree;
@@ -56,7 +57,9 @@ impl Family for Agents {
                 destination: request.destination,
             },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
-            channel_request::Frame::Schema => Opened::Schema,
+            channel_request::Frame::Info => Opened::Info,
+            channel_request::Frame::Secrets(values) => Opened::Secrets(values),
+            channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
             channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.key, request.content)),
             channel_request::Frame::Dequeue(request) => Opened::Exchange(agent::Exchange::Dequeue(request.key)),
         }
@@ -113,6 +116,10 @@ impl Family for Agents {
     fn transfer_error(error: &Error) -> Option<Vec<u8>> {
         encoded(&transfer::Frame::Error(error.clone()))
     }
+
+    fn fuse_mount(frame: &fuse_mount::Frame) -> Option<Vec<u8>> {
+        encoded(frame)
+    }
 }
 
 impl Runs for Agents {
@@ -122,12 +129,13 @@ impl Runs for Agents {
         let proxy = proxy.clone();
         async move {
             match begin::execute(&proxy, arguments, template).await {
-                Ok((handle, asks, chunks, dependencies)) => Ok(Begun {
+                Ok((handle, asks, chunks, registered)) => Ok(Begun {
                     begin: Begin::Agents(handle),
                     asks,
                     chunks: Some(chunks),
-                    finish: None,
-                    dependencies,
+                    activity: None,
+                    dependencies: registered.dependencies,
+                    secrets: registered.secrets,
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -139,21 +147,22 @@ impl Runs for Agents {
         Some(relayed(ask)?)
     }
 
-    /// The dependencies the agent declared, asked of the caller on
-    /// this family's `dependencies` channel: nothing when it declared
-    /// none.
-    fn deploy(scope: &ScopeHandle, id: &str, declared: &[dependencies::Template]) -> impl Future<Output = Result<(), Error>> + Send {
-        let payload = (!declared.is_empty()).then(|| {
-            encoded(&ask::Frame::Dependencies(dependencies::request::Request {
+    /// What the agent declared — the dependencies to deploy, the
+    /// secrets to answer — registered with the caller on this family's
+    /// `registration` channel: nothing when it declared neither.
+    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
+        let payload = (!dependencies.is_empty() || !secrets.is_empty()).then(|| {
+            encoded(&ask::Frame::Registration(registration::request::Request {
                 id: Cow::Borrowed(id),
-                dependencies: Cow::Borrowed(declared),
+                dependencies: Cow::Borrowed(dependencies),
+                secrets: Cow::Borrowed(secrets),
             }))
         });
         async move {
             match payload {
-                None => Ok(()),
-                Some(Some(payload)) => deployed(scope, &payload).await,
-                Some(None) => Err(render::dependencies_failed("the dependencies ask did not encode")),
+                None => Ok(None),
+                Some(Some(payload)) => registered(scope, &payload).await.map(Some),
+                Some(None) => Err(render::registration_failed("the registration ask did not encode")),
             }
         }
     }
@@ -185,10 +194,6 @@ impl Runs for Agents {
     fn volume_mode(refused: &VolumeMode) -> Option<Vec<u8>> {
         encoded(&response::Frame::VolumeMode(refused.clone()))
     }
-
-    fn fuse_mounts_unsupported() -> Option<Vec<u8>> {
-        encoded(&response::Frame::FuseMountsUnsupported)
-    }
 }
 
 /// The proxy's ask as this family's frame; a database connection is
@@ -198,11 +203,6 @@ fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
     Some(match ask {
         Ask::Postgres(_) => return None,
         Ask::Daemon(_) => return None,
-        Ask::VaultGet { key } => ask::Frame::VaultGet(vault::get::request::Request { key }),
-        Ask::VaultSet { key, value } => ask::Frame::VaultSet(vault::set::request::Request { key, value }),
-        Ask::VaultDelete { key } => ask::Frame::VaultDelete(vault::delete::request::Request { key }),
-        Ask::VaultLock { key, ttl } => ask::Frame::VaultLock(vault::lock::request::Request { key, ttl: *ttl }),
-        Ask::VaultUnlock { key } => ask::Frame::VaultUnlock(vault::unlock::request::Request { key }),
         Ask::McpListTools(request) => ask::Frame::McpListTools(request.clone()),
         Ask::McpListResources(request) => ask::Frame::McpListResources(request.clone()),
         Ask::McpCallTool(request) => ask::Frame::McpCallTool(request.clone()),

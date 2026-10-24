@@ -11,12 +11,12 @@ impl Mounts {
     /// The mount a path is under, if one: the mount's id and the path
     /// within it, `/`-joined as a FUSE ask names it — empty for a file
     /// mount, whose path is the file itself.
-    pub fn mount_at(&self, path: &[String]) -> Option<(String, String)> {
-        for mount in self.files.iter().chain(&self.directories) {
+    pub async fn mount_at(&self, path: &[String]) -> Option<(String, String)> {
+        for mount in self.all().await {
             let at = &mount.container_path;
             if path.len() >= at.len() && path[..at.len()] == at[..] {
                 let within = path[at.len()..].join("/");
-                return Some((mount.id.clone(), within));
+                return Some((mount.id, within));
             }
         }
         None
@@ -28,7 +28,7 @@ impl Mounts {
     /// it makes.
     pub async fn subtrees(&self) -> Vec<(Vec<String>, Node)> {
         let mut spliced = Vec::new();
-        for mount in self.files.iter().chain(&self.directories) {
+        for mount in self.all().await {
             let Some(name) = mount.container_path.last() else {
                 continue;
             };
@@ -76,23 +76,18 @@ impl Mounts {
     /// report: by the path's last component.
     pub async fn node_at(&self, id: &str, path: &str) -> Option<Node> {
         let name = path.rsplit('/').next().unwrap_or(path);
-        let name = if name.is_empty() { self.mount_name(id)? } else { name.to_string() };
+        let name = if name.is_empty() { self.mount_name(id).await? } else { name.to_string() };
         self.node(id, path, &name).await
     }
 
     /// The last component of the mount's container path.
-    fn mount_name(&self, id: &str) -> Option<String> {
-        self.files
-            .iter()
-            .chain(&self.directories)
-            .find(|mount| mount.id == id)
-            .and_then(|mount| mount.container_path.last().cloned())
+    async fn mount_name(&self, id: &str) -> Option<String> {
+        self.find(id).await.and_then(|mount| mount.container_path.last().cloned())
     }
 
     /// The container path of what is at `path` within the mount.
-    pub fn container_path(&self, id: &str, path: &str) -> Option<Vec<String>> {
-        let mount = self.files.iter().chain(&self.directories).find(|mount| mount.id == id)?;
-        let mut full = mount.container_path.clone();
+    pub async fn container_path(&self, id: &str, path: &str) -> Option<Vec<String>> {
+        let mut full = self.find(id).await?.container_path;
         full.extend(path.split('/').filter(|component| !component.is_empty()).map(str::to_string));
         Some(full)
     }

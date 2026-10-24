@@ -11,7 +11,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::daemon::{Daemon, Kind};
 use crate::database;
 use crate::judge::{self, Standing, Who};
-use crate::serve::stream::{self, Change, Source};
+use crate::serve::stream::{self, Source};
 use crate::serve::reply;
 use crate::store;
 
@@ -44,12 +44,7 @@ async fn serve(scope: &ScopeHandle, _: request::Frame, who: Who, daemon: &Daemon
         return Ok(());
     }
     let source = Open { daemon };
-    stream::listing(scope, daemon, &[Kind::Postgres, Kind::Agents, Kind::StandaloneTools], None, &source, |change| match change {
-        Change::Added(connection) => Frame::Added(connection),
-        Change::Changed(connection) => Frame::Changed(connection),
-        Change::Removed(connection) => Frame::Removed(connection),
-        Change::Listed => Frame::Listed,
-    })
+    stream::listing(scope, daemon, &[Kind::Postgres, Kind::Agents, Kind::StandaloneTools], None, &source, Frame::from)
     .await
 }
 
@@ -70,7 +65,7 @@ impl Source for Open<'_> {
             let mut listed = Vec::with_capacity(open.len());
             for (id, key, opened) in open {
                 if let Some(container) = database::container_of(&mut conn, key).await? {
-                    listed.push((id, Connection { container, opened }));
+                    listed.push((id, Connection { id, container, opened }));
                 }
             }
             Ok(listed)

@@ -9,8 +9,9 @@
 //!
 //! [`execute`] performs the exchange rather than describing it: hand
 //! it the [`Handle`](crate::wire::client::handle::Handle) to the proxy, and
-//! get back the scope's handle and the asks the proxy opens. Every
-//! other module here is types only, and this one still is unless the
+//! get back the scope's handle, the asks the proxy opens, the
+//! container's activity and what its program declared. Every other
+//! module here is types only, and this one still is unless the
 //! provider's server was asked for — the same bargain
 //! [`server`](crate::wire::server) makes.
 

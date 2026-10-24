@@ -48,6 +48,13 @@ names the mount.
   [containers::agents::run](/endpoints/containers-agents-run/) request
   and its [FUSE read](/endpoints/containers-agents-run/server/fuse-read/) and sibling channels
   state; this layer states only how the asks are carried.
+- **When.** The client opens a mount scope at any time after the begin
+  has been answered, as [Connection](/container-proxy/connection/)
+  states: the mounts of the container's request before any other
+  scope, and any further mount beside the scopes already open. A
+  tree scope open when a mount is made reports what is under the
+  mount's path as the filesystem shows it; a tree scope opened after
+  leaves the path out when its request names it.
 - **No repetition.** The server sends every ask exactly once. A channel
   that ends without a finish is not asked again, and the operation is
   reported to the program as failed.

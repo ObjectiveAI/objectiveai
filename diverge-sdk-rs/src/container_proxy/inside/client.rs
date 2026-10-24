@@ -12,10 +12,9 @@ use super::Error;
 ///
 /// Made without a connection and held for the program's life; every
 /// feature the proxy carries is a method here, each feature in its own
-/// file — the MCP exchanges in `mcp.rs`, the vault in `vault.rs`, the
-/// daemon in `daemon.rs`, Postgres in `postgres.rs`. MCP opens its
-/// session the first time it is used; the vault speaks plain HTTP to
-/// the proxy, one request per call, nothing kept between; the daemon is
+/// file — the MCP exchanges in `mcp.rs`, the daemon in `daemon.rs`,
+/// Postgres in `postgres.rs`. MCP opens its session the first time it
+/// is used; the daemon is
 /// a WebSocket the program dials when it asks, and holds as a handle;
 /// Postgres is the program's own driver dialing the URL the client
 /// names. There is nothing to connect and nothing to close: a session
@@ -25,21 +24,12 @@ pub struct Client {
     /// The MCP session with the proxy's server at `/mcp`, made
     /// by the first MCP method that needs it.
     mcp: OnceCell<RunningService<RoleClient, ClientInfo>>,
-    /// The HTTP client the plain-HTTP features share. A handle, not
-    /// a connection: making it is no I/O.
-    http: reqwest::Client,
 }
 
 impl Client {
     /// The client. No I/O happens here.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// The HTTP client, for the features that are one request per
-    /// call.
-    pub(crate) fn http(&self) -> &reqwest::Client {
-        &self.http
     }
 
     /// The MCP session, dialed and initialized on first use.

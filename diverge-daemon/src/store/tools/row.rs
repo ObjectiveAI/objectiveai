@@ -5,6 +5,7 @@ use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::reference;
+use indexmap::IndexMap;
 use sqlx::Row as _;
 use sqlx::postgres::PgRow;
 use sqlx::types::Json;
@@ -14,7 +15,7 @@ use crate::store::{AccountId, Error, ToolId};
 
 /// The columns every tool query selects.
 pub(super) const SELECT: &str = "SELECT id, kind, template, provider, connected_daemon, connected_account, connected_tool, index, name, \
-     account, fuse_file_mounts, fuse_directory_mounts, last_provider, last_active, tags, created, creator \
+     account, fuse_file_mounts, fuse_directory_mounts, secrets, last_provider, last_active, tags, created, creator \
      FROM diverge.tools";
 
 /// The order: oldest first.
@@ -50,6 +51,7 @@ pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
     let account: Option<i64> = row.try_get("account")?;
     let Json(fuse_file_mounts): Json<Vec<FuseMount>> = row.try_get("fuse_file_mounts")?;
     let Json(fuse_directory_mounts): Json<Vec<FuseMount>> = row.try_get("fuse_directory_mounts")?;
+    let Json(secrets): Json<IndexMap<String, String>> = row.try_get("secrets")?;
     let last_provider: Option<Json<Identity>> = row.try_get("last_provider")?;
     let Json(creator): Json<Creator> = row.try_get("creator")?;
     let created: DateTime<Utc> = row.try_get("created")?;
@@ -61,6 +63,7 @@ pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
         account: account.map(AccountId),
         fuse_file_mounts,
         fuse_directory_mounts,
+        secrets,
         last_provider: last_provider.map(|Json(identity)| identity),
         last_active: row.try_get("last_active")?,
         tags: row.try_get("tags")?,

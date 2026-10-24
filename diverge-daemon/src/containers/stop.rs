@@ -6,7 +6,7 @@ use chrono::Utc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
 use futures_util::future;
 
-use super::{AgentRun, Key, ToolHandle, ToolKey, ToolRun, pump, services};
+use super::{AgentRun, Key, ToolHandle, ToolKey, ToolRun, pump, secrets, services};
 use crate::daemon::{Daemon, Kind};
 use crate::store::{AgentId, agents, tools as tool_records};
 
@@ -19,7 +19,8 @@ pub async fn stop_agent(daemon: &Daemon, id: AgentId) {
 }
 
 /// The agent's run has ended, however it did: forgotten as live, its
-/// tasks ended, its transient dependencies stopped — all at once,
+/// tasks ended, the vault slots it held released with their values
+/// unchanged, its transient dependencies stopped — all at once,
 /// every container told at the same time; its attached tools left to
 /// their own use and their idle clocks, its services to their
 /// attachments — its mounts let go, the log told it ceased on its
@@ -33,6 +34,9 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     run.loop_active.send_replace(false);
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
+    }
+    if let Some(mut held) = run.secrets.lock().await.take() {
+        let _ = secrets::release(daemon, &mut held, &run.sender).await;
     }
     let dependencies = run.served.lock().await.transients();
     stop_dependencies(daemon, dependencies).await;
@@ -69,6 +73,7 @@ pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>)
 }
 
 /// The tool's run has ended: forgotten as live, its tasks ended, the
+/// vault slots it held released with their values unchanged, the
 /// word that it ended said — which finishes every connect scope on it
 /// — its mounts let go; a record's told where and when it last ran; a
 /// transient dependency tool's taken out of its agent's served set,
@@ -82,6 +87,9 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     }
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
+    }
+    if let Some(mut held) = run.secrets.lock().await.take() {
+        let _ = secrets::release(daemon, &mut held, &run.sender).await;
     }
     run.ended.send_replace(true);
     run.mounts.stop().await;

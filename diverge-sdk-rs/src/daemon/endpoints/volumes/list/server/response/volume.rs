@@ -3,6 +3,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::reference;
+use crate::shared::listing::Keyed;
 use crate::daemon::endpoints::agents::logs::server::response::Identity;
 use crate::daemon::key;
 use crate::provider::endpoints::volumes::Mode;
@@ -43,4 +45,16 @@ pub struct Volume {
     /// put them: the daemon's, not the provider's. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+}
+
+/// Keyed by the provider and the name, as a volume is referred to.
+impl Keyed for Volume {
+    type Key = reference::Volume;
+
+    fn key(&self) -> reference::Volume {
+        reference::Volume {
+            provider: self.provider.clone(),
+            name: self.name.clone(),
+        }
+    }
 }

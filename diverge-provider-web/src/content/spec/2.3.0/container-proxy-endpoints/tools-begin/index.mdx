@@ -1,20 +1,21 @@
 ---
 title: 'tools::begin'
-summary: 'Tag 1: the client begins its work on a tool container, once, first, and hands over the arguments and the template id; the server answers Begun, carrying nothing, once the container holds them and nothing more on the scope for the life of the connection; every channel of the container’s life rides this scope.'
+summary: 'Tag 1: the client begins its work on a tool container, once, first, and hands over the arguments and the template id; the server answers Begun, carrying the secrets the container takes, once the container holds them and, for the life of the connection, Active whenever an MCP exchange is in flight where none was and Inactive, carrying the rotating secrets handed back, whenever the last in flight is answered; every channel of the container’s life rides this scope.'
 order: 1
 draft: false
 ---
 
 The client opens the scope with a request whose payload is the tag
-byte `1` followed by the request as JSON: the arguments, and the id
-of the template the container is made from. The server answers with
-exactly one `Begun` response, carrying nothing, once the container
-holds its arguments, sends no other
-response on the scope for as long as the connection
-lives, and ends the scope by the response finish only when the server
-ends. This section states what the server does. It
-states nothing about the client beyond the order
-[Connection](/container-proxy/connection/) provides.
+byte `1` followed by the request as JSON: the arguments and the id of
+the template the container is made from. The server answers with
+exactly one `Begun` response, carrying the secrets the container's
+program takes, once the container holds its arguments; after it
+sends `Active` and `Inactive` as the container's MCP exchanges begin
+and end, for as long as the connection lives; and it ends the scope
+by the response finish when the server ends, or after an error it
+sends when it cannot collect the rotating secrets. This section
+states what the server does. It states nothing about the client
+beyond the order [Connection](/container-proxy/connection/) provides.
 
 - **The request.** [Request](/container-proxy-endpoints/tools-begin/request/) states its form.
 - **The response.** [Response](/container-proxy-endpoints/tools-begin/response/) states the one response
@@ -38,11 +39,35 @@ states nothing about the client beyond the order
    the error in the container's own words, and the finish; the
    connection has not begun.
 3. **The server answers `Begun`.** Exactly once, and before any
-   channel is served, carrying nothing. A tool container declares no
-   dependencies: a list its program answers its registration with is
-   not read and not carried.
-4. **The scope ends with the server.** The server sends the response
-   finish when it ends, and at no other time.
+   channel is served, carrying the secrets the container's program
+   answered its registration with, each by name to its mode. A tool
+   container declares no dependencies: a list its program answers
+   its registration with is not read and not carried.
+4. **The server holds delivery until the container is fed.** From
+   `Begun`, and from every `Inactive`, the server delivers no MCP
+   exchange to a program that declared one or more secrets until the
+   client has opened a [secrets](/container-proxy-endpoints/tools-begin/client/secrets/)
+   channel and the server has answered it `Fed`; an exchange opened
+   meanwhile is held. A program that declared no secret is delivered
+   to from `Begun` and from every `Inactive`.
+5. **The server marks the activity.** An exchange is one
+   [mcp-list-tools](/container-proxy-endpoints/tools-begin/client/mcp-list-tools/),
+   [mcp-list-resources](/container-proxy-endpoints/tools-begin/client/mcp-list-resources/),
+   [mcp-call-tool](/container-proxy-endpoints/tools-begin/client/mcp-call-tool/) or
+   [mcp-read-resource](/container-proxy-endpoints/tools-begin/client/mcp-read-resource/)
+   channel from its request to its answer; an
+   [mcp-notifications](/container-proxy-endpoints/tools-begin/client/mcp-notifications/)
+   channel is no exchange. The server counts the exchanges in flight.
+   It sends `Active` when the count goes from none to one, before
+   that exchange is delivered, and, when the count goes from one to
+   none, collects from the program the value of every `rotating`
+   secret it declared and sends `Inactive` carrying them. A collect
+   the program does not answer with every value asked for is
+   answered by exactly one response, the error naming the secret and
+   carrying no value, and the finish.
+6. **The scope ends with the server.** The server sends the response
+   finish when it ends, and after the error of step 5, and at no
+   other time.
 
 ## The rules that hold throughout
 
@@ -50,14 +75,17 @@ states nothing about the client beyond the order
   connection.
 - **Both directions.** The server opens channels on this scope for
   everything the container asks of the world outside it — its
-  database connections, its daemon connections, its vault — and the
-  client opens channels on it for the schema, the five MCP exchanges
-  into the container's own MCP server, and its half of each database
-  connection.
+  database connections, its daemon connections — and the
+  client opens channels on it for the image's `/DIVERGE.md`, the
+  five MCP exchanges into the container's own MCP server, the feed of
+  the secrets' values, and its half of each database connection.
 - **No tool call outward.** A tool container makes no tool call
   outward: the server opens no MCP channel on this scope, and
   answers the container's program with an error when it calls.
-- **Silence.** After `Begun`, the server sends no response on the
-  scope.
+- **The two words.** After `Begun`, the server sends `Active`,
+  `Inactive`, and the one error of step 5, and no other response on
+  the scope.
+- **No value in an error.** No error the server sends carries the
+  value of a secret.
 - **No timeout.** The server imposes no timeout on any channel or on
   the scope.

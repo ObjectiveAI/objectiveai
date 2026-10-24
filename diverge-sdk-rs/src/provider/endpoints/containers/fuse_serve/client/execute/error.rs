@@ -26,9 +26,6 @@ pub enum ExecuteError {
     Misrouted,
     /// The provider's answer did not decode.
     Response(response::FrameError),
-    /// The provider refused to serve: it does not FUSE serve
-    /// containers at all.
-    Unsupported,
     /// The provider refused to serve: no container of the caller's
     /// runs under the id, the path is not a directory of it, or the
     /// proxy would not serve it.
@@ -45,7 +42,6 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Unanswered => f.write_str("the provider could not serve the container"),
             ExecuteError::Misrouted => f.write_str("a frame that cannot open a FUSE serve answered it"),
             ExecuteError::Response(error) => write!(f, "{error}"),
-            ExecuteError::Unsupported => f.write_str("the provider does not FUSE serve containers"),
             ExecuteError::Refused(_) => f.write_str("the provider refused to serve the container"),
         }
     }
@@ -61,7 +57,6 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Closed
             | ExecuteError::Unanswered
             | ExecuteError::Misrouted
-            | ExecuteError::Unsupported
             | ExecuteError::Refused(_) => None,
         }
     }

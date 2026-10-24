@@ -3,6 +3,8 @@
 
 use std::sync::Arc;
 
+use diverge_sdk::daemon::creator::{Client, Creator};
+use diverge_sdk::daemon::endpoints::events::Action;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::channel_request;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::request;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::server::response::Frame;
@@ -49,8 +51,10 @@ const CONNECTED: &str = "a connected tool is another daemon's, and is served the
 /// of the five MCP exchanges, put to the tool stamped with the caller
 /// as this daemon authorized the connection — its identity,
 /// unbrokered, and nothing the client said of itself, in place of
-/// anything the client stamped — and answered by the tool's server on
-/// a task of its own, each answer attested as this daemon's own tool,
+/// anything the client stamped — the tool's run activated for it
+/// first, its secrets taken and fed — and answered by the tool's
+/// server on a task of its own, each answer attested as this daemon's
+/// own tool,
 /// in place of anything the tool's server put; or the disconnect; a
 /// channel request that does not decode is finished with nothing. On
 /// either end the tasks are ended and the scope lets the tool go.
@@ -63,6 +67,9 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
     let caller = Arc::new(Caller::Unbrokered {
         identity: standing.identity.clone(),
     });
+    let sender = Arc::new(Creator::Client(Client {
+        identity: standing.identity.clone(),
+    }));
     if !judge::standalone_tools::holds(&standing, Over::Connect) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
@@ -118,7 +125,7 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
                 match channel_request::Frame::decode(payload) {
                     Ok(channel_request::Frame::Disconnect) => break,
                     Ok(ask) => {
-                        tasks.spawn(answer(Arc::clone(scope), Arc::clone(&run), Arc::clone(&caller), channel, ask));
+                        tasks.spawn(answer(Arc::clone(daemon), Arc::clone(scope), Arc::clone(&run), Arc::clone(&caller), Arc::clone(&sender), channel, ask));
                     }
                     Err(_) => scope.send_channel_response_finish(channel).await,
                 }
@@ -140,67 +147,102 @@ async fn over(ended: &mut tokio::sync::watch::Receiver<bool>) {
     }
 }
 
-/// One channel, answered: the exchange put to the tool stamped with
-/// `caller`, this daemon's word on who is asking, its answer attested
-/// as this daemon's own tool, sent as one channel response and the
-/// finish — or, for the notifications, which carry no request, one
-/// per notification until the tool's stream ends. A disconnect never
-/// reaches here. Every exchange is a use of the tool, in flight into
-/// it until it is answered.
-async fn answer(scope: Arc<ScopeHandle>, run: Arc<ToolRun>, caller: Arc<Caller>, channel: u32, ask: channel_request::Frame) {
+/// One channel, answered: the tool's run activated for the exchange
+/// — its secrets taken and fed, see
+/// [`activate_tool`](crate::containers::activate_tool) — which
+/// failing is the exchange's error; else the exchange put to the tool
+/// stamped with `caller`, this daemon's word on who is asking, its
+/// answer attested as this daemon's own tool, sent as one channel
+/// response and the finish — or, for the notifications, which carry
+/// no request and activate nothing, one per notification until the
+/// tool's stream ends. A disconnect never reaches here. Every
+/// exchange is a use of the tool, in flight into it from before its
+/// activation until it is answered. A call and a read that reach the
+/// tool are on the graph, each one event from `sender` — the account
+/// the connect is served for, as a client — to the tool, however the
+/// tool answers; one the activation refused is not, nor is a listing.
+async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>, caller: Arc<Caller>, sender: Arc<Creator>, channel: u32, ask: channel_request::Frame) {
     run.touch();
     let _flying = run.inflight.enter();
+    let activated = match &ask {
+        channel_request::Frame::Disconnect | channel_request::Frame::McpNotifications(_) => Ok(()),
+        _ => containers::activate_tool(&daemon, &run)
+            .await
+            .map_err(|error| ErrorData::internal_error(error.0.to_string(), None)),
+    };
     match ask {
         channel_request::Frame::Disconnect => {}
         channel_request::Frame::McpListTools(request) => {
-            let mut params = request.0.unwrap_or_default();
-            attest_request(&mut params, &*caller);
-            let frame = match run.handle.list_tools(Some(params)).await {
-                Ok(mut result) => {
-                    for tool in &mut result.tools {
-                        run.attest(tool.meta.get_or_insert_default());
+            let frame = match activated {
+                Err(error) => mcp::list_tools::response::Frame::Error(error),
+                Ok(()) => {
+                    let mut params = request.0.unwrap_or_default();
+                    attest_request(&mut params, &*caller);
+                    match run.handle.list_tools(Some(params)).await {
+                        Ok(mut result) => {
+                            for tool in &mut result.tools {
+                                run.attest(tool.meta.get_or_insert_default());
+                            }
+                            mcp::list_tools::response::Frame::Result(result)
+                        }
+                        Err(error) => mcp::list_tools::response::Frame::Error(ErrorData::internal_error(error, None)),
                     }
-                    mcp::list_tools::response::Frame::Result(result)
                 }
-                Err(error) => mcp::list_tools::response::Frame::Error(ErrorData::internal_error(error, None)),
             };
             respond(&scope, channel, &frame).await;
         }
         channel_request::Frame::McpListResources(request) => {
-            let mut params = request.0.unwrap_or_default();
-            attest_request(&mut params, &*caller);
-            let frame = match run.handle.list_resources(Some(params)).await {
-                Ok(mut result) => {
-                    for resource in &mut result.resources {
-                        run.attest(resource.meta.get_or_insert_default());
+            let frame = match activated {
+                Err(error) => mcp::list_resources::response::Frame::Error(error),
+                Ok(()) => {
+                    let mut params = request.0.unwrap_or_default();
+                    attest_request(&mut params, &*caller);
+                    match run.handle.list_resources(Some(params)).await {
+                        Ok(mut result) => {
+                            for resource in &mut result.resources {
+                                run.attest(resource.meta.get_or_insert_default());
+                            }
+                            mcp::list_resources::response::Frame::Result(result)
+                        }
+                        Err(error) => mcp::list_resources::response::Frame::Error(ErrorData::internal_error(error, None)),
                     }
-                    mcp::list_resources::response::Frame::Result(result)
                 }
-                Err(error) => mcp::list_resources::response::Frame::Error(ErrorData::internal_error(error, None)),
             };
             respond(&scope, channel, &frame).await;
         }
         channel_request::Frame::McpCallTool(request) => {
-            let mut params = request.0;
-            attest_request(&mut params, &*caller);
-            let frame = match run.handle.call_tool(params).await {
-                Ok(mut result) => {
-                    run.attest(result.meta.get_or_insert_default());
-                    mcp::call_tool::response::Frame::Result(result)
+            let frame = match activated {
+                Err(error) => mcp::call_tool::response::Frame::Error(error),
+                Ok(()) => {
+                    let mut params = request.0;
+                    attest_request(&mut params, &*caller);
+                    containers::events::record(&daemon, &sender, &run.sender, Action::Call).await;
+                    match run.handle.call_tool(params).await {
+                        Ok(mut result) => {
+                            run.attest(result.meta.get_or_insert_default());
+                            mcp::call_tool::response::Frame::Result(result)
+                        }
+                        Err(error) => mcp::call_tool::response::Frame::Error(ErrorData::internal_error(error, None)),
+                    }
                 }
-                Err(error) => mcp::call_tool::response::Frame::Error(ErrorData::internal_error(error, None)),
             };
             respond(&scope, channel, &frame).await;
         }
         channel_request::Frame::McpReadResource(request) => {
-            let mut params = request.0;
-            attest_request(&mut params, &*caller);
-            let frame = match run.handle.read_resource(params).await {
-                Ok(mut result) => {
-                    run.attest(result.meta.get_or_insert_default());
-                    mcp::read_resource::response::Frame::Result(result)
+            let frame = match activated {
+                Err(error) => mcp::read_resource::response::Frame::Error(error),
+                Ok(()) => {
+                    let mut params = request.0;
+                    attest_request(&mut params, &*caller);
+                    containers::events::record(&daemon, &sender, &run.sender, Action::Read).await;
+                    match run.handle.read_resource(params).await {
+                        Ok(mut result) => {
+                            run.attest(result.meta.get_or_insert_default());
+                            mcp::read_resource::response::Frame::Result(result)
+                        }
+                        Err(error) => mcp::read_resource::response::Frame::Error(ErrorData::internal_error(error, None)),
+                    }
                 }
-                Err(error) => mcp::read_resource::response::Frame::Error(ErrorData::internal_error(error, None)),
             };
             respond(&scope, channel, &frame).await;
         }

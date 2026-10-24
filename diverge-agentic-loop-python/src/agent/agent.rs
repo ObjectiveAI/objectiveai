@@ -1,6 +1,7 @@
 //! The Python agent.
 
 use diverge_sdk::shared::containers::dependencies::Template;
+use diverge_sdk::shared::containers::secrets::Declaration;
 use indexmap::IndexMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,13 @@ use super::Version;
 /// is nothing to name — and no sampling parameters either. A Python
 /// agent occupies the same slot as a model-backed one and answers
 /// deterministically, or as deterministically as its source does.
+///
+/// # Secrets
+///
+/// None: there is no model, so no credential, and the script is
+/// handed nothing but the conversation and the caller's lists. The
+/// template this agent is made from need declare no name, and a name
+/// it does declare is one the program never asks for.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Agent {
     /// The source, verbatim.
@@ -43,14 +51,21 @@ pub struct Agent {
     /// The tool containers this agent depends on, each a dependency
     /// tool template the caller deploys and serves to it as an MCP
     /// server, exactly as the SDK's [`Template`] states one: that
-    /// type's JSON Schema is what `GET /schema` states for this member,
-    /// and this list, unchanged, is what the registration answers —
-    /// one schema, from the one type, at both. Absent is none.
+    /// type's JSON Schema is what `--schema` prints for this member,
+    /// in `/DIVERGE.md`, and this list, unchanged, is what the
+    /// registration answers — one schema, from the one type, at both.
+    /// Absent is none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<Template>,
 }
 
 impl Agent {
+    /// The secrets this agent takes, as the registration answers
+    /// them: none, whatever the arguments.
+    pub fn declaration(&self) -> Declaration {
+        Declaration::new()
+    }
+
     /// The requirements as pip takes them: one `name<op>version`
     /// argument each, in the map's order.
     pub fn pip_arguments(&self) -> Vec<String> {

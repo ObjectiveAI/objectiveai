@@ -55,12 +55,20 @@ async fn land(daemon: &Arc<Daemon>, source: &Source, path: &[String], sink: &Sin
             for relative in files {
                 let full = joined(path, &relative);
                 let destination = joined(at, &relative);
-                if let Source::Opened(from) = source
-                    && from.provider() == opened.provider()
-                    && let Some(id) = opened.container()
-                    && from.mounts().mount_at(&full).is_none()
-                    && opened.mounts().mount_at(&destination).is_none()
-                {
+                // Two containers on one provider, neither path under
+                // a mount of the daemon's: the provider copies between
+                // them, and nothing passes through here.
+                let mut direct = None;
+                if let Source::Opened(from) = source {
+                    if from.provider() == opened.provider() {
+                        if let Some(id) = opened.container() {
+                            if from.mounts().mount_at(&full).await.is_none() && opened.mounts().mount_at(&destination).await.is_none() {
+                                direct = Some((from, id));
+                            }
+                        }
+                    }
+                }
+                if let Some((from, id)) = direct {
                     from.touch();
                     opened.touch();
                     from.transfer(full, id.to_string(), destination).await.map_err(Fail::Error)?;

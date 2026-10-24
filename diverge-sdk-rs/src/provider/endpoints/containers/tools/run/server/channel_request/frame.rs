@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::{daemon, fuse, oci, postgres, vault, write_bytes};
+use crate::shared::containers::{daemon, fuse, oci, postgres, registration, write_bytes};
 
 /// What a provider asks a caller for while a tool container runs.
 ///
@@ -20,28 +20,26 @@ use crate::shared::containers::{daemon, fuse, oci, postgres, vault, write_bytes}
 /// | `3` | [`Write`](Self::Write) |
 /// | `4` | [`Postgres`](Self::Postgres) |
 /// | `5` | [`Daemon`](Self::Daemon) |
-/// | `6` | [`VaultGet`](Self::VaultGet) |
-/// | `7` | [`VaultSet`](Self::VaultSet) |
-/// | `8` | [`VaultDelete`](Self::VaultDelete) |
-/// | `9` | [`VaultLock`](Self::VaultLock) |
-/// | `10` | [`VaultUnlock`](Self::VaultUnlock) |
-/// | `11` | [`FuseRead`](Self::FuseRead) |
-/// | `12` | [`FuseWrite`](Self::FuseWrite) |
-/// | `13` | [`FuseList`](Self::FuseList) |
-/// | `14` | [`FuseRemove`](Self::FuseRemove) |
-/// | `15` | [`FuseRename`](Self::FuseRename) |
-/// | `16` | [`FuseMkdir`](Self::FuseMkdir) |
-/// | `17` | [`FuseStat`](Self::FuseStat) |
-/// | `18` | [`FuseTruncate`](Self::FuseTruncate) |
-/// | `19` | [`FuseSetattr`](Self::FuseSetattr) |
+/// | `6` | [`FuseRead`](Self::FuseRead) |
+/// | `7` | [`FuseWrite`](Self::FuseWrite) |
+/// | `8` | [`FuseList`](Self::FuseList) |
+/// | `9` | [`FuseRemove`](Self::FuseRemove) |
+/// | `10` | [`FuseRename`](Self::FuseRename) |
+/// | `11` | [`FuseMkdir`](Self::FuseMkdir) |
+/// | `12` | [`FuseStat`](Self::FuseStat) |
+/// | `13` | [`FuseTruncate`](Self::FuseTruncate) |
+/// | `14` | [`FuseSetattr`](Self::FuseSetattr) |
+/// | `15` | [`Registration`](Self::Registration) |
 ///
-/// Nineteen. The first four are the provider's own asks — whether the
-/// caller holds an image, its manifest and blobs, a write's content —
-/// and the rest are the CONTAINER's, relayed: its database
-/// connections, its daemon connection, its vault, and the files the
+/// Sixteen. Five are the provider's own asks — whether the caller
+/// holds an image, its manifest and blobs, a write's content, the
+/// container's registration, the last of them numbered after the rest
+/// because it came last — and the rest are the CONTAINER's, relayed:
+/// its database connections, its daemon connection, and the files the
 /// caller mounted live. No tool call outward: a tool container makes
 /// none, and only an agent container asks the caller's MCP servers;
-/// and no dependencies, which a tool container never declares.
+/// and no dependencies in the registration, which a tool container
+/// never declares.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// A manifest of an image the caller holds, by digest. Tag `0`.
@@ -88,58 +86,54 @@ pub enum Frame<'a> {
     /// connection declined. See
     /// [`daemon`](crate::shared::containers::daemon) for the pair.
     Daemon(daemon::request::Daemon),
-    /// Read a vault key. Tag `6`.
-    VaultGet(vault::get::request::Request<'a>),
-    /// Write a vault key. Tag `7`.
-    VaultSet(vault::set::request::Request<'a>),
-    /// Remove a vault key. Tag `8`.
-    VaultDelete(vault::delete::request::Request<'a>),
-    /// Hold a vault key's lock. Tag `9`.
-    VaultLock(vault::lock::request::Request<'a>),
-    /// Release a vault key's lock. Tag `10`.
-    ///
-    /// The five vault asks are the container's; see
-    /// [`vault`](crate::shared::containers::vault) for what each
-    /// carries and how a lock behaves.
-    VaultUnlock(vault::unlock::request::Request<'a>),
     /// Read a piece of a file the caller mounted live, by the mount's
-    /// id, the file's path in it, an offset and a length. Tag `11`.
+    /// id, the file's path in it, an offset and a length. Tag `6`.
     ///
     /// The container's proxy asking on behalf of a FUSE mount: every
     /// `read(2)` of the file. See
     /// [`fuse`](crate::shared::containers::fuse).
     FuseRead(fuse::read::request::Request<'a>),
     /// Write a piece of a file the caller mounted live, in place at
-    /// an offset. Tag `12`.
+    /// an offset. Tag `7`.
     ///
     /// Every `write(2)` of the file.
     FuseWrite(fuse::write::request::Request<'a>),
-    /// List a directory of a tree the caller mounted live. Tag `13`.
+    /// List a directory of a tree the caller mounted live. Tag `8`.
     ///
     /// Every listing in a directory mount: names and kinds.
     FuseList(fuse::list::request::Request<'a>),
-    /// Remove a file or an empty directory of such a tree. Tag `14`.
+    /// Remove a file or an empty directory of such a tree. Tag `9`.
     FuseRemove(fuse::remove::request::Request<'a>),
-    /// Rename an entry within such a tree. Tag `15`.
+    /// Rename an entry within such a tree. Tag `10`.
     FuseRename(fuse::rename::request::Request<'a>),
-    /// Make a directory in such a tree. Tag `16`.
+    /// Make a directory in such a tree. Tag `11`.
     FuseMkdir(fuse::mkdir::request::Request<'a>),
     /// What an entry the caller mounted live is: kind, size, mode,
-    /// owner, group and times. Tag `17`.
+    /// owner, group and times. Tag `12`.
     ///
     /// Every attribute of a file mount, and every lookup and
     /// attribute of an entry in a directory mount: a `stat` costs
     /// fifty-seven bytes back, not the file.
     FuseStat(fuse::stat::request::Request<'a>),
-    /// Set a file the caller mounted live to a length. Tag `18`.
+    /// Set a file the caller mounted live to a length. Tag `13`.
     ///
     /// Every `truncate(2)`, `ftruncate(2)` and `O_TRUNC` open.
     FuseTruncate(fuse::truncate::request::Request<'a>),
     /// Set some attributes of an entry the caller mounted live. Tag
-    /// `24`.
+    /// `14`.
     ///
     /// Every `chmod(2)`, `chown(2)` and `utimensat(2)`.
     FuseSetattr(fuse::setattr::request::Request<'a>),
+    /// Register the container: resolve the secrets it takes. Tag
+    /// `15`.
+    ///
+    /// Opened once, after the proxy's `Begun` carried a non-empty
+    /// declaration, and before the id; its dependencies are empty,
+    /// since a tool container declares none. Answered with the
+    /// secrets' first values, which the provider feeds to the
+    /// container before it sends the id. See
+    /// [`registration`](crate::shared::containers::registration).
+    Registration(registration::request::Request<'a>),
 }
 
 /// Tag for [`Frame::OciManifest`].
@@ -160,52 +154,39 @@ const POSTGRES: u8 = 4;
 /// Tag for [`Frame::Daemon`].
 const DAEMON: u8 = 5;
 
-/// Tag for [`Frame::VaultGet`].
-const VAULT_GET: u8 = 6;
-
-/// Tag for [`Frame::VaultSet`].
-const VAULT_SET: u8 = 7;
-
-/// Tag for [`Frame::VaultDelete`].
-const VAULT_DELETE: u8 = 8;
-
-/// Tag for [`Frame::VaultLock`].
-const VAULT_LOCK: u8 = 9;
-
-/// Tag for [`Frame::VaultUnlock`].
-const VAULT_UNLOCK: u8 = 10;
-
 /// Tag for [`Frame::FuseRead`].
-const FUSE_READ: u8 = 11;
+const FUSE_READ: u8 = 6;
 
 /// Tag for [`Frame::FuseWrite`].
-const FUSE_WRITE: u8 = 12;
+const FUSE_WRITE: u8 = 7;
 
 /// Tag for [`Frame::FuseList`].
-const FUSE_LIST: u8 = 13;
+const FUSE_LIST: u8 = 8;
 
 /// Tag for [`Frame::FuseRemove`].
-const FUSE_REMOVE: u8 = 14;
+const FUSE_REMOVE: u8 = 9;
 
 /// Tag for [`Frame::FuseRename`].
-const FUSE_RENAME: u8 = 15;
+const FUSE_RENAME: u8 = 10;
 
 /// Tag for [`Frame::FuseMkdir`].
-const FUSE_MKDIR: u8 = 16;
+const FUSE_MKDIR: u8 = 11;
 
 /// Tag for [`Frame::FuseStat`].
-const FUSE_STAT: u8 = 17;
+const FUSE_STAT: u8 = 12;
 
 /// Tag for [`Frame::FuseTruncate`].
-const FUSE_TRUNCATE: u8 = 18;
+const FUSE_TRUNCATE: u8 = 13;
 
 /// Tag for [`Frame::FuseSetattr`].
-const FUSE_SETATTR: u8 = 19;
+const FUSE_SETATTR: u8 = 14;
+
+/// Tag for [`Frame::Registration`].
+const REGISTRATION: u8 = 15;
 
 impl Encode for Frame<'_> {
-    /// The JSON failure from the asks that are JSON, or a vault key
-    /// or a fuse id or path too long for its prefix; everything else
-    /// is bytes copied.
+    /// The JSON failure from the asks that are JSON, or a fuse id or
+    /// path too long for its prefix; everything else is bytes copied.
     type Error = FrameEncodeError;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), FrameEncodeError> {
@@ -234,26 +215,6 @@ impl Encode for Frame<'_> {
             }
             Frame::Daemon(request) => {
                 out.extend_from_slice(&[DAEMON]);
-                request.encode(out).map_err(|error| match error {})
-            }
-            Frame::VaultGet(request) => {
-                out.extend_from_slice(&[VAULT_GET]);
-                request.encode(out).map_err(|error| match error {})
-            }
-            Frame::VaultSet(request) => {
-                out.extend_from_slice(&[VAULT_SET]);
-                request.encode(out).map_err(FrameEncodeError::Vault)
-            }
-            Frame::VaultDelete(request) => {
-                out.extend_from_slice(&[VAULT_DELETE]);
-                request.encode(out).map_err(|error| match error {})
-            }
-            Frame::VaultLock(request) => {
-                out.extend_from_slice(&[VAULT_LOCK]);
-                request.encode(out).map_err(|error| match error {})
-            }
-            Frame::VaultUnlock(request) => {
-                out.extend_from_slice(&[VAULT_UNLOCK]);
                 request.encode(out).map_err(|error| match error {})
             }
             Frame::FuseRead(request) => {
@@ -292,6 +253,10 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[FUSE_SETATTR]);
                 request.encode(out).map_err(FrameEncodeError::Fuse)
             }
+            Frame::Registration(request) => {
+                out.extend_from_slice(&[REGISTRATION]);
+                request.encode(out).map_err(FrameEncodeError::Json)
+            }
         }
     }
 }
@@ -301,8 +266,6 @@ impl Encode for Frame<'_> {
 pub enum FrameEncodeError {
     /// A JSON ask did not serialize.
     Json(serde_json::Error),
-    /// A vault ask would not encode: a key too long for its prefix.
-    Vault(vault::RequestEncodeError),
     /// A fuse ask would not encode: an id or a path too long for its
     /// prefix.
     Fuse(fuse::RequestEncodeError),
@@ -314,7 +277,6 @@ impl fmt::Display for FrameEncodeError {
             FrameEncodeError::Json(error) => {
                 write!(f, "channel request did not serialize: {error}")
             }
-            FrameEncodeError::Vault(error) => write!(f, "{error}"),
             FrameEncodeError::Fuse(error) => write!(f, "{error}"),
         }
     }
@@ -324,7 +286,6 @@ impl std::error::Error for FrameEncodeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             FrameEncodeError::Json(error) => Some(error),
-            FrameEncodeError::Vault(error) => Some(error),
             FrameEncodeError::Fuse(error) => Some(error),
         }
     }
@@ -355,21 +316,6 @@ impl<'a> Decode<'a> for Frame<'a> {
             DAEMON => daemon::request::Daemon::decode(rest)
                 .map(Frame::Daemon)
                 .map_err(FrameError::Daemon),
-            VAULT_GET => vault::get::request::Request::decode(rest)
-                .map(Frame::VaultGet)
-                .map_err(FrameError::Vault),
-            VAULT_SET => vault::set::request::Request::decode(rest)
-                .map(Frame::VaultSet)
-                .map_err(FrameError::Vault),
-            VAULT_DELETE => vault::delete::request::Request::decode(rest)
-                .map(Frame::VaultDelete)
-                .map_err(FrameError::Vault),
-            VAULT_LOCK => vault::lock::request::Request::decode(rest)
-                .map(Frame::VaultLock)
-                .map_err(FrameError::Vault),
-            VAULT_UNLOCK => vault::unlock::request::Request::decode(rest)
-                .map(Frame::VaultUnlock)
-                .map_err(FrameError::Vault),
             FUSE_READ => fuse::read::request::Request::decode(rest)
                 .map(Frame::FuseRead)
                 .map_err(FrameError::Fuse),
@@ -397,6 +343,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             FUSE_SETATTR => fuse::setattr::request::Request::decode(rest)
                 .map(Frame::FuseSetattr)
                 .map_err(FrameError::Fuse),
+            REGISTRATION => registration::request::Request::decode(rest)
+                .map(Frame::Registration)
+                .map_err(FrameError::Registration),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -407,16 +356,16 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's nineteen.
+    /// A tag that is none of this frame's sixteen.
     UnknownTag(u8),
     /// An image ask did not parse.
     Oci(serde_json::Error),
+    /// The registration did not parse.
+    Registration(serde_json::Error),
     /// The write content request did not decode.
     Write(write_bytes::request::RequestError),
     /// The connection id was not four bytes.
     Postgres(postgres::request::PostgresError),
-    /// A vault ask did not decode.
-    Vault(vault::RequestError),
     /// A fuse ask did not decode.
     Fuse(fuse::RequestError),
     /// The daemon connection's id was not four bytes.
@@ -435,11 +384,13 @@ impl fmt::Display for FrameError {
             FrameError::Oci(error) => {
                 write!(f, "image ask did not parse: {error}")
             }
+            FrameError::Registration(error) => {
+                write!(f, "registration did not parse: {error}")
+            }
             FrameError::Write(error) => {
                 write!(f, "write content request did not decode: {error}")
             }
             FrameError::Postgres(error) => write!(f, "{error}"),
-            FrameError::Vault(error) => write!(f, "{error}"),
             FrameError::Fuse(error) => write!(f, "{error}"),
             FrameError::Daemon(error) => write!(f, "{error}"),
         }
@@ -450,10 +401,9 @@ impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             FrameError::Daemon(error) => Some(error),
-            FrameError::Oci(error) => Some(error),
+            FrameError::Oci(error) | FrameError::Registration(error) => Some(error),
             FrameError::Write(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
-            FrameError::Vault(error) => Some(error),
             FrameError::Fuse(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }

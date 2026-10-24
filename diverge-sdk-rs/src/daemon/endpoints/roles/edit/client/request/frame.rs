@@ -1,36 +1,30 @@
 //! What a client's request frame carries for an edit.
 
+use serde::{Deserialize, Serialize};
+
+use crate::daemon::patch::Patch;
+use crate::shared::relay::Relay;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use serde::{Deserialize, Serialize};
-use crate::shared::relay::Relay;
 
-use crate::daemon::edit::Change;
-use crate::daemon::grant::Grant;
-/// Ask the daemon to change a role. Every member but the name is an
-/// optional [`Change`]: absent leaves it as it is, `"delete"` takes it
-/// away, `{"set":…}` replaces it whole — the grants the new list
-/// entire, and nothing is merged. A request with every member absent
-/// changes nothing and is not a failure.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Ask the daemon to change a role: a patch to its editable members —
+/// its description, its grants. The patch is applied to the role's
+/// [`Editable`](super::Editable) document, whole or not at all, and the result is the
+/// role from then on; every account holding it is judged by the new
+/// grants from its next request on.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The role to change, by name.
     pub name: String,
-    /// What the role is for, in words. Absent, as it is; `delete`,
-    /// none.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<Change<String>>,
-    /// The grants: the new list whole, see [`Grant`]. Absent, as they
-    /// are; `delete`, none, and the role allows nothing.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub grants: Option<Change<Vec<Grant>>>,
+    /// The patch: see [`Patch`], and [`Editable`](super::Editable) for the document it
+    /// is applied to. Empty, nothing changes.
+    pub patch: Patch,
     /// Served by another daemon, as one of the accounts this daemon
     /// holds on it: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }
-
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader

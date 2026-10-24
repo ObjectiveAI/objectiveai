@@ -43,6 +43,10 @@ on:
         description: 'Re-run even if v<version> already exists (idempotent guards skip what is already published)'
         type: boolean
         default: false
+      publish-diverge-sdk:
+        description: 'Also publish @diverge/sdk to npm (prepared, not yet released: off until asked)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # create the release, upload zips, push the go tag
@@ -614,6 +618,41 @@ jobs:
         run: |
           if npm view "@objectiveai/sdk@${{ needs.check-version.outputs.version }}" version >/dev/null 2>&1; then
             echo "@objectiveai/sdk@${{ needs.check-version.outputs.version }} already on npm — skip"
+            exit 0
+          fi
+          pnpm publish --access public --no-git-checks --provenance
+
+  publish-diverge-javascript:
+    name: SDK · diverge javascript (npm)
+    needs: [check-version, publish-javascript]
+    # Gated on its own input as well as the version: the package is
+    # prepared for npm but not yet released, so a release run leaves it
+    # alone until dispatched with `publish-diverge-sdk=true`.
+    if: needs.check-version.outputs.should-release == 'true' && inputs.publish-diverge-sdk == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Pinned together with the npm below, as the job above is.
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Upgrade npm to a Trusted-Publishing-aware version
+        run: npm install -g npm@12.0.1
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        # Unlike @objectiveai/sdk, this package bakes nothing in: its
+        # dist is not committed, and is built here from the checkout.
+        run: pnpm --filter @diverge/sdk run build
+      - name: Publish to npm
+        working-directory: diverge-sdk-js
+        # OIDC Trusted Publishing under the `diverge` npm org, which
+        # exists before the first publish — no token.
+        run: |
+          if npm view "@diverge/sdk@${{ needs.check-version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "@diverge/sdk@${{ needs.check-version.outputs.version }} already on npm — skip"
             exit 0
           fi
           pnpm publish --access public --no-git-checks --provenance

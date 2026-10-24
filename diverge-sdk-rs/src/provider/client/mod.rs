@@ -19,10 +19,9 @@
 //! | trait | answers |
 //! |-------|---------|
 //! | [`OciStore`] | whether the caller holds an image, under what name, and its manifest and blobs |
-//! | [`DependencyDeployer`] | the dependencies the container declared, each a tool container, run |
+//! | [`Registrar`] | the container's registration: the dependencies it declared, each a tool container, run; the secrets it takes, resolved to their first values |
 //! | [`PostgresDialer`] | the container's database connections |
 //! | [`Daemon`] | the frames of the container's daemon connection, answered by the daemon's session for it |
-//! | [`Vault`] | the container's secrets, with locks |
 //! | [`McpServer`] | the container's tool calls outward |
 //! | [`FuseServer`] | the files and directories mounted live |
 //!
@@ -40,19 +39,17 @@
 mod acceptor;
 mod answerers;
 mod daemon;
-mod dependency_deployer;
 mod fuse_server;
 mod mcp_server;
 mod oci_store;
 mod postgres_dialer;
-mod vault;
+mod registrar;
 
 pub use acceptor::*;
 pub use answerers::*;
 pub use daemon::*;
-pub use dependency_deployer::*;
 pub use fuse_server::*;
 pub use mcp_server::*;
 pub use oci_store::*;
 pub use postgres_dialer::*;
-pub use vault::*;
+pub use registrar::*;

@@ -21,5 +21,14 @@
 //! `diverge-provider` crate's `protocol`, built on this crate's
 //! frames and its [`wire::server`](crate::wire::server).
 
+/// The file under a provider's root — its configuration directory —
+/// that a running provider holds locked for its life, with its
+/// process id inside: one provider per root, a second start refused
+/// at once, and the lock let go by the kernel when the holder dies.
+/// The one fact of a provider's own configuration this crate names,
+/// so a client that starts or stops a provider finds the file where
+/// the provider does; see [`file_lock`](crate::file_lock).
+pub const LOCK_FILE: &str = "provider.lock";
+
 pub mod client;
 pub mod endpoints;

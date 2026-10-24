@@ -15,8 +15,7 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// ```json
 /// {"version":"2.3.0","capabilities":{"images_store":true,
-/// "images_registries":["docker.io"],"containers_fuse_mount":true,
-/// "containers_fuse_serve":false,"volume_persistent":{"mount":true,
+/// "images_registries":["docker.io"],"volumes_persistent":{"mount":true,
 /// "fuse_serve":true,"mount_many":true,"fuse_serve_many":false,
 /// "mount_and_fuse_serve":false}}}
 /// ```

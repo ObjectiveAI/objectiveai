@@ -5,17 +5,17 @@ use serde::{Deserialize, Serialize};
 
 /// CommandCode's Anthropic-dialect route.
 ///
-/// APPLICATION: the harness sets `COMMANDCODE_API_KEY` to
-/// [`api_key`](Self::api_key) in the gateway's process environment
-/// before Hermes starts.
+/// APPLICATION: the harness sets `COMMANDCODE_API_KEY` to the
+/// secret's value in the gateway's process environment before
+/// Hermes starts.
 /// (The same key as [`commandcode`](super::commandcode::Provider)
 /// — one credential, two wires.)
+///
+/// SECRET: `COMMANDCODE_API_KEY`, fixed — the API key, under that name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `commandcode-anthropic`.
     pub provider: CommandcodeAnthropic,
-    /// The API key, applied as `COMMANDCODE_API_KEY`.
-    pub api_key: String,
 }
 
 /// [`Provider`]'s discriminator.

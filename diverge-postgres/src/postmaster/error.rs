@@ -40,6 +40,9 @@ pub enum Error {
     Port(io::Error),
     /// Whether the child had exited could not be asked.
     Wait(io::Error),
+    /// `pg_isready` could not be run to ask whether the postmaster
+    /// accepts.
+    Probe(io::Error),
     /// The postmaster exited before it was ready, and this is how.
     Exited(ExitStatus),
     /// The postmaster did not accept on its port in time.
@@ -57,6 +60,7 @@ impl fmt::Display for Error {
             Error::Io { path, source } => write!(f, "`{}` could not be used: {source}", path.display()),
             Error::Port(error) => write!(f, "no loopback port could be had: {error}"),
             Error::Wait(error) => write!(f, "the postmaster could not be waited on: {error}"),
+            Error::Probe(error) => write!(f, "pg_isready could not be run: {error}"),
             Error::Exited(status) => write!(f, "the postmaster exited before it was ready: {status}"),
             Error::Unready(port) => write!(f, "the postmaster did not accept on 127.0.0.1:{port} in time"),
         }
@@ -67,7 +71,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Spawn { source, .. } | Error::Io { source, .. } => Some(source),
-            Error::Port(error) | Error::Wait(error) => Some(error),
+            Error::Port(error) | Error::Wait(error) | Error::Probe(error) => Some(error),
             Error::PgCtl { .. } | Error::StillRunning | Error::Exited(_) | Error::Unready(_) => None,
         }
     }

@@ -3,9 +3,12 @@
 use std::collections::HashSet;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
+use std::pin::pin;
 use std::sync::Arc;
 
+use futures_util::future::{self, Either};
 use tokio::sync::Mutex;
+use tokio::sync::watch;
 
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::server::authorization::Authorization;
@@ -76,6 +79,12 @@ pub struct Provider {
     /// How much a caller may still use, answered by `capacity`: the
     /// stores and the deployer's caps, asked as of each answer.
     capacity: Arc<CapacityReporter>,
+    /// The provider's stop: sent `true` by a loopback `POST /stop`
+    /// (see [`stop`](super::stop)), or by the signal, and read by the
+    /// listener, which drains on it, and by every connection, which
+    /// closes on it. Made by [`run`](super::run) and held here so a
+    /// handler can reach it.
+    pub stop: watch::Sender<bool>,
 }
 
 impl Provider {
@@ -96,8 +105,9 @@ impl Provider {
     /// reporter, given the volumes, the store and the deployer; and
     /// the directory. The store is handed to the registry, the
     /// deployer, the checker, the OCI store, the reporter and the
-    /// manager.
-    pub async fn start(config: Config, dir: PathBuf) -> Result<Self, Error> {
+    /// manager. `stop` is the caller's, made before anything here, so
+    /// the signal and the stop route send on the one sender.
+    pub async fn start(config: Config, dir: PathBuf, stop: watch::Sender<bool>) -> Result<Self, Error> {
         ready(&config, &dir).await?;
         let capabilities = Arc::new(capabilities(&config));
         podman::configure(config.containers.podman.storage_path.clone());
@@ -138,6 +148,7 @@ impl Provider {
             image_changes: Arc::new(Changes::new()),
             capabilities,
             capacity,
+            stop,
         })
     }
 
@@ -159,14 +170,31 @@ impl Provider {
         }
     }
 
-    /// One connection, served for as long as it lasts: the protocol's
-    /// session over the socket and its `handle` with everything here.
-    /// Why it ended is not kept — a peer that failed to authenticate
-    /// and a peer that hung up are both a connection that is over,
-    /// and there is nowhere to say which.
+    /// One connection, served for as long as it lasts, or until the
+    /// provider stops: the protocol's session over the socket and its
+    /// `handle` with everything here, raced against `stop` turning
+    /// `true`. Why it ended is not kept — a peer that failed to
+    /// authenticate and a peer that hung up are both a connection that
+    /// is over, and there is nowhere to say which.
+    ///
+    /// # The stop closes the socket
+    ///
+    /// The listener's drain waits only for HTTP requests in flight;
+    /// an upgraded socket lives in its own task, and a dialled one in
+    /// its dial's, and neither is the drain's to close. So the stop is
+    /// read here, by every connection, and when it wins the race the
+    /// `handle` in flight is dropped — the session with it, which is
+    /// how the protocol ends a connection: every scope's feeds close,
+    /// and the socket goes with the session. What the drop also takes
+    /// is the handle's set of scopes, so a scope still being served
+    /// is aborted rather than drained; the sweep that follows every
+    /// stop removes every container of this provider by force, and the
+    /// provider is dropped after it, so nothing a scope would have
+    /// torn down outlives the stop.
     pub async fn connection(&self, connection: Connection, authorization: Authorization<UnbrokeredAuthorizer>, address: IpAddr) {
         let session = Session::new(connection);
-        let _ = handle(
+        let mut stop = self.stop.subscribe();
+        let serving = pin!(handle(
             session,
             authorization,
             address,
@@ -182,8 +210,14 @@ impl Provider {
             Arc::clone(&self.image_changes),
             Arc::clone(&self.acceptors),
             Arc::clone(&self.capabilities),
-        )
-        .await;
+        ));
+        let stopping = pin!(async move {
+            let _ = stop.wait_for(|stopped| *stopped).await;
+        });
+        match future::select(serving, stopping).await {
+            Either::Left((_, _)) => {}
+            Either::Right(((), serving)) => drop(serving),
+        }
     }
 }
 

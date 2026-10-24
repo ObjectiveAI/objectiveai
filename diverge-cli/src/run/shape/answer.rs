@@ -8,8 +8,7 @@ use serde::Serialize;
 /// daemon's own frame would be — `"not_found"`, `"forbidden"`,
 /// `{"error":…}` — by the shapes that print lines of their own beside
 /// it, the download and the connect.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Answer {
     /// No such thing is the one named.

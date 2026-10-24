@@ -12,8 +12,7 @@ use crate::wire::frame;
 /// for the provider to say it is serving.
 ///
 /// One frame is read: `Serving`, and the [`ExecuteHandle`] comes
-/// back holding the scope; a provider that FUSE serves no container
-/// is [`Unsupported`](ExecuteError::Unsupported), and an error is
+/// back holding the scope; an error is
 /// [`Refused`](ExecuteError::Refused), the provider's own words. Nothing else arrives on the scope until
 /// the finish — the answer to the stop, or the container's end —
 /// which the handle reads.
@@ -30,7 +29,6 @@ pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<Execut
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Serving => Ok(ExecuteHandle::new(handle.clone(), scope)),
-        response::Frame::Unsupported => Err(ExecuteError::Unsupported),
         response::Frame::Error(error) => Err(ExecuteError::Refused(error)),
     }
 }

@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
 use crate::shared::containers::dependencies::Template;
@@ -56,4 +57,14 @@ pub struct Listed {
     /// answers `InUse` for. Absent while it does not run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run: Option<Run>,
+}
+
+/// Keyed by the template's id and the owner, which together name the
+/// dependency tool.
+impl Keyed for Listed {
+    type Key = (String, key::Owner);
+
+    fn key(&self) -> (String, key::Owner) {
+        (self.id.clone(), self.owner.clone())
+    }
 }

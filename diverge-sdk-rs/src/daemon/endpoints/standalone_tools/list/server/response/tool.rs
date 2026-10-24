@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
 use super::Origin;
@@ -65,4 +66,14 @@ pub struct Tool {
     /// off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+}
+
+/// Keyed by the origin, less the members that may change: see
+/// [`OriginKey`](super::OriginKey). The name is not in it.
+impl Keyed for Tool {
+    type Key = super::OriginKey;
+
+    fn key(&self) -> super::OriginKey {
+        self.origin.key()
+    }
 }

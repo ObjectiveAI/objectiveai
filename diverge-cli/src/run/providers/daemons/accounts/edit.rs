@@ -1,5 +1,5 @@
-//! `diverge run providers daemons accounts edit`: replacing an
-//! account's mode on a daemon record, as
+//! `diverge run providers daemons accounts edit`: changing an account's
+//! mode on a daemon record: a patch that gives the mode whole, as
 //! [`edit`](diverge_sdk::daemon::endpoints::providers::daemons::accounts::edit)
 //! states it.
 
@@ -10,7 +10,8 @@ use diverge_sdk::daemon::endpoints::providers::daemons::accounts::edit::{
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Replacing an account's mode on a daemon record.
+/// Changing an account's mode on a daemon record: a patch that gives
+/// the mode whole.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {

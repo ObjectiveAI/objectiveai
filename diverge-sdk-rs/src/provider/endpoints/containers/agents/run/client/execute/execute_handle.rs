@@ -7,21 +7,24 @@ use std::sync::Arc;
 use bytes::Bytes;
 use futures_util::Stream;
 use rmcp::model::ContentBlock;
-use serde_json::Value;
 
 use super::super::channel_request;
 use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::agents::run::server;
-use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, Schema};
+use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, FuseMount, Info, Secrets};
 use crate::provider::endpoints::containers::client::{OpenError, Scoped, UnaryError, WaitError};
-use crate::shared::containers::{dequeue, enqueue, read, transfer, write_path};
+use crate::shared::containers::fuse::Kind;
+use crate::shared::containers::info::Document;
+use crate::shared::containers::secrets::Values;
+use crate::shared::containers::{dequeue, enqueue, fuse_mount, read, transfer, write_path};
 
 /// The scope a run opened, held for the container's life.
 ///
 /// Every channel a caller may open into an agent container is a
-/// method here: the tree watched, a file read or written, the
-/// arguments' schema, the queue's two verbs, and the stop. What the agent says
+/// method here: the tree watched, a file read or written, one more
+/// mount made, the image's DIVERGE.md, the queue's two verbs, the
+/// secrets' feed, and the stop. What the agent says
 /// is not: it is the [`ExecuteStream`](super::ExecuteStream) `execute` handed back
 /// beside this. Each opens its own channel, so several may be in flight
 /// at once. Clones share the scope, and [`wait`](Self::wait) on any
@@ -124,10 +127,12 @@ impl ExecuteHandle {
         self.0.unary::<Transfer>(&payload).await
     }
 
-    /// What the arguments may be: the image's JSON Schema for them.
-    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
-        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
-        self.0.unary::<Schema>(&payload).await
+    /// What the arguments may be: the image's `/DIVERGE.md`, parsed —
+    /// its schema and its body — or `None` for an image that ships
+    /// none.
+    pub async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
+        let payload = payload(&channel_request::Frame::Info).map_err(UnaryError::Request)?;
+        self.0.unary::<Info>(&payload).await
     }
 
     /// A message for the agent — starting a loop when none runs,
@@ -145,5 +150,27 @@ impl ExecuteHandle {
         let payload = payload(&channel_request::Frame::Dequeue(dequeue::request::Request { key }))
             .map_err(UnaryError::Request)?;
         self.0.unary::<Dequeue>(&payload).await
+    }
+
+    /// One more file or directory served into the container at
+    /// `container_path`, under `id`, while it runs: the provider's one
+    /// answer — made, or why not — once the proxy has answered, and
+    /// before any ask of the id. The mount lives until the run ends.
+    pub async fn fuse_mount(&self, container_path: Vec<String>, id: String, kind: Kind) -> Result<fuse_mount::response::Frame, UnaryError<FuseMount>> {
+        let payload = payload(&channel_request::Frame::FuseMount(fuse_mount::request::Request { container_path, id, kind }))
+            .map_err(UnaryError::Request)?;
+        self.0.unary::<FuseMount>(&payload).await
+    }
+
+    /// Feed the program its secrets' `values`, every name it
+    /// declared, at an activation: resolves once the program holds
+    /// them, relayed through the provider to the proxy, which
+    /// delivers nothing to the program until it does. The first feed
+    /// is not this: it answers the registration, before the id. A
+    /// refusal is [`Refused`](UnaryError::Refused), the program's
+    /// own words through the proxy, and is the activation's error.
+    pub async fn secrets(&self, values: Values) -> Result<(), UnaryError<Secrets>> {
+        let payload = payload(&channel_request::Frame::Secrets(values)).map_err(UnaryError::Request)?;
+        self.0.unary::<Secrets>(&payload).await
     }
 }

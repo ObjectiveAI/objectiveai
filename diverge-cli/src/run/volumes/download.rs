@@ -23,6 +23,22 @@ use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_s
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
+    /// The request itself: its body and the local path. Absent when a
+    /// schema is asked for beneath, whose arguments these are not.
+    #[command(flatten)]
+    pub regular: Option<Regular>,
+    /// What is beneath the request: `request-schema`, the JSON Schema
+    /// of the body it takes, or `response-schema`, the JSON Schema of
+    /// every line it prints — printed in place of putting any request.
+    #[command(subcommand)]
+    pub below: Option<Below>,
+}
+
+/// The request itself, as it is put: the body and the local path —
+/// one group, so that a schema asked for beneath needs neither, and
+/// a request without `--path` does not parse.
+#[derive(Debug, Clone, PartialEq, Eq, Args)]
+pub struct Regular {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]; `relay` among its members has another daemon
     /// serve it, as an account held there. Absent, `{}`.
@@ -33,11 +49,6 @@ pub struct Arguments {
     /// made.
     #[arg(long = "path", value_name = "LOCAL")]
     pub local: PathBuf,
-    /// What is beneath the request: `request-schema`, the JSON Schema
-    /// of the body it takes, or `response-schema`, the JSON Schema of
-    /// every line it prints — printed in place of putting any request.
-    #[command(subcommand)]
-    pub below: Option<Below>,
 }
 
 /// The request put, every file written under the local path, one
@@ -57,9 +68,12 @@ pub async fn run(
         }
         None => {}
     }
-    let request: request::Frame = body(arguments.body.as_deref())?;
+    let Some(regular) = arguments.regular else {
+        return Err(Error::NoRequest);
+    };
+    let request: request::Frame = body(regular.body.as_deref())?;
     let handle = target.dial().await?;
-    shape::download(&handle, &request, &arguments.local, emitter).await
+    shape::download(&handle, &request, &regular.local, emitter).await
 }
 
 impl Download for request::Frame {
@@ -78,8 +92,7 @@ impl Download for request::Frame {
 /// download has, and `held` — a running container has the volume, or
 /// another operation is on it. Printed as the daemon's own frame
 /// would be.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Answer {
     /// No volume is the one named, or nothing is at the path.

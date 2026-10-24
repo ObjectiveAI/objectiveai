@@ -5,17 +5,17 @@ use serde::{Deserialize, Serialize};
 
 /// Google Gemini (AI Studio).
 ///
-/// APPLICATION: the harness sets `GEMINI_API_KEY` to
-/// [`api_key`](Self::api_key) in the gateway's process environment
-/// before Hermes starts.
+/// APPLICATION: the harness sets `GEMINI_API_KEY` to the
+/// secret's value in the gateway's process environment before
+/// Hermes starts.
 /// The harness must NOT set `GOOGLE_API_KEY`, which Hermes
 /// checks first.
+///
+/// SECRET: `GEMINI_API_KEY`, fixed — the API key, under that name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `gemini`.
     pub provider: Gemini,
-    /// The API key, applied as `GEMINI_API_KEY`.
-    pub api_key: String,
 }
 
 /// [`Provider`]'s discriminator.

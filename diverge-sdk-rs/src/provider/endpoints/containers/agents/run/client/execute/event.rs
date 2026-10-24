@@ -2,13 +2,15 @@
 //! word that a loop began or ended.
 
 use crate::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use crate::shared::containers::secrets::Values;
 
 /// What a reader of an agent's conversation gets, one at a time: the
 /// three things the main stream carries after its opening, as
 /// [`Frame`](crate::provider::endpoints::containers::agents::run::server::response::Frame)
 /// carries them — a chunk the agent produced, or the proxy's own
 /// [`Active`](Self::Active) before a loop's first chunk and
-/// [`Inactive`](Self::Inactive) after its last.
+/// [`Inactive`](Self::Inactive) after its last, with the rotating
+/// secrets the program handed back.
 ///
 /// One type for both layers: the provider reads it off the proxy's
 /// begin stream, and the caller reads it off the run's, so a relay
@@ -21,7 +23,9 @@ pub enum Event {
     /// working. Every chunk until the matching `Inactive` is this
     /// loop's.
     Active,
-    /// A loop ended, however it ended. The agent is quiet until the
-    /// next message.
-    Inactive,
+    /// A loop ended, however it ended, and these are the rotating
+    /// secrets the program handed back, each by name to the value it
+    /// leaves in it; empty for a program that declared none rotating.
+    /// The agent is quiet until the next message.
+    Inactive(Values),
 }

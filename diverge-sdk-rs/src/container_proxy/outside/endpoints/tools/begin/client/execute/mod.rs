@@ -2,23 +2,25 @@
 //!
 //! [`execute`] opens the scope, waits for
 //! [`Begun`](super::super::server::response::Frame::Begun), and hands
-//! back an [`ExecuteHandle`], through which the server opens the five
-//! MCP exchanges and answers the proxy's channels, and the
+//! back four things: an [`ExecuteHandle`], through which the server
+//! opens the five MCP exchanges, feeds the secrets and answers the
+//! proxy's channels; the
 //! [`Asks`](crate::container_proxy::outside::client::Asks) the proxy
-//! opens on the scope, to relay; and a [`Finish`], which is the main
-//! stream after `Begun` — nothing rides it on a tool container, and
-//! this is how its end is heard, and told apart from the connection
-//! dying.
+//! opens on the scope, to relay; the [`Events`], which are the main
+//! stream after `Begun` — the proxy's word whenever the container
+//! goes active and inactive, and how its end is heard and told apart
+//! from the connection dying; and what the program declared, a
+//! [`Registered`](super::super::server::response::Registered).
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
 mod error;
+mod events;
 mod execute;
 mod execute_handle;
-mod finish;
 
 pub use error::*;
+pub use events::*;
 pub use execute::*;
 pub use execute_handle::*;
-pub use finish::*;

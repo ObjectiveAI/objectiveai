@@ -10,7 +10,7 @@
 //! [`accounts`], [`roles`], [`providers_outgoing`],
 //! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
 //! [`standalone_tools_templates`], [`dependency_tools`], [`agents`],
-//! [`standalone_tools`] and
+//! [`standalone_tools`], [`vault`], [`events`] and
 //! [`volumes`] are the tests.
 //!
 //! Evaluated here, in the daemon, against records loaded whole, and
@@ -23,10 +23,12 @@ pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
 pub mod dependency_tools;
+pub mod events;
 pub mod providers_daemons;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod roles;
 pub mod standalone_tools;
 pub mod standalone_tools_templates;
+pub mod vault;
 pub mod volumes;

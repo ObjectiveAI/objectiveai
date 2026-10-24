@@ -6,6 +6,7 @@ use super::Image;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
+use crate::shared::listing::Change;
 
 /// An image the caller built, as it comes to be listed or goes; the
 /// word that the listing is whole; or the news that the provider
@@ -129,6 +130,23 @@ impl Decode<'_> for Frame {
             UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameDecodeError::Error),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
+        }
+    }
+}
+
+impl Frame {
+    /// What this frame tells a listing — a [`Change`], for
+    /// [`Listing::push`](crate::shared::listing::Listing::push) — or
+    /// the frame itself where it tells a listing nothing:
+    /// unsupported, or a failure, the answers that end the scope. No
+    /// frame is `Changed`: an image whose digest differs is `Removed`
+    /// and then `Added`.
+    pub fn change(self) -> Result<Change<Image>, Frame> {
+        match self {
+            Frame::Added(item) => Ok(Change::Added(item)),
+            Frame::Removed(item) => Ok(Change::Removed(item)),
+            Frame::Listed => Ok(Change::Listed),
+            other => Err(other),
         }
     }
 }

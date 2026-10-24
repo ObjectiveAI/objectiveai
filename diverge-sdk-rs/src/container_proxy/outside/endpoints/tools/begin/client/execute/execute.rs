@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use super::super::request;
 use super::super::super::server::{self, response};
-use super::{ExecuteError, ExecuteHandle, Finish};
+use super::{Events, ExecuteError, ExecuteHandle};
 use crate::wire::client::handle::Handle;
 use crate::container_proxy::outside::client::{Ask, Asks};
 use crate::wire::decode::Decode as _;
@@ -20,15 +20,20 @@ use crate::wire::frame;
 /// because nothing may be opened on the scope before its `Begun`: a
 /// refusal is [`Refused`](ExecuteError::Refused), the container's
 /// server's own words; a finish first is
-/// [`Unanswered`](ExecuteError::Unanswered). The main stream then
-/// carries nothing more on a tool container, and the [`Finish`] is
-/// how its end is heard. What comes back is the handle, the asks the
-/// proxy will open, and the finish.
+/// [`Unanswered`](ExecuteError::Unanswered); a word about activity
+/// first is a proxy out of order. The main stream then carries the
+/// proxy's two words about the container's activity, which the
+/// [`Events`] hand out, and its end is how theirs is heard. What
+/// comes back is the handle, the asks the proxy will open, the
+/// events, and what the container's program declared — the secrets
+/// it takes, which the server has the caller register before it
+/// feeds the first values on the handle's
+/// [`secrets`](ExecuteHandle::secrets).
 pub async fn execute(
     handle: &Handle,
     arguments: Value,
     template: String,
-) -> Result<(ExecuteHandle, Asks<Ask>, Finish), ExecuteError> {
+) -> Result<(ExecuteHandle, Asks<Ask>, Events, response::Registered), ExecuteError> {
     let mut payload = Vec::new();
     request::Frame { arguments, template }
         .encode(&mut Writer::new(&mut payload))
@@ -42,15 +47,20 @@ pub async fn execute(
         frame::server::ServerFrame::ResponseFinish { .. } => return Err(ExecuteError::Unanswered),
         _ => return Err(ExecuteError::Misrouted),
     };
-    match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
-        response::Frame::Begun => {}
+    let registered = match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
+        response::Frame::Begun(registered) => registered,
         response::Frame::Error(error) => return Err(ExecuteError::Refused(error)),
+        // No exchange is in flight before `Begun`; either word first
+        // is a proxy out of order, which is a frame this end cannot
+        // place.
+        response::Frame::Active | response::Frame::Inactive(_) => return Err(ExecuteError::Misrouted),
     };
 
     Ok((
         ExecuteHandle::new(handle.clone(), scope.scope),
         Asks::new(scope.request_receiver, decode_ask),
-        Finish::new(scope.response_receiver),
+        Events::new(scope.response_receiver),
+        registered,
     ))
 }
 

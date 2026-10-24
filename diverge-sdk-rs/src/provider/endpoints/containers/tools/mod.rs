@@ -6,10 +6,10 @@
 //! over the five exchanges [`shared::mcp`](crate::shared::mcp) defines,
 //! each on a channel of its own. Nothing else distinguishes it from an
 //! agent container: the same request makes it, the same
-//! [`schema`](crate::shared::containers::schema) says what its
+//! [`info`](crate::shared::containers::info) says what its
 //! arguments may be, the same channels read and write its files and
 //! watch its tree, and it asks the same things of the caller — a
-//! database, its daemon connection, its vault, tools of its own.
+//! database, its daemon connection, tools of its own.
 //!
 //! [`run`] owns the container.
 

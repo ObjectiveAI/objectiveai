@@ -7,7 +7,7 @@
 //! start does before starting, and what the stop does at the end.
 //! [`start`] spawns `postgres` directly on a free loopback port, with
 //! the name `diverge-postgres` as its `cluster_name`, and hands back
-//! the child and the port; [`ready`] waits until the port accepts, or
+//! the child and the port; [`ready`] waits until it accepts connections, asked through `pg_isready`, or
 //! the child exits. Nothing here leashes the child: it is spawned
 //! with nothing that would end it when this program ends, and the
 //! next start is what ends it.

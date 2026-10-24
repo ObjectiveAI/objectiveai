@@ -8,13 +8,19 @@
 //! the first resumes the same conversation and a run beside it is
 //! refused — and streams its chunks back as server-sent events;
 //! `POST /enqueue` and `POST /dequeue` are the running loop's queue,
-//! taken at each turn's end; `GET /schema` is the JSON Schema of the
-//! agent value this image accepts; `POST /register` is that value,
-//! told once for the container's life before any run — a run before
-//! it is refused. The run itself is [`run::run`]: the Node entry
-//! over `@elizaos/core` spawned per run and driven over JSON lines,
-//! its tools the caller's MCP servers through the proxy (the entry's
-//! `diverge` plugin), its secrets the caller's vault, its memory the
+//! taken at each turn's end; `--schema`, the program's one argument,
+//! prints the JSON Schema of the agent value this image accepts (see
+//! [`main`]); `POST /register` is that value, told once for the
+//! container's life before any run — a run before it is refused —
+//! answered with the secrets the agent's plugins name, each to its
+//! mode; `POST /secrets` is their values, fed by the proxy once the
+//! registration is answered and again at every activation; `POST
+//! /secrets/collect` is the rotating ones asked back at every
+//! inactive, answered with what the run read back, else what was fed.
+//! The run itself is [`run::run`]: the Node entry over
+//! `@elizaos/core` spawned per run and driven over JSON lines, its
+//! tools the caller's MCP servers through the proxy (the entry's
+//! `diverge` plugin), its secrets the values last fed, its memory the
 //! caller's database — Eliza's own tables, reached through the
 //! proxy's loopback pgwire, plus the one lineage row this program
 //! keeps. The design is `reports/4.md`; the settled decisions are
@@ -25,18 +31,20 @@
 //! The proxy is not part of this image: the host injects it at
 //! runtime, and it may not be up at all until a request comes. So
 //! the server binds and waits, and the first thing to touch the
-//! proxy is `POST /run` itself: the database, the vault, then the
-//! entry's own MCP client. Making the [`Client`] is no I/O.
+//! proxy is `POST /run` itself: the database, then the entry's own
+//! MCP client; the secrets are not fetched from anywhere, they were
+//! fed. Making the [`Client`] is no I/O.
 //!
 //! # What is an error, and what is not
 //!
 //! Anything that fails before the run has said a single thing is a
 //! real error — a non-`2xx`, with a JSON reason, and no stream: a run
 //! beside one streaming, an agent value that is not an Eliza agent,
-//! an empty prompt, a database that will not answer, a secret the
-//! vault does not hold, a plugin that will not install, an entry that
-//! will not start or dies before it is ready, and the first item of
-//! the stream itself, which is pulled before the response is decided.
+//! an empty prompt, a database that will not answer, a declared
+//! secret the proxy has not fed, a plugin that will not install, an
+//! entry that will not start or dies before it is ready, and the
+//! first item of the stream itself, which is pulled before the
+//! response is decided.
 //! A failure AFTER output is a fatal `notification` chunk, the run's
 //! own last words, then the stream's end. The stream never carries an
 //! error of its own: it is chunks, and only chunks.
@@ -49,10 +57,11 @@ mod plugins;
 mod queue;
 mod registration;
 mod run;
+mod secrets;
 mod settings;
-mod vault;
 
 use std::convert::Infallible;
+use std::io::Write as _;
 use std::sync::Arc;
 
 use axum::Json;
@@ -63,6 +72,7 @@ use diverge_sdk::container_proxy::inside::Client;
 use diverge_sdk::container_proxy::inside::agent::dequeue::{self, Outcome};
 use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
 use diverge_sdk::container_proxy::inside::register::response::Response;
+use diverge_sdk::container_proxy::inside::secrets::{collect, feed};
 use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use futures_util::{Stream, StreamExt as _};
@@ -76,12 +86,62 @@ use crate::run::notification;
 /// A refusal: the status, and a JSON reason.
 type Refusal = (StatusCode, Json<Value>);
 
+/// The program: the server, or — on `--schema` — the schema.
+///
+/// The program takes one argument, `--schema`, and no other: exactly
+/// that prints the JSON Schema of [`Agent`] on stdout and exits 0
+/// ([`schema`]); no argument is the server, for the container's
+/// life; anything else — another argument, or more than one — is a
+/// usage line on stderr and exit 2. The image's ENTRYPOINT never
+/// passes the argument. It exists so the image's `/DIVERGE.md`,
+/// whose frontmatter is this schema and which the proxy reads for
+/// what the `arguments` may be, is generated from the type the run
+/// reads — `cargo run -- --schema`, by the assembler — and never
+/// written by hand, so the file and the type cannot disagree.
 fn main() {
+    let mut arguments = std::env::args_os().skip(1);
+    match (arguments.next(), arguments.next()) {
+        (None, None) => {}
+        (Some(argument), None) if argument == "--schema" => return schema(),
+        _ => {
+            usage();
+            std::process::exit(2);
+        }
+    }
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("the runtime could not be built");
     runtime.block_on(serve());
+}
+
+/// `--schema`: the JSON Schema of [`Agent`], pretty-printed on stdout
+/// with a trailing newline.
+///
+/// This is the one thing the program ever writes to stdout, and
+/// deliberately: stdout IS the answer, read whole by the assembler
+/// that writes `/DIVERGE.md`. Either failure is said on stderr and
+/// the exit is 1 — never a partial or empty schema passed off as
+/// the answer: serialising, which cannot fail (a [`schemars::Schema`]
+/// is a JSON value already), and the write, which can, when the
+/// reader closes the pipe early.
+fn schema() {
+    let text = match serde_json::to_string_pretty(&schemars::schema_for!(Agent)) {
+        Ok(text) => text,
+        Err(error) => {
+            let _ = writeln!(std::io::stderr(), "{error}");
+            std::process::exit(1);
+        }
+    };
+    if let Err(error) = writeln!(std::io::stdout(), "{text}") {
+        let _ = writeln!(std::io::stderr(), "{error}");
+        std::process::exit(1);
+    }
+}
+
+/// The usage line, on stderr, for arguments that are not the one.
+fn usage() {
+    let _ = writeln!(std::io::stderr(), "usage: diverge-agentic-loop-eliza [--schema]");
 }
 
 /// The server, for the container's life.
@@ -92,9 +152,10 @@ async fn serve() {
     let app = axum::Router::new()
         .route("/register", axum::routing::post(register))
         .route("/run", axum::routing::post(run))
-        .route("/schema", axum::routing::get(schema))
         .route("/enqueue", axum::routing::post(enqueue))
         .route("/dequeue", axum::routing::post(dequeue))
+        .route("/secrets", axum::routing::post(feed))
+        .route("/secrets/collect", axum::routing::post(collect))
         .with_state(Arc::new(Client::new()));
 
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_sdk::container_proxy::inside::port()))
@@ -232,7 +293,9 @@ async fn run(
 ///
 /// A value this image will not take is `400`; an agent already
 /// registered is `409`, whatever the second carries — the agent
-/// never changes. `200`, with the tools the agent depends on passed back, is the agent held.
+/// never changes. `200`, with the tools the agent depends on and the
+/// secrets its plugins name passed back, is the agent held; the
+/// declaration is held with it, for the feeds to be checked against.
 async fn register(
     Json(request): Json<diverge_sdk::container_proxy::inside::register::request::Request>,
 ) -> Result<(StatusCode, Json<Response>), Refusal> {
@@ -249,8 +312,18 @@ async fn register(
         }
     };
     let dependencies = agent.dependencies.clone();
+    let declaration = agent.declaration();
     match registration::register(agent) {
-        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies }))),
+        Ok(()) => {
+            secrets::declare(declaration.clone());
+            Ok((
+                StatusCode::OK,
+                Json(Response {
+                    dependencies,
+                    secrets: declaration,
+                }),
+            ))
+        }
         Err(_) => Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
@@ -259,13 +332,6 @@ async fn register(
             })),
         )),
     }
-}
-
-/// `GET /schema`: what the `arguments` may be — the JSON Schema of
-/// [`Agent`], derived from the type the run reads, so the two cannot
-/// disagree.
-async fn schema() -> Json<schemars::Schema> {
-    Json(schemars::schema_for!(Agent))
 }
 
 /// `POST /enqueue`: a message for the running conversation's queue.
@@ -304,6 +370,32 @@ async fn dequeue(Json(request): Json<dequeue::request::Request>) -> Json<Outcome
         Json(Outcome::Dequeued)
     } else {
         Json(Outcome::Empty)
+    }
+}
+
+/// `POST /secrets`: the declared secrets' values, fed.
+///
+/// Kept whole, replacing the last feed, for the next run to take at
+/// its start — a run in flight keeps the snapshot it took. `204`:
+/// there is nothing to say back, and the proxy takes any `2xx`.
+async fn feed(Json(request): Json<feed::request::Request>) -> StatusCode {
+    secrets::feed(request.0).await;
+    StatusCode::NO_CONTENT
+}
+
+/// `POST /secrets/collect`: the rotating secrets, handed back.
+///
+/// Every name asked, each with what the run last read back for it,
+/// else the value it was fed. A name the program holds nothing for
+/// — never fed — is `500`, naming the name and never a value; the
+/// proxy needs every name asked, so a partial answer would be no
+/// better.
+async fn collect(
+    Json(request): Json<collect::request::Request>,
+) -> Result<Json<collect::response::Response>, Refusal> {
+    match secrets::collect(&request.names).await {
+        Ok(values) => Ok(Json(collect::response::Response(values))),
+        Err(error) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error.message()))),
     }
 }
 

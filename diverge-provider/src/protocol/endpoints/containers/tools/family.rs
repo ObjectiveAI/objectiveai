@@ -1,5 +1,6 @@
 //! This scope's frames, named for the machinery.
 
+use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 
@@ -9,7 +10,7 @@ use bytes::Bytes;
 
 use diverge_sdk::provider::endpoints::containers::tools::run::client::channel_request;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::channel_response::write_bytes;
-use diverge_sdk::provider::endpoints::containers::tools::run::server::channel_response::{filetree, read, transfer, write_path};
+use diverge_sdk::provider::endpoints::containers::tools::run::server::channel_response::{filetree, fuse_mount, read, transfer, write_path};
 use diverge_sdk::provider::endpoints::containers::tools::run::server::{channel_request as ask, response};
 use diverge_sdk::wire::client::handle::Handle;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -21,13 +22,15 @@ use crate::protocol::endpoints::containers::run::family::{Family, Opened, Runs};
 use crate::protocol::endpoints::containers::run::own::{Own, Unasked};
 use crate::protocol::endpoints::containers::run::run::Run;
 use crate::protocol::endpoints::containers::run::serve::tool;
+use crate::protocol::endpoints::containers::run::setup::registered;
 use crate::protocol::endpoints::containers::run::{encoded::encoded, render};
 use diverge_sdk::container_proxy::outside::endpoints::tools::begin::client::execute as begin;
 use diverge_sdk::shared;
 use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
-use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, vault};
+use diverge_sdk::shared::containers::secrets::{Declaration, Values};
+use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, registration};
 use diverge_sdk::shared::containers::daemon;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree as tree;
@@ -55,7 +58,9 @@ impl Family for Tools {
             },
             channel_request::Frame::Daemon(request) => Opened::Daemon(request.connection_id),
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
-            channel_request::Frame::Schema => Opened::Schema,
+            channel_request::Frame::Info => Opened::Info,
+            channel_request::Frame::Secrets(values) => Opened::Secrets(values),
+            channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),
             channel_request::Frame::McpListResources(request) => {
                 Opened::Exchange(tool::Exchange::ListResources(request))
@@ -117,6 +122,10 @@ impl Family for Tools {
     fn transfer_error(error: &Error) -> Option<Vec<u8>> {
         encoded(&transfer::Frame::Error(error.clone()))
     }
+
+    fn fuse_mount(frame: &fuse_mount::Frame) -> Option<Vec<u8>> {
+        encoded(frame)
+    }
 }
 
 impl Runs for Tools {
@@ -126,12 +135,13 @@ impl Runs for Tools {
         let proxy = proxy.clone();
         async move {
             match begin::execute(&proxy, arguments, template).await {
-                Ok((handle, asks, finish)) => Ok(Begun {
+                Ok((handle, asks, events, registered)) => Ok(Begun {
                     begin: Begin::Tools(handle),
                     asks,
                     chunks: None,
-                    finish: Some(finish),
+                    activity: Some(events),
                     dependencies: Vec::new(),
+                    secrets: registered.secrets,
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -143,9 +153,25 @@ impl Runs for Tools {
         Some(relayed(ask)?)
     }
 
-    /// A tool container declares nothing: nothing is asked.
-    fn deploy(_: &ScopeHandle, _: &str, _: &[dependencies::Template]) -> impl Future<Output = Result<(), Error>> + Send {
-        async { Ok(()) }
+    /// The secrets the tool takes, registered with the caller on this
+    /// family's `registration` channel — the dependencies always
+    /// empty, since a tool container declares none: nothing when it
+    /// takes none.
+    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
+        let payload = (!dependencies.is_empty() || !secrets.is_empty()).then(|| {
+            encoded(&ask::Frame::Registration(registration::request::Request {
+                id: Cow::Borrowed(id),
+                dependencies: Cow::Borrowed(dependencies),
+                secrets: Cow::Borrowed(secrets),
+            }))
+        });
+        async move {
+            match payload {
+                None => Ok(None),
+                Some(Some(payload)) => registered(scope, &payload).await.map(Some),
+                Some(None) => Err(render::registration_failed("the registration ask did not encode")),
+            }
+        }
     }
 
     fn fuse<'a>(mount_id: &'a str, ask: &'a MountAsk) -> ask::Frame<'a> {
@@ -175,31 +201,21 @@ impl Runs for Tools {
     fn volume_mode(refused: &VolumeMode) -> Option<Vec<u8>> {
         encoded(&response::Frame::VolumeMode(refused.clone()))
     }
-
-    fn fuse_mounts_unsupported() -> Option<Vec<u8>> {
-        encoded(&response::Frame::FuseMountsUnsupported)
-    }
 }
 
-/// The proxy's ask as this family's frame; a database connection and
-/// a daemon connection are re-asked under this end's own id, see
-/// `Own`, and a tool call outward is nothing a tool container's proxy
-/// opens, this wire having no frame for one.
+/// The proxy's ask as this family's frame: none, as it came. A
+/// database connection and a daemon connection are re-asked under
+/// this end's own id, see `Own`, and a tool call outward is nothing a
+/// tool container's proxy opens, this wire having no frame for one.
 fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
-    Some(match ask {
-        Ask::Postgres(_) => return None,
-        Ask::Daemon(_) => return None,
-        Ask::VaultGet { key } => ask::Frame::VaultGet(vault::get::request::Request { key }),
-        Ask::VaultSet { key, value } => ask::Frame::VaultSet(vault::set::request::Request { key, value }),
-        Ask::VaultDelete { key } => ask::Frame::VaultDelete(vault::delete::request::Request { key }),
-        Ask::VaultLock { key, ttl } => ask::Frame::VaultLock(vault::lock::request::Request { key, ttl: *ttl }),
-        Ask::VaultUnlock { key } => ask::Frame::VaultUnlock(vault::unlock::request::Request { key }),
+    match ask {
+        Ask::Postgres(_) | Ask::Daemon(_) => None,
         Ask::McpListTools(_)
         | Ask::McpListResources(_)
         | Ask::McpCallTool(_)
         | Ask::McpReadResource(_)
-        | Ask::McpNotifications => return None,
-    })
+        | Ask::McpNotifications => None,
+    }
 }
 
 /// A mount's ask as this family's frame, the caller's id in front.

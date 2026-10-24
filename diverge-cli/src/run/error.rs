@@ -44,6 +44,11 @@ pub enum Error {
     /// The request was not complete within the seconds given, and
     /// was abandoned.
     Timeout(u64),
+    /// Neither a request nor a schema beneath it was asked for. Not
+    /// reached by parsing — clap requires a request's `--path` unless
+    /// a schema is asked for — and stated so that the absence is an
+    /// error and never a panic.
+    NoRequest,
 }
 
 impl fmt::Display for Error {
@@ -67,6 +72,7 @@ impl fmt::Display for Error {
             Error::Timeout(seconds) => {
                 write!(f, "the request was not complete within {seconds} seconds")
             }
+            Error::NoRequest => f.write_str("no request was put, and no schema asked for"),
         }
     }
 }
@@ -83,7 +89,8 @@ impl std::error::Error for Error {
             | Error::Dial(_)
             | Error::Authorize(_)
             | Error::Exchange(_)
-            | Error::Timeout(_) => None,
+            | Error::Timeout(_)
+            | Error::NoRequest => None,
         }
     }
 }

@@ -3,6 +3,7 @@
 use std::path::Path;
 use std::process::Stdio;
 
+use diverge_sdk::process;
 use tokio::net::TcpListener;
 use tokio::process::{Child, Command};
 
@@ -46,9 +47,7 @@ pub async fn start(binaries: &Binaries, data: &Path, max_connections: u32) -> Re
         .kill_on_drop(false);
     #[cfg(unix)]
     postgres.arg("-c").arg("unix_socket_directories=");
-    // CREATE_NO_WINDOW: no console window of its own.
-    #[cfg(windows)]
-    postgres.creation_flags(0x0800_0000);
+    process::no_window(&mut postgres);
     let child = postgres.spawn().map_err(|source| Error::Spawn {
         program: "postgres".to_string(),
         source,

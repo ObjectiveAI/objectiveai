@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{accounts, agents, agents_templates, dependency_tools, postgres, providers_daemons, providers_incoming, providers_outgoing, roles, standalone_tools, standalone_tools_templates, volumes};
+use super::{accounts, agents, agents_templates, dependency_tools, events, postgres, providers_daemons, providers_incoming, providers_outgoing, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 
 /// One grant that names nothing: a permission over one kind of thing
 /// the daemon holds, reaching by tags alone. Externally tagged by the
@@ -14,9 +14,9 @@ use super::{accounts, agents, agents_templates, dependency_tools, postgres, prov
 /// `"standalone_tools_templates"`, `"dependency_tools"`,
 /// `"providers_outgoing"`,
 /// `"providers_incoming"`, `"providers_daemons"`, `"accounts"`,
-/// `"roles"`, `"volumes"`, `"postgres"` — the kinds of
-/// the daemon's [`Grant`](crate::daemon::grant::Grant), which is made
-/// of these.
+/// `"roles"`, `"volumes"`, `"vault"`, `"postgres"`, `"events"` — the
+/// kinds of the daemon's [`Grant`](crate::daemon::grant::Grant), which
+/// is made of these.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -44,6 +44,10 @@ pub enum Grant {
     Roles(roles::Permission),
     /// Over volumes: see [`volumes::Permission`].
     Volumes(volumes::Permission),
+    /// Over the vault's keys: see [`vault::Permission`].
+    Vault(vault::Permission),
     /// Over the database: see [`postgres::Permission`].
     Postgres(postgres::Permission),
+    /// Over the events: see [`events::Permission`].
+    Events(events::Permission),
 }

@@ -3,13 +3,13 @@
 //! `diverge run <family> [<family>…] <request> [BODY]`: the tree of
 //! subcommands is the daemon's own tree of families and requests —
 //! `agents create`, `standalone-tools templates list`,
-//! `providers daemons add` — and the tree of files under this module
-//! is the same tree, one folder per family and one file per request,
-//! each file holding the request's arguments and its run. What a
-//! request alone takes is on its own leaf: the eight that read or
-//! write files take `--path`, the connect holds its scope for the
-//! one MCP exchange its own subcommand names; nothing is
-//! checked at run time that the command line did not already shape.
+//! `providers daemons add`, `events list` — and the tree of files
+//! under this module is the same tree, one folder per family and one
+//! file per request, each file holding the request's arguments and its
+//! run. What a request alone takes is on its own leaf: the eight that
+//! read or write files take `--path`, the connect holds its scope for
+//! the one MCP exchange its own subcommand names; nothing is checked at
+//! run time that the command line did not already shape.
 //! Beneath every request are `request-schema`, which prints the JSON
 //! Schema of the body it takes as the SDK states it, and
 //! `response-schema`, which prints the one JSON Schema of every line
@@ -60,10 +60,12 @@ pub mod shape;
 pub mod accounts;
 pub mod agents;
 pub mod dependency_tools;
+pub mod events;
 pub mod postgres;
 pub mod providers;
 pub mod roles;
 pub mod standalone_tools;
+pub mod vault;
 pub mod volumes;
 
 pub use below::*;
@@ -115,6 +117,10 @@ pub enum Command {
     /// The requests over dependency tools.
     #[command(subcommand)]
     DependencyTools(dependency_tools::DependencyTools),
+    /// The requests over events: the graph of who sent what to whom
+    /// through the daemon.
+    #[command(subcommand)]
+    Events(events::Events),
     /// The requests over the database.
     #[command(subcommand)]
     Postgres(postgres::Postgres),
@@ -128,6 +134,9 @@ pub enum Command {
     /// The requests over standalone tools, and their templates.
     #[command(subcommand)]
     StandaloneTools(standalone_tools::StandaloneTools),
+    /// The requests over the vault: the keys a record's secrets bind.
+    #[command(subcommand)]
+    Vault(vault::Vault),
     /// The requests over volumes.
     #[command(subcommand)]
     Volumes(volumes::Volumes),
@@ -163,10 +172,12 @@ async fn dispatch(
         Command::Accounts(command) => accounts::run(command, target, emitter).await,
         Command::Agents(command) => agents::run(command, target, emitter).await,
         Command::DependencyTools(command) => dependency_tools::run(command, target, emitter).await,
+        Command::Events(command) => events::run(command, target, emitter).await,
         Command::Postgres(command) => postgres::run(command, target, emitter).await,
         Command::Providers(command) => providers::run(command, target, emitter).await,
         Command::Roles(command) => roles::run(command, target, emitter).await,
         Command::StandaloneTools(command) => standalone_tools::run(command, target, emitter).await,
+        Command::Vault(command) => vault::run(command, target, emitter).await,
         Command::Volumes(command) => volumes::run(command, target, emitter).await,
     }
 }

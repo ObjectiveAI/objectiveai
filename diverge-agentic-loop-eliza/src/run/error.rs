@@ -8,21 +8,21 @@ use std::process::ExitStatus;
 use super::LineError;
 use crate::lineage;
 use crate::plugins;
-use crate::vault;
+use crate::secrets;
 
 /// Why the run never got going.
 ///
 /// These are the failures with nothing to salvage: before the entry
 /// says `ready` no turn has run, and the stream's one `Err` is the
 /// request's own failure, a status. Everything after — a turn that
-/// fails, an entry that dies, a secret that will not set — is said in
-/// the stream itself, as a fatal `notification`.
+/// fails, an entry that dies, a read-back that will not answer — is
+/// said in the stream itself, as a fatal `notification`.
 #[derive(Debug)]
 pub enum Error {
     /// The lineage row could not be read or written.
     Lineage(lineage::Error),
-    /// A secret could not be had from the vault.
-    Vault(vault::Error),
+    /// A declared secret the proxy has not fed, or fed as null.
+    Secrets(secrets::Error),
     /// A plugin could not be installed.
     Install(plugins::Error),
     /// The entry could not be spawned, or spoken to.
@@ -39,7 +39,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Lineage(error) => write!(f, "{error}"),
-            Error::Vault(error) => write!(f, "{error}"),
+            Error::Secrets(error) => write!(f, "{error}"),
             Error::Install(error) => write!(f, "{error}"),
             Error::Entry(error) => write!(f, "the entry process failed: {error}"),
             Error::Fatal(error) => write!(f, "the entry failed before it was ready: {error}"),
@@ -55,7 +55,7 @@ impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
             Error::Lineage(error) => Some(error),
-            Error::Vault(error) => Some(error),
+            Error::Secrets(error) => Some(error),
             Error::Install(error) => Some(error),
             Error::Entry(error) => Some(error),
             Error::Line(error) => Some(error),
@@ -69,7 +69,7 @@ impl Error {
     pub fn message(&self) -> serde_json::Value {
         match self {
             Error::Lineage(error) => error.message(),
-            Error::Vault(error) => error.message(),
+            Error::Secrets(error) => error.message(),
             Error::Install(error) => error.message(),
             Error::Entry(_) | Error::Fatal(_) | Error::Exited(_) | Error::Line(_) => {
                 serde_json::json!({
@@ -87,9 +87,9 @@ impl From<lineage::Error> for Error {
     }
 }
 
-impl From<vault::Error> for Error {
-    fn from(error: vault::Error) -> Self {
-        Error::Vault(error)
+impl From<secrets::Error> for Error {
+    fn from(error: secrets::Error) -> Self {
+        Error::Secrets(error)
     }
 }
 

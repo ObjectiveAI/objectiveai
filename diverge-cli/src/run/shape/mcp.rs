@@ -16,8 +16,7 @@ use crate::run::{Emitter, Error};
 /// the daemon refuses it, or the exchange's result as the MCP result's
 /// own JSON, bare — untagged, so the line is the one or the other as
 /// it is.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Line<T> {
     /// The connect refused: see [`Answer`].

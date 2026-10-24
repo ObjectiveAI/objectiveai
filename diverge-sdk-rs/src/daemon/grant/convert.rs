@@ -1,6 +1,6 @@
 //! A dependency tool template's grants, as grants of the daemon's.
 
-use super::{Grant, accounts, agents, agents_templates, dependency_tools, providers_daemons, providers_incoming, providers_outgoing, roles, standalone_tools, standalone_tools_templates, volumes};
+use super::{Grant, accounts, agents, agents_templates, dependency_tools, providers_daemons, providers_incoming, providers_outgoing, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
 /// A dependency tool template's grants, as the daemon judges them:
@@ -175,7 +175,20 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
                 tags,
             },
         }),
+        permission::Grant::Vault(permission) => Grant::Vault(match permission {
+            permission::vault::Permission::Make(makes) => vault::Permission::Make(makes),
+            permission::vault::Permission::Over { actions, within } => vault::Permission::Over {
+                actions,
+                within: within.map(vault_filter),
+            },
+            permission::vault::Permission::Tags { actions, within, tags } => vault::Permission::Tags {
+                actions,
+                within: within.map(vault_filter),
+                tags,
+            },
+        }),
         permission::Grant::Postgres(permission) => Grant::Postgres(permission),
+        permission::Grant::Events(permission) => Grant::Events(permission),
     })
 }
 
@@ -271,6 +284,14 @@ fn roles_filter(tags: Tags) -> crate::daemon::endpoints::roles::list::client::re
 
 fn volumes_filter(tags: Tags) -> crate::daemon::endpoints::volumes::list::client::request::Filter {
     crate::daemon::endpoints::volumes::list::client::request::Filter {
+        all_tags: tags.all_tags,
+        any_tags: tags.any_tags,
+        ..Default::default()
+    }
+}
+
+fn vault_filter(tags: Tags) -> crate::daemon::endpoints::vault::list::client::request::Filter {
+    crate::daemon::endpoints::vault::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()

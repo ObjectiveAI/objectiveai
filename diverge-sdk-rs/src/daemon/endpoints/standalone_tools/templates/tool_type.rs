@@ -7,7 +7,7 @@ use super::Mode;
 
 /// `"type":"tool"`, and the `mode` beside it: what tells a tool
 /// template from an agent template with the same image, limits,
-/// mounts and arguments, and how every tool made from it is kept —
+/// mounts, arguments and secrets, and how every tool made from it is kept —
 /// see [`Mode`]. Flat among the template's members: a template whose
 /// `type` is anything else does not decode as a tool template, and
 /// one that says no `mode` is transient.

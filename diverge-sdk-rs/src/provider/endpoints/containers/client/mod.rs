@@ -14,7 +14,7 @@
 //! answers them is written once here and each scope's `execute`
 //! wraps it:
 //!
-//! - [`Ask`], the twenty-four asks a run scope's provider makes, owned,
+//! - [`Ask`], the twenty-one asks a run scope's provider makes, owned,
 //!   and the answer to each through the caller's
 //!   [`Answerers`](crate::provider::client::Answerers) on a task of its own,
 //!   read off the scope by one serving loop.

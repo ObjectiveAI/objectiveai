@@ -8,6 +8,7 @@ use tokio::sync::{Mutex, Notify};
 use tokio::task::JoinSet;
 
 use super::begin::Begin;
+use super::ledger::Ledger;
 use super::pairs::Pairs;
 use super::watched::Watched;
 use diverge_sdk::wire::client::handle::Handle;
@@ -38,12 +39,18 @@ pub(crate) struct Run {
     /// The begin scope on it: where the proxy's asks arrive and where
     /// the family's own exchanges go.
     pub begin: Begin,
-    /// Every path the proxy's tree leaves out: every FUSE mount's,
-    /// and every mount's of a volume the provider watches itself.
-    pub ignore: Vec<Vec<String>>,
+    /// Every path the proxy's tree leaves out: every FUSE mount's —
+    /// the request's, and each made since, as it is made — and every
+    /// mount's of a volume the provider watches itself. Read when a
+    /// tree scope is opened; a tree already open was opened with the
+    /// list as it was.
+    pub ignore: Mutex<Vec<Vec<String>>>,
     /// Every mount the provider watches itself, for a filetree to
     /// open beside the proxy's tree and merge in.
     pub watched: Arc<[Watched]>,
+    /// Every mount the container holds, for a mount asked for while
+    /// it runs to be refused as overlapping or under a taken id.
+    pub mounts: Mutex<Ledger>,
     /// Database connections whose caller half has not opened.
     /// The daemon connections announced to the caller and not yet
     /// taken. Its own, apart from [`pairs`](Self::pairs): an id
@@ -70,6 +77,7 @@ impl Run {
         begin: Begin,
         ignore: Vec<Vec<String>>,
         watched: Arc<[Watched]>,
+        mounts: Ledger,
     ) -> Self {
         Run {
             scope,
@@ -77,8 +85,9 @@ impl Run {
             directory,
             proxy,
             begin,
-            ignore,
+            ignore: Mutex::new(ignore),
             watched,
+            mounts: Mutex::new(mounts),
             daemons: Pairs::new(),
             pairs: Pairs::new(),
             over: Notify::new(),

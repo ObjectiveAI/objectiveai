@@ -13,8 +13,8 @@ use crate::wire::encode::{Encode, Writer};
 /// [`arguments`](crate::shared::containers::request::Container::arguments)
 /// of the request that made the container, typed to the same depth
 /// for the same reason — a JSON value, because the image defines what
-/// it takes, and what the value may be is what
-/// [`schema`](crate::shared::containers::schema) answers. They ride
+/// it takes, and what the value may be is what the image's
+/// [`info`](crate::shared::containers::info) answers. They ride
 /// the begin rather than a channel of their own because they are
 /// handed over exactly once, first, and never change: the container
 /// that has begun is a container that holds its arguments, and
@@ -22,11 +22,14 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// The template rides beside them: the id of the template the
 /// container is made from, as the run request named it, handed to
-/// the program with the arguments at its registration and read by
-/// nothing else. The proxy sets nothing under `_meta` on what it
-/// relays — who is on either end of a tool call is the daemon's to
-/// attest, see [`shared::mcp`](crate::shared::mcp) — so it has no
-/// need of the image it runs in, and is not told it.
+/// the program with them and read by nothing else. No secret does:
+/// which secrets the program takes is its own answer, carried back on
+/// `Begun`, and their values follow on a
+/// [`Secrets`](super::super::channel_request::Frame::Secrets) channel
+/// once the caller has them. The proxy sets nothing under `_meta` on
+/// what it relays — who is on either end of a tool call is the
+/// daemon's to attest, see [`shared::mcp`](crate::shared::mcp) — so
+/// it has no need of the image it runs in, and is not told it.
 ///
 /// # Once, and first
 ///
@@ -93,7 +96,7 @@ pub enum FrameError {
     /// assumed which request it held, and was wrong, will — which is
     /// the point of checking a tag rather than skipping it.
     UnexpectedTag(u8),
-    /// The arguments did not parse.
+    /// The request did not parse.
     Body(serde_json::Error),
 }
 

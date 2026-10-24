@@ -47,7 +47,7 @@ impl Handler {
     /// there is no connection to retry on: the far side's deliberate
     /// empty finish, an answer this crate could not read, an ask that
     /// would not encode, and the connection gone.
-    async fn exchange<F>(&self, own: Own<'static>) -> Result<F, ErrorData>
+    async fn exchange<F>(&self, own: Own) -> Result<F, ErrorData>
     where
         F: for<'a> Decode<'a>,
     {

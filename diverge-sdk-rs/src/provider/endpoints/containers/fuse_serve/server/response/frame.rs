@@ -9,10 +9,9 @@ use crate::shared::error::Error;
 /// The subtree is served, or the news that it will not be.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Serving`](Self::Serving), `1` for
-/// [`Unsupported`](Self::Unsupported), `2` for [`Error`](Self::Error)
-/// — and the rest is that variant's own JSON, of which only the error
-/// has any.
+/// [`Serving`](Self::Serving), `1` for [`Error`](Self::Error) — and
+/// the rest is that variant's own JSON, of which only the error has
+/// any.
 ///
 /// # How the scope runs
 ///
@@ -20,7 +19,6 @@ use crate::shared::error::Error;
 /// |-----------|-------|
 /// | a serving, then quiet, and stays open | the proxy serves the subtree, and every ask the caller opens is answered on its channel |
 /// | a serving, then a finish | the caller stopped, or the container ended |
-/// | an unsupported, then a finish | it was not served: the provider does not FUSE serve containers |
 /// | an error, then a finish | it was not served: no container of the caller's runs under the id, the path is not a directory of it, or the proxy refused |
 ///
 /// Exactly one response, first. Nothing else comes on channel `0`;
@@ -29,14 +27,7 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The proxy serves the subtree, and asks may be opened. Tag `0`.
     Serving,
-    /// The provider does not FUSE serve containers — its
-    /// `containers_fuse_serve` is `false`, see
-    /// [`info`](crate::provider::endpoints::info). Tag `1`.
-    ///
-    /// Carries nothing. Nothing is served; a caller asks another
-    /// provider, or reads the container through its run's own channels.
-    Unsupported,
-    /// A failure. Tag `2`.
+    /// A failure. Tag `1`.
     ///
     /// `{"kind":"missing"}` for an id under which no container of the
     /// caller's runs — whether somebody else's does is not said —
@@ -49,11 +40,8 @@ pub enum Frame {
 /// Tag for [`Frame::Serving`].
 const SERVING: u8 = 0;
 
-/// Tag for [`Frame::Unsupported`].
-const UNSUPPORTED: u8 = 1;
-
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 1;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from the half that has one.
@@ -65,10 +53,6 @@ impl Encode for Frame {
         match self {
             Frame::Serving => {
                 out.extend_from_slice(&[SERVING]);
-                Ok(())
-            }
-            Frame::Unsupported => {
-                out.extend_from_slice(&[UNSUPPORTED]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -88,7 +72,6 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             SERVING => Ok(Frame::Serving),
-            UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -100,7 +83,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's two.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

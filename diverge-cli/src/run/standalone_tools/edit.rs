@@ -1,5 +1,5 @@
-//! `diverge run standalone-tools edit`: editing a tool: its name, its
-//! account, its mounts, as
+//! `diverge run standalone-tools edit`: editing a tool: a patch to its
+//! name, its account, its mounts, as
 //! [`edit`](diverge_sdk::daemon::endpoints::standalone_tools::edit)
 //! states it.
 
@@ -8,7 +8,7 @@ use diverge_sdk::daemon::endpoints::standalone_tools::edit::{client::request, se
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Editing a tool: its name, its account, its mounts.
+/// Editing a tool: a patch to its name, its account, its mounts.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -36,11 +36,8 @@ pub async fn run(
                 .await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>(
-                "diverge run standalone-tools edit",
-                emitter,
-            )
-            .await;
+            return response_schema::<response::Frame>("diverge run standalone-tools edit", emitter)
+                .await;
         }
         None => {}
     }

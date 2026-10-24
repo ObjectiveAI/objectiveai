@@ -1,14 +1,14 @@
 //! The begin scope of a run, whichever family's.
 
-use serde_json::Value;
-
 use diverge_sdk::wire::client::handle::SendError;
 use diverge_sdk::container_proxy::outside::endpoints::agents::begin::client::execute::{Chunks, ExecuteHandle as AgentsBegin};
 use diverge_sdk::container_proxy::outside::client::{Ask, Asks};
-use diverge_sdk::container_proxy::outside::endpoints::tools::begin::client::execute::{ExecuteHandle as ToolsBegin, Finish};
-use diverge_sdk::provider::endpoints::containers::client::answered::{Daemon, Postgres, Schema};
+use diverge_sdk::container_proxy::outside::endpoints::tools::begin::client::execute::{Events, ExecuteHandle as ToolsBegin};
+use diverge_sdk::provider::endpoints::containers::client::answered::{Daemon, Info, Postgres, Secrets};
 use diverge_sdk::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError};
 use diverge_sdk::shared::containers::dependencies::Template;
+use diverge_sdk::shared::containers::info::Document;
+use diverge_sdk::shared::containers::secrets::{Declaration, Values};
 
 /// The begin scope on a container's proxy connection: the place the
 /// proxy's asks ride, and the family's own exchanges.
@@ -16,10 +16,10 @@ use diverge_sdk::shared::containers::dependencies::Template;
 /// One per run, made by [`Runs::begin`](super::family::Runs::begin),
 /// held by the [`Run`](super::run::Run) for the container's life. The
 /// two families' handles answer the proxy the same way, and ask it
-/// the same two things — a database half, the arguments' schema —
-/// which is what the methods here are for; what differs — the
-/// queue's exchanges, or the MCP five — the family's own `serve`
-/// reaches through the variant.
+/// the same three things — a database half, the image's `/DIVERGE.md`,
+/// a feed of the secrets — which is what the methods here are for;
+/// what differs — the queue's exchanges, or the MCP five — the
+/// family's own `serve` reaches through the variant.
 #[derive(Debug)]
 pub(crate) enum Begin {
     /// An agent container's.
@@ -67,12 +67,27 @@ impl Begin {
         }
     }
 
-    /// What the arguments may be, as the container's server states
-    /// it: the schema channel on either family's begin.
-    pub(crate) async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
+    /// What the arguments may be, as the image states it: the info
+    /// channel on either family's begin, answered with the image's
+    /// `/DIVERGE.md` parsed — `None` for an image that ships none —
+    /// or the proxy's refusal, which is the file unreadable or not a
+    /// document. The proxy reads the file from the container's root;
+    /// the program is never asked.
+    pub(crate) async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
         match self {
-            Begin::Agents(begin) => begin.schema().await,
-            Begin::Tools(begin) => begin.schema().await,
+            Begin::Agents(begin) => begin.info().await,
+            Begin::Tools(begin) => begin.info().await,
+        }
+    }
+
+    /// The secrets' values, fed to the container: the secrets channel
+    /// on either family's begin, answered once the program has
+    /// applied them and the proxy's gate is open — or with the
+    /// program's refusal, in its own words.
+    pub(crate) async fn secrets(&self, values: Values) -> Result<(), UnaryError<Secrets>> {
+        match self {
+            Begin::Agents(begin) => begin.secrets(values).await,
+            Begin::Tools(begin) => begin.secrets(values).await,
         }
     }
 
@@ -86,23 +101,29 @@ impl Begin {
 }
 
 /// What a begin hands the machinery: the scope, the asks the proxy
-/// will open on it, the dependencies the container declared, and — for an
-/// agent container — the conversation.
+/// will open on it, what the container declared at registration, and
+/// what rides the begin's main stream — for an agent container the
+/// conversation, for a tool container its activity.
 #[derive(Debug)]
 pub(crate) struct Begun {
     /// The scope.
     pub begin: Begin,
     /// The channels the proxy opens on it, to relay.
     pub asks: Asks<Ask>,
-    /// The agent's chunks, off the begin's main stream; [`None`] for
-    /// a tool container, whose main stream carries nothing more.
+    /// The agent's chunks, off the begin's main stream, with the
+    /// loop's `Active` and `Inactive` among them; [`None`] for a tool
+    /// container.
     pub chunks: Option<Chunks>,
-    /// The begin's end, for a tool container, whose main stream is
-    /// read for nothing else; [`None`] for an agent container, whose
-    /// chunks end at the same finish.
-    pub finish: Option<Finish>,
+    /// The tool container's activity, off the begin's main stream:
+    /// `Active` and `Inactive`, and the begin's end; [`None`] for an
+    /// agent container, whose chunks end at the same finish.
+    pub activity: Option<Events>,
     /// The dependencies an agent container declared at registration,
     /// off its `Begun`: what the caller is asked to deploy, when any.
     /// A tool container's is empty: it declares nothing.
     pub dependencies: Vec<Template>,
+    /// The secrets the container takes, by name and mode, off its
+    /// `Begun`: what the caller is asked the values of, when any, and
+    /// what is fed back before the id goes out.
+    pub secrets: Declaration,
 }

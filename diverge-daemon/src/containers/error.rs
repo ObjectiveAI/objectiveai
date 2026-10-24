@@ -27,6 +27,12 @@ pub enum StartError {
     /// A mount could not be served: a volume the provider refused, or
     /// a provider not connected.
     Mounts(String),
+    /// A secret could not be taken: the secret and the key — a key
+    /// with no value, or none free — and never a value.
+    Secrets(String),
+    /// A secret a dependency template declares is not one the agent
+    /// that spawns it binds: the secret.
+    Unbound(String),
     /// A provider's capabilities exclude what the run or a mount
     /// needs, and it was not asked: what it lacks, in a sentence.
     Unsupported(String),
@@ -45,6 +51,8 @@ impl fmt::Display for StartError {
             StartError::NoDaemon(name) => write!(f, "the daemon {name} is not on record"),
             StartError::Daemon(error) => write!(f, "{error}"),
             StartError::Mounts(error) => write!(f, "a mount could not be served: {error}"),
+            StartError::Secrets(what) => write!(f, "a secret could not be taken: {what}"),
+            StartError::Unbound(what) => write!(f, "a secret is not bound: {what}"),
             StartError::Unsupported(what) => write!(f, "a provider's capabilities exclude it: {what}"),
             StartError::Run(error) => write!(f, "the provider did not run the container: {error}"),
             StartError::Logs(error) => write!(f, "the log: {error}"),

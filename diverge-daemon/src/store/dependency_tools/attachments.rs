@@ -44,6 +44,17 @@ pub async fn attached(conn: &mut PgConnection, tool: DependencyToolId) -> Result
     rows.iter().map(attachment).collect()
 }
 
+/// The attachment whose registration declared the template last: the
+/// agent that spawns the service's next run. `None` when no agent is
+/// attached.
+pub async fn latest(conn: &mut PgConnection, tool: DependencyToolId) -> Result<Option<Attachment>, Error> {
+    let row = sqlx::query("SELECT tool, agent, seq, declared FROM diverge.dependency_attachments WHERE tool = $1 ORDER BY declared DESC, seq DESC LIMIT 1")
+        .bind(tool.0)
+        .fetch_optional(&mut *conn)
+        .await?;
+    row.as_ref().map(attachment).transpose()
+}
+
 /// Attach the agent to the tool, as of now: one attached already
 /// keeps its place and has its `declared` moved to now.
 pub async fn attach(conn: &mut PgConnection, tool: DependencyToolId, agent: AgentId) -> Result<(), Error> {

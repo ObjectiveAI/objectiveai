@@ -35,7 +35,7 @@ pub async fn run(root: PathBuf, max_connections: u32) -> Result<(), Error> {
     let data = dir.join(cluster::DATA);
     postmaster::stop(&binaries, &data).await?;
     let (mut child, port) = postmaster::start(&binaries, &data, max_connections).await?;
-    if let Err(error) = postmaster::ready(&mut child, port).await {
+    if let Err(error) = postmaster::ready(&binaries, &mut child, port).await {
         let _ = postmaster::stop(&binaries, &data).await;
         let _ = child.wait().await;
         return Err(Error::Postmaster(error));

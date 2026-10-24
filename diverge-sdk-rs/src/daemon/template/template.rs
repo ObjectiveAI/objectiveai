@@ -8,9 +8,10 @@ use crate::daemon::endpoints::agents::create::client::request::Image;
 
 /// Everything an agent or a tool is made from that is the same for
 /// every one made from it: what it is for, how to make one in words,
-/// the image, the limits, the arguments. What is not here is what
-/// differs one to the next — the name, the provider it runs on, and
-/// every mount of providers' volumes — which the
+/// the image, the limits, the arguments, the secrets it needs by
+/// name. What is not here is what differs one to the next — the
+/// name, the provider it runs on, every mount of providers' volumes,
+/// and which vault key each secret is — which the
 /// [agent's](crate::daemon::endpoints::agents::create) or the
 /// [tool's](crate::daemon::endpoints::standalone_tools::create) create states.
 ///
@@ -94,15 +95,32 @@ pub struct Template<Type> {
     /// that typed it would have to be revised for every image that ever
     /// ran. It is handed to the container and not read here.
     pub arguments: Value,
+    /// The secrets the image needs, by name, in the order the image
+    /// states them: names only. Which of them a container's program
+    /// takes, and in what mode — read once per activation, or held
+    /// and written back — is the program's own answer at its
+    /// registration, see
+    /// [`secrets`](crate::shared::containers::secrets); the value of
+    /// each is the vault key the create bound the name to, one of its
+    /// values fed at every activation. Inside the hash, sorted
+    /// bytewise there. A name is not empty, and no two are alike; a
+    /// template that says otherwise is the create's error. Absent,
+    /// the image needs none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub secrets: Vec<String>,
 }
 
 impl<Type: Clone> Template<Type> {
     /// The template as its id hashes it: the same, with the image's
     /// references absent, since where the bytes may be fetched is not
-    /// what the template is.
+    /// what the template is, and the secrets' names sorted bytewise,
+    /// since the order an image states them in is not what it needs.
     pub fn hashed(&self) -> Template<Type> {
+        let mut secrets = self.secrets.clone();
+        secrets.sort_unstable();
         Template {
             image: self.image.hashed(),
+            secrets,
             ..self.clone()
         }
     }

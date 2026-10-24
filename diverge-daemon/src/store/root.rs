@@ -65,13 +65,14 @@ pub async fn seed(conn: &mut PgConnection) -> Result<(), Error> {
 
 /// Every grant of every kind: every making action, every action over
 /// what exists reaching everything, both tagging actions over every
-/// tag, and both actions over the database. Dependency templates
-/// have no making action: a registration makes one.
+/// tag, both actions over the database, and the one over the events.
+/// Dependency templates have no making action: a registration makes
+/// one.
 pub fn every_grant() -> Vec<Grant> {
     use grant::{
-        accounts as ac, agents as ag, agents_templates as at, dependency_tools as de, postgres as pg,
+        accounts as ac, agents as ag, agents_templates as at, dependency_tools as de, events as ev, postgres as pg,
         providers_daemons as pd, providers_incoming as pi, providers_outgoing as po, roles as ro,
-        standalone_tools as to, standalone_tools_templates as tt, volumes as vo,
+        standalone_tools as to, standalone_tools_templates as tt, vault as va, volumes as vo,
     };
     let tagging = vec![Tagging::Tag, Tagging::Untag];
     vec![
@@ -223,10 +224,21 @@ pub fn every_grant() -> Vec<Grant> {
             within: Within::Any,
         }),
         Grant::Volumes(vo::Permission::Tags {
+            actions: tagging.clone(),
+            within: Within::Any,
+            tags: Within::Any,
+        }),
+        Grant::Vault(va::Permission::Make(vec![va::Make::Insert])),
+        Grant::Vault(va::Permission::Over {
+            actions: vec![va::Over::Get, va::Over::List, va::Over::Insert, va::Over::Delete, va::Over::Use],
+            within: Within::Any,
+        }),
+        Grant::Vault(va::Permission::Tags {
             actions: tagging,
             within: Within::Any,
             tags: Within::Any,
         }),
         Grant::Postgres(pg::Permission(vec![pg::Action::Get, pg::Action::List])),
+        Grant::Events(ev::Permission(vec![ev::Action::List])),
     ]
 }

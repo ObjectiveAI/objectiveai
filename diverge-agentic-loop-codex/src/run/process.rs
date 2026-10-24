@@ -26,8 +26,8 @@ impl Process {
     /// written whole and closed, because argv caps a single argument
     /// and joined queue messages can exceed it. The
     /// environment is the container's plus what the run rendered:
-    /// `CODEX_HOME`, and the login's variable when the login is a
-    /// key. stderr passes through.
+    /// `CODEX_HOME`, and the login method's variables, when it has
+    /// any. stderr passes through.
     pub async fn start(
         env: &BTreeMap<String, String>,
         thread_id: Option<&str>,

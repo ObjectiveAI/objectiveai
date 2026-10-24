@@ -36,13 +36,22 @@
 //! its record or, a dependency tool, by its row, [`ToolKey`] a
 //! tool's run either way; [`AgentRun`] and [`ToolRun`] are what is
 //! live for one; [`container`] and [`dependency`] are the request a
-//! run is; [`Opened`] is a run as a file operation works on it, and
+//! run is, and [`secrets`] what a run's secrets come to — the names
+//! its program takes bound to vault keys, and the slots held while
+//! it is active; [`activate_agent`] and [`activate_tool`] ready a
+//! run for work, its values taken and fed, [`inactive_agent`] and
+//! [`inactive_tool`] write back what it made of them, and
+//! [`pump_tool`] reads a tool container's activity to its end;
+//! [`events`] writes the graph of who sent what to whom, at the
+//! seams the exchanges pass through;
+//! [`Opened`] is a run as a file operation works on it, and
 //! [`files`] the operations — the container's tree whole, a file
 //! read, a file written — with the daemon's mounts included.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
+mod activate;
 mod attached;
 mod build;
 mod error;
@@ -53,6 +62,7 @@ mod key;
 mod opened;
 mod provider;
 mod pump;
+mod pump_tool;
 mod run;
 mod running;
 mod start;
@@ -60,15 +70,18 @@ mod stop;
 mod tools;
 
 pub mod files;
+pub mod secrets;
 
 pub mod answerers;
 pub mod deploy;
+pub mod events;
 pub mod fuse;
 pub mod images;
 pub mod mcp;
 pub mod message;
 pub mod services;
 
+pub use activate::*;
 pub use attached::*;
 pub use build::*;
 pub use error::*;
@@ -78,6 +91,7 @@ pub use key::*;
 pub use opened::*;
 pub use provider::*;
 pub use pump::*;
+pub use pump_tool::*;
 pub use run::*;
 pub use running::*;
 pub use start::*;

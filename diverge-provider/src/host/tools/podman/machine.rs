@@ -2,15 +2,15 @@
 
 use std::path::Path;
 
-use super::command;
+use super::{MACHINE, command};
 use crate::host::tools::{Error, Finished, run};
 
 /// Run `program` with `args` inside the podman machine, as root
-/// there: `podman machine ssh -- sudo <program> <args…>`. The error
-/// names `program`, not `podman`, since the program is what the
-/// caller asked for.
+/// there: `podman machine ssh <machine> -- sudo <program> <args…>`.
+/// The error names `program`, not `podman`, since the program is
+/// what the caller asked for.
 pub async fn sudo(program: &str, args: &[String]) -> Result<Finished, Error> {
-    let mut command = command(["machine", "ssh", "--", "sudo", program]);
+    let mut command = command(["machine", "ssh", MACHINE, "--", "sudo", program]);
     command.args(args);
     run(program, command).await
 }

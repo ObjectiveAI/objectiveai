@@ -1,5 +1,5 @@
-//! `diverge run volumes edit`: changing a volume: how many bytes it
-//! reserves, its mode, or both, as
+//! `diverge run volumes edit`: changing a volume: a patch to how many
+//! bytes it reserves and its mode, as
 //! [`edit`](diverge_sdk::daemon::endpoints::volumes::edit) states it.
 
 use clap::Args;
@@ -7,7 +7,8 @@ use diverge_sdk::daemon::endpoints::volumes::edit::{client::request, server::res
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Changing a volume: how many bytes it reserves, its mode, or both.
+/// Changing a volume: a patch to how many bytes it reserves and its
+/// mode.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {

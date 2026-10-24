@@ -1,13 +1,15 @@
-//! Why a document could not be read, rewritten or edited.
+//! Why a document could not be read, rewritten or patched.
 
 use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
+use diverge_sdk::daemon::patch;
+
 use crate::jq;
 
 /// What the document operations fail with: the filesystem, the file's
-/// own content, the type's refusal, jq, an edit's value, or stdout.
+/// own content, the type's refusal, jq, a patch, or stdout.
 #[derive(Debug)]
 pub enum Error {
     /// A file could not be read, written, renamed or removed.
@@ -37,8 +39,10 @@ pub enum Error {
     /// A `set` program yielded this many values, and one is what a
     /// document is.
     NotOne(usize),
-    /// An edit's value is not YAML.
-    Value(serde_path_to_error::Error<serde_yaml_ng::Error>),
+    /// A patch's text is not a patch.
+    Patch(serde_path_to_error::Error<serde_yaml_ng::Error>),
+    /// A patch could not be applied: the operation, and why.
+    Apply(patch::Error),
     /// Stdout could not be written.
     Stdout(io::Error),
 }
@@ -67,7 +71,8 @@ impl fmt::Display for Error {
                 f,
                 "the jq program yielded {count} values, and a document is one"
             ),
-            Error::Value(error) => write!(f, "the value is not YAML: {error}"),
+            Error::Patch(error) => write!(f, "the patch is not one: {error}"),
+            Error::Apply(error) => write!(f, "the patch could not be applied: {error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
         }
     }
@@ -81,7 +86,8 @@ impl std::error::Error for Error {
             Error::Invalid(error) => Some(error),
             Error::Json(error) => Some(error),
             Error::Serialize(error) => Some(error),
-            Error::Value(error) => Some(error),
+            Error::Patch(error) => Some(error),
+            Error::Apply(error) => Some(error),
             Error::Stdout(error) => Some(error),
             Error::Jq(error) => Some(error),
             Error::NotOne(_) => None,

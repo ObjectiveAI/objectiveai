@@ -1,6 +1,6 @@
 //! A request refused in its own words, whichever request it is.
 
-use super::{ClientRequest, accounts, agents, dependency_tools, postgres, providers, roles, standalone_tools, volumes};
+use super::{ClientRequest, accounts, agents, dependency_tools, events, postgres, providers, roles, standalone_tools, vault, volumes};
 use crate::shared::error::Error;
 use crate::wire::encode::{Encode, Writer};
 
@@ -116,6 +116,13 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsAccountsDelete(_) => bytes(&providers::daemons::accounts::delete::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsAttachAgentTemplate(_) => bytes(&standalone_tools::attach_agent_template::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsDetachAgentTemplate(_) => bytes(&standalone_tools::detach_agent_template::server::response::Frame::Forbidden),
+            ClientRequest::VaultGet(_) => bytes(&vault::get::server::response::Frame::Forbidden),
+            ClientRequest::VaultInsert(_) => bytes(&vault::insert::server::response::Frame::Forbidden),
+            ClientRequest::VaultDelete(_) => bytes(&vault::delete::server::response::Frame::Forbidden),
+            ClientRequest::VaultList(_) => bytes(&vault::list::server::response::Frame::Forbidden),
+            ClientRequest::VaultTag(_) => bytes(&vault::tag::server::response::Frame::Forbidden),
+            ClientRequest::VaultUntag(_) => bytes(&vault::untag::server::response::Frame::Forbidden),
+            ClientRequest::EventsList(_) => bytes(&events::list::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
     }
@@ -228,6 +235,13 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsAccountsDelete(_) => bytes(&providers::daemons::accounts::delete::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsAttachAgentTemplate(_) => bytes(&standalone_tools::attach_agent_template::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsDetachAgentTemplate(_) => bytes(&standalone_tools::detach_agent_template::server::response::Frame::Error(error)),
+            ClientRequest::VaultGet(_) => bytes(&vault::get::server::response::Frame::Error(error)),
+            ClientRequest::VaultInsert(_) => bytes(&vault::insert::server::response::Frame::Error(error)),
+            ClientRequest::VaultDelete(_) => bytes(&vault::delete::server::response::Frame::Error(error)),
+            ClientRequest::VaultList(_) => bytes(&vault::list::server::response::Frame::Error(error)),
+            ClientRequest::VaultTag(_) => bytes(&vault::tag::server::response::Frame::Error(error)),
+            ClientRequest::VaultUntag(_) => bytes(&vault::untag::server::response::Frame::Error(error)),
+            ClientRequest::EventsList(_) => bytes(&events::list::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
     }

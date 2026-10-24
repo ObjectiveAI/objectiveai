@@ -6,10 +6,12 @@ use std::time::Instant;
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::provider::client::Answerers;
+use indexmap::IndexMap;
 use tokio::sync::{Mutex, watch};
 
 use crate::containers::fuse::Mounts;
 use crate::containers::mcp::Served;
+use crate::containers::secrets::Secrets;
 use diverge_sdk::shared::mcp::attestation;
 
 use crate::containers::{Inflight, Key};
@@ -59,20 +61,32 @@ pub struct Answerer {
     /// asked about. What the start settles the agent's attachments
     /// by.
     pub services: Mutex<Option<Vec<DependencyToolId>>>,
+    /// The names the container's template declares: what its
+    /// registration may take.
+    pub declared: Vec<String>,
+    /// Each name the template declares to the vault key it is bound
+    /// to: the record's own binding — a dependency's, the binding of
+    /// the agent that spawns it, as of this start.
+    pub binding: IndexMap<String, String>,
+    /// The run's secrets, once its registration took them: `None`
+    /// until then, and still `None` for a program that registered
+    /// nothing. Stashed here since no run exists at registration; the
+    /// start moves it into the run, or gives back what it holds when
+    /// the provider refuses the run after all.
+    pub secrets: Mutex<Option<Secrets>>,
 }
 
-/// The answerers of a run: all seven the one [`Answerer`].
-pub type Set = Answerers<Answerer, Answerer, Answerer, Answerer, Answerer, Answerer, Answerer>;
+/// The answerers of a run: all six the one [`Answerer`].
+pub type Set = Answerers<Answerer, Answerer, Answerer, Answerer, Answerer, Answerer>;
 
 impl Answerer {
-    /// The seven, as the executors take them.
+    /// The six, as the executors take them.
     pub fn set(self: &Arc<Self>) -> Set {
         Answerers {
             oci: Arc::clone(self),
-            dependencies: Arc::clone(self),
+            registrar: Arc::clone(self),
             postgres: Arc::clone(self),
             daemon: Arc::clone(self),
-            vault: Arc::clone(self),
             mcp: Arc::clone(self),
             fuse: Arc::clone(self),
         }

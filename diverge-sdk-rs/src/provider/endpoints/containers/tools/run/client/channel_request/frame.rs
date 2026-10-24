@@ -7,7 +7,8 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::mcp;
-use crate::shared::containers::{postgres, read, transfer, write_path};
+use crate::shared::containers::secrets::Values;
+use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 use crate::shared::containers::daemon;
 
 /// What a caller asks a provider for while a tool container runs.
@@ -23,20 +24,23 @@ use crate::shared::containers::daemon;
 /// | `3` | [`Write`](Self::Write) |
 /// | `4` | [`Transfer`](Self::Transfer) |
 /// | `5` | [`Postgres`](Self::Postgres) |
-/// | `6` | [`Schema`](Self::Schema) |
+/// | `6` | [`Info`](Self::Info) |
 /// | `7` | [`Daemon`](Self::Daemon) |
 /// | `8` | [`McpListTools`](Self::McpListTools) |
 /// | `9` | [`McpListResources`](Self::McpListResources) |
 /// | `10` | [`McpCallTool`](Self::McpCallTool) |
 /// | `11` | [`McpReadResource`](Self::McpReadResource) |
 /// | `12` | [`McpNotifications`](Self::McpNotifications) |
+/// | `13` | [`FuseMount`](Self::FuseMount) |
+/// | `14` | [`Secrets`](Self::Secrets) |
 ///
-/// The first eight are the same in every container scope, in the same
+/// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
-/// family's own exchange. All of them but the first reach INTO the
-/// container, which is the thing a caller cannot dial: it runs on the
-/// provider. That is the whole reason these channels open outward
-/// from the client rather than the other way.
+/// family's own exchange, and then the mount and the feed, which every
+/// scope has again, each under a tag of its own. All of them but the
+/// first reach INTO the container, which is the thing a caller cannot
+/// dial: it runs on the provider. That is the whole reason these
+/// channels open outward from the client rather than the other way.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// Stop the container. Tag `0`.
@@ -99,9 +103,9 @@ pub enum Frame {
     /// What the arguments may be. Tag `6`.
     ///
     /// Carries nothing — the variant is bare — and the provider answers
-    /// with the JSON Schema of the container's arguments. See
-    /// [`schema`](crate::shared::containers::schema).
-    Schema,
+    /// with the image's DIVERGE.md, parsed, or that it has none. See
+    /// [`info`](crate::shared::containers::info).
+    Info,
     /// A daemon connection the container's program opened, by the id
     /// the provider announced: this end's half of it. Tag `7`.
     ///
@@ -110,39 +114,64 @@ pub enum Frame {
     /// its finish is the program's socket ended. See
     /// [`daemon`](crate::shared::containers::daemon) for the pair.
     Daemon(daemon::request::Daemon),
-    /// What tools are there. Tag `7`.
+    /// What tools are there. Tag `8`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See [`mcp::list_tools`](crate::shared::mcp::list_tools)
     /// for what it asks and what answers it.
     McpListTools(mcp::list_tools::request::Request),
-    /// What resources are there. Tag `8`.
+    /// What resources are there. Tag `9`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::list_resources`](crate::shared::mcp::list_resources) for
     /// what it asks and what answers it.
     McpListResources(mcp::list_resources::request::Request),
-    /// Run one tool. Tag `9`.
+    /// Run one tool. Tag `10`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See [`mcp::call_tool`](crate::shared::mcp::call_tool)
     /// for what it asks and what answers it.
     McpCallTool(mcp::call_tool::request::Request),
-    /// Read one resource. Tag `10`.
+    /// Read one resource. Tag `11`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::read_resource`](crate::shared::mcp::read_resource) for
     /// what it asks and what answers it.
     McpReadResource(mcp::read_resource::request::Request),
-    /// Everything the server says on its own account. Tag `11`.
+    /// Everything the server says on its own account. Tag `12`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::notifications`](crate::shared::mcp::notifications) for
     /// what it asks and what answers it.
     McpNotifications(mcp::notifications::request::Request),
+    /// A FUSE mount made while the container runs. Tag `13`.
+    ///
+    /// The caller serves one more file or directory into the
+    /// container at a path, under an id of its own, as the mounts of
+    /// the run's request are served. Answered once — by a
+    /// [`fuse_mount::response::Frame`](crate::shared::containers::fuse_mount::response::Frame)
+    /// saying the mount is made, or why not — and then the finish;
+    /// the answer precedes every ask of the id. See
+    /// [`fuse_mount`](crate::shared::containers::fuse_mount).
+    FuseMount(fuse_mount::request::Request),
+    /// The secrets' values, fed to the program at an activation. Tag
+    /// `14`.
+    ///
+    /// Carries the [`Values`] as JSON — every name the program
+    /// declared, each to its value, a `fixed` one read and a
+    /// `rotating` one locked — which the provider relays to the proxy,
+    /// and the proxy hands the program before it delivers an exchange.
+    /// Opened by the caller when an idle container is about to
+    /// receive an exchange and holds no values: after the
+    /// registration's own feed, that is after every `Inactive`.
+    /// Answered once — by a
+    /// [`feed::response::Frame`](crate::shared::containers::secrets::feed::response::Frame),
+    /// `Fed` or the program's refusal — and then the finish. See
+    /// [`secrets`](crate::shared::containers::secrets).
+    Secrets(Values),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -163,8 +192,8 @@ const TRANSFER: u8 = 4;
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 5;
 
-/// Tag for [`Frame::Schema`].
-const SCHEMA: u8 = 6;
+/// Tag for [`Frame::Info`].
+const INFO: u8 = 6;
 
 /// Tag for [`Frame::Daemon`].
 const DAEMON: u8 = 7;
@@ -183,6 +212,12 @@ const MCP_READ_RESOURCE: u8 = 11;
 
 /// Tag for [`Frame::McpNotifications`].
 const MCP_NOTIFICATIONS: u8 = 12;
+
+/// Tag for [`Frame::FuseMount`].
+const FUSE_MOUNT: u8 = 13;
+
+/// Tag for [`Frame::Secrets`].
+const SECRETS: u8 = 14;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -214,8 +249,8 @@ impl Encode for Frame {
                 out.extend_from_slice(&[POSTGRES]);
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::Schema => {
-                out.extend_from_slice(&[SCHEMA]);
+            Frame::Info => {
+                out.extend_from_slice(&[INFO]);
                 Ok(())
             }
             Frame::Daemon(request) => {
@@ -244,6 +279,14 @@ impl Encode for Frame {
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
             }
+            Frame::FuseMount(request) => {
+                out.extend_from_slice(&[FUSE_MOUNT]);
+                request.encode(out)
+            }
+            Frame::Secrets(values) => {
+                out.extend_from_slice(&[SECRETS]);
+                serde_json::to_writer(out, values)
+            }
         }
     }
 }
@@ -269,7 +312,7 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            SCHEMA => Ok(Frame::Schema),
+            INFO => Ok(Frame::Info),
             DAEMON => daemon::request::Daemon::decode(rest)
                 .map(Frame::Daemon)
                 .map_err(FrameError::Daemon),
@@ -293,6 +336,12 @@ impl Decode<'_> for Frame {
                 mcp::notifications::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
+            FUSE_MOUNT => fuse_mount::request::Request::decode(rest)
+                .map(Frame::FuseMount)
+                .map_err(FrameError::FuseMount),
+            SECRETS => serde_json::from_slice(rest)
+                .map(Frame::Secrets)
+                .map_err(FrameError::Secrets),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -322,6 +371,11 @@ pub enum FrameError {
     /// cases every reader matches and none of them distinguishes
     /// anything a caller could act on.
     McpParams(serde_json::Error),
+    /// The mount request did not parse.
+    FuseMount(serde_json::Error),
+    /// The secrets' values did not parse as JSON. The message is the
+    /// parser's, which quotes no value.
+    Secrets(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -347,6 +401,12 @@ impl fmt::Display for FrameError {
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
+            FrameError::FuseMount(error) => {
+                write!(f, "fuse mount request did not parse: {error}")
+            }
+            FrameError::Secrets(error) => {
+                write!(f, "secrets feed did not parse: {error}")
+            }
         }
     }
 }
@@ -357,7 +417,9 @@ impl Error for FrameError {
             FrameError::Read(error)
             | FrameError::Write(error)
             | FrameError::Transfer(error)
-            | FrameError::McpParams(error) => Some(error),
+            | FrameError::McpParams(error)
+            | FrameError::FuseMount(error)
+            | FrameError::Secrets(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Daemon(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,

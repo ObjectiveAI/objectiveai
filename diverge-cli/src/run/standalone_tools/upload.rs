@@ -18,6 +18,22 @@ use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_s
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
+    /// The request itself: its body and the local path. Absent when a
+    /// schema is asked for beneath, whose arguments these are not.
+    #[command(flatten)]
+    pub regular: Option<Regular>,
+    /// What is beneath the request: `request-schema`, the JSON Schema
+    /// of the body it takes, or `response-schema`, the JSON Schema of
+    /// every line it prints — printed in place of putting any request.
+    #[command(subcommand)]
+    pub below: Option<Below>,
+}
+
+/// The request itself, as it is put: the body and the local path —
+/// one group, so that a schema asked for beneath needs neither, and
+/// a request without `--path` does not parse.
+#[derive(Debug, Clone, PartialEq, Eq, Args)]
+pub struct Regular {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]; `relay` among its members has another daemon
     /// serve it, as an account held there. Absent, `{}`.
@@ -27,11 +43,6 @@ pub struct Arguments {
     /// directory upload reads each named file under.
     #[arg(long = "path", value_name = "LOCAL")]
     pub local: PathBuf,
-    /// What is beneath the request: `request-schema`, the JSON Schema
-    /// of the body it takes, or `response-schema`, the JSON Schema of
-    /// every line it prints — printed in place of putting any request.
-    #[command(subcommand)]
-    pub below: Option<Below>,
 }
 
 /// The request put, every file the daemon asks for read from under
@@ -43,11 +54,8 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>(
-                "diverge run standalone-tools upload",
-                emitter,
-            )
-            .await;
+            return request_schema::<request::Frame>("diverge run standalone-tools upload", emitter)
+                .await;
         }
         Some(Below::ResponseSchema(_)) => {
             return response_schema::<response::Frame>(
@@ -58,9 +66,12 @@ pub async fn run(
         }
         None => {}
     }
-    let request: request::Frame = body(arguments.body.as_deref())?;
+    let Some(regular) = arguments.regular else {
+        return Err(Error::NoRequest);
+    };
+    let request: request::Frame = body(regular.body.as_deref())?;
     let handle = target.dial().await?;
-    shape::upload(&handle, &request, &arguments.local, emitter).await
+    shape::upload(&handle, &request, &regular.local, emitter).await
 }
 
 impl Upload for request::Frame {

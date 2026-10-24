@@ -1,38 +1,34 @@
 //! What a client's request frame carries for an edit.
 
+use serde::{Deserialize, Serialize};
+
+use crate::daemon::patch::Patch;
+use crate::daemon::reference;
+use crate::shared::relay::Relay;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use serde::{Deserialize, Serialize};
-use crate::shared::relay::Relay;
 
-use crate::daemon::reference;
-use crate::provider::endpoints::volumes::Mode;
-/// Ask the daemon to change a volume's size, its mode, or both, as the
-/// provider protocol's
+/// Ask the daemon to change a volume: a patch to its editable members
+/// — how many bytes it reserves, its mode — as the provider protocol's
 /// [`volumes::edit`](crate::provider::endpoints::volumes::edit) changes
-/// them. Each member absent leaves that as it is; neither can be taken
-/// away, so there is no `delete` here and each is a plain option. A
-/// request with both absent changes nothing and is not a failure.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// them. The patch is applied to the volume's [`Editable`](super::Editable) document,
+/// as the provider lists it; a result that differs is asked of the
+/// provider as one edit — a size the provider refuses changes the mode
+/// no more than the size — and one that does not is `Edited` with
+/// nothing asked.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The volume: see [`reference::Volume`].
     pub volume: reference::Volume,
-    /// How many bytes it reserves from now on: larger reserves more,
-    /// smaller gives room back and is refused when the volume holds
-    /// more than that. Absent, as it is.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bytes: Option<u64>,
-    /// The mode it is in from now on: see [`Mode`]. The content is
-    /// untouched either way. Absent, as it is.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mode: Option<Mode>,
+    /// The patch: see [`Patch`], and [`Editable`](super::Editable) for the document it
+    /// is applied to. Empty, nothing changes.
+    pub patch: Patch,
     /// Served by another daemon, as one of the accounts this daemon
     /// holds on it: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }
-
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader

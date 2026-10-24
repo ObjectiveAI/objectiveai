@@ -38,13 +38,6 @@ the error, and no channel is served.
   opened.
 - **The response.** [Response](/endpoints/containers-fuse-serve/response/) states the one
   response and what follows it.
-- **Unsupported.** A server that holds out no
-  [`containers_fuse_serve`](/capabilities/#containers_fuse_serve)
-  capability answers every request of this endpoint with exactly one
-  response, the byte `1` alone, and the response finish: it looks up
-  no container, opens nothing on any proxy, and serves no channel.
-  Every other requirement of this page holds for a server that holds
-  the capability out.
 - **The channels.** The client opens the channels that
   [Client Channels](/endpoints/containers-fuse-serve/client/) defines: the nine asks, the
   stop, and the filetree. The server opens no channel on a FUSE serve

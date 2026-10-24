@@ -8,13 +8,12 @@
 //! retries.
 
 mod daemon;
-mod dependencies;
 mod fuse;
 mod mcp;
 mod oci;
 mod postgres;
+mod registration;
 mod send;
-mod vault;
 mod write;
 
 use std::sync::Arc;
@@ -22,24 +21,23 @@ use std::sync::Arc;
 use super::{Ask, Encoders, Writes};
 use crate::wire::client::handle::Handle;
 use crate::provider::client::{
-    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer, Vault,
+    Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, Registrar,
 };
 
 /// Answer `ask` on `channel` of `scope`.
-pub(crate) async fn answer<O, T, P, D, V, M, F>(
+pub(crate) async fn answer<O, T, P, D, M, F>(
     handle: Handle,
     scope: u32,
     channel: u32,
     ask: Ask,
     writes: Arc<Writes>,
-    answerers: Answerers<O, T, P, D, V, M, F>,
+    answerers: Answerers<O, T, P, D, M, F>,
     encoders: Encoders,
 ) where
     O: OciStore + 'static,
-    T: DependencyDeployer + 'static,
+    T: Registrar + 'static,
     P: PostgresDialer + 'static,
     D: Daemon + 'static,
-    V: Vault + 'static,
     M: McpServer + 'static,
     F: FuseServer + 'static,
 {
@@ -47,8 +45,8 @@ pub(crate) async fn answer<O, T, P, D, V, M, F>(
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciHas(digest) => oci::has(&handle, scope, channel, digest, answerers.oci).await,
-        Ask::Dependencies { id, dependencies: declared } => {
-            dependencies::dependencies(&handle, scope, channel, id, declared, answerers.dependencies).await
+        Ask::Registration { id, dependencies, secrets } => {
+            registration::registration(&handle, scope, channel, id, dependencies, secrets, answerers.registrar).await
         }
         Ask::Write(write_id) => write::write(&handle, scope, channel, write_id, writes, encoders).await,
         Ask::Postgres(connection_id) => {
@@ -57,11 +55,6 @@ pub(crate) async fn answer<O, T, P, D, V, M, F>(
         Ask::Daemon(connection_id) => {
             daemon::daemon(&handle, scope, channel, connection_id, answerers.daemon, encoders).await
         }
-        Ask::VaultGet(key) => vault::get(&handle, scope, channel, key, answerers.vault).await,
-        Ask::VaultSet(key, value) => vault::set(&handle, scope, channel, key, value, answerers.vault).await,
-        Ask::VaultDelete(key) => vault::delete(&handle, scope, channel, key, answerers.vault).await,
-        Ask::VaultLock(key, ttl) => vault::lock(&handle, scope, channel, key, ttl, answerers.vault).await,
-        Ask::VaultUnlock(key) => vault::unlock(&handle, scope, channel, key, answerers.vault).await,
         Ask::McpListTools(params) => mcp::list_tools(&handle, scope, channel, params, answerers.mcp).await,
         Ask::McpListResources(params) => {
             mcp::list_resources(&handle, scope, channel, params, answerers.mcp).await

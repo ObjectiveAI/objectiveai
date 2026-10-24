@@ -89,8 +89,8 @@
 //! [`containers`] is the substrate, and the two families under it are
 //! told apart by what a caller says into the container: a message
 //! for an agent, or MCP. Everything else a container scope carries —
-//! the arguments a container is made with and the schema that says
-//! what they may be among it — is the same wire in both, defined
+//! the arguments a container is made with and the image's `info` that
+//! says what they may be among it — is the same wire in both, defined
 //! once in [`shared::containers`](crate::shared::containers). A
 //! [`containers::fuse_serve`] reaches into either family's container the
 //! same way, and carries the volume FUSE serve's own asks.

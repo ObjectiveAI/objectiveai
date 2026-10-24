@@ -19,8 +19,12 @@ use crate::continuation;
 /// said in the stream itself, as a fatal `notification`.
 #[derive(Debug)]
 pub enum Error {
-    /// No login could be had.
+    /// The login could not be made from the fed secrets: the declared
+    /// name absent, or of the wrong JSON type.
     Auth(auth::Error),
+    /// The login's file — `auth.json`, or the identity token — could
+    /// not be written under the home.
+    Login(io::Error),
     /// `config.toml` could not be rendered or written.
     Config(io::Error),
     /// The continuation could not be loaded or restored.
@@ -38,6 +42,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Auth(error) => write!(f, "{error}"),
+            Error::Login(error) => write!(f, "the login could not be written: {error}"),
             Error::Config(error) => write!(f, "config.toml could not be written: {error}"),
             Error::Continuation(error) => write!(f, "{error}"),
             Error::Spawn(error) => write!(f, "codex could not be spawned: {error}"),
@@ -53,7 +58,7 @@ impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
             Error::Auth(error) => Some(error),
-            Error::Config(error) | Error::Spawn(error) => Some(error),
+            Error::Login(error) | Error::Config(error) | Error::Spawn(error) => Some(error),
             Error::Continuation(error) => Some(error),
             Error::Line(error) => Some(error),
             Error::Exited(_) => None,
@@ -67,6 +72,10 @@ impl Error {
         match self {
             Error::Auth(error) => error.message(),
             Error::Continuation(error) => error.message(),
+            Error::Login(_) => serde_json::json!({
+                "kind": "auth",
+                "error": self.to_string(),
+            }),
             Error::Config(_) => serde_json::json!({
                 "kind": "config",
                 "error": self.to_string(),

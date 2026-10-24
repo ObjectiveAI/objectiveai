@@ -4,7 +4,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::{State, start};
+use tokio::sync::watch;
+
+use super::{Outcome, State, start};
 use crate::containers::{ToolKey, ToolRun, stop};
 use crate::daemon::Daemon;
 use crate::store::{DependencyToolId, ToolId, dependency_tools, tools};
@@ -18,11 +20,14 @@ const RETRY: Duration = Duration::from_secs(5);
 /// retired: while nothing holds it the supervisor waits; while
 /// something does, its container is started — on the first candidate
 /// provider that runs it — and waited on to its end, and started
-/// again; a start that fails is tried again after `RETRY`. A row
-/// that is gone is a service deleted, and the supervisor ends. The
-/// run's end is taken down here as well as by its waiter, so that the
-/// next start does not find the old run still live.
-pub async fn supervise(daemon: Arc<Daemon>, key: ToolKey, state: Arc<State>) {
+/// again; a start that fails is tried again after `RETRY`. Each
+/// start's outcome is said on `outcomes` — up once the run is live,
+/// or why it failed — which is what a registration that declared the
+/// service waits on. A row that is gone is a service deleted, and the
+/// supervisor ends. The run's end is taken down here as well as by
+/// its waiter, so that the next start does not find the old run
+/// still live.
+pub async fn supervise(daemon: Arc<Daemon>, key: ToolKey, state: Arc<State>, outcomes: watch::Sender<Option<Outcome>>) {
     let mut held = state.held.subscribe();
     loop {
         if !*held.borrow_and_update() {
@@ -38,10 +43,14 @@ pub async fn supervise(daemon: Arc<Daemon>, key: ToolKey, state: Arc<State>) {
         match started {
             Started::Gone => return,
             Started::Run(run) => {
+                outcomes.send_replace(Some(Outcome::Up));
                 run.handle.wait().await;
                 stop::ended_tool(&daemon, run).await;
             }
-            Started::Failed => tokio::time::sleep(RETRY).await,
+            Started::Failed(reason) => {
+                outcomes.send_replace(Some(Outcome::Failed(reason)));
+                tokio::time::sleep(RETRY).await;
+            }
         }
     }
 }
@@ -52,9 +61,9 @@ enum Started {
     Run(Arc<ToolRun>),
     /// The row is gone: the service is deleted.
     Gone,
-    /// The store could not be read, or the container would not start:
-    /// tried again after `RETRY`.
-    Failed,
+    /// The store could not be read, or the container would not start,
+    /// in its words: tried again after `RETRY`.
+    Failed(String),
 }
 
 /// One start of a tool on record's container.
@@ -66,10 +75,10 @@ async fn record(daemon: &Arc<Daemon>, id: ToolId) -> Started {
     match tool {
         Ok(Some(tool)) => match crate::containers::start::tool(daemon, &tool).await {
             Ok(run) => Started::Run(run),
-            Err(_) => Started::Failed,
+            Err(error) => Started::Failed(error.to_string()),
         },
         Ok(None) => Started::Gone,
-        Err(_) => Started::Failed,
+        Err(error) => Started::Failed(error.to_string()),
     }
 }
 
@@ -82,9 +91,9 @@ async fn dependency(daemon: &Arc<Daemon>, id: DependencyToolId) -> Started {
     match service {
         Ok(Some(service)) => match start(daemon, &service).await {
             Ok(run) => Started::Run(run),
-            Err(_) => Started::Failed,
+            Err(error) => Started::Failed(error.to_string()),
         },
         Ok(None) => Started::Gone,
-        Err(_) => Started::Failed,
+        Err(error) => Started::Failed(error.to_string()),
     }
 }

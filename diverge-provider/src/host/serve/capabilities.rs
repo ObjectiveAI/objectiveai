@@ -10,9 +10,6 @@ use crate::config::Config;
 ///   which is the only way the host has one.
 /// - `images_registries`: every host of `containers.podman.registries`,
 ///   the registries the host pulls from with the credentials it holds.
-/// - `containers_fuse_mount` and `containers_fuse_serve`: the host
-///   mounts every FUSE mount a run names and serves every running
-///   container's subtree, through the proxy it places in each.
 /// - The three volume modes, each kept, with the most the mode allows:
 ///   a persistent volume mounted by any number of containers at once
 ///   — its image is loop-mounted once and every container binds that
@@ -30,17 +27,15 @@ pub fn capabilities(config: &Config) -> Capabilities {
             .iter()
             .map(|registry| registry.host.clone())
             .collect(),
-        containers_fuse_mount: true,
-        containers_fuse_serve: true,
-        volume_persistent: Some(VolumeCapabilities {
+        volumes_persistent: VolumeCapabilities {
             mount: true,
             fuse_serve: true,
             mount_many: true,
             fuse_serve_many: false,
             mount_and_fuse_serve: false,
-        }),
-        volume_ephemeral: Some(ANY),
-        volume_read_only: Some(ANY),
+        },
+        volumes_ephemeral: ANY,
+        volumes_read_only: ANY,
     }
 }
 

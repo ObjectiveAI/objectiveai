@@ -4,7 +4,7 @@
 //! Every container the provider runs carries one proxy beside its
 //! own entrypoint, on the container's loopback at port `80`, and
 //! that proxy is the container's whole way to the caller's world —
-//! its tools, its database, its vault, the daemon itself. This
+//! its tools, its database, the daemon itself. This
 //! module is that proxy as one [`Client`]: the address hard-coded,
 //! every feature a method, one constructor and nothing to connect or
 //! close — each feature's session opens the first time it is used —
@@ -16,8 +16,7 @@
 //! exchanges the proxy relays to the caller's servers, their methods in
 //! `mcp.rs`, their notifications ignored, and [`mcp_url`] for a program
 //! whose MCP client is not this crate's, an agent container's alone,
-//! since a tool container makes no tool call outward — the vault, the
-//! keys the caller holds, in `vault.rs` — the daemon, the whole of its
+//! since a tool container makes no tool call outward — the daemon, the whole of its
 //! protocol over one WebSocket at `/daemon`, in `daemon.rs`, a tool
 //! container's alone, since an agent container holds no account and
 //! asks the daemon nothing — Postgres, the
@@ -28,14 +27,18 @@
 //! The program's own server is not here. Every container's program
 //! is its own HTTP server, on the loopback at the port [`port()`]
 //! names, and the proxy dials it, forwarding what the provider's
-//! server asks: `/register` and `/schema` on either kind of
-//! container — [`register`] is the one's body, the arguments and the
-//! template id, and its answer, the dependencies the program declares
-//! — and, for an agent
-//! container, the loop's `/run`, `/enqueue` and `/dequeue` that
-//! [`agent`] states; for a tool container, the MCP server at `/mcp`
-//! that [`tool`] states. Each surface is stated there, once, and
-//! nothing here stands between the two.
+//! server asks: `/register`, `/secrets` and
+//! `/secrets/collect` on either kind of container — [`register`] is
+//! the first's body, the arguments and the template id, and its
+//! answer, the dependencies the program declares and the secrets it
+//! takes; [`secrets`] the two over the secrets' values, fed down at
+//! every activation and collected back at every inactive — and, for
+//! an agent container, the loop's `/run`, `/enqueue` and `/dequeue`
+//! that [`agent`] states; for a tool container, the MCP server at
+//! `/mcp` that [`tool`] states. Each surface is stated there, once,
+//! and nothing here stands between the two. What the arguments may
+//! be is asked of no program: it is the image's `/DIVERGE.md`, which
+//! the proxy reads from the root.
 
 pub mod agent;
 mod client;
@@ -45,8 +48,8 @@ mod mcp;
 mod port;
 mod postgres;
 pub mod register;
+pub mod secrets;
 pub mod tool;
-mod vault;
 
 pub use client::*;
 pub use error::*;
@@ -55,7 +58,7 @@ pub use port::*;
 pub use postgres::*;
 
 /// The port the proxy listens for the program on, inside the container:
-/// its HTTP surface — the vault, the daemon, the MCP server — on the
+/// its HTTP surface — the daemon, the MCP server — on the
 /// loopback, never published. The proxy binds it; this crate dials it;
 /// one copy of the number.
 pub const INSIDE_PORT: u16 = 80;

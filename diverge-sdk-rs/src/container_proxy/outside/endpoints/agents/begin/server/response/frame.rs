@@ -2,10 +2,11 @@
 
 use std::fmt;
 
+use super::Registered;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::dependencies::Template;
 use crate::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use crate::shared::containers::secrets::Values;
 use crate::shared::error::Error;
 
 /// A begin's answer: that the connection has begun, then the agent's
@@ -17,16 +18,17 @@ use crate::shared::error::Error;
 /// [`Begun`](Self::Begun), `1` for [`Error`](Self::Error), `2` for
 /// [`Chunk`](Self::Chunk), `3` for [`Active`](Self::Active), `4` for
 /// [`Inactive`](Self::Inactive) — and the rest is that variant's own
-/// JSON, or nothing: the two words carry nothing after the byte.
+/// JSON, or nothing: the one bare word carries nothing after the
+/// byte.
 ///
 /// # Begun, then the conversation
 ///
 /// | the scope | means |
 /// |-----------|-------|
-/// | a begun, then quiet, and stays open | the container holds its arguments and its dependencies are known, and no loop has run |
+/// | a begun, then quiet, and stays open | the container holds its arguments, what its program declared is known, and no loop has run |
 /// | a begun, an active, then chunks, and stays open | a loop is running, and the agent is speaking |
-/// | …an active, chunks, an inactive, and stays open | that loop ran and ended; the agent is quiet until the next message |
-/// | an error, then a finish | it has not begun — this connection had already begun, or the arguments were refused |
+/// | …an active, chunks, an inactive, and stays open | that loop ran and ended, its rotating secrets collected; the agent is quiet until the next message |
+/// | an error, then a finish | it has not begun — this connection had already begun, or the arguments were refused; or, after `Begun`, a loop's secrets could not be collected |
 /// | a finish, with no error | the proxy is ending |
 ///
 /// # The conversation is this stream
@@ -37,8 +39,8 @@ use crate::shared::error::Error;
 /// [`Chunk`](crate::provider::endpoints::containers::agents::run::server::response::Frame::Chunk). Nothing opens a
 /// loop: an [`Enqueue`](super::super::super::client::channel_request::Frame::Enqueue)
 /// with no loop running starts one on its message, and one while a
-/// loop runs joins the queue. The tools family's stream carries
-/// nothing after `Begun`.
+/// loop runs joins the queue. The tools family's stream carries the
+/// two words and nothing else after `Begun`.
 ///
 /// # The proxy marks the loop, and only the proxy can
 ///
@@ -47,13 +49,24 @@ use crate::shared::error::Error;
 /// answer ends, however it ends. The proxy makes the call, so the
 /// proxy is the one party that knows both moments, and it says them
 /// here as [`Active`](Self::Active) before the loop's first chunk and
-/// [`Inactive`](Self::Inactive) after its last. The program's stream
-/// is chunks and only chunks, every one of them a `Chunk` here, so
-/// nothing a program writes is read as either word: see
+/// [`Inactive`](Self::Inactive) after its last — the latter once the
+/// program has handed back its rotating secrets, which ride it. The
+/// program's stream is chunks and only chunks, every one of them a
+/// `Chunk` here, so nothing a program writes is read as either word:
+/// see
 /// [the run's frame](crate::provider::endpoints::containers::agents::run::server::response::Frame)
 /// for why the byte in front is what keeps that so. Between an
 /// `Inactive` and the next `Active` the agent says nothing; quiet
 /// between an `Active` and its `Inactive` is an agent still working.
+///
+/// # Nothing is delivered before a feed
+///
+/// After `Begun`, and after every `Inactive`, the proxy delivers
+/// nothing to a program that declared a secret until the server has
+/// fed the values on a
+/// [`Secrets`](super::super::super::client::channel_request::Frame::Secrets)
+/// channel and the proxy has answered it `Fed`: a message enqueued
+/// meanwhile waits. A program that declared none is never gated.
 ///
 /// The asks the container makes, and the family's other exchanges,
 /// are channels, not this stream. It carries no readiness signal
@@ -62,22 +75,25 @@ use crate::shared::error::Error;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The connection has begun, the container holds its arguments
-    /// for its life, and these are the dependencies it declared. Tag
-    /// `0`.
+    /// for its life, and this is what its program declared. Tag `0`.
     ///
     /// Arrives once, when the container's server has taken the
-    /// arguments and answered with its dependencies — as JSON, a
-    /// list, empty for a program that needs none; see
-    /// [`dependencies`](crate::shared::containers::dependencies) for
-    /// what one is and what the provider does with the list. A
-    /// channel on this scope is opened only after it.
-    Begun(Vec<Template>),
+    /// arguments and answered its registration — as JSON, a
+    /// [`Registered`]: the dependencies, a list, empty for a program
+    /// that needs none, and the secrets it takes, a map, empty for a
+    /// program that takes none; see
+    /// [`registration`](crate::shared::containers::registration) for
+    /// what the provider does with both. A channel on this scope is
+    /// opened only after it.
+    Begun(Registered),
     /// A failure. Tag `1`.
     ///
     /// A second begin on a connection that had one, or arguments the
     /// container refused — the container's server's own words: a
-    /// value the image will not take. It is the one variant that ends the
-    /// scope rather than adding to it. See
+    /// value the image will not take — or, after `Begun`, a loop's
+    /// rotating secrets the program would not hand back, named and
+    /// never valued. It is the one variant that ends the scope rather
+    /// than adding to it. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why
     /// it says so little.
     Error(Error),
@@ -98,14 +114,17 @@ pub enum Frame {
     /// [`Inactive`](Self::Inactive) are its output. Sent by the proxy,
     /// never relayed from the program.
     Active,
-    /// A loop ended. Tag `4`, and nothing after it.
+    /// A loop ended, and these are its rotating secrets. Tag `4`.
     ///
     /// The event stream of the loop's `POST /run` ended — cleanly, or
     /// by dying; a loop that failed said so in a fatal notification
-    /// chunk before this. The agent is quiet until the next message
-    /// starts the next loop. Sent by the proxy, never relayed from
-    /// the program.
-    Inactive,
+    /// chunk before this — and the program handed back every
+    /// `rotating` secret it declared, each by name to the value it
+    /// leaves in it, as JSON after the byte: the [`Values`] the
+    /// caller writes back. Empty for a program that declared none
+    /// rotating. The agent is quiet until the next message starts the
+    /// next loop. Sent by the proxy, never relayed from the program.
+    Inactive(Values),
 }
 
 /// Tag for [`Frame::Begun`].
@@ -122,7 +141,8 @@ pub const CHUNK: u8 = 2;
 /// byte that is the whole frame.
 pub const ACTIVE: u8 = 3;
 
-/// Tag for [`Frame::Inactive`]. Public, as [`ACTIVE`] is.
+/// Tag for [`Frame::Inactive`]. Public, so a relay that carries the
+/// values' JSON without reading it can frame it.
 pub const INACTIVE: u8 = 4;
 
 /// A tag, and that variant's own JSON — or the tag alone.
@@ -137,9 +157,9 @@ impl Encode for Frame {
         out: &mut Writer<'_>,
     ) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Begun(dependencies) => {
+            Frame::Begun(registered) => {
                 out.extend_from_slice(&[BEGUN]);
-                serde_json::to_writer(out, dependencies)
+                serde_json::to_writer(out, registered)
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -153,16 +173,16 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ACTIVE]);
                 Ok(())
             }
-            Frame::Inactive => {
+            Frame::Inactive(values) => {
                 out.extend_from_slice(&[INACTIVE]);
-                Ok(())
+                serde_json::to_writer(out, values)
             }
         }
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Five ways to fail, and three of them are JSON.
+    /// Six ways to fail, and four of them are JSON.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
@@ -177,7 +197,9 @@ impl Decode<'_> for Frame {
                 .map(Frame::Chunk)
                 .map_err(FrameError::Chunk),
             ACTIVE => Ok(Frame::Active),
-            INACTIVE => Ok(Frame::Inactive),
+            INACTIVE => serde_json::from_slice(rest)
+                .map(Frame::Inactive)
+                .map_err(FrameError::Inactive),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -195,12 +217,15 @@ pub enum FrameError {
     /// a variant says so, rather than reading somebody else's bytes as
     /// its own.
     UnknownTag(u8),
-    /// The dependencies did not parse.
+    /// What the program declared did not parse.
     Begun(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
     /// The chunk did not parse.
     Chunk(serde_json::Error),
+    /// The rotating secrets did not parse. The message is the
+    /// parser's, which quotes no value.
+    Inactive(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -213,13 +238,16 @@ impl fmt::Display for FrameError {
                 write!(f, "unknown agents begin response frame tag {tag}")
             }
             FrameError::Begun(error) => {
-                write!(f, "agents begin dependencies did not parse: {error}")
+                write!(f, "agents begin registration did not parse: {error}")
             }
             FrameError::Error(error) => {
                 write!(f, "agents begin error did not parse: {error}")
             }
             FrameError::Chunk(error) => {
                 write!(f, "agents begin chunk did not parse: {error}")
+            }
+            FrameError::Inactive(error) => {
+                write!(f, "agents begin inactive secrets did not parse: {error}")
             }
         }
     }
@@ -228,7 +256,10 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Begun(error) | FrameError::Error(error) | FrameError::Chunk(error) => Some(error),
+            FrameError::Begun(error)
+            | FrameError::Error(error)
+            | FrameError::Chunk(error)
+            | FrameError::Inactive(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

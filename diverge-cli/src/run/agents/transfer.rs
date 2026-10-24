@@ -38,8 +38,7 @@ pub async fn run(
             return request_schema::<request::Frame>("diverge run agents transfer", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>("diverge run agents transfer", emitter)
-                .await;
+            return response_schema::<response::Frame>("diverge run agents transfer", emitter).await;
         }
         None => {}
     }

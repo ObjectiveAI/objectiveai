@@ -1,13 +1,14 @@
 //! The agent: Codex's parameters, as the caller states them.
 //!
 //! This is what the `arguments` on the container's request must
-//! be, and every type here derives its JSON Schema so `GET /schema`
-//! can say so — [`schemars::schema_for!`] over [`Agent`] is the
-//! whole answer. One member is not this image's to define:
-//! `dependencies`, the tool containers the agent depends on, each a
-//! dependency tool template exactly as the SDK's
+//! be, and every type here derives its JSON Schema so `--schema`
+//! can print it — [`schemars::schema_for!`] over [`Agent`] is the
+//! whole document, carried by the image's `/DIVERGE.md`, the one
+//! place the proxy reads it from. One member is not this image's to
+//! define: `dependencies`, the tool containers the agent depends on,
+//! each a dependency tool template exactly as the SDK's
 //! `shared::containers::dependencies::Template` states one — its
-//! schema at `GET /schema`, the list itself as the registration's
+//! schema in `/DIVERGE.md`, the list itself as the registration's
 //! answer.
 //!
 //! Codex (OpenAI's Codex CLI) is an agent harness in its own right,
@@ -17,13 +18,15 @@
 //! that the harness actually renders — `model`,
 //! `model_reasoning_effort`, `model_reasoning_summary`,
 //! `model_verbosity`, `web_search`, and a `model_providers` entry —
-//! and nothing else made the cut. Nothing here is a secret, and
-//! nothing here says how Codex logs in: the run looks for an
-//! `auth.json` the caller MOUNTED at `$CODEX_HOME` first — a FUSE
-//! mount on the container request, served live by the caller — and,
-//! absent one, for the vault's static `OPENAI_API_KEY`, put into the
-//! process environment; it refuses the run only when both are
-//! missing.
+//! or, for [`auth`](Agent::auth), one of Codex's own login methods;
+//! nothing else made the cut. Nothing here is a secret: the agent
+//! names HOW Codex logs in and never with what. Each method declares
+//! one secret by a fixed name — `OPENAI_API_KEY`, `CODEX_ACCESS_TOKEN`,
+//! `CODEX_AUTH` or `OPENAI_IDENTITY_TOKEN` — the template must
+//! declare, the registration answers it with its mode, the proxy
+//! feeds its value before every loop, and the run puts the value
+//! where Codex reads it: a variable, or a file under `CODEX_HOME`.
+//! A name the feed lacks refuses the run.
 //!
 //! What is deliberately ABSENT, and why, so nobody re-opens it
 //! without a new fact:
@@ -48,15 +51,17 @@
 //! - PROFILES, `notify` hooks, execpolicy rules and
 //!   `shell_environment_policy`: the harness's rendering of the
 //!   process, not the caller's vocabulary.
-//! - THE LOGIN (`forced_login_method`, any credential): a mount or
-//!   the vault's key, above — the caller who mounted an `auth.json`
-//!   chose its kind, and the harness never reads it.
+//! - A CREDENTIAL (a key, a token, an `auth.json`): the method is
+//!   the agent's and the value is a secret the proxy feeds, above;
+//!   `forced_login_method` is unneeded, because the method already
+//!   fixes which login the run writes.
 //! - SKILLS: mounts, exactly as for Claude Code; a directory under
 //!   Codex's skills path is a skill, and no switch decides it.
 //! - `wire_api`: the configuration reference names one value,
 //!   `responses`, and the harness writes it.
 
 mod agent;
+mod auth;
 mod effort;
 mod provider;
 mod summary;
@@ -64,6 +69,7 @@ mod verbosity;
 mod web_search;
 
 pub use agent::*;
+pub use auth::*;
 pub use effort::*;
 pub use provider::*;
 pub use summary::*;

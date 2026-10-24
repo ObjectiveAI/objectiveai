@@ -11,7 +11,7 @@ use crate::wire::encode::{Encode, Writer};
 /// Ask the daemon to create a tool under a name, from a template.
 ///
 /// What every tool made from the template shares — the image, the
-/// limits, the arguments — is the
+/// limits, the arguments, the secrets it needs by name — is the
 /// [`template`](Inner::template), named by its id; what is this
 /// tool's own is here: the provider it runs on with the volumes it
 /// mounts there, its FUSE mounts of providers' volumes, the account
@@ -37,7 +37,7 @@ use crate::wire::encode::{Encode, Writer};
 /// is never refused for one: the tool is reached by its template and
 /// its index, which it always has. Nothing here constrains the
 /// string's form; the daemon compares it and does not read it.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// What an agent's create and a tool's share — the template, the

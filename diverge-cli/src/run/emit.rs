@@ -48,7 +48,7 @@ impl Emitter {
         match &self.program {
             None => line(&mut self.stdout, &value).await,
             Some(program) => {
-                for value in program.run(value, None) {
+                for value in program.run(value) {
                     let value = value?;
                     if value.is_null() {
                         continue;

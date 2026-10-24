@@ -2,32 +2,35 @@
 //! `hermes gateway` starts, and what is read back after it exits.
 //!
 //! Before the gateway starts, everything the request's agent says
-//! has to be where Hermes reads it: credentials and switches in the
-//! gateway's PROCESS ENVIRONMENT, selection and membership in
-//! `config.yaml`, the OAuth state documents in the credential files
-//! — `auth.json` entries for the state-carrying providers and
-//! spotify, the Qwen CLI's token file at the real home, vertex's
-//! service-account file. The session's own state — `state.db` and
-//! the two memory files, the [`continuation`] — is the database's
-//! business ([`crate::continuation`]), restored once for the
-//! program's life. After the gateway exits, the rotating documents
-//! are read back as the run left them, for the vault.
+//! has to be where Hermes reads it: the secrets' values and the
+//! plain switches in the gateway's PROCESS ENVIRONMENT, selection
+//! and membership in `config.yaml`, the OAuth state documents in
+//! the credential files — `auth.json` entries for the
+//! state-carrying providers and spotify, the Qwen CLI's token file
+//! at the real home, vertex's service-account file. The session's
+//! own state — `state.db` and the two memory files, the
+//! [`continuation`] — is the database's business
+//! ([`crate::continuation`]), restored once for the program's life.
+//! After the gateway exits, the rotating documents are read back as
+//! the run left them, for the proxy's collect.
 //!
 //! Three entry points. [`plan()`] reads the agent into a [`Plan`]:
-//! the environment, the config's inputs, and which vault documents
-//! the run needs. [`prepare`] lays the plan down with those
-//! documents in hand and hands back [`Prepared`]: the environment
-//! the spawner sets on the gateway process and the API server key
-//! the run driver will present. [`read_back`] reads each document
-//! off disk after the gateway has exited. Between them,
-//! [`history()`] reads a session's transcript out of the database
-//! for the run to resume from, and [`session()`] its tip.
+//! the environment, the config's inputs, and which secrets the run
+//! takes — [`Plan::declaration`] is what the registration answers.
+//! [`prepare`] lays the plan down with the fed values in hand and
+//! hands back [`Prepared`]: the environment the spawner sets on the
+//! gateway process and the API server key the run driver will
+//! present. [`read_back`] reads each rotating document off disk
+//! after the gateway has exited. Between them, [`history()`] reads
+//! a session's transcript out of the database for the run to resume
+//! from, and [`session()`] its tip.
 //!
 //! # What is and is not here
 //!
-//! What [`Prepared::env`] holds is the HARNESS'S variables only, so
-//! on an overlap with the container's own environment the harness
-//! wins by construction. `system_prompt` and `effort` are
+//! What [`Prepared::env`] holds is the HARNESS'S variables only —
+//! the plan's switches and the secrets bound for the environment —
+//! so on an overlap with the container's own environment the
+//! harness wins by construction. `system_prompt` and `effort` are
 //! per-request fields of the run the driver POSTs, not filesystem.
 //! Mounts landed before the container started; skills are whatever
 //! is under [`EXTERNAL_SKILLS`] when the run begins.
@@ -40,7 +43,6 @@
 //! wrong.
 
 mod config;
-mod document;
 mod error;
 mod history;
 mod history_error;
@@ -49,12 +51,13 @@ mod plan;
 mod prepared;
 mod provider;
 mod read_back_error;
+mod secret;
+mod secrets_error;
 mod session;
 mod toolsets;
 
 pub mod continuation;
 
-pub use document::*;
 pub use error::*;
 pub use history::*;
 pub use history_error::*;
@@ -62,14 +65,17 @@ pub use message::*;
 pub use plan::*;
 pub use prepared::*;
 pub use read_back_error::*;
+pub use secret::*;
+pub use secrets_error::*;
 pub use session::*;
 
 use std::path::Path;
 
+use diverge_sdk::shared::containers::secrets::Values;
+use serde_json::{Map, Value};
 use uuid::Uuid;
 
 use crate::agent::Agent;
-use crate::vault;
 
 /// Where Hermes keeps its state, fixed for the container's life: the
 /// default home for the container's root user, pinned into the
@@ -121,9 +127,11 @@ const VERTEX_FILE: &str = "vertex-service-account.json";
 
 /// The agent, read into a [`Plan`]: what every entry point starts
 /// from. The provider's and the toolsets' contributions are
-/// gathered, and the harness's own variables join them (`HERMES_HOME`,
-/// `HERMES_YOLO_MODE`, the API server's key/host/port — the key
-/// freshly generated, 64 hex characters, for this run alone).
+/// gathered — the plain variables they set and the secrets they
+/// declare — and the harness's own variables join them
+/// (`HERMES_HOME`, `HERMES_YOLO_MODE`, the API server's
+/// key/host/port — the key freshly generated, 64 hex characters, for
+/// this run alone).
 pub async fn plan(agent: &Agent) -> Result<Plan, PrepareError> {
     let mut plan = Plan::new(agent.model.clone());
     provider::apply(&agent.provider, &mut plan)?;
@@ -158,43 +166,59 @@ async fn skills_mounted() -> Result<bool, PrepareError> {
     }
 }
 
-/// Lay the plan down, with the vault documents in hand, and answer
-/// with what the run still needs to carry.
+/// Lay the plan down, with the fed values in hand, and answer with
+/// what the run still needs to carry.
 ///
-/// The files are written, each once: `config.yaml`, `auth.json` when
-/// any entry needs it, the Qwen token file, the vertex file. The
-/// continuation's own files are the database's business and are not
-/// touched here.
+/// Every secret the plan declares is looked up in `values` by name
+/// and checked for its target's shape FIRST — a name the feed lacks,
+/// or a value of the wrong JSON type, refuses the whole preparation
+/// before a byte is written ([`PrepareError::Secrets`], naming the
+/// secret and never its value). Then the files are written, each
+/// once: `config.yaml`, `auth.json` when any entry needs it, the
+/// Qwen token file, the vertex file. The continuation's own files
+/// are the database's business and are not touched here.
 pub async fn prepare(
     plan: &Plan,
-    documents: &[(&'static str, vault::Document)],
+    values: &Values,
 ) -> Result<Prepared, PrepareError> {
-    let home = Path::new(HERMES_HOME);
-    tokio::fs::create_dir_all(home).await?;
-    let config = serde_json::to_vec_pretty(&config::render(plan))?;
-    tokio::fs::write(home.join(CONFIG_FILE), config).await?;
-
-    let mut providers = serde_json::Map::new();
-    for document in &plan.documents {
-        let Some((_, content)) = documents.iter().find(|(key, _)| *key == document.key) else {
-            continue;
-        };
-        match document.target {
-            Target::AuthEntry(name) => {
+    let mut env = plan.env.clone();
+    let mut api_key: Option<&str> = None;
+    let mut vertex: Option<&str> = None;
+    let mut providers = Map::new();
+    let mut qwen: Option<&Map<String, Value>> = None;
+    for secret in &plan.secrets {
+        let value = values
+            .get(secret.name)
+            .ok_or(SecretsError::Missing(secret.name))?;
+        match secret.target {
+            Target::Env => {
+                env.insert(
+                    secret.name.to_string(),
+                    string(secret.name, value)?.to_string(),
+                );
+            }
+            Target::ModelApiKey => {
+                api_key = Some(string(secret.name, value)?);
+            }
+            Target::VertexFile => {
+                vertex = Some(string(secret.name, value)?);
+            }
+            Target::AuthEntry(entry) => {
                 providers.insert(
-                    name.to_string(),
-                    serde_json::Value::Object(content.clone()),
+                    entry.to_string(),
+                    Value::Object(object(secret.name, value)?.clone()),
                 );
             }
             Target::QwenCreds => {
-                let path = Path::new(QWEN_CREDS);
-                if let Some(parent) = path.parent() {
-                    tokio::fs::create_dir_all(parent).await?;
-                }
-                tokio::fs::write(path, serde_json::to_vec_pretty(content)?).await?;
+                qwen = Some(object(secret.name, value)?);
             }
         }
     }
+
+    let home = Path::new(HERMES_HOME);
+    tokio::fs::create_dir_all(home).await?;
+    let config = serde_json::to_vec_pretty(&config::render(plan, api_key))?;
+    tokio::fs::write(home.join(CONFIG_FILE), config).await?;
     if !providers.is_empty() {
         // Entries only: never `active_provider` (selection is
         // `model.provider` in the config), never
@@ -207,50 +231,85 @@ pub async fn prepare(
         tokio::fs::write(home.join(AUTH_FILE), serde_json::to_vec_pretty(&store)?)
             .await?;
     }
-    if let Some(service_account) = &plan.vertex {
-        tokio::fs::write(home.join(VERTEX_FILE), service_account).await?;
+    if let Some(document) = qwen {
+        let path = Path::new(QWEN_CREDS);
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        tokio::fs::write(path, serde_json::to_vec_pretty(document)?).await?;
+    }
+    if let Some(document) = vertex {
+        tokio::fs::write(home.join(VERTEX_FILE), document).await?;
     }
 
     Ok(Prepared {
-        env: plan.env.clone(),
+        env,
         api_server_key: plan.env["API_SERVER_KEY"].clone(),
     })
 }
 
-/// Read every vault document back, after the gateway has exited, as
-/// the run left it: `auth.json` once, its `providers.<name>` entry
-/// re-serialized; the Qwen file verbatim. A document no longer there
-/// is `None`: Hermes quarantines an entry whose refresh failed for
-/// good, and the caller keeping what it had is the honest answer.
+/// The fed value as the string its target wants, or the refusal
+/// naming the secret.
+fn string<'a>(name: &'static str, value: &'a Value) -> Result<&'a str, SecretsError> {
+    value.as_str().ok_or(SecretsError::NotString(name))
+}
+
+/// The fed value as the object its target wants, or the refusal
+/// naming the secret.
+fn object<'a>(
+    name: &'static str,
+    value: &'a Value,
+) -> Result<&'a Map<String, Value>, SecretsError> {
+    value.as_object().ok_or(SecretsError::NotObject(name))
+}
+
+/// Read every rotating secret back, after the gateway has exited, as
+/// the run left it: `auth.json` once, its `providers.<entry>` object
+/// taken whole; the Qwen file parsed. The answer carries EVERY
+/// rotating name, because the collect that follows asks for every
+/// one: an entry no longer on disk — Hermes quarantines an entry
+/// whose refresh failed for good — is answered with the value it was
+/// `fed`, so the caller keeps what it had rather than losing a
+/// login. The fixed secrets are not read back; Hermes never changes
+/// them.
 pub async fn read_back(
     plan: &Plan,
-) -> Result<Vec<(&'static str, Option<Vec<u8>>)>, ReadBackError> {
+    fed: &Values,
+) -> Result<Values, ReadBackError> {
     let home = Path::new(HERMES_HOME);
-    let mut store: Option<serde_json::Value> = None;
-    let mut documents = Vec::new();
-    for document in &plan.documents {
-        let body = match document.target {
-            Target::AuthEntry(name) => {
+    let mut store: Option<Value> = None;
+    let mut left = Values::new();
+    for secret in &plan.secrets {
+        let read = match secret.target {
+            Target::Env | Target::ModelApiKey | Target::VertexFile => continue,
+            Target::AuthEntry(entry) => {
                 if store.is_none() {
                     let bytes = tokio::fs::read(home.join(AUTH_FILE)).await?;
                     store = Some(serde_json::from_slice(&bytes)?);
                 }
-                let entry = store
+                store
                     .as_ref()
                     .and_then(|store| store.get("providers"))
-                    .and_then(|providers| providers.get(name));
-                match entry {
-                    Some(entry) => Some(serde_json::to_vec(entry)?),
-                    None => None,
-                }
+                    .and_then(|providers| providers.get(entry))
+                    .cloned()
             }
             Target::QwenCreds => match tokio::fs::read(QWEN_CREDS).await {
-                Ok(bytes) => Some(bytes),
+                Ok(bytes) => Some(serde_json::from_slice(&bytes)?),
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
                 Err(error) => return Err(ReadBackError::Io(error)),
             },
         };
-        documents.push((document.key, body));
+        // The fed value is what the preparation applied, so it is
+        // there for every declared name; a name it somehow lacks is
+        // left out, and the collect says so rather than this
+        // inventing a value.
+        let value = match read {
+            Some(value) => Some(value),
+            None => fed.get(secret.name).cloned(),
+        };
+        if let Some(value) = value {
+            left.insert(secret.name.to_string(), value);
+        }
     }
-    Ok(documents)
+    Ok(left)
 }

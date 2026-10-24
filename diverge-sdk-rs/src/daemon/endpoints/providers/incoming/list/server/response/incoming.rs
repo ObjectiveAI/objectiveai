@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::endpoints::providers::Status;
 use crate::provider::endpoints::capacity;
@@ -47,4 +48,13 @@ pub struct Incoming {
     /// them. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+}
+
+/// Keyed by the credential's identity.
+impl Keyed for Incoming {
+    type Key = String;
+
+    fn key(&self) -> String {
+        self.credential.identity.clone()
+    }
 }

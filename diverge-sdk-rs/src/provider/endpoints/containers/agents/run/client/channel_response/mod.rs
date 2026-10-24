@@ -5,8 +5,7 @@
 //! what name, and [`oci_manifest`] and [`oci_blob`] hand it over when the provider
 //! takes it from there; [`write_bytes`] streams the content of a file
 //! being written. The rest answer the CONTAINER, relayed: [`postgres`]
-//! is what its database said, the five `vault_*` what its vault
-//! answered, the five `mcp_*` what the caller's MCP servers answered
+//! is what its database said, the five `mcp_*` what the caller's MCP servers answered
 //! its tool calls with, and the nine `fuse_*` what the files and
 //! directories it mounted live hold, what an entry of them is, and
 //! whether a change to one took.
@@ -29,9 +28,4 @@ pub mod oci_blob;
 pub mod oci_has;
 pub mod oci_manifest;
 pub mod postgres;
-pub mod vault_delete;
-pub mod vault_get;
-pub mod vault_lock;
-pub mod vault_set;
-pub mod vault_unlock;
 pub mod write_bytes;

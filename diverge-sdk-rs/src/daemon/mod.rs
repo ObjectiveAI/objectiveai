@@ -11,7 +11,7 @@
 //! its own: agents, the tools attached to them, the templates both are
 //! made from — one shape, [`template`], shared by the two families'
 //! endpoints, as what their creates share is one [`create`](mod@create)
-//! and what their edits share one [`edit`](mod@edit) — the providers
+//! and what their edits share one [`patch`](mod@patch) — the providers
 //! it dials and the credentials of
 //! those that dial it, the volumes those providers hold, and the one
 //! [database](endpoints::postgres) it serves into every container, its
@@ -35,14 +35,23 @@
 /// it. What a client dials by default.
 pub const DEFAULT_PORT: u16 = crate::container_proxy::outside::OUTSIDE_PORT + 1;
 
+/// The file under a daemon's root — its configuration directory —
+/// that a running daemon holds locked for its life, with its process
+/// id inside: one daemon per root, a second start refused at once,
+/// and the lock let go by the kernel when the holder dies. Named
+/// here, beside the port, so a client that starts or stops a daemon
+/// finds it where the daemon does; see
+/// [`file_lock`](crate::file_lock).
+pub const LOCK_FILE: &str = "daemon.lock";
+
 pub mod client;
 pub mod create;
 pub mod creator;
 pub mod download;
-pub mod edit;
 pub mod endpoints;
 pub mod grant;
 pub mod key;
+pub mod patch;
 pub mod reference;
 pub mod template;
 pub mod transfer;

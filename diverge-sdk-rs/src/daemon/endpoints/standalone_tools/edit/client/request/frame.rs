@@ -1,56 +1,45 @@
 //! What a client's request frame carries for an edit.
 
 use serde::{Deserialize, Serialize};
-use crate::shared::relay::Relay;
 
+use crate::daemon::patch::Patch;
 use crate::daemon::reference;
-
-use crate::daemon::edit::{Change, Edit};
+use crate::shared::relay::Relay;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to change a tool: its name, its account, its
-/// mounts.
+/// Ask the daemon to change a tool: a patch to its editable members —
+/// its name, its account, its mounts.
 ///
 /// The tool is named by its name, by its template and its index, or
 /// by the daemon and tool it joined, as
-/// [`reference`](crate::daemon::reference) states. Every other member
-/// is an optional `delete` or `set`, replacing the tool's whole: see
-/// [`Edit`]. A tool that is active — its container running, or its
-/// connect scope held — has its mounts left as they are, and the
-/// daemon says so with a variant of its own; a request that names no
-/// mount is applied live. A
+/// [`reference`](crate::daemon::reference) states. The patch is
+/// applied to the tool's [`Editable`](super::Editable) document, whole or not at all,
+/// and the result is the tool from then on. A tool whose container is
+/// running takes one kind of change: FUSE mounts appended to either
+/// list, each mounted into the running container before the edit
+/// persists — the edit answers once the provider has mounted them,
+/// and what the provider mounted is what persists; a result differing
+/// in anything else is answered `Active`, and nothing changed. A
 /// [`connect`](crate::daemon::endpoints::standalone_tools::connect)ed tool has
 /// no mounts of this caller's and runs under no account, since it
-/// runs nothing of the caller's: a request naming either for one is
-/// refused as not owned, and only its name changes.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// runs nothing of the caller's: a result differing in anything but
+/// its name is answered `NotOwned`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The tool: by its name, as its create or its connect gave it,
     /// or by its template and its index, which name a created tool
     /// once and for all. See [`reference::Tool`].
     pub tool: reference::Tool,
-    /// What an agent's edit and a tool's share — the name, the mounts,
-    /// every one optional: see [`Edit`]. Flattened, so its members are
-    /// this object's own.
-    #[serde(flatten)]
-    pub edit: Edit,
-    /// The account the tool runs under: see the create's
-    /// [`account`](crate::daemon::endpoints::standalone_tools::create::client::request::Frame::account).
-    /// An account the daemon does not have is the edit's `NoAccount`,
-    /// one the caller holds no `assign` grant over its `Forbidden`,
-    /// and nothing changes. Absent, as it is; `delete`, the tool runs
-    /// under no account, and everything it asks of the daemon is
-    /// answered `Forbidden` from then on. Changes live.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub account: Option<Change<String>>,
+    /// The patch: see [`Patch`], and [`Editable`](super::Editable) for the document it
+    /// is applied to. Empty, nothing changes.
+    pub patch: Patch,
     /// Served by another daemon, as one of the accounts this daemon
     /// holds on it: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }
-
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader

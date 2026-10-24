@@ -5,10 +5,9 @@ use serde::{Deserialize, Serialize};
 
 /// Z.AI (GLM / Zhipu).
 ///
-/// APPLICATION: the harness sets `GLM_API_KEY` to
-/// [`api_key`](Self::api_key) in the gateway's process environment
-/// before Hermes starts, and `GLM_BASE_URL` to
-/// [`base_url`](Self::base_url) when present.
+/// APPLICATION: the harness sets `GLM_API_KEY` to the secret's value
+/// in the gateway's process environment before Hermes starts, and
+/// `GLM_BASE_URL` to [`base_url`](Self::base_url) when present.
 ///
 /// The optional endpoint is the one such override in the vocabulary,
 /// and it earns its place: without a pinned base URL, Hermes's first
@@ -16,12 +15,12 @@ use serde::{Deserialize, Serialize};
 /// the winner to disk — a network round-trip at start, guessing at a
 /// fact the caller knows (which of Z.AI's global and CN surfaces
 /// their key belongs to).
+///
+/// SECRET: `GLM_API_KEY`, fixed — the API key, under that name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The discriminator. Always `zai`.
     pub provider: Zai,
-    /// The API key, applied as `GLM_API_KEY`.
-    pub api_key: String,
     /// The endpoint the key belongs to, applied as `GLM_BASE_URL`;
     /// absent = Hermes's own endpoint probe.
     #[serde(default, skip_serializing_if = "Option::is_none")]

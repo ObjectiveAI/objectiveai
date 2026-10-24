@@ -4,6 +4,7 @@ use std::path::Path;
 use std::process::{ExitStatus, Stdio};
 use std::time::Duration;
 
+use diverge_sdk::process;
 use tokio::process::Command;
 
 use super::Error;
@@ -82,14 +83,17 @@ async fn running(binaries: &Binaries, data: &Path) -> Result<bool, Error> {
 /// here, since whether an exit is a failure depends on what was
 /// asked.
 async fn pg_ctl(binaries: &Binaries, data: &Path, args: &[&str]) -> Result<(ExitStatus, String), Error> {
-    let output = Command::new(binaries.pg_ctl())
+    let mut control = Command::new(binaries.pg_ctl());
+    control
         .arg("-D")
         .arg(data)
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
-        .kill_on_drop(true)
+        .kill_on_drop(true);
+    process::no_window(&mut control);
+    let output = control
         .output()
         .await
         .map_err(|source| Error::Spawn {

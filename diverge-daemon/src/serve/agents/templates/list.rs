@@ -10,7 +10,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
-use crate::serve::stream::{self, Change, Source};
+use crate::serve::stream::{self, Source};
 use crate::serve::reply;
 use crate::store::{self, agents_templates, tools};
 use diverge_sdk::daemon::key;
@@ -48,12 +48,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing(scope, daemon, &[Kind::AgentsTemplates, Kind::Agents, Kind::StandaloneTools], frame.count, &source, |change| match change {
-        Change::Added(template) => Frame::Added(template),
-        Change::Changed(template) => Frame::Changed(template),
-        Change::Removed(template) => Frame::Removed(template),
-        Change::Listed => Frame::Listed,
-    })
+    stream::listing(scope, daemon, &[Kind::AgentsTemplates, Kind::Agents, Kind::StandaloneTools], frame.count, &source, Frame::from)
     .await
 }
 

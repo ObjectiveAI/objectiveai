@@ -9,7 +9,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
-use crate::serve::stream::{self, Change, Source};
+use crate::serve::stream::{self, Source};
 use crate::serve::reply;
 use crate::store::{self, RoleId, roles};
 
@@ -45,12 +45,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing(scope, daemon, &[Kind::Roles, Kind::Accounts], frame.count, &source, |change| match change {
-        Change::Added(role) => Frame::Added(role),
-        Change::Changed(role) => Frame::Changed(role),
-        Change::Removed(role) => Frame::Removed(role),
-        Change::Listed => Frame::Listed,
-    })
+    stream::listing(scope, daemon, &[Kind::Roles, Kind::Accounts], frame.count, &source, Frame::from)
     .await
 }
 

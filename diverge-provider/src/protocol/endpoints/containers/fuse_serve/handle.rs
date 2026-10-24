@@ -14,7 +14,6 @@ use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::frame::server::ServerFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::directory::Directory;
-use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use diverge_sdk::shared::error::Error;
 
 /// Find the container, open the proxy's serve of the subtree, relay
@@ -22,9 +21,6 @@ use diverge_sdk::shared::error::Error;
 ///
 /// In order:
 ///
-/// 0. `Unsupported`, then the finish, on a provider whose
-///    capabilities do not FUSE serve containers; nothing is looked
-///    at.
 /// 1. The container, found in the [`Directory`] by its id and
 ///    checked to be the caller's own — the runner — or not, which is
 ///    the scope's one `Error`, `{"kind":"missing"}`
@@ -65,13 +61,7 @@ pub async fn handle(
     request: request::Frame,
     client_identity: &str,
     directory: Arc<Directory>,
-    capabilities: &Capabilities,
 ) {
-    if !capabilities.containers_fuse_serve {
-        send(&scope, &response::Frame::Unsupported).await;
-        scope.send_response_finish().await;
-        return;
-    }
     let Some(attached) = directory.lookup(&request.id).await else {
         return refuse(scope, missing()).await;
     };

@@ -58,7 +58,7 @@ pub(crate) fn check(request: &Container) -> Result<(), Error> {
             if mount.path == other.path {
                 return Err(render::path_refused(&format!("two mounts at `/{}`", mount.path.join("/"))));
             }
-            if mount.path.starts_with(other.path) || other.path.starts_with(mount.path) {
+            if overlaps(mount.path, other.path) {
                 return Err(render::path_refused(&format!(
                     "the mount at `/{}` lies inside the mount at `/{}`",
                     longer(mount.path, other.path).join("/"),
@@ -76,8 +76,14 @@ pub(crate) fn check(request: &Container) -> Result<(), Error> {
 }
 
 /// Whether a component is a name: not empty, not `.`, not `..`.
-fn name(component: &str) -> bool {
+pub(crate) fn name(component: &str) -> bool {
     !component.is_empty() && component != "." && component != ".."
+}
+
+/// Whether two mount paths overlap: one is the other, or one lies
+/// inside the other.
+pub(crate) fn overlaps(a: &[String], b: &[String]) -> bool {
+    a.starts_with(b) || b.starts_with(a)
 }
 
 /// The longer of two paths, one a prefix of the other.

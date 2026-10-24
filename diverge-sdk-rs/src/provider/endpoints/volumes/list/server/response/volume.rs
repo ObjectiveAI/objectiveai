@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::shared::listing::Keyed;
 use crate::provider::endpoints::volumes::Mode;
 
 /// A directory a caller may mount, under the name a provider gave it.
@@ -105,4 +106,13 @@ pub struct Volume {
     ///
     /// One byte in postcard, `0`, `1` or `2`, after `created`.
     pub mode: Mode,
+}
+
+/// Keyed by the name.
+impl Keyed for Volume {
+    type Key = String;
+
+    fn key(&self) -> String {
+        self.name.clone()
+    }
 }

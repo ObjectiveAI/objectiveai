@@ -8,6 +8,7 @@ use super::begin::Begun;
 use super::check::check;
 use super::family::Runs;
 use super::held::{Held, Refused};
+use super::ledger::Ledger;
 use super::run::{Run, send};
 use super::{relay, serve, setup};
 use crate::protocol::container::Container as _;
@@ -27,9 +28,7 @@ use diverge_sdk::shared::error::Error;
 /// In order:
 ///
 /// 0. The request's mounts are checked — see [`check`] — or the run
-///    is refused with the error, before anything is held; a request
-///    naming a FUSE mount on a provider whose capabilities mount none
-///    is refused with `FuseMountsUnsupported`. Then every volume the
+///    is refused with the error, before anything is held. Then every volume the
 ///    request names is found and held, shared — see [`Held`] — or
 ///    the run is refused: with the name of a volume held, mounted,
 ///    FUSE served or of a mode the provider does not mount, with the
@@ -41,17 +40,23 @@ use diverge_sdk::shared::error::Error;
 ///    [`setup::prepare`](super::setup::prepare): registry,
 ///    deploy, the proxy dialled, the family's begin, the id minted
 ///    and the container entered in the directory — with its proxy
-///    connection, for serves and transfers — then the dependencies the container declared asked of the
-///    caller, the id told, beside every mount. A failure is the run's
-///    error, and the scope finishes on it.
+///    connection, for serves and transfers — then the container
+///    registered with the caller, the id told, its first secrets fed
+///    back to it, beside every mount. A failure is the run's error,
+///    and the scope finishes on it.
 /// 2. The id is sent. From here the container is running for the
 ///    caller.
 /// 3. The relays are spawned: the proxy's asks on the begin scope,
 ///    each mount's asks, and — on an agent container — the agent's
-///    chunks onto the main stream; on a tool container, the begin's
-///    own end is listened for.
+///    chunks onto the main stream, the loop's `Active` and
+///    `Inactive` among them; on a tool container, its `Active` and
+///    `Inactive` onto the main stream, the begin's end heard with
+///    them.
 /// 4. The caller's channels are served until the run ends: a stop,
-///    the container leaving, or the caller going away.
+///    the container leaving, or the caller going away. Among them a
+///    `fuse_mount`, one more FUSE mount made while the container
+///    runs, checked against every mount it holds — see
+///    [`Ledger`] — and answered once the proxy has.
 /// 5. The teardown, the same for every ending: the directory entry
 ///    removed, the container stopped, the repository released, the
 ///    volumes given back, every task ended, and the finish.
@@ -78,13 +83,6 @@ pub(crate) async fn run<R, D, G, V>(
 
     if let Err(error) = check(request) {
         send(&scope, R::error(&error)).await;
-        scope.send_response_finish().await;
-        return;
-    }
-
-    let names_fuse = !request.fuse_file_mounts.is_empty() || !request.fuse_directory_mounts.is_empty();
-    if names_fuse && !capabilities.containers_fuse_mount {
-        send(&scope, R::fuse_mounts_unsupported()).await;
         scope.send_response_finish().await;
         return;
     }
@@ -140,14 +138,15 @@ pub(crate) async fn run<R, D, G, V>(
     let id = prepared.id.clone();
     send(&scope, R::id(&Id { id: id.clone() })).await;
 
-    // The dependencies were asked of the caller in the setup; the
-    // list is not needed again.
+    // The container was registered with the caller in the setup; what
+    // it declared is not needed again.
     let Begun {
         begin,
         asks,
         chunks,
-        finish,
+        activity,
         dependencies: _,
+        secrets: _,
     } = prepared.begun;
     let run = Arc::new(Run::new(
         Arc::clone(&scope),
@@ -157,6 +156,7 @@ pub(crate) async fn run<R, D, G, V>(
         begin,
         prepared.ignore,
         prepared.watched,
+        Ledger::new(request),
     ));
     run.spawn(relay::relay::<R>(Arc::clone(&run), asks)).await;
     for mount in prepared.mounts {
@@ -165,15 +165,8 @@ pub(crate) async fn run<R, D, G, V>(
     if let Some(chunks) = chunks {
         run.spawn(relay::chunks(Arc::clone(&run), chunks)).await;
     }
-    if let Some(finish) = finish {
-        // The begin scope ending, however it ends, is the container
-        // gone.
-        let over = Arc::clone(&run);
-        run.spawn(async move {
-            let _ = finish.await;
-            over.over.notify_one();
-        })
-        .await;
+    if let Some(activity) = activity {
+        run.spawn(relay::activity(Arc::clone(&run), activity)).await;
     }
     let _end = serve::serve::<R>(&run).await;
 

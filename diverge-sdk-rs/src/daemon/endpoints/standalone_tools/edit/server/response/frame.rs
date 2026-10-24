@@ -25,8 +25,9 @@ use crate::shared::error::Error;
 /// [`NotFound`](Self::NotFound), [`Active`](Self::Active),
 /// [`NotOwned`](Self::NotOwned), [`InUse`](Self::InUse) and
 /// [`NoAccount`](Self::NoAccount) are ANSWERS: the daemon looked, and
-/// no tool of the caller's is the one named, or one is and it is active
-/// while the request names a mount, or it is a connected tool and the
+/// no tool of the caller's is the one named, or one is and its container
+/// is running while the result differs in anything but FUSE mounts
+/// added, or it is a connected tool and the
 /// request names a mount or an account, or the name requested is
 /// another tool's, or the account requested is none the daemon has, and
 /// in each case nothing changed and nothing is retried. An
@@ -59,8 +60,8 @@ pub enum Frame {
     /// No tool of the caller's is the one named; nothing changed. Tag
     /// `1`.
     NotFound,
-    /// The tool is active — its container running, or its connect scope
-    /// held — and the request names a mount; nothing changed. Tag `2`.
+    /// The tool's container is running and the result differs in
+    /// anything but FUSE mounts added to it; nothing changed. Tag `2`.
     Active,
     /// The tool is connected, somebody else's container, and the
     /// request names a mount or an account, which it has none of this

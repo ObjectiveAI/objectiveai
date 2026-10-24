@@ -8,6 +8,7 @@ use diverge_sdk::daemon::endpoints::standalone_tools::list::server::response;
 use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::reference;
+use indexmap::IndexMap;
 
 use crate::store::{AccountId, ToolId};
 
@@ -50,6 +51,9 @@ pub struct Tool {
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes, likewise.
     pub fuse_directory_mounts: Vec<FuseMount>,
+    /// Which vault key each secret its template declares is; none for
+    /// a connected tool.
+    pub secrets: IndexMap<String, String>,
     /// The provider it last ran on, or was last connected through, if it
     /// ever was.
     pub last_provider: Option<Identity>,

@@ -141,6 +141,29 @@ CREATE TABLE IF NOT EXISTS diverge.counters (
     next        BIGINT NOT NULL
 );
 
+-- The vault: keys, each holding one or more JSON values, handed to
+-- the containers whose records bind the key to a secret. A key some
+-- record binds is not deleted, which the records say, not a
+-- constraint: the binding is inside a record's `secrets`.
+CREATE TABLE IF NOT EXISTS diverge.vault (
+    key     TEXT PRIMARY KEY,
+    tags    TEXT[] NOT NULL DEFAULT '{}',
+    created TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator JSONB NOT NULL
+);
+
+-- A key's values: its slots, numbered from 0 in the order appended,
+-- gone with the key. A slot a running container holds names the
+-- holder — the record's Creator, as JSON — and is NULL while free; a
+-- lock is on a value, never on a key.
+CREATE TABLE IF NOT EXISTS diverge.vault_slots (
+    key    TEXT NOT NULL REFERENCES diverge.vault (key) ON DELETE CASCADE,
+    slot   INT NOT NULL,
+    value  JSONB NOT NULL,
+    holder JSONB,
+    PRIMARY KEY (key, slot)
+);
+
 -- An agent: a template plus what its create added. The container is
 -- work made from the row, never the row.
 CREATE TABLE IF NOT EXISTS diverge.agents (
@@ -154,6 +177,10 @@ CREATE TABLE IF NOT EXISTS diverge.agents (
     provider              JSONB,
     fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
     fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
+    -- Which vault key each secret the template declares is: the
+    -- secret's name to the key, as the create or the last edit gave
+    -- them, in that order.
+    secrets               JSONB NOT NULL DEFAULT '{}',
     -- The provider it last ran on, and when it last began or ceased.
     last_provider         JSONB,
     last_active           TIMESTAMPTZ,
@@ -179,6 +206,9 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
     account               BIGINT REFERENCES diverge.accounts(id) ON DELETE RESTRICT,
     fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
     fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
+    -- Which vault key each secret the template declares is, as for
+    -- an agent; empty for a connected tool.
+    secrets               JSONB NOT NULL DEFAULT '{}',
     last_provider         JSONB,
     last_active           TIMESTAMPTZ,
     tags                  TEXT[] NOT NULL DEFAULT '{}',
@@ -194,6 +224,10 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS tools_created_index
     ON diverge.tools (template, index) WHERE kind = 'created';
+-- A connected tool's once-and-for-all index counts among tools joined
+-- to one daemon's one tool.
+CREATE UNIQUE INDEX IF NOT EXISTS tools_connected_index
+    ON diverge.tools (connected_daemon, connected_tool, index) WHERE kind = 'connected';
 
 -- A tool attached to an agent; `seq` is the order of attaching.
 CREATE TABLE IF NOT EXISTS diverge.attachments (
@@ -279,51 +313,18 @@ CREATE TABLE IF NOT EXISTS diverge.dependencies (
     template JSONB NOT NULL
 );
 
--- What an earlier daemon made, brought up to the above: every
--- statement idempotent, as the rest are.
-ALTER TABLE diverge.providers_outgoing ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
-ALTER TABLE diverge.providers_incoming ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
-ALTER TABLE diverge.agents DROP COLUMN IF EXISTS deployer;
--- An agent holds no account: it asks the daemon nothing.
-ALTER TABLE diverge.agents DROP COLUMN IF EXISTS account;
-DROP TABLE IF EXISTS diverge.routes;
--- Admissions gave way to exposures, which are held in memory alone.
-DROP TABLE IF EXISTS diverge.admissions;
--- Services and what agents depend on are dependency tools and their
--- attachments; a scope's role is computed from its tool, not kept.
-DROP TABLE IF EXISTS diverge.service_owners, diverge.service_attachments, diverge.services, diverge.agent_dependencies, diverge.scopes;
--- A dependency template is its body alone: tags, the time and the
--- maker are each tool's.
-ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS tags;
-ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS created;
-ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS creator;
--- A daemon record's credential moved to its accounts (2026-10-14).
-ALTER TABLE diverge.providers_daemons DROP COLUMN IF EXISTS mode;
-ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS connected_account TEXT;
-ALTER TABLE diverge.dependencies DROP COLUMN IF EXISTS deleted;
--- A connected tool names a daemon record and a tool, not a provider,
--- an id and an authorization: a tool joined the old way joins nothing
--- any more, and goes.
-ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS connected_daemon TEXT;
-ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS connected_tool JSONB;
-DELETE FROM diverge.tools WHERE kind = 'connected' AND connected_daemon IS NULL;
-ALTER TABLE diverge.tools DROP CONSTRAINT IF EXISTS tools_origin_whole;
-ALTER TABLE diverge.tools DROP COLUMN IF EXISTS connected_provider;
-ALTER TABLE diverge.tools DROP COLUMN IF EXISTS connected_id;
-ALTER TABLE diverge.tools DROP COLUMN IF EXISTS authorization;
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'tools_origin_daemon') THEN
-        ALTER TABLE diverge.tools ADD CONSTRAINT tools_origin_daemon CHECK (
-            (kind = 'created' AND template IS NOT NULL
-                AND connected_daemon IS NULL AND connected_tool IS NULL)
-            OR (kind = 'connected' AND template IS NULL AND provider IS NULL
-                AND connected_daemon IS NOT NULL AND connected_tool IS NOT NULL)
-        );
-    END IF;
-END $$;
--- After the columns above exist on every database: a connected tool's
--- once-and-for-all index counts among tools joined to one daemon's one
--- tool.
-CREATE UNIQUE INDEX IF NOT EXISTS tools_connected_index
-    ON diverge.tools (connected_daemon, connected_tool, index) WHERE kind = 'connected';
+-- The graph of who sent what to whom through the daemon: one row per
+-- sender, receiver and action — each end the wire's Creator, as JSON;
+-- the action its snake-case word — with a count raised at every
+-- occurrence since the first. Never removed, since nothing undoes an
+-- occurrence, and never timed: the id orders the edges by when each
+-- was added.
+CREATE TABLE IF NOT EXISTS diverge.events (
+    id       BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    action   TEXT NOT NULL,
+    sender   JSONB NOT NULL,
+    receiver JSONB NOT NULL,
+    count    BIGINT NOT NULL DEFAULT 1,
+    CONSTRAINT events_action CHECK (action IN ('message', 'call', 'read')),
+    CONSTRAINT events_edge UNIQUE (sender, receiver, action)
+);

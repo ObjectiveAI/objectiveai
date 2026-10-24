@@ -29,6 +29,24 @@ pub async fn try_exclusive(path: impl AsRef<Path>) -> Result<Option<Held>, Error
     take(path.as_ref().to_path_buf(), false).await
 }
 
+/// What the file at `path` says, read without taking the lock: what
+/// its holder left there with [`Held::write`] — the process id, as
+/// the Diverge programs write — trimmed, or `None` for a file that
+/// is absent or empty. What a second starter reports when
+/// [`try_exclusive`] answers `None`, and what a stopper reads to
+/// find the process.
+pub async fn holder(path: impl AsRef<Path>) -> Result<Option<String>, Error> {
+    let path = path.as_ref().to_path_buf();
+    match tokio::fs::read_to_string(&path).await {
+        Ok(contents) => {
+            let contents = contents.trim();
+            Ok((!contents.is_empty()).then(|| contents.to_string()))
+        }
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(source) => Err(Error::Write { path, source }),
+    }
+}
+
 /// Open the file and lock it, on a blocking task.
 async fn take(path: PathBuf, wait: bool) -> Result<Option<Held>, Error> {
     let on_task = path.clone();

@@ -12,7 +12,7 @@ use sqlx::PgConnection;
 
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
-use crate::serve::stream::{self, Change, Source};
+use crate::serve::stream::{self, Source};
 use crate::serve::reply;
 use crate::store::{self, providers_incoming, providers_outgoing, volumes as volume_tags};
 use crate::volumes::{self, Listed, Whole};
@@ -60,12 +60,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         &[Kind::Volumes, Kind::ProvidersOutgoing, Kind::ProvidersIncoming, Kind::Agents, Kind::StandaloneTools],
         frame.count,
         &source,
-        |change| match change {
-            Change::Added(volume) => Frame::Added(volume),
-            Change::Changed(volume) => Frame::Changed(volume),
-            Change::Removed(volume) => Frame::Removed(volume),
-            Change::Listed => Frame::Listed,
-        },
+        Frame::from,
     )
     .await
 }

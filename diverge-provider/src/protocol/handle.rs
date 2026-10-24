@@ -258,12 +258,8 @@ where
             ClientRequest::ContainersFuseServe(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let directory = Arc::clone(&directory);
-                let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::containers::fuse_serve::handle(
-                        scope, frame, &identity, directory, &capabilities,
-                    )
-                    .await;
+                    endpoints::containers::fuse_serve::handle(scope, frame, &identity, directory).await;
                 });
             }
             ClientRequest::VolumesList(_) => {

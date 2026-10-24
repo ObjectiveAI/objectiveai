@@ -15,7 +15,7 @@ impl Mounts {
     /// What is at `path` within the mount changed, or appeared: told
     /// with its node as it is now.
     pub async fn changed(&self, id: &str, path: &str, inserted: bool) {
-        let Some(full) = self.container_path(id, path) else {
+        let Some(full) = self.container_path(id, path).await else {
             return;
         };
         let Some(node) = self.node_at(id, path).await else {
@@ -26,8 +26,8 @@ impl Mounts {
     }
 
     /// What was at `path` within the mount is gone.
-    pub fn removed(&self, id: &str, path: &str) {
-        if let Some(full) = self.container_path(id, path) {
+    pub async fn removed(&self, id: &str, path: &str) {
+        if let Some(full) = self.container_path(id, path).await {
             let _ = self.changes.send(Frame::Removed { path: full });
         }
     }

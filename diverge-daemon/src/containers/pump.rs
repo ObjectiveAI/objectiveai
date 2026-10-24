@@ -9,7 +9,7 @@ use diverge_sdk::provider::endpoints::containers::agents::run::server::response:
 use futures_util::StreamExt as _;
 
 use super::mcp::{self, Context};
-use super::{AgentRun, Key, stop};
+use super::{AgentRun, Key, activate, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::logs;
 use crate::store::AgentId;
@@ -19,13 +19,18 @@ use crate::store::AgentId;
 /// key the message was enqueued under — the loop's begin and end kept
 /// as whether a loop runs, the served tools started on the begin so
 /// its calls find them up — each held up by its own use from then on,
-/// and the dependencies run on for the agent's life — and the
-/// stream's end or error the run over.
+/// and the dependencies run on for the agent's life — the container's
+/// inactive, with what its program made of its rotating secrets,
+/// written back and the run activated again while a message is
+/// pending, as [`inactive_agent`](super::inactive_agent) states, a
+/// failure kept as an `Error` item naming secrets and never a value —
+/// and the stream's end or error the run over.
 pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteStream) {
     let context = Context {
         daemon: Arc::clone(&daemon),
         user: Key::Agent(run.id),
         caller: Some(run.attestation.clone()),
+        sender: run.sender.clone(),
         served: Arc::clone(&run.served),
     };
     while let Some(event) = stream.next().await {
@@ -47,10 +52,21 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                 run.touch();
                 mcp::start_all(&context).await;
             }
-            Ok(Event::Inactive) => {
+            Ok(Event::Inactive(values)) => {
                 run.loop_active.send_replace(false);
                 daemon.live.changed(Kind::Agents);
                 run.touch();
+                if let Err(error) = activate::inactive_agent(&daemon, &run, values).await {
+                    let _ = append(
+                        &daemon,
+                        &run,
+                        Item::Error(log::Error {
+                            r#type: Default::default(),
+                            error,
+                        }),
+                    )
+                    .await;
+                }
             }
             Err(error) => {
                 let _ = append(

@@ -1,7 +1,8 @@
 //! The request a run is: the template and the record's mounts, a
 //! transient dependency's template and the agent's paths, or a
 //! service's template alone, as the provider protocol states a
-//! container.
+//! container. No secret rides it: a container's values are fed at its
+//! registration's answer and at every activation after.
 
 use diverge_sdk::daemon::endpoints::agents::create::client::request::VolumeMount;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::Image as TemplateImage;
@@ -18,7 +19,8 @@ use super::fuse::Mounts;
 /// which the provider holds the volume to, refusing the run for one
 /// in another mode; and every FUSE mount under the id the daemon
 /// serves it by.
-pub fn container<T>(template_id: &str, template: &Template<T>, volumes: &[VolumeMount], mounts: &Mounts) -> request::Container {
+pub async fn container<T>(template_id: &str, template: &Template<T>, volumes: &[VolumeMount], mounts: &Mounts) -> request::Container {
+    let (fuse_file_mounts, fuse_directory_mounts) = mounts.lists().await;
     request::Container {
         image: image(&template.image),
         template: template_id.to_string(),
@@ -33,8 +35,8 @@ pub fn container<T>(template_id: &str, template: &Template<T>, volumes: &[Volume
                 container_path: mount.container_path.clone(),
             })
             .collect(),
-        fuse_file_mounts: mounts.files.clone(),
-        fuse_directory_mounts: mounts.directories.clone(),
+        fuse_file_mounts,
+        fuse_directory_mounts,
         arguments: template.arguments.clone(),
     }
 }
@@ -43,15 +45,16 @@ pub fn container<T>(template_id: &str, template: &Template<T>, volumes: &[Volume
 /// limits and arguments, with the template's id, no volume — a
 /// dependency names none — and every mount of the agent's paths under
 /// the id the daemon serves it by.
-pub fn dependency(template_id: &str, template: &dependencies::Template, mounts: &Mounts) -> request::Container {
+pub async fn dependency(template_id: &str, template: &dependencies::Template, mounts: &Mounts) -> request::Container {
+    let (fuse_file_mounts, fuse_directory_mounts) = mounts.lists().await;
     request::Container {
         image: template.image.clone(),
         template: template_id.to_string(),
         memory: template.memory,
         disk: template.disk,
         volume_mounts: Vec::new(),
-        fuse_file_mounts: mounts.files.clone(),
-        fuse_directory_mounts: mounts.directories.clone(),
+        fuse_file_mounts,
+        fuse_directory_mounts,
         arguments: template.arguments.clone(),
     }
 }

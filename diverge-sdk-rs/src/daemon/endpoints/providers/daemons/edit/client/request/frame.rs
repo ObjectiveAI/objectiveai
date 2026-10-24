@@ -1,34 +1,31 @@
 //! What a client's request frame carries for an edit.
 
+use serde::{Deserialize, Serialize};
+
+use crate::daemon::patch::Patch;
+use crate::shared::relay::Relay;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use serde::{Deserialize, Serialize};
-use crate::shared::relay::Relay;
 
-use crate::daemon::endpoints::providers::daemons::Link;
-
-/// Ask the daemon to change a daemon record, by name: its links,
-/// replaced whole — the links given are the new links entire, and an
-/// empty list leaves the daemon reached through nothing. Its accounts
-/// are changed one by one, by
+/// Ask the daemon to change a daemon record, by name: a patch to its
+/// editable member, the links. The patch is applied to the record's
+/// [`Editable`](super::Editable) document, whole or not at all, and the result's links
+/// are the record's from then on — an empty list leaves the daemon
+/// reached through nothing. Its accounts are changed one by one, by
 /// [`accounts::edit`](crate::daemon::endpoints::providers::daemons::accounts::edit).
-/// A request giving no links changes nothing and is not a failure.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The daemon's name, as its add gave it.
     pub name: String,
-    /// The providers it is reached through from now on, whole: see
-    /// [`Link`]. Each link's provider is one of the caller's on record.
-    /// Absent, the links are as they were.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub links: Option<Vec<Link>>,
+    /// The patch: see [`Patch`], and [`Editable`](super::Editable) for the document it
+    /// is applied to. Empty, nothing changes.
+    pub patch: Patch,
     /// Served by another daemon, as one of the accounts this daemon
     /// holds on it: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }
-
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader

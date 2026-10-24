@@ -34,8 +34,7 @@ pub async fn run(
             return request_schema::<request::Frame>("diverge run accounts delete", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>("diverge run accounts delete", emitter)
-                .await;
+            return response_schema::<response::Frame>("diverge run accounts delete", emitter).await;
         }
         None => {}
     }

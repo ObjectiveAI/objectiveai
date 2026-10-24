@@ -6,8 +6,10 @@
 //! what a request is. So this module owns the socket and the
 //! dispatch. [`run`] starts the database the configuration names,
 //! opens the store on it, builds the one [`Daemon`](crate::daemon::Daemon),
-//! listens, waits for Ctrl-C or SIGTERM, drains, and stops the
-//! database it started. [`listen`] accepts a WebSocket upgrade at any
+//! listens, waits for Ctrl-C or SIGTERM — or for [`stop`], a loopback
+//! `POST /stop` on the same port, the one plain HTTP request the
+//! daemon answers — drains, and stops the database it started.
+//! [`listen`] accepts a WebSocket upgrade at any other
 //! path on the configured port, on every interface; [`connection`] is
 //! one accepted socket for its life: the credential that must come
 //! first, [`admit`](crate::judge::admit)ted, and then every request,
@@ -15,7 +17,7 @@
 //! and handed by [`dispatch`] to its handler — [`accounts`],
 //! [`roles`], [`providers`], [`agents`], [`standalone_tools`],
 //! [`dependency_tools`],
-//! [`volumes`] and [`postgres`] have one per request, every request
+//! [`volumes`], [`vault`], [`postgres`] and [`events`] have one per request, every request
 //! of the wire served — or, when the request carries `relay`, by
 //! [`relay`], this daemon as a conduit to another; what the file
 //! operations of every family share is [`files`]. A credential that admits a provider rather
@@ -50,6 +52,7 @@ mod listen;
 mod pair;
 pub mod reply;
 mod run;
+mod stop_route;
 
 pub use connection::*;
 pub use dispatch::*;
@@ -58,10 +61,12 @@ pub use listen::*;
 pub use pair::*;
 pub use reply::*;
 pub use run::*;
+pub use stop_route::*;
 
 pub mod accounts;
 pub mod agents;
 pub mod dependency_tools;
+pub mod events;
 pub mod files;
 pub mod inner;
 pub mod postgres;
@@ -70,4 +75,5 @@ pub mod relay;
 pub mod roles;
 pub mod stream;
 pub mod standalone_tools;
+pub mod vault;
 pub mod volumes;

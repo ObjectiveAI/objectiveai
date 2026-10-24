@@ -2,15 +2,15 @@
 //!
 //! [`run`] owns everything between the request and the end: the
 //! lineage read and, when this run changes it, written
-//! ([`Lineage`]); the vault's secrets read and the rotating ones
-//! locked ([`vault`]); the caller's plugins, on both lists, installed
+//! ([`Lineage`]); the fed secrets taken as this run's snapshot
+//! ([`secrets`]); the caller's plugins, on both lists, installed
 //! ([`plugins`]);
 //! the agent rendered into settings ([`settings`]); the entry process
 //! spawned and configured ([`Entry`]); the turns driven over its line
 //! protocol ([`protocol`]) and converted into chunks ([`convert()`]);
-//! the rotated secrets read back after every turn; the queue
-//! consulted at each turn's end ([`QUEUE`]); the entry stopped; the
-//! locks released.
+//! the rotated secrets read back after every turn and left for the
+//! proxy's collect; the queue consulted at each turn's end
+//! ([`QUEUE`]); the entry stopped.
 //!
 //! # The continuation is the database
 //!
@@ -36,10 +36,11 @@
 //! Before the entry says `ready` there is nothing to salvage, and a
 //! failure is the stream's one [`Err`] — the request's own failure, a
 //! status. From then on every failure — a turn that fails, an entry
-//! that dies, a secret that will not set — is a fatal `notification`
-//! chunk, and the run still stops the entry where it can and releases
-//! the locks: the database is the truth of what happened, consistent
-//! up to the last committed write.
+//! that dies, a read-back that will not answer — is a fatal
+//! `notification` chunk, and the run still stops the entry where it
+//! can: the database is the truth of what happened, consistent up to
+//! the last committed write, and what was read back by then is what
+//! the collect answers.
 //!
 //! # One run at a time, and the settlement releases the lock
 //!
@@ -47,8 +48,7 @@
 //! [`Teardown`] captured into the stream: when the stream drops —
 //! finished, or abandoned by a caller that left — the teardown marks
 //! the claim settling, closes the queue on a task, and only then
-//! drops the claim. The entry dies with the stream (`kill_on_drop`),
-//! and held vault locks lapse by their TTL.
+//! drops the claim. The entry dies with the stream (`kill_on_drop`).
 
 mod convert;
 mod entry;
@@ -72,14 +72,14 @@ use futures_util::Stream;
 use rmcp::model::ContentBlock;
 use sqlx::PgPool;
 
-use crate::agent::{Agent, Plugin};
+use crate::agent::{Agent, Plugin, Rotating};
 use crate::agent::plugin::Rotates;
 use crate::claim::Claim;
 use crate::lineage::Lineage;
 use crate::plugins;
 use crate::queue::QUEUE;
+use crate::secrets;
 use crate::settings;
-use crate::vault;
 use protocol::{ReadKind, Request, Response};
 
 /// The run, whole: one stream of chunks. `generation` is the queue's,
@@ -112,35 +112,18 @@ pub fn run(
             }
         };
 
-        let keys = vault::keys(&agent);
-        let statics = match vault::statics(&client, &keys.statics).await {
-            Ok(statics) => statics,
+        // The secrets, as the proxy last fed them: this run's
+        // snapshot, taken once, and what the collect answers until a
+        // read-back finds something newer.
+        let secrets = match secrets::values().await {
+            Ok(secrets) => secrets,
             Err(error) => {
-                yield Err(Error::Vault(error));
+                yield Err(Error::Secrets(error));
                 return;
             }
         };
-        let passphrase = match vault::minted(&client, vault::PASSPHRASE).await {
-            Ok(passphrase) => passphrase,
-            Err(error) => {
-                yield Err(Error::Vault(error));
-                return;
-            }
-        };
-        let salt = match vault::minted(&client, vault::SALT).await {
-            Ok(salt) => salt,
-            Err(error) => {
-                yield Err(Error::Vault(error));
-                return;
-            }
-        };
-        let (rotated, mut held) = match vault::acquire(&client, &keys.rotating).await {
-            Ok(acquired) => acquired,
-            Err(error) => {
-                yield Err(Error::Vault(error));
-                return;
-            }
-        };
+        secrets::seed(&secrets).await;
+        let rotating = agent.rotating();
 
         // Both lists, the model providers first, installed as one set
         // and recorded as one: the lineage pins every package alike.
@@ -169,9 +152,13 @@ pub fn run(
             }
         }
 
-        let mut secrets = statics;
-        secrets.extend(rotated);
-        let rendered = settings::render(&agent, &secrets, client.postgres_url(), &passphrase, &salt);
+        let rendered = settings::render(
+            &agent,
+            &secrets,
+            client.postgres_url(),
+            &lineage.vault_passphrase,
+            &lineage.secret_salt,
+        );
 
         let mut entry = match Entry::start(&rendered.env) {
             Ok(entry) => entry,
@@ -234,7 +221,7 @@ pub fn run(
             yield Ok(notification(note, false));
         }
 
-        // The rotating keys a read-back ever found a value for.
+        // The rotating secrets a read-back ever found a value for.
         let mut found: BTreeSet<String> = BTreeSet::new();
         // Whether the entry still answers.
         let mut alive = true;
@@ -332,13 +319,12 @@ pub fn run(
                 }
             }
 
-            // The rotated secrets, read back and set while the entry
-            // is quiet between turns.
+            // The rotated secrets, read back and left for the collect
+            // while the entry is quiet between turns.
             let mut chunks = Vec::new();
             let read = read_back(
                 &mut entry,
-                &mut held,
-                &keys.rotating,
+                &rotating,
                 &lineage.agent_id,
                 &mut found,
                 &mut chunks,
@@ -383,8 +369,7 @@ pub fn run(
             let mut chunks = Vec::new();
             let read = read_back(
                 &mut entry,
-                &mut held,
-                &keys.rotating,
+                &rotating,
                 &lineage.agent_id,
                 &mut found,
                 &mut chunks,
@@ -460,67 +445,73 @@ pub fn run(
             }
         }
 
-        // A rotating key nothing was ever read back for: the caller's
-        // copy may be stale, and they should know before the next
-        // login fails.
-        for secret in &keys.rotating {
-            if !found.contains(&secret.key) {
+        // A rotating secret nothing was ever read back for: the
+        // collect answers the value it was fed, and the caller should
+        // know before the next login fails.
+        for secret in &rotating {
+            if !found.contains(&secret.name) {
                 yield Ok(notification(
                     serde_json::json!({
                         "kind": "read_back",
-                        "key": secret.key,
-                        "error": "nothing was found to read back; the vault's copy may be stale",
+                        "key": secret.name,
+                        "error": "nothing was found to read back; the collect answers the value fed",
                     }),
                     false,
                 ));
             }
         }
-
-        if let Err(error) = held.release().await {
-            yield Ok(notification(error.message(), true));
-        }
     }
 }
 
 /// Read every rotating secret back from where its plugin leaves it,
-/// and set the ones that changed. A value found marks the key found;
-/// nothing found is nothing new; a channel that fails is said, non-
-/// fatal. The entry's stray lines while a read is pending — post-turn
-/// usage, above all — are collected into `chunks` for the caller to
-/// yield. Only the entry's pipe failing is an error.
+/// and leave the ones that changed for the collect. A value found
+/// marks the secret found; nothing found is nothing new; a channel
+/// that fails is said, non-fatal, and the fed value stands. The
+/// entry's stray lines while a read is pending — post-turn usage,
+/// above all — are collected into `chunks` for the caller to yield.
+/// Only the entry's pipe failing is an error.
 async fn read_back(
     entry: &mut Entry,
-    held: &mut vault::Held,
-    rotating: &[vault::Rotating],
+    rotating: &[Rotating],
     agent_id: &str,
     found: &mut BTreeSet<String>,
     chunks: &mut Vec<AgenticLoopChunk>,
 ) -> Result<(), io::Error> {
     for secret in rotating {
         let value = match &secret.rotates {
-            Rotates::InPlace(_) => ask(entry, ReadKind::Setting, &secret.key, chunks)
-                .await?
-                .map(String::into_bytes),
-            Rotates::Setting { setting } => ask(entry, ReadKind::Setting, setting, chunks)
-                .await?
-                .map(String::into_bytes),
+            Rotates::InPlace(_) => ask(entry, ReadKind::Setting, &secret.name, chunks).await?,
+            Rotates::Setting { setting } => ask(entry, ReadKind::Setting, setting, chunks).await?,
             Rotates::Vault { vault } => {
                 let key = vault.replace("{agent_id}", agent_id);
-                ask(entry, ReadKind::Vault, &key, chunks)
-                    .await?
-                    .map(String::into_bytes)
+                ask(entry, ReadKind::Vault, &key, chunks).await?
             }
             Rotates::File { file } => {
                 let mut path = PathBuf::from("/");
                 path.extend(file);
                 match tokio::fs::read(&path).await {
-                    Ok(bytes) => Some(bytes),
+                    Ok(bytes) => match String::from_utf8(bytes) {
+                        Ok(text) => Some(text),
+                        // A secret is text; a file that is not
+                        // cannot be handed back as one, and the fed
+                        // value stands.
+                        Err(_) => {
+                            chunks.push(notification(
+                                serde_json::json!({
+                                    "kind": "read_back",
+                                    "key": secret.name,
+                                    "error": format!("{}: not UTF-8 text", path.display()),
+                                }),
+                                false,
+                            ));
+                            None
+                        }
+                    },
                     Err(error) if error.kind() == io::ErrorKind::NotFound => None,
                     Err(error) => {
                         chunks.push(notification(
                             serde_json::json!({
                                 "kind": "read_back",
-                                "key": secret.key,
+                                "key": secret.name,
                                 "error": format!("{}: {error}", path.display()),
                             }),
                             false,
@@ -531,10 +522,8 @@ async fn read_back(
             }
         };
         if let Some(value) = value {
-            found.insert(secret.key.clone());
-            if let Err(error) = held.set_if_changed(&secret.key, value).await {
-                chunks.push(notification(error.message(), false));
-            }
+            found.insert(secret.name.clone());
+            secrets::leave(&secret.name, value).await;
         }
     }
     Ok(())

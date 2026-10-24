@@ -6,8 +6,9 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
+use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{dequeue, enqueue};
-use crate::shared::containers::{postgres, read, transfer, write_path};
+use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 
 /// What a caller asks a provider for while an agent container runs.
 ///
@@ -22,15 +23,18 @@ use crate::shared::containers::{postgres, read, transfer, write_path};
 /// | `3` | [`Write`](Self::Write) |
 /// | `4` | [`Transfer`](Self::Transfer) |
 /// | `5` | [`Postgres`](Self::Postgres) |
-/// | `6` | [`Schema`](Self::Schema) |
+/// | `6` | [`Info`](Self::Info) |
 /// | `7` | [`Enqueue`](Self::Enqueue) |
 /// | `8` | [`Dequeue`](Self::Dequeue) |
+/// | `9` | [`FuseMount`](Self::FuseMount) |
+/// | `10` | [`Secrets`](Self::Secrets) |
 ///
 /// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
 /// family's own exchange — no daemon connection among them, since an
-/// agent container holds no account and asks the daemon nothing. All
-/// of them but the first reach INTO the
+/// agent container holds no account and asks the daemon nothing —
+/// and then the mount and the feed, which every scope has again, each
+/// under a tag of its own. All of them but the first reach INTO the
 /// container, which is the thing a caller cannot dial: it runs on the
 /// provider. That is the whole reason these channels open outward
 /// from the client rather than the other way. What comes OUT of the
@@ -98,9 +102,9 @@ pub enum Frame {
     /// What the arguments may be. Tag `6`.
     ///
     /// Carries nothing — the variant is bare — and the provider answers
-    /// with the JSON Schema of the container's arguments. See
-    /// [`schema`](crate::shared::containers::schema).
-    Schema,
+    /// with the image's DIVERGE.md, parsed, or that it has none. See
+    /// [`info`](crate::shared::containers::info).
+    Info,
     /// A message for the agent. Tag `7`.
     ///
     /// The one way into it: a message with no loop running starts one,
@@ -119,6 +123,30 @@ pub enum Frame {
     /// Each message it withdraws is ALSO answered, on its own enqueue
     /// channel. See [`dequeue`](crate::shared::containers::dequeue).
     Dequeue(dequeue::request::Request),
+    /// A FUSE mount made while the container runs. Tag `9`.
+    ///
+    /// The caller serves one more file or directory into the
+    /// container at a path, under an id of its own, as the mounts of
+    /// the run's request are served. Answered once — by a
+    /// [`fuse_mount::response::Frame`](crate::shared::containers::fuse_mount::response::Frame)
+    /// saying the mount is made, or why not — and then the finish;
+    /// the answer precedes every ask of the id. See
+    /// [`fuse_mount`](crate::shared::containers::fuse_mount).
+    FuseMount(fuse_mount::request::Request),
+    /// The secrets' values, fed to the program at an activation. Tag
+    /// `10`.
+    ///
+    /// Carries the [`Values`] as JSON — every name the program
+    /// declared, each to its value, a `fixed` one read and a
+    /// `rotating` one locked — which the provider relays to the proxy,
+    /// and the proxy hands the program before it delivers anything.
+    /// Opened by the caller when an idle container is about to
+    /// receive work and holds no values: after the registration's
+    /// own feed, that is after every `Inactive`. Answered once — by a
+    /// [`feed::response::Frame`](crate::shared::containers::secrets::feed::response::Frame),
+    /// `Fed` or the program's refusal — and then the finish. See
+    /// [`secrets`](crate::shared::containers::secrets).
+    Secrets(Values),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -139,14 +167,20 @@ const TRANSFER: u8 = 4;
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 5;
 
-/// Tag for [`Frame::Schema`].
-const SCHEMA: u8 = 6;
+/// Tag for [`Frame::Info`].
+const INFO: u8 = 6;
 
 /// Tag for [`Frame::Enqueue`].
 const ENQUEUE: u8 = 7;
 
 /// Tag for [`Frame::Dequeue`].
 const DEQUEUE: u8 = 8;
+
+/// Tag for [`Frame::FuseMount`].
+const FUSE_MOUNT: u8 = 9;
+
+/// Tag for [`Frame::Secrets`].
+const SECRETS: u8 = 10;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -178,8 +212,8 @@ impl Encode for Frame {
                 out.extend_from_slice(&[POSTGRES]);
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::Schema => {
-                out.extend_from_slice(&[SCHEMA]);
+            Frame::Info => {
+                out.extend_from_slice(&[INFO]);
                 Ok(())
             }
             Frame::Enqueue(request) => {
@@ -189,6 +223,14 @@ impl Encode for Frame {
             Frame::Dequeue(request) => {
                 out.extend_from_slice(&[DEQUEUE]);
                 request.encode(out)
+            }
+            Frame::FuseMount(request) => {
+                out.extend_from_slice(&[FUSE_MOUNT]);
+                request.encode(out)
+            }
+            Frame::Secrets(values) => {
+                out.extend_from_slice(&[SECRETS]);
+                serde_json::to_writer(out, values)
             }
         }
     }
@@ -215,13 +257,19 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            SCHEMA => Ok(Frame::Schema),
+            INFO => Ok(Frame::Info),
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),
             DEQUEUE => dequeue::request::Request::decode(rest)
                 .map(Frame::Dequeue)
                 .map_err(FrameError::Dequeue),
+            FUSE_MOUNT => fuse_mount::request::Request::decode(rest)
+                .map(Frame::FuseMount)
+                .map_err(FrameError::FuseMount),
+            SECRETS => serde_json::from_slice(rest)
+                .map(Frame::Secrets)
+                .map_err(FrameError::Secrets),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -246,6 +294,11 @@ pub enum FrameError {
     Enqueue(serde_json::Error),
     /// The dequeue's key did not parse as JSON.
     Dequeue(serde_json::Error),
+    /// The mount request did not parse.
+    FuseMount(serde_json::Error),
+    /// The secrets' values did not parse as JSON. The message is the
+    /// parser's, which quotes no value.
+    Secrets(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -273,6 +326,12 @@ impl fmt::Display for FrameError {
             FrameError::Dequeue(error) => {
                 write!(f, "dequeue request did not parse: {error}")
             }
+            FrameError::FuseMount(error) => {
+                write!(f, "fuse mount request did not parse: {error}")
+            }
+            FrameError::Secrets(error) => {
+                write!(f, "secrets feed did not parse: {error}")
+            }
         }
     }
 }
@@ -284,7 +343,9 @@ impl Error for FrameError {
             | FrameError::Write(error)
             | FrameError::Transfer(error)
             | FrameError::Enqueue(error)
-            | FrameError::Dequeue(error) => Some(error),
+            | FrameError::Dequeue(error)
+            | FrameError::FuseMount(error)
+            | FrameError::Secrets(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }

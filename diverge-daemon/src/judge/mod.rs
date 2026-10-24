@@ -17,7 +17,7 @@
 //! [`accounts`], [`roles`], [`providers_outgoing`],
 //! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
 //! [`standalone_tools_templates`], [`dependency_tools`],
-//! [`agents`], [`standalone_tools`], [`postgres`] and [`volumes`] are the pure functions that say whether a
+//! [`agents`], [`standalone_tools`], [`postgres`], [`vault`], [`events`] and [`volumes`] are the pure functions that say whether a
 //! standing holds a making action, holds an action over a record, or
 //! holds a tagging action over a record and its tags, by the rule the
 //! wire states: any one grant allowing is the whole of it, nothing
@@ -48,6 +48,7 @@ pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
 pub mod dependency_tools;
+pub mod events;
 pub mod filter;
 pub mod key;
 pub mod postgres;
@@ -57,4 +58,5 @@ pub mod providers_outgoing;
 pub mod roles;
 pub mod standalone_tools;
 pub mod standalone_tools_templates;
+pub mod vault;
 pub mod volumes;

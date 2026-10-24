@@ -17,7 +17,7 @@
 //!
 //! Seven. A `begin` leads, one per family, because it is the server's
 //! first act on every connection: the scope the proxy's own asks ride —
-//! the container's database connections, its vault, an agent
+//! the container's database connections, an agent
 //! container's tool calls outward, a tool container's daemon
 //! connection — and the family's own exchanges with
 //! it. A mount is a scope because the asks a mount makes ride it, and a

@@ -7,9 +7,11 @@
 //! channel responses on the proxy's channel, finished when the
 //! caller finishes. One task per ask, so an answer that takes a while
 //! holds up nothing else; the begin's asks ending is the proxy gone.
-//! The agent's chunks ride the other way on no channel at all: off
-//! the begin's main stream, onto the run's.
+//! The agent's chunks, and a tool container's activity, ride the
+//! other way on no channel at all: off the begin's main stream, onto
+//! the run's.
 
+mod activity;
 mod chunks;
 mod daemon;
 mod fuse;
@@ -18,6 +20,7 @@ mod postgres;
 mod relay;
 mod stream;
 
+pub(crate) use activity::*;
 pub(crate) use chunks::*;
 pub(crate) use fuse::*;
 pub(crate) use relay::*;

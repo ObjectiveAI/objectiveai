@@ -11,11 +11,12 @@
 //! queue, taken at a seam of the agent's choosing;
 //! [`dequeue`](crate::shared::containers::dequeue) withdraws
 //! everything not yet taken; neither touches the turn being run.
-//! [`schema`](crate::shared::containers::schema) returns what the
-//! arguments may be, so a caller can learn an image's agent without
-//! knowing the image. The arguments being a value is what lets one
-//! wire carry every agent: what an image accepts is its own to say,
-//! and its schema is how it says it.
+//! [`info`](crate::shared::containers::info) returns what the
+//! arguments may be — the image's own DIVERGE.md, its schema and its
+//! prose — so a caller can learn an image's agent without knowing the
+//! image. The arguments being a value is what lets one wire carry
+//! every agent: what an image accepts is its own to say, and its
+//! DIVERGE.md is how it says it.
 //!
 //! [`run`] owns the container, and there is no connect: an agent
 //! container is its runner's alone. A conversation has one caller —
