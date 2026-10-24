@@ -13,9 +13,11 @@ JSON, read as [Notation](/endpoints/#notation) provides:
 ```
 
 - **`daemon`.** The identity an acceptor is known by on this server:
-  the string the server answered that acceptor's
-  [accept](/endpoints/daemons-accept/response/). The server compares
-  it and does not read it.
+  the object the server answered that acceptor's
+  [accept](/endpoints/daemons-accept/response/), with exactly the
+  members `issuer` and `subject`, each a string. The server compares
+  both members with those of every identity under which an accept
+  scope is open and does not otherwise read them.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is not `23`, and a payload whose bytes after the tag do not parse
   as the request are malformed. [Endpoints](/endpoints/) states how a

@@ -18,7 +18,9 @@ draft: false
   the channel request of its half.
 - **`identity`.** The identity of the connection the connect scope
   was opened on, as the [authorization](/authorization/) established
-  it.
+  it: an object with exactly the members `issuer` and `subject`, each
+  a string, the `iss` and the `sub` claims of the token the connector
+  presented.
 - **`address`.** The peer IP address of that connection, as the
   server observed it.
 

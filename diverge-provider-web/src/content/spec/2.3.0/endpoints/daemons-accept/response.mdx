@@ -23,10 +23,12 @@ scope follows the finish.
   precedes states that the request was not served, as
   [Endpoints](/endpoints/) provides.
 - **The identity.** A payload whose first byte is `0` carries, after
-  that byte as JSON, an object with the member `identity`, a string:
-  the identity of the connection the scope was opened on, as the
-  [authorization](/authorization/) established it. A connector names
-  the acceptor by exactly this string.
+  that byte as JSON, an object with the member `identity`: the
+  identity of the connection the scope was opened on, as the
+  [authorization](/authorization/) established it. The identity is an
+  object with exactly the members `issuer` and `subject`, each a
+  string: the `iss` and the `sub` claims of the token the acceptor
+  presented. A connector names the acceptor by exactly this object.
 - **The error.** A payload whose first byte is `1` carries, after
   that byte, exactly one JSON value in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
