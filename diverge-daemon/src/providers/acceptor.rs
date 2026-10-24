@@ -13,7 +13,7 @@ use futures_util::{Stream, stream};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
 use crate::daemon::Daemon;
-use crate::judge::Admitted;
+use crate::judge::{Admitted, Expected};
 use crate::serve;
 
 /// The daemon's half of one relayed connection: its server frames,
@@ -56,7 +56,7 @@ impl Acceptor for DaemonAcceptor {
             }
         });
         let Handshook { connection: wire, peer } =
-            handshake::accept(Wire::Local { incoming, outgoing }, &*self.daemon.authenticator, connection.address).await.ok()?;
+            handshake::accept(Wire::Local { incoming, outgoing }, &self.daemon.authenticator.expecting(Expected::Account), connection.address).await.ok()?;
         let Ok(Some(Admitted::Client(who))) = self.daemon.authenticator.admit(&peer).await else {
             return None;
         };

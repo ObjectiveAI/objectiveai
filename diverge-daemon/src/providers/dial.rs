@@ -12,6 +12,7 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use super::{attach, url};
 use crate::config::Connect;
 use crate::daemon::Daemon;
+use crate::judge::Expected;
 
 /// How long after a connection ends, or a dial fails, the next dial
 /// is made: long enough that a provider that is down is not
@@ -23,21 +24,20 @@ const PAUSE: Duration = Duration::from_secs(5);
 /// Each round connects to its [`url`], makes the
 /// [`handshake`](diverge_sdk::wire::handshake) as the connector — the
 /// daemon's token from `connect.issuer`, the provider's from the same
-/// issuer verified — and [`attach`]es under the identity the provider
-/// answered as, which must be one the configuration's
-/// `providers.accepted` lists: a provider that answers its info is
-/// held and served until the connection ends. A handshake that fails,
-/// and an identity not accepted, are a round not attached, the socket
-/// dropped. Then the pause, and again. Ended only by the abort handle
+/// issuer verified, and required to be one the configuration's
+/// `providers.accepted` lists — and [`attach`]es under the identity the
+/// provider answered as: a provider that answers its info is
+/// held and served until the connection ends. A handshake that fails
+/// — an identity not accepted among the ways — is a round not
+/// attached, the socket dropped. Then the pause, and again. Ended only by the abort handle
 /// [`Live`](crate::daemon::Live) keeps for it, which drops whatever
 /// connection it holds.
 pub async fn dial(daemon: Arc<Daemon>, connect: Connect) {
     loop {
         if let Ok((socket, _)) = connect_async(url(&connect.address)).await {
             let peer = peer_ip(&socket);
-            if let Ok(Handshook { connection, peer }) = handshake::connect(Connection::Outgoing(socket), &connect.issuer, &*daemon.authenticator, peer).await
-                && daemon.authenticator.provider(&peer)
-            {
+            let expecting = daemon.authenticator.expecting(Expected::Provider);
+            if let Ok(Handshook { connection, peer }) = handshake::connect(Connection::Outgoing(socket), &connect.issuer, &expecting, peer).await {
                 daemon.live.dialled(peer.clone(), connect.address.clone()).await;
                 if let Ok(attached) = attach(connection, peer, &daemon).await {
                     attached.serve().await;

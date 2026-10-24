@@ -12,7 +12,7 @@ use tokio::task::JoinSet;
 
 use super::dispatch;
 use crate::daemon::Daemon;
-use crate::judge::{Admitted, Who};
+use crate::judge::{Admitted, Expected, Who};
 use crate::providers;
 
 /// Serve `connection` from `address` until it ends.
@@ -31,7 +31,7 @@ use crate::providers;
 /// identity a connection holds is dropped the same way; a client
 /// admitted is served here, as a client is.
 pub async fn connection(connection: Connection, address: IpAddr, daemon: Arc<Daemon>) {
-    let Ok(Handshook { connection, peer }) = handshake::accept(connection, &*daemon.authenticator, address).await else {
+    let Ok(Handshook { connection, peer }) = handshake::accept(connection, &daemon.authenticator.expecting(Expected::Admitted), address).await else {
         return;
     };
     match daemon.authenticator.admit(&peer).await {

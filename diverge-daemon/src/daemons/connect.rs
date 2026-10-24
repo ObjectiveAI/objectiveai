@@ -9,13 +9,15 @@ use rand::seq::SliceRandom as _;
 use super::{Fail, Peer};
 use crate::config::Remote;
 use crate::daemon::Daemon;
+use crate::judge::Expected;
 
 /// The connection to `remote`: the one held, while it has not ended;
 /// else one opened now through the remote's links whose providers are
 /// connected, in random order — so that a daemon reachable through
 /// several providers is reached through any of them — the remote named
 /// by the link's `daemon` identity, the relayed connection's handshake
-/// made from the remote's `issuer`; the first that answers kept until
+/// made from the remote's `issuer` and the answer required to be that
+/// same `daemon` identity; the first that answers kept until
 /// it ends, and a watcher forgetting it then. A link whose provider is
 /// not connected is skipped; none connected is [`Fail::NoProvider`];
 /// every one tried and refused is [`Fail::Refused`] with the last
@@ -35,7 +37,7 @@ pub async fn connect(daemon: &Arc<Daemon>, remote: &Remote) -> Result<Arc<Peer>,
             continue;
         };
         let request = daemons_request::Frame { daemon: link.daemon.clone() };
-        match daemons_connect::execute(&handle, &request, &remote.issuer, &*daemon.authenticator).await {
+        match daemons_connect::execute(&handle, &request, &remote.issuer, &daemon.authenticator.expecting(Expected::Daemon(&link.daemon))).await {
             Ok(connected) => {
                 let peer = Arc::new(Peer {
                     daemon: remote.name.clone(),
