@@ -26,7 +26,7 @@ impl Store {
     /// absent, and make its tables where it has none.
     ///
     /// The issuer and the CLI open the one file at once — the CLI to
-    /// add an identity or rotate the keys, the issuer to read them on every
+    /// add an identity or rotate the key, the issuer to read them on every
     /// request — so the journal is WAL, and a write waits as long as
     /// another process's write holds the file: SQLite's longest wait,
     /// about 24 days, which is to say no deadline. Foreign keys are

@@ -6,15 +6,15 @@
 //!
 //! 1. A key is kept in `issuer.sqlite`, whole: the kid, the PEM
 //!    (PKCS#1), and when it was made — see [`mint`].
-//! 2. At the start, every unretired key is read — see
-//!    [`Signing::load`]. With none, one is minted and recorded first.
-//! 3. The newest unretired key signs; every unretired key is
-//!    published in the key set, so a token signed by an older key
-//!    still verifies.
-//! 4. The keys are read once, at the start: a key added or retired
-//!    while the issuer runs is seen at its next start.
-//! 5. A rotation — see [`rotate`] — mints a new key and retires every
-//!    other; with signing out, it also revokes every refresh chain. It
+//! 2. There is one key. At the start it is read — see
+//!    [`Signing::load`]; with none, one is minted and recorded first.
+//! 3. The key signs, and it is the one published in the key set. Were
+//!    there more than one — a rotation stopped half way — the newest
+//!    signs and every one is published.
+//! 4. The key is read once, at the start: a rotation while the issuer
+//!    runs is seen at its next start.
+//! 5. A rotation — see [`rotate`] — mints a new key and removes the
+//!    old; with signing out, it also revokes every refresh chain. It
 //!    takes effect at the issuer's next start: from then on only the
 //!    new key signs and is published, so a token signed by an old key
 //!    no longer verifies once a verifier's cache of the key set lapses,

@@ -4,7 +4,7 @@ use super::{Keys, Record};
 use crate::store::Error;
 
 impl Keys<'_> {
-    /// Record `record`, unretired.
+    /// Record `record`.
     pub async fn add(&self, record: &Record) -> Result<(), Error> {
         sqlx::query("insert into keys (kid, pem, made) values (?, ?, ?)")
             .bind(&record.kid)

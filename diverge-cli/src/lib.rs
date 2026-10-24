@@ -33,9 +33,9 @@
 //! holds the root's lock — and stop it, by one `POST /stop` on its
 //! own port from this host, waited for until the lock is free; see
 //! [`lifecycle`]. The issuer takes no commands of its own: its
-//! identities and its signing keys are worked on here, in its
+//! identities are worked on and its signing key rotated here, in its
 //! `issuer.sqlite` — `issuer identities add|list|remove|password`,
-//! `issuer keys rotate [--sign-out]|list` — see [`cli::issuer`].
+//! `issuer rotate [--sign-out]` — see [`cli::issuer`].
 
 pub mod arguments;
 pub mod cli;

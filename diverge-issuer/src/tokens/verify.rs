@@ -10,7 +10,7 @@ use crate::signing::Signing;
 /// and it is good now. The rules, as RFC 9068 §4 states them:
 ///
 /// 1. The header's `typ` is `at+jwt`, and its `alg` is `RS256`.
-/// 2. Its `kid` names an unretired key, and the signature is that
+/// 2. Its `kid` names the key the issuer read at its start, and the signature is that
 ///    key's.
 /// 3. `iss` is this issuer, exactly, and `exp` has not passed, give or
 ///    take a minute of clock skew.

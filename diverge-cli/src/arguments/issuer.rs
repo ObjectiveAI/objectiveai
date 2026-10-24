@@ -5,9 +5,10 @@ use clap::Subcommand;
 use super::{Action, Lifecycle};
 
 /// The issuer on this host: started, stopped, its `issuer.yaml` worked
-/// on, and the identities and the signing keys in its `issuer.sqlite`.
+/// on, the identities in its `issuer.sqlite`, and its signing key
+/// rotated.
 /// The issuer takes no commands of its own: everything but serving is
-/// done here. The identities and the keys are written to the database
+/// done here. The identities and the key are written to the database
 /// directly, whether the issuer runs or not.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Issuer {
@@ -20,9 +21,17 @@ pub enum Issuer {
     /// The identities a person signs in as.
     #[command(subcommand)]
     Identities(IssuerIdentities),
-    /// The keys every token is signed with.
-    #[command(subcommand)]
-    Keys(IssuerKeys),
+    /// Rotate the key every token is signed with: a new key minted and
+    /// the old removed. From the issuer's next start only the new key
+    /// signs and is published, so a token signed before stops
+    /// verifying; a program signed in refreshes for a new one, unless
+    /// `--sign-out`.
+    Rotate {
+        /// Revoke every refresh token as well: every identity signs in
+        /// again.
+        #[arg(long)]
+        sign_out: bool,
+    },
 }
 
 /// What is done to the identities. The issuer reads them at every
@@ -50,23 +59,4 @@ pub enum IssuerIdentities {
         /// The subject.
         subject: String,
     },
-}
-
-/// What is done to the signing keys. The issuer reads them at its
-/// start, so a rotation holds from its next start.
-#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
-pub enum IssuerKeys {
-    /// Mint a new key and retire every other. From the issuer's next
-    /// start only the new key signs and is published, so a token
-    /// signed before stops verifying; a program signed in refreshes
-    /// for a new one, unless `--sign-out`.
-    Rotate {
-        /// Revoke every refresh token as well: every identity signs in
-        /// again.
-        #[arg(long)]
-        sign_out: bool,
-    },
-    /// Every key, by id, with when it was made and when it was
-    /// retired: one JSON line each, never the key.
-    List,
 }

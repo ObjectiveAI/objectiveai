@@ -9,22 +9,22 @@ use tokio::io::AsyncReadExt as _;
 
 use super::Error;
 use super::print::print;
-use crate::arguments::{Issuer, IssuerIdentities, IssuerKeys};
+use crate::arguments::{Issuer, IssuerIdentities};
 use crate::document::Which;
 use crate::lifecycle::{self, Program};
 
 /// Do `command` on the root: `start` and `stop` as the daemon's and
 /// the provider's are done — see [`lifecycle`] — `config` as every
 /// program's document is — see [`config`](super::config) — and the
-/// identities and the signing keys worked on in `issuer.sqlite`,
-/// printing one JSON line per answer. No line holds a password, a key,
+/// identities worked on and the signing key rotated in
+/// `issuer.sqlite`, printing one JSON line per answer. No line holds a password, a key,
 /// or a hash of either.
 pub async fn run(root: &Path, command: Issuer) -> Result<(), Error> {
     match command {
         Issuer::Lifecycle(action) => Ok(lifecycle::run(root, Program::Issuer, action).await?),
         Issuer::Config(action) => super::config::run(root, Which::Issuer, action).await,
         Issuer::Identities(command) => identities(root, command).await,
-        Issuer::Keys(command) => keys(root, command).await,
+        Issuer::Rotate { sign_out } => rotate(root, sign_out).await,
     }
 }
 
@@ -55,30 +55,19 @@ async fn identities(root: &Path, command: IssuerIdentities) -> Result<(), Error>
     print(&lines).await
 }
 
-/// A keys command, done. A rotation's line says it holds from the
-/// issuer's next start.
-async fn keys(root: &Path, command: IssuerKeys) -> Result<(), Error> {
+/// The signing key rotated, printing what was done and that it holds
+/// from the issuer's next start.
+async fn rotate(root: &Path, sign_out: bool) -> Result<(), Error> {
     let store = Store::open(root).await?;
-    let lines = match command {
-        IssuerKeys::Rotate { sign_out } => {
-            let rotated = signing::rotate(&store, sign_out).await?;
-            vec![json!({
-                "kid": rotated.key.kid,
-                "made": rotated.key.made,
-                "retired": rotated.retired,
-                "signed_out": rotated.signed_out,
-                "takes_effect": "at the issuer's next start",
-            })]
-        }
-        IssuerKeys::List => store
-            .keys()
-            .list()
-            .await?
-            .into_iter()
-            .map(|key| json!({ "kid": key.kid, "made": key.made, "retired": key.retired }))
-            .collect(),
-    };
-    print(&lines).await
+    let rotated = signing::rotate(&store, sign_out).await?;
+    print(&[json!({
+        "kid": rotated.key.kid,
+        "made": rotated.key.made,
+        "removed": rotated.removed,
+        "signed_out": rotated.signed_out,
+        "takes_effect": "at the issuer's next start",
+    })])
+    .await
 }
 
 /// The password on stdin, all of it, the trailing line end dropped.

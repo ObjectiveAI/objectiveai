@@ -23,8 +23,7 @@ create table if not exists identities (
 create table if not exists keys (
     kid     text primary key,
     pem     text not null,
-    made    integer not null,
-    retired integer
+    made    integer not null
 );
 create table if not exists device_codes (
     hash      text primary key,

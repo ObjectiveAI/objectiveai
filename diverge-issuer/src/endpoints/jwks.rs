@@ -9,11 +9,11 @@ use axum::response::IntoResponse;
 use crate::serve::Issuer;
 
 /// How long a verifier may keep the key set, in seconds: short, so
-/// that a key a rotation retired stops verifying soon after the
+/// that a key a rotation removed stops verifying soon after the
 /// issuer's restart.
 const MAX_AGE: &str = "max-age=60";
 
-/// `GET /jwks`: every unretired signing key's public half, as the
+/// `GET /jwks`: the signing key's public half, as the
 /// JSON Web Key Set RFC 7517 §5 defines, made at the start — see
 /// [`signing`](crate::signing) — to be kept a minute at most.
 pub async fn jwks(State(issuer): State<Arc<Issuer>>) -> impl IntoResponse {

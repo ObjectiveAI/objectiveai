@@ -10,7 +10,7 @@
 //! started or stopped by a [`Lifecycle`], or configured — the viewer
 //! and the CLI each a [`Document`], configured alone; the issuer, which
 //! takes no commands of its own, is administered here as [`Issuer`]:
-//! its lifecycle, its document, its identities and its keys. The
+//! its lifecycle, its document, its identities and its key. The
 //! host's OpenID Connect identities are [`Identities`].
 //!
 //! Its own files are flattened into it, so everything is named

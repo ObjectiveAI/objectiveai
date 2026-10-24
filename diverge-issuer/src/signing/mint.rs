@@ -12,8 +12,8 @@ use crate::tokens;
 const BITS: usize = 2048;
 
 /// Mint a signing key — drawn on the blocking pool, since an RSA key is
-/// slow to find — and record it, unretired, PEM and all. The answer is
-/// the record.
+/// slow to find — and record it, PEM and all. The answer is the
+/// record.
 pub async fn mint(store: &Store) -> Result<Record, Error> {
     let drawn = tokio::task::spawn_blocking(|| RsaPrivateKey::new(&mut rsa::rand_core::OsRng, BITS));
     let key = drawn.await.map_err(|_| Error::Panicked)?.map_err(Error::Generate)?;
@@ -29,19 +29,19 @@ pub async fn mint(store: &Store) -> Result<Record, Error> {
 pub struct Rotated {
     /// The new key's record.
     pub key: Record,
-    /// How many keys were retired.
-    pub retired: u64,
+    /// How many old keys were removed.
+    pub removed: u64,
     /// How many refresh chains were revoked: none unless signing out
     /// was asked.
     pub signed_out: u64,
 }
 
-/// Rotate the signing keys — see the [rules](super), rule 5: a new key
-/// minted, every other retired, and, with `sign_out`, every refresh
-/// chain revoked.
+/// Rotate the signing key — see the [rules](super), rule 5: a new key
+/// minted, the old removed, and, with `sign_out`, every refresh chain
+/// revoked.
 pub async fn rotate(store: &Store, sign_out: bool) -> Result<Rotated, Error> {
     let key = mint(store).await?;
-    let retired = store.keys().retire_all_but(&key.kid).await.map_err(Error::Store)?;
+    let removed = store.keys().remove_all_but(&key.kid).await.map_err(Error::Store)?;
     let signed_out = if sign_out { store.refresh().revoke_all().await.map_err(Error::Store)? } else { 0 };
-    Ok(Rotated { key, retired, signed_out })
+    Ok(Rotated { key, removed, signed_out })
 }
