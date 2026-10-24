@@ -4,17 +4,17 @@ use diverge_sdk::daemon::endpoints::providers::daemons::Link;
 use diverge_sdk::shared::Identity;
 use serde::{Deserialize, Serialize};
 
-/// The other daemons this daemon works with: the identities it
-/// accepts, and the ones it reaches. It is the providers' shape: a
-/// daemon that answers a reach, and a daemon that reaches this one, are
-/// judged by the one `accepted` list.
+/// The other daemons this daemon reaches: the identities it accepts
+/// from them, and how it reaches them. A daemon that reaches THIS one
+/// is judged by no list here: it must be an account of this daemon's,
+/// one daemon connecting as it at a time.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct Daemons {
-    /// The identities of the daemons this daemon works with. A daemon
-    /// whose verified `(issuer, subject)` is not here is closed in the
-    /// handshake — one that reached this daemon and one this daemon
-    /// reached alike. Absent, none.
+    /// The identities a daemon this daemon reaches may answer as. A
+    /// reached daemon whose verified `(issuer, subject)` is not here, or
+    /// is held by another connection, is closed in the handshake.
+    /// Absent, none.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub accepted: Vec<Identity>,
     /// The daemons this daemon reaches: see [`Remote`]. Absent, none.

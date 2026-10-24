@@ -31,9 +31,12 @@ pub enum Expected {
     Admitted,
     /// A provider the daemon dialled: one on `providers.accepted`.
     Provider,
-    /// Another daemon, through a provider — one the daemon reached, or
-    /// one that reached it: one on `daemons.accepted`.
+    /// A daemon this daemon reached through a provider: one on
+    /// `daemons.accepted`.
     Daemon,
+    /// A daemon that reached this one through a provider: an account
+    /// of this daemon's, and on no list.
+    Relayed,
 }
 
 /// The daemon's side of every handshake — with a client, a provider or
@@ -46,16 +49,21 @@ pub enum Expected {
 /// 2. **Verifying.** The other end's token is verified against its
 ///    issuer's keys, trusting exactly the issuers `identities` names.
 /// 3. **The two lists.** The daemon has exactly two:
-///    `providers.accepted` and `daemons.accepted`. Whoever answers a
-///    dial, and whoever dials in, must be on the list of the kind the
-///    connection is for — see [`Expected`] — and may be any identity
-///    on it. A socket the daemon accepted may also be an account, a
-///    client, which is on no list.
+///    `providers.accepted`, for every provider, whichever end dialled,
+///    and `daemons.accepted`, for the daemons this daemon reaches.
+///    Whoever answers a dial, and a provider that dials in, must be on
+///    the list of the kind the connection is for — see [`Expected`] —
+///    and may be any identity on it. A daemon that reaches this one is
+///    on no list: it must be an account of this daemon's. A socket the
+///    daemon accepted may also be an account, a client, which is on no
+///    list.
 /// 4. **The lock.** An identity on a list is held for as long as its
-///    connection is open, in either direction: while it is held, it
-///    is not a valid authentication, and a second connection under it
-///    — dialled or dialling in — is refused. Accounts are never held,
-///    and neither is the daemon's own identity. A handshake that fails
+///    connection is open, in either direction, and so is the account a
+///    daemon reaches this one as: while it is held, it is not a valid
+///    authentication, and a second connection under it is refused — an
+///    account has at most one daemon connecting as it at a time. A
+///    client socket's account is never held, and does not count, and
+///    neither is the daemon's own identity. A handshake that fails
 ///    after taking an identity gives it back; the connection gives it
 ///    back when it ends, with [`release`](Self::release).
 /// 5. **Refusing.** Anyone else is refused inside the handshake, which
@@ -73,6 +81,7 @@ pub struct DaemonAuthenticator {
     store: Store,
     held_providers: Mutex<HashSet<Identity>>,
     held_daemons: Mutex<HashSet<Identity>>,
+    held_accounts: Mutex<HashSet<Identity>>,
 }
 
 impl DaemonAuthenticator {
@@ -86,6 +95,7 @@ impl DaemonAuthenticator {
             store,
             held_providers: Mutex::new(HashSet::new()),
             held_daemons: Mutex::new(HashSet::new()),
+            held_accounts: Mutex::new(HashSet::new()),
         }
     }
 
@@ -112,30 +122,39 @@ impl DaemonAuthenticator {
     }
 
     /// The connection holding `identity`, of the kind `expected` names,
-    /// ended: the identity is let go — rule 4. An account was never
-    /// held, and is nothing to let go.
+    /// ended: the identity is let go — rule 4. A client socket's
+    /// account was never held, and is nothing to let go.
     pub async fn release(&self, expected: Expected, identity: &Identity) {
         if let Some(held) = self.list(expected, identity) {
             held.lock().await.remove(identity);
         }
     }
 
-    /// The lock of the list `identity` is on for a connection for
-    /// `expected`, if it is on it: on an accepted socket, a provider's;
-    /// for a dialled provider, the providers'; for another daemon, the
-    /// daemons'.
+    /// The lock `identity` is held under for a connection for
+    /// `expected`, if it is held at all: on an accepted socket, or a
+    /// dialled provider, the providers', for one on the list; for a
+    /// daemon reached, the daemons', for one on the list; for a daemon
+    /// reaching this one, the accounts'.
     fn list(&self, expected: Expected, identity: &Identity) -> Option<&Mutex<HashSet<Identity>>> {
         match expected {
             Expected::Admitted | Expected::Provider if self.providers.contains(identity) => Some(&self.held_providers),
             Expected::Daemon if self.daemons.contains(identity) => Some(&self.held_daemons),
+            Expected::Relayed => Some(&self.held_accounts),
             Expected::Admitted | Expected::Provider | Expected::Daemon => None,
         }
     }
 
     /// Rules 3 and 4 for `peer`: `Ok` with it taken, when it is on the
-    /// list and free, or an account on an accepted socket; else why
-    /// not.
+    /// list and free, or an account a daemon reaches this one as and
+    /// free, or an account on an accepted socket; else why not.
     async fn take(&self, expected: Expected, peer: &Peer) -> Result<(), String> {
+        if expected == Expected::Relayed {
+            match self.account(peer).await {
+                Ok(Some(_)) => {}
+                Ok(None) => return Err(format!("{peer} is not an account")),
+                Err(error) => return Err(error.to_string()),
+            }
+        }
         if let Some(held) = self.list(expected, peer) {
             return if held.lock().await.insert(peer.clone()) { Ok(()) } else { Err(format!("{peer} is held by another connection")) };
         }
@@ -147,6 +166,7 @@ impl DaemonAuthenticator {
             },
             Expected::Provider => Err(format!("{peer} is not on providers.accepted")),
             Expected::Daemon => Err(format!("{peer} is not on daemons.accepted")),
+            Expected::Relayed => Ok(()),
         }
     }
 }

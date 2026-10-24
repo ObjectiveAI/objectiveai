@@ -32,7 +32,7 @@ pub struct Config {
     /// The providers the daemon works with: see [`Providers`]. Absent,
     /// none.
     pub providers: Providers,
-    /// The other daemons this daemon works with through its providers:
+    /// The other daemons this daemon reaches through its providers:
     /// see [`Daemons`]. Absent, none.
     pub daemons: Daemons,
     /// The database the daemon keeps its records in and serves to its
