@@ -15,7 +15,7 @@ export const Frame = z.object({
   ...Filter.shape,
   /** How many roles the list is kept to: the first that many that match. `0` is a list of nothing. Absent, no cap. */
   count: z.number().int().nonnegative().optional(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

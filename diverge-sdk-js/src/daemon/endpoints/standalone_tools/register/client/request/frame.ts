@@ -7,24 +7,22 @@ import { Tool } from "../../../../../../daemon/reference/tool.js";
 
 /**
  * Ask the daemon to keep another daemon's tool as one of the
- * caller's: the `providers.daemons` record, the account held there —
- * over which the caller holds the `connect` grant — and the tool as
- * that daemon names it, under a name if one is given. Nothing is
+ * caller's: the remote daemon, by its name in the configuration — the
+ * caller holding the daemons grant's `connect` — and the tool as that
+ * daemon names it, under a name if one is given. Nothing is
  * connected now: when an attached agent uses the tool, the daemon
  * opens the far daemon's `connect` and drops it when idle. A daemon
  * that cannot be reached is not this request's error; it shows as
  * the tool inactive, and as the agent's calls failing.
  */
 export const Frame = z.object({
-  /** The `providers.daemons` record, by name. */
+  /** The remote daemon the tool is on, by its name in the configuration: see `providers.daemons`. A name no remote daemon has is the register's error. */
   daemon: z.string(),
-  /** The account held on that daemon, by its name in the record. */
-  account: z.string(),
-  /** The tool: by name, by template and index, or another daemon's by the daemon, the account and its reference there. */
+  /** The tool, as that daemon names it: by name, by template and index, or another daemon's by the daemon and its reference there. */
   tool: Tool,
   /** The name, if the tool is to have one; unique among the caller's tools. Absent, none. */
   name: z.string().optional(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

@@ -13,7 +13,7 @@ import { Owner } from "../../../daemon/key/owner.js";
 export const Tool = z.discriminatedUnion("kind", [
   /** A tool made here, by its template and its index, with its name when it has one. */
   z.object({ kind: z.literal("created"), image: Image, template: z.string(), index: z.number().int().nonnegative(), name: z.string().optional() }),
-  /** Another daemon's tool, as served to this one: the daemon and the account it is reached through. */
+  /** Another daemon's tool, as served to this one: the daemon it is reached on, by its name in this daemon's configuration. */
   z.object({
     kind: z.literal("connected"),
     image: Image,
@@ -21,7 +21,6 @@ export const Tool = z.discriminatedUnion("kind", [
     index: z.number().int().nonnegative(),
     name: z.string().optional(),
     daemon: z.string(),
-    account: z.string(),
   }),
   /** A dependency tool, by the template it runs from and whose it is. */
   z.object({ kind: z.literal("dependency"), image: Image, template: z.string(), owner: Owner }),

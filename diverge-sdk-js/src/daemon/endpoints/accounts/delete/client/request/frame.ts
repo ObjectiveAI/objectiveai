@@ -14,7 +14,7 @@ import { Reference } from "../../../../../../daemon/endpoints/accounts/reference
 export const Frame = z.object({
   /** The account. */
   account: Reference,
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

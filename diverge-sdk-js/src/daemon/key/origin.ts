@@ -13,6 +13,6 @@ export const Origin = z.discriminatedUnion("kind", [
   /** Made by a create, from a template. */
   z.object({ kind: z.literal("created"), template: z.string() }),
   /** Registered, from another daemon's tool. */
-  z.object({ kind: z.literal("connected"), daemon: z.string(), account: z.string(), tool: Tool }),
+  z.object({ kind: z.literal("connected"), daemon: z.string(), tool: Tool }),
 ]);
 export type Origin = z.infer<typeof Origin>;

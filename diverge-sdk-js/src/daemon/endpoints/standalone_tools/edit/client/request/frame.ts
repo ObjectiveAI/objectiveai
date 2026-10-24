@@ -19,7 +19,7 @@ export const Frame = z.object({
   tool: Tool,
   /** The operations, in order: see `daemon.patch`. Empty changes nothing. */
   patch: Patch,
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

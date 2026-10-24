@@ -14,7 +14,7 @@ import { Template } from "../../../../../../../daemon/endpoints/standalone_tools
  */
 export const Frame = z.object({
   ...Template.shape,
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

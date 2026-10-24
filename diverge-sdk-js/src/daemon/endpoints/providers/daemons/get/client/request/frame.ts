@@ -1,14 +1,14 @@
-// Getting one daemon, by name.
+// Getting one remote daemon, by name.
 
 import { z } from "zod";
 import { json, tagged } from "../../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../../shared/relay.js";
 
-/** Ask the daemon for one daemon record of the caller's, by name. */
+/** Ask the daemon for one remote daemon of its configuration's, by name. */
 export const Frame = z.object({
-  /** The daemon's name, as its add gave it. */
+  /** The remote's name, as the configuration gives it. */
   name: z.string(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

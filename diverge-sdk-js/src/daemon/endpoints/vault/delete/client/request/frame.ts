@@ -15,7 +15,7 @@ export const Frame = z.object({
   key: z.string(),
   /** Which of the key's values to delete, by number. Absent, the whole key with every value it holds. */
   slot: z.number().int().nonnegative().optional(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

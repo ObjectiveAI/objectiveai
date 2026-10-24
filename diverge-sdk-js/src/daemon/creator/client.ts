@@ -1,6 +1,7 @@
 // The client as a creator.
 
 import { z } from "zod";
+import { Identity } from "../../shared/identity.js";
 
 /**
  * The client itself: what made a thing over an endpoint, and what
@@ -8,7 +9,7 @@ import { z } from "zod";
  * a time.
  */
 export const Client = z.object({
-  /** The account the create was served for: its name when it has one, else the identity its credential names. */
-  identity: z.string(),
+  /** The account the create was served for: its identity. */
+  identity: Identity,
 });
 export type Client = z.infer<typeof Client>;

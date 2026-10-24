@@ -32,13 +32,11 @@ export const Origin = z.discriminatedUnion("kind", [
     /** Its container's id on that provider, while it runs; absent otherwise. */
     id: z.string().optional(),
   }),
-  /** Registered, from another daemon's tool: the daemon record, the account held there, the tool as that daemon names it, and its number among the tools ever registered. */
+  /** Registered, from another daemon's tool: the remote daemon, the tool as that daemon names it, and its number among the tools ever registered. */
   z.object({
     kind: z.literal("connected"),
-    /** The `providers.daemons` record, by name. */
+    /** The remote daemon the tool is on, by its name in the configuration, as the register named it. */
     daemon: z.string(),
-    /** The account held on that daemon, by its name in the record. */
-    account: z.string(),
     /** The tool, as that daemon names it. */
     tool: reference.Tool,
     /** Its number among all connected tools of the caller's ever registered, deleted ones included; never given twice. */

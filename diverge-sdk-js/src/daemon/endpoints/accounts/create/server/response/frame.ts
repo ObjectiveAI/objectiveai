@@ -5,16 +5,15 @@ import { DecodeError, jsonOf, splitTag } from "../../../../../../wire/decode.js"
 import { Error } from "../../../../../../shared/error.js";
 
 /**
- * A create's answer: the account exists, with the keyring entry its
- * key is kept in when it has a credential, one like it exists already, no such role, forbidden,
- * or a failure. Exactly one per scope, before the finish. `exists`
+ * A create's answer: the account exists, one with the identity exists
+ * already, no such role, forbidden, or a failure. Exactly one per scope, before the finish. `exists`
  * and `no_role` are ANSWERS: the daemon looked, and nothing was
  * created; `error` is the absence of an answer.
  */
 export const Frame = z.union([
-  /** The account exists, with its roles. When the request gave a credential, the name of the entry in the daemon's host's keyring the key the daemon minted is kept in — never the key, which no answer carries; `null` for a named account with none. Tag `0`. */
-  z.strictObject({ created: z.string().nullable() }),
-  /** The name or the identity is an account's already; nothing was created. Tag `1`. */
+  /** The account exists, with its roles. Tag `0`. */
+  z.literal("created"),
+  /** The identity is an account's already; nothing was created. Tag `1`. */
   z.literal("exists"),
   /** A role named is none the daemon has; nothing was created. Tag `2`. */
   z.literal("no_role"),
@@ -41,7 +40,7 @@ export function decode(bytes: Uint8Array): Frame {
   const [tag, rest] = splitTag(bytes);
   switch (tag) {
     case CREATED:
-      return { created: z.string().nullable().parse(jsonOf(rest)) };
+      return "created";
     case EXISTS:
       return "exists";
     case NO_ROLE:

@@ -156,17 +156,17 @@ tag table is stated once, in the module, as the Rust states it.
 - `index.ts` barrels at every level, `export * as client`, `export
   * as server`, `export * as request`, `export * as response`.
 
-Every tag of the daemon's table has its folder: one hundred and
-ten endpoints, which `find src/daemon/endpoints -name execute.ts`
-counts. Family-level types sit at the family's root as the Rust's do
-(`accounts/credential.ts`, `accounts/definition.ts`). A provider
-protocol answer a daemon record embeds — a provider's `info`, its
+Every tag of the daemon's table has its folder: ninety endpoints,
+which `find src/daemon/endpoints -name execute.ts` counts.
+Family-level types sit at the family's root as the Rust's do
+(`accounts/reference.ts`, `providers/daemons/link.ts`). A provider
+protocol answer a daemon answer embeds — a provider's `info`, its
 `capacity` — is the same schema at the provider's own path,
 `provider/endpoints/<request>/server/response/frame.ts`, loose
 where the Rust ignores what it does not know. Every `execute`
 takes a `Handle` and never knows which kind it was handed. There are
 no path strings and no registries: an endpoint is reached by
-importing it, `daemon.endpoints.accounts.get.client.execute(handle, { account: { name: "ci" } })`.
+importing it, `daemon.endpoints.accounts.get.client.execute(handle, { account: { issuer: "https://auth.example.com", subject: "ci" } })`.
 
 ## Two handles, one seam
 

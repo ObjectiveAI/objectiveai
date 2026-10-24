@@ -3,12 +3,13 @@
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../shared/relay.js";
+import { Identity } from "../../../../../../shared/identity.js";
 import { Inner } from "../../../../../../daemon/create/inner.js";
 
 /**
  * Ask the daemon to make a tool: from a template by its id, under a
- * name if one is given, as a named account of the daemon's if it is
- * to hold any grant, with the vault keys its secrets come from,
+ * name if one is given, as an account of the daemon's if it is to
+ * hold any grant, with the vault keys its secrets come from,
  * pinned to a provider with that provider's volumes mounted, and
  * with providers' volumes served live over FUSE — `create.Inner`,
  * flattened, the account and the name. Nothing runs at a create. A
@@ -18,11 +19,11 @@ import { Inner } from "../../../../../../daemon/create/inner.js";
  */
 export const Frame = z.object({
   ...Inner.shape,
-  /** The named account the tool acts as toward the daemon, if any; absent, it holds no grant. */
-  account: z.string().optional(),
+  /** The account the tool acts as toward the daemon, by its identity, if any; absent, it holds no grant. */
+  account: Identity.optional(),
   /** The name, if the tool is to have one; unique among the caller's tools. Absent, none. */
   name: z.string().optional(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

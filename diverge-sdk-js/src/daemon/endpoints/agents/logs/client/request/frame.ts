@@ -33,7 +33,7 @@ export const Frame = z.object({
   count: z.number().int().nonnegative().optional(),
   /** Whether to watch: `true`, the daemon sends what matches now and then runs the filter over each item as it lands, until the count is met, the filter can never match again, a cancel, or the agent's deletion; `false` or absent, the daemon sends what matches now and finishes. */
   watch: z.boolean().optional(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

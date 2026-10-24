@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { FuseMount } from "../../../../../../daemon/endpoints/agents/create/client/request/fuse_mount.js";
 import { VolumeMount } from "../../../../../../daemon/endpoints/agents/create/client/request/volume_mount.js";
+import { Identity } from "../../../../../../shared/identity.js";
 
 /**
  * The members of a tool an edit may change, as one JSON document —
@@ -17,8 +18,8 @@ import { VolumeMount } from "../../../../../../daemon/endpoints/agents/create/cl
 export const Editable = z.strictObject({
   /** The name, or `null` for none. */
   name: z.string().nullable(),
-  /** The named account the tool acts as, or `null` for none. */
-  account: z.string().nullable(),
+  /** The account the tool acts as, by its identity, or `null` for none. */
+  account: Identity.nullable(),
   /** The pinned provider's volumes mounted into the container, in order. */
   volume_mounts: z.array(VolumeMount),
   /** Files of providers' volumes served live over FUSE. */

@@ -99,7 +99,7 @@ import { daemon, shared, wire } from "@diverge/sdk";
 const handle = await wire.client.dial("127.0.0.1:" + daemon.DEFAULT_PORT, key);
 
 // One answer.
-const answer = await daemon.endpoints.accounts.get.client.execute(handle, { account: { name: "ci" } });
+const answer = await daemon.endpoints.accounts.get.client.execute(handle, { account: { issuer: "https://auth.example.com", subject: "ci" } });
 if (typeof answer === "object" && "found" in answer) {
   console.log(answer.found.identity);
 }
@@ -128,7 +128,7 @@ supplies — a `Uint8Array`, or an async iterable of them:
 ```ts
 import { daemon } from "@diverge/sdk";
 
-const volume = { provider: { kind: "outgoing" as const, address: "127.0.0.1:14979" }, name: "data" };
+const volume = { provider: { issuer: "https://auth.example.com", subject: "provider-1" }, name: "data" };
 const uploaded = await daemon.endpoints.volumes.upload.client.execute(
   handle,
   { kind: "directory", volume, path: ["site"], files: ["index.html", "css/main.css"] },
@@ -147,8 +147,8 @@ console.log(uploaded); // "uploaded", or why not
   the five MCP exchanges as frames, the server's error whole, and
   the attestation this SDK puts in a `_meta`.
 - `daemon` — the daemon protocol: the exchange shapes under
-  `client`, and the one hundred and ten endpoints under
-  `endpoints`, one folder each.
+  `client`, and the ninety endpoints under `endpoints`, one folder
+  each.
 - `provider` — the provider protocol as far as the daemon's answers
   reach into it: a volume's mode and its write content answer, a
   provider's `info` and `capacity`, the chunks an agent's run

@@ -1,12 +1,7 @@
-// Which account a request means.
+// Naming an account.
 
-import { z } from "zod";
+import { Identity } from "../../../shared/identity.js";
 
-/**
- * Which account a request means: by its name, or by the identity
- * its credential names. Untagged JSON, one object either way,
- * `{"name":…}` or `{"identity":…}`; an object with both does not
- * decode. A named account with a credential is named by either.
- */
-export const Reference = z.union([z.strictObject({ name: z.string() }), z.strictObject({ identity: z.string() })]);
-export type Reference = z.infer<typeof Reference>;
+/** Which account a request means: its identity, `{"issuer":…,"subject":…}`. One account per identity, so each names exactly one. */
+export const Reference = Identity;
+export type Reference = Identity;

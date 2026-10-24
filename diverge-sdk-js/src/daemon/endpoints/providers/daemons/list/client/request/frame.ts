@@ -1,4 +1,4 @@
-// Listing the caller's daemons, narrowed, and keeping the list.
+// Listing the remote daemons, narrowed, and keeping the list.
 
 import { z } from "zod";
 import { json, tagged } from "../../../../../../../wire/encode.js";
@@ -6,16 +6,16 @@ import { Relay } from "../../../../../../../shared/relay.js";
 import { Filter } from "./filter.js";
 
 /**
- * Ask the daemon for the caller's daemons, narrowed. Everything is optional, and a
- * request with none of it — `{}` on the wire — is every one the
- * caller's grants reach. The members but `count` are the filter,
- * flattened in.
+ * Ask the daemon for the remote daemons of its configuration's,
+ * narrowed. Everything is optional, and a request with none of it —
+ * `{}` on the wire — is every one. The members but `count` are the
+ * filter, flattened in.
  */
 export const Frame = z.object({
   ...Filter.shape,
   /** How many the list is kept to: the first that many that match. `0` is a list of nothing. Absent, no cap. */
   count: z.number().int().nonnegative().optional(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

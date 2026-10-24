@@ -12,7 +12,7 @@ import { Daemon } from "../../../../../../../daemon/endpoints/providers/daemons/
 export const Frame = z.union([
   /** The daemon, as the list reports it. Tag `0`. */
   z.strictObject({ found: Daemon }),
-  /** No daemon of the caller's has the name. Tag `1`. */
+  /** No remote daemon of the configuration's has the name. Tag `1`. */
   z.literal("not_found"),
   /** The account the request is served for holds no grant allowing it; nothing changed. Tag `2`. */
   z.literal("forbidden"),

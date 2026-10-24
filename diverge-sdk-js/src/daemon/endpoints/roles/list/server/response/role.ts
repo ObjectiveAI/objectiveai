@@ -18,7 +18,7 @@ export const Role = z.object({
   description: z.string().optional(),
   /** The grants, as the create or the last edit gave them, in that order. Absent when empty, and then the role allows nothing. */
   grants: z.array(Grant).optional(),
-  /** The accounts that hold it, in no order, each by its name when it has one and otherwise by its credential. Absent when empty. */
+  /** The accounts that hold it, in no order, each by its identity. Absent when empty. */
   accounts: z.array(Reference).optional(),
   /** Its tags, sorted bytewise. Absent when empty. */
   tags: z.array(z.string()).optional(),

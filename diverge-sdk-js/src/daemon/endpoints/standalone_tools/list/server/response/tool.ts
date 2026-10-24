@@ -41,9 +41,9 @@ export type Tool = z.infer<typeof Tool>;
  * Keyed by the origin less the members that may change while listed
  * — a created tool's mode, provider and container id — so a created
  * tool is its template and its index, a connected one the daemon,
- * the account, the reference and its index. The name is not in it.
+ * the reference and its index. The name is not in it.
  */
 export const key: Keyed<Tool> = (tool) =>
   tool.origin.kind === "created"
     ? { kind: "created", template: tool.origin.template, index: tool.origin.index }
-    : { kind: "connected", daemon: tool.origin.daemon, account: tool.origin.account, tool: tool.origin.tool, index: tool.origin.index };
+    : { kind: "connected", daemon: tool.origin.daemon, tool: tool.origin.tool, index: tool.origin.index };
