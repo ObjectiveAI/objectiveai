@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { afterAnswer, afterCardEvent, arrivalKeys, arrivals, noCards } from "./lib/cards";
-import type { AgentView } from "./bindings/AgentView";
+import type { AgentsSnapshot } from "./bindings/AgentsSnapshot";
 import type { AppInfo } from "./bindings/AppInfo";
 import type { KnockView } from "./bindings/KnockView";
 import type { FileNoticeView } from "./bindings/FileNoticeView";
@@ -14,6 +14,7 @@ import { Empty } from "./components/ui";
 import { SharedContext } from "./lib/context";
 import { api } from "./lib/ipc";
 import { setMachineNames } from "./lib/format";
+import { AgentsMap } from "./screens/AgentsMap";
 import { Conversation } from "./screens/Conversation";
 import { Home } from "./screens/Home";
 import { Inbox } from "./screens/Inbox";
@@ -27,13 +28,12 @@ import { Storage } from "./screens/Storage";
 import { Views } from "./screens/Views";
 import { t } from "./strings";
 
-// The daemon's list answers once and finishes — it is not live — so the
-// rail re-asks on a short clock and after every action.
+// Files set aside are asked about again on a short clock. Agents aren't: the
+// app holds the daemon's list open and sends every change (agents_watch).
 const RELIST_MS = 2500;
 
 export function App() {
-  const [agents, setAgents] = useState<AgentView[]>([]);
-  const [listedAt, setListedAt] = useState(0);
+  const [listed, setListed] = useState<AgentsSnapshot>({ generation: 0, state: { state: "waiting" }, agents: [], tree: [] });
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [tabs, setTabs] = useState<TabsSnapshot>({ generation: 0, tabs: [], focused: null });
   const [spaces, setSpaces] = useState<SpaceSummary[]>([]);
@@ -54,12 +54,6 @@ export function App() {
     refreshSpaces();
   }, [refreshSpaces]);
 
-  const refreshAgents = useCallback(async () => {
-    const listed = await api.agentsList();
-    setAgents(listed.agents);
-    setListedAt(Date.now());
-  }, []);
-
   // Files the app couldn't use, set aside untouched or left where they are: said on every screen, as they turn up.
   const [setAside, setSetAside] = useState<FileNoticeView[]>([]);
   const refreshSetAside = useCallback(() => {
@@ -75,25 +69,24 @@ export function App() {
       // Lead with the work: Home is the first thing open.
       if (snapshot.tabs.length === 0) api.tabOpen({ kind: "home" }).then(apply);
     });
-    refreshAgents();
     refreshSpaces();
     refreshSetAside();
+    // Whole snapshots, each newer than the last: a late one never undoes a newer.
+    const agentsScope = api.agentsWatch((snapshot) => setListed((current) => (snapshot.generation >= current.generation ? snapshot : current)));
     const knocksScope = api.knocksWatch((event) => {
       if (event.event === "knock") setKnocks((k) => (k.some((x) => x.knock_id === event.knock.knock_id) ? k : [...k, event.knock]));
     });
     const cardsScope = api.cardsWatch((event) => setCards((s) => afterCardEvent(s, event)));
-    const timer = setInterval(() => {
-      refreshAgents();
-      refreshSetAside();
-    }, RELIST_MS);
+    const timer = setInterval(refreshSetAside, RELIST_MS);
     const unlisten = api.onTabs((snapshot) => setTabs((current) => (snapshot.generation >= current.generation ? snapshot : current)));
     return () => {
       clearInterval(timer);
       unlisten.then((stop) => stop());
       knocksScope.then((id) => api.scopeClose(id));
       cardsScope.then((id) => api.scopeClose(id));
+      agentsScope.then((id) => api.scopeClose(id));
     };
-  }, [refreshAgents, refreshSpaces, refreshSetAside]);
+  }, [refreshSpaces, refreshSetAside]);
 
   const apply = useCallback((snapshot: TabsSnapshot) => setTabs((current) => (snapshot.generation >= current.generation ? snapshot : current)), []);
   const open = useCallback((tab: TabKind) => void api.tabOpen(tab).then(apply), [apply]);
@@ -174,8 +167,8 @@ export function App() {
   }, []);
 
   const shared = useMemo(
-    () => ({ agents, listedAt, refreshAgents, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard }),
-    [agents, listedAt, refreshAgents, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard],
+    () => ({ agents: listed.agents, agentsState: listed.state, tree: listed.tree, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard }),
+    [listed, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard],
   );
 
   return (
@@ -219,6 +212,7 @@ export function App() {
             {tabs.tabs.map(({ key, tab }) => (
               <div key={key} className="pane" data-pane={key} hidden={tabs.focused !== key}>
                 {tab.kind === "agent" ? <Conversation name={tab.name} tabKey={key} /> : null}
+                {tab.kind === "agents" ? <AgentsMap /> : null}
                 {tab.kind === "new_agent" ? <NewAgent tabKey={key} /> : null}
                 {tab.kind === "storage" ? <Storage /> : null}
                 {tab.kind === "home" ? <Home /> : null}

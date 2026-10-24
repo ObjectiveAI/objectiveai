@@ -1,4 +1,5 @@
 import { answerLabel, cardDetails, cardLine, cardNote, inTimeOrder } from "../lib/cards";
+import type { AgentView } from "../bindings/AgentView";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardView } from "../bindings/CardView";
 import type { LogEntry } from "../bindings/LogEntry";
@@ -7,17 +8,18 @@ import { MountsPanel } from "../components/Mounts";
 import { Button, Card, Chip, Dot, Escapes } from "../components/ui";
 import { useShared } from "../lib/context";
 import { argsLine, fold, pretty, shown, type Block, type Part, type WorkSummary } from "../lib/conversation";
-import { ago, kindTitle, number, providerName, time } from "../lib/format";
+import { agentLabel, ago, kindTitle, number, providerName, senderLabel, time } from "../lib/format";
 import { api, errorText, ticket as newTicket } from "../lib/ipc";
 import { t } from "../strings";
 
 type Pending = { ticket: string; text: string; state: "waiting" | "taken" | "late" | "error"; error?: string };
 
 export function Conversation(props: { name: string; tabKey: string }) {
-  const { agents, refreshAgents, cards, withdrawn, answerCard } = useShared();
+  const { agents, cards, withdrawn, answerCard } = useShared();
   const mine = cards.filter((c) => c.agent === props.name);
   const gone = withdrawn.filter((c) => c.agent === props.name);
-  const agent = agents.find((a) => a.name === props.name);
+  const agent = agents.find((a) => a.key === props.name);
+  const label = agent ? agentLabel(agent) : props.name;
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [watching, setWatching] = useState(true);
   const [problem, setProblem] = useState<string | null>(null);
@@ -35,13 +37,14 @@ export function Conversation(props: { name: string; tabKey: string }) {
     let scope: string | null = null;
     let closed = false;
     api
-      .logsOpen({ name: props.name, logs_index_from: lastIndex.current + 1, logs_index_to: null, created_from: null, created_to: null, item_type: null, jq: null, count: null, watch: true }, (event) => {
+      .logsOpen({ name: props.name, logs_index_from: lastIndex.current + 1, logs_index_to: null, created_from: null, created_to: null, item_type: null, count: null, watch: true }, (event) => {
         if (event.event === "entry") {
           const entry = event.entry;
           if (entry.logs_index <= lastIndex.current) return;
           lastIndex.current = entry.logs_index;
           setEntries((list) => [...list, entry]);
         } else if (event.event === "error") setProblem(event.message);
+        else if (event.event === "forbidden") setProblem(t.common.forbidden);
       })
       .then((id) => {
         scope = id;
@@ -90,14 +93,13 @@ export function Conversation(props: { name: string; tabKey: string }) {
       setPending((p) =>
         outcome.outcome === "delivered"
           ? p.filter((x) => x.ticket !== ticket)
-          : p.map((x) => (x.ticket === ticket ? { ...x, state: outcome.outcome === "cancelled" ? "taken" : "error", error: outcome.outcome === "error" ? outcome.message : undefined } : x)),
+          : p.map((x) => (x.ticket === ticket ? { ...x, state: outcome.outcome === "cancelled" ? "taken" : "error", error: outcome.outcome === "error" ? outcome.message : outcome.outcome === "forbidden" ? t.common.forbidden : undefined } : x)),
       );
       if (outcome.outcome === "cancelled") setTimeout(() => setPending((p) => p.filter((x) => x.ticket !== ticket)), 2500);
     } catch (e) {
       setPending((p) => p.map((x) => (x.ticket === ticket ? { ...x, state: "error", error: errorText(e) } : x)));
     }
-    refreshAgents();
-  }, [draft, props.name, refreshAgents]);
+  }, [draft, props.name]);
 
   const takeBack = async (ticket: string) => {
     const had = await api.takeBack(ticket);
@@ -108,8 +110,8 @@ export function Conversation(props: { name: string; tabKey: string }) {
     const outcome = await api.agentsDelete(props.name);
     if (outcome.outcome === "active") setRemoving("refused");
     else if (outcome.outcome === "error") setProblem(outcome.message);
+    else if (outcome.outcome === "forbidden") setProblem(t.common.forbidden);
     else setRemoving("idle");
-    refreshAgents();
   };
 
   const status = runningOn ? (
@@ -130,7 +132,7 @@ export function Conversation(props: { name: string; tabKey: string }) {
     <div className="convo">
       <header className="convo-head">
         <div className="convo-title">
-          <h1>{props.name}</h1>
+          <h1>{label}</h1>
           <span className="muted">{agent ? kindTitle(agent.image_name) : ""}</span>
           {status}
         </div>
@@ -171,7 +173,7 @@ export function Conversation(props: { name: string; tabKey: string }) {
             "card" in placed ? (
               <WithdrawnCard key={`withdrawn-${placed.card.id}`} card={placed.card} />
             ) : (
-              <BlockView key={placed.index} block={placed.item} agentName={props.name} live={running && placed.index === blocks.length - 1} />
+              <BlockView key={placed.index} block={placed.item} agentName={label} agents={agents} live={running && placed.index === blocks.length - 1} />
             ),
           )}
           {mine.map((card) => (
@@ -212,7 +214,7 @@ export function Conversation(props: { name: string; tabKey: string }) {
           <textarea
             rows={2}
             value={draft}
-            placeholder={`${t.convo.placeholder} ${props.name}`}
+            placeholder={`${t.convo.placeholder} ${label}`}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -289,12 +291,12 @@ function AskCard({ card, onAnswer }: { card: CardView; onAnswer: (answer: string
   );
 }
 
-function BlockView({ block, agentName, live }: { block: Block; agentName: string; live: boolean }) {
+function BlockView({ block, agentName, agents, live }: { block: Block; agentName: string; agents: AgentView[]; live: boolean }) {
   switch (block.kind) {
     case "user":
       return (
         <div className="msg msg-user">
-          <div className="msg-meta"><span>{t.convo.you}</span><span className="muted">{time(block.at)}</span></div>
+          <div className="msg-meta"><span>{senderLabel(block.sender, agents)}</span><span className="muted">{time(block.at)}</span></div>
           <div className="bubble"><Markdown text={block.text} />{block.attachments.map((a, i) => <Chip key={i}>{a}</Chip>)}</div>
         </div>
       );

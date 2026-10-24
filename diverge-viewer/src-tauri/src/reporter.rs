@@ -1,6 +1,6 @@
 //! When one of your agents finishes a run, it reports to your Home — the
-//! work is the social layer. The daemon's list is not live, so this asks
-//! every few seconds and watches for active → inactive.
+//! work is the social layer. The app reads the daemon's list once at a
+//! time, so this asks every few seconds and watches for active → inactive.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -11,16 +11,31 @@ use rmcp::model::CallToolRequestParams;
 use serde_json::json;
 
 use diverge_sdk::daemon::endpoints::agents;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Item, ItemWrapper};
+use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Item, User};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 
 use crate::daemon::Daemon;
 use crate::identity::{Actor, Identity};
 use crate::spaces::Spaces;
 
+/// A whole log read, of the agent the key names, from `from` on.
+fn read_log(key: &str, from: Option<u64>) -> agents::logs::client::request::Frame {
+    agents::logs::client::request::Frame {
+        agent: crate::daemon::reference_of(key),
+        logs_index_from: from,
+        logs_index_to: None,
+        created_from: None,
+        created_to: None,
+        r#type: None,
+        count: None,
+        watch: None,
+        relay: None,
+    }
+}
+
 /// The last turn's text and measurement, from the log after its last `active`.
 pub async fn last_turn(daemon: &dyn Daemon, name: &str) -> (String, Option<String>) {
-    let request = agents::logs::client::request::Frame { name: name.into(), logs_index_from: None, logs_index_to: None, created_from: None, created_to: None, r#type: None, jq: None, count: None, watch: None };
+    let request = read_log(name, None);
     let mut frames = daemon.agents_logs(request, tokio_util::sync::CancellationToken::new());
     let mut text = String::new();
     let mut measured = None;
@@ -28,8 +43,7 @@ pub async fn last_turn(daemon: &dyn Daemon, name: &str) -> (String, Option<Strin
     // means a new paragraph, so the report reads as the agent spoke.
     let mut paragraph_break = false;
     while let Some(frame) = frames.next().await {
-        let agents::logs::server::response::Frame::Value(value) = frame else { continue };
-        let Ok(w) = serde_json::from_value::<ItemWrapper>(value) else { continue };
+        let agents::logs::server::response::Frame::Item(w) = frame else { continue };
         match w.item {
             Item::Active(_) => {
                 text.clear();
@@ -46,7 +60,7 @@ pub async fn last_turn(daemon: &dyn Daemon, name: &str) -> (String, Option<Strin
                 }
             }
             Item::Chunk(AgenticLoopChunk::Usage(u)) => measured = Some(format!("{} tokens", u.total_tokens)),
-            Item::Chunk(_) => paragraph_break = true,
+            Item::User(_) | Item::Chunk(_) => paragraph_break = true,
             Item::Error(_) | Item::Inactive(_) => {}
         }
     }
@@ -63,12 +77,10 @@ async fn home_is_yours_alone(spaces: &dyn Spaces, identity: &Identity, home: &cr
 
 /// Where an agent's log ends now: the last item's index, or 0.
 pub async fn log_end(daemon: &dyn Daemon, name: &str) -> u64 {
-    let request = agents::logs::client::request::Frame { name: name.into(), logs_index_from: None, logs_index_to: None, created_from: None, created_to: None, r#type: None, jq: None, count: None, watch: None };
-    let mut frames = daemon.agents_logs(request, tokio_util::sync::CancellationToken::new());
+    let mut frames = daemon.agents_logs(read_log(name, None), tokio_util::sync::CancellationToken::new());
     let mut end = 0;
     while let Some(frame) = frames.next().await {
-        let agents::logs::server::response::Frame::Value(value) = frame else { continue };
-        if let Ok(w) = serde_json::from_value::<ItemWrapper>(value) {
+        if let agents::logs::server::response::Frame::Item(w) = frame {
             end = end.max(w.logs_index);
         }
     }
@@ -79,14 +91,12 @@ pub async fn log_end(daemon: &dyn Daemon, name: &str) -> u64 {
 /// from its own parts up to the next message's, or the run's end. Nothing
 /// from any other run, before or after, gets in.
 pub async fn run_after(daemon: &dyn Daemon, name: &str, after: u64) -> (String, Option<String>) {
-    let request = agents::logs::client::request::Frame { name: name.into(), logs_index_from: Some(after + 1), logs_index_to: None, created_from: None, created_to: None, r#type: None, jq: None, count: None, watch: None };
-    let mut frames = daemon.agents_logs(request, tokio_util::sync::CancellationToken::new());
+    let mut frames = daemon.agents_logs(read_log(name, Some(after + 1)), tokio_util::sync::CancellationToken::new());
     let (mut text, mut measured, mut message, mut paragraph_break) = (String::new(), None, None::<String>, false);
     while let Some(frame) = frames.next().await {
-        let agents::logs::server::response::Frame::Value(value) = frame else { continue };
-        let Ok(w) = serde_json::from_value::<ItemWrapper>(value) else { continue };
+        let agents::logs::server::response::Frame::Item(w) = frame else { continue };
         match w.item {
-            Item::Chunk(chunk) => {
+            Item::User(User { sender: _, chunk }) | Item::Chunk(chunk) => {
                 let v = serde_json::to_value(&chunk).unwrap_or_default();
                 let kind = v.get("type").and_then(|t| t.as_str()).unwrap_or_default();
                 if kind.starts_with("user_") {
@@ -128,21 +138,21 @@ pub fn spawn(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: Arc<Ide
         let mut seen: HashMap<String, bool> = HashMap::new();
         loop {
             tokio::time::sleep(Duration::from_millis(2500)).await;
-            let listed = daemon.agents_list(agents::list::client::request::Frame {}).collect::<Vec<_>>().await;
-            for frame in listed {
-                let agents::list::server::response::Frame::Agent(a) = frame else { continue };
-                let was = seen.insert(a.name.clone(), a.active);
+            for frame in crate::daemon::agents_listed(daemon.as_ref()).await {
+                let agents::list::server::response::Frame::Added(a) = frame else { continue };
+                let key = crate::daemon::agent_key(a.name.as_deref(), &a.template, a.index);
+                let was = seen.insert(key.clone(), a.active);
                 if was == Some(true) && !a.active {
                     let Some(home) = spaces.home().await else { continue };
-                    let (text, measured) = last_turn(daemon.as_ref(), &a.name).await;
+                    let (text, measured) = last_turn(daemon.as_ref(), &key).await;
                     // A run's words go only where nobody else reads them: with others in Home, just that it finished.
                     let body: String = if home_is_yours_alone(spaces.as_ref(), &identity, &home).await { text.trim().chars().take(280).collect() } else { String::new() };
-                    let mut args = json!({ "title": format!("{} finished a run", a.name), "body": body });
+                    let mut args = json!({ "title": format!("{} finished a run", a.name.as_deref().unwrap_or(&key)), "body": body });
                     if let Some(m) = measured {
                         args["measured"] = json!(m);
                     }
                     let mut params = CallToolRequestParams::new("report").with_arguments(args.as_object().cloned().unwrap_or_default());
-                    let actor = Actor::Agent(crate::identity::AgentId::Daemon(a.name.clone()));
+                    let actor = Actor::Agent(crate::identity::AgentId::Daemon(key.clone()));
                     let turn = identity.turn(&actor, &home.id);
                     let _held = turn.lock().await;
                     if identity.seal(&actor, &home.id, &mut params).is_ok() {

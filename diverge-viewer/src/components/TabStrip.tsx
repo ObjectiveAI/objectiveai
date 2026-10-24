@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { opens, rove } from "../lib/keys";
-import { spaceTitle as nameOf } from "../lib/format";
+import { agentLabel, spaceTitle as nameOf } from "../lib/format";
 import type { TabKind } from "../bindings/TabKind";
 import type { TabsSnapshot } from "../bindings/TabsSnapshot";
 import { useShared } from "../lib/context";
@@ -22,6 +22,8 @@ function title(tab: TabKind): string {
   switch (tab.kind) {
     case "agent":
       return tab.name;
+    case "agents":
+      return t.map.title;
     case "new_agent":
       return t.create.title;
     case "storage":
@@ -81,8 +83,8 @@ export function TabStrip(props: { snapshot: TabsSnapshot; onFocus: (key: string)
   return (
     <div className="strip" role="tablist" aria-orientation="horizontal" ref={strip}>
       {tabs.map(({ key, tab }) => {
-        const agent = tab.kind === "agent" ? agents.find((a) => a.name === tab.name) : undefined;
-        const name = title(tab);
+        const agent = tab.kind === "agent" ? agents.find((a) => a.key === tab.name) : undefined;
+        const name = agent ? agentLabel(agent) : title(tab);
         return (
           <div
             key={key}

@@ -12,7 +12,7 @@ import { t } from "../strings";
 const GB = 1024 ** 3;
 
 export function NewAgent(props: { tabKey: string }) {
-  const { open, close, refreshAgents, agents } = useShared();
+  const { open, close, agents } = useShared();
   const [catalog, setCatalog] = useState<ImageKindView[]>([]);
   const [machines, setMachines] = useState<MachineView[]>([]);
   const [kind, setKind] = useState("cc");
@@ -79,11 +79,11 @@ export function NewAgent(props: { tabKey: string }) {
         arguments: settings,
       });
       if (outcome.outcome === "created") {
-        await refreshAgents();
         open({ kind: "agent", name: name.trim() });
         close(props.tabKey);
-        if (first.trim()) api.agentsMessage(name.trim(), first.trim(), ticket()).then(refreshAgents);
+        if (first.trim()) api.agentsMessage(name.trim(), first.trim(), ticket());
       } else if (outcome.outcome === "in_use") setProblem(t.create.inUse);
+      else if (outcome.outcome === "forbidden") setProblem(t.common.forbidden);
       else setProblem(outcome.message);
     } catch (e) {
       setProblem(errorText(e));

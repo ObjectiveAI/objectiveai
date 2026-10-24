@@ -8,13 +8,13 @@
 #![cfg_attr(feature = "stand-in", allow(dead_code))]
 
 use async_trait::async_trait;
-use futures::stream;
+use futures::{StreamExt, stream};
 use rmcp::model::{CallToolRequestParams, CallToolResult, ErrorData, ListToolsResult, ReadResourceResult, ServerNotification};
 use serde_json::json;
 use tokio_util::sync::CancellationToken;
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
-use diverge_sdk::daemon::endpoints::{agents, tools};
+use diverge_sdk::daemon::endpoints::{agents, standalone_tools};
 use diverge_sdk::provider::endpoints::volumes;
 use diverge_sdk::shared::error::Error as WireError;
 use diverge_sdk::shared::filetree::response::Node;
@@ -54,6 +54,14 @@ impl Absent {
 
 #[async_trait]
 impl Daemon for Absent {
+    async fn agents_templates_create(&self, _: agents::templates::create::client::request::Frame) -> agents::templates::create::server::response::Frame {
+        agents::templates::create::server::response::Frame::Error(self.no())
+    }
+
+    async fn agents_templates_get(&self, _: agents::templates::get::client::request::Frame) -> agents::templates::get::server::response::Frame {
+        agents::templates::get::server::response::Frame::Error(self.no())
+    }
+
     async fn agents_create(&self, _: agents::create::client::request::Frame) -> agents::create::server::response::Frame {
         agents::create::server::response::Frame::Error(self.no())
     }
@@ -70,40 +78,77 @@ impl Daemon for Absent {
         Box::pin(stream::iter([agents::logs::server::response::Frame::Error(self.no())]))
     }
 
-    fn agents_list(&self, _: agents::list::client::request::Frame) -> Frames<agents::list::server::response::Frame> {
-        Box::pin(stream::empty())
+    /// Nothing to list, said once and held open: there is nothing that could change.
+    fn agents_list(&self, _: agents::list::client::request::Frame, cancel: CancellationToken) -> Frames<agents::list::server::response::Frame> {
+        let held = stream::once(cancel.cancelled_owned()).filter_map(|()| futures::future::ready(None));
+        Box::pin(stream::iter([agents::list::server::response::Frame::Listed]).chain(held))
     }
 
     async fn agents_edit(&self, _: agents::edit::client::request::Frame) -> agents::edit::server::response::Frame {
         agents::edit::server::response::Frame::Error(self.no())
     }
 
-    async fn tools_create(&self, _: tools::create::client::request::Frame) -> tools::create::server::response::Frame {
-        tools::create::server::response::Frame::Error(self.no())
+    async fn agents_tag(&self, _: agents::tag::client::request::Frame) -> agents::tag::server::response::Frame {
+        agents::tag::server::response::Frame::Error(self.no())
     }
 
-    async fn tools_edit(&self, _: tools::edit::client::request::Frame) -> tools::edit::server::response::Frame {
-        tools::edit::server::response::Frame::Error(self.no())
+    async fn agents_untag(&self, _: agents::untag::client::request::Frame) -> agents::untag::server::response::Frame {
+        agents::untag::server::response::Frame::Error(self.no())
     }
 
-    async fn tools_connect(&self, _: tools::connect::client::request::Frame) -> tools::connect::server::response::Frame {
-        tools::connect::server::response::Frame::Error(self.no())
+    async fn standalone_tools_templates_create(
+        &self,
+        _: standalone_tools::templates::create::client::request::Frame,
+    ) -> standalone_tools::templates::create::server::response::Frame {
+        standalone_tools::templates::create::server::response::Frame::Error(self.no())
     }
 
-    async fn tools_attach(&self, _: tools::attach::client::request::Frame) -> tools::attach::server::response::Frame {
-        tools::attach::server::response::Frame::Error(self.no())
+    async fn standalone_tools_create(&self, _: standalone_tools::create::client::request::Frame) -> standalone_tools::create::server::response::Frame {
+        standalone_tools::create::server::response::Frame::Error(self.no())
     }
 
-    async fn tools_detach(&self, _: tools::detach::client::request::Frame) -> tools::detach::server::response::Frame {
-        tools::detach::server::response::Frame::Error(self.no())
+    async fn standalone_tools_edit(&self, _: standalone_tools::edit::client::request::Frame) -> standalone_tools::edit::server::response::Frame {
+        standalone_tools::edit::server::response::Frame::Error(self.no())
     }
 
-    async fn tools_delete(&self, _: tools::delete::client::request::Frame) -> tools::delete::server::response::Frame {
-        tools::delete::server::response::Frame::Error(self.no())
+    async fn standalone_tools_register(&self, _: standalone_tools::register::client::request::Frame) -> standalone_tools::register::server::response::Frame {
+        standalone_tools::register::server::response::Frame::Error(self.no())
     }
 
-    fn tools_list(&self, _: tools::list::client::request::Frame) -> Frames<tools::list::server::response::Frame> {
-        Box::pin(stream::empty())
+    async fn standalone_tools_attach_agent_instance(
+        &self,
+        _: standalone_tools::attach_agent_instance::client::request::Frame,
+    ) -> standalone_tools::attach_agent_instance::server::response::Frame {
+        standalone_tools::attach_agent_instance::server::response::Frame::Error(self.no())
+    }
+
+    async fn standalone_tools_detach_agent_instance(
+        &self,
+        _: standalone_tools::detach_agent_instance::client::request::Frame,
+    ) -> standalone_tools::detach_agent_instance::server::response::Frame {
+        standalone_tools::detach_agent_instance::server::response::Frame::Error(self.no())
+    }
+
+    async fn standalone_tools_attach_agent_template(
+        &self,
+        _: standalone_tools::attach_agent_template::client::request::Frame,
+    ) -> standalone_tools::attach_agent_template::server::response::Frame {
+        standalone_tools::attach_agent_template::server::response::Frame::Error(self.no())
+    }
+
+    async fn standalone_tools_detach_agent_template(
+        &self,
+        _: standalone_tools::detach_agent_template::client::request::Frame,
+    ) -> standalone_tools::detach_agent_template::server::response::Frame {
+        standalone_tools::detach_agent_template::server::response::Frame::Error(self.no())
+    }
+
+    async fn standalone_tools_delete(&self, _: standalone_tools::delete::client::request::Frame) -> standalone_tools::delete::server::response::Frame {
+        standalone_tools::delete::server::response::Frame::Error(self.no())
+    }
+
+    fn standalone_tools_list(&self, _: standalone_tools::list::client::request::Frame, _: CancellationToken) -> Frames<standalone_tools::list::server::response::Frame> {
+        Box::pin(stream::iter([standalone_tools::list::server::response::Frame::Listed]))
     }
 
     async fn providers_list(&self) -> Vec<ProviderEntry> {
@@ -121,8 +166,8 @@ impl Daemon for Absent {
 
 #[async_trait]
 impl Machines for Absent {
-    async fn volumes_list(&self, _: &Identity) -> volumes::list::server::response::Frame {
-        volumes::list::server::response::Frame::Error(self.no())
+    fn volumes_list(&self, _: &Identity, _: CancellationToken) -> Frames<volumes::list::server::response::Frame> {
+        Box::pin(stream::iter([volumes::list::server::response::Frame::Error(self.no())]))
     }
 
     async fn volumes_stat(&self, _: &Identity, _: volumes::stat::client::request::Frame) -> volumes::stat::server::response::Frame {

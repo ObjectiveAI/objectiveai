@@ -1,40 +1,48 @@
 //! The stand-in daemon: the daemon's verbs, answered locally, with the SDK's types.
 //!
-//! It keeps agents and their logs in memory, runs scripted "runs" (see
-//! [`script`]), and answers for every machine it knows as well: each
-//! machine's volumes are real folders (see [`store`]), behind the other
-//! seam, [`crate::machines`]. It follows the SDK's documented semantics —
-//! spans inclusive, the type and spans before the program, a watch that
-//! ends only when nothing more can match, a delete or an edit that leaves
-//! an active agent alone, a message that can be taken back only until it
-//! is delivered, a volume nothing touches while anything holds it, and a
-//! volume that keeps its changes with one user at a time.
+//! It keeps templates, agents and their logs in memory, runs scripted
+//! "runs" (see [`script`]), and answers for every machine it knows as well:
+//! each machine's volumes are real folders (see [`store`]), behind the
+//! other seam, [`crate::machines`]. It follows the SDK's documented
+//! semantics — a template held by its hash, so the same one made twice is
+//! one; agents numbered per template; an agents list that says `Listed`,
+//! stays open and says what changes (an agent made, changed or deleted: a run
+//! starting or ending, an edit, its tags, its tools); spans inclusive, the type before the count, a watch that ends only
+//! when nothing more can match, a delete or an edit of the mounts that
+//! leaves an active agent alone, a message that can be taken back only
+//! until it is delivered, a volume nothing touches while anything holds
+//! it, and a volume that keeps its changes with one user at a time.
 
 pub mod script;
 pub mod store;
 
-use std::collections::VecDeque;
+use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{DateTime, TimeDelta, Utc};
-use futures::stream;
+use futures::{Stream, StreamExt, stream};
 use indexmap::IndexMap;
 use rmcp::model::ContentBlock;
 use serde_json::{Value, json};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
+use diverge_sdk::daemon::create::Inner as Made;
+use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{
-    Frame as CreateRequest, FuseMount, Image, Provider as Pin, VolumeMount,
+    Frame as CreateRequest, FuseMount, Provider as Pin, VolumeMount,
 };
 use diverge_sdk::daemon::endpoints::agents::logs::client::request::{Frame as LogsRequest, ItemType};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{
-    Active, ActiveType, Error as ErrorItem, ErrorType, Identity, Inactive, InactiveType, Item, ItemWrapper, Provider,
+    Active, ActiveType, Error as ErrorItem, ErrorType, Identity, Inactive, InactiveType, Item, ItemWrapper, Provider, User,
 };
-use diverge_sdk::daemon::endpoints::{agents, tools};
+use diverge_sdk::daemon::endpoints::agents::templates::{AgentType, Template as AgentTemplate};
+use diverge_sdk::daemon::endpoints::standalone_tools::templates::Template as ToolTemplate;
+use diverge_sdk::daemon::endpoints::{agents, standalone_tools};
+use diverge_sdk::daemon::{key, reference};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use diverge_sdk::provider::endpoints::volumes;
 use diverge_sdk::provider::endpoints::volumes::Mode;
@@ -42,9 +50,9 @@ use diverge_sdk::provider::endpoints::volumes::edit::client::request::Change;
 use diverge_sdk::shared::containers::write_path;
 use diverge_sdk::shared::error::Error as WireError;
 
-use super::{Daemon, Frames, NewProvider, ProviderEntry};
+use super::{Daemon, Frames, NewProvider, ProviderEntry, agent_key, template_id};
 use crate::machines::{Machines, ReadFrame};
-use crate::catalog::{Kind, UNBUILT_DIGEST};
+use crate::catalog::Kind;
 use script::{Piece, Step};
 use store::VolumeStore;
 use crate::door::Door;
@@ -57,8 +65,21 @@ pub const BUILT_IN: &str = "diverge-viewer stand-in daemon is built in";
 /// ahead of it: long enough to take it back.
 const DELIVERY: Duration = Duration::from_millis(2500);
 
+/// The account the app is served as: the stand-in's word for its one client.
+const CLIENT: &str = "stand-in";
+
+fn client() -> Creator {
+    Creator::Client(creator::Client { identity: CLIENT.into() })
+}
+
 fn wire_error(message: impl Into<String>) -> WireError {
     WireError(json!({ "message": message.into() }))
+}
+
+/// An agent's id inside the stand-in: its template and its index, which
+/// name it once and for all, whatever it is called.
+fn id_of(template: &str, index: u64) -> String {
+    format!("{template}#{index}")
 }
 
 struct Queued {
@@ -69,6 +90,11 @@ struct Queued {
 
 struct AgentState {
     create: CreateRequest,
+    index: u64,
+    creator: Creator,
+    /// From its template: which of the six images, and its settings.
+    kind: Option<Kind>,
+    arguments: Value,
     created: DateTime<Utc>,
     log: Vec<ItemWrapper>,
     active: Option<Provider>,
@@ -76,12 +102,28 @@ struct AgentState {
     running: bool,
     live: broadcast::Sender<ItemWrapper>,
     gone: CancellationToken,
+    /// What `tag` put on it and `untag` hasn't taken off: a set, sorted bytewise.
+    tags: BTreeSet<String>,
 }
 
 impl AgentState {
-    fn new(create: CreateRequest, created: DateTime<Utc>) -> Self {
+    fn new(create: CreateRequest, index: u64, creator: Creator, template: &AgentTemplate, created: DateTime<Utc>) -> Self {
         let (live, _) = broadcast::channel(1024);
-        AgentState { create, created, log: Vec::new(), active: None, queue: VecDeque::new(), running: false, live, gone: CancellationToken::new() }
+        AgentState {
+            create,
+            index,
+            creator,
+            kind: Kind::of_image(&template.image),
+            arguments: template.arguments.clone(),
+            created,
+            log: Vec::new(),
+            active: None,
+            queue: VecDeque::new(),
+            running: false,
+            live,
+            gone: CancellationToken::new(),
+            tags: BTreeSet::new(),
+        }
     }
 
     /// Keep an item; indexes count up from 1, so `0` is an empty log.
@@ -92,8 +134,13 @@ impl AgentState {
         let _ = self.live.send(wrapper);
     }
 
-    fn kind(&self) -> Option<Kind> {
-        Kind::from_image_name(&self.create.image.name)
+    /// How the app keys it, and how its words name it.
+    fn key(&self) -> String {
+        agent_key(self.create.name.as_deref(), &self.create.inner.template, self.index)
+    }
+
+    fn busy(&self) -> bool {
+        self.active.is_some() || self.running
     }
 }
 
@@ -123,23 +170,28 @@ fn slug(identity: &Identity) -> String {
     raw.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '.' { c } else { '_' }).collect()
 }
 
-/// Who holds a machine's volume, if anyone. An agent that mounts it over
-/// FUSE holds it for its life: the daemon's serve runs from the create to
-/// the delete. An agent pinned there with it mounted holds it while a run
-/// is under way. Nothing examines, reads, writes, walks, resizes or
-/// deletes a volume while anything holds it.
-fn holder(inner: &Inner, on: &Identity, volume: &str, except: Option<&str>) -> Option<String> {
-    inner
-        .agents
-        .iter()
-        .filter(|(name, _)| Some(name.as_str()) != except)
-        .find(|(_, a)| {
-            let served = a.create.fuse_file_mounts.iter().chain(&a.create.fuse_directory_mounts).any(|m| &m.provider == on && m.volume_name == volume);
-            let running = (a.active.is_some() || a.running)
-                && a.create.provider.as_ref().is_some_and(|p| &p.identity == on && p.volume_mounts.iter().any(|m| m.volume_name == volume));
-            served || running
-        })
-        .map(|(name, _)| name.clone())
+/// How an agent holds a machine's volume: served over FUSE, or mounted in
+/// its running container.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Hold {
+    Served,
+    Mounted,
+}
+
+/// Who holds a machine's volume, if anyone, by the app's key, and how. An
+/// agent that mounts it over FUSE holds it for its life: the daemon's serve
+/// runs from the create to the delete. An agent pinned there with it
+/// mounted holds it while a run is under way. Nothing examines, reads,
+/// writes, walks, resizes or deletes a volume while anything holds it.
+fn holder(inner: &Inner, on: &Identity, volume: &str, except: Option<&str>) -> Option<(String, Hold)> {
+    inner.agents.iter().filter(|(id, _)| Some(id.as_str()) != except).find_map(|(_, a)| {
+        let made = &a.create.inner;
+        if made.fuse_file_mounts.iter().chain(&made.fuse_directory_mounts).any(|m| &m.provider == on && m.volume_name == volume) {
+            return Some((a.key(), Hold::Served));
+        }
+        let running = a.busy() && made.provider.as_ref().is_some_and(|p| &p.identity == on && p.volume_mounts.iter().any(|m| m.volume_name == volume));
+        running.then(|| (a.key(), Hold::Mounted))
+    })
 }
 
 fn one_user(volume: &str, other: &str) -> String {
@@ -170,7 +222,7 @@ fn check_mounts(inner: &Inner, agent: &str, pin: Option<&Identity>, volume_mount
         let there = store(&m.provider).ok_or_else(|| format!("the daemon knows no machine {}", show(&m.provider)))?;
         let mode = there.mode(&m.volume_name).ok_or_else(|| format!("{} has no volume named \"{}\"", show(&m.provider), m.volume_name))?;
         if mode == Mode::Persistent {
-            if let Some(other) = holder(inner, &m.provider, &m.volume_name, Some(agent)) {
+            if let Some((other, _)) = holder(inner, &m.provider, &m.volume_name, Some(agent)) {
                 return Err(one_user(&m.volume_name, &other));
             }
         }
@@ -190,22 +242,156 @@ fn check_mounts(inner: &Inner, agent: &str, pin: Option<&Identity>, volume_mount
     Ok(())
 }
 
-/// A tool the stand-in daemon holds: one it runs, or one it joined.
-struct ToolState {
-    origin: tools::list::server::response::Origin,
-    /// What a created tool mounts; none for a connected one.
-    create: Option<tools::create::client::request::Frame>,
+/// Which vault key each secret a template declares is, as a create or an
+/// edit binds them: every name it declares and no other. The stand-in holds
+/// no vault, so any key named is one it doesn't have.
+fn secrets_bound(declared: &[String], bound: &IndexMap<String, String>) -> Result<(), String> {
+    if bound.len() != declared.len() || declared.iter().any(|name| !bound.contains_key(name)) {
+        return Err("the secrets named are not the ones the template declares".into());
+    }
+    match bound.values().next() {
+        Some(key) => Err(format!("the stand-in holds no vault, so it has no key \"{key}\"")),
+        None => Ok(()),
+    }
+}
+
+/// A template the stand-in holds, by its id.
+struct Held<T> {
+    template: T,
     created: DateTime<Utc>,
-    /// The agents it's attached to, in the order they were attached.
+    creator: Creator,
+}
+
+/// A tool the stand-in daemon holds: one made from a template, or another
+/// daemon's, registered.
+struct ToolState {
+    name: Option<String>,
+    origin: standalone_tools::list::server::response::Origin,
+    /// What a created tool mounts; none for a registered one.
+    create: Option<standalone_tools::create::client::request::Frame>,
+    creator: Creator,
+    created: DateTime<Utc>,
+    /// The agents it's attached to, by id, in the order they were attached.
     agents: Vec<String>,
+    /// The agent templates it's attached to, likewise.
+    templates: Vec<String>,
     last_active: Option<DateTime<Utc>>,
 }
 
+impl ToolState {
+    /// How an agent's list item names it.
+    fn key(&self) -> key::Tool {
+        use standalone_tools::list::server::response::Origin;
+        let (origin, index) = match &self.origin {
+            Origin::Created { template, index, mode: _, provider: _, id: _ } => (key::Origin::Created { template: template.clone() }, *index),
+            Origin::Connected { daemon, account, tool, index } => {
+                (key::Origin::Connected { daemon: daemon.clone(), account: account.clone(), tool: Box::new(tool.clone()) }, *index)
+            }
+        };
+        key::Tool::Record { origin, index, name: self.name.clone() }
+    }
+
+    fn is(&self, tool: &reference::Tool) -> bool {
+        use standalone_tools::list::server::response::Origin;
+        match (tool, &self.origin) {
+            (reference::Tool::Name { name }, _) => self.name.as_ref() == Some(name),
+            (reference::Tool::TemplateIndex { template, index }, Origin::Created { template: t, index: i, .. }) => template == t && index == i,
+            (reference::Tool::Connected { daemon, account, tool }, Origin::Connected { daemon: d, account: a, tool: t, .. }) => daemon == d && account == a && **tool == *t,
+            (reference::Tool::TemplateIndex { .. }, Origin::Connected { .. }) | (reference::Tool::Connected { .. }, Origin::Created { .. }) => false,
+        }
+    }
+}
+
 struct Inner {
-    tools: IndexMap<String, ToolState>,
+    templates: IndexMap<String, Held<AgentTemplate>>,
+    tool_templates: IndexMap<String, Held<ToolTemplate>>,
+    /// The last number given under each template (and each registered tool).
+    counters: HashMap<String, u64>,
+    tools: Vec<ToolState>,
     agents: IndexMap<String, AgentState>,
     providers: Vec<ProviderState>,
     next_id: u64,
+    /// A tick each time something an agents list reports may have changed:
+    /// an agent made or deleted, a run starting or ending, an edit, its tags
+    /// or its tools. Every open list reads the agents again and says what differs.
+    changes: broadcast::Sender<()>,
+}
+
+impl Inner {
+    /// Something a list reports may have changed: every open list looks again.
+    fn changed(&self) {
+        let _ = self.changes.send(());
+    }
+
+    /// The next number under a template: the first is 1, and none is given twice.
+    fn next_index(&mut self, of: &str) -> u64 {
+        let n = self.counters.entry(of.to_owned()).or_insert(0);
+        *n += 1;
+        *n
+    }
+
+    fn find(&self, agent: &reference::Agent) -> Option<String> {
+        match agent {
+            reference::Agent::Name { name } => self.agents.iter().find(|(_, a)| a.create.name.as_deref() == Some(name)).map(|(id, _)| id.clone()),
+            reference::Agent::TemplateIndex { template, index } => Some(id_of(template, *index)).filter(|id| self.agents.contains_key(id)),
+        }
+    }
+
+    fn find_tool(&self, tool: &reference::Tool) -> Option<usize> {
+        self.tools.iter().position(|t| t.is(tool))
+    }
+
+    /// The tools an agent has: attached to it, then to its template, once each.
+    fn tools_of(&self, id: &str, template: &str) -> Vec<key::Tool> {
+        let direct = self.tools.iter().filter(|t| t.agents.iter().any(|a| a == id));
+        let by_template = self.tools.iter().filter(|t| t.templates.iter().any(|x| x == template) && !t.agents.iter().any(|a| a == id));
+        direct.chain(by_template).map(ToolState::key).collect()
+    }
+
+    fn tool_active(&self, t: &ToolState) -> bool {
+        self.agents.iter().any(|(id, a)| a.busy() && (t.agents.contains(id) || t.templates.contains(&a.create.inner.template)))
+    }
+
+    /// The agent as a list or a get answers it.
+    fn listed(&self, id: &str, agent: &AgentState) -> agents::list::server::response::Agent {
+        // Its activity and its log's length as of its last change of state:
+        // a line appended changes nothing a list reports.
+        let last_change = agent.log.iter().rev().find_map(|item| match &item.item {
+            Item::Active(Active { provider, .. }) | Item::Inactive(Inactive { provider, .. }) => Some((item.created, provider.clone(), item.logs_index)),
+            Item::User(_) | Item::Chunk(_) | Item::Error(_) => None,
+        });
+        agents::list::server::response::Agent {
+            name: agent.create.name.clone(),
+            template: agent.create.inner.template.clone(),
+            index: agent.index,
+            creator: agent.creator.clone(),
+            created: agent.created,
+            active: agent.active.is_some(),
+            last_active: last_change.as_ref().map(|(at, _, _)| *at),
+            logs_index: last_change.as_ref().map_or(0, |(_, _, index)| *index),
+            provider: last_change.map(|(_, provider, _)| provider),
+            tools: self.tools_of(id, &agent.create.inner.template),
+            tags: agent.tags.iter().cloned().collect(),
+        }
+    }
+
+    /// What a list asks for, as the stand-in holds it now: every agent that
+    /// matches, oldest made first, the first `count` of them, by id.
+    fn window(&self, request: &agents::list::client::request::Frame) -> IndexMap<String, agents::list::server::response::Agent> {
+        let mut all: Vec<(&String, &AgentState)> = self.agents.iter().collect();
+        all.sort_by_key(|(_, a)| a.created);
+        all.into_iter()
+            .map(|(id, agent)| (id.clone(), self.listed(id, agent)))
+            .filter(|(_, agent)| matches(&request.filter, agent))
+            .take(request.count.map_or(usize::MAX, |n| n as usize))
+            .collect()
+    }
+}
+
+/// A list stays open after `Listed`, until its scope is cancelled. The
+/// stand-in's lists say nothing more in that time.
+fn open_until<T: Send + 'static>(cancel: CancellationToken) -> impl Stream<Item = T> + Send + 'static {
+    stream::once(cancel.cancelled_owned()).filter_map(|()| futures::future::ready(None))
 }
 
 #[derive(Clone)]
@@ -225,20 +411,26 @@ impl StubDaemon {
     /// Must be called inside a tokio runtime; that runtime is the one it keeps.
     pub fn new(host_root: PathBuf) -> Self {
         std::hint::black_box(BUILT_IN);
-        let daemon = StubDaemon {
-            inner: Arc::new(Mutex::new(Inner { tools: IndexMap::new(), agents: IndexMap::new(), providers: Vec::new(), next_id: 1 })),
-            host_root,
-            rt: tokio::runtime::Handle::current(),
-            door: Arc::new(OnceLock::new()),
+        let inner = Inner {
+            templates: IndexMap::new(),
+            tool_templates: IndexMap::new(),
+            counters: HashMap::new(),
+            tools: Vec::new(),
+            agents: IndexMap::new(),
+            providers: Vec::new(),
+            next_id: 1,
+            changes: broadcast::channel(64).0,
         };
+        let daemon = StubDaemon { inner: Arc::new(Mutex::new(inner)), host_root, rt: tokio::runtime::Handle::current(), door: Arc::new(OnceLock::new()) };
         daemon.seed();
         daemon
     }
 
-    /// What each agent was made with. The stand-in's alone: the app records
-    /// these as if it had made its seeded agents, which is their story.
-    pub fn creates(&self) -> Vec<CreateRequest> {
-        self.lock().agents.values().map(|a| a.create.clone()).collect()
+    /// What each agent the app made was made with, by the app's key. The
+    /// stand-in's alone: the app records these as if it had made its seeded
+    /// agents, which is their story; one an agent made is not the app's.
+    pub fn creates(&self) -> Vec<(String, CreateRequest)> {
+        self.lock().agents.values().filter(|a| a.creator == client()).map(|a| (a.key(), a.create.clone())).collect()
     }
 
     pub fn set_door(&self, door: Arc<Door>) {
@@ -246,7 +438,7 @@ impl StubDaemon {
     }
 
     /// The agent holding a machine's volume, if any: nothing else may touch it.
-    fn held(&self, on: &Identity, volume: &str) -> Option<String> {
+    fn held(&self, on: &Identity, volume: &str) -> Option<(String, Hold)> {
         holder(&self.lock(), on, volume, None)
     }
 
@@ -276,12 +468,12 @@ impl StubDaemon {
 
     /// The agent loop for one agent: take the next message, run, repeat;
     /// inactive once nothing waits. `first` is work already under way.
-    fn spawn_runner(&self, name: String, first: Vec<Step>) {
+    fn spawn_runner(&self, id: String, first: Vec<Step>) {
         let daemon = self.clone();
-        self.rt.spawn(async move { daemon.runner(name, first).await });
+        self.rt.spawn(async move { daemon.runner(id, first).await });
     }
 
-    async fn play(&self, name: &str, steps: Vec<Step>, gone: &CancellationToken) -> bool {
+    async fn play(&self, id: &str, steps: Vec<Step>, gone: &CancellationToken) -> bool {
         let mut calls = 0u32;
         for step in steps {
             tokio::select! {
@@ -291,24 +483,26 @@ impl StubDaemon {
             match step.piece {
                 Piece::Item(item) => {
                     let mut inner = self.lock();
-                    let Some(agent) = inner.agents.get_mut(name) else { return false };
+                    let Some(agent) = inner.agents.get_mut(id) else { return false };
                     agent.keep(Utc::now(), item);
                 }
                 Piece::Door { name: tool, args } => {
                     // The wire's mcp-call-tool: a tool call chunk, the app's
                     // answer through the door, a tool response chunk.
                     calls += 1;
-                    let id = format!("door_{}_{}", name, calls);
-                    {
+                    let key = {
                         let mut inner = self.lock();
-                        let Some(agent) = inner.agents.get_mut(name) else { return false };
-                        agent.keep(Utc::now(), script::chunk(json!({ "type": "assistant_tool_call", "id": id, "name": tool, "arguments": args.to_string() })));
-                    }
+                        let Some(agent) = inner.agents.get_mut(id) else { return false };
+                        let key = agent.key();
+                        agent.keep(Utc::now(), script::chunk(json!({ "type": "assistant_tool_call", "id": format!("door_{key}_{calls}"), "name": tool, "arguments": args.to_string() })));
+                        key
+                    };
+                    let call = format!("door_{key}_{calls}");
                     let params = rmcp::model::CallToolRequestParams::new(tool).with_arguments(args.as_object().cloned().unwrap_or_default());
                     let (text, is_error) = match self.door.get() {
                         None => ("the app's door is not open".to_owned(), true),
                         // The run's caller stops waiting if the agent is removed.
-                        Some(door) => match door.call(&crate::identity::AgentId::daemon(name), params, gone.clone()).await {
+                        Some(door) => match door.call(&crate::identity::AgentId::daemon(&key), params, gone.clone()).await {
                             Ok(r) => (r.content.iter().filter_map(|c| c.as_text().map(|t| t.text.clone())).collect::<Vec<_>>().join("\n"), r.is_error == Some(true)),
                             Err(e) => (e.message.to_string(), true),
                         },
@@ -317,17 +511,17 @@ impl StubDaemon {
                         return false;
                     }
                     let mut inner = self.lock();
-                    let Some(agent) = inner.agents.get_mut(name) else { return false };
-                    agent.keep(Utc::now(), script::chunk(json!({ "type": "tool_response", "id": id, "content": [{ "type": "text", "text": text }], "isError": is_error })));
+                    let Some(agent) = inner.agents.get_mut(id) else { return false };
+                    agent.keep(Utc::now(), script::chunk(json!({ "type": "tool_response", "id": call, "content": [{ "type": "text", "text": text }], "isError": is_error })));
                 }
             }
         }
         true
     }
 
-    async fn runner(&self, name: String, first: Vec<Step>) {
-        let Some(gone) = self.lock().agents.get(&name).map(|a| a.gone.clone()) else { return };
-        if !first.is_empty() && !self.play(&name, first, &gone).await {
+    async fn runner(&self, id: String, first: Vec<Step>) {
+        let Some(gone) = self.lock().agents.get(&id).map(|a| a.gone.clone()) else { return };
+        if !first.is_empty() && !self.play(&id, first, &gone).await {
             return;
         }
         loop {
@@ -339,23 +533,24 @@ impl StubDaemon {
             let (message, kind, arguments, provider) = {
                 let mut inner = self.lock();
                 let first_provider = inner.providers.first().map(|p| p.identity.clone());
-                let Some(agent) = inner.agents.get_mut(&name) else { return };
+                let Some(agent) = inner.agents.get_mut(&id) else { return };
                 let Some(message) = agent.queue.pop_front() else {
                     if let Some(provider) = agent.active.take() {
                         agent.keep(Utc::now(), Item::Inactive(Inactive { r#type: InactiveType::Inactive, provider }));
                     }
                     agent.running = false;
+                    inner.changed();
                     return;
                 };
-                let provider = agent.create.provider.as_ref().map(|p| p.identity.clone()).or(first_provider);
-                (message, agent.kind(), agent.create.arguments.clone(), provider)
+                let provider = agent.create.inner.provider.as_ref().map(|p| p.identity.clone()).or(first_provider);
+                (message, agent.kind, agent.arguments.clone(), provider)
             };
             let _ = message.delivered.send(());
-            let text = keep_user_parts(self, &name, message.id, &message.content);
+            let text = keep_user_parts(self, &id, message.id, &message.content, client());
 
             let Some(identity) = provider else {
                 let mut inner = self.lock();
-                if let Some(agent) = inner.agents.get_mut(&name) {
+                if let Some(agent) = inner.agents.get_mut(&id) {
                     agent.keep(Utc::now(), error_item("no provider to run on: add a machine first"));
                 }
                 continue;
@@ -364,28 +559,29 @@ impl StubDaemon {
             // that would be a second is refused before it starts.
             let conflict = {
                 let inner = self.lock();
-                inner.agents.get(&name).and_then(|agent| agent.create.provider.as_ref()).and_then(|pin| {
+                inner.agents.get(&id).and_then(|agent| agent.create.inner.provider.as_ref()).and_then(|pin| {
                     let store = inner.providers.iter().find(|p| p.identity == pin.identity)?.store.clone();
                     pin.volume_mounts
                         .iter()
                         .filter(|m| store.mode(&m.volume_name) == Some(Mode::Persistent))
-                        .find_map(|m| holder(&inner, &pin.identity, &m.volume_name, Some(&name)).map(|other| one_user(&m.volume_name, &other)))
+                        .find_map(|m| holder(&inner, &pin.identity, &m.volume_name, Some(&id)).map(|(other, _)| one_user(&m.volume_name, &other)))
                 })
             };
             if let Some(reason) = conflict {
                 let mut inner = self.lock();
-                if let Some(agent) = inner.agents.get_mut(&name) {
+                if let Some(agent) = inner.agents.get_mut(&id) {
                     agent.keep(Utc::now(), error_item(reason));
                 }
                 continue;
             }
             {
                 let mut inner = self.lock();
-                let Some(agent) = inner.agents.get_mut(&name) else { return };
+                let Some(agent) = inner.agents.get_mut(&id) else { return };
                 if agent.active.is_none() {
                     let provider = Provider { identity };
                     agent.keep(Utc::now(), Item::Active(Active { r#type: ActiveType::Active, provider: provider.clone() }));
                     agent.active = Some(provider);
+                    inner.changed();
                 }
             }
             let steps = match kind {
@@ -395,10 +591,22 @@ impl StubDaemon {
                     Ok(()) => script::run(kind, &text, &self.reader()),
                 },
             };
-            if !self.play(&name, steps, &gone).await {
+            if !self.play(&id, steps, &gone).await {
                 return;
             }
         }
+    }
+
+    /// Hold a template as `templates::create` would, and number a new agent
+    /// made from it: its id, and the agent's index and state.
+    fn make(&self, template: AgentTemplate, name: Option<&str>, provider: Option<Pin>, creator: Creator, created: DateTime<Utc>) -> (String, AgentState) {
+        let mut inner = self.lock();
+        let id = template_id(&template);
+        let index = inner.next_index(&id);
+        let held = inner.templates.entry(id.clone()).or_insert(Held { template, created, creator: client() });
+        let create = CreateRequest { inner: Made { template: id.clone(), secrets: IndexMap::new(), provider, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }, name: name.map(Into::into), relay: None };
+        let agent = AgentState::new(create, index, creator, &held.template, created);
+        (id_of(&id, index), agent)
     }
 
     fn seed(&self) {
@@ -413,23 +621,13 @@ impl StubDaemon {
             inner.providers.push(ProviderState { identity: here.clone(), key: "stand-in".into(), store: here_disk, added: now - TimeDelta::days(9) });
             inner.providers.push(ProviderState { identity: studio.clone(), key: "stand-in".into(), store: studio_disk, added: now - TimeDelta::days(3) });
         }
-        let image = |kind: Kind| Image { name: kind.image_name(), digest: UNBUILT_DIGEST.into() };
-        let create = |kind: Kind, name: &str, arguments: Value, provider: Option<Pin>| CreateRequest {
-            image: image(kind),
-            memory: 4 << 30,
-            disk: 8 << 30,
-            provider,
-            fuse_file_mounts: Vec::new(),
-            fuse_directory_mounts: Vec::new(),
-            arguments,
-            name: name.into(),
-        };
+        let template = |kind: Kind, arguments: Value| AgentTemplate { r#type: AgentType {}, description: None, image: kind.image(), memory: 4 << 30, disk: 8 << 30, arguments, secrets: Vec::new() };
         let read = self.reader();
 
         // A finished run from yesterday.
-        let mut notes = AgentState::new(create(Kind::Hermes, "research-notes", json!({ "provider": { "provider": "openrouter", "api_key": "stand-in" }, "model": "nousresearch/hermes-4-70b" }), None), now - TimeDelta::days(2));
+        let (notes_id, mut notes) = self.make(template(Kind::Hermes, json!({ "provider": { "provider": "openrouter", "api_key": "stand-in" }, "model": "nousresearch/hermes-4-70b" })), Some("research-notes"), None, client(), now - TimeDelta::days(2));
         let mut t = now - TimeDelta::hours(20);
-        notes.keep(t, user_text(1, "Pull the open questions out of my notes"));
+        notes.keep(t, user_text(1, "Pull the open questions out of my notes", client()));
         notes.keep(t, Item::Active(Active { r#type: ActiveType::Active, provider: Provider { identity: here.clone() } }));
         for step in script::run(Kind::Hermes, "Pull the open questions out of my notes", &read) {
             t += TimeDelta::milliseconds(step.delay_ms as i64);
@@ -440,9 +638,9 @@ impl StubDaemon {
         notes.keep(t + TimeDelta::seconds(1), Item::Inactive(Inactive { r#type: InactiveType::Inactive, provider: Provider { identity: here.clone() } }));
 
         // A run that failed.
-        let mut broken = AgentState::new(create(Kind::Openrouter, "broken-loop", json!({ "model": "openrouter/auto" }), None), now - TimeDelta::hours(6));
+        let (broken_id, mut broken) = self.make(template(Kind::Openrouter, json!({ "model": "openrouter/auto" })), Some("broken-loop"), None, client(), now - TimeDelta::hours(6));
         let t = now - TimeDelta::hours(5);
-        broken.keep(t, user_text(2, "Summarise the reading list"));
+        broken.keep(t, user_text(2, "Summarise the reading list", client()));
         broken.keep(t, Item::Active(Active { r#type: ActiveType::Active, provider: Provider { identity: studio.clone() } }));
         broken.keep(t + TimeDelta::seconds(2), script::chunk(json!({ "type": "assistant_reasoning", "text": "Reading the list first." })));
         broken.keep(t + TimeDelta::seconds(4), error_item("the upstream refused the request: no API key for it in the vault"));
@@ -450,44 +648,95 @@ impl StubDaemon {
 
         // One mid-way through a long job, pinned to this machine's workspace.
         let pin = Pin { identity: here.clone(), volume_mounts: vec![VolumeMount { volume_name: "workspace".into(), volume_relative_path: vec![], volume_mode: Mode::Persistent, container_path: vec!["workspace".into()] }] };
-        let mut site = AgentState::new(create(Kind::Cc, "site-fixes", json!({ "model": "claude-sonnet-5", "tools": { "read": true, "glob": true, "grep": true, "bash": true, "task": true } }), Some(pin)), now - TimeDelta::minutes(40));
+        let (site_id, mut site) = self.make(template(Kind::Cc, json!({ "model": "claude-sonnet-5", "tools": { "read": true, "glob": true, "grep": true, "bash": true, "task": true } })), Some("site-fixes"), Some(pin), client(), now - TimeDelta::minutes(40));
         let t = now - TimeDelta::seconds(20);
-        site.keep(t, user_text(3, "Go through the whole site and tidy it, section by section."));
+        site.keep(t, user_text(3, "Go through the whole site and tidy it, section by section.", client()));
         site.keep(t, Item::Active(Active { r#type: ActiveType::Active, provider: Provider { identity: here.clone() } }));
-        site.active = Some(Provider { identity: here });
+        site.active = Some(Provider { identity: here.clone() });
         site.running = true;
+
+        // One site-fixes made through the daemon, given no name, and set to work.
+        let maker = Creator::Agent(creator::Agent { template: site.create.inner.template.clone(), index: site.index, name: site.create.name.clone() });
+        let ask = "Check every link on the site's front page and list the broken ones.";
+        let (links_id, mut links) = self.make(template(Kind::Openrouter, json!({ "model": "openrouter/auto", "system_prompt": "Check links. Say what's broken; change nothing." })), None, None, maker.clone(), now - TimeDelta::minutes(30));
+        let mut t = now - TimeDelta::minutes(29);
+        links.keep(t, user_text(4, ask, maker));
+        links.keep(t, Item::Active(Active { r#type: ActiveType::Active, provider: Provider { identity: here.clone() } }));
+        for step in script::run(Kind::Openrouter, ask, &read) {
+            t += TimeDelta::milliseconds(step.delay_ms as i64);
+            if let Piece::Item(item) = step.piece {
+                links.keep(t, item);
+            }
+        }
+        links.keep(t + TimeDelta::seconds(1), Item::Inactive(Inactive { r#type: InactiveType::Inactive, provider: Provider { identity: here.clone() } }));
+
+        // A tool of yours, nightly-digest, which made one agent overnight and set it to work.
+        let tool_template = ToolTemplate { r#type: Default::default(), description: None, image: Kind::Python.image(), memory: 2 << 30, disk: 2 << 30, arguments: json!({}), secrets: Vec::new() };
+        let tool_id = template_id(&tool_template);
+        let (maker, digest_id, mut digest) = {
+            let mut inner = self.lock();
+            let mode = tool_template.r#type.mode;
+            inner.tool_templates.insert(tool_id.clone(), Held { template: tool_template, created: now - TimeDelta::days(4), creator: client() });
+            let index = inner.next_index(&tool_id);
+            let origin = standalone_tools::list::server::response::Origin::Created { template: tool_id.clone(), index, mode, provider: None, id: None };
+            let create = standalone_tools::create::client::request::Frame { inner: Made { template: tool_id.clone(), secrets: IndexMap::new(), provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }, account: None, name: Some("nightly-digest".into()), relay: None };
+            inner.tools.push(ToolState { name: create.name.clone(), origin, create: Some(create), creator: client(), created: now - TimeDelta::days(4), agents: vec![notes_id.clone()], templates: Vec::new(), last_active: Some(now - TimeDelta::hours(8)) });
+            drop(inner);
+            let maker = Creator::Tool(creator::Tool::Record { template: tool_id, index, name: Some("nightly-digest".into()) });
+            let digest = template(Kind::Openrouter, json!({ "model": "openrouter/auto", "system_prompt": "Write a short morning digest of yesterday's notes." }));
+            let (digest_id, digest) = self.make(digest, Some("morning-digest"), None, maker.clone(), now - TimeDelta::hours(8));
+            (maker, digest_id, digest)
+        };
+        let ask = "Write this morning's digest from yesterday's notes.";
+        let mut t = now - TimeDelta::hours(8);
+        digest.keep(t, user_text(5, ask, maker));
+        digest.keep(t, Item::Active(Active { r#type: ActiveType::Active, provider: Provider { identity: here.clone() } }));
+        for step in script::run(Kind::Openrouter, ask, &read) {
+            t += TimeDelta::milliseconds(step.delay_ms as i64);
+            if let Piece::Item(item) = step.piece {
+                digest.keep(t, item);
+            }
+        }
+        digest.keep(t + TimeDelta::seconds(1), Item::Inactive(Inactive { r#type: InactiveType::Inactive, provider: Provider { identity: here } }));
+
+        // What you tagged them with.
+        notes.tags.insert("notes".into());
+        site.tags.insert("website".into());
 
         {
             let mut inner = self.lock();
-            inner.next_id = 4;
-            inner.agents.insert("site-fixes".into(), site);
-            inner.agents.insert("research-notes".into(), notes);
-            inner.agents.insert("broken-loop".into(), broken);
+            inner.next_id = 6;
+            inner.agents.insert(site_id.clone(), site);
+            inner.agents.insert(notes_id, notes);
+            inner.agents.insert(broken_id, broken);
+            inner.agents.insert(links_id, links);
+            inner.agents.insert(digest_id, digest);
         }
-        self.spawn_runner("site-fixes".into(), script::long_job(&read));
+        self.spawn_runner(site_id, script::long_job(&read));
     }
 }
 
-fn user_text(id: u64, text: &str) -> Item {
-    script::chunk(json!({ "type": "user_text_content", "key": format!("m{id}"), "text": text }))
+fn user_text(id: u64, text: &str, sender: Creator) -> Item {
+    let Item::Chunk(chunk) = script::chunk(json!({ "type": "user_text_content", "key": format!("m{id}"), "text": text })) else { unreachable!("a user text part is a chunk") };
+    Item::User(User { sender, chunk })
 }
 
 fn error_item(message: impl Into<String>) -> Item {
     Item::Error(ErrorItem { r#type: ErrorType::Error, error: wire_error(message) })
 }
 
-/// Keep a delivered message's parts as user chunks; the text, for the run.
-fn keep_user_parts(daemon: &StubDaemon, name: &str, id: u64, content: &[ContentBlock]) -> String {
+/// Keep a delivered message's parts as user items, with who sent it; the text, for the run.
+fn keep_user_parts(daemon: &StubDaemon, id: &str, message: u64, content: &[ContentBlock], sender: Creator) -> String {
     let mut text = String::new();
     let mut inner = daemon.lock();
-    let Some(agent) = inner.agents.get_mut(name) else { return text };
+    let Some(agent) = inner.agents.get_mut(id) else { return text };
     for block in content {
         let value = serde_json::to_value(block).unwrap_or(Value::Null);
         let kind = value.get("type").and_then(Value::as_str).unwrap_or_default().to_owned();
         let mut part = value.clone();
         if let Some(object) = part.as_object_mut() {
             object.remove("type");
-            object.insert("key".into(), json!(format!("m{id}")));
+            object.insert("key".into(), json!(format!("m{message}")));
         }
         let part_type = match kind.as_str() {
             "text" => {
@@ -502,7 +751,7 @@ fn keep_user_parts(daemon: &StubDaemon, name: &str, id: u64, content: &[ContentB
         };
         part["type"] = json!(part_type);
         if let Ok(chunk) = serde_json::from_value::<AgenticLoopChunk>(part) {
-            agent.keep(Utc::now(), Item::Chunk(chunk));
+            agent.keep(Utc::now(), Item::User(User { sender: sender.clone(), chunk }));
         }
     }
     text
@@ -511,6 +760,15 @@ fn keep_user_parts(daemon: &StubDaemon, name: &str, id: u64, content: &[ContentB
 #[cfg(test)]
 mod tests {
     use super::*;
+    use diverge_sdk::daemon::patch::Operation;
+
+    fn by_name(name: &str) -> reference::Agent {
+        reference::Agent::Name { name: name.into() }
+    }
+
+    fn logs(agent: reference::Agent, count: Option<u64>) -> LogsRequest {
+        LogsRequest { agent, logs_index_from: None, logs_index_to: None, created_from: None, created_to: None, r#type: None, count, watch: None, relay: None }
+    }
 
     /// A sync Tauri command runs on the main thread, outside any runtime.
     /// Draft one crashed here once; never again.
@@ -520,10 +778,65 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let root = std::env::temp_dir().join(format!("diverge-viewer-test-rt-{}", std::process::id()));
         let daemon = rt.block_on(async { StubDaemon::new(root) });
-        let request = LogsRequest { name: "research-notes".into(), logs_index_from: None, logs_index_to: None, created_from: None, created_to: None, r#type: None, jq: None, count: Some(3), watch: None };
-        let frames = std::thread::spawn(move || daemon.agents_logs(request, CancellationToken::new())).join().unwrap();
+        let frames = std::thread::spawn(move || daemon.agents_logs(logs(by_name("research-notes"), Some(3)), CancellationToken::new())).join().unwrap();
         let got = rt.block_on(frames.collect::<Vec<_>>());
         assert_eq!(got.len(), 3);
+    }
+
+    /// A template is held by its hash: the same one twice is one template,
+    /// and each agent made from it gets the next number.
+    #[tokio::test]
+    async fn templates_are_held_by_hash_and_agents_numbered_per_template() {
+        use agents::templates::create::server::response::Frame as Answer;
+        let root = std::env::temp_dir().join(format!("diverge-viewer-test-tpl-{}", std::process::id()));
+        let daemon = StubDaemon::new(root);
+        let template = AgentTemplate { r#type: AgentType {}, description: None, image: Kind::Openrouter.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({ "model": "openrouter/auto", "system_prompt": "Be brief." }), secrets: Vec::new() };
+        let make = |template: AgentTemplate| agents::templates::create::client::request::Frame { template, relay: None };
+        let Answer::Created(id) = daemon.agents_templates_create(make(template.clone())).await else { panic!("made") };
+        assert_eq!(id, template_id(&template));
+        // The references are not the template: another name for one image is the same one.
+        let renamed = AgentTemplate { image: agents::create::client::request::Image { references: Vec::new(), ..template.image.clone() }, ..template.clone() };
+        assert!(matches!(daemon.agents_templates_create(make(renamed)).await, Answer::Exists(again) if again == id));
+        let create = |name: Option<&str>| CreateRequest { inner: made(id.clone()), name: name.map(Into::into), relay: None };
+        use agents::create::server::response::Frame as Created;
+        assert!(matches!(daemon.agents_create(create(None)).await, Created::Created));
+        assert!(matches!(daemon.agents_create(create(Some("brief"))).await, Created::Created));
+        assert!(matches!(daemon.agents_create(create(Some("brief"))).await, Created::InUse));
+        let listed = crate::daemon::agents_listed(&daemon).await;
+        assert!(matches!(listed.last(), Some(agents::list::server::response::Frame::Listed)), "a list says it has listed");
+        let mine: Vec<_> = listed
+            .iter()
+            .filter_map(|f| match f {
+                agents::list::server::response::Frame::Added(a) if a.template == id => Some((a.name.clone(), a.index, a.creator.clone())),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(mine, vec![(None, 1, client()), (Some("brief".to_owned()), 2, client())]);
+        // The one with no name is reached by its template and index.
+        let unnamed = reference::Agent::TemplateIndex { template: id.clone(), index: 1 };
+        assert!(matches!(daemon.agents_delete(agents::delete::client::request::Frame { agent: unnamed, relay: None }).await, agents::delete::server::response::Frame::Deleted));
+    }
+
+    fn made(template: String) -> Made {
+        Made { template, secrets: IndexMap::new(), provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }
+    }
+
+    /// The seeded agent another agent made: no name, its maker named, and
+    /// what its maker said to it marked as its maker's.
+    #[tokio::test]
+    async fn an_agent_made_by_an_agent_says_who_made_it() {
+        use futures::StreamExt;
+        let root = std::env::temp_dir().join(format!("diverge-viewer-test-made-{}", std::process::id()));
+        let daemon = StubDaemon::new(root);
+        let listed = crate::daemon::agents_listed(&daemon).await;
+        let agents: Vec<_> = listed.into_iter().filter_map(|f| match f { agents::list::server::response::Frame::Added(a) => Some(a), _ => None }).collect();
+        let site = agents.iter().find(|a| a.name.as_deref() == Some("site-fixes")).unwrap();
+        let made = agents.iter().find(|a| a.name.is_none()).expect("one agent with no name");
+        assert_eq!(made.creator, Creator::Agent(creator::Agent { template: site.template.clone(), index: site.index, name: Some("site-fixes".into()) }));
+        let reference = crate::daemon::reference_of(&agent_key(None, &made.template, made.index));
+        let mut items = daemon.agents_logs(LogsRequest { r#type: Some(ItemType::UserTextContent), ..logs(reference, None) }, CancellationToken::new());
+        let Some(agents::logs::server::response::Frame::Item(first)) = items.next().await else { panic!("a user part") };
+        assert!(matches!(first.item, Item::User(User { sender, .. }) if sender == made.creator));
     }
 
     #[tokio::test]
@@ -555,7 +868,15 @@ mod tests {
     }
 
     fn edit(name: &str, volume_mounts: Vec<VolumeMount>, dirs: Vec<FuseMount>) -> agents::edit::client::request::Frame {
-        agents::edit::client::request::Frame { name: name.into(), volume_mounts, fuse_file_mounts: vec![], fuse_directory_mounts: dirs }
+        patch(name, vec![
+            Operation::Replace { path: "/volume_mounts".into(), value: json!(volume_mounts) },
+            Operation::Replace { path: "/fuse_file_mounts".into(), value: json!([]) },
+            Operation::Replace { path: "/fuse_directory_mounts".into(), value: json!(dirs) },
+        ])
+    }
+
+    fn patch(name: &str, patch: Vec<Operation>) -> agents::edit::client::request::Frame {
+        agents::edit::client::request::Frame { agent: by_name(name), patch, relay: None }
     }
 
     /// A volume is a machine's own: each lists its own, in its own modes,
@@ -566,20 +887,28 @@ mod tests {
         let root = std::env::temp_dir().join(format!("diverge-viewer-test-v-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let daemon = StubDaemon::new(root);
-        let listed = |f: Listed| match f {
-            Listed::Volumes(v) => v.into_iter().map(|v| (v.name, v.mode)).collect::<Vec<_>>(),
-            Listed::Error(e) => panic!("{e:?}"),
+        let listed = async |on: Identity| {
+            let cancel = CancellationToken::new();
+            let mut out = Vec::new();
+            let mut frames = daemon.volumes_list(&on, cancel.clone());
+            while let Some(frame) = frames.next().await {
+                match frame {
+                    Listed::Added(v) => out.push((v.name, v.mode)),
+                    Listed::Listed => break,
+                    other => panic!("{other:?}"),
+                }
+            }
+            cancel.cancel();
+            out
         };
-        assert_eq!(
-            listed(daemon.volumes_list(&here()).await),
-            vec![("datasets".into(), Mode::ReadOnly), ("scratch".into(), Mode::Ephemeral), ("workspace".into(), Mode::Persistent)]
-        );
-        assert_eq!(listed(daemon.volumes_list(&studio()).await), vec![("media".into(), Mode::Persistent)]);
-        assert!(matches!(daemon.volumes_list(&Identity::Outgoing { address: "nowhere:1".into() }).await, Listed::Error(_)));
+        assert_eq!(listed(here()).await, vec![("datasets".into(), Mode::ReadOnly), ("scratch".into(), Mode::Ephemeral), ("workspace".into(), Mode::Persistent)]);
+        assert_eq!(listed(studio()).await, vec![("media".into(), Mode::Persistent)]);
+        let nowhere: Vec<Listed> = daemon.volumes_list(&Identity::Outgoing { address: "nowhere:1".into() }, CancellationToken::new()).take(1).collect().await;
+        assert!(matches!(nowhere[..], [Listed::Error(_)]));
         // site-fixes is mid-run with this machine's workspace mounted.
         let on = here();
         let stat = |name: &str| daemon.volumes_stat(&on, volumes::stat::client::request::Frame { name: name.into() });
-        assert!(matches!(stat("workspace").await, volumes::stat::server::response::Frame::Error(_)));
+        assert!(matches!(stat("workspace").await, volumes::stat::server::response::Frame::Mounted));
         assert!(matches!(stat("datasets").await, volumes::stat::server::response::Frame::Stat(_)));
         assert!(matches!(
             daemon.volumes_delete(&here(), volumes::delete::client::request::Frame { name: "workspace".into() }).await,
@@ -591,73 +920,102 @@ mod tests {
         assert_eq!(daemon.machine(&here()).unwrap().mode("scratch"), Some(Mode::ReadOnly));
     }
 
-    /// An edit states the mounts anew, waits for an idle agent, and a volume
-    /// that keeps its changes has one user at a time.
+    /// An edit states the mounts anew, waits for an idle agent unless all it
+    /// does is add live mounts, and a volume that keeps its changes has one
+    /// user at a time.
     #[tokio::test]
     async fn an_edit_restates_mounts_once_the_agent_is_idle() {
-        use agents::edit::server::response::Frame as Edit;
+        use agents::edit::server::response::Frame as Edited;
         let root = std::env::temp_dir().join(format!("diverge-viewer-test-e-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let daemon = StubDaemon::new(root);
-        assert!(matches!(daemon.agents_edit(edit("nobody", vec![], vec![])).await, Edit::NotFound));
-        assert!(matches!(daemon.agents_edit(edit("site-fixes", vec![], vec![])).await, Edit::Active), "site-fixes is working");
+        assert!(matches!(daemon.agents_edit(edit("nobody", vec![], vec![])).await, Edited::NotFound));
+        assert!(matches!(daemon.agents_edit(edit("site-fixes", vec![], vec![])).await, Edited::Active), "site-fixes is working");
         // research-notes runs wherever the daemon chooses: no machine's volumes directly.
         let own = VolumeMount { volume_name: "datasets".into(), volume_relative_path: vec![], volume_mode: Mode::ReadOnly, container_path: vec!["data".into()] };
-        assert!(matches!(daemon.agents_edit(edit("research-notes", vec![own], vec![])).await, Edit::Error(_)));
+        assert!(matches!(daemon.agents_edit(edit("research-notes", vec![own], vec![])).await, Edited::Error(_)));
         // Live from the studio PC instead: it holds media from now until it is deleted.
-        assert!(matches!(daemon.agents_edit(edit("research-notes", vec![], vec![live(studio(), "media", "media")])).await, Edit::Edited));
-        assert_eq!(daemon.held(&studio(), "media").as_deref(), Some("research-notes"));
+        assert!(matches!(daemon.agents_edit(edit("research-notes", vec![], vec![live(studio(), "media", "media")])).await, Edited::Edited));
+        assert_eq!(daemon.held(&studio(), "media"), Some(("research-notes".to_owned(), Hold::Served)));
         // media keeps its changes, so broken-loop cannot have it too...
-        assert!(matches!(daemon.agents_edit(edit("broken-loop", vec![], vec![live(studio(), "media", "media")])).await, Edit::Error(_)));
+        assert!(matches!(daemon.agents_edit(edit("broken-loop", vec![], vec![live(studio(), "media", "media")])).await, Edited::Error(_)));
         // ...but a read-only volume has any number of users.
         let data = |who: &str| FuseMount { volume_mode: Mode::ReadOnly, ..live(here(), "datasets", who) };
-        assert!(matches!(daemon.agents_edit(edit("broken-loop", vec![], vec![data("data")])).await, Edit::Edited));
-        assert!(matches!(daemon.agents_edit(edit("research-notes", vec![], vec![live(studio(), "media", "media"), data("data")])).await, Edit::Edited));
+        assert!(matches!(daemon.agents_edit(edit("broken-loop", vec![], vec![data("data")])).await, Edited::Edited));
+        assert!(matches!(daemon.agents_edit(edit("research-notes", vec![], vec![live(studio(), "media", "media"), data("data")])).await, Edited::Edited));
         // Mounts may not stack.
-        assert!(matches!(daemon.agents_edit(edit("broken-loop", vec![], vec![data("data"), live(here(), "scratch", "data")])).await, Edit::Error(_)));
+        assert!(matches!(daemon.agents_edit(edit("broken-loop", vec![], vec![data("data"), live(here(), "scratch", "data")])).await, Edited::Error(_)));
         // Stated anew: an empty edit lets media go.
-        assert!(matches!(daemon.agents_edit(edit("research-notes", vec![], vec![])).await, Edit::Edited));
+        assert!(matches!(daemon.agents_edit(edit("research-notes", vec![], vec![])).await, Edited::Edited));
         assert_eq!(daemon.held(&studio(), "media"), None);
+        // While it works it takes live mounts added and nothing else.
+        let rename = |agent: &str, to: &str| patch(agent, vec![Operation::Replace { path: "/name".into(), value: json!(to) }]);
+        assert!(matches!(daemon.agents_edit(rename("site-fixes", "site-tidy")).await, Edited::Active));
+        let added = patch("site-fixes", vec![Operation::Add { path: "/fuse_directory_mounts/-".into(), value: json!(data("data")) }]);
+        assert!(matches!(daemon.agents_edit(added).await, Edited::Edited));
+        // Idle, a name changes; another's name is taken.
+        assert!(matches!(daemon.agents_edit(rename("broken-loop", "research-notes")).await, Edited::InUse));
+        assert!(matches!(daemon.agents_edit(rename("broken-loop", "reading-list")).await, Edited::Edited));
+        // A patch that can't be applied changes nothing.
+        let wrong = patch("research-notes", vec![Operation::Replace { path: "/image".into(), value: json!("another") }]);
+        assert!(matches!(daemon.agents_edit(wrong).await, Edited::Error(_)));
     }
 
-    /// Tools follow the daemon's rules: attach while an agent works, detach only
-    /// once it stops, delete only when attached nowhere, edit only your own.
+    /// Tools follow the daemon's rules: attached to an agent or its
+    /// template, deleted only when attached nowhere, edited only if yours.
     #[tokio::test]
-    async fn tools_are_created_connected_attached_and_let_go() {
+    async fn tools_are_created_registered_attached_and_let_go() {
         use futures::StreamExt;
-        use tools::list::server::response::{Frame as Listed, Origin};
+        use standalone_tools::list::server::response::{Frame as Listed, Origin};
         let root = std::env::temp_dir().join(format!("diverge-viewer-test-tools-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let daemon = StubDaemon::new(root);
-        let image = Image { name: "diverge-viewer-room".into(), digest: UNBUILT_DIGEST.into() };
-        let create = |name: &str| tools::create::client::request::Frame { image: image.clone(), memory: 1 << 30, disk: 1 << 30, provider: None, fuse_file_mounts: vec![], fuse_directory_mounts: vec![], arguments: json!({}), name: name.into() };
-        assert!(matches!(daemon.tools_create(create("labels")).await, tools::create::server::response::Frame::Created));
-        assert!(matches!(daemon.tools_create(create("labels")).await, tools::create::server::response::Frame::InUse));
-        let connect = tools::connect::client::request::Frame { provider: studio(), id: "room-7".into(), authorization: "a knock".into(), name: "ada's room".into() };
-        assert!(matches!(daemon.tools_connect(connect).await, tools::connect::server::response::Frame::Connected));
-        let edit = tools::edit::client::request::Frame { name: "ada's room".into(), volume_mounts: vec![], fuse_file_mounts: vec![], fuse_directory_mounts: vec![] };
-        assert!(matches!(daemon.tools_edit(edit).await, tools::edit::server::response::Frame::NotOwned), "not yours to change");
-        let attach = |tool: &str, agent: &str| tools::attach::client::request::Frame { tool: tool.into(), agent: agent.into() };
-        let detach = |tool: &str, agent: &str| tools::detach::client::request::Frame { tool: tool.into(), agent: agent.into() };
-        assert!(matches!(daemon.tools_attach(attach("labels", "site-fixes")).await, tools::attach::server::response::Frame::Attached), "attach while it works");
-        assert!(matches!(daemon.tools_detach(detach("labels", "site-fixes")).await, tools::detach::server::response::Frame::Active), "detach only once it stops");
-        assert!(matches!(daemon.tools_delete(tools::delete::client::request::Frame { name: "labels".into() }).await, tools::delete::server::response::Frame::Attached));
-        assert!(matches!(daemon.tools_attach(attach("labels", "nobody")).await, tools::attach::server::response::Frame::NoAgent));
-        let listed: Vec<Listed> = daemon.tools_list(tools::list::client::request::Frame {}).collect().await;
-        let labels = listed.iter().find_map(|f| match f { Listed::Tool(t) if t.name == "labels" => Some(t.clone()), _ => None }).unwrap();
-        assert!(labels.active && labels.agents == vec!["site-fixes".to_owned()]);
-        assert!(listed.iter().any(|f| matches!(f, Listed::Tool(t) if matches!(t.origin, Origin::Connected { .. }))));
-        let agents: Vec<agents::list::server::response::Frame> = daemon.agents_list(agents::list::client::request::Frame {}).collect().await;
-        assert!(agents.iter().any(|f| matches!(f, agents::list::server::response::Frame::Agent(a) if a.name == "site-fixes" && a.tools == vec!["labels".to_owned()])));
+        let template = ToolTemplate { r#type: Default::default(), description: None, image: Kind::Python.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({}), secrets: Vec::new() };
+        let standalone_tools::templates::create::server::response::Frame::Created(tid) =
+            daemon.standalone_tools_templates_create(standalone_tools::templates::create::client::request::Frame { template, relay: None }).await
+        else {
+            panic!("made")
+        };
+        let create = |name: &str| standalone_tools::create::client::request::Frame { inner: made(tid.clone()), account: None, name: Some(name.into()), relay: None };
+        assert!(matches!(daemon.standalone_tools_create(create("labels")).await, standalone_tools::create::server::response::Frame::Created));
+        assert!(matches!(daemon.standalone_tools_create(create("labels")).await, standalone_tools::create::server::response::Frame::InUse));
+        let tool = |name: &str| reference::Tool::Name { name: name.into() };
+        let register = standalone_tools::register::client::request::Frame { daemon: "studio".into(), account: "guest".into(), tool: tool("rooms"), name: Some("a friend's room".into()), relay: None };
+        assert!(matches!(daemon.standalone_tools_register(register).await, standalone_tools::register::server::response::Frame::Registered));
+        let theirs = standalone_tools::edit::client::request::Frame { tool: tool("a friend's room"), patch: vec![Operation::Replace { path: "/account".into(), value: json!("guest") }], relay: None };
+        assert!(matches!(daemon.standalone_tools_edit(theirs).await, standalone_tools::edit::server::response::Frame::NotOwned), "not yours to change");
+        let attach = |t: &str, agent: &str| standalone_tools::attach_agent_instance::client::request::Frame { tool: tool(t), agent: by_name(agent), relay: None };
+        assert!(matches!(daemon.standalone_tools_attach_agent_instance(attach("labels", "site-fixes")).await, standalone_tools::attach_agent_instance::server::response::Frame::Attached));
+        assert!(matches!(daemon.standalone_tools_attach_agent_instance(attach("labels", "nobody")).await, standalone_tools::attach_agent_instance::server::response::Frame::NoAgent));
+        assert!(matches!(
+            daemon.standalone_tools_delete(standalone_tools::delete::client::request::Frame { tool: tool("labels"), relay: None }).await,
+            standalone_tools::delete::server::response::Frame::Attached
+        ));
+        let cancel = CancellationToken::new();
+        let listed: Vec<Listed> = daemon.standalone_tools_list(standalone_tools::list::client::request::Frame { filter: Default::default(), count: None, relay: None }, cancel.clone()).take(4).collect().await;
+        cancel.cancel();
+        assert!(matches!(listed.last(), Some(Listed::Listed)));
+        let labels = listed.iter().find_map(|f| match f { Listed::Added(t) if t.name.as_deref() == Some("labels") => Some(t.clone()), _ => None }).unwrap();
+        assert!(labels.active && labels.attached_agent_instances.iter().map(|a| a.name.as_deref()).eq([Some("site-fixes")]));
+        assert!(listed.iter().any(|f| matches!(f, Listed::Added(t) if matches!(t.origin, Origin::Connected { .. }))));
+        let site = crate::daemon::agents_listed(&daemon)
+            .await
+            .into_iter()
+            .find_map(|f| match f { agents::list::server::response::Frame::Added(a) if a.name.as_deref() == Some("site-fixes") => Some(a), _ => None })
+            .unwrap();
+        assert!(matches!(&site.tools[..], [key::Tool::Record { name: Some(n), .. }] if n == "labels"));
+        // Attached to a template, every agent made from it has the tool.
+        let detach = standalone_tools::detach_agent_instance::client::request::Frame { tool: tool("labels"), agent: by_name("site-fixes"), relay: None };
+        assert!(matches!(daemon.standalone_tools_detach_agent_instance(detach).await, standalone_tools::detach_agent_instance::server::response::Frame::Detached));
+        let to_template = standalone_tools::attach_agent_template::client::request::Frame { tool: tool("labels"), template: site.template.clone(), relay: None };
+        assert!(matches!(daemon.standalone_tools_attach_agent_template(to_template).await, standalone_tools::attach_agent_template::server::response::Frame::Attached));
+        let get = daemon.agents_templates_get(agents::templates::get::client::request::Frame { id: site.template.clone(), relay: None }).await;
+        assert!(matches!(get, agents::templates::get::server::response::Frame::Found(t) if t.tools.len() == 1));
         // An ephemeral volume served live must say how much its changes may take.
         let scratch = FuseMount { provider: here(), volume_name: "scratch".into(), volume_relative_path: vec![], volume_mode: Mode::Ephemeral, overlay_disk: None, container_path: vec!["tmp".into()] };
-        assert!(matches!(daemon.agents_edit(edit_frame("research-notes", scratch.clone())).await, agents::edit::server::response::Frame::Error(_)));
+        assert!(matches!(daemon.agents_edit(edit("research-notes", vec![], vec![scratch.clone()])).await, agents::edit::server::response::Frame::Error(_)));
         let sized = FuseMount { overlay_disk: Some(1 << 30), ..scratch };
-        assert!(matches!(daemon.agents_edit(edit_frame("research-notes", sized)).await, agents::edit::server::response::Frame::Edited));
-    }
-
-    fn edit_frame(name: &str, dir: FuseMount) -> agents::edit::client::request::Frame {
-        agents::edit::client::request::Frame { name: name.into(), volume_mounts: vec![], fuse_file_mounts: vec![], fuse_directory_mounts: vec![dir] }
+        assert!(matches!(daemon.agents_edit(edit("research-notes", vec![], vec![sized])).await, agents::edit::server::response::Frame::Edited));
     }
 
     /// An agent reaches through the door: it asks its person, waits, and
@@ -676,7 +1034,7 @@ mod tests {
         let cancel = CancellationToken::new();
         let mut cards = door.watch(cancel.clone());
         let content = vec![serde_json::from_value(json!({ "type": "text", "text": "Claim the open task for me" })).unwrap()];
-        let outcome = daemon.agents_message(agents::message::client::request::Frame { name: "research-notes".into(), content }, CancellationToken::new()).await;
+        let outcome = daemon.agents_message(agents::message::client::request::Frame { agent: by_name("research-notes"), content, relay: None }, CancellationToken::new()).await;
         assert!(matches!(outcome, agents::message::server::response::Frame::Delivered));
         // First it asks to read the board, then to claim: two cards, each the whole call.
         let mut asked = Vec::new();
@@ -694,9 +1052,10 @@ mod tests {
         assert_eq!((asked[1].0.as_str(), asked[1].1), ("claim", crate::door::Reach::Work));
         assert_eq!(asked[1].2.as_deref(), Some("Package the photo resizer as a tool"), "the card names the task");
         // Let the run finish (virtual time).
+        let id = daemon.lock().find(&by_name("research-notes")).unwrap();
         for _ in 0..50 {
             tokio::time::sleep(Duration::from_millis(500)).await;
-            if !daemon.lock().agents.get("research-notes").map(|a| a.running).unwrap_or(false) {
+            if !daemon.lock().agents.get(&id).map(|a| a.running).unwrap_or(false) {
                 break;
             }
         }
@@ -710,44 +1069,143 @@ mod tests {
         cancel.cancel();
     }
 
+    /// Read a list on until it has said `n` more frames, or nothing comes for a while.
+    async fn next_frames(frames: &mut Frames<agents::list::server::response::Frame>, n: usize) -> Vec<agents::list::server::response::Frame> {
+        let mut out = Vec::new();
+        while out.len() < n {
+            match tokio::time::timeout(Duration::from_secs(5), frames.next()).await {
+                Ok(Some(frame)) => out.push(frame),
+                Ok(None) | Err(_) => break,
+            }
+        }
+        out
+    }
+
+    /// The list stays open past `Listed` and says what changes: an agent
+    /// made, its tags, its tools, a run starting, and its removal, as it was
+    /// last sent. A line its run writes changes nothing a list says.
+    #[tokio::test(start_paused = true)]
+    async fn the_agents_list_says_what_changes() {
+        use agents::list::server::response::Frame as Listed;
+        let root = std::env::temp_dir().join(format!("diverge-viewer-test-live-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let daemon = StubDaemon::new(root);
+        let cancel = CancellationToken::new();
+        let mut frames = daemon.agents_list(agents::list::client::request::Frame::default(), cancel.clone());
+        let first = next_frames(&mut frames, 64).await;
+        assert!(matches!(first.last(), Some(Listed::Listed)), "{first:?}");
+        let listed: Vec<_> = first.iter().filter_map(|f| match f { Listed::Added(a) => Some(a), _ => None }).collect();
+        assert!(listed.windows(2).all(|w| w[0].created <= w[1].created), "oldest made first");
+        assert_eq!(listed[0].name.as_deref(), Some("research-notes"));
+        // site-fixes is mid-run: its lines land, and the list says nothing.
+        assert!(next_frames(&mut frames, 1).await.is_empty(), "no frame per log line");
+
+        // Made: added.
+        let template = AgentTemplate { r#type: AgentType {}, description: None, image: Kind::Openrouter.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({ "model": "openrouter/auto" }), secrets: Vec::new() };
+        let agents::templates::create::server::response::Frame::Created(id) = daemon.agents_templates_create(agents::templates::create::client::request::Frame { template, relay: None }).await else { panic!("made") };
+        daemon.agents_create(CreateRequest { inner: made(id), name: Some("brief".into()), relay: None }).await;
+        assert!(matches!(&next_frames(&mut frames, 1).await[..], [Listed::Added(a)] if a.name.as_deref() == Some("brief") && !a.active));
+
+        // Tagged, then a tool attached: changed, as it is now.
+        let tag = |tags: &[&str]| agents::tag::client::request::Frame { agent: by_name("brief"), tags: tags.iter().map(|t| t.to_string()).collect(), relay: None };
+        assert!(matches!(daemon.agents_tag(tag(&["weekly", "notes"])).await, agents::tag::server::response::Frame::Tagged));
+        assert!(matches!(&next_frames(&mut frames, 1).await[..], [Listed::Changed(a)] if a.tags == ["notes", "weekly"]), "sorted");
+        let tools = ToolTemplate { r#type: Default::default(), description: None, image: Kind::Python.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({}), secrets: Vec::new() };
+        let standalone_tools::templates::create::server::response::Frame::Created(tid) =
+            daemon.standalone_tools_templates_create(standalone_tools::templates::create::client::request::Frame { template: tools, relay: None }).await
+        else {
+            panic!("made")
+        };
+        daemon.standalone_tools_create(standalone_tools::create::client::request::Frame { inner: made(tid), account: None, name: Some("labels".into()), relay: None }).await;
+        assert!(next_frames(&mut frames, 1).await.is_empty(), "a tool attached to nothing changes no agent");
+        let tool = reference::Tool::Name { name: "labels".into() };
+        let attach = standalone_tools::attach_agent_instance::client::request::Frame { tool, agent: by_name("brief"), relay: None };
+        assert!(matches!(daemon.standalone_tools_attach_agent_instance(attach).await, standalone_tools::attach_agent_instance::server::response::Frame::Attached));
+        assert!(matches!(&next_frames(&mut frames, 1).await[..], [Listed::Changed(a)] if a.tools.len() == 1));
+
+        // A run starting: changed, active, its log's length as of the start.
+        let content = vec![serde_json::from_value(json!({ "type": "text", "text": "Say hello" })).unwrap()];
+        let message = agents::message::client::request::Frame { agent: by_name("brief"), content, relay: None };
+        assert!(matches!(daemon.agents_message(message, CancellationToken::new()).await, agents::message::server::response::Frame::Delivered));
+        let started = next_frames(&mut frames, 1).await;
+        let [Listed::Changed(running)] = &started[..] else { panic!("{started:?}") };
+        assert!(running.active && running.logs_index > 0);
+        // …and ending: changed again, no longer active.
+        let ended = next_frames(&mut frames, 1).await;
+        assert!(matches!(&ended[..], [Listed::Changed(a)] if !a.active && a.logs_index > running.logs_index), "{ended:?}");
+
+        // Removed: as it was last sent.
+        assert!(matches!(daemon.agents_untag(agents::untag::client::request::Frame { agent: by_name("brief"), tags: vec!["weekly".into(), "never-on-it".into()], relay: None }).await, agents::untag::server::response::Frame::Untagged));
+        assert!(matches!(&next_frames(&mut frames, 1).await[..], [Listed::Changed(a)] if a.tags == ["notes"]));
+        assert!(matches!(daemon.agents_delete(agents::delete::client::request::Frame { agent: by_name("brief"), relay: None }).await, agents::delete::server::response::Frame::Deleted));
+        assert!(matches!(&next_frames(&mut frames, 1).await[..], [Listed::Removed(a)] if a.name.as_deref() == Some("brief") && a.tags == ["notes"]));
+        cancel.cancel();
+        assert!(next_frames(&mut frames, 1).await.is_empty(), "cancelled, it finishes");
+    }
+
+    /// A list asked with a filter says an agent come to match as added and
+    /// one that matches no more as removed.
+    #[tokio::test]
+    async fn a_filtered_list_adds_and_removes_as_agents_come_and_go() {
+        use agents::list::server::response::Frame as Listed;
+        let root = std::env::temp_dir().join(format!("diverge-viewer-test-live-filter-{}", std::process::id()));
+        let daemon = StubDaemon::new(root);
+        let cancel = CancellationToken::new();
+        let filter = agents::list::client::request::Filter { any_tags: vec!["urgent".into()], ..Default::default() };
+        let mut frames = daemon.agents_list(agents::list::client::request::Frame { filter, count: None, relay: None }, cancel.clone());
+        assert!(matches!(&next_frames(&mut frames, 1).await[..], [Listed::Listed]), "none match yet");
+        daemon.agents_tag(agents::tag::client::request::Frame { agent: by_name("broken-loop"), tags: vec!["urgent".into()], relay: None }).await;
+        assert!(matches!(&next_frames(&mut frames, 1).await[..], [Listed::Added(a)] if a.name.as_deref() == Some("broken-loop")));
+        daemon.agents_untag(agents::untag::client::request::Frame { agent: by_name("broken-loop"), tags: vec!["urgent".into()], relay: None }).await;
+        assert!(matches!(&next_frames(&mut frames, 1).await[..], [Listed::Removed(a)] if a.tags == ["urgent"]), "as it was last sent");
+        assert!(matches!(daemon.agents_tag(agents::tag::client::request::Frame { agent: by_name("nobody"), tags: vec![], relay: None }).await, agents::tag::server::response::Frame::NotFound));
+        cancel.cancel();
+    }
+
     #[tokio::test]
     async fn seeded_agents_have_settings_their_image_accepts() {
         let root = std::env::temp_dir().join(format!("diverge-viewer-test-{}", std::process::id()));
         let daemon = StubDaemon::new(root);
         let inner = daemon.lock();
-        for (name, agent) in &inner.agents {
-            let kind = agent.kind().expect("a seeded agent names one of the six images");
-            assert!(kind.check(&agent.create.arguments).is_ok(), "{name}: {:?}", kind.check(&agent.create.arguments));
+        for agent in inner.agents.values() {
+            let kind = agent.kind.expect("a seeded agent names one of the six images");
+            assert!(kind.check(&agent.arguments).is_ok(), "{}: {:?}", agent.key(), kind.check(&agent.arguments));
         }
+    }
+}
+
+/// The `type` a chunk carries, as a logs request names one.
+fn chunk_type(chunk: &AgenticLoopChunk) -> ItemType {
+    match chunk {
+        AgenticLoopChunk::AssistantReasoning(_) => ItemType::AssistantReasoning,
+        AgenticLoopChunk::AssistantTextContent(_) => ItemType::AssistantTextContent,
+        AgenticLoopChunk::AssistantImageContent(_) => ItemType::AssistantImageContent,
+        AgenticLoopChunk::AssistantAudioContent(_) => ItemType::AssistantAudioContent,
+        AgenticLoopChunk::AssistantToolCall(_) => ItemType::AssistantToolCall,
+        AgenticLoopChunk::AssistantRefusal(_) => ItemType::AssistantRefusal,
+        AgenticLoopChunk::ToolResponse(_) => ItemType::ToolResponse,
+        AgenticLoopChunk::UserTextContent(_) => ItemType::UserTextContent,
+        AgenticLoopChunk::UserImageContent(_) => ItemType::UserImageContent,
+        AgenticLoopChunk::UserAudioContent(_) => ItemType::UserAudioContent,
+        AgenticLoopChunk::UserResource(_) => ItemType::UserResource,
+        AgenticLoopChunk::UserResourceLink(_) => ItemType::UserResourceLink,
+        AgenticLoopChunk::Usage(_) => ItemType::Usage,
+        AgenticLoopChunk::Notification(_) => ItemType::Notification,
     }
 }
 
 /// The `type` an item carries, as a logs request names one.
 fn item_type(item: &Item) -> ItemType {
     match item {
-        Item::Chunk(chunk) => match chunk {
-            AgenticLoopChunk::AssistantReasoning(_) => ItemType::AssistantReasoning,
-            AgenticLoopChunk::AssistantTextContent(_) => ItemType::AssistantTextContent,
-            AgenticLoopChunk::AssistantImageContent(_) => ItemType::AssistantImageContent,
-            AgenticLoopChunk::AssistantAudioContent(_) => ItemType::AssistantAudioContent,
-            AgenticLoopChunk::AssistantToolCall(_) => ItemType::AssistantToolCall,
-            AgenticLoopChunk::AssistantRefusal(_) => ItemType::AssistantRefusal,
-            AgenticLoopChunk::ToolResponse(_) => ItemType::ToolResponse,
-            AgenticLoopChunk::UserTextContent(_) => ItemType::UserTextContent,
-            AgenticLoopChunk::UserImageContent(_) => ItemType::UserImageContent,
-            AgenticLoopChunk::UserAudioContent(_) => ItemType::UserAudioContent,
-            AgenticLoopChunk::UserResource(_) => ItemType::UserResource,
-            AgenticLoopChunk::UserResourceLink(_) => ItemType::UserResourceLink,
-            AgenticLoopChunk::Usage(_) => ItemType::Usage,
-            AgenticLoopChunk::Notification(_) => ItemType::Notification,
-        },
+        Item::User(user) => chunk_type(&user.chunk),
+        Item::Chunk(chunk) => chunk_type(chunk),
         Item::Error(_) => ItemType::Error,
         Item::Active(_) => ItemType::Active,
         Item::Inactive(_) => ItemType::Inactive,
     }
 }
 
-/// The spans and the type: what the program is allowed to see.
+/// The spans and the type: what the read sends.
 fn in_filter(request: &LogsRequest, item: &ItemWrapper) -> bool {
     request.logs_index_from.is_none_or(|from| item.logs_index >= from)
         && request.logs_index_to.is_none_or(|to| item.logs_index <= to)
@@ -756,55 +1214,99 @@ fn in_filter(request: &LogsRequest, item: &ItemWrapper) -> bool {
         && request.r#type.is_none_or(|kind| item_type(&item.item) == kind)
 }
 
-/// What comes back for one item that passed the filter.
-fn yields(request: &LogsRequest, item: &ItemWrapper) -> Result<Vec<Value>, String> {
-    let value = serde_json::to_value(item).map_err(|e| e.to_string())?;
-    match &request.jq {
-        None => Ok(vec![value]),
-        Some(program) => super::jq::run(value, program),
-    }
+/// Whether a list item matches what a list asks for.
+fn matches(filter: &agents::list::client::request::Filter, agent: &agents::list::server::response::Agent) -> bool {
+    (filter.names.is_empty() || agent.name.as_ref().is_some_and(|n| filter.names.contains(n)))
+        && (filter.templates.is_empty() || filter.templates.contains(&agent.template))
+        && (filter.creators.is_empty() || filter.creators.contains(&agent.creator))
+        && filter.active.is_none_or(|active| active == agent.active)
+        && filter.all_tags.iter().all(|t| agent.tags.contains(t))
+        && (filter.any_tags.is_empty() || filter.any_tags.iter().any(|t| agent.tags.contains(t)))
+        && filter.created_from.is_none_or(|from| agent.created >= from)
+        && filter.created_to.is_none_or(|to| agent.created <= to)
 }
 
 #[async_trait]
 impl Daemon for StubDaemon {
+    async fn agents_templates_create(
+        &self,
+        request: agents::templates::create::client::request::Frame,
+    ) -> agents::templates::create::server::response::Frame {
+        use agents::templates::create::server::response::Frame;
+        let id = template_id(&request.template);
+        let mut inner = self.lock();
+        if inner.templates.contains_key(&id) {
+            return Frame::Exists(id);
+        }
+        inner.templates.insert(id.clone(), Held { template: request.template, created: Utc::now(), creator: client() });
+        Frame::Created(id)
+    }
+
+    async fn agents_templates_get(&self, request: agents::templates::get::client::request::Frame) -> agents::templates::get::server::response::Frame {
+        use agents::templates::get::server::response::Frame;
+        use agents::templates::list::server::response::Listed;
+        let inner = self.lock();
+        match inner.templates.get(&request.id) {
+            None => Frame::NotFound,
+            Some(held) => Frame::Found(Listed {
+                id: request.id.clone(),
+                created: held.created,
+                creator: held.creator.clone(),
+                tags: Vec::new(),
+                tools: inner.tools.iter().filter(|t| t.templates.contains(&request.id)).map(ToolState::key).collect(),
+                template: held.template.clone(),
+            }),
+        }
+    }
+
     async fn agents_create(&self, request: CreateRequest) -> agents::create::server::response::Frame {
         use agents::create::server::response::Frame;
-        if request.name.trim().is_empty() {
-            return Frame::Error(wire_error("an agent needs a name"));
+        if request.name.as_ref().is_some_and(|n| n.trim().is_empty()) {
+            return Frame::Error(wire_error("a name, if given, says something"));
         }
         let mut inner = self.lock();
-        if inner.agents.contains_key(&request.name) {
+        let Some(held) = inner.templates.get(&request.inner.template) else {
+            return Frame::Error(wire_error("no template of yours has that id"));
+        };
+        let template = held.template.clone();
+        if let Err(reason) = secrets_bound(&template.secrets, &request.inner.secrets) {
+            return Frame::Error(wire_error(reason));
+        }
+        if request.name.is_some() && inner.agents.values().any(|a| a.create.name == request.name) {
             return Frame::InUse;
         }
+        let index = inner.counters.get(&request.inner.template).copied().unwrap_or(0) + 1;
+        let id = id_of(&request.inner.template, index);
         let checked = {
-            let fuse: Vec<&FuseMount> = request.fuse_file_mounts.iter().chain(&request.fuse_directory_mounts).collect();
-            let volume_mounts = request.provider.as_ref().map_or(&[][..], |p| p.volume_mounts.as_slice());
-            check_mounts(&inner, &request.name, request.provider.as_ref().map(|p| &p.identity), volume_mounts, &fuse)
+            let made = &request.inner;
+            let fuse: Vec<&FuseMount> = made.fuse_file_mounts.iter().chain(&made.fuse_directory_mounts).collect();
+            let volume_mounts = made.provider.as_ref().map_or(&[][..], |p| p.volume_mounts.as_slice());
+            check_mounts(&inner, &id, made.provider.as_ref().map(|p| &p.identity), volume_mounts, &fuse)
         };
         if let Err(reason) = checked {
             return Frame::Error(wire_error(reason));
         }
-        let name = request.name.clone();
-        inner.agents.insert(name, AgentState::new(request, Utc::now()));
+        inner.next_index(&request.inner.template);
+        inner.agents.insert(id, AgentState::new(request, index, client(), &template, Utc::now()));
+        inner.changed();
         Frame::Created
     }
 
     async fn agents_delete(&self, request: agents::delete::client::request::Frame) -> agents::delete::server::response::Frame {
         use agents::delete::server::response::Frame;
         let mut inner = self.lock();
-        match inner.agents.get(&request.name) {
-            None => Frame::NotFound,
-            Some(agent) if agent.active.is_some() || agent.running => Frame::Active,
-            Some(_) => {
-                if let Some(agent) = inner.agents.shift_remove(&request.name) {
-                    agent.gone.cancel();
-                }
-                for t in inner.tools.values_mut() {
-                    t.agents.retain(|a| a != &request.name);
-                }
-                Frame::Deleted
-            }
+        let Some(id) = inner.find(&request.agent) else { return Frame::NotFound };
+        if inner.agents.get(&id).is_some_and(AgentState::busy) {
+            return Frame::Active;
         }
+        if let Some(agent) = inner.agents.shift_remove(&id) {
+            agent.gone.cancel();
+        }
+        for t in &mut inner.tools {
+            t.agents.retain(|a| a != &id);
+        }
+        inner.changed();
+        Frame::Deleted
     }
 
     async fn agents_message(
@@ -814,20 +1316,21 @@ impl Daemon for StubDaemon {
     ) -> agents::message::server::response::Frame {
         use agents::message::server::response::Frame;
         let (delivered, mut on_delivery) = oneshot::channel();
-        let (id, start) = {
+        let (id, message, start) = {
             let mut inner = self.lock();
-            let id = inner.next_id;
+            let message = inner.next_id;
             inner.next_id += 1;
-            let Some(agent) = inner.agents.get_mut(&request.name) else {
-                return Frame::Error(wire_error(format!("no agent named \"{}\"", request.name)));
+            let Some(id) = inner.find(&request.agent) else {
+                return Frame::Error(wire_error("no agent of yours is the one named"));
             };
-            agent.queue.push_back(Queued { id, content: request.content, delivered });
+            let Some(agent) = inner.agents.get_mut(&id) else { return Frame::Error(wire_error("no agent of yours is the one named")) };
+            agent.queue.push_back(Queued { id: message, content: request.content, delivered });
             let start = !agent.running;
             agent.running = true;
-            (id, start)
+            (id, message, start)
         };
         if start {
-            self.spawn_runner(request.name.clone(), Vec::new());
+            self.spawn_runner(id.clone(), Vec::new());
         }
         tokio::select! {
             result = &mut on_delivery => match result {
@@ -837,8 +1340,8 @@ impl Daemon for StubDaemon {
             _ = cancel.cancelled() => {
                 {
                     let mut inner = self.lock();
-                    if let Some(agent) = inner.agents.get_mut(&request.name) {
-                        if let Some(at) = agent.queue.iter().position(|q| q.id == id) {
+                    if let Some(agent) = inner.agents.get_mut(&id) {
+                        if let Some(at) = agent.queue.iter().position(|q| q.id == message) {
                             agent.queue.remove(at);
                             return Frame::Cancelled;
                         }
@@ -859,10 +1362,10 @@ impl Daemon for StubDaemon {
         self.rt.spawn(async move {
             let found = {
                 let inner = daemon.lock();
-                inner.agents.get(&request.name).map(|agent| (agent.log.clone(), agent.live.subscribe(), agent.gone.clone()))
+                inner.find(&request.agent).and_then(|id| inner.agents.get(&id)).map(|agent| (agent.log.clone(), agent.live.subscribe(), agent.gone.clone()))
             };
             let Some((history, mut live, gone)) = found else {
-                let _ = tx.send(Frame::Error(wire_error(format!("no agent named \"{}\"", request.name)))).await;
+                let _ = tx.send(Frame::Error(wire_error("no agent of yours is the one named"))).await;
                 return;
             };
             let limit = request.count;
@@ -875,24 +1378,11 @@ impl Daemon for StubDaemon {
                 if !in_filter(&request, item) {
                     return true;
                 }
-                match yields(&request, item) {
-                    Err(reason) => {
-                        let _ = tx.send(Frame::Error(wire_error(reason))).await;
-                        false
-                    }
-                    Ok(values) => {
-                        for value in values {
-                            if tx.send(Frame::Value(value)).await.is_err() {
-                                return false;
-                            }
-                            *sent += 1;
-                            if limit.is_some_and(|limit| *sent >= limit) {
-                                return false;
-                            }
-                        }
-                        true
-                    }
+                if tx.send(Frame::Item(item.clone())).await.is_err() {
+                    return false;
                 }
+                *sent += 1;
+                !limit.is_some_and(|limit| *sent >= limit)
             };
             let mut last = 0;
             for item in &history {
@@ -943,179 +1433,384 @@ impl Daemon for StubDaemon {
         Box::pin(stream::unfold(rx, |mut rx| async move { rx.recv().await.map(|frame| (frame, rx)) }))
     }
 
-    fn agents_list(&self, _request: agents::list::client::request::Frame) -> Frames<agents::list::server::response::Frame> {
-        use agents::list::server::response::{Agent, Frame};
-        let inner = self.lock();
-        let frames: Vec<Frame> = inner
-            .agents
-            .iter()
-            .map(|(name, agent)| {
-                let last_change = agent.log.iter().rev().find_map(|item| match &item.item {
-                    Item::Active(Active { provider, .. }) | Item::Inactive(Inactive { provider, .. }) => Some((item.created, provider.clone())),
-                    Item::Chunk(_) | Item::Error(_) => None,
+    /// Every agent that matches, `Listed`, then what changes, until `cancel`:
+    /// on each tick the window is read again, and an agent come into it is
+    /// `Added`, one in it still that differs from what was last sent
+    /// `Changed`, and one gone from it `Removed`, as it was last sent.
+    fn agents_list(&self, request: agents::list::client::request::Frame, cancel: CancellationToken) -> Frames<agents::list::server::response::Frame> {
+        use agents::list::server::response::Frame;
+        let (tx, rx) = mpsc::channel::<Frame>(256);
+        // The window and the subscription under one lock: no change falls between them.
+        let (mut sent, mut changes) = {
+            let inner = self.lock();
+            (inner.window(&request), inner.changes.subscribe())
+        };
+        let daemon = self.clone();
+        self.rt.spawn(async move {
+            let first = sent.values().cloned().map(Frame::Added).chain([Frame::Listed]);
+            for frame in first.collect::<Vec<_>>() {
+                if tx.send(frame).await.is_err() {
+                    return;
+                }
+            }
+            loop {
+                tokio::select! {
+                    _ = cancel.cancelled() => return,
+                    _ = tx.closed() => return,
+                    next = changes.recv() => match next {
+                        // A list that fell behind reads the window again all the same.
+                        Ok(()) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                        Err(broadcast::error::RecvError::Closed) => return,
+                    },
+                }
+                let now = daemon.lock().window(&request);
+                let gone = sent.iter().filter(|(id, _)| !now.contains_key(*id)).map(|(_, was)| Frame::Removed(was.clone()));
+                let came = now.iter().filter_map(|(id, agent)| match sent.get(id) {
+                    None => Some(Frame::Added(agent.clone())),
+                    Some(was) if was != agent => Some(Frame::Changed(agent.clone())),
+                    Some(_) => None,
                 });
-                Frame::Agent(Agent {
-                    tools: inner.tools.iter().filter(|(_, t)| t.agents.contains(name)).map(|(n, _)| n.clone()).collect(),
-                    name: name.clone(),
-                    image: agent.create.image.clone(),
-                    created: agent.created,
-                    active: agent.active.is_some(),
-                    last_active: last_change.as_ref().map(|(at, _)| *at),
-                    provider: last_change.map(|(_, provider)| provider),
-                    logs_index: agent.log.last().map_or(0, |item| item.logs_index),
-                })
-            })
-            .collect();
-        Box::pin(stream::iter(frames))
+                let frames: Vec<Frame> = gone.chain(came).collect();
+                sent = now;
+                for frame in frames {
+                    if tx.send(frame).await.is_err() {
+                        return;
+                    }
+                }
+            }
+        });
+        Box::pin(stream::unfold(rx, |mut rx| async move { rx.recv().await.map(|frame| (frame, rx)) }))
     }
 
     async fn agents_edit(&self, request: agents::edit::client::request::Frame) -> agents::edit::server::response::Frame {
+        use agents::edit::client::request::Editable;
         use agents::edit::server::response::Frame;
         let mut inner = self.lock();
-        let pin = match inner.agents.get(&request.name) {
-            None => return Frame::NotFound,
-            Some(agent) if agent.active.is_some() || agent.running => return Frame::Active,
-            Some(agent) => agent.create.provider.as_ref().map(|p| p.identity.clone()),
+        let Some(id) = inner.find(&request.agent) else { return Frame::NotFound };
+        let Some(agent) = inner.agents.get(&id) else { return Frame::NotFound };
+        let made = agent.create.inner.clone();
+        let current = Editable {
+            name: agent.create.name.clone(),
+            volume_mounts: made.provider.as_ref().map(|p| p.volume_mounts.clone()).unwrap_or_default(),
+            fuse_file_mounts: made.fuse_file_mounts.clone(),
+            fuse_directory_mounts: made.fuse_directory_mounts.clone(),
+            secrets: made.secrets.clone(),
         };
-        let checked = {
-            let fuse: Vec<&FuseMount> = request.fuse_file_mounts.iter().chain(&request.fuse_directory_mounts).collect();
-            check_mounts(&inner, &request.name, pin.as_ref(), &request.volume_mounts, &fuse)
+        let result = match super::patched(&current, &request.patch) {
+            Ok(result) => result,
+            Err(reason) => return Frame::Error(wire_error(reason)),
         };
-        if let Err(reason) = checked {
-            return Frame::Error(wire_error(reason));
+        // A running container takes live mounts added to the end of either
+        // list, mounted at once, and nothing else.
+        let added_only = result.name == current.name
+            && result.volume_mounts == current.volume_mounts
+            && result.secrets == current.secrets
+            && result.fuse_file_mounts.starts_with(&current.fuse_file_mounts)
+            && result.fuse_directory_mounts.starts_with(&current.fuse_directory_mounts);
+        if agent.busy() && !added_only {
+            return Frame::Active;
         }
-        let Some(agent) = inner.agents.get_mut(&request.name) else { return Frame::NotFound };
-        if let Some(pin) = agent.create.provider.as_mut() {
-            pin.volume_mounts = request.volume_mounts;
+        if result.secrets != current.secrets {
+            let declared = inner.templates.get(&made.template).map(|held| held.template.secrets.clone()).unwrap_or_default();
+            if let Err(reason) = secrets_bound(&declared, &result.secrets) {
+                return Frame::Error(wire_error(reason));
+            }
         }
-        agent.create.fuse_file_mounts = request.fuse_file_mounts;
-        agent.create.fuse_directory_mounts = request.fuse_directory_mounts;
+        let mounts_changed = result.volume_mounts != current.volume_mounts
+            || result.fuse_file_mounts != current.fuse_file_mounts
+            || result.fuse_directory_mounts != current.fuse_directory_mounts;
+        if mounts_changed {
+            let fuse: Vec<&FuseMount> = result.fuse_file_mounts.iter().chain(&result.fuse_directory_mounts).collect();
+            if let Err(reason) = check_mounts(&inner, &id, made.provider.as_ref().map(|p| &p.identity), &result.volume_mounts, &fuse) {
+                return Frame::Error(wire_error(reason));
+            }
+        }
+        if result.name.is_some() && inner.agents.iter().any(|(other, a)| other != &id && a.create.name == result.name) {
+            return Frame::InUse;
+        }
+        let Some(agent) = inner.agents.get_mut(&id) else { return Frame::NotFound };
+        if let Some(pin) = agent.create.inner.provider.as_mut() {
+            pin.volume_mounts = result.volume_mounts;
+        }
+        agent.create.inner.fuse_file_mounts = result.fuse_file_mounts;
+        agent.create.inner.fuse_directory_mounts = result.fuse_directory_mounts;
+        agent.create.inner.secrets = result.secrets;
+        agent.create.name = result.name;
+        inner.changed();
         Frame::Edited
     }
 
-    async fn tools_create(&self, request: tools::create::client::request::Frame) -> tools::create::server::response::Frame {
-        use tools::create::server::response::Frame;
+    async fn agents_tag(&self, request: agents::tag::client::request::Frame) -> agents::tag::server::response::Frame {
+        use agents::tag::server::response::Frame;
         let mut inner = self.lock();
-        if request.name.trim().is_empty() {
-            return Frame::Error(wire_error("a tool needs a name"));
+        let Some(id) = inner.find(&request.agent) else { return Frame::NotFound };
+        let Some(agent) = inner.agents.get_mut(&id) else { return Frame::NotFound };
+        agent.tags.extend(request.tags);
+        inner.changed();
+        Frame::Tagged
+    }
+
+    async fn agents_untag(&self, request: agents::untag::client::request::Frame) -> agents::untag::server::response::Frame {
+        use agents::untag::server::response::Frame;
+        let mut inner = self.lock();
+        let Some(id) = inner.find(&request.agent) else { return Frame::NotFound };
+        let Some(agent) = inner.agents.get_mut(&id) else { return Frame::NotFound };
+        for tag in &request.tags {
+            agent.tags.remove(tag);
         }
-        if inner.tools.contains_key(&request.name) {
+        inner.changed();
+        Frame::Untagged
+    }
+
+    async fn standalone_tools_templates_create(
+        &self,
+        request: standalone_tools::templates::create::client::request::Frame,
+    ) -> standalone_tools::templates::create::server::response::Frame {
+        use standalone_tools::templates::create::server::response::Frame;
+        let id = template_id(&request.template);
+        let mut inner = self.lock();
+        if inner.tool_templates.contains_key(&id) {
+            return Frame::Exists(id);
+        }
+        inner.tool_templates.insert(id.clone(), Held { template: request.template, created: Utc::now(), creator: client() });
+        Frame::Created(id)
+    }
+
+    async fn standalone_tools_create(&self, request: standalone_tools::create::client::request::Frame) -> standalone_tools::create::server::response::Frame {
+        use standalone_tools::create::server::response::Frame;
+        use standalone_tools::list::server::response::Origin;
+        let mut inner = self.lock();
+        if request.name.as_ref().is_some_and(|n| n.trim().is_empty()) {
+            return Frame::Error(wire_error("a name, if given, says something"));
+        }
+        let Some((mode, declared)) = inner.tool_templates.get(&request.inner.template).map(|held| (held.template.r#type.mode, held.template.secrets.clone())) else {
+            return Frame::Error(wire_error("no tool template of yours has that id"));
+        };
+        if let Err(reason) = secrets_bound(&declared, &request.inner.secrets) {
+            return Frame::Error(wire_error(reason));
+        }
+        if request.name.is_some() && inner.tools.iter().any(|t| t.name == request.name) {
             return Frame::InUse;
         }
+        // The stand-in holds no accounts on anyone's behalf.
+        if request.account.is_some() {
+            return Frame::NoAccount;
+        }
         let checked = {
-            let fuse: Vec<&FuseMount> = request.fuse_file_mounts.iter().chain(&request.fuse_directory_mounts).collect();
-            let volume_mounts = request.provider.as_ref().map_or(&[][..], |p| p.volume_mounts.as_slice());
-            check_mounts(&inner, &request.name, request.provider.as_ref().map(|p| &p.identity), volume_mounts, &fuse)
+            let made = &request.inner;
+            let fuse: Vec<&FuseMount> = made.fuse_file_mounts.iter().chain(&made.fuse_directory_mounts).collect();
+            let volume_mounts = made.provider.as_ref().map_or(&[][..], |p| p.volume_mounts.as_slice());
+            check_mounts(&inner, "", made.provider.as_ref().map(|p| &p.identity), volume_mounts, &fuse)
         };
         if let Err(reason) = checked {
             return Frame::Error(wire_error(reason));
         }
-        let origin = tools::list::server::response::Origin::Created { image: request.image.clone(), provider: request.provider.as_ref().map(|p| Provider { identity: p.identity.clone() }), id: None };
-        inner.tools.insert(request.name.clone(), ToolState { origin, create: Some(request), created: Utc::now(), agents: Vec::new(), last_active: None });
+        let index = inner.next_index(&request.inner.template);
+        let origin = Origin::Created { template: request.inner.template.clone(), index, mode, provider: None, id: None };
+        inner.tools.push(ToolState { name: request.name.clone(), origin, create: Some(request), creator: client(), created: Utc::now(), agents: Vec::new(), templates: Vec::new(), last_active: None });
         Frame::Created
     }
 
-    async fn tools_edit(&self, request: tools::edit::client::request::Frame) -> tools::edit::server::response::Frame {
-        use tools::edit::server::response::Frame;
+    async fn standalone_tools_edit(&self, request: standalone_tools::edit::client::request::Frame) -> standalone_tools::edit::server::response::Frame {
+        use standalone_tools::edit::client::request::Editable;
+        use standalone_tools::edit::server::response::Frame;
         let mut inner = self.lock();
-        let (pin, active) = match inner.tools.get(&request.name) {
-            None => return Frame::NotFound,
-            Some(t) if t.create.is_none() => return Frame::NotOwned,
-            Some(t) => (
-                t.create.as_ref().and_then(|c| c.provider.as_ref().map(|p| p.identity.clone())),
-                t.agents.iter().any(|a| inner.agents.get(a).is_some_and(|x| x.active.is_some() || x.running)),
-            ),
+        let Some(at) = inner.find_tool(&request.tool) else { return Frame::NotFound };
+        // A connected tool is somebody else's container: none of its mounts,
+        // account or secrets are yours.
+        let made = inner.tools[at].create.as_ref().map(|create| create.inner.clone());
+        let current = Editable {
+            name: inner.tools[at].name.clone(),
+            // The stand-in holds no accounts on anyone's behalf.
+            account: None,
+            volume_mounts: made.as_ref().and_then(|m| m.provider.as_ref()).map(|p| p.volume_mounts.clone()).unwrap_or_default(),
+            fuse_file_mounts: made.as_ref().map(|m| m.fuse_file_mounts.clone()).unwrap_or_default(),
+            fuse_directory_mounts: made.as_ref().map(|m| m.fuse_directory_mounts.clone()).unwrap_or_default(),
+            secrets: made.as_ref().map(|m| m.secrets.clone()).unwrap_or_default(),
         };
-        if active {
+        let result = match super::patched(&current, &request.patch) {
+            Ok(result) => result,
+            Err(reason) => return Frame::Error(wire_error(reason)),
+        };
+        let mounts_changed = result.volume_mounts != current.volume_mounts
+            || result.fuse_file_mounts != current.fuse_file_mounts
+            || result.fuse_directory_mounts != current.fuse_directory_mounts;
+        let account_changed = result.account != current.account;
+        let secrets_changed = result.secrets != current.secrets;
+        let Some(made) = made else {
+            if mounts_changed || account_changed || secrets_changed {
+                return Frame::NotOwned;
+            }
+            if result.name.is_some() && inner.tools.iter().enumerate().any(|(i, t)| i != at && t.name == result.name) {
+                return Frame::InUse;
+            }
+            inner.tools[at].name = result.name;
+            inner.changed();
+            return Frame::Edited;
+        };
+        // As an agent's: a running container takes live mounts added, and nothing else.
+        let added_only = result.name == current.name
+            && !account_changed
+            && result.volume_mounts == current.volume_mounts
+            && !secrets_changed
+            && result.fuse_file_mounts.starts_with(&current.fuse_file_mounts)
+            && result.fuse_directory_mounts.starts_with(&current.fuse_directory_mounts);
+        if inner.tool_active(&inner.tools[at]) && !added_only {
             return Frame::Active;
         }
-        let checked = {
-            let fuse: Vec<&FuseMount> = request.fuse_file_mounts.iter().chain(&request.fuse_directory_mounts).collect();
-            check_mounts(&inner, &request.name, pin.as_ref(), &request.volume_mounts, &fuse)
-        };
-        if let Err(reason) = checked {
-            return Frame::Error(wire_error(reason));
+        if account_changed {
+            return Frame::NoAccount;
         }
-        let Some(create) = inner.tools.get_mut(&request.name).and_then(|t| t.create.as_mut()) else { return Frame::NotFound };
-        if let Some(p) = create.provider.as_mut() {
-            p.volume_mounts = request.volume_mounts;
+        if secrets_changed {
+            let declared = inner.tool_templates.get(&made.template).map(|held| held.template.secrets.clone()).unwrap_or_default();
+            if let Err(reason) = secrets_bound(&declared, &result.secrets) {
+                return Frame::Error(wire_error(reason));
+            }
         }
-        create.fuse_file_mounts = request.fuse_file_mounts;
-        create.fuse_directory_mounts = request.fuse_directory_mounts;
+        if mounts_changed {
+            let fuse: Vec<&FuseMount> = result.fuse_file_mounts.iter().chain(&result.fuse_directory_mounts).collect();
+            if let Err(reason) = check_mounts(&inner, "", made.provider.as_ref().map(|p| &p.identity), &result.volume_mounts, &fuse) {
+                return Frame::Error(wire_error(reason));
+            }
+        }
+        if result.name.is_some() && inner.tools.iter().enumerate().any(|(i, t)| i != at && t.name == result.name) {
+            return Frame::InUse;
+        }
+        let tool = &mut inner.tools[at];
+        tool.name = result.name;
+        if let Some(create) = tool.create.as_mut() {
+            if let Some(p) = create.inner.provider.as_mut() {
+                p.volume_mounts = result.volume_mounts;
+            }
+            create.inner.fuse_file_mounts = result.fuse_file_mounts;
+            create.inner.fuse_directory_mounts = result.fuse_directory_mounts;
+            create.inner.secrets = result.secrets;
+        }
+        inner.changed();
         Frame::Edited
     }
 
-    async fn tools_connect(&self, request: tools::connect::client::request::Frame) -> tools::connect::server::response::Frame {
-        use tools::connect::server::response::Frame;
+    async fn standalone_tools_register(&self, request: standalone_tools::register::client::request::Frame) -> standalone_tools::register::server::response::Frame {
+        use standalone_tools::list::server::response::Origin;
+        use standalone_tools::register::server::response::Frame;
         let mut inner = self.lock();
-        if inner.tools.contains_key(&request.name) {
+        if request.name.is_some() && inner.tools.iter().any(|t| t.name == request.name) {
             return Frame::InUse;
         }
-        if !inner.providers.iter().any(|p| p.identity == request.provider) {
-            return Frame::Error(wire_error("the daemon knows no provider by that identity"));
-        }
-        let origin = tools::list::server::response::Origin::Connected { provider: request.provider, id: request.id };
-        inner.tools.insert(request.name, ToolState { origin, create: None, created: Utc::now(), agents: Vec::new(), last_active: None });
-        Frame::Connected
+        let joined = json!({ "daemon": request.daemon, "account": request.account, "tool": request.tool }).to_string();
+        let index = inner.next_index(&joined);
+        let origin = Origin::Connected { daemon: request.daemon, account: request.account, tool: request.tool, index };
+        inner.tools.push(ToolState { name: request.name, origin, create: None, creator: client(), created: Utc::now(), agents: Vec::new(), templates: Vec::new(), last_active: None });
+        Frame::Registered
     }
 
-    async fn tools_attach(&self, request: tools::attach::client::request::Frame) -> tools::attach::server::response::Frame {
-        use tools::attach::server::response::Frame;
+    async fn standalone_tools_attach_agent_instance(
+        &self,
+        request: standalone_tools::attach_agent_instance::client::request::Frame,
+    ) -> standalone_tools::attach_agent_instance::server::response::Frame {
+        use standalone_tools::attach_agent_instance::server::response::Frame;
         let mut inner = self.lock();
-        if !inner.agents.contains_key(&request.agent) {
-            return Frame::NoAgent;
+        let Some(agent) = inner.find(&request.agent) else { return Frame::NoAgent };
+        let Some(at) = inner.find_tool(&request.tool) else { return Frame::NoTool };
+        let tool = &mut inner.tools[at];
+        if !tool.agents.contains(&agent) {
+            tool.agents.push(agent);
         }
-        let Some(t) = inner.tools.get_mut(&request.tool) else { return Frame::NoTool };
-        if !t.agents.contains(&request.agent) {
-            t.agents.push(request.agent);
-        }
+        inner.changed();
         Frame::Attached
     }
 
-    async fn tools_detach(&self, request: tools::detach::client::request::Frame) -> tools::detach::server::response::Frame {
-        use tools::detach::server::response::Frame;
+    async fn standalone_tools_detach_agent_instance(
+        &self,
+        request: standalone_tools::detach_agent_instance::client::request::Frame,
+    ) -> standalone_tools::detach_agent_instance::server::response::Frame {
+        use standalone_tools::detach_agent_instance::server::response::Frame;
         let mut inner = self.lock();
-        let active = match inner.agents.get(&request.agent) {
-            None => return Frame::NoAgent,
-            Some(a) => a.active.is_some() || a.running,
-        };
-        if !inner.tools.contains_key(&request.tool) {
-            return Frame::NoTool;
-        }
-        if active {
-            return Frame::Active;
-        }
-        if let Some(t) = inner.tools.get_mut(&request.tool) {
-            t.agents.retain(|a| a != &request.agent);
-        }
+        let Some(agent) = inner.find(&request.agent) else { return Frame::NoAgent };
+        let Some(at) = inner.find_tool(&request.tool) else { return Frame::NoTool };
+        inner.tools[at].agents.retain(|a| a != &agent);
+        inner.changed();
         Frame::Detached
     }
 
-    async fn tools_delete(&self, request: tools::delete::client::request::Frame) -> tools::delete::server::response::Frame {
-        use tools::delete::server::response::Frame;
+    async fn standalone_tools_attach_agent_template(
+        &self,
+        request: standalone_tools::attach_agent_template::client::request::Frame,
+    ) -> standalone_tools::attach_agent_template::server::response::Frame {
+        use standalone_tools::attach_agent_template::server::response::Frame;
         let mut inner = self.lock();
-        match inner.tools.get(&request.name) {
-            None => Frame::NotFound,
-            Some(t) if !t.agents.is_empty() => Frame::Attached,
-            Some(_) => {
-                inner.tools.shift_remove(&request.name);
-                Frame::Deleted
-            }
+        if !inner.templates.contains_key(&request.template) {
+            return Frame::NoTemplate;
         }
+        let Some(at) = inner.find_tool(&request.tool) else { return Frame::NoTool };
+        let tool = &mut inner.tools[at];
+        if !tool.templates.contains(&request.template) {
+            tool.templates.push(request.template);
+        }
+        inner.changed();
+        Frame::Attached
     }
 
-    fn tools_list(&self, _request: tools::list::client::request::Frame) -> Frames<tools::list::server::response::Frame> {
-        use tools::list::server::response::{Frame, Tool};
+    async fn standalone_tools_detach_agent_template(
+        &self,
+        request: standalone_tools::detach_agent_template::client::request::Frame,
+    ) -> standalone_tools::detach_agent_template::server::response::Frame {
+        use standalone_tools::detach_agent_template::server::response::Frame;
+        let mut inner = self.lock();
+        if !inner.templates.contains_key(&request.template) {
+            return Frame::NoTemplate;
+        }
+        let Some(at) = inner.find_tool(&request.tool) else { return Frame::NoTool };
+        inner.tools[at].templates.retain(|t| t != &request.template);
+        inner.changed();
+        Frame::Detached
+    }
+
+    async fn standalone_tools_delete(&self, request: standalone_tools::delete::client::request::Frame) -> standalone_tools::delete::server::response::Frame {
+        use standalone_tools::delete::server::response::Frame;
+        let mut inner = self.lock();
+        let Some(at) = inner.find_tool(&request.tool) else { return Frame::NotFound };
+        if !inner.tools[at].agents.is_empty() || !inner.tools[at].templates.is_empty() {
+            return Frame::Attached;
+        }
+        inner.tools.remove(at);
+        Frame::Deleted
+    }
+
+    fn standalone_tools_list(
+        &self,
+        request: standalone_tools::list::client::request::Frame,
+        cancel: CancellationToken,
+    ) -> Frames<standalone_tools::list::server::response::Frame> {
+        use standalone_tools::list::server::response::{Frame, Tool};
         let inner = self.lock();
-        let frames: Vec<Frame> = inner
+        let mut frames: Vec<Frame> = inner
             .tools
             .iter()
-            .map(|(name, t)| {
-                let active = t.agents.iter().any(|a| inner.agents.get(a).is_some_and(|x| x.active.is_some() || x.running));
-                Frame::Tool(Tool { name: name.clone(), origin: t.origin.clone(), created: t.created, active, last_active: t.last_active, agents: t.agents.clone() })
+            .filter(|t| request.filter.names.is_empty() || t.name.as_ref().is_some_and(|n| request.filter.names.contains(n)))
+            .take(request.count.map_or(usize::MAX, |n| n as usize))
+            .map(|t| {
+                let attached_agent_instances = t
+                    .agents
+                    .iter()
+                    .filter_map(|id| inner.agents.get(id))
+                    .map(|a| key::Agent { template: a.create.inner.template.clone(), index: a.index, name: a.create.name.clone() })
+                    .collect();
+                Frame::Added(Tool {
+                    name: t.name.clone(),
+                    origin: t.origin.clone(),
+                    creator: t.creator.clone(),
+                    created: t.created,
+                    active: inner.tool_active(t),
+                    last_active: t.last_active,
+                    attached_agent_instances,
+                    attached_agent_templates: t.templates.clone(),
+                    tags: Vec::new(),
+                })
             })
             .collect();
-        Box::pin(stream::iter(frames))
+        frames.push(Frame::Listed);
+        Box::pin(stream::iter(frames).chain(open_until(cancel)))
     }
 
     async fn providers_list(&self) -> Vec<ProviderEntry> {
@@ -1178,12 +1873,13 @@ impl Daemon for StubDaemon {
 /// since it knows every agent's mounts.
 #[async_trait]
 impl Machines for StubDaemon {
-    async fn volumes_list(&self, on: &Identity) -> volumes::list::server::response::Frame {
+    fn volumes_list(&self, on: &Identity, cancel: CancellationToken) -> Frames<volumes::list::server::response::Frame> {
         use volumes::list::server::response::Frame;
-        match self.machine(on) {
-            Ok(store) => Frame::Volumes(store.list()),
-            Err(error) => Frame::Error(error),
-        }
+        let frames = match self.machine(on) {
+            Ok(store) => store.list().into_iter().map(Frame::Added).chain([Frame::Listed]).collect(),
+            Err(error) => vec![Frame::Error(error)],
+        };
+        Box::pin(stream::iter(frames).chain(open_until(cancel)))
     }
 
     async fn volumes_stat(&self, on: &Identity, request: volumes::stat::client::request::Frame) -> volumes::stat::server::response::Frame {
@@ -1192,8 +1888,10 @@ impl Machines for StubDaemon {
             Ok(store) => store,
             Err(error) => return Frame::Error(error),
         };
-        if let Some(agent) = self.held(on, &request.name) {
-            return Frame::Error(wire_error(format!("{agent} has it mounted")));
+        match self.held(on, &request.name) {
+            Some((_, Hold::Mounted)) => return Frame::Mounted,
+            Some((_, Hold::Served)) => return Frame::FuseServed,
+            None => {}
         }
         match store.stat(&request.name) {
             Ok(stat) => Frame::Stat(stat),
@@ -1205,7 +1903,8 @@ impl Machines for StubDaemon {
         let frames = match self.machine(on) {
             Err(error) => vec![ReadFrame::Error(error)],
             Ok(store) => match self.held(on, &request.name) {
-                Some(agent) => vec![ReadFrame::Error(wire_error(format!("{agent} has it mounted")))],
+                Some((_, Hold::Mounted)) => vec![ReadFrame::Mounted],
+                Some((_, Hold::Served)) => vec![ReadFrame::FuseServed],
                 None => match store.read(&request.name, &request.path) {
                     Err(reason) => vec![ReadFrame::Error(wire_error(reason))],
                     Ok(bytes) if bytes.is_empty() => Vec::new(),
@@ -1222,8 +1921,10 @@ impl Machines for StubDaemon {
             Ok(store) => store,
             Err(error) => return Frame::Error(error),
         };
-        if let Some(agent) = self.held(on, &request.name) {
-            return Frame::Error(wire_error(format!("{agent} has it mounted")));
+        match self.held(on, &request.name) {
+            Some((_, Hold::Mounted)) => return Frame::Mounted,
+            Some((_, Hold::Served)) => return Frame::FuseServed,
+            None => {}
         }
         match store.write(&request.name, &request.path, &body) {
             Ok(()) => Frame::Written(write_path::response::Frame),
@@ -1237,8 +1938,10 @@ impl Machines for StubDaemon {
             Ok(store) => store,
             Err(error) => return Frame::Error(error),
         };
-        if let Some(agent) = self.held(on, &request.name) {
-            return Frame::Error(wire_error(format!("{agent} has it mounted")));
+        match self.held(on, &request.name) {
+            Some((_, Hold::Mounted)) => return Frame::Mounted,
+            Some((_, Hold::Served)) => return Frame::FuseServed,
+            None => {}
         }
         match store.tree(&request.name, &request.path) {
             Ok(tree) => Frame::Tree(tree),
@@ -1285,8 +1988,10 @@ impl Machines for StubDaemon {
             Ok(store) => store,
             Err(error) => return Frame::Error(error),
         };
-        if let Some(agent) = self.held(on, &request.name) {
-            return Frame::Error(wire_error(format!("{agent} has it mounted")));
+        match self.held(on, &request.name) {
+            Some((_, Hold::Mounted)) => return Frame::Mounted,
+            Some((_, Hold::Served)) => return Frame::FuseServed,
+            None => {}
         }
         let (bytes, mode) = match request.change {
             Change::Bytes(bytes) => (Some(bytes), None),
@@ -1307,8 +2012,10 @@ impl Machines for StubDaemon {
             Ok(store) => store,
             Err(error) => return Frame::Error(error),
         };
-        if self.held(on, &request.name).is_some() {
-            return Frame::Mounted;
+        match self.held(on, &request.name) {
+            Some((_, Hold::Mounted)) => return Frame::Mounted,
+            Some((_, Hold::Served)) => return Frame::FuseServed,
+            None => {}
         }
         match store.delete(&request.name) {
             Ok(()) => Frame::Deleted,

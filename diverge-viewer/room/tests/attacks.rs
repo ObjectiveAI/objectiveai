@@ -325,19 +325,19 @@ fn a_rules_number_this_program_doesnt_know_is_refused_in_words() {
 
 /// juno hosts a rules-2 room from her Mac; ren's account is let in.
 fn workshop_v2() -> (Room, P, A, P, A, H) {
-    let (maya_mac, ren_mac) = (P::new("juno's mac"), P::new("ren's laptop"));
-    let (juno, ren) = (A::new("juno", &[&maya_mac]), A::new("ren", &[&ren_mac]));
-    let h = H(maya_mac.k.clone());
-    let (args, key) = settings_v2("workshop", &juno, &maya_mac, "juno");
+    let (juno_mac, ren_mac) = (P::new("juno's mac"), P::new("ren's laptop"));
+    let (juno, ren) = (A::new("juno", &[&juno_mac]), A::new("ren", &[&ren_mac]));
+    let h = H(juno_mac.k.clone());
+    let (args, key) = settings_v2("workshop", &juno, &juno_mac, "juno");
     let mut room = Room::new(args, key).unwrap();
-    let mut m = maya_mac;
+    let mut m = juno_mac;
     m.call(&mut room, &h, "admit", json!({ "account": ren.proof, "name": "ren" })).unwrap();
     (room, m, juno, ren_mac, ren, h)
 }
 
 #[test]
 fn under_rules_two_a_member_is_their_account() {
-    let (mut room, mut maya_mac, juno, mut ren_mac, ren, h) = workshop_v2();
+    let (mut room, mut juno_mac, juno, mut ren_mac, ren, h) = workshop_v2();
     assert_eq!(room.id(), account_room_id("workshop", &juno.id()));
     assert!(room.member(&ren.id()).is_some(), "keyed by the account");
     assert!(room.member(&ren_mac.k.key()).is_none(), "not by the key");
@@ -346,23 +346,23 @@ fn under_rules_two_a_member_is_their_account() {
     assert_eq!((shown.by.as_str(), shown.actor()), (ren_mac.k.key().as_str(), ren.id().as_str()), "the move names the key that sealed it and the member it acts for");
     // A person is let in by their account, never a bare key.
     let ada = P::new("ada");
-    assert!(maya_mac.call(&mut room, &h, "admit", json!({ "key": ada.k.key(), "name": "ada" })).is_err());
+    assert!(juno_mac.call(&mut room, &h, "admit", json!({ "key": ada.k.key(), "name": "ada" })).is_err());
     assert!(Room::check(&room.record()).is_ok());
 }
 
 #[test]
 fn a_v2_admit_with_a_forged_device_list_is_refused() {
-    let (mut room, mut maya_mac, _, _, _, h) = workshop_v2();
+    let (mut room, mut juno_mac, _, _, _, h) = workshop_v2();
     let (ada_mac, mallory) = (P::new("ada's mac"), P::new("mallory"));
     let ada = A::new("ada", &[&ada_mac]);
     // mallory writes a list adding her own key to ada's account, signed by herself.
     let forged = Proof { genesis: ada.proof.genesis.clone(), devices: device_list(&mallory.k, &ada.id(), 2, &[ada_mac.k.key(), mallory.k.key()]) };
-    let err = maya_mac.call(&mut room, &h, "admit", json!({ "account": forged, "name": "ada" })).unwrap_err();
+    let err = juno_mac.call(&mut room, &h, "admit", json!({ "account": forged, "name": "ada" })).unwrap_err();
     assert!(err.contains("root"), "{err}");
     // A list ada's root signed for another account doesn't carry over.
     let elsewhere = Proof { genesis: ada.proof.genesis.clone(), devices: device_list(&ada.root, "another account", 2, &[mallory.k.key()]) };
-    assert!(maya_mac.call(&mut room, &h, "admit", json!({ "account": elsewhere, "name": "ada" })).is_err());
-    maya_mac.call(&mut room, &h, "admit", json!({ "account": ada.proof, "name": "ada" })).unwrap();
+    assert!(juno_mac.call(&mut room, &h, "admit", json!({ "account": elsewhere, "name": "ada" })).is_err());
+    juno_mac.call(&mut room, &h, "admit", json!({ "account": ada.proof, "name": "ada" })).unwrap();
     // Nor can mallory bring a forged newer list into the room herself.
     let mut m = mallory;
     let err = m.call(&mut room, &h, "keys", json!({ "account": forged })).unwrap_err();
@@ -382,16 +382,16 @@ fn a_device_list_no_newer_than_the_one_held_is_refused() {
 
 #[test]
 fn letting_someone_back_in_with_an_older_device_list_is_refused() {
-    let (mut room, mut maya_mac, _, mut ren_mac, ren, h) = workshop_v2();
+    let (mut room, mut juno_mac, _, mut ren_mac, ren, h) = workshop_v2();
     let desktop = P::new("ren's desktop");
     // ren drops the laptop; then juno removes ren.
     ren_mac.call(&mut room, &h, "keys", json!({ "account": ren.list(2, &[&desktop]) })).unwrap();
-    maya_mac.call(&mut room, &h, "remove", json!({ "key": ren.id() })).unwrap();
+    juno_mac.call(&mut room, &h, "remove", json!({ "key": ren.id() })).unwrap();
     // Letting ren back in with the list from before would bring the dropped laptop back.
-    let err = maya_mac.call(&mut room, &h, "admit", json!({ "account": ren.proof, "name": "ren" })).unwrap_err();
+    let err = juno_mac.call(&mut room, &h, "admit", json!({ "account": ren.proof, "name": "ren" })).unwrap_err();
     assert!(err.contains("number 1") && err.contains("number 2"), "{err}");
-    assert!(maya_mac.call(&mut room, &h, "admit", json!({ "account": ren.list(2, &[&ren_mac]), "name": "ren" })).is_err(), "nor the same number saying something else");
-    maya_mac.call(&mut room, &h, "admit", json!({ "account": ren.list(2, &[&desktop]), "name": "ren" })).unwrap();
+    assert!(juno_mac.call(&mut room, &h, "admit", json!({ "account": ren.list(2, &[&ren_mac]), "name": "ren" })).is_err(), "nor the same number saying something else");
+    juno_mac.call(&mut room, &h, "admit", json!({ "account": ren.list(2, &[&desktop]), "name": "ren" })).unwrap();
     assert!(ren_mac.call(&mut room, &h, "show", json!({ "title": "x" })).is_err(), "the laptop stays off");
     assert!(Room::check(&room.record()).is_ok());
 }
@@ -458,11 +458,11 @@ fn a_host_on_a_second_device_of_the_same_account_hosts_the_same_room() {
 
 #[test]
 fn under_rules_two_someone_unlisted_is_a_mark_of_their_account_until_they_bring_their_list() {
-    let (mut room, mut maya_mac, _, _, _, h) = workshop_v2();
+    let (mut room, mut juno_mac, _, _, _, h) = workshop_v2();
     let mut ada_mac = P::new("ada's mac");
     let ada = A::new("ada", &[&ada_mac]);
     let rid = room.id().to_owned();
-    maya_mac.call(&mut room, &h, "admit", json!({ "key_mark": key_mark(&rid, &ada.id()), "name": "ada", "listed": false })).unwrap();
+    juno_mac.call(&mut room, &h, "admit", json!({ "key_mark": key_mark(&rid, &ada.id()), "name": "ada", "listed": false })).unwrap();
     let record = serde_json::to_string(&room.record()).unwrap();
     assert!(!record.contains(&ada.id()) && !record.contains(&ada_mac.k.key()), "the record names neither her account nor her key");
     assert!(room.may_read(&ada.id()));
@@ -476,12 +476,12 @@ fn under_rules_two_someone_unlisted_is_a_mark_of_their_account_until_they_bring_
 
 #[test]
 fn a_receipt_from_a_rules_two_room_proves_its_room_wherever_it_is_pinned() {
-    let (mut room, mut maya_mac, juno, mut ren_mac, ren, h) = workshop_v2();
-    maya_mac.call(&mut room, &h, "post_task", json!({ "title": "T", "spec": "S" })).unwrap();
+    let (mut room, mut juno_mac, juno, mut ren_mac, ren, h) = workshop_v2();
+    juno_mac.call(&mut room, &h, "post_task", json!({ "title": "T", "spec": "S" })).unwrap();
     let task = room.moves().last().unwrap().id.clone();
     ren_mac.call(&mut room, &h, "claim", json!({ "task_id": task })).unwrap();
     ren_mac.call(&mut room, &h, "deliver", json!({ "task_id": task, "summary": "x" })).unwrap();
-    maya_mac.call(&mut room, &h, "accept", json!({ "task_id": task })).unwrap();
+    juno_mac.call(&mut room, &h, "accept", json!({ "task_id": task })).unwrap();
     let receipt = room.moves().last().unwrap().clone();
     let statement: Statement = serde_json::from_value(receipt.fields["statement"].clone()).unwrap();
     assert_eq!(receipt_issuer(&statement), Some(juno.id()), "the room's id names the account the receipt carries");
@@ -539,30 +539,30 @@ fn a_removed_member_whose_list_names_a_current_members_key_cannot_continue_a_rul
 
 #[test]
 fn a_removed_member_whose_list_names_a_current_members_key_cannot_continue_a_rules_two_room() {
-    let (mut room, mut maya_mac, juno, ren_mac, ren, h) = workshop_v2();
-    maya_mac.call(&mut room, &h, "remove", json!({ "key": ren.id() })).unwrap();
-    let maya_key = P::new("juno's mac");
+    let (mut room, mut juno_mac, juno, ren_mac, ren, h) = workshop_v2();
+    juno_mac.call(&mut room, &h, "remove", json!({ "key": ren.id() })).unwrap();
+    let juno_key = P::new("juno's mac");
     // A fresh account naming ren's laptop and juno's Mac…
-    let eve = A::new("eve", &[&ren_mac, &maya_key]);
+    let eve = A::new("eve", &[&ren_mac, &juno_key]);
     let err = continue_as(&room, "next", &eve, &ren_mac).err().unwrap();
     assert!(err.contains("still in"), "{err}");
     // …or ren's own account with a newer list that adds juno's Mac.
-    let ren_next = A { root: Keypair::from_seed("ren's root"), proof: ren.list(2, &[&ren_mac, &maya_key]) };
+    let ren_next = A { root: Keypair::from_seed("ren's root"), proof: ren.list(2, &[&ren_mac, &juno_key]) };
     let err = continue_as(&room, "next", &ren_next, &ren_mac).err().unwrap();
     assert!(err.contains("still in"), "{err}");
     // juno, from her account, still can.
-    continue_as(&room, "next", &juno, &maya_key).unwrap();
+    continue_as(&room, "next", &juno, &juno_key).unwrap();
 }
 
 #[test]
 fn a_key_named_on_one_members_list_cant_be_let_in_for_anyone_else() {
     // A device list is its root's word alone: nothing shows the keys on it agreed.
     // So a key one member lists, held or not, is refused for anyone else, its holder included.
-    let (mut room, mut maya_mac, _, mut ren_mac, ren, h) = workshop_v2();
+    let (mut room, mut juno_mac, _, mut ren_mac, ren, h) = workshop_v2();
     let ada_mac = P::new("ada's mac");
     ren_mac.call(&mut room, &h, "keys", json!({ "account": ren.list(2, &[&ren_mac, &ada_mac]) })).unwrap();
     let ada = A::new("ada", &[&ada_mac]);
-    let err = maya_mac.call(&mut room, &h, "admit", json!({ "account": ada.proof, "name": "ada" })).unwrap_err();
+    let err = juno_mac.call(&mut room, &h, "admit", json!({ "account": ada.proof, "name": "ada" })).unwrap_err();
     assert!(err.contains("already acts for someone else"), "{err}");
     // It can't seal a move for ren without the key itself.
     let mut fake = P::new("mallory");
@@ -579,12 +579,12 @@ fn last_id(room: &Room) -> String {
 
 #[test]
 fn an_erased_moves_room_restarts_from_its_record_and_the_words_are_gone() {
-    let (mut room, mut maya_mac, _, mut ren_mac, _, h) = workshop_v2();
+    let (mut room, mut juno_mac, _, mut ren_mac, _, h) = workshop_v2();
     ren_mac.call(&mut room, &h, "show", json!({ "title": "where I live", "body": "12 Elm Street" })).unwrap();
     let shown = last_id(&room);
     ren_mac.call(&mut room, &h, "reply", json!({ "move_id": shown, "body": "come by Saturday" })).unwrap();
     let before = room.record();
-    maya_mac.call(&mut room, &h, "erase", json!({ "move_id": shown, "reason": "a home address" })).unwrap();
+    juno_mac.call(&mut room, &h, "erase", json!({ "move_id": shown, "reason": "a home address" })).unwrap();
     let erasure = room.moves().last().unwrap().clone();
     assert_eq!(erasure.body, "erased by juno under a home address");
     let record = room.record();
@@ -622,11 +622,11 @@ fn words_gone_with_nothing_to_erase_them_are_refused() {
     rec.moves.last_mut().unwrap().args.insert("title".into(), json!("a stolen radio"));
     assert!(Room::check(&rec).is_err());
     // Nor can someone else's words be put where erased ones were.
-    let (mut room, mut maya_mac, ..) = workshop_v2();
+    let (mut room, mut juno_mac, ..) = workshop_v2();
     let mut ren_mac = P::new("ren's laptop");
     ren_mac.call(&mut room, &h, "show", json!({ "title": "a radio" })).unwrap();
     let shown = last_id(&room);
-    maya_mac.call(&mut room, &h, "erase", json!({ "move_id": shown, "reason": "spam" })).unwrap();
+    juno_mac.call(&mut room, &h, "erase", json!({ "move_id": shown, "reason": "spam" })).unwrap();
     let mut rec = room.record();
     let i = rec.moves.iter().position(|m| m.id == shown).unwrap();
     rec.moves[i].title = "juno said so".into();
@@ -635,38 +635,38 @@ fn words_gone_with_nothing_to_erase_them_are_refused() {
 
 #[test]
 fn only_the_author_withdraws_their_own_move() {
-    let (mut room, mut maya_mac, _, mut ren_mac, _, h) = workshop_v2();
+    let (mut room, mut juno_mac, _, mut ren_mac, _, h) = workshop_v2();
     let ada_mac = P::new("ada's mac");
     let ada = A::new("ada", &[&ada_mac]);
-    maya_mac.call(&mut room, &h, "admit", json!({ "account": ada.proof, "name": "ada" })).unwrap();
+    juno_mac.call(&mut room, &h, "admit", json!({ "account": ada.proof, "name": "ada" })).unwrap();
     let mut ada_mac = ada_mac;
     ren_mac.call(&mut room, &h, "show", json!({ "title": "a radio" })).unwrap();
     let shown = last_id(&room);
     let err = ada_mac.call(&mut room, &h, "withdraw", json!({ "move_id": shown })).unwrap_err();
     assert!(err.contains("only who made it"), "{err}");
-    let err = maya_mac.call(&mut room, &h, "withdraw", json!({ "move_id": shown })).unwrap_err();
+    let err = juno_mac.call(&mut room, &h, "withdraw", json!({ "move_id": shown })).unwrap_err();
     assert!(err.contains("only who made it"), "the host erases, with a reason; it doesn't withdraw for someone: {err}");
     ren_mac.call(&mut room, &h, "withdraw", json!({ "move_id": shown })).unwrap();
     assert!(room.moves().last().unwrap().body.starts_with("erased by ren under "));
     assert!(ren_mac.call(&mut room, &h, "withdraw", json!({ "move_id": shown })).unwrap_err().contains("already erased"));
     // What changes the room can't be withdrawn: a let-in, a removal, the rules.
-    maya_mac.call(&mut room, &h, "set_charter", json!({ "text": "# v2" })).unwrap();
+    juno_mac.call(&mut room, &h, "set_charter", json!({ "text": "# v2" })).unwrap();
     let charter = last_id(&room);
-    assert!(maya_mac.call(&mut room, &h, "withdraw", json!({ "move_id": charter })).is_err());
+    assert!(juno_mac.call(&mut room, &h, "withdraw", json!({ "move_id": charter })).is_err());
     assert!(Room::check(&room.record()).is_ok());
 }
 
 #[test]
 fn erasing_an_erase_is_refused() {
-    let (mut room, mut maya_mac, _, mut ren_mac, _, h) = workshop_v2();
+    let (mut room, mut juno_mac, _, mut ren_mac, _, h) = workshop_v2();
     ren_mac.call(&mut room, &h, "show", json!({ "title": "a radio" })).unwrap();
     let shown = last_id(&room);
-    maya_mac.call(&mut room, &h, "erase", json!({ "move_id": shown, "reason": "spam" })).unwrap();
+    juno_mac.call(&mut room, &h, "erase", json!({ "move_id": shown, "reason": "spam" })).unwrap();
     let erasure = last_id(&room);
-    let err = maya_mac.call(&mut room, &h, "erase", json!({ "move_id": erasure, "reason": "never mind" })).unwrap_err();
+    let err = juno_mac.call(&mut room, &h, "erase", json!({ "move_id": erasure, "reason": "never mind" })).unwrap_err();
     assert!(err.contains("can't be erased"), "{err}");
-    assert!(maya_mac.call(&mut room, &h, "withdraw", json!({ "move_id": erasure })).is_err());
-    assert!(maya_mac.call(&mut room, &h, "erase", json!({ "move_id": shown })).is_err(), "a reason is needed");
+    assert!(juno_mac.call(&mut room, &h, "withdraw", json!({ "move_id": erasure })).is_err());
+    assert!(juno_mac.call(&mut room, &h, "erase", json!({ "move_id": shown })).is_err(), "a reason is needed");
     assert!(ren_mac.call(&mut room, &h, "erase", json!({ "move_id": shown, "reason": "x" })).unwrap_err().contains("only the host"));
 }
 
@@ -698,7 +698,7 @@ fn a_version_one_record_replays_unchanged_and_has_no_erasing() {
 #[test]
 fn a_rules_two_move_sealed_whole_still_replays_and_stays() {
     // Rooms under rules 2 made before words could be erased hold seals over the whole arguments.
-    let (mut room, mut maya_mac, _, ren_mac, _, h) = workshop_v2();
+    let (mut room, mut juno_mac, _, ren_mac, _, h) = workshop_v2();
     let mut p = CallToolRequestParams::new("show").with_arguments(json!({ "title": "from before" }).as_object().cloned().unwrap());
     seal_call(&ren_mac.k, room.id(), &mut p, 7);
     let whole = seal_of(&p).unwrap().whole();
@@ -708,7 +708,7 @@ fn a_rules_two_move_sealed_whole_still_replays_and_stays() {
     room.call(p, &h).unwrap();
     let shown = last_id(&room);
     assert!(Room::check(&room.record()).is_ok());
-    let err = maya_mac.call(&mut room, &h, "erase", json!({ "move_id": shown, "reason": "x" })).unwrap_err();
+    let err = juno_mac.call(&mut room, &h, "erase", json!({ "move_id": shown, "reason": "x" })).unwrap_err();
     assert!(err.contains("sealed whole"), "{err}");
 }
 
@@ -727,14 +727,14 @@ fn knock(who: &P, account: &Proof, room: &str, invite: Option<&str>, name: &str)
 
 /// juno's rules-2 workshop with a doorkeeper key she named in its settings.
 fn kept_workshop() -> (Room, P, A, P, H) {
-    let maya_mac = P::new("juno's mac");
-    let juno = A::new("juno", &[&maya_mac]);
+    let juno_mac = P::new("juno's mac");
+    let juno = A::new("juno", &[&juno_mac]);
     let keeper = P::new("juno's doorkeeper");
-    let h = H(maya_mac.k.clone());
-    let (mut args, key) = settings_v2("kept", &juno, &maya_mac, "juno");
+    let h = H(juno_mac.k.clone());
+    let (mut args, key) = settings_v2("kept", &juno, &juno_mac, "juno");
     args.keepers = vec![Keeper { key: keeper.k.key(), may: vec!["admit".into()] }];
-    let room = Room::new(args.signed(&maya_mac.k), key).unwrap();
-    (room, maya_mac, juno, keeper, h)
+    let room = Room::new(args.signed(&juno_mac.k), key).unwrap();
+    (room, juno_mac, juno, keeper, h)
 }
 
 const MARK: &str = "the mark of an invite";
@@ -745,25 +745,25 @@ fn keepers_are_named_by_the_host_under_rules_two_and_may_only_admit() {
     let (mut args, key) = settings("workshop", &juno, "juno");
     args.keepers = vec![Keeper { key: P::new("k").k.key(), may: vec!["admit".into()] }];
     assert!(Room::new(args.signed(&juno.k), key).is_err(), "rules 1 has no doorkeepers");
-    let maya_mac = P::new("juno's mac");
-    let acct = A::new("juno", &[&maya_mac]);
-    let (mut args, key) = settings_v2("kept", &acct, &maya_mac, "juno");
+    let juno_mac = P::new("juno's mac");
+    let acct = A::new("juno", &[&juno_mac]);
+    let (mut args, key) = settings_v2("kept", &acct, &juno_mac, "juno");
     args.keepers = vec![Keeper { key: P::new("k").k.key(), may: vec!["admit".into(), "remove".into()] }];
-    let err = Room::new(args.clone().signed(&maya_mac.k), key.clone()).err().unwrap();
+    let err = Room::new(args.clone().signed(&juno_mac.k), key.clone()).err().unwrap();
     assert!(err.contains("only let people in"), "{err}");
     args.keepers = vec![Keeper { key: P::new("k").k.key(), may: vec!["admit".into()] }];
-    let mut unsigned = args.clone().signed(&maya_mac.k);
+    let mut unsigned = args.clone().signed(&juno_mac.k);
     unsigned.keepers.push(Keeper { key: P::new("mallory").k.key(), may: vec!["admit".into()] });
     assert!(Room::new(unsigned, key).is_err(), "keepers are part of what the host signs");
 }
 
 #[test]
 fn a_bare_keeper_admit_is_refused() {
-    let (mut room, mut maya_mac, _, mut keeper, h) = kept_workshop();
+    let (mut room, mut juno_mac, _, mut keeper, h) = kept_workshop();
     let rid = room.id().to_owned();
     let ada_mac = P::new("ada's mac");
     let ada = A::new("ada", &[&ada_mac]);
-    maya_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
+    juno_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
     let err = keeper.call(&mut room, &h, "admit", json!({ "account": ada.proof, "name": "ada" })).unwrap_err();
     assert!(err.contains("knock"), "{err}");
     // A real knock with no evidence: no invite and not returning.
@@ -785,9 +785,9 @@ fn a_bare_keeper_admit_is_refused() {
 
 #[test]
 fn a_keeper_admit_with_a_forged_knock_is_refused() {
-    let (mut room, mut maya_mac, _, mut keeper, h) = kept_workshop();
+    let (mut room, mut juno_mac, _, mut keeper, h) = kept_workshop();
     let rid = room.id().to_owned();
-    maya_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
+    juno_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
     let (ada_mac, mallory) = (P::new("ada's mac"), P::new("mallory"));
     let ada = A::new("ada", &[&ada_mac]);
     // Signed by mallory, naming ada's key.
@@ -815,11 +815,11 @@ fn a_keeper_admit_with_a_forged_knock_is_refused() {
 
 #[test]
 fn a_keeper_cant_remove_edit_rules_issue_a_receipt_or_erase() {
-    let (mut room, mut maya_mac, _, mut keeper, h) = kept_workshop();
+    let (mut room, mut juno_mac, _, mut keeper, h) = kept_workshop();
     let mut ren_mac = P::new("ren's laptop");
     let ren = A::new("ren", &[&ren_mac]);
-    maya_mac.call(&mut room, &h, "admit", json!({ "account": ren.proof, "name": "ren" })).unwrap();
-    maya_mac.call(&mut room, &h, "post_task", json!({ "title": "T", "spec": "S" })).unwrap();
+    juno_mac.call(&mut room, &h, "admit", json!({ "account": ren.proof, "name": "ren" })).unwrap();
+    juno_mac.call(&mut room, &h, "post_task", json!({ "title": "T", "spec": "S" })).unwrap();
     let task = last_id(&room);
     ren_mac.call(&mut room, &h, "claim", json!({ "task_id": task })).unwrap();
     ren_mac.call(&mut room, &h, "deliver", json!({ "task_id": task, "summary": "x" })).unwrap();
@@ -839,16 +839,16 @@ fn a_keeper_cant_remove_edit_rules_issue_a_receipt_or_erase() {
 
 #[test]
 fn a_dropped_keeper_is_refused() {
-    let (mut room, mut maya_mac, _, mut keeper, h) = kept_workshop();
+    let (mut room, mut juno_mac, _, mut keeper, h) = kept_workshop();
     let rid = room.id().to_owned();
-    maya_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
+    juno_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
     let (ada_mac, bo_mac) = (P::new("ada's mac"), P::new("bo's mac"));
     let (ada, bo) = (A::new("ada", &[&ada_mac]), A::new("bo", &[&bo_mac]));
     keeper.call(&mut room, &h, "admit", json!({ "knocking": knock(&ada_mac, &ada.proof, &rid, Some(MARK), "ada") })).unwrap();
-    maya_mac.call(&mut room, &h, "drop_keeper", json!({ "key": keeper.k.key() })).unwrap();
+    juno_mac.call(&mut room, &h, "drop_keeper", json!({ "key": keeper.k.key() })).unwrap();
     let err = keeper.call(&mut room, &h, "admit", json!({ "knocking": knock(&bo_mac, &bo.proof, &rid, Some(MARK), "bo") })).unwrap_err();
     assert!(err.contains("dropped"), "{err}");
-    assert!(maya_mac.call(&mut room, &h, "drop_keeper", json!({ "key": keeper.k.key() })).is_err(), "once");
+    assert!(juno_mac.call(&mut room, &h, "drop_keeper", json!({ "key": keeper.k.key() })).is_err(), "once");
     // A copy agrees: the admit before the drop stands, one after it is refused.
     assert!(Room::check(&room.record()).is_ok());
     assert!(room.member(&ada.id()).is_some() && room.member(&bo.id()).is_none());
@@ -856,13 +856,13 @@ fn a_dropped_keeper_is_refused() {
 
 #[test]
 fn a_keeper_lets_back_in_someone_still_in_the_room_this_continues() {
-    let (old, maya_mac, juno, ren_mac, ren, _) = workshop_v2();
+    let (old, juno_mac, juno, ren_mac, ren, _) = workshop_v2();
     let keeper = P::new("juno's doorkeeper");
-    let (mut args, key) = settings_v2("next", &juno, &maya_mac, "juno");
+    let (mut args, key) = settings_v2("next", &juno, &juno_mac, "juno");
     args.continues = Some(Continues { room: old.id().into(), title: "W".into(), last: old.last_hash() });
     args.keepers = vec![Keeper { key: keeper.k.key(), may: vec!["admit".into()] }];
-    let mut next = Room::from_record(Record { args: args.signed(&maya_mac.k), before: Some(Box::new(old.record())), moves: Vec::new() }, Some(key)).unwrap();
-    let h = H(maya_mac.k.clone());
+    let mut next = Room::from_record(Record { args: args.signed(&juno_mac.k), before: Some(Box::new(old.record())), moves: Vec::new() }, Some(key)).unwrap();
+    let h = H(juno_mac.k.clone());
     let mut keeper = keeper;
     let nid = next.id().to_owned();
     keeper.call(&mut next, &h, "admit", json!({ "knocking": knock(&ren_mac, &ren.proof, &nid, None, "ren") })).unwrap();
@@ -888,21 +888,21 @@ fn call_whole(who: &mut P, r: &mut Room, h: &H, verb: &'static str, a: Value) ->
 #[test]
 fn erasing_a_task_after_its_receipt_leaves_a_room_that_restarts() {
     for accept_whole in [false, true] {
-        let (mut room, mut maya_mac, _, mut ren_mac, _, h) = workshop_v2();
-        maya_mac.call(&mut room, &h, "post_task", json!({ "title": "fix the gate on Elm Street", "spec": "the latch" })).unwrap();
+        let (mut room, mut juno_mac, _, mut ren_mac, _, h) = workshop_v2();
+        juno_mac.call(&mut room, &h, "post_task", json!({ "title": "fix the gate on Elm Street", "spec": "the latch" })).unwrap();
         let task = last_id(&room);
         ren_mac.call(&mut room, &h, "claim", json!({ "task_id": task })).unwrap();
         ren_mac.call(&mut room, &h, "deliver", json!({ "task_id": task, "summary": "done" })).unwrap();
         if accept_whole {
-            call_whole(&mut maya_mac, &mut room, &h, "accept", json!({ "task_id": task })).unwrap();
+            call_whole(&mut juno_mac, &mut room, &h, "accept", json!({ "task_id": task })).unwrap();
         } else {
-            maya_mac.call(&mut room, &h, "accept", json!({ "task_id": task })).unwrap();
+            juno_mac.call(&mut room, &h, "accept", json!({ "task_id": task })).unwrap();
         }
         let receipt = last_id(&room);
         // The receipt shows the title it was issued with.
         let shown = feed(&room).into_iter().find(|m| m["id"] == receipt).unwrap();
         assert_eq!(shown["title"], "fix the gate on Elm Street");
-        maya_mac.call(&mut room, &h, "erase", json!({ "move_id": task, "reason": "an address" })).unwrap();
+        juno_mac.call(&mut room, &h, "erase", json!({ "move_id": task, "reason": "an address" })).unwrap();
         let record = room.record();
         let again = Room::from_record(record.clone(), Some(Keypair::from_seed("room workshop juno v2"))).unwrap();
         assert_eq!(feed(&again), feed(&room));
@@ -918,23 +918,23 @@ fn erasing_a_task_after_its_receipt_leaves_a_room_that_restarts() {
 
 #[test]
 fn a_move_sealed_whole_doesnt_repeat_words_that_can_be_erased() {
-    let (mut room, mut maya_mac, _, mut ren_mac, _, h) = workshop_v2();
-    maya_mac.call(&mut room, &h, "post_task", json!({ "title": "a secret", "spec": "S" })).unwrap();
+    let (mut room, mut juno_mac, _, mut ren_mac, _, h) = workshop_v2();
+    juno_mac.call(&mut room, &h, "post_task", json!({ "title": "a secret", "spec": "S" })).unwrap();
     let task = last_id(&room);
     call_whole(&mut ren_mac, &mut room, &h, "claim", json!({ "task_id": task })).unwrap();
     let claim = last_id(&room);
     assert_eq!(room.moves().last().unwrap().title, "", "named, not repeated");
     assert_eq!(feed(&room).into_iter().find(|m| m["id"] == claim).unwrap()["title"], "a secret", "shown with the task's words while they last");
-    maya_mac.call(&mut room, &h, "erase", json!({ "move_id": task, "reason": "x" })).unwrap();
+    juno_mac.call(&mut room, &h, "erase", json!({ "move_id": task, "reason": "x" })).unwrap();
     Room::check(&room.record()).unwrap();
     assert_eq!(feed(&room).into_iter().find(|m| m["id"] == claim).unwrap()["title"], "");
 }
 
 #[test]
 fn an_invite_lets_one_person_in_by_a_doorkeeper() {
-    let (mut room, mut maya_mac, _, mut keeper, h) = kept_workshop();
+    let (mut room, mut juno_mac, _, mut keeper, h) = kept_workshop();
     let rid = room.id().to_owned();
-    maya_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
+    juno_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
     let (ada_mac, bo_mac) = (P::new("ada's mac"), P::new("bo's mac"));
     let (ada, bo) = (A::new("ada", &[&ada_mac]), A::new("bo", &[&bo_mac]));
     keeper.call(&mut room, &h, "admit", json!({ "knocking": knock(&ada_mac, &ada.proof, &rid, Some(MARK), "ada") })).unwrap();
@@ -948,19 +948,19 @@ fn an_invite_lets_one_person_in_by_a_doorkeeper() {
     let mut again = Room::from_record(record, Some(Keypair::from_seed("room kept juno v2"))).unwrap();
     assert!(keeper.call(&mut again, &h, "admit", json!({ "knocking": knock(&bo_mac, &bo.proof, &rid, Some(MARK), "bo") })).is_err());
     // The host can seal a new invite for the next person.
-    maya_mac.call(&mut again, &h, "mark_invite", json!({ "mark": invite_lock("bo's invite") })).unwrap();
+    juno_mac.call(&mut again, &h, "mark_invite", json!({ "mark": invite_lock("bo's invite") })).unwrap();
     keeper.call(&mut again, &h, "admit", json!({ "knocking": knock(&bo_mac, &bo.proof, &rid, Some("bo's invite"), "bo") })).unwrap();
     assert!(again.member(&bo.id()).is_some());
 }
 
 #[test]
 fn a_used_invite_cant_be_sealed_again() {
-    let (mut room, mut maya_mac, _, mut keeper, h) = kept_workshop();
+    let (mut room, mut juno_mac, _, mut keeper, h) = kept_workshop();
     let rid = room.id().to_owned();
-    maya_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
+    juno_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
     let ada_mac = P::new("ada's mac");
     let ada = A::new("ada", &[&ada_mac]);
     keeper.call(&mut room, &h, "admit", json!({ "knocking": knock(&ada_mac, &ada.proof, &rid, Some(MARK), "ada") })).unwrap();
-    let err = maya_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap_err();
+    let err = juno_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap_err();
     assert!(err.contains("used"), "{err}");
 }

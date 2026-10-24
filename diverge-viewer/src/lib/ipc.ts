@@ -7,6 +7,11 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { ActionInfo } from "../bindings/ActionInfo";
 import type { AgentsListed } from "../bindings/AgentsListed";
+import type { AgentsSnapshot } from "../bindings/AgentsSnapshot";
+import type { TagOutcome } from "../bindings/TagOutcome";
+import type { MapNode } from "../bindings/MapNode";
+import type { ToolsListed } from "../bindings/ToolsListed";
+import type { AttachOutcome } from "../bindings/AttachOutcome";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { FileNoticeView } from "../bindings/FileNoticeView";
 import type { FirstRunView } from "../bindings/FirstRunView";
@@ -81,6 +86,15 @@ export const api = {
   check: (kind: string, args: unknown) => invoke<null>("catalog_check", { kind, arguments: args }),
 
   agentsList: () => invoke<AgentsListed>("agents_list"),
+  // Your agents, whole, now and on every change: the app's one live list.
+  agentsWatch: (onEvent: (e: AgentsSnapshot) => void) => invoke<string>("agents_watch", { onEvent: channel(onEvent) }),
+  agentsTree: () => invoke<MapNode[]>("agents_tree"),
+  agentsTag: (name: string, tags: string[]) => invoke<TagOutcome>("agents_tag", { name, tags }),
+  agentsUntag: (name: string, tags: string[]) => invoke<TagOutcome>("agents_untag", { name, tags }),
+  // Your tools, and attaching one to an agent (by the words that name it) or taking it back.
+  toolsList: () => invoke<ToolsListed>("standalone_tools_list"),
+  toolsAttach: (name: string, tool: string) => invoke<AttachOutcome>("standalone_tools_attach", { name, tool }),
+  toolsDetach: (name: string, tool: string) => invoke<AttachOutcome>("standalone_tools_detach", { name, tool }),
   agentsCreate: (input: CreateAgentInput) => invoke<CreateOutcome>("agents_create", { input }),
   agentsDelete: (name: string) => invoke<DeleteOutcome>("agents_delete", { name }),
   agentsMessage: (name: string, text: string, ticket: string) =>

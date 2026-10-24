@@ -3,4 +3,4 @@
 /**
  * Every volume change's answer, in the screen's words.
  */
-export type VolumeChange = { "outcome": "done" } | { "outcome": "not_enough_room" } | { "outcome": "more_content_than_that" } | { "outcome": "in_use" } | { "outcome": "error", message: string, };
+export type VolumeChange = { "outcome": "done" } | { "outcome": "not_enough_room" } | { "outcome": "more_content_than_that" } | { "outcome": "in_use" } | { "outcome": "mode_unsupported" } | { "outcome": "unsupported" } | { "outcome": "error", message: string, };

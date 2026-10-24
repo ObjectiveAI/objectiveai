@@ -6,6 +6,8 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import type { AgentView } from "../bindings/AgentView";
+import type { MapNode } from "../bindings/MapNode";
+import type { ToolItemView } from "../bindings/ToolItemView";
 import type { FileNode } from "../bindings/FileNode";
 import type { MountsView } from "../bindings/MountsView";
 import type { VolumeStat } from "../bindings/VolumeStat";
@@ -46,7 +48,11 @@ function encodeInvite(invite: Invite): string {
 }
 
 export function installPreview() {
-  const agents: AgentView[] = structuredClone(fixture.agents) as AgentView[];
+  // Your tools, as the stand-in lists them.
+  const tools = structuredClone(fixture.tools) as ToolItemView[];
+  // Preview only: add ?no-agents to the address to see the app before you've made any.
+  const none = new URLSearchParams(location.search).has("no-agents");
+  const agents: AgentView[] = none ? [] : (structuredClone(fixture.agents) as AgentView[]);
   const logs: Record<string, LogEntry[]> = structuredClone(fixture.logs) as Record<string, LogEntry[]>;
   const machines: MachineView[] = structuredClone(fixture.machines) as MachineView[];
   // Per machine (by identity key): its files ("volume:path"), trees, and stats.
@@ -92,6 +98,27 @@ export function installPreview() {
     for (const w of spaceWatches.values()) if (w.id === id) w.ch.onmessage({ event: "updated", uri: "space://feed" });
   };
   const watches = new Map<string, { name: string; ch: Chan }>();
+  // The live agents list: the whole snapshot again on every change, as the app sends it. The tree is
+  // the snapshot's, kept in step here: an agent's node shows it as it is now, a removed one's makes go up
+  // a level, and one made here is one of yours, at the top.
+  const agentsChs = new Map<string, Chan>();
+  let agentsGeneration = 0;
+  let tree = none ? [] : (structuredClone(fixture.tree) as MapNode[]);
+  const refit = (nodes: MapNode[]): MapNode[] =>
+    nodes.flatMap((n) => {
+      if (n.what.kind !== "agent") return [{ ...n, children: refit(n.children) }];
+      const key = n.what.agent.key;
+      const now = agents.find((a) => a.key === key);
+      if (!now) return refit(n.children);
+      return [{ ...n, what: { kind: "agent" as const, agent: now, cards: cards.filter((c) => c.agent === key).length }, children: refit(n.children) }];
+    });
+  const sendAgents = () => {
+    agentsGeneration++;
+    const keys = (nodes: MapNode[]): string[] => nodes.flatMap((n) => [n.key, ...keys(n.children)]);
+    const placed = new Set(keys(tree));
+    tree = [...refit(tree), ...agents.filter((a) => !placed.has(`agent:${a.key}`)).map((a) => ({ key: `agent:${a.key}`, what: { kind: "agent" as const, agent: a, cards: 0 }, working: a.active, children: [] }))];
+    for (const ch of agentsChs.values()) ch.onmessage({ generation: agentsGeneration, state: { state: "live" }, agents: structuredClone(agents), tree: structuredClone(tree) });
+  };
   const pending = new Map<string, { resolve: (v: unknown) => void; timer: number }>();
   let tabs: TabView[] = [];
   let focused: string | null = null;
@@ -127,21 +154,56 @@ export function installPreview() {
         case "catalog_check":
           return null;
         case "agents_list":
-          return { agents, errors: [] };
+          return { agents, errors: [], forbidden: false };
+        case "agents_tree":
+          return tree;
+        case "standalone_tools_list":
+          return { tools, errors: [], forbidden: false };
+        case "standalone_tools_attach":
+        case "standalone_tools_detach": {
+          const tool = tools.find((x) => x.key === args.tool);
+          const a = agents.find((x) => x.key === args.name);
+          if (!tool) return { outcome: "no_tool" };
+          if (!a) return { outcome: "no_agent" };
+          const on = cmd === "standalone_tools_attach";
+          tool.agents = on ? [...new Set([...tool.agents, a.key])] : tool.agents.filter((k) => k !== a.key);
+          a.tools = on ? [...new Set([...a.tools, tool.key])] : a.tools.filter((k) => k !== tool.key || tool.templates.includes(a.template));
+          sendAgents();
+          return { outcome: "done" };
+        }
+        case "agents_watch": {
+          const id = `agents-${++scope}`;
+          agentsChs.set(id, args.onEvent as Chan);
+          later(sendAgents);
+          return id;
+        }
+        case "agents_tag":
+        case "agents_untag": {
+          const a = agents.find((x) => x.key === args.name);
+          if (!a) return { outcome: "not_found" };
+          const tags = new Set(a.tags);
+          for (const tag of args.tags as string[]) cmd === "agents_tag" ? tags.add(tag) : tags.delete(tag);
+          a.tags = [...tags].sort();
+          sendAgents();
+          return { outcome: "done" };
+        }
         case "agents_create": {
           const input = args.input;
           if (agents.some((a) => a.name === input.name)) return { outcome: "in_use" };
-          agents.push({ name: input.name, image_name: `diverge-agentic-loop-${input.image_kind}`, digest: "unbuilt", created: new Date().toISOString(), active: false, last_active: null, provider: null, logs_index: 0, tools: [] });
+          // The preview hashes no template, so the new agent names none.
+          agents.push({ key: input.name, name: input.name, template: "", index: 0, creator: fixture.agents[0].creator as AgentView["creator"], tags: [], image_name: `diverge-agentic-loop-${input.image_kind}`, digest: `unbuilt-${input.image_kind}`, created: new Date().toISOString(), active: false, last_active: null, provider: null, logs_index: 0, tools: [] });
+          sendAgents();
           logs[input.name] = [];
           const view = (m: { provider?: unknown; volume_name: string; volume_relative_path: string; volume_mode: string; container_path: string }) => ({ ...m, provider: m.provider ?? null });
           mounts[input.name] = { pinned: input.provider, volume_mounts: input.volume_mounts.map(view), fuse_file_mounts: input.fuse_file_mounts.map(view), fuse_directory_mounts: input.fuse_directory_mounts.map(view) } as MountsView;
           return { outcome: "created" };
         }
         case "agents_delete": {
-          const a = agents.find((x) => x.name === args.name);
+          const a = agents.find((x) => x.key === args.name);
           if (!a) return { outcome: "not_found" };
           if (a.active) return { outcome: "active" };
           agents.splice(agents.indexOf(a), 1);
+          sendAgents();
           tabs = tabs.filter((t) => t.key !== `agent:${args.name}`);
           generation++;
           emit("tabs://changed", snapshot());
@@ -151,7 +213,7 @@ export function installPreview() {
           return mounts[args.name] ?? null;
         case "agents_edit": {
           const input = args.input;
-          const a = agents.find((x) => x.name === input.name);
+          const a = agents.find((x) => x.key === input.name);
           if (!a) return { outcome: "not_found" };
           if (a.active) return { outcome: "active" };
           const before = mounts[input.name];
@@ -165,7 +227,7 @@ export function installPreview() {
             const timer = window.setTimeout(() => {
               pending.delete(args.ticket);
               const list = logs[args.name] ?? [];
-              push(args.name, { logs_index: (list[list.length - 1]?.logs_index ?? 0) + 1, created: new Date().toISOString(), item: { kind: "user_text", key: args.ticket, text: args.text } });
+              push(args.name, { logs_index: (list[list.length - 1]?.logs_index ?? 0) + 1, created: new Date().toISOString(), sender: { kind: "client", identity: "stand-in" }, item: { kind: "user_text", key: args.ticket, text: args.text } });
               resolve({ outcome: "delivered" });
             }, 2500);
             pending.set(args.ticket, { resolve, timer });
@@ -187,7 +249,7 @@ export function installPreview() {
               if (q.logs_index_from && entry.logs_index < q.logs_index_from) continue;
               if (q.logs_index_to && entry.logs_index > q.logs_index_to) continue;
               if (q.item_type && !matchesType(entry, q.item_type)) continue;
-              ch.onmessage(q.jq ? { event: "value", value: "(jq runs in the app, not the browser preview)" } : { event: "entry", entry });
+              ch.onmessage({ event: "entry", entry });
             }
             if (q.watch) watches.set(id, { name: q.name, ch });
             else ch.onmessage({ event: "end" });
@@ -195,7 +257,7 @@ export function installPreview() {
           return id;
         }
         case "scope_close":
-          return watches.delete(args.id);
+          return watches.delete(args.id) || agentsChs.delete(args.id);
         case "volumes_list":
           return machineOf(args.machine) ? { outcome: "volumes", volumes: volumesOf(args.machine) } : { outcome: "error", message: "the daemon knows no machine by that identity" };
         case "volumes_stat": {
@@ -203,14 +265,14 @@ export function installPreview() {
           const v = volumesOf(args.machine).find((x) => x.name === args.name);
           if (!v) return { outcome: "error", message: `no volume named "${args.name}"` };
           const known = stats[k]?.[args.name];
-          if (known && known.outcome === "error") return known;
+          if (known && known.outcome !== "stat") return known;
           const used = Object.entries(files[k] ?? {}).filter(([p]) => p.startsWith(`${args.name}:`)).reduce((n, [, text]) => n + new TextEncoder().encode(text).length, 0);
           return { outcome: "stat", volume: v, bytes_used: used };
         }
         case "volumes_tree": {
           const k = machineKey(args.machine);
           const held = stats[k]?.[args.name];
-          if (held && held.outcome === "error") return held;
+          if (held && held.outcome !== "stat") return held;
           return trees[k]?.[args.name] ? { outcome: "tree", nodes: trees[k][args.name] } : { outcome: "error", message: `no volume named "${args.name}"` };
         }
         case "volumes_read": {
@@ -241,7 +303,7 @@ export function installPreview() {
         }
         case "volumes_delete": {
           const k = machineKey(args.machine);
-          if (stats[k]?.[args.name]?.outcome === "error") return { outcome: "in_use" };
+          if (stats[k]?.[args.name] && stats[k][args.name].outcome !== "stat") return { outcome: "in_use" };
           const list = volumesOf(args.machine);
           list.splice(list.findIndex((x) => x.name === args.name), 1);
           return { outcome: "done" };
@@ -566,6 +628,7 @@ export function installPreview() {
           if (at < 0) throw "that card was already answered";
           cards.splice(at, 1);
           cardCh?.onmessage({ event: "answered", id: args.id });
+          sendAgents();
           return null;
         }
         case "door_tools":

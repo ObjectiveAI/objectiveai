@@ -5,19 +5,20 @@ import type { SavedView } from "../bindings/SavedView";
 import { Button, Field, Row, Section, SectionHead } from "../components/ui";
 import { useShared } from "../lib/context";
 import { argsLine } from "../lib/conversation";
-import { time } from "../lib/format";
+import { agentLabel, time } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
 
 const KINDS = Object.keys(t.itemTypes);
 
-const blank = (name: string): LogsQuery => ({ name, logs_index_from: null, logs_index_to: null, created_from: null, created_to: null, item_type: null, jq: null, count: null, watch: true });
+const blank = (name: string): LogsQuery => ({ name, logs_index_from: null, logs_index_to: null, created_from: null, created_to: null, item_type: null, count: null, watch: true });
 
+// The daemon answers every item typed, so a preset is a kind of item; each row says what matters in it.
 const PRESETS: { title: string; query: (name: string) => LogsQuery }[] = [
-  { title: t.views.presetNames.tools, query: (n) => ({ ...blank(n), item_type: "assistant_tool_call", jq: "{tool: .name, with: (.arguments | fromjson? // .)}" }) },
+  { title: t.views.presetNames.tools, query: (n) => ({ ...blank(n), item_type: "assistant_tool_call" }) },
   { title: t.views.presetNames.errors, query: (n) => ({ ...blank(n), item_type: "error" }) },
-  { title: t.views.presetNames.asked, query: (n) => ({ ...blank(n), item_type: "user_text_content", jq: ".text", watch: false }) },
-  { title: t.views.presetNames.where, query: (n) => ({ ...blank(n), item_type: "active", jq: ".identity" }) },
+  { title: t.views.presetNames.asked, query: (n) => ({ ...blank(n), item_type: "user_text_content", watch: false }) },
+  { title: t.views.presetNames.where, query: (n) => ({ ...blank(n), item_type: "active" }) },
 ];
 
 type Row = { key: number; event: LogEvent };
@@ -68,7 +69,7 @@ export function Views() {
     };
   }, []);
   useEffect(() => {
-    if (!query.name && agents[0]) setQuery((q) => ({ ...q, name: agents[0].name }));
+    if (!query.name && agents[0]) setQuery((q) => ({ ...q, name: agents[0].key }));
   }, [agents, query.name]);
 
   const run = async (q: LogsQuery = query) => {
@@ -80,6 +81,7 @@ export function Views() {
       scope.current = await api.logsOpen(q, (event) => {
         if (event.event === "end") setState("ended");
         else if (event.event === "error") setProblem(event.message);
+        else if (event.event === "forbidden") setProblem(t.common.forbidden);
         else setRows((r) => [...r, { key: counter.current++, event }]);
       });
     } catch (e) {
@@ -106,6 +108,10 @@ export function Views() {
   };
 
   const set = (patch: Partial<LogsQuery>) => setQuery((q) => ({ ...q, ...patch }));
+  const named = (key: string) => {
+    const agent = agents.find((a) => a.key === key);
+    return agent ? agentLabel(agent) : key;
+  };
 
   return (
     <div className="views">
@@ -114,7 +120,7 @@ export function Views() {
           <h1>{t.views.title}</h1>
           <p className="muted small">{t.views.note}</p>
         </header>
-        <Button small kind="tertiary" onClick={() => { setId(""); setTitle(""); setQuery(blank(agents[0]?.name ?? "")); setRows([]); setState("idle"); }}>+ {t.views.new}</Button>
+        <Button small kind="tertiary" onClick={() => { setId(""); setTitle(""); setQuery(blank(agents[0]?.key ?? "")); setRows([]); setState("idle"); }}>+ {t.views.new}</Button>
         <SectionHead small level={3} title={t.views.saved} />
         {saved.length === 0 ? <p className="muted small">{t.views.none}</p> : null}
         <ul>
@@ -122,7 +128,7 @@ export function Views() {
             <li key={v.id}>
               <Row className="list-row" on={v.id === id} onClick={() => load(v)}>
                 <span>{v.title}</span>
-                <span className="muted small">{v.query.name}{v.query.item_type ? ` · ${t.itemTypes[v.query.item_type] ?? v.query.item_type}` : ""}</span>
+                <span className="muted small">{named(v.query.name)}{v.query.item_type ? ` · ${t.itemTypes[v.query.item_type] ?? v.query.item_type}` : ""}</span>
               </Row>
             </li>
           ))}
@@ -131,14 +137,14 @@ export function Views() {
       <section className="views-main">
         <div className="page-inner">
           <Section title={title || t.views.untitled}>
-            <div className="presets"><span className="muted small">{t.views.presets}</span>{PRESETS.map((p) => <Button key={p.title} small kind="tertiary" onClick={() => { const q = p.query(query.name || agents[0]?.name || ""); setTitle(p.title); setId(""); setQuery(q); run(q); }}>{p.title}</Button>)}</div>
+            <div className="presets"><span className="muted small">{t.views.presets}</span>{PRESETS.map((p) => <Button key={p.title} small kind="tertiary" onClick={() => { const q = p.query(query.name || agents[0]?.key || ""); setTitle(p.title); setId(""); setQuery(q); run(q); }}>{p.title}</Button>)}</div>
             <div className="row">
               <Field label={t.views.titleLabel}>
                 <input value={title} placeholder={t.views.untitled} onChange={(e) => setTitle(e.target.value)} />
               </Field>
               <Field label={t.views.agent}>
                 <select value={query.name} onChange={(e) => set({ name: e.target.value })}>
-                  {agents.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+                  {agents.map((a) => <option key={a.key} value={a.key}>{agentLabel(a)}</option>)}
                 </select>
               </Field>
               <Field label={t.views.kind}>
@@ -149,9 +155,6 @@ export function Views() {
               </Field>
             </div>
             <div className="row">
-              <Field label={t.views.jq} size="grow">
-                <input className="mono" value={query.jq ?? ""} placeholder={t.views.jqPlaceholder} onChange={(e) => set({ jq: e.target.value || null })} spellCheck={false} />
-              </Field>
               <Field label={t.views.count} size="narrow">
                 <input type="number" min={0} value={query.count ?? ""} onChange={(e) => set({ count: e.target.value === "" ? null : Number(e.target.value) })} />
               </Field>
@@ -189,10 +192,6 @@ export function Views() {
                   <span className="result-kind">{event.entry.item.kind.replace(/_/g, " ")}</span>
                   <span className="result-text selectable">{summary(event)}</span>
                   <span className="muted small">{time(event.entry.created)}</span>
-                </li>
-              ) : event.event === "value" ? (
-                <li key={key} className="result result-raw">
-                  <pre className="selectable">{typeof event.value === "string" ? event.value : JSON.stringify(event.value, null, 2)}</pre>
                 </li>
               ) : null,
             )}
