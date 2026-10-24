@@ -20,6 +20,7 @@ members = [
     "diverge-postgres",
     "diverge-daemon",
     "diverge-cli",
+    "diverge-issuer",
     "diverge-viewer/config",
     "examples/courier",
     "examples/memory",

@@ -1,0 +1,59 @@
+[package]
+name = "diverge-issuer"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The Diverge issuer: an OpenID Connect provider that signs the access tokens every Diverge server admits callers by"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "diverge-issuer"
+path = "src/main.rs"
+
+[dependencies]
+# Path-only, as the provider's: the root's lock, and the keyring the
+# signing key is kept in.
+diverge-sdk = { path = "../diverge-sdk-rs", features = ["keyring"] }
+# The issuer's port: HTTP/1, the form bodies every OAuth request is,
+# the JSON every answer is, and the query a page is opened with.
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "form", "json", "query"] }
+# `issuer.sqlite`, as the keyring's file is opened: async, SQLite
+# alone.
+sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
+# The discovery document, the key set and the ID token, typed as the
+# OpenID Connect specifications define them; no HTTP client, since the
+# issuer never fetches anything.
+openidconnect = { version = "=4.0.1", default-features = false }
+# The access token, an RFC 9068 JWT, signed and verified with the same
+# RSA key the ID token is; RustCrypto, as the `rsa` key is.
+jsonwebtoken = { version = "=11.1.0", default-features = false, features = ["rust_crypto", "use_pem"] }
+# The signing key, made once and kept as PEM; `getrandom` for the
+# operating system's randomness the key is drawn from.
+rsa = { version = "=0.9.10", features = ["getrandom"] }
+# Passwords, as argon2id hashes in the PHC string format.
+argon2 = { version = "=0.6.0" }
+# A key's id, and a user code.
+rand = { version = "=0.9.2", default-features = false, features = ["thread_rng"] }
+# PKCE's S256: the SHA-256 of a verifier, as unpadded base64url; and a
+# client's `Basic` credentials.
+sha2 = "=0.10.9"
+base64 = "=0.22.1"
+# A client's id and secret in `Basic`, form-urlencoded inside the
+# base64; and every URL the issuer names or redirects to.
+url = "=2.5.8"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+# `issuer.yaml`, and the path to whatever in it was wrong.
+serde_path_to_error = "0.1.20"
+serde_yaml_ng = "0.10.0"
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# `rt-multi-thread` for the runtime main builds; `signal` for Ctrl-C
+# and SIGTERM; `net` for the listener; `fs` for the database's file;
+# `sync` for the stop; `macros` for the selects.
+tokio = { version = "1.53.1", features = ["fs", "sync", "rt", "rt-multi-thread", "net", "time", "signal", "macros"] }
