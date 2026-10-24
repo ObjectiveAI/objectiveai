@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Agent",
-  "description": "An agent running against Claude Code.\n\nFar fewer knobs than OpenRouter's, and not because anything is\nmissing: Claude Code is an agent harness in its own right, so\nthe sampling decisions OpenRouter exposes are made inside it.\nWhat it does expose is its tools: [`tools`](Self::tools) is the\nexact set of built-ins the model is given, every switch stated,\npassed to Claude Code as `--tools`;\n[`dependencies`](Self::dependencies) is the other kind, the tool\ncontainers the agent asks the caller to run for it.",
+  "description": "An agent running against Claude Code.\n\nFar fewer knobs than OpenRouter's, and not because anything is\nmissing: Claude Code is an agent harness in its own right, so\nthe sampling decisions OpenRouter exposes are made inside it.\nWhat it does expose is its tools: [`tools`](Self::tools) is the\nexact set of built-ins the model is given, every switch stated,\npassed to Claude Code as `--tools`;\n[`dependencies`](Self::dependencies) is the other kind, the tool\ncontainers the agent asks the caller to run for it.\n\n# Secrets\n\nNone: Claude Code logs in by itself, and no argument names a\ncredential. The template this agent is made from need declare no\nname, and a name it does declare is one the program never asks\nfor.",
   "type": "object",
   "properties": {
     "model": {
@@ -32,7 +32,7 @@
       ]
     },
     "dependencies": {
-      "description": "The tool containers this agent depends on, each a dependency\ntool template the caller deploys and serves to it as an MCP\nserver, exactly as the SDK's [`Template`] states one: that\ntype's JSON Schema is what `GET /schema` states for this member,\nand this list, unchanged, is what the registration answers —\none schema, from the one type, at both. Absent is none.",
+      "description": "The tool containers this agent depends on, each a dependency\ntool template the caller deploys and serves to it as an MCP\nserver, exactly as the SDK's [`Template`] states one: that\ntype's JSON Schema is what `--schema` prints for this member,\nin `/DIVERGE.md`, and this list, unchanged, is what the\nregistration answers — one schema, from the one type, at both.\nAbsent is none.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/Template"
@@ -262,7 +262,7 @@
       ]
     },
     "Template": {
-      "description": "One tool container an agent's program depends on: everything the\ncaller needs to deploy it, as fields and not as words. A tool\ncontainer depends on nothing.\n\nA [`Container`](crate::shared::containers::request::Container) is\nan image, two limits, mounts and arguments. The image, the limits\nand the arguments are here, member for member. The mounts are not\nthe caller's volumes — a volume is named in the caller's own\nlisting, and a tool that named one would be dictating the caller's\nstorage — but, for a transient tool alone, the AGENT's own files\nand directories, each a path in the agent container served live at\na path in the tool container: the caller serves the agent\ncontainer, a `containers::fuse_serve` of the path, and mounts the tool,\na `fuse::mount` answered from it. [`mode`](Self::mode) says which\nof the two modes the dependency is — a transient tool of the\nagent's run, with those mounts, or a service the caller keeps,\nwith a scope — see [`Mode`]; and [`permissions`](Self::permissions)\nwhat its account may do — grants that name nothing, so the\ntemplate is the same on every daemon it reaches, and among them\nthe word `self`, which reaches the agent a transient tool is the\ndependency of and every agent attached to a service.\n\nThere are no instructions. What a template cannot say — the\nprovider the tool runs on, the volumes it is given, the account's\nname — is the caller's, and the caller needs no prose to choose it.\nThe daemon's own tool templates are another thing: a record the\ndaemon keeps, named by a hash, made by a request; this is what an\nimage declares and a caller deploys.\n\nThere is no name. A dependency is named by its ID: the lowercase\nhexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)\nbytes — this template as compact JSON, absent members omitted,\nthe image's `references` absent too, every object key sorted at\nevery depth, the `arguments` included, the `mode` and its\nmembers among the keys — sixty-four characters, which the caller\ncomputes over [`hashed`](Self::hashed). Two declarations with one\nid are one dependency, and a list that declares one twice is\nrefused; the same template deployed for the same agent, on\nwhatever provider, is the same dependency, and the same service\ntemplate declared under the same scope key, by whatever agent, is\nthe same service. The caller labels the tool's MCP tools by the id\nwhen it merges lists, and the program knows which tool serves each\nby the keys under `_meta`, see [`shared::mcp`](crate::shared::mcp).",
+      "description": "One tool container an agent's program depends on: everything the\ncaller needs to deploy it, as fields and not as words. A tool\ncontainer depends on nothing.\n\nA [`Container`](crate::shared::containers::request::Container) is an\nimage, two limits, mounts and arguments. The image, the limits and\nthe arguments are here, member for member; beside them the secrets\nthe image needs, by name alone — which of them the tool's program\ntakes, and in what mode, is its own answer at registration, and\ntheir values are the caller's, each resolved through the vault key\nthe agent that spawns the tool binds the same name to, fed at every\nactivation. The mounts are not the caller's volumes — a volume is\nnamed in the caller's own listing, and a tool that named one would\nbe dictating the caller's storage — but, for a transient tool alone,\nthe AGENT's own files and directories, each a path in the agent\ncontainer served live at a path in the tool container: the caller\nserves the agent container, a `containers::fuse_serve` of the path,\nand mounts the tool, a `fuse::mount` answered from it.\n[`mode`](Self::mode) says which of the two modes the dependency is —\na transient tool of the agent's run, with those mounts, or a service\nthe caller keeps, with a scope — see [`Mode`]; and\n[`permissions`](Self::permissions) what its account may do — grants\nthat name nothing, so the template is the same on every daemon it\nreaches, and among them the word `self`, which reaches the agent a\ntransient tool is the dependency of and every agent attached to a\nservice.\n\nThere are no instructions. What a template cannot say — the provider\nthe tool runs on, the volumes it is given, the account's name — is\nthe caller's, and the caller needs no prose to choose it. The\ndaemon's own tool templates are another thing: a record the daemon\nkeeps, named by a hash, made by a request; this is what an image\ndeclares and a caller deploys.\n\nThere is no name. A dependency is named by its ID: the lowercase\nhexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)\nbytes — this template as compact JSON, absent members omitted, the\nimage's `references` absent too, every object key sorted at every\ndepth, the `arguments` and the `secrets` included, the names sorted\nbytewise, the `mode` and\nits members among the keys — sixty-four characters, which the caller\ncomputes over [`hashed`](Self::hashed). Two declarations with one id\nare one dependency, and a list that declares one twice is refused;\nthe same template deployed for the same agent, on whatever provider,\nis the same dependency, and the same service template declared under\nthe same scope key, by whatever agent, is the same service. The\ncaller labels the tool's MCP tools by the id when it merges lists,\nand the program knows which tool serves each by the keys under\n`_meta`, see [`shared::mcp`](crate::shared::mcp).",
       "type": "object",
       "properties": {
         "image": {
@@ -284,8 +284,15 @@
         "arguments": {
           "description": "The arguments the tool container is registered with — the\n`arguments` of the run request that makes it, verbatim."
         },
+        "secrets": {
+          "description": "The secrets the image needs, by name, in the order the image\nstates them: names only. Which of them the tool's program takes\nand in what mode is the program's answer at its registration —\nsee [`secrets`](crate::shared::containers::secrets) — and the\nvalue of each is resolved through the vault key the agent the\ntool is spawned for binds the same name to, fed at every\nactivation. Inside the hash, sorted bytewise there. A name is\nnot empty, no two are alike, and every one is a name the\nregistering agent's template declares; a template that says\notherwise is the registration's error. Absent, the image needs\nnone.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "permissions": {
-          "description": "What the tool's account may do, as grants that name nothing:\nsee [`Grant`]. The caller gives the tool an account holding\nexactly these. Absent when empty, and then the tool may do\nnothing through the daemon.",
+          "description": "What the tool's account may do, as grants that name nothing: see\n[`Grant`]. The caller gives the tool an account holding exactly\nthese. Absent when empty, and then the tool may do nothing\nthrough the daemon.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/Grant"
@@ -429,7 +436,7 @@
       ]
     },
     "Grant": {
-      "description": "One grant that names nothing: a permission over one kind of thing\nthe daemon holds, reaching by tags alone. Externally tagged by the\nkind's name — one object with one member, `{\"agents\":…}`,\n`{\"volumes\":…}` — whose value is that kind's\n[`Permission`](agents::Permission), in one of the shapes\n[`permission`](crate::shared::permission) states. Snake case on the\nwire: `\"agents\"`, `\"agents_templates\"`, `\"standalone_tools\"`,\n`\"standalone_tools_templates\"`, `\"dependency_tools\"`,\n`\"providers_outgoing\"`,\n`\"providers_incoming\"`, `\"providers_daemons\"`, `\"accounts\"`,\n`\"roles\"`, `\"volumes\"`, `\"postgres\"` — the kinds of\nthe daemon's [`Grant`](crate::daemon::grant::Grant), which is made\nof these.",
+      "description": "One grant that names nothing: a permission over one kind of thing\nthe daemon holds, reaching by tags alone. Externally tagged by the\nkind's name — one object with one member, `{\"agents\":…}`,\n`{\"volumes\":…}` — whose value is that kind's\n[`Permission`](agents::Permission), in one of the shapes\n[`permission`](crate::shared::permission) states. Snake case on the\nwire: `\"agents\"`, `\"agents_templates\"`, `\"standalone_tools\"`,\n`\"standalone_tools_templates\"`, `\"dependency_tools\"`,\n`\"providers_outgoing\"`,\n`\"providers_incoming\"`, `\"providers_daemons\"`, `\"accounts\"`,\n`\"roles\"`, `\"volumes\"`, `\"vault\"`, `\"postgres\"`, `\"events\"` — the\nkinds of the daemon's [`Grant`](crate::daemon::grant::Grant), which\nis made of these.",
       "oneOf": [
         {
           "description": "Over agents: see [`agents::Permission`].",
@@ -575,15 +582,41 @@
           "additionalProperties": false
         },
         {
-          "description": "Over the database: see [`postgres::Permission`].",
+          "description": "Over the vault's keys: see [`vault::Permission`].",
           "type": "object",
           "properties": {
-            "postgres": {
+            "vault": {
               "$ref": "#/$defs/Permission12"
             }
           },
           "required": [
+            "vault"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Over the database: see [`postgres::Permission`].",
+          "type": "object",
+          "properties": {
+            "postgres": {
+              "$ref": "#/$defs/Permission13"
+            }
+          },
+          "required": [
             "postgres"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Over the events: see [`events::Permission`].",
+          "type": "object",
+          "properties": {
+            "events": {
+              "$ref": "#/$defs/Permission14"
+            }
+          },
+          "required": [
+            "events"
           ],
           "additionalProperties": false
         }
@@ -1839,6 +1872,107 @@
       ]
     },
     "Permission12": {
+      "description": "What one grant over the vault's keys allows, in one of three shapes told\napart on the wire by their very form, as\n[`permission`](crate::shared::permission) states them: a bare array\nof [`Make`] actions; an object of [`Over`] actions and how far they\nreach, by tags; or an object of tagging actions, how far they\nreach, and which tags. An object that is none of these — an action\nof one shape among another's, a member missing, a `within` that is\nnot `\"any\"` or a [`Tags`] — does not decode.",
+      "anyOf": [
+        {
+          "description": "To make: the [`Make`] actions held, as a bare array. Nothing is\njudged but that the action is held.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Make11"
+          }
+        },
+        {
+          "description": "Over keys that exist: the [`Over`] actions held, reaching\nevery one of them, or only those the [`Tags`] let through,\nread as a test.",
+          "type": "object",
+          "properties": {
+            "actions": {
+              "description": "The actions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Over12"
+              }
+            },
+            "within": {
+              "description": "How far: `\"any\"`, or the tags as a test.",
+              "$ref": "#/$defs/Within_Tags"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "actions",
+            "within"
+          ]
+        },
+        {
+          "description": "Tagging keys: putting tags on, taking them off, or both,\nreaching every one or only those the [`Tags`] let through, and\ntouching any tag or only the ones listed.",
+          "type": "object",
+          "properties": {
+            "actions": {
+              "description": "`tag`, `untag`, or both.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Tagging"
+              }
+            },
+            "within": {
+              "description": "How far: `\"any\"`, or the tags as a test.",
+              "$ref": "#/$defs/Within_Tags"
+            },
+            "tags": {
+              "description": "Which tags: `\"any\"`, or only these.",
+              "$ref": "#/$defs/Within_Array_of_string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "actions",
+            "within",
+            "tags"
+          ]
+        }
+      ]
+    },
+    "Make11": {
+      "description": "The actions over the vault that make a key where there was none,\nwhich a grant holds or does not and judges by nothing else. Snake\ncase on the wire: `\"insert\"`.",
+      "oneOf": [
+        {
+          "description": "Insert into a key the vault does not hold, as\n[`vault::insert`](crate::daemon::endpoints::vault::insert) does\nwhere the key is new; over a key it holds, the same request is\n[`Over::Insert`](super::Over::Insert).",
+          "type": "string",
+          "const": "insert"
+        }
+      ]
+    },
+    "Over12": {
+      "description": "The actions over vault keys that exist, which a grant reaches as\nfar as its `within` says. Snake case on the wire: `\"get\"`,\n`\"list\"`, `\"insert\"`, `\"delete\"`, `\"use\"`.",
+      "oneOf": [
+        {
+          "description": "Get one, with its value, as\n[`vault::get`](crate::daemon::endpoints::vault::get) does.",
+          "type": "string",
+          "const": "get"
+        },
+        {
+          "description": "List them, as\n[`vault::list`](crate::daemon::endpoints::vault::list) does;\nthe list sends what the grant reaches, and never a value.",
+          "type": "string",
+          "const": "list"
+        },
+        {
+          "description": "Append a value to one, or replace one of its values, as\n[`vault::insert`](crate::daemon::endpoints::vault::insert) does\nover a key the vault holds.",
+          "type": "string",
+          "const": "insert"
+        },
+        {
+          "description": "Delete one, or one of its values, as\n[`vault::delete`](crate::daemon::endpoints::vault::delete)\ndoes.",
+          "type": "string",
+          "const": "delete"
+        },
+        {
+          "description": "Bind one to a secret of an agent's or a tool's, in the\n`secrets` of its [create](crate::daemon::create::Inner::secrets)\nor edit. The key must be one the vault holds, with at least\none value: a bound key is read or locked at every activation,\nand one with nothing to give is refused at the binding.",
+          "type": "string",
+          "const": "use"
+        }
+      ]
+    },
+    "Permission13": {
       "description": "The actions held over the database, a bare array on the wire:\n`[\"get\",\"connections\"]`. There is one database, so there is no\n`within`; an action is held or it is not.",
       "type": "array",
       "items": {
@@ -1855,6 +1989,23 @@
         },
         {
           "description": "List the container connections open through it.",
+          "type": "string",
+          "const": "list"
+        }
+      ]
+    },
+    "Permission14": {
+      "description": "The actions held over the events, a bare array on the wire:\n`[\"list\"]`. There is one graph of events, so there is no `within`;\nan action is held or it is not.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Action2"
+      }
+    },
+    "Action2": {
+      "description": "The actions over the events, each the endpoint of the same name\nunder [`events`](crate::daemon::endpoints::events).",
+      "oneOf": [
+        {
+          "description": "List the events, narrowed, and keep the list.",
           "type": "string",
           "const": "list"
         }

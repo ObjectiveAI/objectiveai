@@ -32,7 +32,6 @@ use tokio_util::sync::CancellationToken;
 
 use diverge_sdk::daemon::create::Inner as Made;
 use diverge_sdk::daemon::creator::{self, Creator};
-use diverge_sdk::daemon::edit::{Change as EditChange, Edit};
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{
     Frame as CreateRequest, FuseMount, Provider as Pin, VolumeMount,
 };
@@ -243,12 +242,16 @@ fn check_mounts(inner: &Inner, agent: &str, pin: Option<&Identity>, volume_mount
     Ok(())
 }
 
-/// An edit's member: as it is, taken away, or replaced whole.
-fn changed<T: Clone + Default>(now: &T, change: &Option<EditChange<T>>) -> T {
-    match change {
-        None => now.clone(),
-        Some(EditChange::Delete) => T::default(),
-        Some(EditChange::Set(value)) => value.clone(),
+/// Which vault key each secret a template declares is, as a create or an
+/// edit binds them: every name it declares and no other. The stand-in holds
+/// no vault, so any key named is one it doesn't have.
+fn secrets_bound(declared: &[String], bound: &IndexMap<String, String>) -> Result<(), String> {
+    if bound.len() != declared.len() || declared.iter().any(|name| !bound.contains_key(name)) {
+        return Err("the secrets named are not the ones the template declares".into());
+    }
+    match bound.values().next() {
+        Some(key) => Err(format!("the stand-in holds no vault, so it has no key \"{key}\"")),
+        None => Ok(()),
     }
 }
 
@@ -601,7 +604,7 @@ impl StubDaemon {
         let id = template_id(&template);
         let index = inner.next_index(&id);
         let held = inner.templates.entry(id.clone()).or_insert(Held { template, created, creator: client() });
-        let create = CreateRequest { inner: Made { template: id.clone(), provider, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }, name: name.map(Into::into), relay: None };
+        let create = CreateRequest { inner: Made { template: id.clone(), secrets: IndexMap::new(), provider, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }, name: name.map(Into::into), relay: None };
         let agent = AgentState::new(create, index, creator, &held.template, created);
         (id_of(&id, index), agent)
     }
@@ -618,7 +621,7 @@ impl StubDaemon {
             inner.providers.push(ProviderState { identity: here.clone(), key: "stand-in".into(), store: here_disk, added: now - TimeDelta::days(9) });
             inner.providers.push(ProviderState { identity: studio.clone(), key: "stand-in".into(), store: studio_disk, added: now - TimeDelta::days(3) });
         }
-        let template = |kind: Kind, arguments: Value| AgentTemplate { r#type: AgentType {}, description: None, image: kind.image(), memory: 4 << 30, disk: 8 << 30, arguments };
+        let template = |kind: Kind, arguments: Value| AgentTemplate { r#type: AgentType {}, description: None, image: kind.image(), memory: 4 << 30, disk: 8 << 30, arguments, secrets: Vec::new() };
         let read = self.reader();
 
         // A finished run from yesterday.
@@ -668,7 +671,7 @@ impl StubDaemon {
         links.keep(t + TimeDelta::seconds(1), Item::Inactive(Inactive { r#type: InactiveType::Inactive, provider: Provider { identity: here.clone() } }));
 
         // A tool of yours, nightly-digest, which made one agent overnight and set it to work.
-        let tool_template = ToolTemplate { r#type: Default::default(), description: None, image: Kind::Python.image(), memory: 2 << 30, disk: 2 << 30, arguments: json!({}) };
+        let tool_template = ToolTemplate { r#type: Default::default(), description: None, image: Kind::Python.image(), memory: 2 << 30, disk: 2 << 30, arguments: json!({}), secrets: Vec::new() };
         let tool_id = template_id(&tool_template);
         let (maker, digest_id, mut digest) = {
             let mut inner = self.lock();
@@ -676,7 +679,7 @@ impl StubDaemon {
             inner.tool_templates.insert(tool_id.clone(), Held { template: tool_template, created: now - TimeDelta::days(4), creator: client() });
             let index = inner.next_index(&tool_id);
             let origin = standalone_tools::list::server::response::Origin::Created { template: tool_id.clone(), index, mode, provider: None, id: None };
-            let create = standalone_tools::create::client::request::Frame { inner: Made { template: tool_id.clone(), provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }, account: None, name: Some("nightly-digest".into()), relay: None };
+            let create = standalone_tools::create::client::request::Frame { inner: Made { template: tool_id.clone(), secrets: IndexMap::new(), provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }, account: None, name: Some("nightly-digest".into()), relay: None };
             inner.tools.push(ToolState { name: create.name.clone(), origin, create: Some(create), creator: client(), created: now - TimeDelta::days(4), agents: vec![notes_id.clone()], templates: Vec::new(), last_active: Some(now - TimeDelta::hours(8)) });
             drop(inner);
             let maker = Creator::Tool(creator::Tool::Record { template: tool_id, index, name: Some("nightly-digest".into()) });
@@ -757,6 +760,7 @@ fn keep_user_parts(daemon: &StubDaemon, id: &str, message: u64, content: &[Conte
 #[cfg(test)]
 mod tests {
     use super::*;
+    use diverge_sdk::daemon::patch::Operation;
 
     fn by_name(name: &str) -> reference::Agent {
         reference::Agent::Name { name: name.into() }
@@ -786,7 +790,7 @@ mod tests {
         use agents::templates::create::server::response::Frame as Answer;
         let root = std::env::temp_dir().join(format!("diverge-viewer-test-tpl-{}", std::process::id()));
         let daemon = StubDaemon::new(root);
-        let template = AgentTemplate { r#type: AgentType {}, description: None, image: Kind::Openrouter.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({ "model": "openrouter/auto", "system_prompt": "Be brief." }) };
+        let template = AgentTemplate { r#type: AgentType {}, description: None, image: Kind::Openrouter.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({ "model": "openrouter/auto", "system_prompt": "Be brief." }), secrets: Vec::new() };
         let make = |template: AgentTemplate| agents::templates::create::client::request::Frame { template, relay: None };
         let Answer::Created(id) = daemon.agents_templates_create(make(template.clone())).await else { panic!("made") };
         assert_eq!(id, template_id(&template));
@@ -814,7 +818,7 @@ mod tests {
     }
 
     fn made(template: String) -> Made {
-        Made { template, provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }
+        Made { template, secrets: IndexMap::new(), provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }
     }
 
     /// The seeded agent another agent made: no name, its maker named, and
@@ -864,8 +868,15 @@ mod tests {
     }
 
     fn edit(name: &str, volume_mounts: Vec<VolumeMount>, dirs: Vec<FuseMount>) -> agents::edit::client::request::Frame {
-        let edit = Edit { name: None, volume_mounts: Some(EditChange::Set(volume_mounts)), fuse_file_mounts: Some(EditChange::Set(vec![])), fuse_directory_mounts: Some(EditChange::Set(dirs)) };
-        agents::edit::client::request::Frame { agent: by_name(name), edit, relay: None }
+        patch(name, vec![
+            Operation::Replace { path: "/volume_mounts".into(), value: json!(volume_mounts) },
+            Operation::Replace { path: "/fuse_file_mounts".into(), value: json!([]) },
+            Operation::Replace { path: "/fuse_directory_mounts".into(), value: json!(dirs) },
+        ])
+    }
+
+    fn patch(name: &str, patch: Vec<Operation>) -> agents::edit::client::request::Frame {
+        agents::edit::client::request::Frame { agent: by_name(name), patch, relay: None }
     }
 
     /// A volume is a machine's own: each lists its own, in its own modes,
@@ -909,8 +920,9 @@ mod tests {
         assert_eq!(daemon.machine(&here()).unwrap().mode("scratch"), Some(Mode::ReadOnly));
     }
 
-    /// An edit states the mounts anew, waits for an idle agent, and a volume
-    /// that keeps its changes has one user at a time.
+    /// An edit states the mounts anew, waits for an idle agent unless all it
+    /// does is add live mounts, and a volume that keeps its changes has one
+    /// user at a time.
     #[tokio::test]
     async fn an_edit_restates_mounts_once_the_agent_is_idle() {
         use agents::edit::server::response::Frame as Edited;
@@ -936,10 +948,17 @@ mod tests {
         // Stated anew: an empty edit lets media go.
         assert!(matches!(daemon.agents_edit(edit("research-notes", vec![], vec![])).await, Edited::Edited));
         assert_eq!(daemon.held(&studio(), "media"), None);
-        // A name changes while it works; another's name is taken.
-        let rename = |agent: &str, to: &str| agents::edit::client::request::Frame { agent: by_name(agent), edit: Edit { name: Some(EditChange::Set(to.into())), ..Edit::default() }, relay: None };
-        assert!(matches!(daemon.agents_edit(rename("site-fixes", "broken-loop")).await, Edited::InUse));
-        assert!(matches!(daemon.agents_edit(rename("site-fixes", "site-tidy")).await, Edited::Edited));
+        // While it works it takes live mounts added and nothing else.
+        let rename = |agent: &str, to: &str| patch(agent, vec![Operation::Replace { path: "/name".into(), value: json!(to) }]);
+        assert!(matches!(daemon.agents_edit(rename("site-fixes", "site-tidy")).await, Edited::Active));
+        let added = patch("site-fixes", vec![Operation::Add { path: "/fuse_directory_mounts/-".into(), value: json!(data("data")) }]);
+        assert!(matches!(daemon.agents_edit(added).await, Edited::Edited));
+        // Idle, a name changes; another's name is taken.
+        assert!(matches!(daemon.agents_edit(rename("broken-loop", "research-notes")).await, Edited::InUse));
+        assert!(matches!(daemon.agents_edit(rename("broken-loop", "reading-list")).await, Edited::Edited));
+        // A patch that can't be applied changes nothing.
+        let wrong = patch("research-notes", vec![Operation::Replace { path: "/image".into(), value: json!("another") }]);
+        assert!(matches!(daemon.agents_edit(wrong).await, Edited::Error(_)));
     }
 
     /// Tools follow the daemon's rules: attached to an agent or its
@@ -951,7 +970,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!("diverge-viewer-test-tools-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let daemon = StubDaemon::new(root);
-        let template = ToolTemplate { r#type: Default::default(), description: None, image: Kind::Python.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({}) };
+        let template = ToolTemplate { r#type: Default::default(), description: None, image: Kind::Python.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({}), secrets: Vec::new() };
         let standalone_tools::templates::create::server::response::Frame::Created(tid) =
             daemon.standalone_tools_templates_create(standalone_tools::templates::create::client::request::Frame { template, relay: None }).await
         else {
@@ -963,7 +982,7 @@ mod tests {
         let tool = |name: &str| reference::Tool::Name { name: name.into() };
         let register = standalone_tools::register::client::request::Frame { daemon: "studio".into(), account: "guest".into(), tool: tool("rooms"), name: Some("a friend's room".into()), relay: None };
         assert!(matches!(daemon.standalone_tools_register(register).await, standalone_tools::register::server::response::Frame::Registered));
-        let theirs = standalone_tools::edit::client::request::Frame { tool: tool("a friend's room"), edit: Edit::default(), account: None, relay: None };
+        let theirs = standalone_tools::edit::client::request::Frame { tool: tool("a friend's room"), patch: vec![Operation::Replace { path: "/account".into(), value: json!("guest") }], relay: None };
         assert!(matches!(daemon.standalone_tools_edit(theirs).await, standalone_tools::edit::server::response::Frame::NotOwned), "not yours to change");
         let attach = |t: &str, agent: &str| standalone_tools::attach_agent_instance::client::request::Frame { tool: tool(t), agent: by_name(agent), relay: None };
         assert!(matches!(daemon.standalone_tools_attach_agent_instance(attach("labels", "site-fixes")).await, standalone_tools::attach_agent_instance::server::response::Frame::Attached));
@@ -1082,7 +1101,7 @@ mod tests {
         assert!(next_frames(&mut frames, 1).await.is_empty(), "no frame per log line");
 
         // Made: added.
-        let template = AgentTemplate { r#type: AgentType {}, description: None, image: Kind::Openrouter.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({ "model": "openrouter/auto" }) };
+        let template = AgentTemplate { r#type: AgentType {}, description: None, image: Kind::Openrouter.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({ "model": "openrouter/auto" }), secrets: Vec::new() };
         let agents::templates::create::server::response::Frame::Created(id) = daemon.agents_templates_create(agents::templates::create::client::request::Frame { template, relay: None }).await else { panic!("made") };
         daemon.agents_create(CreateRequest { inner: made(id), name: Some("brief".into()), relay: None }).await;
         assert!(matches!(&next_frames(&mut frames, 1).await[..], [Listed::Added(a)] if a.name.as_deref() == Some("brief") && !a.active));
@@ -1091,7 +1110,7 @@ mod tests {
         let tag = |tags: &[&str]| agents::tag::client::request::Frame { agent: by_name("brief"), tags: tags.iter().map(|t| t.to_string()).collect(), relay: None };
         assert!(matches!(daemon.agents_tag(tag(&["weekly", "notes"])).await, agents::tag::server::response::Frame::Tagged));
         assert!(matches!(&next_frames(&mut frames, 1).await[..], [Listed::Changed(a)] if a.tags == ["notes", "weekly"]), "sorted");
-        let tools = ToolTemplate { r#type: Default::default(), description: None, image: Kind::Python.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({}) };
+        let tools = ToolTemplate { r#type: Default::default(), description: None, image: Kind::Python.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({}), secrets: Vec::new() };
         let standalone_tools::templates::create::server::response::Frame::Created(tid) =
             daemon.standalone_tools_templates_create(standalone_tools::templates::create::client::request::Frame { template: tools, relay: None }).await
         else {
@@ -1250,6 +1269,9 @@ impl Daemon for StubDaemon {
             return Frame::Error(wire_error("no template of yours has that id"));
         };
         let template = held.template.clone();
+        if let Err(reason) = secrets_bound(&template.secrets, &request.inner.secrets) {
+            return Frame::Error(wire_error(reason));
+        }
         if request.name.is_some() && inner.agents.values().any(|a| a.create.name == request.name) {
             return Frame::InUse;
         }
@@ -1461,42 +1483,59 @@ impl Daemon for StubDaemon {
     }
 
     async fn agents_edit(&self, request: agents::edit::client::request::Frame) -> agents::edit::server::response::Frame {
+        use agents::edit::client::request::Editable;
         use agents::edit::server::response::Frame;
         let mut inner = self.lock();
         let Some(id) = inner.find(&request.agent) else { return Frame::NotFound };
         let Some(agent) = inner.agents.get(&id) else { return Frame::NotFound };
-        let Edit { name, volume_mounts, fuse_file_mounts, fuse_directory_mounts } = &request.edit;
-        let mounts = volume_mounts.is_some() || fuse_file_mounts.is_some() || fuse_directory_mounts.is_some();
-        if mounts && agent.busy() {
+        let made = agent.create.inner.clone();
+        let current = Editable {
+            name: agent.create.name.clone(),
+            volume_mounts: made.provider.as_ref().map(|p| p.volume_mounts.clone()).unwrap_or_default(),
+            fuse_file_mounts: made.fuse_file_mounts.clone(),
+            fuse_directory_mounts: made.fuse_directory_mounts.clone(),
+            secrets: made.secrets.clone(),
+        };
+        let result = match super::patched(&current, &request.patch) {
+            Ok(result) => result,
+            Err(reason) => return Frame::Error(wire_error(reason)),
+        };
+        // A running container takes live mounts added to the end of either
+        // list, mounted at once, and nothing else.
+        let added_only = result.name == current.name
+            && result.volume_mounts == current.volume_mounts
+            && result.secrets == current.secrets
+            && result.fuse_file_mounts.starts_with(&current.fuse_file_mounts)
+            && result.fuse_directory_mounts.starts_with(&current.fuse_directory_mounts);
+        if agent.busy() && !added_only {
             return Frame::Active;
         }
-        let new_name = match name {
-            None => agent.create.name.clone(),
-            Some(EditChange::Delete) => None,
-            Some(EditChange::Set(n)) => Some(n.clone()),
-        };
-        if new_name.is_some() && inner.agents.iter().any(|(other, a)| other != &id && a.create.name == new_name) {
-            return Frame::InUse;
+        if result.secrets != current.secrets {
+            let declared = inner.templates.get(&made.template).map(|held| held.template.secrets.clone()).unwrap_or_default();
+            if let Err(reason) = secrets_bound(&declared, &result.secrets) {
+                return Frame::Error(wire_error(reason));
+            }
         }
-        let made = &agent.create.inner;
-        let pin = made.provider.as_ref().map(|p| p.identity.clone());
-        let volume_mounts = changed(&made.provider.as_ref().map(|p| p.volume_mounts.clone()).unwrap_or_default(), volume_mounts);
-        let fuse_file_mounts = changed(&made.fuse_file_mounts, fuse_file_mounts);
-        let fuse_directory_mounts = changed(&made.fuse_directory_mounts, fuse_directory_mounts);
-        let checked = {
-            let fuse: Vec<&FuseMount> = fuse_file_mounts.iter().chain(&fuse_directory_mounts).collect();
-            check_mounts(&inner, &id, pin.as_ref(), &volume_mounts, &fuse)
-        };
-        if let Err(reason) = checked {
-            return Frame::Error(wire_error(reason));
+        let mounts_changed = result.volume_mounts != current.volume_mounts
+            || result.fuse_file_mounts != current.fuse_file_mounts
+            || result.fuse_directory_mounts != current.fuse_directory_mounts;
+        if mounts_changed {
+            let fuse: Vec<&FuseMount> = result.fuse_file_mounts.iter().chain(&result.fuse_directory_mounts).collect();
+            if let Err(reason) = check_mounts(&inner, &id, made.provider.as_ref().map(|p| &p.identity), &result.volume_mounts, &fuse) {
+                return Frame::Error(wire_error(reason));
+            }
+        }
+        if result.name.is_some() && inner.agents.iter().any(|(other, a)| other != &id && a.create.name == result.name) {
+            return Frame::InUse;
         }
         let Some(agent) = inner.agents.get_mut(&id) else { return Frame::NotFound };
         if let Some(pin) = agent.create.inner.provider.as_mut() {
-            pin.volume_mounts = volume_mounts;
+            pin.volume_mounts = result.volume_mounts;
         }
-        agent.create.inner.fuse_file_mounts = fuse_file_mounts;
-        agent.create.inner.fuse_directory_mounts = fuse_directory_mounts;
-        agent.create.name = new_name;
+        agent.create.inner.fuse_file_mounts = result.fuse_file_mounts;
+        agent.create.inner.fuse_directory_mounts = result.fuse_directory_mounts;
+        agent.create.inner.secrets = result.secrets;
+        agent.create.name = result.name;
         inner.changed();
         Frame::Edited
     }
@@ -1544,9 +1583,12 @@ impl Daemon for StubDaemon {
         if request.name.as_ref().is_some_and(|n| n.trim().is_empty()) {
             return Frame::Error(wire_error("a name, if given, says something"));
         }
-        let Some(mode) = inner.tool_templates.get(&request.inner.template).map(|held| held.template.r#type.mode) else {
+        let Some((mode, declared)) = inner.tool_templates.get(&request.inner.template).map(|held| (held.template.r#type.mode, held.template.secrets.clone())) else {
             return Frame::Error(wire_error("no tool template of yours has that id"));
         };
+        if let Err(reason) = secrets_bound(&declared, &request.inner.secrets) {
+            return Frame::Error(wire_error(reason));
+        }
         if request.name.is_some() && inner.tools.iter().any(|t| t.name == request.name) {
             return Frame::InUse;
         }
@@ -1570,45 +1612,79 @@ impl Daemon for StubDaemon {
     }
 
     async fn standalone_tools_edit(&self, request: standalone_tools::edit::client::request::Frame) -> standalone_tools::edit::server::response::Frame {
+        use standalone_tools::edit::client::request::Editable;
         use standalone_tools::edit::server::response::Frame;
         let mut inner = self.lock();
         let Some(at) = inner.find_tool(&request.tool) else { return Frame::NotFound };
-        let Some(create) = inner.tools[at].create.clone() else { return Frame::NotOwned };
-        let Edit { name, volume_mounts, fuse_file_mounts, fuse_directory_mounts } = &request.edit;
-        let mounts = volume_mounts.is_some() || fuse_file_mounts.is_some() || fuse_directory_mounts.is_some();
-        if mounts && inner.tool_active(&inner.tools[at]) {
+        // A connected tool is somebody else's container: none of its mounts,
+        // account or secrets are yours.
+        let made = inner.tools[at].create.as_ref().map(|create| create.inner.clone());
+        let current = Editable {
+            name: inner.tools[at].name.clone(),
+            // The stand-in holds no accounts on anyone's behalf.
+            account: None,
+            volume_mounts: made.as_ref().and_then(|m| m.provider.as_ref()).map(|p| p.volume_mounts.clone()).unwrap_or_default(),
+            fuse_file_mounts: made.as_ref().map(|m| m.fuse_file_mounts.clone()).unwrap_or_default(),
+            fuse_directory_mounts: made.as_ref().map(|m| m.fuse_directory_mounts.clone()).unwrap_or_default(),
+            secrets: made.as_ref().map(|m| m.secrets.clone()).unwrap_or_default(),
+        };
+        let result = match super::patched(&current, &request.patch) {
+            Ok(result) => result,
+            Err(reason) => return Frame::Error(wire_error(reason)),
+        };
+        let mounts_changed = result.volume_mounts != current.volume_mounts
+            || result.fuse_file_mounts != current.fuse_file_mounts
+            || result.fuse_directory_mounts != current.fuse_directory_mounts;
+        let account_changed = result.account != current.account;
+        let secrets_changed = result.secrets != current.secrets;
+        let Some(made) = made else {
+            if mounts_changed || account_changed || secrets_changed {
+                return Frame::NotOwned;
+            }
+            if result.name.is_some() && inner.tools.iter().enumerate().any(|(i, t)| i != at && t.name == result.name) {
+                return Frame::InUse;
+            }
+            inner.tools[at].name = result.name;
+            inner.changed();
+            return Frame::Edited;
+        };
+        // As an agent's: a running container takes live mounts added, and nothing else.
+        let added_only = result.name == current.name
+            && !account_changed
+            && result.volume_mounts == current.volume_mounts
+            && !secrets_changed
+            && result.fuse_file_mounts.starts_with(&current.fuse_file_mounts)
+            && result.fuse_directory_mounts.starts_with(&current.fuse_directory_mounts);
+        if inner.tool_active(&inner.tools[at]) && !added_only {
             return Frame::Active;
         }
-        if matches!(request.account, Some(EditChange::Set(_))) {
+        if account_changed {
             return Frame::NoAccount;
         }
-        let new_name = match name {
-            None => inner.tools[at].name.clone(),
-            Some(EditChange::Delete) => None,
-            Some(EditChange::Set(n)) => Some(n.clone()),
-        };
-        if new_name.is_some() && inner.tools.iter().enumerate().any(|(i, t)| i != at && t.name == new_name) {
+        if secrets_changed {
+            let declared = inner.tool_templates.get(&made.template).map(|held| held.template.secrets.clone()).unwrap_or_default();
+            if let Err(reason) = secrets_bound(&declared, &result.secrets) {
+                return Frame::Error(wire_error(reason));
+            }
+        }
+        if mounts_changed {
+            let fuse: Vec<&FuseMount> = result.fuse_file_mounts.iter().chain(&result.fuse_directory_mounts).collect();
+            if let Err(reason) = check_mounts(&inner, "", made.provider.as_ref().map(|p| &p.identity), &result.volume_mounts, &fuse) {
+                return Frame::Error(wire_error(reason));
+            }
+        }
+        if result.name.is_some() && inner.tools.iter().enumerate().any(|(i, t)| i != at && t.name == result.name) {
             return Frame::InUse;
         }
-        let made = &create.inner;
-        let volume_mounts = changed(&made.provider.as_ref().map(|p| p.volume_mounts.clone()).unwrap_or_default(), volume_mounts);
-        let fuse_file_mounts = changed(&made.fuse_file_mounts, fuse_file_mounts);
-        let fuse_directory_mounts = changed(&made.fuse_directory_mounts, fuse_directory_mounts);
-        let checked = {
-            let fuse: Vec<&FuseMount> = fuse_file_mounts.iter().chain(&fuse_directory_mounts).collect();
-            check_mounts(&inner, "", made.provider.as_ref().map(|p| &p.identity), &volume_mounts, &fuse)
-        };
-        if let Err(reason) = checked {
-            return Frame::Error(wire_error(reason));
-        }
         let tool = &mut inner.tools[at];
-        tool.name = new_name;
+        tool.name = result.name;
         if let Some(create) = tool.create.as_mut() {
             if let Some(p) = create.inner.provider.as_mut() {
-                p.volume_mounts = volume_mounts;
+                p.volume_mounts = result.volume_mounts;
             }
-            create.inner.fuse_file_mounts = fuse_file_mounts;
-            create.inner.fuse_directory_mounts = fuse_directory_mounts;
+            create.inner.fuse_file_mounts = result.fuse_file_mounts;
+            create.inner.fuse_directory_mounts = result.fuse_directory_mounts;
+            create.inner.secrets = result.secrets;
         }
         inner.changed();
         Frame::Edited

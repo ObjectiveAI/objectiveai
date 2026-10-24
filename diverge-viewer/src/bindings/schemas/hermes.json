@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Agent",
-  "description": "An agent running against Hermes (Nous Research's agent harness).\n\nEvery field here is HONORABLE: it names a mechanism the container\nactually has — a `config.yaml` key its harness writes before\nHermes starts, or a per-request field on the run it drives — and\nnothing else made the cut. What Hermes cannot be told through its\nwire is not here: no skill preloading (skills arrive as mounts\nunder `/root/.hermes/external-skills/`, one directory per skill\nholding its `SKILL.md`, and Hermes indexes them itself — that\npath, not its own `skills/`, which it writes into), no\ntemperature (Hermes has no\nmain-agent sampling key), no thinking-token budget (the\n[`effort`](Self::effort) ladder is the whole reasoning\nvocabulary).",
+  "description": "An agent running against Hermes (Nous Research's agent harness).\n\nEvery field here is HONORABLE: it names a mechanism the container\nactually has — a `config.yaml` key its harness writes before\nHermes starts, or a per-request field on the run it drives — and\nnothing else made the cut. What Hermes cannot be told through its\nwire is not here: no skill preloading (skills arrive as mounts\nunder `/root/.hermes/external-skills/`, one directory per skill\nholding its `SKILL.md`, and Hermes indexes them itself — that\npath, not its own `skills/`, which it writes into), no\ntemperature (Hermes has no\nmain-agent sampling key), no thinking-token budget (the\n[`effort`](Self::effort) ladder is the whole reasoning\nvocabulary).\n\n# Secrets\n\nNo credential is a field. The provider and the toolsets SELECT\nsecrets by name — each structure's `SECRET:` paragraph says which,\nand in what mode — and the agent's template must declare every\nname selected. [`declaration`](Self::declaration) is that set, as\nthe registration answers it; the proxy feeds the values before\nevery loop, and collects the rotating ones after.",
   "type": "object",
   "properties": {
     "provider": {
-      "description": "The inference source, credentials and all — Hermes is\nmulti-provider by design, this picks which, and the pick\ncarries its own auth as arguments. See [`Provider`].",
+      "description": "The inference source — Hermes is multi-provider by design,\nthis picks which, and the pick selects the secrets its auth\nneeds. See [`Provider`].",
       "$ref": "#/$defs/Provider"
     },
     "model": {
@@ -31,12 +31,12 @@
       ]
     },
     "toolsets": {
-      "description": "Hermes's LOCAL capabilities, one switch each: an\n`Option<bool>` where a tool takes nothing, that tool's own\nargument structure where it does — absent is off either way,\nand the whole structure absent is everything off. (The\ncaller's MCP tools ride beside these regardless, and the tool\ncontainers the agent asks for are\n[`dependencies`](Self::dependencies).) See [`Toolsets`].",
+      "description": "Hermes's LOCAL capabilities, one switch each: an\n`Option<bool>` where a tool takes nothing but at most a\nsecret, that tool's own argument structure where it takes\nmore — absent is off either way, and the whole structure\nabsent is everything off. (The caller's MCP tools ride beside\nthese regardless, and the tool containers the agent asks for\nare [`dependencies`](Self::dependencies).) See [`Toolsets`].",
       "$ref": "#/$defs/Toolsets",
       "default": {}
     },
     "dependencies": {
-      "description": "The tool containers this agent depends on, each a dependency\ntool template the caller deploys and serves to it as an MCP\nserver, exactly as the SDK's [`Template`] states one: that\ntype's JSON Schema is what `GET /schema` states for this member,\nand this list, unchanged, is what the registration answers —\none schema, from the one type, at both. Absent is none.",
+      "description": "The tool containers this agent depends on, each a dependency\ntool template the caller deploys and serves to it as an MCP\nserver, exactly as the SDK's [`Template`] states one: that\ntype's JSON Schema is what `--schema` prints for this member,\nin `/DIVERGE.md`, and this list, unchanged, is what the\nregistration answers — one schema, from the one type, at both.\nAbsent is none.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/Template"
@@ -49,7 +49,7 @@
   ],
   "$defs": {
     "Provider": {
-      "description": "The inference source, credentials and all.\n\nUntagged, discriminated by each variant's own `provider` constant\n— the same discipline the [`Agent`](super::super::super::Agent)\nunion uses for `upstream`. One variant per provider because the\nargument sets genuinely differ: most are a single key, but\nbedrock is AWS credentials, vertex is a service-account document,\nazure-foundry and custom carry their endpoints — and each key\napplies through a different mechanism the variant's own docs\nspell out.\n\nCLOSED at the pin, deliberately: user plugins can extend Hermes's\nregistry, but the container runs stock Hermes, so the bundled set\nis the whole vocabulary — minus `copilot-acp`, whose auth is not\nHermes's to hold (see [the module](super)). Rotating-OAuth\nproviders carry their state as RESOURCES rather than plain\nvalues; the module doc says what that means.\n\nHermes's own `auto` — provider detection from whatever\ncredentials happen to be present — is deliberately NOT here, and\nunder auth-as-arguments it is not even coherent: the request\ncarries exactly one provider's credentials, so there is nothing\nto detect.",
+      "description": "The inference source.\n\nUntagged, discriminated by each variant's own `provider` constant\n— the same discipline the [`Agent`](super::super::super::Agent)\nunion uses for `upstream`. One variant per provider because the\nargument sets genuinely differ: most are the discriminator alone,\ntheir one key a secret the variant declares by name, but bedrock\nnames its auth mode (which fixes its name set), vertex its\nproject and region, azure-foundry and custom carry their\nendpoints — and each secret applies through a different mechanism\nthe variant's own docs spell out.\n\nCLOSED at the pin, deliberately: user plugins can extend Hermes's\nregistry, but the container runs stock Hermes, so the bundled set\nis the whole vocabulary — minus `copilot-acp`, whose auth is not\nHermes's to hold (see [the module](super)). Rotating-OAuth\nproviders declare their state as `rotating` secrets rather than\n`fixed` ones; the module doc says what that means.\n\nHermes's own `auto` — provider detection from whatever\ncredentials happen to be present — is deliberately NOT here, and\nunder auth-as-secrets it is not even coherent: the feed carries\nexactly one provider's secrets, so there is nothing to detect.",
       "anyOf": [
         {
           "description": "See [`actual::Provider`](super::actual::Provider).",
@@ -226,21 +226,16 @@
       ]
     },
     "Provider2": {
-      "description": "Actual Computer.\n\nAPPLICATION: the harness sets `ACTUAL_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Actual Computer.\n\nAPPLICATION: the harness sets `ACTUAL_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `ACTUAL_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `actual`.",
           "$ref": "#/$defs/Actual"
-        },
-        "api_key": {
-          "description": "The API key, applied as `ACTUAL_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Actual": {
@@ -251,21 +246,16 @@
       ]
     },
     "Provider3": {
-      "description": "Vercel AI Gateway.\n\nAPPLICATION: the harness sets `AI_GATEWAY_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Vercel AI Gateway.\n\nAPPLICATION: the harness sets `AI_GATEWAY_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `AI_GATEWAY_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `ai-gateway`.",
           "$ref": "#/$defs/AiGateway"
-        },
-        "api_key": {
-          "description": "The API key, applied as `AI_GATEWAY_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "AiGateway": {
@@ -276,21 +266,16 @@
       ]
     },
     "Provider4": {
-      "description": "Alibaba Cloud (DashScope).\n\nAPPLICATION: the harness sets `DASHSCOPE_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Alibaba Cloud (DashScope).\n\nAPPLICATION: the harness sets `DASHSCOPE_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `DASHSCOPE_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `alibaba`.",
           "$ref": "#/$defs/Alibaba"
-        },
-        "api_key": {
-          "description": "The API key, applied as `DASHSCOPE_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Alibaba": {
@@ -301,21 +286,16 @@
       ]
     },
     "Provider5": {
-      "description": "Alibaba Cloud's dedicated coding tier.\n\nAPPLICATION: the harness sets `ALIBABA_CODING_PLAN_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.\n(`DASHSCOPE_API_KEY` is an accepted fallback in Hermes; the\nspecific var is the one set.)",
+      "description": "Alibaba Cloud's dedicated coding tier.\n\nAPPLICATION: the harness sets `ALIBABA_CODING_PLAN_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n(`DASHSCOPE_API_KEY` is an accepted fallback in Hermes; the\nspecific var is the one set.)\n\nSECRET: `ALIBABA_CODING_PLAN_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `alibaba-coding-plan`.",
           "$ref": "#/$defs/AlibabaCodingPlan"
-        },
-        "api_key": {
-          "description": "The API key, applied as `ALIBABA_CODING_PLAN_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "AlibabaCodingPlan": {
@@ -326,21 +306,16 @@
       ]
     },
     "Provider6": {
-      "description": "Anthropic, over the Messages API.\n\nAPPLICATION: the harness sets `ANTHROPIC_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Anthropic, over the Messages API.\n\nAPPLICATION: the harness sets `ANTHROPIC_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `ANTHROPIC_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `anthropic`.",
           "$ref": "#/$defs/Anthropic"
-        },
-        "api_key": {
-          "description": "The API key, applied as `ANTHROPIC_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Anthropic": {
@@ -351,21 +326,16 @@
       ]
     },
     "Provider7": {
-      "description": "Arcee AI.\n\nAPPLICATION: the harness sets `ARCEEAI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Arcee AI.\n\nAPPLICATION: the harness sets `ARCEEAI_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `ARCEEAI_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `arcee`.",
           "$ref": "#/$defs/Arcee"
-        },
-        "api_key": {
-          "description": "The API key, applied as `ARCEEAI_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Arcee": {
@@ -376,16 +346,12 @@
       ]
     },
     "Provider8": {
-      "description": "Microsoft Azure Foundry — a caller-supplied deployment, so the\nendpoint is as much the credential as the key is.\n\nAPPLICATION: the harness sets `AZURE_FOUNDRY_API_KEY` to\n[`api_key`](Self::api_key) and `AZURE_FOUNDRY_BASE_URL` to\n[`base_url`](Self::base_url) in the gateway's process environment\nbefore Hermes starts. Both are required: Hermes raises a hard\nauth error on a missing base URL. The Entra-ID mode is\ndeliberately absent — ambient Azure identity is not an argument.",
+      "description": "Microsoft Azure Foundry — a caller-supplied deployment, so the\nendpoint is as much the credential as the key is.\n\nAPPLICATION: the harness sets `AZURE_FOUNDRY_API_KEY` to the\nsecret's value and `AZURE_FOUNDRY_BASE_URL` to\n[`base_url`](Self::base_url) in the gateway's process environment\nbefore Hermes starts. Both are required: Hermes raises a hard\nauth error on a missing base URL. The Entra-ID mode is\ndeliberately absent — ambient Azure identity is not an argument.\n\nSECRET: `AZURE_FOUNDRY_API_KEY`, fixed — the API key, under that\nname.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `azure-foundry`.",
           "$ref": "#/$defs/AzureFoundry"
-        },
-        "api_key": {
-          "description": "The API key, applied as `AZURE_FOUNDRY_API_KEY`.",
-          "type": "string"
         },
         "base_url": {
           "description": "The deployment's endpoint, applied as\n`AZURE_FOUNDRY_BASE_URL`.",
@@ -394,7 +360,6 @@
       },
       "required": [
         "provider",
-        "api_key",
         "base_url"
       ]
     },
@@ -406,7 +371,7 @@
       ]
     },
     "Provider9": {
-      "description": "AWS Bedrock — AWS credentials, not a provider key.\n\nAPPLICATION: the harness sets the AWS SDK's own env vars in the\ngateway's process environment before Hermes starts — see\n[`Auth`] for which — plus `AWS_REGION` to\n[`region`](Self::region) when present. These must be REAL\nprocess env: the botocore chain underneath never reads Hermes's\ndotenv.",
+      "description": "AWS Bedrock — AWS credentials, not a provider key.\n\nAPPLICATION: the harness sets the AWS SDK's own env vars in the\ngateway's process environment before Hermes starts, each to its\nsecret's value — see [`Auth`] for which — plus `AWS_REGION` to\n[`region`](Self::region) when present. These must be REAL\nprocess env: the botocore chain underneath never reads Hermes's\ndotenv.\n\nSECRET: the set [`auth`](Self::auth) fixes, every one fixed —\n`AWS_BEARER_TOKEN_BEDROCK` for `bearer-token`;\n`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for `access-key`;\nthose two and `AWS_SESSION_TOKEN` for `session-token`.",
       "type": "object",
       "properties": {
         "provider": {
@@ -414,7 +379,7 @@
           "$ref": "#/$defs/Bedrock"
         },
         "auth": {
-          "description": "The credential itself. See [`Auth`].",
+          "description": "Which credential shape the secrets carry. See [`Auth`].",
           "$ref": "#/$defs/Auth"
         },
         "region": {
@@ -438,64 +403,36 @@
       ]
     },
     "Auth": {
-      "description": "One of AWS's two static credential shapes. Untagged — the field\nnames are disjoint, so the shape is its own discriminator.\n\nThe rest of the botocore chain (profiles, container/IMDS roles,\nweb identity) is deliberately absent: those are facts about a\nmachine, and a request has no machine.",
-      "anyOf": [
+      "description": "One of AWS's static credential shapes, by name — which fixes the\nsecrets the provider declares. Kebab-case on the wire.\n\nThe rest of the botocore chain (profiles, container/IMDS roles,\nweb identity) is deliberately absent: those are facts about a\nmachine, and a request has no machine.",
+      "oneOf": [
         {
-          "description": "A Bedrock API key, applied as `AWS_BEARER_TOKEN_BEDROCK` —\nthe first credential the chain checks.",
-          "type": "object",
-          "properties": {
-            "bearer_token": {
-              "description": "The key.",
-              "type": "string"
-            }
-          },
-          "required": [
-            "bearer_token"
-          ]
+          "description": "A Bedrock API key — the first credential the chain checks.\nDeclares `AWS_BEARER_TOKEN_BEDROCK`.",
+          "type": "string",
+          "const": "bearer-token"
         },
         {
-          "description": "Static SigV4 credentials, applied as `AWS_ACCESS_KEY_ID`,\n`AWS_SECRET_ACCESS_KEY` and, when present,\n`AWS_SESSION_TOKEN`.",
-          "type": "object",
-          "properties": {
-            "access_key_id": {
-              "description": "The access key id.",
-              "type": "string"
-            },
-            "secret_access_key": {
-              "description": "The secret access key.",
-              "type": "string"
-            },
-            "session_token": {
-              "description": "The session token, for temporary credentials.",
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "access_key_id",
-            "secret_access_key"
-          ]
+          "description": "Static SigV4 credentials. Declares `AWS_ACCESS_KEY_ID` and\n`AWS_SECRET_ACCESS_KEY`.",
+          "type": "string",
+          "const": "access-key"
+        },
+        {
+          "description": "Temporary SigV4 credentials. Declares `AWS_ACCESS_KEY_ID`,\n`AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`.",
+          "type": "string",
+          "const": "session-token"
         }
       ]
     },
     "Provider10": {
-      "description": "CommandCode.\n\nAPPLICATION: the harness sets `COMMANDCODE_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "CommandCode.\n\nAPPLICATION: the harness sets `COMMANDCODE_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `COMMANDCODE_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `commandcode`.",
           "$ref": "#/$defs/Commandcode"
-        },
-        "api_key": {
-          "description": "The API key, applied as `COMMANDCODE_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Commandcode": {
@@ -506,21 +443,16 @@
       ]
     },
     "Provider11": {
-      "description": "CommandCode's Anthropic-dialect route.\n\nAPPLICATION: the harness sets `COMMANDCODE_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.\n(The same key as [`commandcode`](super::commandcode::Provider)\n— one credential, two wires.)",
+      "description": "CommandCode's Anthropic-dialect route.\n\nAPPLICATION: the harness sets `COMMANDCODE_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n(The same key as [`commandcode`](super::commandcode::Provider)\n— one credential, two wires.)\n\nSECRET: `COMMANDCODE_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `commandcode-anthropic`.",
           "$ref": "#/$defs/CommandcodeAnthropic"
-        },
-        "api_key": {
-          "description": "The API key, applied as `COMMANDCODE_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "CommandcodeAnthropic": {
@@ -531,21 +463,16 @@
       ]
     },
     "Provider12": {
-      "description": "GitHub Copilot (token exchange).\n\nAPPLICATION: the harness sets `COPILOT_GITHUB_TOKEN` to\n[`github_token`](Self::github_token) in the gateway's process\nenvironment before Hermes starts; Hermes performs the\nGitHub-token → Copilot-api-token exchange on its own, and setting\nthe var also suppresses its `gh auth token` fallback.",
+      "description": "GitHub Copilot (token exchange).\n\nAPPLICATION: the harness sets `COPILOT_GITHUB_TOKEN` to the\nsecret's value in the gateway's process environment before\nHermes starts; Hermes performs the GitHub-token →\nCopilot-api-token exchange on its own, and setting the var also\nsuppresses its `gh auth token` fallback.\n\nSECRET: `COPILOT_GITHUB_TOKEN`, fixed — the GitHub token the\nexchange starts from. Must be an OAuth or fine-grained token\n(`gho_`/`ghu_`/`github_pat_`) — Hermes rejects classic `ghp_`\nPATs.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `copilot`.",
           "$ref": "#/$defs/Copilot"
-        },
-        "github_token": {
-          "description": "The GitHub token the exchange starts from, applied as\n`COPILOT_GITHUB_TOKEN`. Must be an OAuth or fine-grained\ntoken (`gho_`/`ghu_`/`github_pat_`) — Hermes rejects classic\n`ghp_` PATs.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "github_token"
+        "provider"
       ]
     },
     "Copilot": {
@@ -556,7 +483,7 @@
       ]
     },
     "Provider13": {
-      "description": "Any OpenAI-compatible endpoint the caller names — the local\nruntimes' home (ollama, vllm, llama.cpp all alias onto it in\nHermes itself).\n\nAPPLICATION: the harness sets `CUSTOM_BASE_URL` to\n[`base_url`](Self::base_url) in the gateway's process environment\nbefore Hermes starts, and writes the same URL as `model.base_url`\nin the config it already owns, beside `model.api_key` when\n[`api_key`](Self::api_key) is present — Hermes reads that key only\nnext to a configured URL. With no key, Hermes supplies its own\n`no-key-required` placeholder — the keyless case is the endpoint's\nbusiness, not a protocol gap.",
+      "description": "Any OpenAI-compatible endpoint the caller names — the local\nruntimes' home (ollama, vllm, llama.cpp all alias onto it in\nHermes itself).\n\nAPPLICATION: the harness sets `CUSTOM_BASE_URL` to\n[`base_url`](Self::base_url) in the gateway's process environment\nbefore Hermes starts, and writes the same URL as `model.base_url`\nin the config it already owns. When [`api_key`](Self::api_key)\nis `true` the secret's value is written beside it as\n`model.api_key` — the config, not the environment, because\n`CUSTOM_API_KEY` is not a variable Hermes reads: the key is read\nfrom the config only, and only next to a configured URL. With no\nkey, Hermes supplies its own `no-key-required` placeholder — the\nkeyless case is the endpoint's business, not a protocol gap.\n\nSECRET: `CUSTOM_API_KEY`, fixed — the API key the endpoint\nexpects; declared only when [`api_key`](Self::api_key) is `true`,\nand none otherwise.",
       "type": "object",
       "properties": {
         "provider": {
@@ -568,11 +495,8 @@
           "type": "string"
         },
         "api_key": {
-          "description": "The API key the endpoint expects, if it expects one; applied\nas `model.api_key`.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "Whether the endpoint expects a key: `true` declares the\n`CUSTOM_API_KEY` secret, whose fed value becomes\n`model.api_key`; absent or `false` is the keyless endpoint.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -588,21 +512,16 @@
       ]
     },
     "Provider14": {
-      "description": "DeepInfra.\n\nAPPLICATION: the harness sets `DEEPINFRA_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "DeepInfra.\n\nAPPLICATION: the harness sets `DEEPINFRA_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `DEEPINFRA_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `deepinfra`.",
           "$ref": "#/$defs/Deepinfra"
-        },
-        "api_key": {
-          "description": "The API key, applied as `DEEPINFRA_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Deepinfra": {
@@ -613,21 +532,16 @@
       ]
     },
     "Provider15": {
-      "description": "DeepSeek.\n\nAPPLICATION: the harness sets `DEEPSEEK_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "DeepSeek.\n\nAPPLICATION: the harness sets `DEEPSEEK_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `DEEPSEEK_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `deepseek`.",
           "$ref": "#/$defs/Deepseek"
-        },
-        "api_key": {
-          "description": "The API key, applied as `DEEPSEEK_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Deepseek": {
@@ -638,21 +552,16 @@
       ]
     },
     "Provider16": {
-      "description": "Fireworks AI.\n\nAPPLICATION: the harness sets `FIREWORKS_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Fireworks AI.\n\nAPPLICATION: the harness sets `FIREWORKS_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `FIREWORKS_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `fireworks`.",
           "$ref": "#/$defs/Fireworks"
-        },
-        "api_key": {
-          "description": "The API key, applied as `FIREWORKS_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Fireworks": {
@@ -663,21 +572,16 @@
       ]
     },
     "Provider17": {
-      "description": "Google Gemini (AI Studio).\n\nAPPLICATION: the harness sets `GEMINI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.\nThe harness must NOT set `GOOGLE_API_KEY`, which Hermes\nchecks first.",
+      "description": "Google Gemini (AI Studio).\n\nAPPLICATION: the harness sets `GEMINI_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\nThe harness must NOT set `GOOGLE_API_KEY`, which Hermes\nchecks first.\n\nSECRET: `GEMINI_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `gemini`.",
           "$ref": "#/$defs/Gemini"
-        },
-        "api_key": {
-          "description": "The API key, applied as `GEMINI_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Gemini": {
@@ -688,21 +592,16 @@
       ]
     },
     "Provider18": {
-      "description": "GMI Cloud.\n\nAPPLICATION: the harness sets `GMI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "GMI Cloud.\n\nAPPLICATION: the harness sets `GMI_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `GMI_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `gmi`.",
           "$ref": "#/$defs/Gmi"
-        },
-        "api_key": {
-          "description": "The API key, applied as `GMI_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Gmi": {
@@ -713,21 +612,16 @@
       ]
     },
     "Provider19": {
-      "description": "HuggingFace's inference router.\n\nAPPLICATION: the harness sets `HF_TOKEN` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "HuggingFace's inference router.\n\nAPPLICATION: the harness sets `HF_TOKEN` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `HF_TOKEN`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `huggingface`.",
           "$ref": "#/$defs/Huggingface"
-        },
-        "api_key": {
-          "description": "The API key, applied as `HF_TOKEN`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Huggingface": {
@@ -738,21 +632,16 @@
       ]
     },
     "Provider20": {
-      "description": "Kilo Code's gateway.\n\nAPPLICATION: the harness sets `KILOCODE_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Kilo Code's gateway.\n\nAPPLICATION: the harness sets `KILOCODE_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `KILOCODE_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `kilocode`.",
           "$ref": "#/$defs/Kilocode"
-        },
-        "api_key": {
-          "description": "The API key, applied as `KILOCODE_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Kilocode": {
@@ -763,21 +652,16 @@
       ]
     },
     "Provider21": {
-      "description": "Moonshot's Kimi coding tier.\n\nAPPLICATION: the harness sets `KIMI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Moonshot's Kimi coding tier.\n\nAPPLICATION: the harness sets `KIMI_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `KIMI_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `kimi-coding`.",
           "$ref": "#/$defs/KimiCoding"
-        },
-        "api_key": {
-          "description": "The API key, applied as `KIMI_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "KimiCoding": {
@@ -788,21 +672,16 @@
       ]
     },
     "Provider22": {
-      "description": "Moonshot's Kimi coding tier, China endpoint.\n\nAPPLICATION: the harness sets `KIMI_CN_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Moonshot's Kimi coding tier, China endpoint.\n\nAPPLICATION: the harness sets `KIMI_CN_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `KIMI_CN_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `kimi-coding-cn`.",
           "$ref": "#/$defs/KimiCodingCn"
-        },
-        "api_key": {
-          "description": "The API key, applied as `KIMI_CN_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "KimiCodingCn": {
@@ -813,21 +692,16 @@
       ]
     },
     "Provider23": {
-      "description": "Meta's Model API (Muse Spark).\n\nAPPLICATION: the harness sets `MODEL_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Meta's Model API (Muse Spark).\n\nAPPLICATION: the harness sets `MODEL_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `MODEL_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `meta-ai`.",
           "$ref": "#/$defs/MetaAi"
-        },
-        "api_key": {
-          "description": "The API key, applied as `MODEL_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "MetaAi": {
@@ -838,21 +712,16 @@
       ]
     },
     "Provider24": {
-      "description": "MiniMax.\n\nAPPLICATION: the harness sets `MINIMAX_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "MiniMax.\n\nAPPLICATION: the harness sets `MINIMAX_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `MINIMAX_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `minimax`.",
           "$ref": "#/$defs/Minimax"
-        },
-        "api_key": {
-          "description": "The API key, applied as `MINIMAX_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Minimax": {
@@ -863,21 +732,16 @@
       ]
     },
     "Provider25": {
-      "description": "MiniMax, China endpoint.\n\nAPPLICATION: the harness sets `MINIMAX_CN_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "MiniMax, China endpoint.\n\nAPPLICATION: the harness sets `MINIMAX_CN_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `MINIMAX_CN_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `minimax-cn`.",
           "$ref": "#/$defs/MinimaxCn"
-        },
-        "api_key": {
-          "description": "The API key, applied as `MINIMAX_CN_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "MinimaxCn": {
@@ -888,7 +752,7 @@
       ]
     },
     "Provider26": {
-      "description": "MiniMax over OAuth. Single-use rotating refresh tokens, so the\ncredential is a RESOURCE: the caller provides its current state,\nthe run rotates it, and the rotated state is surfaced back to\nthe caller instead of silently burning their login. (Keyed\nMiniMax is [`minimax`](super::minimax::Provider) /\n[`minimax_cn`](super::minimax_cn::Provider).)\n\nAPPLICATION: the document lives in the vault under\n[`MINIMAX_OAUTH`](diverge_sdk::shared::containers::vault::keys::MINIMAX_OAUTH). The harness locks that\nkey for the run, reads the document, and writes it as the\n`providers.minimax-oauth` entry of `$HERMES_HOME/auth.json`\nbefore Hermes starts — provider selection rides the config the\nharness already owns, never the file's `active_provider`. On\ntoken refresh Hermes rewrites the entry in place; at the run's\nend the rewritten document is set back under the key, and the\nkey unlocked. Nothing about it is an argument: choosing this\nprovider is the whole ask.",
+      "description": "MiniMax over OAuth. Single-use rotating refresh tokens, so the\ncredential is a ROTATING secret: the caller holds its current\nstate, the run rotates it, and the rotated state is collected\nback instead of silently burning their login. (Keyed MiniMax is\n[`minimax`](super::minimax::Provider) /\n[`minimax_cn`](super::minimax_cn::Provider).)\n\nAPPLICATION: the harness writes the fed document as the\n`providers.minimax-oauth` entry of `$HERMES_HOME/auth.json`\nbefore Hermes starts — provider selection rides the config the\nharness already owns, never the file's `active_provider`. On\ntoken refresh Hermes rewrites the entry in place; after the\ngateway exits the entry is read back as the run left it and\nhanded to the proxy's collect. Nothing about it is an argument:\nchoosing this provider is the whole ask.\n\nSECRET: `MINIMAX_OAUTH`, rotating — the OAuth state document, a\nJSON object, exactly as Hermes keeps the entry.",
       "type": "object",
       "properties": {
         "provider": {
@@ -908,21 +772,16 @@
       ]
     },
     "Provider27": {
-      "description": "Nebius Token Factory.\n\nAPPLICATION: the harness sets `NEBIUS_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Nebius Token Factory.\n\nAPPLICATION: the harness sets `NEBIUS_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `NEBIUS_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `nebius-token-factory`.",
           "$ref": "#/$defs/NebiusTokenFactory"
-        },
-        "api_key": {
-          "description": "The API key, applied as `NEBIUS_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "NebiusTokenFactory": {
@@ -933,7 +792,7 @@
       ]
     },
     "Provider28": {
-      "description": "Nous Research — the Portal, Hermes's home team. OAuth with\nsingle-use rotating refresh tokens, so the credential is a\nRESOURCE: the caller provides its current state, the run rotates\nit, and the rotated state is surfaced back to the caller instead\nof silently burning their login.\n\nAPPLICATION: the document lives in the vault under\n[`NOUS_OAUTH`](diverge_sdk::shared::containers::vault::keys::NOUS_OAUTH). The harness locks that key\nfor the run, reads the document, and writes it as the\n`providers.nous` entry of `$HERMES_HOME/auth.json` before Hermes\nstarts — provider selection rides the config the harness already\nowns, never the file's `active_provider`, which Hermes treats as\na last-resort fallback. On token refresh Hermes rewrites the\nentry in place; at the run's end the rewritten document is set\nback under the key, and the key unlocked. Nothing about it is an\nargument: choosing this provider is the whole ask.",
+      "description": "Nous Research — the Portal, Hermes's home team. OAuth with\nsingle-use rotating refresh tokens, so the credential is a\nROTATING secret: the caller holds its current state, the run\nrotates it, and the rotated state is collected back instead of\nsilently burning their login.\n\nAPPLICATION: the harness writes the fed document as the\n`providers.nous` entry of `$HERMES_HOME/auth.json` before Hermes\nstarts — provider selection rides the config the harness already\nowns, never the file's `active_provider`, which Hermes treats as\na last-resort fallback. On token refresh Hermes rewrites the\nentry in place; after the gateway exits the entry is read back as\nthe run left it and handed to the proxy's collect. Nothing about\nit is an argument: choosing this provider is the whole ask.\n\nSECRET: `NOUS_OAUTH`, rotating — the OAuth state document, a JSON\nobject, exactly as Hermes keeps the entry.",
       "type": "object",
       "properties": {
         "provider": {
@@ -953,21 +812,16 @@
       ]
     },
     "Provider29": {
-      "description": "NovitaAI.\n\nAPPLICATION: the harness sets `NOVITA_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "NovitaAI.\n\nAPPLICATION: the harness sets `NOVITA_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `NOVITA_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `novita`.",
           "$ref": "#/$defs/Novita"
-        },
-        "api_key": {
-          "description": "The API key, applied as `NOVITA_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Novita": {
@@ -978,21 +832,16 @@
       ]
     },
     "Provider30": {
-      "description": "NVIDIA NIM.\n\nAPPLICATION: the harness sets `NVIDIA_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "NVIDIA NIM.\n\nAPPLICATION: the harness sets `NVIDIA_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `NVIDIA_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `nvidia`.",
           "$ref": "#/$defs/Nvidia"
-        },
-        "api_key": {
-          "description": "The API key, applied as `NVIDIA_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Nvidia": {
@@ -1003,21 +852,16 @@
       ]
     },
     "Provider31": {
-      "description": "Ollama Cloud (the hosted service, not a local ollama — that is\n[`custom`](super::custom::Provider)).\n\nAPPLICATION: the harness sets `OLLAMA_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Ollama Cloud (the hosted service, not a local ollama — that is\n[`custom`](super::custom::Provider)).\n\nAPPLICATION: the harness sets `OLLAMA_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `OLLAMA_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `ollama-cloud`.",
           "$ref": "#/$defs/OllamaCloud"
-        },
-        "api_key": {
-          "description": "The API key, applied as `OLLAMA_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "OllamaCloud": {
@@ -1028,7 +872,7 @@
       ]
     },
     "Provider32": {
-      "description": "The ChatGPT Codex backend, over external OAuth. Single-use\nrotating refresh tokens, so the credential is a RESOURCE: the\ncaller provides its current state, the run rotates it, and the\nrotated state is surfaced back to the caller instead of silently\nburning their login.\n\nAPPLICATION: the document lives in the vault under\n[`OPENAI_CODEX_OAUTH`](diverge_sdk::shared::containers::vault::keys::OPENAI_CODEX_OAUTH). The harness\nlocks that key for the run, reads the document, and writes it as\nthe `providers.openai-codex` entry of `$HERMES_HOME/auth.json`\nbefore Hermes starts — provider selection rides the config the\nharness already owns, never the file's `active_provider`. On\ntoken refresh Hermes rewrites the entry in place; at the run's\nend the rewritten document is set back under the key, and the\nkey unlocked. Nothing about it is an argument: choosing this\nprovider is the whole ask.",
+      "description": "The ChatGPT Codex backend, over external OAuth. Single-use\nrotating refresh tokens, so the credential is a ROTATING secret:\nthe caller holds its current state, the run rotates it, and the\nrotated state is collected back instead of silently burning\ntheir login.\n\nAPPLICATION: the harness writes the fed document as the\n`providers.openai-codex` entry of `$HERMES_HOME/auth.json` before\nHermes starts — provider selection rides the config the harness\nalready owns, never the file's `active_provider`. On token\nrefresh Hermes rewrites the entry in place; after the gateway\nexits the entry is read back as the run left it and handed to the\nproxy's collect. Nothing about it is an argument: choosing this\nprovider is the whole ask.\n\nSECRET: `OPENAI_CODEX_OAUTH`, rotating — the OAuth state\ndocument, a JSON object, exactly as Hermes keeps the entry.",
       "type": "object",
       "properties": {
         "provider": {
@@ -1048,7 +892,7 @@
       ]
     },
     "Provider33": {
-      "description": "OpenCode's free tier — keyless by design.\n\nAPPLICATION: nothing. Hermes short-circuits this provider to an\nanonymous placeholder before any credential check, so the marker\nis the whole argument.",
+      "description": "OpenCode's free tier — keyless by design.\n\nAPPLICATION: nothing. Hermes short-circuits this provider to an\nanonymous placeholder before any credential check, so the marker\nis the whole argument.\n\nSECRET: none.",
       "type": "object",
       "properties": {
         "provider": {
@@ -1068,21 +912,16 @@
       ]
     },
     "Provider34": {
-      "description": "OpenCode Go.\n\nAPPLICATION: the harness sets `OPENCODE_GO_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "OpenCode Go.\n\nAPPLICATION: the harness sets `OPENCODE_GO_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `OPENCODE_GO_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `opencode-go`.",
           "$ref": "#/$defs/OpencodeGo"
-        },
-        "api_key": {
-          "description": "The API key, applied as `OPENCODE_GO_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "OpencodeGo": {
@@ -1093,21 +932,16 @@
       ]
     },
     "Provider35": {
-      "description": "OpenCode Zen.\n\nAPPLICATION: the harness sets `OPENCODE_ZEN_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "OpenCode Zen.\n\nAPPLICATION: the harness sets `OPENCODE_ZEN_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `OPENCODE_ZEN_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `opencode-zen`.",
           "$ref": "#/$defs/OpencodeZen"
-        },
-        "api_key": {
-          "description": "The API key, applied as `OPENCODE_ZEN_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "OpencodeZen": {
@@ -1118,21 +952,16 @@
       ]
     },
     "Provider36": {
-      "description": "OpenRouter.\n\nAPPLICATION: the harness sets `OPENROUTER_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.\nHermes discards keys that do not start with `sk-or-`.",
+      "description": "OpenRouter.\n\nAPPLICATION: the harness sets `OPENROUTER_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\nHermes discards keys that do not start with `sk-or-`.\n\nSECRET: `OPENROUTER_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `openrouter`.",
           "$ref": "#/$defs/Openrouter"
-        },
-        "api_key": {
-          "description": "The API key, applied as `OPENROUTER_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Openrouter": {
@@ -1143,7 +972,7 @@
       ]
     },
     "Provider37": {
-      "description": "Qwen's portal, over OAuth. Single-use rotating refresh tokens,\nso the credential is a RESOURCE: the caller provides its current\nstate, the run rotates it, and the rotated state is surfaced\nback to the caller instead of silently burning their login.\n\nAPPLICATION: unlike the other OAuth providers this state is not\nHermes's own — it is the Qwen CLI's token file. The document\nlives in the vault under [`QWEN_OAUTH`](diverge_sdk::shared::containers::vault::keys::QWEN_OAUTH); the\nharness locks that key for the run, reads the document, and\nwrites it to `~/.qwen/oauth_creds.json` at the REAL home\ndirectory (Hermes hardcodes that path; it ignores\n`$HERMES_HOME`). On token refresh Hermes rewrites the creds file;\nat the run's end the rewritten document is set back under the\nkey, and the key unlocked. Nothing about it is an argument:\nchoosing this provider is the whole ask.",
+      "description": "Qwen's portal, over OAuth. Single-use rotating refresh tokens,\nso the credential is a ROTATING secret: the caller holds its\ncurrent state, the run rotates it, and the rotated state is\ncollected back instead of silently burning their login.\n\nAPPLICATION: unlike the other OAuth providers this state is not\nHermes's own — it is the Qwen CLI's token file. The harness\nwrites the fed document to `~/.qwen/oauth_creds.json` at the REAL\nhome directory (Hermes hardcodes that path; it ignores\n`$HERMES_HOME`) before Hermes starts. On token refresh Hermes\nrewrites the creds file; after the gateway exits the file is read\nback as the run left it and handed to the proxy's collect.\nNothing about it is an argument: choosing this provider is the\nwhole ask.\n\nSECRET: `QWEN_OAUTH`, rotating — the CLI's token document, a JSON\nobject, exactly as the file holds it.",
       "type": "object",
       "properties": {
         "provider": {
@@ -1163,21 +992,16 @@
       ]
     },
     "Provider38": {
-      "description": "Ramp Router.\n\nAPPLICATION: the harness sets `RAMP_ROUTER_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Ramp Router.\n\nAPPLICATION: the harness sets `RAMP_ROUTER_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `RAMP_ROUTER_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `router`.",
           "$ref": "#/$defs/Router"
-        },
-        "api_key": {
-          "description": "The API key, applied as `RAMP_ROUTER_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Router": {
@@ -1188,21 +1012,16 @@
       ]
     },
     "Provider39": {
-      "description": "StepFun's step plan.\n\nAPPLICATION: the harness sets `STEPFUN_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "StepFun's step plan.\n\nAPPLICATION: the harness sets `STEPFUN_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `STEPFUN_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `stepfun`.",
           "$ref": "#/$defs/Stepfun"
-        },
-        "api_key": {
-          "description": "The API key, applied as `STEPFUN_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Stepfun": {
@@ -1213,21 +1032,16 @@
       ]
     },
     "Provider40": {
-      "description": "Upstage Solar.\n\nAPPLICATION: the harness sets `UPSTAGE_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Upstage Solar.\n\nAPPLICATION: the harness sets `UPSTAGE_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `UPSTAGE_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `upstage`.",
           "$ref": "#/$defs/Upstage"
-        },
-        "api_key": {
-          "description": "The API key, applied as `UPSTAGE_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Upstage": {
@@ -1238,16 +1052,12 @@
       ]
     },
     "Provider41": {
-      "description": "GCP Vertex AI — a service account, not an API key.\n\nAPPLICATION: the harness writes\n[`service_account_json`](Self::service_account_json) to a file\nand sets `VERTEX_CREDENTIALS_PATH` to it in the gateway's process\nenvironment before Hermes starts; access tokens are minted from\nit per call. `VERTEX_PROJECT_ID` and `VERTEX_REGION` are set from\nthe optional fields when present. Ambient application-default\ncredentials are deliberately absent — those are facts about a\nmachine, and a request has no machine.",
+      "description": "GCP Vertex AI — a service account, not an API key.\n\nAPPLICATION: the harness writes the secret's value to a file\nunder the Hermes home and sets `VERTEX_CREDENTIALS_PATH` to it in\nthe gateway's process environment before Hermes starts; access\ntokens are minted from it per call. `VERTEX_PROJECT_ID` and\n`VERTEX_REGION` are set from the optional fields when present.\nAmbient application-default credentials are deliberately absent\n— those are facts about a machine, and a request has no machine.\n\nSECRET: `VERTEX_SERVICE_ACCOUNT_JSON`, fixed — the service-account key\ndocument, as a JSON STRING holding the document's text verbatim\n(not the document as an object): the string is what lands in the\nfile.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `vertex`.",
           "$ref": "#/$defs/Vertex"
-        },
-        "service_account_json": {
-          "description": "The service-account key document, verbatim JSON.",
-          "type": "string"
         },
         "project_id": {
           "description": "The project, applied as `VERTEX_PROJECT_ID`; absent = the\nproject named inside the service-account document.",
@@ -1265,8 +1075,7 @@
         }
       },
       "required": [
-        "provider",
-        "service_account_json"
+        "provider"
       ]
     },
     "Vertex": {
@@ -1277,21 +1086,16 @@
       ]
     },
     "Provider42": {
-      "description": "xAI.\n\nAPPLICATION: the harness sets `XAI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "xAI.\n\nAPPLICATION: the harness sets `XAI_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `XAI_API_KEY`, fixed — the API key, under that name. The\n`x_search` toolset declares the same name; declared from both\nplaces it is one secret.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `xai`.",
           "$ref": "#/$defs/Xai"
-        },
-        "api_key": {
-          "description": "The API key, applied as `XAI_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Xai": {
@@ -1302,21 +1106,16 @@
       ]
     },
     "Provider43": {
-      "description": "Xiaomi MiMo.\n\nAPPLICATION: the harness sets `XIAOMI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "description": "Xiaomi MiMo.\n\nAPPLICATION: the harness sets `XIAOMI_API_KEY` to the\nsecret's value in the gateway's process environment before\nHermes starts.\n\nSECRET: `XIAOMI_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `xiaomi`.",
           "$ref": "#/$defs/Xiaomi"
-        },
-        "api_key": {
-          "description": "The API key, applied as `XIAOMI_API_KEY`.",
-          "type": "string"
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Xiaomi": {
@@ -1327,16 +1126,12 @@
       ]
     },
     "Provider44": {
-      "description": "Z.AI (GLM / Zhipu).\n\nAPPLICATION: the harness sets `GLM_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts, and `GLM_BASE_URL` to\n[`base_url`](Self::base_url) when present.\n\nThe optional endpoint is the one such override in the vocabulary,\nand it earns its place: without a pinned base URL, Hermes's first\nuse fires a live probe across four candidate endpoints and caches\nthe winner to disk — a network round-trip at start, guessing at a\nfact the caller knows (which of Z.AI's global and CN surfaces\ntheir key belongs to).",
+      "description": "Z.AI (GLM / Zhipu).\n\nAPPLICATION: the harness sets `GLM_API_KEY` to the secret's value\nin the gateway's process environment before Hermes starts, and\n`GLM_BASE_URL` to [`base_url`](Self::base_url) when present.\n\nThe optional endpoint is the one such override in the vocabulary,\nand it earns its place: without a pinned base URL, Hermes's first\nuse fires a live probe across four candidate endpoints and caches\nthe winner to disk — a network round-trip at start, guessing at a\nfact the caller knows (which of Z.AI's global and CN surfaces\ntheir key belongs to).\n\nSECRET: `GLM_API_KEY`, fixed — the API key, under that name.",
       "type": "object",
       "properties": {
         "provider": {
           "description": "The discriminator. Always `zai`.",
           "$ref": "#/$defs/Zai"
-        },
-        "api_key": {
-          "description": "The API key, applied as `GLM_API_KEY`.",
-          "type": "string"
         },
         "base_url": {
           "description": "The endpoint the key belongs to, applied as `GLM_BASE_URL`;\nabsent = Hermes's own endpoint probe.",
@@ -1347,8 +1142,7 @@
         }
       },
       "required": [
-        "provider",
-        "api_key"
+        "provider"
       ]
     },
     "Zai": {
@@ -1404,7 +1198,7 @@
       ]
     },
     "Toolsets": {
-      "description": "Per-toolset switches over Hermes's configurable checklist — the\nlist its own configuration wizard manages, closed at the pin,\nand narrowed to what a REQUEST can actually make work.\n\nTwo field shapes, by whether the toolset takes arguments. A\ntoolset with nothing to configure is an `Option<bool>` where\nABSENT IS OFF — the same as `false` — so nothing is on by\nomission and Hermes's own API-server defaults are never\nconsulted. A toolset with arguments is an `Option` of its own\nstructure — absent is off, present is the switch thrown on WITH\nthat tool's credentials and endpoint facts, each documented in\nits own file with the mechanism the harness applies. Enabling a\ntool without its prerequisites is not a protocol error — the\ntools simply fail as themselves when used.\n\nThese are the agent's LOCAL capabilities: what Hermes itself can\ndo beside the conversation. The caller's MCP tools are not in\nthis vocabulary and never need to be — each configured MCP\nserver becomes its own toolset in Hermes automatically, and the\ncontainer always wires the caller's in. The SKILLS toolset is\nnot here either, on purpose: whether the agent can browse skills\nfollows from whether the request mounted any, not from a switch\nthat could contradict that fact.\n\nWhat is deliberately ABSENT, and why, is [the module](super)'s\nto say.",
+      "description": "Per-toolset switches over Hermes's configurable checklist — the\nlist its own configuration wizard manages, closed at the pin,\nand narrowed to what a REQUEST can actually make work.\n\nTwo field shapes, by whether the toolset takes arguments. A\ntoolset with nothing to configure is an `Option<bool>` where\nABSENT IS OFF — the same as `false` — so nothing is on by\nomission and Hermes's own API-server defaults are never\nconsulted. A toolset with arguments is an `Option` of its own\nstructure — absent is off, present is the switch thrown on WITH\nthat tool's endpoint facts, each documented in its own file with\nthe mechanism the harness applies. A toolset whose only need is\na credential is a plain switch too: `true` declares the secret.\nEnabling a tool without its prerequisites is not a protocol\nerror — the tools simply fail as themselves when used.\n\nThese are the agent's LOCAL capabilities: what Hermes itself can\ndo beside the conversation. The caller's MCP tools are not in\nthis vocabulary and never need to be — each configured MCP\nserver becomes its own toolset in Hermes automatically, and the\ncontainer always wires the caller's in. The SKILLS toolset is\nnot here either, on purpose: whether the agent can browse skills\nfollows from whether the request mounted any, not from a switch\nthat could contradict that fact.\n\nWhat is deliberately ABSENT, and why, is [the module](super)'s\nto say.\n\nSECRET: `FAL_KEY`, fixed, when [`image_gen`](Self::image_gen) or\n[`video_gen`](Self::video_gen) is `true` (one secret for both);\n`XAI_API_KEY`, fixed, when [`x_search`](Self::x_search) is `true`\n(one secret with the xai provider's); and whatever the structured\ntoolsets declare, each in its own file.",
       "type": "object",
       "properties": {
         "web": {
@@ -1465,43 +1259,31 @@
           ]
         },
         "image_gen": {
-          "description": "Image generation. See [`image_gen`](super::image_gen).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Toolset3"
-            },
-            {
-              "type": "null"
-            }
+          "description": "Image generation over FAL, the built-in path (Hermes's other\nimage providers — openai, krea, deepinfra, xai — are\ndeliberately absent at this pin). `true` declares `FAL_KEY`,\napplied in the gateway's process environment, and pins\n`image_gen.provider: fal`; generation has no keyless path, so\nthe switch and the secret are one ask.",
+          "type": [
+            "boolean",
+            "null"
           ]
         },
         "video_gen": {
-          "description": "Video generation. See [`video_gen`](super::video_gen).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Toolset4"
-            },
-            {
-              "type": "null"
-            }
+          "description": "Video generation over FAL — the same deliberate one-provider\nscope as image generation. `true` declares `FAL_KEY` (the same\nsecret) and pins `video_gen.provider: fal`.",
+          "type": [
+            "boolean",
+            "null"
           ]
         },
         "x_search": {
-          "description": "X (Twitter) search. See [`x_search`](super::x_search).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Toolset5"
-            },
-            {
-              "type": "null"
-            }
+          "description": "X (Twitter) search over the xAI API. `true` declares\n`XAI_API_KEY`, applied in the gateway's process environment.\nThe key path ONLY, deliberately: Hermes's own dispatch prefers\nthe key, and the xAI subscription OAuth bearer answers this\ntool in a degraded no-citation mode — the rotating path is a\nworse product here, not a missing feature.",
+          "type": [
+            "boolean",
+            "null"
           ]
         },
         "tts": {
           "description": "Text-to-speech. See [`tts`](super::tts).",
           "anyOf": [
             {
-              "$ref": "#/$defs/Toolset6"
+              "$ref": "#/$defs/Toolset3"
             },
             {
               "type": "null"
@@ -1533,7 +1315,7 @@
           "description": "Home Assistant control. See\n[`homeassistant`](super::homeassistant).",
           "anyOf": [
             {
-              "$ref": "#/$defs/Toolset7"
+              "$ref": "#/$defs/Toolset4"
             },
             {
               "type": "null"
@@ -1544,7 +1326,7 @@
           "description": "Spotify control. See [`spotify`](super::spotify).",
           "anyOf": [
             {
-              "$ref": "#/$defs/Toolset8"
+              "$ref": "#/$defs/Toolset5"
             },
             {
               "type": "null"
@@ -1554,7 +1336,7 @@
       }
     },
     "Toolset": {
-      "description": "Web search and page extraction, with its arguments. The field\nbeing absent from [`Toolsets`](super::Toolsets) is Hermes's own\ndefault for this toolset; present is the switch thrown on.\n\nTwo roles, two slots: [`search`](Self::search) is what answers\nqueries, [`extract`](Self::extract) is what turns a page into\ntext — different tools, different backends, independently\nkeyed. Each slot names ONE backend and carries its credential;\na slot left absent runs on Hermes's keyless free-tier ring,\nwhich needs nothing — the keys buy quality and quota, not\nexistence. Every combination is coherent, the empty object\nincluded.",
+      "description": "Web search and page extraction, with its arguments. The field\nbeing absent from [`Toolsets`](super::Toolsets) is Hermes's own\ndefault for this toolset; present is the switch thrown on.\n\nTwo roles, two slots: [`search`](Self::search) is what answers\nqueries, [`extract`](Self::extract) is what turns a page into\ntext — different tools, different backends, independently\nkeyed. Each slot names ONE backend, and naming a keyed one\ndeclares its secret; a slot left absent runs on Hermes's keyless\nfree-tier ring, which needs nothing — the keys buy quality and\nquota, not existence. Every combination is coherent, the empty\nobject included.\n\nSECRET: the named search backend's, fixed — `TAVILY_API_KEY`,\n`EXA_API_KEY`, `PARALLEL_API_KEY`, `KEENABLE_API_KEY` or\n`BRAVE_SEARCH_API_KEY` for [`Keyed`]'s five, none for SearXNG;\nand `FIRECRAWL_API_KEY`, fixed, for [`Extract::Firecrawl`].",
       "type": "object",
       "properties": {
         "search": {
@@ -1582,75 +1364,14 @@
       }
     },
     "Search": {
-      "description": "One search backend, named by the credential it takes. Untagged —\nevery variant carries exactly one distinctly-named field, so the\nfield name is the discriminator and no marker is needed.\n\nOne backend, deliberately: Hermes can pool several keys as\nfallbacks for each other, but a vocabulary where extra keys\nquietly change behavior is the environment-dependent meaning\nthis module keeps rejecting. The caller names the backend; the\nkeyless ring remains the fallback story. The harness applies\nthe variant's env var in the gateway's process environment and\npins `web.search_backend` to the named provider in the config\nit owns.",
+      "description": "One search backend. Untagged — a keyed backend is its name as a\nJSON string, a self-hosted SearXNG is an object carrying its\naddress — and a string and an object never collide, so no marker\nis needed.\n\nOne backend, deliberately: Hermes can pool several keys as\nfallbacks for each other, but a vocabulary where extra keys\nquietly change behavior is the environment-dependent meaning\nthis module keeps rejecting. The caller names the backend; the\nkeyless ring remains the fallback story. The harness applies the\nkeyed backend's secret in the gateway's process environment, or\nSearXNG's address, and pins `web.search_backend` to the named\nprovider in the config it owns.",
       "anyOf": [
         {
-          "description": "Tavily, applied as `TAVILY_API_KEY`.",
-          "type": "object",
-          "properties": {
-            "tavily_api_key": {
-              "description": "The key.",
-              "type": "string"
-            }
-          },
-          "required": [
-            "tavily_api_key"
-          ]
+          "description": "A keyed backend, by name; its key is the secret [`Keyed`]\nnames.",
+          "$ref": "#/$defs/Keyed"
         },
         {
-          "description": "Exa, applied as `EXA_API_KEY`.",
-          "type": "object",
-          "properties": {
-            "exa_api_key": {
-              "description": "The key.",
-              "type": "string"
-            }
-          },
-          "required": [
-            "exa_api_key"
-          ]
-        },
-        {
-          "description": "Parallel, applied as `PARALLEL_API_KEY`.",
-          "type": "object",
-          "properties": {
-            "parallel_api_key": {
-              "description": "The key.",
-              "type": "string"
-            }
-          },
-          "required": [
-            "parallel_api_key"
-          ]
-        },
-        {
-          "description": "Keenable, applied as `KEENABLE_API_KEY`.",
-          "type": "object",
-          "properties": {
-            "keenable_api_key": {
-              "description": "The key.",
-              "type": "string"
-            }
-          },
-          "required": [
-            "keenable_api_key"
-          ]
-        },
-        {
-          "description": "Brave, applied as `BRAVE_SEARCH_API_KEY`.",
-          "type": "object",
-          "properties": {
-            "brave_search_api_key": {
-              "description": "The key.",
-              "type": "string"
-            }
-          },
-          "required": [
-            "brave_search_api_key"
-          ]
-        },
-        {
-          "description": "A self-hosted SearXNG instance, applied as `SEARXNG_URL` —\nthe one backend whose credential is an address.",
+          "description": "A self-hosted SearXNG instance, applied as `SEARXNG_URL` —\nthe one backend whose argument is an address, and no secret.",
           "type": "object",
           "properties": {
             "searxng_url": {
@@ -1664,26 +1385,48 @@
         }
       ]
     },
-    "Extract": {
-      "description": "One extraction backend, named by the credential it takes —\n[`Search`]'s discipline exactly, single-variant today because\nHermes has one keyed extractor at this pin. The harness applies\nthe env var and pins `web.extract_backend`.",
-      "anyOf": [
+    "Keyed": {
+      "description": "The keyed search backends, by Hermes's own plugin names.\nKebab-case on the wire.\n\nSECRET: one per variant, fixed, applied in the gateway's process\nenvironment under its own name — as each variant says.",
+      "oneOf": [
         {
-          "description": "Firecrawl, applied as `FIRECRAWL_API_KEY`.",
-          "type": "object",
-          "properties": {
-            "firecrawl_api_key": {
-              "description": "The key.",
-              "type": "string"
-            }
-          },
-          "required": [
-            "firecrawl_api_key"
-          ]
+          "description": "Tavily. Declares `TAVILY_API_KEY`.",
+          "type": "string",
+          "const": "tavily"
+        },
+        {
+          "description": "Exa. Declares `EXA_API_KEY`.",
+          "type": "string",
+          "const": "exa"
+        },
+        {
+          "description": "Parallel. Declares `PARALLEL_API_KEY`.",
+          "type": "string",
+          "const": "parallel"
+        },
+        {
+          "description": "Keenable. Declares `KEENABLE_API_KEY`.",
+          "type": "string",
+          "const": "keenable"
+        },
+        {
+          "description": "Brave, on its free plan. Declares `BRAVE_SEARCH_API_KEY`.",
+          "type": "string",
+          "const": "brave-free"
+        }
+      ]
+    },
+    "Extract": {
+      "description": "One extraction backend, by Hermes's own plugin name —\nsingle-variant today because Hermes has one keyed extractor at\nthis pin. Kebab-case on the wire. The harness applies the secret\nand pins `web.extract_backend`.\n\nSECRET: `FIRECRAWL_API_KEY`, fixed, for [`Firecrawl`](Self::Firecrawl).",
+      "oneOf": [
+        {
+          "description": "Firecrawl. Declares `FIRECRAWL_API_KEY`.",
+          "type": "string",
+          "const": "firecrawl"
         }
       ]
     },
     "Toolset2": {
-      "description": "Browser automation, with its arguments. The field being absent\nfrom [`Toolsets`](super::Toolsets) is Hermes's own default for\nthis toolset; present is the switch thrown on.\n\nThe one slot is optional because the default backend is the\ncontainer's own headless Chromium, which needs nothing — the\nslot points the toolset at a browser somewhere else instead,\nand the empty object is the local browser, coherently.",
+      "description": "Browser automation, with its arguments. The field being absent\nfrom [`Toolsets`](super::Toolsets) is Hermes's own default for\nthis toolset; present is the switch thrown on.\n\nThe one slot is optional because the default backend is the\ncontainer's own headless Chromium, which needs nothing — the\nslot points the toolset at a browser somewhere else instead,\nand the empty object is the local browser, coherently.\n\nSECRET: `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID`, both\nfixed, when the remote is Browserbase; none for a raw CDP\nendpoint, and none for the local browser.",
       "type": "object",
       "properties": {
         "remote": {
@@ -1700,10 +1443,14 @@
       }
     },
     "Remote": {
-      "description": "One remote browser backend, named by the credentials it takes.\nUntagged — the variants' field sets are disjoint, so the fields\nare the discriminator and no marker is needed. One slot for\nboth because they are the same role: Browserbase IS a CDP\nprovider, and a request naming a raw endpoint and a managed one\nwould be contradicting itself.",
+      "description": "One remote browser backend. Untagged — Browserbase is its name\nas a JSON string, a raw endpoint is an object carrying its\naddress — and a string and an object never collide, so no marker\nis needed. One slot for both because they are the same role:\nBrowserbase IS a CDP provider, and a request naming a raw\nendpoint and a managed one would be contradicting itself.",
       "anyOf": [
         {
-          "description": "Any browser reachable over CDP, applied as\n`BROWSER_CDP_URL`.",
+          "description": "Browserbase, by name. Declares `BROWSERBASE_API_KEY` and\n`BROWSERBASE_PROJECT_ID` — the pair is one credential, both\nsecrets, applied in the gateway's process environment — and\npins `browser.cloud_provider: browserbase`.",
+          "$ref": "#/$defs/Browserbase"
+        },
+        {
+          "description": "Any browser reachable over CDP, applied as\n`BROWSER_CDP_URL`. No secret.",
           "type": "object",
           "properties": {
             "cdp_url": {
@@ -1714,103 +1461,45 @@
           "required": [
             "cdp_url"
           ]
-        },
-        {
-          "description": "Browserbase — the pair is one credential, and the type now\nsays so. Applied as `BROWSERBASE_API_KEY` and\n`BROWSERBASE_PROJECT_ID`.",
-          "type": "object",
-          "properties": {
-            "browserbase_api_key": {
-              "description": "The key.",
-              "type": "string"
-            },
-            "browserbase_project_id": {
-              "description": "The project.",
-              "type": "string"
-            }
-          },
-          "required": [
-            "browserbase_api_key",
-            "browserbase_project_id"
-          ]
         }
+      ]
+    },
+    "Browserbase": {
+      "description": "[`Remote::Browserbase`]'s name: the one string the slot takes.",
+      "type": "string",
+      "enum": [
+        "browserbase"
       ]
     },
     "Toolset3": {
-      "description": "Image generation over FAL, the built-in path, with its\narguments. The field being absent from\n[`Toolsets`](super::Toolsets) is Hermes's own default for this\ntoolset; present is the switch thrown on. Hermes's other image\nproviders (openai, krea, deepinfra, xai) are deliberately\nabsent at this pin — one keyed path is enough until asked for\nmore.\n\nThe key is REQUIRED: generation has no keyless path, so a\nswitch thrown on without one could only mean a dead toolset.",
+      "description": "Text-to-speech, with its arguments. The field being absent from\n[`Toolsets`](super::Toolsets) is Hermes's own default for this\ntoolset; present is the switch thrown on.\n\nThe ElevenLabs switch is OPTIONAL by the keyless-floor rule:\nHermes's default voice is edge-tts, which needs nothing — the\nempty object is speech on the free voice, coherently. The key is\nthe upgrade, not the existence.\n\nSECRET: `ELEVENLABS_API_KEY`, fixed, when\n[`elevenlabs`](Self::elevenlabs) is `true`; none otherwise.",
       "type": "object",
       "properties": {
-        "fal_key": {
-          "description": "The FAL key, applied as `FAL_KEY` in the gateway's process\nenvironment. [`video_gen`](super::video_gen) names the same\nvariable; a request supplying both MUST agree with itself.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "fal_key"
-      ]
-    },
-    "Toolset4": {
-      "description": "Video generation over FAL, the built-in path, with its\narguments — the same deliberate one-provider scope as\n[`image_gen`](super::image_gen). The field being absent from\n[`Toolsets`](super::Toolsets) is Hermes's own default for this\ntoolset; present is the switch thrown on.\n\nThe key is REQUIRED: generation has no keyless path, so a\nswitch thrown on without one could only mean a dead toolset.",
-      "type": "object",
-      "properties": {
-        "fal_key": {
-          "description": "The FAL key, applied as `FAL_KEY` in the gateway's process\nenvironment. [`image_gen`](super::image_gen) names the same\nvariable; a request supplying both MUST agree with itself.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "fal_key"
-      ]
-    },
-    "Toolset5": {
-      "description": "X (Twitter) search over the xAI API, with its arguments. The\nfield being absent from [`Toolsets`](super::Toolsets) is\nHermes's own default for this toolset (off); present is the\nswitch thrown on.\n\nThe key path ONLY, deliberately: Hermes's own dispatch prefers\nthe key, and the xAI subscription OAuth bearer answers this\ntool in a degraded no-citation mode — the rotating path is a\nworse product here, not a missing feature.",
-      "type": "object",
-      "properties": {
-        "api_key": {
-          "description": "The xAI API key, applied as `XAI_API_KEY` in the gateway's\nprocess environment.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "api_key"
-      ]
-    },
-    "Toolset6": {
-      "description": "Text-to-speech, with its arguments. The field being absent from\n[`Toolsets`](super::Toolsets) is Hermes's own default for this\ntoolset; present is the switch thrown on.\n\nThe key is OPTIONAL by the keyless-floor rule: Hermes's default\nvoice is edge-tts, which needs nothing — the empty object is\nspeech on the free voice, coherently. The key is the upgrade,\nnot the existence.",
-      "type": "object",
-      "properties": {
-        "elevenlabs_api_key": {
-          "description": "ElevenLabs, applied as `ELEVENLABS_API_KEY` in the\ngateway's process environment; when present the harness\nalso selects the provider (`tts.provider: elevenlabs` in\nthe config it owns). Hermes's other keyed voices are\ndeliberately absent at this pin.",
-          "type": [
-            "string",
-            "null"
-          ]
+        "elevenlabs": {
+          "description": "ElevenLabs as the voice: `true` declares `ELEVENLABS_API_KEY`,\napplied in the gateway's process environment, and the harness\nselects the provider (`tts.provider: elevenlabs` in the config\nit owns). Absent or `false` is the free voice. Hermes's other\nkeyed voices are deliberately absent at this pin.",
+          "type": "boolean"
         }
       }
     },
-    "Toolset7": {
-      "description": "Home Assistant control, with its arguments. The field being\nabsent from [`Toolsets`](super::Toolsets) is Hermes's own\ndefault for this toolset; present is the switch thrown on.\n\nBoth arguments are REQUIRED here even though Hermes treats the\nurl as optional: its fallback is `homeassistant.local`, an mDNS\nname that is dead inside a container — an instance the caller\ndoes not name is an instance this run cannot reach.",
+    "Toolset4": {
+      "description": "Home Assistant control, with its arguments. The field being\nabsent from [`Toolsets`](super::Toolsets) is Hermes's own\ndefault for this toolset; present is the switch thrown on.\n\nThe url is REQUIRED here even though Hermes treats it as\noptional: its fallback is `homeassistant.local`, an mDNS name\nthat is dead inside a container — an instance the caller does\nnot name is an instance this run cannot reach.\n\nSECRET: `HASS_TOKEN`, fixed — the long-lived access token, static\nby Home Assistant's own design, never rotated; applied in the\ngateway's process environment.",
       "type": "object",
       "properties": {
         "url": {
           "description": "The instance, applied as `HASS_URL` in the gateway's\nprocess environment.",
           "type": "string"
-        },
-        "token": {
-          "description": "The long-lived access token, applied as `HASS_TOKEN` —\nstatic by Home Assistant's own design, never rotated.",
-          "type": "string"
         }
       },
       "required": [
-        "url",
-        "token"
+        "url"
       ]
     },
-    "Toolset8": {
-      "description": "Spotify control, with its arguments — back in the vocabulary,\nbecause its only blocker was rotation and rotation is what the\nvault's lock exists for: Hermes refreshes the PKCE state on\neffectively every Spotify tool call and rewrites the store each\ntime, so the login flows in from the vault and its rotated form\nflows back. The field being absent from\n[`Toolsets`](super::Toolsets) is Hermes's own default for this\ntoolset; present is the switch thrown on.\n\nAPPLICATION: the harness sets `HERMES_SPOTIFY_CLIENT_ID` to\n[`client_id`](Self::client_id) in the gateway's process\nenvironment; the login document lives in the vault under\n[`SPOTIFY_OAUTH`](diverge_sdk::shared::containers::vault::keys::SPOTIFY_OAUTH), which the harness locks\nfor the run, reads, and writes as the `providers.spotify` entry\nof `$HERMES_HOME/auth.json` (Hermes keeps this entry inert for\nprovider selection by its own design); at the run's end the\nrotated document is set back under the key, and the key\nunlocked.",
+    "Toolset5": {
+      "description": "Spotify control, with its arguments — back in the vocabulary,\nbecause its only blocker was rotation and rotation is what a\nrotating secret is for: Hermes refreshes the PKCE state on\neffectively every Spotify tool call and rewrites the store each\ntime, so the login is fed in before the loop and its rotated\nform is collected after. The field being absent from\n[`Toolsets`](super::Toolsets) is Hermes's own default for this\ntoolset; present is the switch thrown on.\n\nAPPLICATION: the harness sets `HERMES_SPOTIFY_CLIENT_ID` to\n[`client_id`](Self::client_id) in the gateway's process\nenvironment, and writes the fed login document as the\n`providers.spotify` entry of `$HERMES_HOME/auth.json` (Hermes\nkeeps this entry inert for provider selection by its own\ndesign); after the gateway exits the entry is read back as the\nrun left it and handed to the proxy's collect.\n\nSECRET: `SPOTIFY_OAUTH`, rotating — the login document, a JSON\nobject, exactly as Hermes keeps the entry.",
       "type": "object",
       "properties": {
         "client_id": {
-          "description": "The caller's own Spotify app (PKCE — there is no secret,\nand Hermes ships no default app). Static, so a plain\nargument.",
+          "description": "The caller's own Spotify app (PKCE — there is no secret,\nand Hermes ships no default app). Static and public, so a\nplain argument.",
           "type": "string"
         }
       },
@@ -1819,7 +1508,7 @@
       ]
     },
     "Template": {
-      "description": "One tool container an agent's program depends on: everything the\ncaller needs to deploy it, as fields and not as words. A tool\ncontainer depends on nothing.\n\nA [`Container`](crate::shared::containers::request::Container) is\nan image, two limits, mounts and arguments. The image, the limits\nand the arguments are here, member for member. The mounts are not\nthe caller's volumes — a volume is named in the caller's own\nlisting, and a tool that named one would be dictating the caller's\nstorage — but, for a transient tool alone, the AGENT's own files\nand directories, each a path in the agent container served live at\na path in the tool container: the caller serves the agent\ncontainer, a `containers::fuse_serve` of the path, and mounts the tool,\na `fuse::mount` answered from it. [`mode`](Self::mode) says which\nof the two modes the dependency is — a transient tool of the\nagent's run, with those mounts, or a service the caller keeps,\nwith a scope — see [`Mode`]; and [`permissions`](Self::permissions)\nwhat its account may do — grants that name nothing, so the\ntemplate is the same on every daemon it reaches, and among them\nthe word `self`, which reaches the agent a transient tool is the\ndependency of and every agent attached to a service.\n\nThere are no instructions. What a template cannot say — the\nprovider the tool runs on, the volumes it is given, the account's\nname — is the caller's, and the caller needs no prose to choose it.\nThe daemon's own tool templates are another thing: a record the\ndaemon keeps, named by a hash, made by a request; this is what an\nimage declares and a caller deploys.\n\nThere is no name. A dependency is named by its ID: the lowercase\nhexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)\nbytes — this template as compact JSON, absent members omitted,\nthe image's `references` absent too, every object key sorted at\nevery depth, the `arguments` included, the `mode` and its\nmembers among the keys — sixty-four characters, which the caller\ncomputes over [`hashed`](Self::hashed). Two declarations with one\nid are one dependency, and a list that declares one twice is\nrefused; the same template deployed for the same agent, on\nwhatever provider, is the same dependency, and the same service\ntemplate declared under the same scope key, by whatever agent, is\nthe same service. The caller labels the tool's MCP tools by the id\nwhen it merges lists, and the program knows which tool serves each\nby the keys under `_meta`, see [`shared::mcp`](crate::shared::mcp).",
+      "description": "One tool container an agent's program depends on: everything the\ncaller needs to deploy it, as fields and not as words. A tool\ncontainer depends on nothing.\n\nA [`Container`](crate::shared::containers::request::Container) is an\nimage, two limits, mounts and arguments. The image, the limits and\nthe arguments are here, member for member; beside them the secrets\nthe image needs, by name alone — which of them the tool's program\ntakes, and in what mode, is its own answer at registration, and\ntheir values are the caller's, each resolved through the vault key\nthe agent that spawns the tool binds the same name to, fed at every\nactivation. The mounts are not the caller's volumes — a volume is\nnamed in the caller's own listing, and a tool that named one would\nbe dictating the caller's storage — but, for a transient tool alone,\nthe AGENT's own files and directories, each a path in the agent\ncontainer served live at a path in the tool container: the caller\nserves the agent container, a `containers::fuse_serve` of the path,\nand mounts the tool, a `fuse::mount` answered from it.\n[`mode`](Self::mode) says which of the two modes the dependency is —\na transient tool of the agent's run, with those mounts, or a service\nthe caller keeps, with a scope — see [`Mode`]; and\n[`permissions`](Self::permissions) what its account may do — grants\nthat name nothing, so the template is the same on every daemon it\nreaches, and among them the word `self`, which reaches the agent a\ntransient tool is the dependency of and every agent attached to a\nservice.\n\nThere are no instructions. What a template cannot say — the provider\nthe tool runs on, the volumes it is given, the account's name — is\nthe caller's, and the caller needs no prose to choose it. The\ndaemon's own tool templates are another thing: a record the daemon\nkeeps, named by a hash, made by a request; this is what an image\ndeclares and a caller deploys.\n\nThere is no name. A dependency is named by its ID: the lowercase\nhexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)\nbytes — this template as compact JSON, absent members omitted, the\nimage's `references` absent too, every object key sorted at every\ndepth, the `arguments` and the `secrets` included, the names sorted\nbytewise, the `mode` and\nits members among the keys — sixty-four characters, which the caller\ncomputes over [`hashed`](Self::hashed). Two declarations with one id\nare one dependency, and a list that declares one twice is refused;\nthe same template deployed for the same agent, on whatever provider,\nis the same dependency, and the same service template declared under\nthe same scope key, by whatever agent, is the same service. The\ncaller labels the tool's MCP tools by the id when it merges lists,\nand the program knows which tool serves each by the keys under\n`_meta`, see [`shared::mcp`](crate::shared::mcp).",
       "type": "object",
       "properties": {
         "image": {
@@ -1841,8 +1530,15 @@
         "arguments": {
           "description": "The arguments the tool container is registered with — the\n`arguments` of the run request that makes it, verbatim."
         },
+        "secrets": {
+          "description": "The secrets the image needs, by name, in the order the image\nstates them: names only. Which of them the tool's program takes\nand in what mode is the program's answer at its registration —\nsee [`secrets`](crate::shared::containers::secrets) — and the\nvalue of each is resolved through the vault key the agent the\ntool is spawned for binds the same name to, fed at every\nactivation. Inside the hash, sorted bytewise there. A name is\nnot empty, no two are alike, and every one is a name the\nregistering agent's template declares; a template that says\notherwise is the registration's error. Absent, the image needs\nnone.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "permissions": {
-          "description": "What the tool's account may do, as grants that name nothing:\nsee [`Grant`]. The caller gives the tool an account holding\nexactly these. Absent when empty, and then the tool may do\nnothing through the daemon.",
+          "description": "What the tool's account may do, as grants that name nothing: see\n[`Grant`]. The caller gives the tool an account holding exactly\nthese. Absent when empty, and then the tool may do nothing\nthrough the daemon.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/Grant"
@@ -1986,7 +1682,7 @@
       ]
     },
     "Grant": {
-      "description": "One grant that names nothing: a permission over one kind of thing\nthe daemon holds, reaching by tags alone. Externally tagged by the\nkind's name — one object with one member, `{\"agents\":…}`,\n`{\"volumes\":…}` — whose value is that kind's\n[`Permission`](agents::Permission), in one of the shapes\n[`permission`](crate::shared::permission) states. Snake case on the\nwire: `\"agents\"`, `\"agents_templates\"`, `\"standalone_tools\"`,\n`\"standalone_tools_templates\"`, `\"dependency_tools\"`,\n`\"providers_outgoing\"`,\n`\"providers_incoming\"`, `\"providers_daemons\"`, `\"accounts\"`,\n`\"roles\"`, `\"volumes\"`, `\"postgres\"` — the kinds of\nthe daemon's [`Grant`](crate::daemon::grant::Grant), which is made\nof these.",
+      "description": "One grant that names nothing: a permission over one kind of thing\nthe daemon holds, reaching by tags alone. Externally tagged by the\nkind's name — one object with one member, `{\"agents\":…}`,\n`{\"volumes\":…}` — whose value is that kind's\n[`Permission`](agents::Permission), in one of the shapes\n[`permission`](crate::shared::permission) states. Snake case on the\nwire: `\"agents\"`, `\"agents_templates\"`, `\"standalone_tools\"`,\n`\"standalone_tools_templates\"`, `\"dependency_tools\"`,\n`\"providers_outgoing\"`,\n`\"providers_incoming\"`, `\"providers_daemons\"`, `\"accounts\"`,\n`\"roles\"`, `\"volumes\"`, `\"vault\"`, `\"postgres\"`, `\"events\"` — the\nkinds of the daemon's [`Grant`](crate::daemon::grant::Grant), which\nis made of these.",
       "oneOf": [
         {
           "description": "Over agents: see [`agents::Permission`].",
@@ -2132,15 +1828,41 @@
           "additionalProperties": false
         },
         {
-          "description": "Over the database: see [`postgres::Permission`].",
+          "description": "Over the vault's keys: see [`vault::Permission`].",
           "type": "object",
           "properties": {
-            "postgres": {
+            "vault": {
               "$ref": "#/$defs/Permission12"
             }
           },
           "required": [
+            "vault"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Over the database: see [`postgres::Permission`].",
+          "type": "object",
+          "properties": {
+            "postgres": {
+              "$ref": "#/$defs/Permission13"
+            }
+          },
+          "required": [
             "postgres"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Over the events: see [`events::Permission`].",
+          "type": "object",
+          "properties": {
+            "events": {
+              "$ref": "#/$defs/Permission14"
+            }
+          },
+          "required": [
+            "events"
           ],
           "additionalProperties": false
         }
@@ -3396,6 +3118,107 @@
       ]
     },
     "Permission12": {
+      "description": "What one grant over the vault's keys allows, in one of three shapes told\napart on the wire by their very form, as\n[`permission`](crate::shared::permission) states them: a bare array\nof [`Make`] actions; an object of [`Over`] actions and how far they\nreach, by tags; or an object of tagging actions, how far they\nreach, and which tags. An object that is none of these — an action\nof one shape among another's, a member missing, a `within` that is\nnot `\"any\"` or a [`Tags`] — does not decode.",
+      "anyOf": [
+        {
+          "description": "To make: the [`Make`] actions held, as a bare array. Nothing is\njudged but that the action is held.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Make11"
+          }
+        },
+        {
+          "description": "Over keys that exist: the [`Over`] actions held, reaching\nevery one of them, or only those the [`Tags`] let through,\nread as a test.",
+          "type": "object",
+          "properties": {
+            "actions": {
+              "description": "The actions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Over12"
+              }
+            },
+            "within": {
+              "description": "How far: `\"any\"`, or the tags as a test.",
+              "$ref": "#/$defs/Within_Tags"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "actions",
+            "within"
+          ]
+        },
+        {
+          "description": "Tagging keys: putting tags on, taking them off, or both,\nreaching every one or only those the [`Tags`] let through, and\ntouching any tag or only the ones listed.",
+          "type": "object",
+          "properties": {
+            "actions": {
+              "description": "`tag`, `untag`, or both.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Tagging"
+              }
+            },
+            "within": {
+              "description": "How far: `\"any\"`, or the tags as a test.",
+              "$ref": "#/$defs/Within_Tags"
+            },
+            "tags": {
+              "description": "Which tags: `\"any\"`, or only these.",
+              "$ref": "#/$defs/Within_Array_of_string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "actions",
+            "within",
+            "tags"
+          ]
+        }
+      ]
+    },
+    "Make11": {
+      "description": "The actions over the vault that make a key where there was none,\nwhich a grant holds or does not and judges by nothing else. Snake\ncase on the wire: `\"insert\"`.",
+      "oneOf": [
+        {
+          "description": "Insert into a key the vault does not hold, as\n[`vault::insert`](crate::daemon::endpoints::vault::insert) does\nwhere the key is new; over a key it holds, the same request is\n[`Over::Insert`](super::Over::Insert).",
+          "type": "string",
+          "const": "insert"
+        }
+      ]
+    },
+    "Over12": {
+      "description": "The actions over vault keys that exist, which a grant reaches as\nfar as its `within` says. Snake case on the wire: `\"get\"`,\n`\"list\"`, `\"insert\"`, `\"delete\"`, `\"use\"`.",
+      "oneOf": [
+        {
+          "description": "Get one, with its value, as\n[`vault::get`](crate::daemon::endpoints::vault::get) does.",
+          "type": "string",
+          "const": "get"
+        },
+        {
+          "description": "List them, as\n[`vault::list`](crate::daemon::endpoints::vault::list) does;\nthe list sends what the grant reaches, and never a value.",
+          "type": "string",
+          "const": "list"
+        },
+        {
+          "description": "Append a value to one, or replace one of its values, as\n[`vault::insert`](crate::daemon::endpoints::vault::insert) does\nover a key the vault holds.",
+          "type": "string",
+          "const": "insert"
+        },
+        {
+          "description": "Delete one, or one of its values, as\n[`vault::delete`](crate::daemon::endpoints::vault::delete)\ndoes.",
+          "type": "string",
+          "const": "delete"
+        },
+        {
+          "description": "Bind one to a secret of an agent's or a tool's, in the\n`secrets` of its [create](crate::daemon::create::Inner::secrets)\nor edit. The key must be one the vault holds, with at least\none value: a bound key is read or locked at every activation,\nand one with nothing to give is refused at the binding.",
+          "type": "string",
+          "const": "use"
+        }
+      ]
+    },
+    "Permission13": {
       "description": "The actions held over the database, a bare array on the wire:\n`[\"get\",\"connections\"]`. There is one database, so there is no\n`within`; an action is held or it is not.",
       "type": "array",
       "items": {
@@ -3412,6 +3235,23 @@
         },
         {
           "description": "List the container connections open through it.",
+          "type": "string",
+          "const": "list"
+        }
+      ]
+    },
+    "Permission14": {
+      "description": "The actions held over the events, a bare array on the wire:\n`[\"list\"]`. There is one graph of events, so there is no `within`;\nan action is held or it is not.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Action2"
+      }
+    },
+    "Action2": {
+      "description": "The actions over the events, each the endpoint of the same name\nunder [`events`](crate::daemon::endpoints::events).",
+      "oneOf": [
+        {
+          "description": "List the events, narrowed, and keep the list.",
           "type": "string",
           "const": "list"
         }

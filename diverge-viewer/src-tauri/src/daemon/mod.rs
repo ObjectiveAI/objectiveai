@@ -25,11 +25,13 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use futures::{Stream, StreamExt};
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 use tokio_util::sync::CancellationToken;
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::endpoints::{agents, standalone_tools};
+use diverge_sdk::daemon::patch::Operation;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::daemon::template::Template;
 
@@ -45,6 +47,15 @@ pub type Frames<T> = Pin<Box<dyn Stream<Item = T> + Send + 'static>>;
 pub fn template_id<T: Serialize + Clone>(template: &Template<T>) -> String {
     let bytes = diverge_sdk::shared::canonical::bytes(&template.hashed()).unwrap_or_default();
     hex::encode(Sha256::digest(bytes))
+}
+
+/// A record's editable members with an edit's patch applied, read back as
+/// the same document, as the daemon does first on every edit: why not, in
+/// words, when an operation fails or the result is not that document.
+pub fn patched<E: Serialize + DeserializeOwned>(current: &E, patch: &[Operation]) -> Result<E, String> {
+    let document = serde_json::to_value(current).map_err(|error| error.to_string())?;
+    let result = diverge_sdk::daemon::patch::apply(document, patch).map_err(|error| error.to_string())?;
+    serde_json::from_value(result).map_err(|error| format!("the result is not what the record may be: {error}"))
 }
 
 /// How the app keys an agent: its name when it has one, otherwise its

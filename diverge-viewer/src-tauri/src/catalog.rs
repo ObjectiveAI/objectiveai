@@ -1,37 +1,20 @@
 //! The six official agent images, and what each one's settings may be.
 //!
-//! Each agentic-loop crate's `agent` module is self-contained (serde,
-//! schemars, indexmap and the provider SDK's `Tool`), so it is compiled in
-//! here straight from the SDK's source: the schema is `schema_for!(Agent)`,
-//! exactly what the image's own `GET /schema` serves. When he changes an
-//! image's settings, this app's form changes with it at the next build.
-//! Nothing is run and nothing is installed to get them.
-//!
-//! A real client cannot reach an image's `GET /schema` — it answers only
-//! inside its container — which is why this is compiled in.
+//! Each image ships `/DIVERGE.md`, whose frontmatter is the JSON Schema of
+//! its `arguments` (`schema_for!` over its loop's `Agent`), and the provider
+//! answers a container scope's `info` with it (`shared::containers::info`).
+//! No image is built or reached yet, so each loop's file is compiled in here
+//! from the SDK's source and read with the SDK's own parser. When he changes
+//! an image's settings and writes its file again, this app's form changes
+//! with it at the next build. Nothing is run and nothing is installed to get
+//! them.
 
-#[allow(dead_code, unused_imports, clippy::all)]
-#[path = "../../../diverge-agentic-loop-cc/src/agent/mod.rs"]
-mod cc;
-#[allow(dead_code, unused_imports, clippy::all)]
-#[path = "../../../diverge-agentic-loop-codex/src/agent/mod.rs"]
-mod codex;
-#[allow(dead_code, unused_imports, clippy::all)]
-#[path = "../../../diverge-agentic-loop-eliza/src/agent/mod.rs"]
-mod eliza;
-#[allow(dead_code, unused_imports, clippy::all)]
-#[path = "../../../diverge-agentic-loop-hermes/src/agent/mod.rs"]
-mod hermes;
-#[allow(dead_code, unused_imports, clippy::all)]
-#[path = "../../../diverge-agentic-loop-openrouter/src/agent/mod.rs"]
-mod openrouter;
-#[allow(dead_code, unused_imports, clippy::all)]
-#[path = "../../../diverge-agentic-loop-python/src/agent/mod.rs"]
-mod python;
+use std::sync::OnceLock;
 
 use serde_json::Value;
 
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{Image, Reference};
+use diverge_sdk::shared::containers::info::Document;
 
 /// Which of the six. The image name is `diverge-agentic-loop-<key>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,38 +73,66 @@ impl Kind {
         image.references.iter().find_map(|r| Kind::from_image_name(&r.name))
     }
 
-    /// The JSON Schema of the image's `arguments`.
-    pub fn schema(self) -> Value {
-        let schema = match self {
-            Kind::Cc => schemars::schema_for!(cc::Agent),
-            Kind::Codex => schemars::schema_for!(codex::Agent),
-            Kind::Eliza => schemars::schema_for!(eliza::Agent),
-            Kind::Hermes => schemars::schema_for!(hermes::Agent),
-            Kind::Openrouter => schemars::schema_for!(openrouter::Agent),
-            Kind::Python => schemars::schema_for!(python::Agent),
-        };
-        serde_json::to_value(schema).unwrap_or(Value::Null)
+    /// The image's `/DIVERGE.md`, as its loop ships it.
+    fn document(self) -> &'static str {
+        match self {
+            Kind::Cc => include_str!("../../../diverge-agentic-loop-cc/DIVERGE.md"),
+            Kind::Codex => include_str!("../../../diverge-agentic-loop-codex/DIVERGE.md"),
+            Kind::Eliza => include_str!("../../../diverge-agentic-loop-eliza/DIVERGE.md"),
+            Kind::Hermes => include_str!("../../../diverge-agentic-loop-hermes/DIVERGE.md"),
+            Kind::Openrouter => include_str!("../../../diverge-agentic-loop-openrouter/DIVERGE.md"),
+            Kind::Python => include_str!("../../../diverge-agentic-loop-python/DIVERGE.md"),
+        }
     }
 
-    /// Whether `arguments` is an agent this image accepts — what the image
-    /// itself checks at the start of a run, before it says anything.
+    /// The JSON Schema of the image's `arguments`.
+    pub fn schema(self) -> Value {
+        Document::parse(self.document()).map(|document| mended(document.schema)).unwrap_or(Value::Null)
+    }
+
+    /// Whether `arguments` is an agent this image accepts: its schema holds.
+    /// The image itself checks the same at the start of a run, before it says
+    /// anything; the words here are the schema's, not the image's.
     pub fn check(self, arguments: &Value) -> Result<(), String> {
-        let value = arguments.clone();
-        let result = match self {
-            Kind::Cc => serde_json::from_value::<cc::Agent>(value).map(drop),
-            Kind::Codex => serde_json::from_value::<codex::Agent>(value).map(drop),
-            Kind::Eliza => serde_json::from_value::<eliza::Agent>(value).map(drop),
-            Kind::Hermes => serde_json::from_value::<hermes::Agent>(value).map(drop),
-            Kind::Openrouter => serde_json::from_value::<openrouter::Agent>(value).map(drop),
-            Kind::Python => serde_json::from_value::<python::Agent>(value).map(drop),
-        };
-        result.map_err(|error| error.to_string())
+        static CHECKERS: [OnceLock<Result<jsonschema::Validator, String>>; 6] = [const { OnceLock::new() }; 6];
+        let checker = CHECKERS[self as usize].get_or_init(|| jsonschema::validator_for(&self.schema()).map_err(|error| error.to_string()));
+        match checker {
+            Ok(checker) => match checker.iter_errors(arguments).next() {
+                Some(error) => Err(error.to_string()),
+                None => Ok(()),
+            },
+            Err(error) => Err(error.clone()),
+        }
+    }
+}
+
+/// The files as committed carry three characters written as UTF-8 and read
+/// back as Windows-1252 (— … →); put back, so the form's hints read as the
+/// loops' own doc comments do. Nothing to do once the files are written again.
+fn mended(value: Value) -> Value {
+    match value {
+        Value::String(text) => Value::String(
+            text.replace("\u{e2}\u{20ac}\u{201d}", "\u{2014}").replace("\u{e2}\u{20ac}\u{a6}", "\u{2026}").replace("\u{e2}\u{2020}\u{2019}", "\u{2192}"),
+        ),
+        Value::Array(items) => Value::Array(items.into_iter().map(mended).collect()),
+        Value::Object(members) => Value::Object(members.into_iter().map(|(key, value)| (key, mended(value))).collect()),
+        other => other,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The check is the schema's, and it refuses: what is no agent at all,
+    /// and an agent missing what its image requires.
+    #[test]
+    fn settings_that_are_no_agent_are_refused() {
+        for kind in ALL {
+            assert!(kind.check(&serde_json::json!("an agent")).is_err(), "{}", kind.key());
+        }
+        assert!(Kind::Hermes.check(&serde_json::json!({ "model": "nousresearch/hermes-4-70b" })).is_err(), "Hermes needs a provider");
+    }
 
     /// Writes every schema next to the bindings so a person can read them.
     #[test]

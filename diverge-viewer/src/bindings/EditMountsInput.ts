@@ -4,7 +4,7 @@ import type { VolumeMountInput } from "./VolumeMountInput";
 
 /**
  * What the screen sends to change an agent's mounts: all three lists,
- * stated anew.
+ * stated anew, each replaced whole by the edit's patch.
  */
 export type EditMountsInput = { 
 /**

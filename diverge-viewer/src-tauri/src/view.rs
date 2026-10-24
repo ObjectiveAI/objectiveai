@@ -12,11 +12,11 @@ use serde_json::Value;
 use ts_rs::TS;
 
 use diverge_sdk::daemon::creator::{self, Creator};
-use diverge_sdk::daemon::edit::{Change, Edit};
 use diverge_sdk::daemon::endpoints::{agents, standalone_tools};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Identity, Item, ItemWrapper};
 use diverge_sdk::daemon::endpoints::agents::templates::{AgentType, Template as AgentTemplate};
 use diverge_sdk::daemon::key;
+use diverge_sdk::daemon::patch::Operation;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use diverge_sdk::shared::error::Error as WireError;
 use diverge_sdk::shared::filetree::response::Node;
@@ -177,9 +177,9 @@ fn tool_words(tool: &key::Tool) -> String {
 
 /// What this app last stated an agent mounts, in the daemon's own shapes.
 /// Ours: the daemon's listing does not repeat a create's mounts ("the
-/// create's, and is not repeated here"), and an edit states them all anew,
-/// so the app keeps what it said. An agent made elsewhere has no record,
-/// and the app does not offer to change its mounts.
+/// create's, and is not repeated here"), and the app's edit replaces all
+/// three lists, so the app keeps what it said. An agent made elsewhere has
+/// no record, and the app does not offer to change its mounts.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct AgentMounts {
     pub pinned: Option<Identity>,
@@ -199,21 +199,22 @@ impl AgentMounts {
         }
     }
 
-    /// The same machine; each list as the edit left it.
+    /// The same machine; each list as the edit's patch left it. A patch that
+    /// won't apply to the lists as the app knows them leaves them as they were.
     pub fn edited(&self, request: &agents::edit::client::request::Frame) -> Self {
-        fn after<T: Clone>(now: &[T], change: &Option<Change<Vec<T>>>) -> Vec<T> {
-            match change {
-                None => now.to_vec(),
-                Some(Change::Delete) => Vec::new(),
-                Some(Change::Set(list)) => list.clone(),
-            }
-        }
-        let edit = &request.edit;
+        let now = agents::edit::client::request::Editable {
+            name: None,
+            volume_mounts: self.volume_mounts.clone(),
+            fuse_file_mounts: self.fuse_file_mounts.clone(),
+            fuse_directory_mounts: self.fuse_directory_mounts.clone(),
+            secrets: Default::default(),
+        };
+        let after = crate::daemon::patched(&now, &request.patch).unwrap_or(now);
         AgentMounts {
             pinned: self.pinned.clone(),
-            volume_mounts: after(&self.volume_mounts, &edit.volume_mounts),
-            fuse_file_mounts: after(&self.fuse_file_mounts, &edit.fuse_file_mounts),
-            fuse_directory_mounts: after(&self.fuse_directory_mounts, &edit.fuse_directory_mounts),
+            volume_mounts: after.volume_mounts,
+            fuse_file_mounts: after.fuse_file_mounts,
+            fuse_directory_mounts: after.fuse_directory_mounts,
         }
     }
 
@@ -529,11 +530,12 @@ impl CreateAgentInput {
             .into_iter()
             .find(|k| k.key() == self.image_kind)
             .ok_or_else(|| format!("no image called {}", self.image_kind))?;
-        let template = AgentTemplate { r#type: AgentType {}, description: None, image: kind.image(), memory: self.memory, disk: self.disk, arguments: self.arguments };
+        let template = AgentTemplate { r#type: AgentType {}, description: None, image: kind.image(), memory: self.memory, disk: self.disk, arguments: self.arguments, secrets: Vec::new() };
         let fuse = |mounts: Vec<FuseMountInput>| mounts.into_iter().map(FuseMountInput::into_wire).collect::<Vec<_>>();
         let create = Frame {
             inner: diverge_sdk::daemon::create::Inner {
                 template: crate::daemon::template_id(&template),
+                secrets: Default::default(),
                 provider: self.provider.as_ref().map(|p| Provider {
                     identity: p.into(),
                     volume_mounts: self.volume_mounts.into_iter().map(VolumeMountInput::into_wire).collect(),
@@ -560,7 +562,7 @@ pub enum CreateOutcome {
 }
 
 /// What the screen sends to change an agent's mounts: all three lists,
-/// stated anew.
+/// stated anew, each replaced whole by the edit's patch.
 #[derive(Deserialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct EditMountsInput {
@@ -573,13 +575,15 @@ pub struct EditMountsInput {
 
 impl EditMountsInput {
     pub fn into_request(self) -> agents::edit::client::request::Frame {
-        let edit = Edit {
-            name: None,
-            volume_mounts: Some(Change::Set(self.volume_mounts.into_iter().map(VolumeMountInput::into_wire).collect())),
-            fuse_file_mounts: Some(Change::Set(self.fuse_file_mounts.into_iter().map(FuseMountInput::into_wire).collect())),
-            fuse_directory_mounts: Some(Change::Set(self.fuse_directory_mounts.into_iter().map(FuseMountInput::into_wire).collect())),
-        };
-        agents::edit::client::request::Frame { agent: crate::daemon::reference_of(&self.name), edit, relay: None }
+        let volume_mounts: Vec<_> = self.volume_mounts.into_iter().map(VolumeMountInput::into_wire).collect();
+        let fuse_file_mounts: Vec<_> = self.fuse_file_mounts.into_iter().map(FuseMountInput::into_wire).collect();
+        let fuse_directory_mounts: Vec<_> = self.fuse_directory_mounts.into_iter().map(FuseMountInput::into_wire).collect();
+        let patch = vec![
+            Operation::Replace { path: "/volume_mounts".into(), value: serde_json::json!(volume_mounts) },
+            Operation::Replace { path: "/fuse_file_mounts".into(), value: serde_json::json!(fuse_file_mounts) },
+            Operation::Replace { path: "/fuse_directory_mounts".into(), value: serde_json::json!(fuse_directory_mounts) },
+        ];
+        agents::edit::client::request::Frame { agent: crate::daemon::reference_of(&self.name), patch, relay: None }
     }
 }
 

@@ -438,7 +438,7 @@ pub fn catalog_images() -> Vec<ImageKindView> {
         .collect()
 }
 
-/// Checked with the image's own types, from the SDK's source.
+/// Checked against the image's own schema, from its DIVERGE.md.
 #[tauri::command]
 pub fn catalog_check(kind: String, arguments: serde_json::Value) -> Result<(), String> {
     let kind = catalog::ALL.into_iter().find(|k| k.key() == kind).ok_or_else(|| format!("no image called {kind}"))?;
@@ -884,6 +884,7 @@ fn room_container(arguments: serde_json::Value) -> crate::spaces::Container {
         memory: 1 << 30,
         disk: 1 << 30,
         arguments,
+        secrets: Vec::new(),
     };
     crate::spaces::Container {
         image: Image { digest: catalog::UNBUILT_DIGEST.into(), references: vec![Reference { registry: catalog::UNPUBLISHED_REGISTRY.into(), name: "diverge-viewer-room".into() }] },
@@ -2710,9 +2711,9 @@ mod tests {
     async fn your_tools_attach_to_an_agent_and_come_back() {
         use diverge_sdk::daemon::endpoints::standalone_tools as tools;
         let state = app_over_stand_in("actions-live-tools");
-        let template = tools::templates::Template { r#type: Default::default(), description: None, image: catalog::Kind::Python.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({}) };
+        let template = tools::templates::Template { r#type: Default::default(), description: None, image: catalog::Kind::Python.image(), memory: 1 << 30, disk: 1 << 30, arguments: json!({}), secrets: Vec::new() };
         let tools::templates::create::server::response::Frame::Created(id) = state.daemon.standalone_tools_templates_create(tools::templates::create::client::request::Frame { template, relay: None }).await else { panic!("made") };
-        let made = diverge_sdk::daemon::create::Inner { template: id, provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() };
+        let made = diverge_sdk::daemon::create::Inner { template: id, secrets: Default::default(), provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() };
         state.daemon.standalone_tools_create(tools::create::client::request::Frame { inner: made, account: None, name: Some("labels".into()), relay: None }).await;
         live_until(&state, |s| s.state == ListState::Live).await;
         let listed: ToolsListed = crate::daemon::tools_listed(state.daemon.as_ref()).await.into();
