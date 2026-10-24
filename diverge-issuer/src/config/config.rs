@@ -32,9 +32,6 @@ pub struct Config {
     /// when it was issued; a refresh issues a new one. Absent means
     /// `30`.
     pub refresh_token_days: u64,
-    /// How long an authorization code is good for, in seconds. Absent
-    /// means `60`.
-    pub code_seconds: u64,
     /// How long a device code and its user code are good for, in
     /// seconds. Absent means `600`.
     pub device_code_seconds: u64,
@@ -67,7 +64,6 @@ impl Default for Config {
             issuer: None,
             access_token_seconds: 600,
             refresh_token_days: 30,
-            code_seconds: 60,
             device_code_seconds: 600,
             device_interval_seconds: 5,
         }

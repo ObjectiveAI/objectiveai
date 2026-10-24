@@ -11,11 +11,19 @@
 //! |--------|----|
 //! | [`config`] | `issuer.yaml`, and the root it is found in |
 //! | [`password`] | passwords, as argon2id hashes |
-//! | [`signing`] | the RSA keys every token is signed with, kept in the root's keyring |
+//! | [`signing`] | the RSA keys every token is signed with, kept in `issuer.sqlite`, and their rotation |
 //! | [`tokens`] | the access token, the ID token, and the opaque secrets |
 //! | [`endpoints`] | the routes, one file each |
-//! | [`store`] | `issuer.sqlite`: the identities, the clients, the codes and the refresh tokens, every secret in it a hash |
+//! | [`store`] | `issuer.sqlite`: the identities, the signing keys, the device codes and the refresh tokens |
 //! | [`serve`] | the process: the root's lock, the port, the stop |
+//!
+//! The issuer serves one app, [`CLIENT_ID`](endpoints::CLIENT_ID): a
+//! public client every Diverge program signs in as, by the device
+//! authorization grant, kept signed in by rotating refresh tokens.
+//! There is no client registry, no browser redirect, and no client
+//! secret. The binary serves and does nothing else: the identities are
+//! added, the keys rotated and the issuer started and stopped by the
+//! Diverge CLI, which writes `issuer.sqlite` through this crate.
 //!
 //! The issuer holds `<root>/issuer.lock` for its life, as the daemon
 //! and the provider hold theirs.

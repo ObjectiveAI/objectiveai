@@ -16,8 +16,7 @@ pub const TYP: &str = "at+jwt";
 pub struct Access {
     /// The issuer identifier.
     pub iss: String,
-    /// The subject: the identity signed in, or for `client_credentials`
-    /// the client itself.
+    /// The subject: the identity signed in.
     pub sub: String,
     /// The one audience the token is for: the server that admits it.
     pub aud: String,
@@ -27,7 +26,8 @@ pub struct Access {
     pub iat: i64,
     /// Its own id, unique among the tokens the issuer signs.
     pub jti: String,
-    /// The client it was issued to.
+    /// The client it was issued to: always the issuer's one app,
+    /// [`CLIENT_ID`](crate::endpoints::CLIENT_ID).
     pub client_id: String,
     /// The scope granted, space-separated; absent when none was.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -55,7 +55,7 @@ pub fn access(config: &Config, signing: &Signing, sub: &str, aud: &str, client_i
         aud: aud.to_string(),
         exp: now.saturating_add(i64::try_from(lifetime).unwrap_or(i64::MAX)),
         iat: now,
-        jti: mint().expose()[..32].to_string(),
+        jti: mint()[..32].to_string(),
         client_id: client_id.to_string(),
         scope: (!scope.is_empty()).then(|| scope.to_string()),
     };

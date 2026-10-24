@@ -3,8 +3,6 @@
 /// What a chain grants.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Chain {
-    /// The client the chain was issued to.
-    pub client: String,
     /// The identity that signed in.
     pub subject: String,
     /// The scope granted.

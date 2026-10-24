@@ -1,4 +1,4 @@
-//! A client's poll of a device code.
+//! The app's poll of a device code.
 
 use super::{Approved, Devices};
 use crate::store::Error;
@@ -10,7 +10,7 @@ const SLOWER: i64 = 5;
 /// What a poll finds — see the [rules](super).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Poll {
-    /// No such code for this client.
+    /// No such code.
     Unknown,
     /// The code has expired, and is removed.
     Expired,
@@ -25,26 +25,23 @@ pub enum Poll {
 }
 
 /// A device code's row, as a poll reads it.
-type Row = (String, String, String, i64, i64, Option<i64>, String, Option<String>, Option<i64>);
+type Row = (String, String, i64, i64, Option<i64>, String, Option<String>, Option<i64>);
 
 impl Devices<'_> {
-    /// Poll the device code whose hash is `hash`, as `client`, now.
-    pub async fn poll(&self, hash: &str, client: &str) -> Result<Poll, Error> {
+    /// Poll the device code whose hash is `hash`, now.
+    pub async fn poll(&self, hash: &str) -> Result<Poll, Error> {
         let now = crate::now();
         let mut transaction = self.store.write().await?;
         let row: Option<Row> = sqlx::query_as(
-            "select client, scope, audience, expires, interval, last_poll, state, subject, auth_time
+            "select scope, audience, expires, interval, last_poll, state, subject, auth_time
                 from device_codes where hash = ?",
         )
         .bind(hash)
         .fetch_optional(&mut *transaction)
         .await?;
-        let Some((owner, scope, audience, expires, interval, last_poll, state, subject, auth_time)) = row else {
+        let Some((scope, audience, expires, interval, last_poll, state, subject, auth_time)) = row else {
             return Ok(Poll::Unknown);
         };
-        if owner != client {
-            return Ok(Poll::Unknown);
-        }
         let remove = || sqlx::query("delete from device_codes where hash = ?").bind(hash);
         let poll = if expires <= now {
             remove().execute(&mut *transaction).await?;

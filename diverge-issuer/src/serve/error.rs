@@ -5,7 +5,6 @@ use std::io;
 use std::path::PathBuf;
 
 use diverge_sdk::file_lock;
-use diverge_sdk::keyring;
 
 use crate::config;
 use crate::signing;
@@ -31,8 +30,6 @@ pub enum Error {
     },
     /// `issuer.sqlite` could not be opened.
     Store(store::Error),
-    /// The root's keyring could not be opened.
-    Keyring(keyring::Error),
     /// The signing keys could not be read or made.
     Signing(signing::Error),
     /// The discovery document or the key set could not be made: why.
@@ -54,7 +51,6 @@ impl fmt::Display for Error {
                 None => write!(f, "another issuer holds {}", root.display()),
             },
             Error::Store(error) => write!(f, "{error}"),
-            Error::Keyring(error) => write!(f, "the keyring could not be opened: {error}"),
             Error::Signing(error) => write!(f, "{error}"),
             Error::Discovery(why) => write!(f, "the discovery document could not be made: {why}"),
             Error::Bind(error) => write!(f, "the port could not be bound: {error}"),
@@ -77,7 +73,6 @@ impl std::error::Error for Error {
             Error::Lock(error) => Some(error),
             Error::Locked { .. } | Error::Discovery(_) => None,
             Error::Store(error) => Some(error),
-            Error::Keyring(error) => Some(error),
             Error::Signing(error) => Some(error),
         }
     }

@@ -9,7 +9,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
-use super::{OAuthError, authenticate};
+use super::{OAuthError, client};
 use crate::serve::Issuer;
 use crate::tokens;
 
@@ -21,19 +21,17 @@ pub struct RevokeForm {
     /// What kind of token it is, which is a hint the issuer does not
     /// need: only a refresh token can be revoked.
     pub token_type_hint: Option<String>,
-    /// The client's id, where it does not authenticate with `Basic`.
+    /// The client's id: the issuer's one app's.
     pub client_id: Option<String>,
-    /// The client's secret, where it does not authenticate with
-    /// `Basic`.
+    /// A client secret, which the one app never has: refused.
     pub client_secret: Option<String>,
 }
 
-/// `POST /revoke`: the client's refresh token revoked, and its whole
-/// chain with it. The client is authenticated as at the token
-/// endpoint. The answer is `200 OK`, empty, whether a chain was
-/// revoked or not — a token there is no such one of, another client's
-/// token, and an access token alike — as RFC 7009 §2.2 requires; an
-/// access token is good until it expires.
+/// `POST /revoke`: a refresh token revoked, and its whole chain with
+/// it. The client is checked as at the token endpoint. The answer is
+/// `200 OK`, empty, whether a chain was revoked or not — a token there
+/// is no such one of and an access token alike — as RFC 7009 §2.2
+/// requires; an access token is good until it expires.
 pub async fn revoke(State(issuer): State<Arc<Issuer>>, headers: HeaderMap, form: Result<Form<RevokeForm>, FormRejection>) -> Response {
     match revoked(&issuer, &headers, form).await {
         Ok(()) => StatusCode::OK.into_response(),
@@ -44,8 +42,8 @@ pub async fn revoke(State(issuer): State<Arc<Issuer>>, headers: HeaderMap, form:
 /// The request, done.
 async fn revoked(issuer: &Issuer, headers: &HeaderMap, form: Result<Form<RevokeForm>, FormRejection>) -> Result<(), OAuthError> {
     let Form(form) = form.map_err(|rejection| OAuthError::invalid_request(rejection.body_text()))?;
-    let client = authenticate(issuer, headers, form.client_id.as_deref(), form.client_secret.as_deref()).await?;
+    client(headers, form.client_id.as_deref(), form.client_secret.as_deref())?;
     let token = form.token.as_deref().ok_or_else(|| OAuthError::invalid_request("`token` is required"))?;
-    issuer.store.refresh().revoke(&tokens::hash(token), &client.id).await?;
+    issuer.store.refresh().revoke(&tokens::hash(token)).await?;
     Ok(())
 }

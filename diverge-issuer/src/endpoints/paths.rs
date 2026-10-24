@@ -4,7 +4,7 @@
 pub const DISCOVERY: &str = "/.well-known/openid-configuration";
 /// The key set.
 pub const JWKS: &str = "/jwks";
-/// The authorization endpoint: the sign-in page, and its answer.
+/// The authorization endpoint, which refuses every request.
 pub const AUTHORIZE: &str = "/authorize";
 /// The token endpoint.
 pub const TOKEN: &str = "/token";

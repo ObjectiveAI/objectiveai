@@ -8,17 +8,10 @@ use serde::Deserialize;
 pub struct TokenForm {
     /// The grant.
     pub grant_type: Option<String>,
-    /// The client's id, where it does not authenticate with `Basic`.
+    /// The client's id: the issuer's one app's.
     pub client_id: Option<String>,
-    /// The client's secret, where it does not authenticate with
-    /// `Basic`.
+    /// A client secret, which the one app never has: refused.
     pub client_secret: Option<String>,
-    /// The authorization code.
-    pub code: Option<String>,
-    /// The redirect URI the code was sent to.
-    pub redirect_uri: Option<String>,
-    /// The PKCE verifier.
-    pub code_verifier: Option<String>,
     /// The device code.
     pub device_code: Option<String>,
     /// The refresh token.

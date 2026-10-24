@@ -1,7 +1,6 @@
 //! A request's scope and audience.
 
-use super::OAuthError;
-use crate::store::clients::Client;
+use super::CLIENT_ID;
 
 /// `OpenID Connect`'s scope: an ID token is issued exactly when the
 /// scope holds it.
@@ -26,14 +25,10 @@ pub fn holds(scope: &str, value: &str) -> bool {
     scope.split(' ').any(|held| held == value)
 }
 
-/// The audience a request's access token is for, as RFC 8707's
-/// `resource` names it: the resource asked for, which must be one of
-/// the client's audiences, else `invalid_target`; or, where none is
-/// asked for, the client's first.
-pub fn audience(client: &Client, resource: Option<&str>) -> Result<String, OAuthError> {
-    match resource {
-        Some(resource) if client.audiences.iter().any(|audience| audience == resource) => Ok(resource.to_string()),
-        Some(resource) => Err(OAuthError::bad("invalid_target", format!("`{resource}` is not an audience of the client"))),
-        None => client.audiences.first().cloned().ok_or_else(|| OAuthError::bad("invalid_target", "the client has no audience")),
-    }
+/// The audience a request's access token is for: the resource asked
+/// for, as RFC 8707's `resource` names it, or the issuer's one app,
+/// [`CLIENT_ID`], where none is asked for. No resource is refused:
+/// which servers admit a token is theirs to judge.
+pub fn audience(resource: Option<&str>) -> String {
+    resource.unwrap_or(CLIENT_ID).to_string()
 }

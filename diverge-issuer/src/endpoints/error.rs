@@ -46,15 +46,10 @@ impl OAuthError {
         }
     }
 
-    /// `invalid_grant`: the code, the device code or the refresh token
-    /// is not good.
+    /// `invalid_grant`: the device code or the refresh token is not
+    /// good.
     pub fn invalid_grant(description: impl Into<String>) -> OAuthError {
         OAuthError::bad("invalid_grant", description)
-    }
-
-    /// `unauthorized_client`: the client may not use this grant.
-    pub fn unauthorized_client() -> OAuthError {
-        OAuthError::bad("unauthorized_client", "the client may not use this grant")
     }
 
     /// `server_error`: the issuer failed, with status

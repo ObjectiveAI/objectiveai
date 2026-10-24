@@ -1,7 +1,7 @@
 //! The refresh tokens, in chains.
 //!
-//! A chain is one sign-in: the client, the identity, the scope and the
-//! audience granted, and when the identity signed in. Its first token
+//! A chain is one sign-in: the identity, the scope and the audience
+//! granted, and when the identity signed in. Its first token
 //! is issued with the sign-in's tokens — see [`issue`](Refresh::issue)
 //! — and every refresh spends one token of it for the next — see
 //! [`rotate`](Refresh::rotate). The rules:
@@ -14,12 +14,11 @@
 //!    parties hold, one of whom stole it: the whole chain is revoked,
 //!    the token issued in its place with it, and the rotation is
 //!    refused.
-//! 4. A token of a revoked chain, a token past its days, a token
-//!    presented by another client than its chain's, and a token there
-//!    is no such one of, are refused, and change nothing.
+//! 4. A token of a revoked chain, a token past its days, and a token
+//!    there is no such one of, are refused, and change nothing.
 //! 5. A chain is revoked by the revocation endpoint, by its identity's
-//!    password changing, and by rule 3. It is removed with its client
-//!    or its identity.
+//!    password changing, by a key rotation that signs everyone out,
+//!    and by rule 3. It is removed with its identity.
 //! 6. A token past its days is removed at the next chain's issue; a
 //!    spent one is kept until then, for rule 3.
 //!

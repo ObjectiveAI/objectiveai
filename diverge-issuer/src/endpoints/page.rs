@@ -49,14 +49,6 @@ pub fn paragraph(text: &str) -> String {
     format!("<p>{}</p>", escape(text))
 }
 
-/// A hidden field `name` holding `value`, where there is a value.
-pub fn hidden(name: &str, value: Option<&str>) -> String {
-    match value {
-        Some(value) => format!("<input type=\"hidden\" name=\"{}\" value=\"{}\">", escape(name), escape(value)),
-        None => String::new(),
-    }
-}
-
 /// The fields a person signs in with, and the two buttons: approve and
 /// deny, the form's `action`.
 pub fn sign_in(approve: &str) -> String {

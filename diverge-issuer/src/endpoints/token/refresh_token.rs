@@ -5,7 +5,6 @@ use axum::response::Response;
 use super::{Grantee, Next, TokenForm, answer};
 use crate::endpoints::{OAuthError, holds, scope};
 use crate::serve::Issuer;
-use crate::store::clients::{Client, Grant};
 use crate::store::refresh::Rotation;
 use crate::tokens;
 
@@ -23,10 +22,7 @@ use crate::tokens;
 ///    `invalid_grant`.
 /// 4. The answer carries the next refresh token, and an ID token when
 ///    the scope holds `openid`.
-pub async fn refresh_token(issuer: &Issuer, client: &Client, form: &TokenForm) -> Result<Response, OAuthError> {
-    if !client.may(Grant::RefreshToken) {
-        return Err(OAuthError::unauthorized_client());
-    }
+pub async fn refresh_token(issuer: &Issuer, form: &TokenForm) -> Result<Response, OAuthError> {
     let presented = form.refresh_token.as_deref().ok_or_else(|| OAuthError::invalid_request("`refresh_token` is required"))?;
     let hash = tokens::hash(presented);
     let refused = || OAuthError::invalid_grant("the refresh token is not good");
@@ -40,7 +36,7 @@ pub async fn refresh_token(issuer: &Issuer, client: &Client, form: &TokenForm) -
     }
     let next = tokens::mint();
     let rotation =
-        issuer.store.refresh().rotate(&hash, &client.id, &tokens::hash(next.expose()), issuer.config.refresh_token_days).await?;
+        issuer.store.refresh().rotate(&hash, &tokens::hash(&next), issuer.config.refresh_token_days).await?;
     let chain = match rotation {
         Rotation::Rotated(chain) => chain,
         Rotation::Reused => return Err(OAuthError::invalid_grant("the refresh token was spent already; its sign-in is revoked")),
@@ -51,7 +47,6 @@ pub async fn refresh_token(issuer: &Issuer, client: &Client, form: &TokenForm) -
         scope: if asked.is_empty() { chain.scope } else { asked },
         audience: chain.audience,
         auth_time: Some(chain.auth_time),
-        nonce: None,
     };
-    answer(issuer, client, grantee, Next::Rotated(next.expose().to_string())).await
+    answer(issuer, grantee, Next::Rotated(next)).await
 }

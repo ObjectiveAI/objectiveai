@@ -14,12 +14,11 @@ impl Devices<'_> {
             .execute(&mut *transaction)
             .await?;
         let added = sqlx::query(
-            "insert into device_codes (hash, user_code, client, scope, audience, expires, interval, state)
-                values (?, ?, ?, ?, ?, ?, ?, 'pending')",
+            "insert into device_codes (hash, user_code, scope, audience, expires, interval, state)
+                values (?, ?, ?, ?, ?, ?, 'pending')",
         )
         .bind(&device.hash)
         .bind(&device.user_code)
-        .bind(&device.client)
         .bind(&device.scope)
         .bind(&device.audience)
         .bind(device.expires)

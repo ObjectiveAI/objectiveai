@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use openidconnect::core::{CoreIdToken, CoreIdTokenClaims, CoreJwsSigningAlgorithm};
-use openidconnect::{AccessToken, Audience, EmptyAdditionalClaims, IssuerUrl, Nonce, StandardClaims, SubjectIdentifier};
+use openidconnect::{AccessToken, Audience, EmptyAdditionalClaims, IssuerUrl, StandardClaims, SubjectIdentifier};
 
 use super::Error;
 use crate::config::Config;
@@ -13,21 +13,19 @@ use crate::signing::Signing;
 pub struct Signed<'a> {
     /// The identity signed in.
     pub sub: &'a str,
-    /// The client the token is for: its one audience.
+    /// The client the token is for, its one audience: always the
+    /// issuer's one app.
     pub client_id: &'a str,
     /// When the identity signed in, in seconds since the Unix epoch.
     pub auth_time: i64,
-    /// The client's nonce, from its authorization request, where it
-    /// sent one.
-    pub nonce: Option<&'a str>,
     /// The access token issued beside it, whose hash is `at_hash`.
     pub access_token: &'a str,
 }
 
 /// Sign an ID token, as OpenID Connect Core §2 states one: `iss`,
 /// `sub`, `aud` the client, `exp` as an access token's, `iat` now,
-/// `auth_time`, the `nonce` where there is one, and `at_hash`, the
-/// access token's.
+/// `auth_time`, and `at_hash`, the access token's. There is no
+/// `nonce`: no authorization request ever sends one.
 pub fn id(config: &Config, signing: &Signing, signed: Signed<'_>) -> Result<String, Error> {
     let now = Utc::now();
     let lifetime = chrono::Duration::seconds(i64::try_from(config.access_token_seconds).unwrap_or(i64::MAX));
@@ -41,8 +39,7 @@ pub fn id(config: &Config, signing: &Signing, signed: Signed<'_>) -> Result<Stri
         StandardClaims::new(SubjectIdentifier::new(signed.sub.to_string())),
         EmptyAdditionalClaims {},
     )
-    .set_auth_time(Some(auth_time))
-    .set_nonce(signed.nonce.map(|nonce| Nonce::new(nonce.to_string())));
+    .set_auth_time(Some(auth_time));
     let access_token = AccessToken::new(signed.access_token.to_string());
     let token = CoreIdToken::new(
         claims,

@@ -6,8 +6,7 @@
 //! - The ID token is OpenID Connect's — see [`id`] — issued beside an
 //!   access token when the scope holds `openid`, for the client to
 //!   learn who signed in.
-//! - A refresh token, an authorization code and a device code are no
-//!   JWT: each is 32 random bytes as hex, kept only as its SHA-256 —
+//! - A refresh token and a device code are no JWT: each is 32 random bytes as hex, kept only as its SHA-256 —
 //!   see [`mint`] and [`hash`].
 //!
 //! Its own files are flattened into it, so everything is named

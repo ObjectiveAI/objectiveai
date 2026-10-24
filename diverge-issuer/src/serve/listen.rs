@@ -21,7 +21,7 @@ pub async fn listen(issuer: Arc<Issuer>, port: u16, mut stop: watch::Receiver<bo
     let router = Router::new()
         .route(endpoints::DISCOVERY, get(endpoints::discovery))
         .route(endpoints::JWKS, get(endpoints::jwks))
-        .route(endpoints::AUTHORIZE, get(endpoints::authorize_page).post(endpoints::authorize_decide))
+        .route(endpoints::AUTHORIZE, get(endpoints::authorize).post(endpoints::authorize))
         .route(endpoints::DEVICE_AUTHORIZATION, post(endpoints::device_authorization))
         .route(endpoints::DEVICE, get(endpoints::device_page).post(endpoints::device_decide))
         .route(endpoints::TOKEN, post(endpoints::token))

@@ -26,11 +26,11 @@ impl Store {
     /// absent, and make its tables where it has none.
     ///
     /// The issuer and the CLI open the one file at once — the CLI to
-    /// add an identity or a client, the issuer to read them on every
+    /// add an identity or rotate the keys, the issuer to read them on every
     /// request — so the journal is WAL, and a write waits as long as
     /// another process's write holds the file: SQLite's longest wait,
     /// about 24 days, which is to say no deadline. Foreign keys are
-    /// on, so removing an identity or a client removes everything
+    /// on, so removing an identity removes everything
     /// issued to it.
     pub async fn open(root: &Path) -> Result<Store, Error> {
         let path = root.join(FILE);

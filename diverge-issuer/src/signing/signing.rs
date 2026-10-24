@@ -1,9 +1,8 @@
 //! The keys, read at the start.
 
-use diverge_sdk::keyring::Keyring;
 use openidconnect::core::CoreJsonWebKeySet;
 
-use super::{Error, SigningKey, mint::mint};
+use super::{Error, SigningKey, mint};
 use crate::store::Store;
 
 /// Every unretired signing key, the newest last: the one that signs.
@@ -12,18 +11,16 @@ pub struct Signing {
 }
 
 impl Signing {
-    /// The unretired keys, each read from the keyring by its record's
-    /// entry — one minted first when there is none. A record whose
-    /// entry the keyring does not hold is [`Error::Missing`].
-    pub async fn load(store: &Store, keyring: &Keyring) -> Result<Signing, Error> {
+    /// The unretired keys, read from the database — one minted first
+    /// when there is none.
+    pub async fn load(store: &Store) -> Result<Signing, Error> {
         let mut records = store.keys().unretired().await.map_err(Error::Store)?;
         if records.is_empty() {
-            records.push(mint(store, keyring).await?);
+            records.push(mint(store).await?);
         }
         let mut keys = Vec::with_capacity(records.len());
         for record in &records {
-            let pem = keyring.get(&record.entry).await.map_err(Error::Keyring)?.ok_or_else(|| Error::Missing(record.entry.clone()))?;
-            keys.push(SigningKey::from_pem(&record.kid, pem.expose())?);
+            keys.push(SigningKey::from_pem(&record.kid, &record.pem)?);
         }
         Ok(Signing { keys })
     }

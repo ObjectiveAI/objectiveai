@@ -23,8 +23,7 @@ pub enum Error {
     },
     /// A query failed.
     Query(sqlx::Error),
-    /// The name is held already: an identity's subject, or a client's
-    /// id.
+    /// The name is held already: an identity's subject.
     Exists(String),
     /// What was asked for is refused as it was put: why.
     Invalid(String),

@@ -9,9 +9,8 @@ use axum::response::{IntoResponse, Response};
 use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
 
-use super::{DEVICE, OAuthError, audience, authenticate, no_store, scope, user_code};
+use super::{DEVICE, OAuthError, audience, client, no_store, scope, user_code};
 use crate::serve::Issuer;
-use crate::store::clients::Grant;
 use crate::store::devices::New;
 use crate::tokens;
 
@@ -23,10 +22,10 @@ const DRAWS: usize = 8;
 /// The request's form.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct DeviceForm {
-    /// The client's id, where it does not authenticate with `Basic`.
+    /// The client's id: the issuer's one app's.
     pub client_id: Option<String>,
-    /// The client's secret, where it does not authenticate with
-    /// `Basic`.
+    /// A client secret, which the one app, being public, never has: a
+    /// form carrying one is refused.
     pub client_secret: Option<String>,
     /// The scope asked for.
     pub scope: Option<String>,
@@ -45,11 +44,10 @@ struct Body {
     interval: u64,
 }
 
-/// `POST /device_authorization`: a device code for the client, and the
-/// user code a person types on the device page. The client is
-/// authenticated as at the token endpoint and must have
-/// `device_code`; the audience is resolved now, as the token request
-/// will not name one. The device code is kept as its SHA-256.
+/// `POST /device_authorization`: a device code for the issuer's one
+/// app, and the user code a person types on the device page. The
+/// client is checked as at the token endpoint; the audience is
+/// resolved now, as the token request will not name one. The device code is kept as its SHA-256.
 pub async fn device_authorization(
     State(issuer): State<Arc<Issuer>>,
     headers: HeaderMap,
@@ -64,21 +62,17 @@ pub async fn device_authorization(
 /// The request, answered.
 async fn authorize(issuer: &Issuer, headers: &HeaderMap, form: Result<Form<DeviceForm>, FormRejection>) -> Result<Response, OAuthError> {
     let Form(form) = form.map_err(|rejection| OAuthError::invalid_request(rejection.body_text()))?;
-    let client = authenticate(issuer, headers, form.client_id.as_deref(), form.client_secret.as_deref()).await?;
-    if !client.may(Grant::DeviceCode) {
-        return Err(OAuthError::unauthorized_client());
-    }
+    client(headers, form.client_id.as_deref(), form.client_secret.as_deref())?;
     let config = &issuer.config;
-    let audience = audience(&client, form.resource.as_deref())?;
+    let audience = audience(form.resource.as_deref());
     let scope = scope(form.scope.as_deref());
     let device_code = tokens::mint();
     let expires = crate::now().saturating_add(i64::try_from(config.device_code_seconds).unwrap_or(i64::MAX));
     for _ in 0..DRAWS {
         let code = user_code::draw();
         let device = New {
-            hash: tokens::hash(device_code.expose()),
+            hash: tokens::hash(&device_code),
             user_code: code.clone(),
-            client: client.id.clone(),
             scope: scope.clone(),
             audience: audience.clone(),
             expires,
@@ -90,7 +84,7 @@ async fn authorize(issuer: &Issuer, headers: &HeaderMap, form: Result<Form<Devic
             let mut complete = url::Url::parse(&verification_uri).map_err(OAuthError::server)?;
             complete.query_pairs_mut().append_pair("user_code", &shown);
             let body = Body {
-                device_code: device_code.expose().to_string(),
+                device_code: device_code.clone(),
                 user_code: shown,
                 verification_uri,
                 verification_uri_complete: complete.to_string(),

@@ -30,8 +30,7 @@ async fn absent() -> Option<&'static String> {
     static ABSENT: OnceCell<Option<String>> = OnceCell::const_new();
     ABSENT
         .get_or_init(|| async {
-            let password = diverge_sdk::keyring::Key::mint();
-            hash(password.expose()).await.ok()
+            hash(&crate::tokens::mint()).await.ok()
         })
         .await
         .as_ref()

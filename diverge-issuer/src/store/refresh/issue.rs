@@ -14,10 +14,9 @@ impl Refresh<'_> {
             .execute(&mut *transaction)
             .await?;
         let id: i64 = sqlx::query_scalar(
-            "insert into refresh_chains (client, subject, scope, audience, auth_time, made)
-                values (?, ?, ?, ?, ?, ?) returning id",
+            "insert into refresh_chains (subject, scope, audience, auth_time, made)
+                values (?, ?, ?, ?, ?) returning id",
         )
-        .bind(&chain.client)
         .bind(&chain.subject)
         .bind(&chain.scope)
         .bind(&chain.audience)
