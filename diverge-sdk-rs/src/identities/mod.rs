@@ -43,14 +43,20 @@
 //!    [`Error::SignedOut`]. The file is kept, as user state is; a new
 //!    login is what replaces it. Any other refusal is
 //!    [`Error::Refused`], with what the issuer said.
-//! 6. **Login.** [`login`](Identities::login) is OAuth's device
-//!    authorization grant, RFC 8628, as a public client: the issuer's
+//! 6. **Login.** [`login`](Identities::login) names the identity it
+//!    signs in, takes its `.lock` before anything else, and holds it
+//!    until the login ends, approved or not — a second login of the
+//!    same identity, and every reader of it, waits its turn. It is
+//!    OAuth's device authorization grant, RFC 8628, as a public
+//!    client: the issuer's
 //!    discovery document read, and it must name the issuer exactly as
 //!    given, which must be `https`, or `http` on a loopback host; a
 //!    device code asked for; and [`Pending::wait`] polling the token
 //!    endpoint at the interval, five seconds slower at each
 //!    `slow_down`, until a person approves the code — the identity
-//!    written, replacing one already there — or denies it
+//!    written, replacing one already there, signed out or not, when the
+//!    approval is for the identity named, and
+//!    [`Error::OtherSubject`] when it is for another — or denies it
 //!    ([`Error::Denied`]), or it expires ([`Error::Expired`]). The
 //!    scope asked for gains `openid` and `offline_access` where it
 //!    lacks them: the ID token names the subject, and `offline_access`
@@ -73,6 +79,11 @@
 //!     one subject per issuer — and its verifying cache: what a
 //!     daemon's or a provider's handshake is built on.
 //!
+//! 11. **A client's side.** [`Presenter`] is one identity presented,
+//!     and the other end's token taken at its word: what a program that
+//!     dials as one identity and judges nobody — a command line —
+//!     makes its handshake with.
+//!
 //! [`Token`] is a token handed out: it has no way out but
 //! [`expose`](Token::expose), and its memory is zeroed on drop. The
 //! file's own record has no public type at all.
@@ -92,6 +103,7 @@ mod name;
 mod oauth;
 mod own;
 mod path_name;
+mod presenter;
 mod record;
 mod refresh;
 mod remove;
@@ -105,5 +117,6 @@ pub use login::*;
 pub use name::*;
 pub use own::*;
 pub use path_name::*;
+pub use presenter::*;
 pub use token::*;
 pub use verify::*;

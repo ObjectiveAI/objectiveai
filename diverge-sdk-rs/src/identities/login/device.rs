@@ -4,10 +4,12 @@ use serde::Deserialize;
 use zeroize::Zeroizing;
 
 use super::Pending;
-use crate::identities::discovery::{at, discover};
+use crate::file_lock;
 use crate::identities::claims::now;
+use crate::identities::discovery::{at, discover};
+use crate::identities::identities::folder_owned;
 use crate::identities::oauth::{Answer, post};
-use crate::identities::{Error, Identities};
+use crate::identities::{Error, Identities, Name};
 
 /// The interval RFC 8628 §3.2 has a client poll at when the issuer
 /// names none.
@@ -25,13 +27,20 @@ struct DeviceCode {
 }
 
 impl Identities {
-    /// Begin signing in at `issuer` as the public client `client_id`,
+    /// Begin signing `name` in as the public client `client_id`,
     /// asking for `scope` — `openid` and `offline_access` added where
     /// it lacks them — and, where given, for an access token for
-    /// `resource`. The answer carries the user code a person enters at
-    /// the verification URI; [`Pending::wait`] ends the login. See the
+    /// `resource`. The identity's lock is taken first, waiting while
+    /// another holds it, and held by the [`Pending`] until the login
+    /// ends, however it ends: a failure here lets it go at once. The
+    /// answer carries the user code a person enters at the
+    /// verification URI; [`Pending::wait`] ends the login. See the
     /// [rules](crate::identities), rule 6.
-    pub async fn login(&self, issuer: &str, client_id: &str, scope: &str, resource: Option<&str>) -> Result<Pending, Error> {
+    pub async fn login(&self, name: &Name, client_id: &str, scope: &str, resource: Option<&str>) -> Result<Pending, Error> {
+        let paths = self.paths(name);
+        folder_owned(&paths.folder).await?;
+        let held = file_lock::wait_exclusive(&paths.lock).await.map_err(Error::Lock)?;
+        let issuer = name.issuer.as_str();
         let discovery = discover(&self.http, issuer).await?;
         let device = discovery
             .device_authorization_endpoint
@@ -58,6 +67,8 @@ impl Identities {
             verification_uri_complete: code.verification_uri_complete,
             expires_in: code.expires_in,
             identities: self.clone(),
+            name: name.clone(),
+            _held: held,
             issuer: discovery.issuer,
             client_id: client_id.to_string(),
             token_endpoint: discovery.token_endpoint,

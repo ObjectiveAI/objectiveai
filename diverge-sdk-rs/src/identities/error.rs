@@ -62,6 +62,14 @@ pub enum Error {
     Denied,
     /// The login's answer carried no ID token, or one with no `sub`.
     Subject,
+    /// The login was approved as another identity than the one it
+    /// named: nothing was written.
+    OtherSubject {
+        /// The identity the login named.
+        expected: Name,
+        /// The identity the approval was for.
+        answered: Name,
+    },
     /// The login's answer carried no refresh token.
     NoRefreshToken,
     /// The identity holds no ID token.
@@ -95,6 +103,7 @@ impl fmt::Display for Error {
             Error::Expired => f.write_str("the device code expired before it was approved"),
             Error::Denied => f.write_str("the device code was denied"),
             Error::Subject => f.write_str("the login's answer named no subject"),
+            Error::OtherSubject { expected, answered } => write!(f, "the login for {expected} was approved as {answered}; nothing was written"),
             Error::NoRefreshToken => f.write_str("the login's answer carried no refresh token"),
             Error::NoIdToken => f.write_str("the identity holds no ID token"),
             Error::NoExpiry => f.write_str("the access token came with no expiry"),
