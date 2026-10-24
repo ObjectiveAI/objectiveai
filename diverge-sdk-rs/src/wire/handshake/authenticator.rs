@@ -27,4 +27,16 @@ pub trait Authenticator: Send + Sync {
     /// `Ok` with the identity it establishes, or `Err` with why it is
     /// not accepted.
     fn verify<'a>(&'a self, token: &'a str, address: IpAddr) -> BoxFuture<'a, Result<Peer, String>>;
+
+    /// The handshake failed after [`verify`](Self::verify) accepted
+    /// `peer`: whatever this end took for `peer` in accepting it — a
+    /// lock that one connection at a time may hold — is let go. Called
+    /// at most once per handshake, and only after `verify` answered
+    /// `Ok`; a handshake that completes never calls it, and what
+    /// `verify` took is then the caller's to let go when the connection
+    /// ends. By default, nothing is taken and nothing is let go.
+    fn abandon<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, ()> {
+        let _ = peer;
+        Box::pin(async {})
+    }
 }

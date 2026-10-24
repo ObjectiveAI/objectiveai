@@ -14,14 +14,22 @@ use crate::wire::connection::Connection;
 /// 3. This end's token from that same issuer, from `authenticator`, is
 ///    sent as this end's first frame.
 ///
-/// Every failure is the [`Error`], with nothing sent: a connector this
+/// A failure after step 2 accepted the connector is reported to
+/// `authenticator` as [`abandon`](Authenticator::abandon)ed. Every
+/// failure is the [`Error`], with nothing sent: a connector this
 /// end does not accept, or one whose issuer this end holds no identity
 /// at, earns no frame. The caller drops the connection, and the close
 /// is the whole answer.
 pub async fn accept(mut connection: Connection, authenticator: &dyn Authenticator, address: IpAddr) -> Result<Handshook, Error> {
     let token = receive(&mut connection).await?;
     let peer = authenticator.verify(&token, address).await.map_err(Error::Refused)?;
-    let answer = authenticator.present(&peer.issuer).await.map_err(Error::Present)?;
-    send(&mut connection, &answer).await?;
+    let answered = match authenticator.present(&peer.issuer).await {
+        Ok(answer) => send(&mut connection, &answer).await,
+        Err(reason) => Err(Error::Present(reason)),
+    };
+    if let Err(error) = answered {
+        authenticator.abandon(&peer).await;
+        return Err(error);
+    }
     Ok(Handshook { connection, peer })
 }
