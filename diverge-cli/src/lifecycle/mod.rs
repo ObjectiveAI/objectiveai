@@ -1,9 +1,9 @@
-//! The `daemon` and `provider` commands: the program on this host
-//! started, or stopped.
+//! The `daemon`, `provider` and `issuer` commands: the program on
+//! this host started, or stopped.
 //!
-//! `diverge daemon start|stop`, `diverge provider start|stop`: the
-//! [`Program`] is the daemon's or the provider's own binary beside
-//! this one, and the root is the CLI's, handed to the program as
+//! `diverge daemon start|stop`, `diverge provider start|stop`,
+//! `diverge issuer start|stop`: the [`Program`] is the daemon's, the
+//! provider's or the issuer's own binary beside this one, and the root is the CLI's, handed to the program as
 //! `--config <root>` so that both run on the one root this command
 //! found.
 //!
@@ -23,8 +23,8 @@
 //!   completion, the whole of the program's teardown. The daemon's
 //!   port is the default daemon's in `cli.yaml`, which must be on
 //!   this host; the provider's is `provider.yaml`'s, read as the
-//!   provider reads it — see [`port`]. `daemon.yaml` is never
-//!   consulted.
+//!   provider reads it, and the issuer's `issuer.yaml`'s — see
+//!   [`port`]. `daemon.yaml` is never consulted.
 //!
 //! Neither command takes an account or a credential: the route is
 //! honoured by the program for any loopback peer, and the lock file

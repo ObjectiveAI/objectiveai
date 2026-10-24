@@ -2,7 +2,7 @@
 
 use clap::{Args, Subcommand};
 
-/// The `config` command: one of the four documents in the root, and
+/// The `config` command: one of the five documents in the root, and
 /// an action on it.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 pub struct Config {
@@ -11,7 +11,7 @@ pub struct Config {
     pub document: Document,
 }
 
-/// The four documents in the root, each with its action.
+/// The five documents in the root, each with its action.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Document {
     /// The daemon's `daemon.yaml`.
@@ -22,6 +22,12 @@ pub enum Document {
     },
     /// The provider's `provider.yaml`.
     Provider {
+        /// What to do to it.
+        #[command(subcommand)]
+        action: Action,
+    },
+    /// The issuer's `issuer.yaml`.
+    Issuer {
         /// What to do to it.
         #[command(subcommand)]
         action: Action,

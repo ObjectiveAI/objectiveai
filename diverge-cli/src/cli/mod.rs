@@ -15,6 +15,7 @@ mod error;
 mod run;
 
 pub mod config;
+pub mod issuer;
 pub mod keyring;
 pub mod link;
 

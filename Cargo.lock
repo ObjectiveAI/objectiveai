@@ -2009,6 +2009,7 @@ dependencies = [
  "bytes",
  "clap",
  "diverge-daemon",
+ "diverge-issuer",
  "diverge-provider",
  "diverge-sdk",
  "diverge-viewer-config",

@@ -13,7 +13,8 @@ use crate::lifecycle::{self, Program};
 /// `link`, the daemon linked to the provider on the root — see
 /// [`link`](super::link); for `daemon`
 /// and `provider`, the program started on the root or stopped — see
-/// [`lifecycle`]. With no command the root is found and the run ends.
+/// [`lifecycle`]; for `issuer`, the issuer started or stopped, or its
+/// identities and clients worked on — see [`issuer`](super::issuer). With no command the root is found and the run ends.
 pub async fn run(arguments: Arguments) -> Result<(), Error> {
     let root = config::root(arguments.config).await?;
     match arguments.command {
@@ -36,5 +37,6 @@ pub async fn run(arguments: Arguments) -> Result<(), Error> {
             lifecycle::run(&root, Program::Provider, action).await?;
             Ok(())
         }
+        Some(Command::Issuer(command)) => super::issuer::run(&root, command).await,
     }
 }

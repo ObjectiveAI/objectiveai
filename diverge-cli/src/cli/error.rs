@@ -3,6 +3,7 @@
 use std::fmt;
 use std::io;
 
+use diverge_issuer::password;
 use diverge_sdk::keyring;
 
 use crate::config;
@@ -36,6 +37,10 @@ pub enum Error {
     EmptyKey,
     /// A link was not made whole: which step, and why.
     Link(String),
+    /// The issuer's database refused, or could not be opened.
+    Issuer(diverge_issuer::store::Error),
+    /// A password could not be hashed.
+    Password(password::Error),
 }
 
 impl fmt::Display for Error {
@@ -51,6 +56,8 @@ impl fmt::Display for Error {
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
             Error::EmptyKey => f.write_str("the key on stdin was empty"),
             Error::Link(why) => write!(f, "the link was not made: {why}"),
+            Error::Issuer(error) => write!(f, "{error}"),
+            Error::Password(error) => write!(f, "{error}"),
         }
     }
 }
@@ -72,6 +79,8 @@ impl std::error::Error for Error {
             Error::Keyring(error) => Some(error),
             Error::Stdin(error) | Error::Stdout(error) => Some(error),
             Error::EmptyKey | Error::Link(_) => None,
+            Error::Issuer(error) => Some(error),
+            Error::Password(error) => Some(error),
         }
     }
 }
@@ -97,6 +106,18 @@ impl From<run::Error> for Error {
 impl From<keyring::Error> for Error {
     fn from(error: keyring::Error) -> Self {
         Error::Keyring(error)
+    }
+}
+
+impl From<diverge_issuer::store::Error> for Error {
+    fn from(error: diverge_issuer::store::Error) -> Self {
+        Error::Issuer(error)
+    }
+}
+
+impl From<password::Error> for Error {
+    fn from(error: password::Error) -> Self {
+        Error::Password(error)
     }
 }
 

@@ -22,6 +22,7 @@ pub async fn run(root: &Path, document: Document) -> Result<(), Error> {
     let (which, action) = match document {
         Document::Daemon { action } => (Which::Daemon, action),
         Document::Provider { action } => (Which::Provider, action),
+        Document::Issuer { action } => (Which::Issuer, action),
         Document::Viewer { action } => (Which::Viewer, action),
         Document::Cli { action } => (Which::Cli, action),
     };

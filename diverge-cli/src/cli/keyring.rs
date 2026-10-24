@@ -38,9 +38,9 @@ pub async fn run(root: &Path, command: Keyring) -> Result<(), Error> {
     print(&lines).await
 }
 
-/// The key on stdin: all of it, the trailing line end dropped. An
-/// empty one is refused.
-async fn read_key() -> Result<Key, Error> {
+/// The key on stdin — or a password, for the issuer's identities —
+/// all of it, the trailing line end dropped. An empty one is refused.
+pub(super) async fn read_key() -> Result<Key, Error> {
     let mut text = String::new();
     tokio::io::stdin()
         .read_to_string(&mut text)

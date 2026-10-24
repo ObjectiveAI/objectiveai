@@ -26,6 +26,9 @@ diverge-sdk = { path = "../diverge-sdk-rs", features = ["keyring"] }
 # reads it with; path-only, as the SDK is.
 diverge-daemon = { path = "../diverge-daemon" }
 diverge-provider = { path = "../diverge-provider" }
+# The issuer's `issuer.yaml`, likewise, and its database, which the
+# `issuer identities` and `issuer clients` commands write directly.
+diverge-issuer = { path = "../diverge-issuer" }
 # The viewer's `viewer.yaml` likewise: a crate beside the app, since a
 # Tauri app is not a library.
 diverge-viewer-config = { path = "../diverge-viewer/config" }
