@@ -25,14 +25,17 @@
 //! `request-schema` beneath the request prints, and whose every answer
 //! `response-schema` states; see [`run`]. Each program's document in
 //! the root is read, rewritten and edited beneath the program —
-//! `daemon config`, `provider config`, `viewer config`, `cli config` —
-//! through jq, as JSON on this side; see [`document`]. The commands
-//! `daemon start|stop` and `provider start|stop` start the program on
-//! the root — its own
+//! `daemon config`, `provider config`, `issuer config`, `viewer config`,
+//! `cli config` — through jq, as JSON on this side; see [`document`].
+//! The commands `daemon start|stop`, `provider start|stop` and `issuer
+//! start|stop` start the program on the root — its own
 //! binary beside this one, spawned detached and waited for until it
 //! holds the root's lock — and stop it, by one `POST /stop` on its
 //! own port from this host, waited for until the lock is free; see
-//! [`lifecycle`].
+//! [`lifecycle`]. The issuer takes no commands of its own: its
+//! identities and its signing keys are worked on here, in its
+//! `issuer.sqlite` — `issuer identities add|list|remove|password`,
+//! `issuer keys rotate [--sign-out]|list` — see [`cli::issuer`].
 
 pub mod arguments;
 pub mod cli;

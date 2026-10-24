@@ -19,6 +19,7 @@ mod print;
 
 pub mod config;
 pub mod identities;
+pub mod issuer;
 
 pub use error::*;
 pub use run::*;
