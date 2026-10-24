@@ -6,6 +6,7 @@ import { agentKey, useShared } from "../lib/context";
 import { type AgentRef, type LogItem, type LogsRequest, type Turn, contentText, useLogs } from "../lib/conversation";
 import { handle } from "../lib/daemon";
 import { number, time } from "../lib/format";
+import { type Identity, identityKey } from "../lib/machines";
 import { t } from "../strings";
 import { NotConnected } from "./NotConnected";
 
@@ -133,9 +134,8 @@ function TurnView({ turn }: { turn: Turn }) {
 }
 
 /** Where an agent ran, as its log names the provider. */
-function where(item: LogItem & { identity: { kind: string } }): string {
-  const identity = item.identity;
-  return identity.kind === "outgoing" ? (identity as { address: string }).address : (identity as { identity: string }).identity;
+function where(item: LogItem & { identity: Identity }): string {
+  return identityKey(item.identity);
 }
 
 /** The message field, and the messages sent that the agent has not yet taken. */

@@ -9,7 +9,6 @@ import { SharedContext } from "./lib/context";
 import { app, errorText } from "./lib/app";
 import { type WireStatus, link, useAgents } from "./lib/daemon";
 import { Conversation } from "./screens/Conversation";
-import { Machines } from "./screens/Machines";
 import { NewAgent } from "./screens/NewAgent";
 import { Settings } from "./screens/Settings";
 import { Storage } from "./screens/Storage";
@@ -129,7 +128,6 @@ export function App() {
                 {tab.kind === "agent" ? <Conversation template={tab.template} index={tab.index} name={tab.name} /> : null}
                 {tab.kind === "new_agent" ? <NewAgent /> : null}
                 {tab.kind === "storage" ? <Storage /> : null}
-                {tab.kind === "machines" ? <Machines /> : null}
                 {tab.kind === "views" ? <Views /> : null}
                 {tab.kind === "settings" ? <Settings /> : null}
               </div>

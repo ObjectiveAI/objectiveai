@@ -6,17 +6,20 @@
 //!   its own document in it and its own directory under it: the
 //!   viewer keeps its files under `<root>/viewer/`.
 //! - `<root>/viewer.yaml` is read if present; absent means the
-//!   built-in defaults, [`Config::default`]. No other name or
+//!   built-in default, [`Config::default`], which names no daemon —
+//!   and a viewer with no daemon does not start. No other name or
 //!   extension is looked for — see [`load`].
 //! - [`Config`] is the document; [`Daemon`] its `daemon`, which says
-//!   which daemon the viewer dials and as whom. A key the document
+//!   which daemon the viewer dials and as which of the root's
+//!   identities. A key the document
 //!   does not have is refused, so a misspelled setting is refused
 //!   rather than ignored.
 //!
 //! ```yaml
 //! daemon:
 //!   address: ws://127.0.0.1:14980/
-//!   key: root
+//!   issuer: https://auth.example.com
+//!   subject: alice
 //! ```
 //!
 //! [`Error`] is why the root or the file could not be used.

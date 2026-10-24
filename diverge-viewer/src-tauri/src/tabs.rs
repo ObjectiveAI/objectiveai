@@ -17,7 +17,6 @@ pub fn key_of(tab: &TabKind) -> String {
         TabKind::Agent { template, index, .. } => format!("agent:{template}:{index}"),
         TabKind::NewAgent => "new-agent".into(),
         TabKind::Storage => "storage".into(),
-        TabKind::Machines => "machines".into(),
         TabKind::Views => "views".into(),
         TabKind::Settings => "settings".into(),
     }

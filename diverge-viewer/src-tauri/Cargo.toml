@@ -10,7 +10,7 @@ publish = false
 # frames for the page, which asks it frame by frame through the proxy
 # commands and reads every answer with the TypeScript SDK. The
 # commands and the link are the SDK's own `tauri_proxy`.
-diverge-sdk = { path = "../../diverge-sdk-rs", features = ["tauri-proxy"] }
+diverge-sdk = { path = "../../diverge-sdk-rs", features = ["tauri-proxy", "identities"] }
 # The one `viewer.yaml` the app reads: which daemon, and as whom; a
 # crate beside this one so the CLI reads the document with the same
 # type.

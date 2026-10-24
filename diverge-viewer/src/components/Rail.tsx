@@ -43,9 +43,6 @@ export function Rail(props: { focused: string | null }) {
           <Row className="rail-item" on={here("storage")} onClick={() => open({ kind: "storage" })}>
             <Icon name="files" /> <span className="rail-item-name">{t.rail.storage}</span>
           </Row>
-          <Row className="rail-item" on={here("machines")} onClick={() => open({ kind: "machines" })}>
-            <Icon name="machine" /> <span className="rail-item-name">{t.rail.machines}</span>
-          </Row>
           <Row className="rail-item" on={here("views")} onClick={() => open({ kind: "views" })}>
             <Icon name="view" /> <span className="rail-item-name">{t.rail.views}</span>
           </Row>

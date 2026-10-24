@@ -10,7 +10,7 @@ and worktree inherits it.
   list is folded by `shared.listing.Listing` with the frame's `change()`; the answer is the frame. The page's one
   handle, the link's status and the list hook (`useListing`, `useAgents`, `useAccounts`) are `src/lib/daemon.ts`.
   The SDK's `dist` is built by the `sdk` script before `dev`, `build` and `typecheck` read it.
-- **Rust holds the one connection** — the daemon's address and credential, the socket, the router — and the page
+- **Rust holds the one connection** — the daemon's address and identity, the socket, the router — and the page
   never does: the content security policy (tauri.conf.json) connects only to Tauri's IPC. The page's handle is
   `wire.proxy.handle(...)` over the Rust SDK's own runner, `diverge_sdk::tauri_proxy` (the `tauri-proxy` feature):
   main.rs manages one `TauriProxy` from `viewer.yaml`'s daemon and registers its six commands — the four sends and
@@ -35,9 +35,9 @@ and worktree inherits it.
   nothing, and the screens say why.
 - **The root** is the daemon's rule (`diverge-viewer/config`, crate `diverge-viewer-config`): `--config <dir>`,
   else `DIVERGE_CONFIG`, else `~/.diverge`. `<root>/viewer.yaml` says which daemon and as whom (`daemon.address`,
-  `daemon.key`, the name of a keyring entry, never a key: main.rs reads the key from `<root>/keyring.db`, the SDK's
-  `keyring`, and an entry it does not hold stops the start; absent = `ws://127.0.0.1:14980/` as
-  `daemon/accounts/root`); `diverge viewer config get|set|patch` edits it with
+  `daemon.issuer`, `daemon.subject`: one of `<root>/identities/`, signed in by `diverge identities login` — the
+  viewer has no login of its own. main.rs presents it through the SDK's `identities::Presenter`, keeping its token
+  fresh and taking the daemon's answer at its word; a document naming no daemon stops the start); `diverge viewer config get|set|patch` edits it with
   the same type. `<root>/viewer/` holds every file the app keeps. **Setup** is `AppState::open(folder)`
   (actions.rs); main.rs resolves the root and loads the document.
 - **No menu bar and no tab strip** (both removed 2026-10-23 at the owner's word): main.rs builds no menu, and the
@@ -66,8 +66,8 @@ and worktree inherits it.
 - Words are tabled: every user-facing string lives in `src/strings.ts`.
 
 ## Screens (draft five, on the SDK)
-The rail: the agents the daemon lists, kept current; Storage, Machines, Views, Settings. New agent · a conversation
-· Storage (volumes, across providers) · Machines (the daemon's providers, with the names you gave them) · Views
+The rail: the agents the daemon lists, kept current; Storage, Views, Settings. New agent · a conversation
+· Storage (volumes, across providers) · Views
 (saved log requests) · Settings (the daemon's status, the theme, the folder).
 
 ## Working on it
