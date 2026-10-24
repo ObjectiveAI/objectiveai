@@ -4,7 +4,7 @@ use serde::Deserialize;
 use zeroize::Zeroizing;
 
 use super::Pending;
-use super::discovery::discover;
+use crate::identities::discovery::{at, discover};
 use crate::identities::claims::now;
 use crate::identities::oauth::{Answer, post};
 use crate::identities::{Error, Identities};
@@ -32,7 +32,11 @@ impl Identities {
     /// the verification URI; [`Pending::wait`] ends the login. See the
     /// [rules](crate::identities), rule 6.
     pub async fn login(&self, issuer: &str, client_id: &str, scope: &str, resource: Option<&str>) -> Result<Pending, Error> {
-        let (discovery, device) = discover(&self.http, issuer).await?;
+        let discovery = discover(&self.http, issuer).await?;
+        let device = discovery
+            .device_authorization_endpoint
+            .clone()
+            .ok_or_else(|| Error::Discovery(format!("the document at `{}` names no device authorization endpoint", at(issuer))))?;
         let mut values: Vec<&str> = scope.split_ascii_whitespace().collect();
         for needed in ["openid", "offline_access"] {
             if !values.contains(&needed) {

@@ -10,7 +10,6 @@
 //! through this module and not through the file it lives in.
 
 mod device;
-mod discovery;
 mod pending;
 
 pub use pending::*;

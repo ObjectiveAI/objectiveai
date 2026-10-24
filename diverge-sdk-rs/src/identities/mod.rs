@@ -65,6 +65,10 @@
 //!    it asked for none; a `resource` is asked again at every refresh,
 //!    so the token stays for it.
 //!
+//! 9. **Verifying another end's token** is [`KeySets::verify`], against
+//!    the token's issuer's keys, fetched once and cached until they
+//!    expire — see [`verify`] for its own rules.
+//!
 //! [`Token`] is a token handed out: it has no way out but
 //! [`expose`](Token::expose), and its memory is zeroed on drop. The
 //! file's own record has no public type at all.
@@ -73,6 +77,7 @@
 //! through this module and not through the file it lives in.
 
 mod claims;
+mod discovery;
 mod encode;
 mod error;
 mod fresh;
@@ -86,8 +91,11 @@ mod refresh;
 mod remove;
 mod token;
 
+pub mod verify;
+
 pub use error::*;
 pub use identities::*;
 pub use login::*;
 pub use name::*;
 pub use token::*;
+pub use verify::*;

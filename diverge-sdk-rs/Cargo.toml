@@ -22,7 +22,7 @@ publish = true
 # dependents do (the musl images inside containers have no windowing
 # system). The proxy presents a token, so it brings the identities.
 [features]
-identities = ["dep:zeroize", "dep:percent-encoding", "dep:base64"]
+identities = ["dep:zeroize", "dep:percent-encoding", "dep:base64", "dep:dashmap", "dep:jsonwebtoken"]
 tauri-proxy = ["dep:tauri", "identities"]
 
 [dependencies]
@@ -82,6 +82,11 @@ tauri = { version = "2.10.3", default-features = false, optional = true }
 zeroize = { version = "=1.8.2", optional = true }
 percent-encoding = { version = "=2.3.2", optional = true }
 base64 = { version = "=0.22.1", optional = true }
+# `identities` only: the cache of every issuer's key set, one lock per
+# issuer apart from the map; and the signature a token is checked by,
+# against a key of that set, with no PEM.
+dashmap = { version = "=6.2.1", optional = true }
+jsonwebtoken = { version = "=11.1.0", default-features = false, features = ["rust_crypto"], optional = true }
 # Container ids, minted by the provider's server.
 uuid = { version = "1.18.1", default-features = false, features = ["v4"] }
 

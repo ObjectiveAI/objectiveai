@@ -11,9 +11,12 @@ use serde::Deserialize;
 const BASE64URL: GeneralPurpose =
     GeneralPurpose::new(&URL_SAFE, GeneralPurposeConfig::new().with_decode_padding_mode(DecodePaddingMode::Indifferent));
 
-/// The two claims read: the subject and the expiry.
+/// The claims read: the issuer, the subject and the expiry.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub(super) struct Claims {
+    /// `iss`: which issuer's keys a token is checked against, read
+    /// before the check.
+    pub(super) iss: Option<String>,
     /// `sub`.
     pub(super) sub: Option<String>,
     /// `exp`, in seconds since the Unix epoch.
@@ -21,9 +24,10 @@ pub(super) struct Claims {
 }
 
 /// The claims of `jwt`, its payload read and nothing checked; `None`
-/// when it is no JWT. Only a token taken from the issuer's token
-/// endpoint itself is read so, where nothing stands between the two
-/// but TLS.
+/// when it is no JWT. A token taken from the issuer's token endpoint
+/// itself is read so, where nothing stands between the two but TLS;
+/// any other token only for its `iss`, to choose the keys its
+/// signature is then checked against.
 pub(super) fn claims(jwt: &str) -> Option<Claims> {
     let payload = jwt.split('.').nth(1)?;
     let bytes = BASE64URL.decode(payload).ok()?;
