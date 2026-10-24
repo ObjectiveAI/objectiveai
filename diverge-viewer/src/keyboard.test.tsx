@@ -6,7 +6,7 @@ import { SharedContext, type Shared } from "./lib/context";
 import type { Agent } from "./lib/daemon";
 import { t } from "./strings";
 
-// Only what the rail reads of an agent; the rest the daemon sends.
+// Agents the rail is handed, and no longer lists.
 const ada = { template: "t1", index: 1, name: "ada", active: true } as Agent;
 const second = { template: "t1", index: 2, active: false } as Agent;
 const shared: Shared = {
@@ -20,10 +20,12 @@ const shared: Shared = {
 };
 const render = (el: ReturnType<typeof createElement>) => renderToStaticMarkup(createElement(SharedContext.Provider, { value: shared }, el));
 
-describe("an agent in the rail", () => {
+describe("the rail", () => {
   const html = render(createElement(Rail, { focused: null }));
-  it("is named, and one with no name is named by its number", () => {
-    expect(html).toContain(">ada<");
-    expect(html).toContain(`>${t.rail.unnamed} 2<`);
+  it("lists its places in order, Graph first, and no agent", () => {
+    const places = [t.rail.graph, t.rail.agents, t.rail.tools, t.rail.storage, t.rail.views, t.rail.settings].map((name) => html.indexOf(`>${name}<`));
+    expect(places.every((at) => at >= 0)).toBe(true);
+    expect([...places].sort((a, b) => a - b)).toEqual(places);
+    expect(html).not.toContain(">ada<");
   });
 });

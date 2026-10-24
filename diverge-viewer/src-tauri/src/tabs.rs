@@ -5,17 +5,28 @@
 
 use crate::view::{TabKind, TabView, TabsSnapshot};
 
-#[derive(Default)]
 pub struct Tabs {
     generation: u64,
     tabs: Vec<TabView>,
     focused: Option<String>,
 }
 
+/// The tabs a viewer starts with: Graph, open and focused.
+impl Default for Tabs {
+    fn default() -> Self {
+        let mut tabs = Tabs { generation: 0, tabs: Vec::new(), focused: None };
+        tabs.open(TabKind::Graph);
+        tabs
+    }
+}
+
 pub fn key_of(tab: &TabKind) -> String {
     match tab {
         TabKind::Agent { template, index, .. } => format!("agent:{template}:{index}"),
         TabKind::NewAgent => "new-agent".into(),
+        TabKind::Graph => "graph".into(),
+        TabKind::Agents => "agents".into(),
+        TabKind::Tools => "tools".into(),
         TabKind::Storage => "storage".into(),
         TabKind::Views => "views".into(),
         TabKind::Settings => "settings".into(),

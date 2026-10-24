@@ -8,10 +8,13 @@ import { Empty } from "./components/ui";
 import { SharedContext } from "./lib/context";
 import { app, errorText } from "./lib/app";
 import { type WireStatus, link, useAgents } from "./lib/daemon";
+import { Agents } from "./screens/Agents";
 import { Conversation } from "./screens/Conversation";
+import { Graph } from "./screens/Graph";
 import { NewAgent } from "./screens/NewAgent";
 import { Settings } from "./screens/Settings";
 import { Storage } from "./screens/Storage";
+import { Tools } from "./screens/Tools";
 import { Views } from "./screens/Views";
 import { t } from "./strings";
 
@@ -127,6 +130,9 @@ export function App() {
               <div key={key} className="pane" data-pane={key} hidden={tabs.focused !== key}>
                 {tab.kind === "agent" ? <Conversation template={tab.template} index={tab.index} name={tab.name} /> : null}
                 {tab.kind === "new_agent" ? <NewAgent /> : null}
+                {tab.kind === "graph" ? <Graph /> : null}
+                {tab.kind === "agents" ? <Agents /> : null}
+                {tab.kind === "tools" ? <Tools /> : null}
                 {tab.kind === "storage" ? <Storage /> : null}
                 {tab.kind === "views" ? <Views /> : null}
                 {tab.kind === "settings" ? <Settings /> : null}

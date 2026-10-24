@@ -66,9 +66,10 @@ and worktree inherits it.
 - Words are tabled: every user-facing string lives in `src/strings.ts`.
 
 ## Screens (draft five, on the SDK)
-The rail: the agents the daemon lists, kept current; Storage, Views, Settings. New agent · a conversation
-· Storage (volumes, across providers) · Views
-(saved log requests) · Settings (the daemon's status, the theme, the folder).
+The rail: Graph, Agents, Tools, Storage, Views, Settings — Graph open and selected at start (`Tabs::default`);
+no agent list. Graph, Agents and Tools are empty for now. Reached by ⌘N or by whatever opens them: New agent · a
+conversation. · Storage (volumes, across providers) · Views (saved log requests) · Settings (the daemon's status, the
+theme, the folder).
 
 ## Working on it
 Plain words, few of them, tl;dr first. Show screenshots, don't describe. Check the code before asking the product's

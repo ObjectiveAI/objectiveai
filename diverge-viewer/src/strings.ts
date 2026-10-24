@@ -7,13 +7,22 @@ export const t = {
     draft: "draft five",
   },
   rail: {
+    graph: "Graph",
     agents: "Agents",
-    newAgent: "New agent",
+    tools: "Tools",
     unnamed: "Agent",
     storage: "Storage",
     views: "Views",
     settings: "Settings",
-    empty: "No agents yet.",
+  },
+  graph: {
+    title: "Graph",
+  },
+  agents: {
+    title: "Agents",
+  },
+  tools: {
+    title: "Tools",
   },
   settings: {
     title: "Settings",
