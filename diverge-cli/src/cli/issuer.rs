@@ -10,18 +10,21 @@ use serde_json::json;
 
 use super::Error;
 use super::keyring::{print, read_key};
-use crate::arguments::{Clients, Grant, Identities, Issuer, Lifecycle};
+use crate::arguments::{Clients, Grant, Identities, Issuer};
+use crate::document::Which;
 use crate::lifecycle::{self, Program};
 
 /// Do `command` on the root: `start` and `stop` as the daemon's and
-/// the provider's are done — see [`lifecycle`] — and the identities
+/// the provider's are done — see [`lifecycle`] — `config` as every
+/// program's document is — see [`config`](super::config) — and the
+/// identities
 /// and the clients worked on in `issuer.sqlite`, printing one JSON
 /// line per answer. No line holds a password, a secret, or a hash of
 /// either.
 pub async fn run(root: &Path, command: Issuer) -> Result<(), Error> {
     match command {
-        Issuer::Start => Ok(lifecycle::run(root, Program::Issuer, Lifecycle::Start).await?),
-        Issuer::Stop => Ok(lifecycle::run(root, Program::Issuer, Lifecycle::Stop).await?),
+        Issuer::Lifecycle(action) => Ok(lifecycle::run(root, Program::Issuer, action).await?),
+        Issuer::Config(action) => super::config::run(root, Which::Issuer, action).await,
         Issuer::Identities(command) => identities(root, command).await,
         Issuer::Clients(command) => clients(root, command).await,
     }

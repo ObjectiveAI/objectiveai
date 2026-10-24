@@ -1,5 +1,5 @@
-//! What `diverge daemon` and `diverge provider` take: start, or stop;
-//! `diverge issuer` takes them beside its own commands.
+//! Start, or stop: what `diverge daemon`, `diverge provider` and
+//! `diverge issuer` each take beside `config`.
 
 use clap::Subcommand;
 

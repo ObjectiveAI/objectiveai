@@ -1,50 +1,7 @@
-//! What `diverge config` takes: which document, and what to do to it.
+//! What `<program> config` takes: what to do to the program's
+//! document.
 
-use clap::{Args, Subcommand};
-
-/// The `config` command: one of the five documents in the root, and
-/// an action on it.
-#[derive(Debug, Clone, PartialEq, Eq, Args)]
-pub struct Config {
-    /// The document.
-    #[command(subcommand)]
-    pub document: Document,
-}
-
-/// The five documents in the root, each with its action.
-#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
-pub enum Document {
-    /// The daemon's `daemon.yaml`.
-    Daemon {
-        /// What to do to it.
-        #[command(subcommand)]
-        action: Action,
-    },
-    /// The provider's `provider.yaml`.
-    Provider {
-        /// What to do to it.
-        #[command(subcommand)]
-        action: Action,
-    },
-    /// The issuer's `issuer.yaml`.
-    Issuer {
-        /// What to do to it.
-        #[command(subcommand)]
-        action: Action,
-    },
-    /// The viewer's `viewer.yaml`.
-    Viewer {
-        /// What to do to it.
-        #[command(subcommand)]
-        action: Action,
-    },
-    /// The CLI's own `cli.yaml`.
-    Cli {
-        /// What to do to it.
-        #[command(subcommand)]
-        action: Action,
-    },
-}
+use clap::Subcommand;
 
 /// What is done to a document: see [`run`](crate::cli::config::run)
 /// for each in full. The document is read as its program

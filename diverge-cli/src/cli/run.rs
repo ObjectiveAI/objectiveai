@@ -1,20 +1,23 @@
 //! One run of the program.
 
 use super::Error;
-use crate::arguments::{Arguments, Command};
+use crate::arguments::{Arguments, Command, Document, Server};
 use crate::config;
+use crate::document::Which;
 use crate::lifecycle::{self, Program};
 
 /// Run `diverge` as told: the root found; then, for `run`, `cli.yaml`
 /// read, the daemon and the account selected, and the request put —
-/// see [`run`](crate::run); for `config`, the document read, narrowed,
-/// rewritten or edited — see [`config`](super::config); for `keyring`,
+/// see [`run`](crate::run); for `<program> config`, the program's
+/// document read, narrowed, rewritten or edited — see
+/// [`config`](super::config); for `keyring`,
 /// the root's keyring worked on — see [`keyring`](super::keyring); for
 /// `link`, the daemon linked to the provider on the root — see
 /// [`link`](super::link); for `daemon`
 /// and `provider`, the program started on the root or stopped — see
 /// [`lifecycle`]; for `issuer`, the issuer started or stopped, or its
-/// identities and clients worked on — see [`issuer`](super::issuer). With no command the root is found and the run ends.
+/// identities and clients worked on — see [`issuer`](super::issuer).
+/// With no command the root is found and the run ends.
 pub async fn run(arguments: Arguments) -> Result<(), Error> {
     let root = config::root(arguments.config).await?;
     match arguments.command {
@@ -26,17 +29,34 @@ pub async fn run(arguments: Arguments) -> Result<(), Error> {
             crate::run::run(&root, &selected, run).await?;
             Ok(())
         }
-        Some(Command::Config(request)) => super::config::run(&root, request.document).await,
         Some(Command::Keyring(command)) => super::keyring::run(&root, command).await,
         Some(Command::Link(command)) => super::link::run(&root, command).await,
-        Some(Command::Daemon(action)) => {
-            lifecycle::run(&root, Program::Daemon, action).await?;
-            Ok(())
+        Some(Command::Daemon(command)) => {
+            server(&root, Program::Daemon, Which::Daemon, command).await
         }
-        Some(Command::Provider(action)) => {
-            lifecycle::run(&root, Program::Provider, action).await?;
-            Ok(())
+        Some(Command::Provider(command)) => {
+            server(&root, Program::Provider, Which::Provider, command).await
         }
         Some(Command::Issuer(command)) => super::issuer::run(&root, command).await,
+        Some(Command::Viewer(Document::Config(action))) => {
+            super::config::run(&root, Which::Viewer, action).await
+        }
+        Some(Command::Cli(Document::Config(action))) => {
+            super::config::run(&root, Which::Cli, action).await
+        }
+    }
+}
+
+/// A server's command, done: `start` and `stop` — see [`lifecycle`] —
+/// or `config` on its document — see [`config`](super::config).
+async fn server(
+    root: &std::path::Path,
+    program: Program,
+    which: Which,
+    command: Server,
+) -> Result<(), Error> {
+    match command {
+        Server::Lifecycle(action) => Ok(lifecycle::run(root, program, action).await?),
+        Server::Config(action) => super::config::run(root, which, action).await,
     }
 }

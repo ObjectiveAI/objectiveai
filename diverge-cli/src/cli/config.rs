@@ -1,4 +1,4 @@
-//! The `config` command, done.
+//! The `config` command beneath every program, done.
 
 use std::path::Path;
 
@@ -7,25 +7,19 @@ use tokio::io::AsyncWriteExt as _;
 use diverge_sdk::daemon::patch;
 
 use super::Error;
-use crate::arguments::{Action, Document};
+use crate::arguments::Action;
 use crate::document::{self, Which};
 use crate::jq;
 
-/// Do `action` to the document in the root: a `get` prints every
+/// Do `action` to the document `which` names in the root — the
+/// document of the program the command is beneath: a `get` prints every
 /// value the filter yields — `.` when none was given — as JSON, one
 /// line each; a `set` runs the program, takes
 /// the one value it yields as the new document, validates it by the
 /// document's type, and writes it; a `patch` applies the JSON Patch
 /// to the document, whole or not at all, validates the result by the
 /// document's type, and writes it.
-pub async fn run(root: &Path, document: Document) -> Result<(), Error> {
-    let (which, action) = match document {
-        Document::Daemon { action } => (Which::Daemon, action),
-        Document::Provider { action } => (Which::Provider, action),
-        Document::Issuer { action } => (Which::Issuer, action),
-        Document::Viewer { action } => (Which::Viewer, action),
-        Document::Cli { action } => (Which::Cli, action),
-    };
+pub async fn run(root: &Path, which: Which, action: Action) -> Result<(), Error> {
     match action {
         Action::Get { filter } => {
             let current = document::read(root, which).await?;

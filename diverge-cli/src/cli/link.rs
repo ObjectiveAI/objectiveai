@@ -5,7 +5,7 @@
 //! 1. The key is minted into the root's keyring as `provider/<name>`.
 //!    A name already held is refused, and nothing else is done.
 //! 2. `provider.yaml` gains the way `{key: provider/<name>, identity}`
-//!    in `auth.unbrokered`, validated and written as `config provider
+//!    in `auth.unbrokered`, validated and written as `provider config
 //!    set` writes it.
 //! 3. The daemon `cli.yaml` selects is told to dial the provider at
 //!    `ws://127.0.0.1:<its port>/`, presenting the entry's key:

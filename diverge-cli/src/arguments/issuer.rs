@@ -2,19 +2,21 @@
 
 use clap::{ArgGroup, Subcommand, ValueEnum};
 
-/// The issuer on this host: started, stopped, and the identities and
-/// clients in its `issuer.sqlite` worked on. The identities and the
-/// clients are written to the database directly, whether the issuer
-/// runs or not; the issuer reads both at every request.
+use super::{Action, Lifecycle};
+
+/// The issuer on this host: started, stopped, its `issuer.yaml`
+/// worked on, and the identities and clients in its `issuer.sqlite`.
+/// The identities and the clients are written to the database
+/// directly, whether the issuer runs or not; the issuer reads both at
+/// every request.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Issuer {
-    /// Start the issuer on the root, detached, its output in
-    /// `<root>/issuer.log`; the command ends once the issuer holds the
-    /// root's lock.
-    Start,
-    /// Stop the issuer running on the root, asked over its own port on
-    /// this host; the command ends once the root's lock is free.
-    Stop,
+    /// Start or stop the issuer: see [`lifecycle`](crate::lifecycle).
+    #[command(flatten)]
+    Lifecycle(Lifecycle),
+    /// Read, rewrite or edit the issuer's `issuer.yaml`.
+    #[command(subcommand)]
+    Config(Action),
     /// The identities a person signs in as.
     #[command(subcommand)]
     Identities(Identities),
