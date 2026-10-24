@@ -17,18 +17,16 @@ pub enum Error {
     /// `--arguments` is not a JSON object: where in it, and what was
     /// wrong.
     Arguments(serde_path_to_error::Error<serde_json::Error>),
-    /// The root's keyring could not be opened or read: what it said.
-    Keyring(String),
-    /// The root's keyring holds no entry of the name the account's
-    /// key names.
-    NoKey(String),
+    /// The root's identities could not be opened: what they said.
+    Identities(String),
     /// The daemon could not be dialled.
     Dial(String),
-    /// The credential could not be presented.
-    Authorize(String),
+    /// The handshake did not complete: the account's token could not
+    /// be had, or the daemon closed on it.
+    Handshake(String),
     /// The daemon closed the connection with no answer, which is what
-    /// it does to a credential it refuses — and to nothing else it
-    /// says: the account's key may have been rejected.
+    /// it does to an identity it does not admit — and to nothing else
+    /// it says: the account may be none of the daemon's.
     Rejected,
     /// The exchange failed: the scope could not be opened, a frame
     /// could not be read.
@@ -61,13 +59,12 @@ impl fmt::Display for Error {
         match self {
             Error::Body(error) => write!(f, "the body is not what the request takes: {error}"),
             Error::Arguments(error) => write!(f, "`--arguments` is not a JSON object: {error}"),
-            Error::Keyring(error) => write!(f, "the keyring could not be read: {error}"),
-            Error::NoKey(entry) => write!(f, "the keyring holds no `{entry}`, the account's key"),
+            Error::Identities(error) => write!(f, "the identities could not be opened: {error}"),
             Error::Dial(error) => write!(f, "the daemon could not be dialled: {error}"),
-            Error::Authorize(error) => write!(f, "the credential could not be presented: {error}"),
+            Error::Handshake(error) => write!(f, "the handshake did not complete: {error}"),
             Error::Rejected => write!(
                 f,
-                "the daemon closed the connection without answering: the account's key may have been rejected"
+                "the daemon closed the connection without answering: the account may be none of the daemon's"
             ),
             Error::Exchange(error) => write!(f, "the exchange failed: {error}"),
             Error::Io { path, source } => {
@@ -93,10 +90,9 @@ impl std::error::Error for Error {
             Error::Jq(error) => Some(error),
             Error::Stdout(error) => Some(error),
             Error::Rejected
-            | Error::Keyring(_)
-            | Error::NoKey(_)
+            | Error::Identities(_)
             | Error::Dial(_)
-            | Error::Authorize(_)
+            | Error::Handshake(_)
             | Error::Exchange(_)
             | Error::Timeout(_)
             | Error::NoRequest => None,

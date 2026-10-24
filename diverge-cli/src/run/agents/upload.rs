@@ -36,7 +36,7 @@ pub struct Arguments {
 pub struct Regular {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]; `relay` among its members has another daemon
-    /// serve it, as an account held there. Absent, `{}`.
+    /// serve it. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
     /// The local file a file upload reads, or the local directory a

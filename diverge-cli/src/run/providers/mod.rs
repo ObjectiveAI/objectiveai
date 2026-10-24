@@ -1,30 +1,29 @@
 //! `diverge run providers …`.
 //!
-//! The requests over providers: those dialled, those that dial in, and
-//! daemons reached through them. One file per request, one folder per
-//! family within: the tree of files is the tree of subcommands.
+//! The requests over providers — the ones the daemon's configuration
+//! accepts — and the remote daemons reached through them. One file per
+//! request, one folder per family within: the tree of files is the tree
+//! of subcommands.
 
 use clap::Subcommand;
 
 use crate::run::{Emitter, Error, Target};
 
 pub mod daemons;
-pub mod incoming;
-pub mod outgoing;
+pub mod get;
+pub mod list;
 
-/// The requests over providers: those dialled, those that dial in, and
-/// daemons reached through them.
+/// The requests over providers and the remote daemons reached through
+/// them.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Providers {
-    /// The requests over daemon records.
+    /// The requests over the remote daemons.
     #[command(subcommand)]
     Daemons(daemons::Daemons),
-    /// The requests over incoming credentials.
-    #[command(subcommand)]
-    Incoming(incoming::Incoming),
-    /// The requests over outgoing providers.
-    #[command(subcommand)]
-    Outgoing(outgoing::Outgoing),
+    /// Getting one provider.
+    Get(get::Arguments),
+    /// Listing the providers.
+    List(list::Arguments),
 }
 
 /// The request put, by its subcommand.
@@ -35,7 +34,7 @@ pub async fn run(
 ) -> Result<(), Error> {
     match command {
         Providers::Daemons(command) => daemons::run(command, target, emitter).await,
-        Providers::Incoming(command) => incoming::run(command, target, emitter).await,
-        Providers::Outgoing(command) => outgoing::run(command, target, emitter).await,
+        Providers::Get(arguments) => get::run(arguments, target, emitter).await,
+        Providers::List(arguments) => list::run(arguments, target, emitter).await,
     }
 }

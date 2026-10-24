@@ -10,13 +10,10 @@ use crate::lifecycle::{self, Program};
 /// read, the daemon and the account selected, and the request put —
 /// see [`run`](crate::run); for `<program> config`, the program's
 /// document read, narrowed, rewritten or edited — see
-/// [`config`](super::config); for `keyring`,
-/// the root's keyring worked on — see [`keyring`](super::keyring); for
-/// `link`, the daemon linked to the provider on the root — see
-/// [`link`](super::link); for `daemon`
-/// and `provider`, the program started on the root or stopped — see
-/// [`lifecycle`]; for `issuer`, the issuer started or stopped, or its
-/// identities and clients worked on — see [`issuer`](super::issuer).
+/// [`config`](super::config); for `identities`, the root's identities
+/// signed in, listed or removed — see [`identities`](super::identities);
+/// for `daemon` and `provider`, the program started on the root or
+/// stopped — see [`lifecycle`].
 /// With no command the root is found and the run ends.
 pub async fn run(arguments: Arguments) -> Result<(), Error> {
     let root = config::root(arguments.config).await?;
@@ -29,15 +26,13 @@ pub async fn run(arguments: Arguments) -> Result<(), Error> {
             crate::run::run(&root, &selected, run).await?;
             Ok(())
         }
-        Some(Command::Keyring(command)) => super::keyring::run(&root, command).await,
-        Some(Command::Link(command)) => super::link::run(&root, command).await,
+        Some(Command::Identities(command)) => super::identities::run(&root, command).await,
         Some(Command::Daemon(command)) => {
             server(&root, Program::Daemon, Which::Daemon, command).await
         }
         Some(Command::Provider(command)) => {
             server(&root, Program::Provider, Which::Provider, command).await
         }
-        Some(Command::Issuer(command)) => super::issuer::run(&root, command).await,
         Some(Command::Viewer(Document::Config(action))) => {
             super::config::run(&root, Which::Viewer, action).await
         }

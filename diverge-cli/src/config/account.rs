@@ -2,16 +2,15 @@
 
 use serde::{Deserialize, Serialize};
 
-/// An account the CLI may dial a daemon as: the keyring entry holding
-/// the key the daemon admits it by, and nothing else — the daemon
-/// knows which account the key is, and the name here is the
-/// document's own. The document holds no key.
+/// An account the CLI may dial a daemon as: the identity it is, one of
+/// the root's [`identities`](diverge_sdk::identities), whose token the
+/// CLI presents — the daemon's account is that `(issuer, subject)`. The
+/// name here is the document's own, and the document holds no token.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Account {
-    /// The name of the entry in the root's
-    /// [`keyring`](diverge_sdk::keyring) holding the account's key: the
-    /// entry the account's create named, on the daemon's host, or one
-    /// `diverge keyring set` kept for a key someone gave you.
-    pub key: String,
+    /// The identity's issuer: the one the CLI presents its token from.
+    pub issuer: String,
+    /// The identity's subject at that issuer.
+    pub subject: String,
 }

@@ -19,17 +19,17 @@ pub struct Selected<'a> {
 /// The daemon `daemon` names, else the document's default, and the
 /// account `account` names under it, else the daemon's default. A
 /// name the document does not have is [`Error::NoDaemon`] or
-/// [`Error::NoAccount`].
+/// [`Error::NoAccount`]; no account named, and none the daemon's
+/// default, is [`Error::NoDefaultAccount`].
 pub fn select<'a>(
     config: &'a Config,
     daemon: Option<&'a str>,
     account: Option<&'a str>,
 ) -> Result<Selected<'a>, Error> {
-    let daemon_name = daemon.unwrap_or(&config.default);
-    let Some(daemon) = config.daemons.get(daemon_name) else {
-        return Err(Error::NoDaemon(daemon_name.to_string()));
+    let (daemon_name, daemon) = self::daemon(config, daemon)?;
+    let Some(account_name) = account.or(daemon.default.as_deref()) else {
+        return Err(Error::NoDefaultAccount(daemon_name.to_string()));
     };
-    let account_name = account.unwrap_or(&daemon.default);
     let Some(account) = daemon.accounts.get(account_name) else {
         return Err(Error::NoAccount {
             daemon: daemon_name.to_string(),
@@ -42,4 +42,18 @@ pub fn select<'a>(
         account_name,
         account,
     })
+}
+
+/// The daemon `daemon` names, else the document's default, by name,
+/// with no account chosen: [`Error::NoDaemon`] for a name the document
+/// does not have.
+pub fn daemon<'a>(
+    config: &'a Config,
+    daemon: Option<&'a str>,
+) -> Result<(&'a str, &'a Daemon), Error> {
+    let name = daemon.unwrap_or(&config.default);
+    match config.daemons.get(name) {
+        Some(found) => Ok((name, found)),
+        None => Err(Error::NoDaemon(name.to_string())),
+    }
 }

@@ -1,22 +1,19 @@
-//! `diverge run providers daemons accounts delete`: forgetting an
-//! account on a daemon record, as
-//! [`delete`](diverge_sdk::daemon::endpoints::providers::daemons::accounts::delete)
+//! `diverge run providers get`: getting one provider,
+//! as [`get`](diverge_sdk::daemon::endpoints::providers::get)
 //! states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::providers::daemons::accounts::delete::{
-    client::request, server::response,
-};
+use diverge_sdk::daemon::endpoints::providers::get::{client::request, server::response};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Forgetting an account on a daemon record.
+/// Getting one provider.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]; `relay` among its members has another daemon
-    /// serve it, as an account held there. Absent, `{}`.
+    /// serve it. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
     /// What is beneath the request: `request-schema`, the JSON Schema
@@ -34,18 +31,10 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>(
-                "diverge run providers daemons accounts delete",
-                emitter,
-            )
-            .await;
+            return request_schema::<request::Frame>("diverge run providers get", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>(
-                "diverge run providers daemons accounts delete",
-                emitter,
-            )
-            .await;
+            return response_schema::<response::Frame>("diverge run providers get", emitter).await;
         }
         None => {}
     }

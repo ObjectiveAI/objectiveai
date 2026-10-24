@@ -23,9 +23,6 @@ use crate::config;
 ///   provider reads it — the default when there is no file — through
 ///   its own crate, so the port is the one the provider is listening
 ///   on; a file the provider would refuse is [`Error::Provider`].
-/// - The issuer's is `port` in `<root>/issuer.yaml`, read as the
-///   issuer reads it, through its own crate; a file the issuer would
-///   refuse is [`Error::Issuer`].
 ///
 /// `daemon.yaml` is never consulted: the daemon's own port is in
 /// `cli.yaml`, where the CLI dials it, and the Postgres a daemon
@@ -34,19 +31,13 @@ pub async fn port(root: &Path, program: Program) -> Result<u16, Error> {
     match program {
         Program::Daemon => {
             let config = config::load(root).await?;
-            let selected = config::select(&config, None, None)?;
-            daemon(&selected.daemon.address)
+            let (_, selected) = config::daemon(&config, None)?;
+            daemon(&selected.address)
         }
         Program::Provider => {
             let config = diverge_provider::config::load(root)
                 .await
                 .map_err(Error::Provider)?;
-            Ok(config.port)
-        }
-        Program::Issuer => {
-            let config = diverge_issuer::config::load(root)
-                .await
-                .map_err(Error::Issuer)?;
             Ok(config.port)
         }
     }

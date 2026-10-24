@@ -149,7 +149,7 @@ pub async fn run(root: &Path, selected: &Selected<'_>, run: Run) -> Result<(), E
     let target = Target {
         address: &selected.daemon.address,
         root,
-        key: &selected.account.key,
+        account: selected.account,
     };
     let exchange = async { dispatch(run.command, &target, &mut emitter).await };
     match run.timeout {

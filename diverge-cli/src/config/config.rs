@@ -4,7 +4,7 @@ use diverge_sdk::daemon::DEFAULT_PORT;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{Account, Daemon, ROOT, ROOT_KEY};
+use super::Daemon;
 
 /// The name the built-in default daemon has.
 pub const LOCAL: &str = "local";
@@ -24,19 +24,14 @@ pub struct Config {
 
 impl Default for Config {
     /// The built-in default: one daemon, [`LOCAL`], on this host at
-    /// the daemon's own default port, holding the one account
-    /// [`ROOT`] by the keyring entry a fresh daemon seeds its key in,
-    /// [`ROOT_KEY`].
+    /// the daemon's own default port, with no account: a daemon admits
+    /// no one it holds no account for, and the CLI holds none until the
+    /// document names one.
     fn default() -> Self {
         let local = Daemon {
             address: format!("ws://127.0.0.1:{DEFAULT_PORT}/"),
-            default: ROOT.to_string(),
-            accounts: IndexMap::from([(
-                ROOT.to_string(),
-                Account {
-                    key: ROOT_KEY.to_string(),
-                },
-            )]),
+            default: None,
+            accounts: IndexMap::new(),
         };
         Config {
             default: LOCAL.to_string(),

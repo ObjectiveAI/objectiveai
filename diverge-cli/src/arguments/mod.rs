@@ -8,9 +8,8 @@
 //! is worked on beneath the program, `diverge <program> config`, by an
 //! [`Action`]: the daemon and the provider are each a [`Server`] —
 //! started or stopped by a [`Lifecycle`], or configured — the viewer
-//! and the CLI each a [`Document`], configured alone; the issuer's own
-//! commands, its lifecycle and its document among them, are
-//! [`Issuer`].
+//! and the CLI each a [`Document`], configured alone. The host's
+//! OpenID Connect identities are [`Identities`].
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -19,18 +18,14 @@ mod arguments;
 mod command;
 mod config;
 mod document;
-mod issuer;
-mod keyring;
+mod identities;
 mod lifecycle;
-mod link;
 mod server;
 
 pub use arguments::*;
 pub use command::*;
 pub use config::*;
 pub use document::*;
-pub use issuer::*;
-pub use keyring::*;
+pub use identities::*;
 pub use lifecycle::*;
-pub use link::*;
 pub use server::*;

@@ -1,4 +1,4 @@
-//! `diverge run providers daemons list`: listing a caller's daemons, as
+//! `diverge run providers daemons list`: listing the remote daemons, as
 //! [`list`](diverge_sdk::daemon::endpoints::providers::daemons::list)
 //! states it.
 
@@ -7,13 +7,13 @@ use diverge_sdk::daemon::endpoints::providers::daemons::list::{client::request, 
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Listing a caller's daemons.
+/// Listing the remote daemons.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]; `relay` among its members has another daemon
-    /// serve it, as an account held there. Absent, `{}`.
+    /// serve it. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
     /// Keep the list open: after the word that the list is whole, every

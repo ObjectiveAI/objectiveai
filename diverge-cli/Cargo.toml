@@ -26,12 +26,12 @@ diverge-sdk = { path = "../diverge-sdk-rs", features = ["identities"] }
 # reads it with; path-only, as the SDK is.
 diverge-daemon = { path = "../diverge-daemon" }
 diverge-provider = { path = "../diverge-provider" }
-# The issuer's `issuer.yaml`, likewise, and its database, which the
-# `issuer identities` and `issuer clients` commands write directly.
-diverge-issuer = { path = "../diverge-issuer" }
 # The viewer's `viewer.yaml` likewise: a crate beside the app, since a
 # Tauri app is not a library.
 diverge-viewer-config = { path = "../diverge-viewer/config" }
+# The browser an `identities login` opens at the issuer's verification
+# page.
+webbrowser = "=1.2.4"
 # The arguments: the one parser every command hangs off, derived.
 clap = { version = "4.6.0", features = ["derive"] }
 # The document `cli.yaml` is, as Rust.

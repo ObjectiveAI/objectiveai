@@ -3,44 +3,52 @@
 
 use std::path::Path;
 
-use diverge_sdk::keyring::Keyring;
+use diverge_sdk::identities::{Identities, Name, Presenter};
 use diverge_sdk::wire::client::dial::{DialError, dial};
 use diverge_sdk::wire::client::handle::Handle;
 
 use super::Error;
+use crate::config::Account;
 
-/// The selected daemon's address and the keyring entry of the
-/// selected account's key: what a leaf dials with, when its command
-/// line puts a request and not something answered without one.
+/// The selected daemon's address and the selected account: what a
+/// leaf dials with, when its command line puts a request and not
+/// something answered without one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Target<'a> {
     /// The daemon's WebSocket address.
     pub address: &'a str,
-    /// The root, whose keyring holds the key.
+    /// The root, whose identities hold the account's.
     pub root: &'a Path,
-    /// The entry holding the account's key.
-    pub key: &'a str,
+    /// The account: the identity the CLI presents.
+    pub account: &'a Account,
 }
 
 impl Target<'_> {
     /// The daemon dialled as the account, with the SDK's [`dial`]: the
-    /// key read from the keyring, then the router reading on a task of
-    /// its own, the handle every request is put on. A keyring that
-    /// could not be read is [`Error::Keyring`], an entry it does not
-    /// hold [`Error::NoKey`]; a socket that could not be made is
-    /// [`Error::Dial`]; a credential that could not be presented,
-    /// [`Error::Authorize`].
+    /// handshake made as its connector by a [`Presenter`] — the
+    /// account's access token from its issuer presented, refreshed
+    /// where it must be, and the daemon's answer taken at its word,
+    /// since the CLI judges no daemon — then the router reading on a
+    /// task of its own, the handle every request is put on. Identities
+    /// that could not be opened are [`Error::Identities`]; a socket
+    /// that could not be made is [`Error::Dial`]; a handshake that did
+    /// not complete — the account's token not to be had, or the daemon
+    /// closing on it — [`Error::Handshake`].
     pub async fn dial(&self) -> Result<Handle, Error> {
-        let keyring = Keyring::open(self.root).await.map_err(|error| Error::Keyring(error.to_string()))?;
-        let key = keyring
-            .get(self.key)
+        let identities = Identities::open(self.root)
             .await
-            .map_err(|error| Error::Keyring(error.to_string()))?
-            .ok_or_else(|| Error::NoKey(self.key.to_string()))?;
-        let (handle, run) = dial(self.address, key.expose()).await.map_err(|error| match error {
-            DialError::Dial(why) => Error::Dial(why),
-            DialError::Authorize(why) => Error::Authorize(why),
-        })?;
+            .map_err(|error| Error::Identities(error.to_string()))?;
+        let name = Name {
+            issuer: self.account.issuer.clone(),
+            subject: self.account.subject.clone(),
+        };
+        let presenter = Presenter::new(identities, name);
+        let (handle, run, _) = dial(self.address, &self.account.issuer, &presenter)
+            .await
+            .map_err(|error| match error {
+                DialError::Dial(why) => Error::Dial(why),
+                DialError::Handshake(why) => Error::Handshake(why),
+            })?;
         tokio::spawn(run);
         Ok(handle)
     }

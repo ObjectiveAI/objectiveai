@@ -1,4 +1,4 @@
-//! `diverge run providers daemons get`: getting one daemon, as
+//! `diverge run providers daemons get`: getting one remote daemon, as
 //! [`get`](diverge_sdk::daemon::endpoints::providers::daemons::get)
 //! states it.
 
@@ -7,13 +7,13 @@ use diverge_sdk::daemon::endpoints::providers::daemons::get::{client::request, s
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Getting one daemon.
+/// Getting one remote daemon.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]; `relay` among its members has another daemon
-    /// serve it, as an account held there. Absent, `{}`.
+    /// serve it. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
     /// What is beneath the request: `request-schema`, the JSON Schema
@@ -35,8 +35,11 @@ pub async fn run(
                 .await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>("diverge run providers daemons get", emitter)
-                .await;
+            return response_schema::<response::Frame>(
+                "diverge run providers daemons get",
+                emitter,
+            )
+            .await;
         }
         None => {}
     }

@@ -1,22 +1,19 @@
-//! `diverge run providers incoming list`: listing the credentials of
-//! incoming providers, as
-//! [`list`](diverge_sdk::daemon::endpoints::providers::incoming::list)
+//! `diverge run providers list`: listing the providers, as
+//! [`list`](diverge_sdk::daemon::endpoints::providers::list)
 //! states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::providers::incoming::list::{
-    client::request, server::response,
-};
+use diverge_sdk::daemon::endpoints::providers::list::{client::request, server::response};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Listing the credentials of incoming providers.
+/// Listing the providers.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]; `relay` among its members has another daemon
-    /// serve it, as an account held there. Absent, `{}`.
+    /// serve it. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
     /// Keep the list open: after the word that the list is whole, every
@@ -42,15 +39,10 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>("diverge run providers incoming list", emitter)
-                .await;
+            return request_schema::<request::Frame>("diverge run providers list", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>(
-                "diverge run providers incoming list",
-                emitter,
-            )
-            .await;
+            return response_schema::<response::Frame>("diverge run providers list", emitter).await;
         }
         None => {}
     }
