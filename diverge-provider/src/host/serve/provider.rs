@@ -23,7 +23,7 @@ use diverge_sdk::wire::server::session::Session;
 use crate::config::Config;
 use crate::config::volumes::Volumes;
 
-use super::{Error, Peers};
+use super::Error;
 use crate::host::capacity_reporter::CapacityReporter;
 use crate::host::container_deployer::ContainerDeployer;
 use crate::host::image_checker::ImageChecker;
@@ -64,8 +64,6 @@ pub struct Provider {
     /// The daemons accepting connections from other daemons, one map
     /// for the provider.
     acceptors: Arc<Acceptors>,
-    /// The peers connected now, one connection per identity.
-    peers: Arc<Peers>,
     /// Every change to any caller's volumes, for the listings open.
     volume_changes: Arc<Changes>,
     /// Every change to any caller's images, for the listings open.
@@ -141,7 +139,6 @@ impl Provider {
             registry,
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
-            peers: Arc::new(Peers::default()),
             volume_changes: Arc::new(Changes::new()),
             image_changes: Arc::new(Changes::new()),
             capabilities,
@@ -153,9 +150,9 @@ impl Provider {
     /// A connection a peer dialled: its handshake as the connectee —
     /// see [`authenticator`](crate::host::authenticator) — and then the
     /// connection served under the peer's identity, which it holds for
-    /// as long as it lasts. A handshake that fails, and an identity
-    /// another connection holds, close the connection with nothing
-    /// sent.
+    /// as long as it lasts. A handshake that fails — an identity
+    /// another connection holds among the ways — closes the connection
+    /// with nothing sent.
     pub async fn accept(&self, connection: Connection, address: IpAddr) {
         let Ok(Handshook { connection, peer }) = handshake::accept(connection, self.authenticator.as_ref(), address).await else {
             return;
@@ -163,15 +160,12 @@ impl Provider {
         self.held(connection, peer, address).await;
     }
 
-    /// A connection past its handshake, under `peer`: the identity
-    /// taken — a connection under an identity another holds is closed —
-    /// the connection served, and the identity let go.
+    /// A connection past its handshake, under `peer`, whose identity
+    /// the handshake took: the connection served, and the identity let
+    /// go.
     pub async fn held(&self, connection: Connection, peer: Identity, address: IpAddr) {
-        if !self.peers.take(&peer).await {
-            return;
-        }
         self.connection(connection, Arc::new(peer.clone()), address).await;
-        self.peers.release(&peer).await;
+        self.authenticator.release(&peer).await;
     }
 
     /// One connection, served for as long as it lasts, or until the

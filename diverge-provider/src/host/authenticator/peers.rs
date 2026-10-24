@@ -6,9 +6,10 @@ use diverge_sdk::shared::Identity;
 use tokio::sync::Mutex;
 
 /// The identities a connection is held under now: at most one
-/// connection per identity at a time, whichever end dialled. A
-/// connection takes its peer's identity once the handshake has verified
-/// it, before anything is served, and lets it go when it ends.
+/// connection per identity at a time, whichever end dialled. The
+/// handshake takes its peer's identity as it verifies it — a held
+/// identity is not a valid authentication — and the connection lets
+/// it go when it ends.
 #[derive(Debug, Default)]
 pub struct Peers {
     held: Mutex<HashSet<Identity>>,

@@ -8,7 +8,8 @@
 //! WebSocket upgrade at any path on the configured port, on every
 //! interface, and each upgrade is one connection whose mutual
 //! handshake the provider answers as the connectee — one connection
-//! per identity, [`Peers`], a second being closed; [`dial`] connects
+//! per identity, [`Peers`](crate::host::authenticator::Peers), a
+//! second being refused in the handshake; [`dial`] connects
 //! to one peer of `clients`, makes the handshake as the connector from
 //! the peer's issuer, serves the connection for as long as it lasts,
 //! and dials
@@ -34,7 +35,6 @@ mod capabilities;
 mod dial;
 mod error;
 mod listen;
-mod peers;
 mod provider;
 mod run;
 mod stop_route;
@@ -42,7 +42,6 @@ mod stop_route;
 pub use dial::*;
 pub use error::*;
 pub use listen::*;
-pub use peers::*;
 pub use provider::*;
 pub use run::*;
 pub use stop_route::*;
