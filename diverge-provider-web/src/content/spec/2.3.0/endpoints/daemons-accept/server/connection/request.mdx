@@ -21,9 +21,6 @@ draft: false
   it.
 - **`address`.** The peer IP address of that connection, as the
   server observed it.
-- **`mode`.** The connector's mode, verbatim: one object whose one
-  member names the mode, `unbrokered`, whose value carries the
-  credential the connector presents to the acceptor.
 
 The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/channel_request/frame.rs`:
 
@@ -33,9 +30,4 @@ The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons
 and by `diverge-sdk-rs/src/shared/daemons/connection.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/daemons/connection.rs
-```
-
-and by `diverge-sdk-rs/src/shared/daemons/mode.rs`:
-
-```rust include=diverge-sdk-rs/src/shared/daemons/mode.rs
 ```

@@ -82,10 +82,11 @@ Provider or with Diverge.
 Provider and a Client, from the completion of the WebSocket opening
 handshake to its close.
 
-1.7 **"Identity"** means the opaque value the Provider derives from a
-Client's authorization credential on a Connection, as the
-Specification's Authorization layer provides. Every scope on a
-Connection is served under the Identity of that Connection.
+1.7 **"Identity"** means the pair of the `iss` and `sub` claims of the
+token a Client presents in its authorization frame on a Connection,
+once the Provider has accepted the token, as the Specification's
+Authorization layer provides. Every scope on a Connection is served
+under the Identity of that Connection.
 
 1.8 **"Scope"**, **"Channel"**, **"Request"**, **"Response"**,
 **"Response Finish"**, **"Channel Request"**, **"Channel Response"**
@@ -404,19 +405,29 @@ Specification requires a Response.
 ### 5.3 Authorization
 
 (a) On a Connection the Client dialed, the Provider shall treat the
-first frame as the Client's authorization credential and shall accept
-no other frame before it.
+first frame as the Client's authorization frame, whose payload is the
+Client's token, and shall accept no other frame before it.
 
-(b) The Provider shall judge an unbrokered credential by its own
-means, derive the Identity from an accepted credential, and serve
-every Scope on the Connection under that Identity.
+(b) The Provider shall judge the Client's token by its own means. On
+accepting it, the Provider shall send, as its own first frame, an
+authorization frame whose token is the Provider's own from the same
+issuer as the Client's token, and shall serve every Scope on the
+Connection under the Identity the Client's token establishes.
 
-(c) The Provider shall answer a rejected credential by closing the
-Connection with no frame, and shall answer a credential frame received
-after the handshake by ending the Connection.
+(c) On a Connection the Provider dialed, the Provider shall send its
+own token as its first frame, shall send no other frame until the
+Client's answering authorization frame has arrived, and shall close
+the Connection when the Client's token names another issuer or is not
+accepted.
 
-(d) The Provider shall treat the Identity as opaque: it shall not
-transmit it on the wire, and it shall not derive a volume name, a
+(d) The Provider shall answer a token it does not accept, and a
+Client's token from an issuer at which the Provider holds no token,
+by closing the Connection with no frame, and shall answer an
+authorization frame received after the handshake by ending the
+Connection.
+
+(e) The Provider shall treat the Identity as its own value: it shall
+not transmit it on the wire, and it shall not derive a volume name, a
 container id, or any other Protocol value from it in a manner that
 discloses it.
 

@@ -23,12 +23,12 @@ draft: false
   the daemon protocol, laid out as [Frames](/frames/) lays out a
   client frame: the type byte, the scope as a `u32` big-endian, the
   channel as a `u32` big-endian, and the payload, running to the end.
-  The type is `1`, a request opening a scope; `4`, a channel request
-  on a scope; `5`, a channel response on a channel the acceptor
-  opened; or `6`, the finish of such a channel. The type `0`, an auth
-  frame, never passes: the credential of a daemon connection travels
-  in the announcement's `mode`, and the server finishes the frames
-  channel of a connector that sends one.
+  The type is `0`, the connector's authorization frame; `1`, a
+  request opening a scope; `4`, a channel request on a scope; `5`, a
+  channel response on a channel the acceptor opened; or `6`, the
+  finish of such a channel. The first channel response is the
+  connector's authorization frame, as
+  [Authorization](/authorization/) states.
 - **The numbers are the connector's.** The scope and the channel in
   a frame are minted by the connector as a client of the acceptor
   mints them, and mean nothing on this wire: nothing between the
@@ -37,9 +37,4 @@ draft: false
 The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/channel_response/frame.rs`:
 
 ```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/channel_response/frame.rs
-```
-
-and by `diverge-sdk-rs/src/shared/containers/daemon/client/frame.rs`:
-
-```rust include=diverge-sdk-rs/src/shared/containers/daemon/client/frame.rs
 ```

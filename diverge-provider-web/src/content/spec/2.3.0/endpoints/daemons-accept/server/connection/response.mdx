@@ -19,9 +19,11 @@ draft: false
   one response, the error `{"kind":"denied"}`, and the finish.
 - **The frame.** Each channel response is exactly one server frame of
   the daemon protocol, laid out as [Frames](/frames/) lays out a
-  server frame: the type byte `2`, a response; `3`, a response
-  finish; `4`, a channel request the acceptor opened; `5`, a channel
-  response; `6`, a channel response finish; never `0`. The scope and
+  server frame: the type byte `0`, the acceptor's authorization
+  frame; `2`, a response; `3`, a response finish; `4`, a channel
+  request the acceptor opened; `5`, a channel response; or `6`, a
+  channel response finish. The first is the acceptor's authorization
+  frame, as [Authorization](/authorization/) states. The scope and
   the channel in it are the connector's, and are not read on this
   wire.
 - **What the server does with it.** The server relays each channel
@@ -31,9 +33,4 @@ draft: false
 The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/accept/client/channel_response/frame.rs`:
 
 ```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/accept/client/channel_response/frame.rs
-```
-
-and by `diverge-sdk-rs/src/shared/containers/daemon/server/frame.rs`:
-
-```rust include=diverge-sdk-rs/src/shared/containers/daemon/server/frame.rs
 ```

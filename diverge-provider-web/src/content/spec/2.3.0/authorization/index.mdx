@@ -1,15 +1,18 @@
 ---
 title: 'Authorization'
-summary: 'The first frame of every connection is an authorization frame, sent by the connector to the connectee; its payload is a credential in one of the defined modes, and it is never answered.'
+summary: 'The connector’s first frame is its token, and the connectee’s first frame is its own token from the same issuer; a token either party does not accept closes the connection, and no frame says why.'
 order: 3
 draft: false
 ---
 
 The party that initiated the WebSocket connection is the
 **connector**; the party that accepted it is the **connectee**. Either
-protocol role may occupy either position — a client may connect to a
-server, and a server may connect to a client — and for this reason
-both directions define frame type `0`.
+protocol role may occupy either position: a client may connect to a
+server, and a server may connect to a client. Each party sends exactly
+one authorization frame, which carries its token. The connector sends
+its token first. The connectee answers with its own token, from the
+same issuer. A token that either party does not accept closes the
+connection.
 
 ## The requirement
 
@@ -18,56 +21,72 @@ both directions define frame type `0`.
   layer of this specification declares to be no connection of the
   Protocol is not governed by this layer, and carries no authorization
   frame.
-- **The first frame.** The first frame of every connection of the
-  Protocol is an authorization frame (type `0`), sent by the connector
-  to the connectee. No frame precedes it.
-- **Exactly one.** A connection carries exactly one authorization
-  frame. An authorization frame arriving at any later point, or from
-  the connectee, is a protocol violation; the party receiving it
-  ceases the connection.
-- **The connectee judges.** The connectee alone determines whether
-  the credential is acceptable. The criteria of acceptability are not
-  part of this protocol.
+- **The connector's first frame.** The first frame the connector
+  sends is an authorization frame (type `0`), whose payload is the
+  connector's token. No frame precedes it. The connector sends no
+  other frame until the connectee's authorization frame has arrived
+  and the connector has accepted it.
+- **The connectee's first frame.** The first frame the connectee
+  sends is an authorization frame, whose payload is the connectee's
+  token. The connectee sends it only after it has accepted the
+  connector's token. The connectee serves no frame of the connector's
+  before it has sent its own authorization frame.
+- **The same issuer.** The `iss` claim of the connectee's token is
+  exactly the `iss` claim of the connector's token. The connector
+  closes a connection whose answering token names any other issuer.
+- **Exactly one each.** Each party sends exactly one authorization
+  frame. An authorization frame that arrives after a party's first
+  frame, in either direction, is a protocol violation; the party
+  receiving it closes the connection.
+- **Each party judges.** Each party alone determines whether the
+  other party's token is acceptable. The criteria of acceptability —
+  the issuers a party trusts, the signature, the expiry, the
+  audience, and the subjects a party admits — are not part of this
+  protocol.
 
-## The credential
+## The token
 
-The authorization frame's payload is the credential, in the following
-form: a single leading byte designating the credential's **mode**,
-followed by the mode's own content, which runs to the end of the
-payload.
+The authorization frame's payload is the token: a JSON Web Token, as
+RFC 7519 defines one, encoded as UTF-8. The token is the whole
+payload. There is no mode byte and no length field, because WebSocket
+already delimits messages. The scope and channel fields of the frame
+are ignored.
 
-| Mode | Name | Definition |
-|------|------|------------|
-| `0` | [Unbrokered](/authorization/unbrokered/) | This revision |
-| `1` | Brokered | Reserved; a future revision |
+- **The issuer.** The token's `iss` claim names the issuer of the
+  token. The connectee reads it to determine the issuer of its own
+  token.
+- **Malformed.** A payload that is empty, or that is not valid UTF-8,
+  is malformed. A party that receives a malformed payload closes the
+  connection.
 
-Mode `1` is reserved for a brokered credential, in which a third party
-vouches for the connector. Its content is not defined by this
-revision. A credential presented in a mode the connectee does not
-recognize is rejected.
+## Refusal is a close
 
-## There is no answer
+No frame states a refusal.
 
-No frame replies to an authorization frame.
+- A token a party **accepts** is followed by the connection
+  proceeding: the connectee answers, or the connector begins its
+  requests.
+- A token a party **does not accept** is followed by closure of the
+  connection, and by nothing else. The party sends no frame of any
+  kind before the closure.
+- A connectee that holds no token from the issuer the connector's
+  token names closes the connection, and sends nothing.
+- A connection that ends before a party's authorization frame has
+  arrived carries no service.
 
-- A credential the connectee **accepts** is followed by the
-  connection operating. Acceptance is observable only as service.
-- A credential the connectee **rejects** is followed by closure of
-  the connection, and by nothing else. A peer that has not been
-  authorized is sent no frames of any kind.
-
-**Remark.** An invalid, an expired and an unrecognized credential are
-indistinguishable from the connector's side: each is observed as a
+**Remark.** An invalid, an expired and an untrusted token are
+indistinguishable from the sender's side: each is observed as a
 connection that closed.
 
 ## What acceptance establishes
 
-Acceptance associates the connection with what the connectee
-determined from the credential. Where the client is the connector,
-that determination is the **identity**, and the server serves every
-scope on the connection under it. The identity is the server's own
-value: the server does not transmit it on the wire, does not derive a
-value it sends from it, and does not serve a scope under any identity
-other than that of the connection the scope was opened on. The
-determination is the connectee's; the layers at which the identity
+Acceptance establishes, at each party, the other party's
+**identity**: the pair of the `iss` and `sub` claims of the token the
+other party presented. Each party holds the other's identity for the
+life of the connection. Where the client is the connector, the server
+serves every scope on the connection under the client's identity. The
+identity is the receiving party's own value: the server does not
+transmit it on the wire, does not derive a value it sends from it, and
+does not serve a scope under any identity other than that of the
+connection the scope was opened on. The layers at which the identity
 bears on an exchange name it where it applies.

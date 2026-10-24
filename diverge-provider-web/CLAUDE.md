@@ -184,16 +184,19 @@ are not described at this layer.
 
 ### Layer 3 — Authorization (`/authorization/`)
 
-The handshake in front of everything. It states which party
-authenticates (the party that dialled), that the credential is the
-connection's first frame and nothing precedes it, the one mode
-defined (unbrokered: an opaque credential the other party judges),
-that an accepted credential is followed by the connection simply
-working and a rejected one by the connection's close with no frame
-answering it, that a credential after the handshake is a protocol
-violation the receiving party answers by ending the connection, and
-that the identity a server derives from a credential is opaque and
-is the identity every scope on the connection is served under.
+The handshake in front of everything. It states that both parties
+authenticate: the connector's first frame is its token, a JWT whose
+`iss` names its issuer, and nothing precedes it; the connectee's
+first frame is its own token, from the same issuer, sent only once it
+accepts the connector's; the connector sends nothing else until it
+has accepted that answer. It states that there is one kind of token
+and no mode byte, that a token a party does not accept is answered by
+the connection's close with no frame, in either direction, that an
+authorization frame after a party's first is a protocol violation the
+receiving party answers by ending the connection, and that the
+identity each party holds of the other is the `(iss, sub)` of the
+token it accepted, the identity every scope on the connection is
+served under.
 
 ### Layer 4 — Container proxy (`/container-proxy/`)
 

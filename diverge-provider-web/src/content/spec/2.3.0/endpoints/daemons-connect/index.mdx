@@ -1,14 +1,13 @@
 ---
 title: 'daemons::connect'
-summary: 'Tag 23: a client, the daemon connector, names an acceptor by identity and presents its mode; the server announces the connection to the acceptor, answers the byte 0 when the acceptor takes it, and relays every frame both ways, unread, until either side hangs up.'
+summary: 'Tag 23: a client, the daemon connector, names an acceptor by identity; the server announces the connection to the acceptor, answers the byte 0 when the acceptor takes it, and relays every frame both ways, unread, until either side hangs up.'
 order: 23
 draft: false
 ---
 
 A client, the daemon connector, opens the scope with a request whose
 payload is the tag byte `23` followed by the request as JSON: the
-identity of an acceptor, and the mode the connector authenticates to
-it in. The server announces the connection on the accept scope held
+identity of an acceptor. The server announces the connection on the accept scope held
 under that identity, and, when the acceptor takes it, sends the byte
 `0` and relays the connection: every frame the acceptor sends as a
 response on this scope, and every frame the connector sends on the
@@ -40,8 +39,7 @@ nothing about the connector or the acceptor.
    [connection](/endpoints/daemons-accept/server/connection/) channel
    on the accept scope carrying the id, the identity and peer
    address of the connector's connection as the server observed
-   them, and the request's `mode` verbatim, and waits for the
-   acceptor. The acceptor finishing that channel with no channel
+   them, and waits for the acceptor. The acceptor finishing that channel with no channel
    response before the finish, and the accept scope ending, are each
    answered by exactly one response, the error `{"kind":"denied"}`,
    and the finish.
@@ -70,6 +68,9 @@ nothing about the connector or the acceptor.
 - **The conduit.** The server relays the bytes of every relayed
   frame verbatim, unread, unaltered, unreordered within one channel,
   and never twice.
-- **The credential is the acceptor's to judge.** The server relays
-  the mode and reads nothing of it. Whether the connection is taken
-  is the acceptor's answer.
+- **The handshake is the connection's.** The relayed connection
+  begins as [Authorization](/authorization/) states: the connector's
+  first frame is its authorization frame, and the acceptor's first
+  frame is its own, from the same issuer. The server relays both and
+  reads neither. A party that does not accept the other's token hangs
+  up, and the server ends the scope as step 6 states.

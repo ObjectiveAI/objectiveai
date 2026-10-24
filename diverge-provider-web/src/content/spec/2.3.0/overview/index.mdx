@@ -43,8 +43,8 @@ other sense.
 ## The document
 
 The protocol is carried over one WebSocket connection, framed and
-multiplexed as the layers below define, with a credential presented
-before anything else. This document is divided into layers, lowest
+multiplexed as the layers below define, with each party's token
+presented before anything else. This document is divided into layers, lowest
 first; each defines what the layer beneath it leaves open, and no
 more.
 
@@ -52,7 +52,7 @@ more.
 |-------|---------|
 | [WebSocket](/websocket/) | the transport: version 13, binary frames, the handshake |
 | [Frames](/frames/) | the frame, the scope, the channel, and what ends each |
-| [Authorization](/authorization/) | the credential that precedes every connection of the Protocol |
+| [Authorization](/authorization/) | the two tokens, one from each party and both from one issuer, that precede every connection of the Protocol |
 | [Capabilities](/capabilities/) | the parts of the Endpoints layer a server holds out, and what it answers past them |
 | [Container Proxy](/container-proxy/) | the one connection between the provider's server and the proxy inside a container |
 | [Container Proxy Endpoints](/container-proxy-endpoints/) | the seven scopes on that connection |
