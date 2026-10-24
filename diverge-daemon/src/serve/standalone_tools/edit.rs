@@ -86,15 +86,13 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Origin::Created { provider, .. } => provider.clone(),
         Origin::Connected { .. } => None,
     };
-    // An account named on a tool has a name: taking the name from one
-    // a container runs under is refused.
-    let account_name = match tool.account {
-        Some(id) => accounts::by_id(&mut tx, id).await?.and_then(|account| account.name),
+    let account_identity = match tool.account {
+        Some(id) => accounts::by_id(&mut tx, id).await?.map(|account| account.identity),
         None => None,
     };
     let current = Editable {
         name: tool.name.clone(),
-        account: account_name,
+        account: account_identity,
         volume_mounts: pinned.as_ref().map(|provider| provider.volume_mounts.clone()).unwrap_or_default(),
         fuse_file_mounts: tool.fuse_file_mounts.clone(),
         fuse_directory_mounts: tool.fuse_directory_mounts.clone(),
@@ -125,7 +123,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         }
     };
     let account = if account_changed {
-        match inner::account(&mut tx, &standing, daemon, result.account.as_deref()).await? {
+        match inner::account(&mut tx, &standing, daemon, result.account.as_ref()).await? {
             Checked::Ok(account) => account,
             Checked::NoAccount => return Ok(Frame::NoAccount),
             Checked::Forbidden => return Ok(Frame::Forbidden),
@@ -161,7 +159,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         }
     };
     if mounts_changed {
-        match inner::providers(&mut tx, provider.as_ref(), &result.fuse_file_mounts, &result.fuse_directory_mounts).await? {
+        match inner::providers(daemon, provider.as_ref(), &result.fuse_file_mounts, &result.fuse_directory_mounts) {
             Checked::Ok(()) => {}
             Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
             Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),

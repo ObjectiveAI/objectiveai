@@ -1,11 +1,10 @@
 //! The pool, opened once, and the transactions begun on it.
 
-use diverge_sdk::keyring::Keyring;
 use sqlx::pool::PoolConnection;
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions};
 use sqlx::{Connection as _, PgConnection, Postgres, Transaction};
 
-use super::{Error, root, schema};
+use super::{Error, schema};
 
 /// The database the daemon's own records are in, when the daemon
 /// runs its own cluster. A remote URL names its database itself.
@@ -21,17 +20,14 @@ pub struct Store {
     pool: PgPool,
 }
 
-/// Open the store at `url`, apply the schema, and seed root into a
-/// fresh database.
+/// Open the store at `url`, and apply the schema.
 ///
 /// `local` is the daemon's own cluster, whose URL names no database:
 /// `diverge` is made in it if absent — the daemon is its superuser —
 /// and opened. A remote URL is opened exactly as given; the operator
 /// names the database and it exists already. Then, in one
-/// transaction, the schema is applied and, when the database had no
-/// `accounts` table before, the root role and account are seeded, the
-/// account's key from `keyring`.
-pub async fn open(url: &str, local: bool, keyring: &Keyring) -> Result<Store, Error> {
+/// transaction, the schema is applied.
+pub async fn open(url: &str, local: bool) -> Result<Store, Error> {
     let options: PgConnectOptions = url.parse()?;
     let options = if local {
         create_database(options.clone()).await?;
@@ -42,9 +38,7 @@ pub async fn open(url: &str, local: bool, keyring: &Keyring) -> Result<Store, Er
     let pool = PgPoolOptions::new().max_connections(CONNECTIONS).connect_with(options).await?;
     let store = Store { pool };
     let mut tx = store.begin().await?;
-    if schema::apply(&mut tx).await? {
-        root::seed(&mut tx, keyring).await?;
-    }
+    schema::apply(&mut tx).await?;
     tx.commit().await?;
     Ok(store)
 }

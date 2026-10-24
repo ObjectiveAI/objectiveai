@@ -1,6 +1,5 @@
 //! Creating a tool from a template.
 
-use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::standalone_tools::create::client::request;
 use diverge_sdk::daemon::endpoints::standalone_tools::create::server::response::Frame;
 use diverge_sdk::daemon::grant::standalone_tools::Make;
@@ -49,13 +48,13 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Secrets::Missing(what) => return Ok(Frame::Error(reply::secrets(&what))),
         Secrets::Forbidden => return Ok(Frame::Forbidden),
     }
-    let account = match inner::account(&mut tx, &standing, daemon, frame.account.as_deref()).await? {
+    let account = match inner::account(&mut tx, &standing, daemon, frame.account.as_ref()).await? {
         Checked::Ok(account) => account,
         Checked::NoAccount => return Ok(Frame::NoAccount),
         Checked::Forbidden => return Ok(Frame::Forbidden),
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     };
-    match inner::providers(&mut tx, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts).await? {
+    match inner::providers(daemon, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts) {
         Checked::Ok(()) => {}
         Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
@@ -76,9 +75,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         fuse_file_mounts: inner.fuse_file_mounts,
         fuse_directory_mounts: inner.fuse_directory_mounts,
         secrets: inner.secrets,
-        creator: Creator::Client(Client {
-            identity: standing.identity.clone(),
-        }),
+        creator: standing.creator.clone(),
     };
     match tools::create(&mut tx, &new).await? {
         tools::Created::Created(..) => {}

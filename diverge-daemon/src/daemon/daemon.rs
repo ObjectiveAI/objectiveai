@@ -1,13 +1,15 @@
 //! The daemon's pieces, built once.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
-use diverge_sdk::keyring::Keyring;
 use tokio::sync::watch;
 
 use super::Live;
+use crate::config::{Providers, Remote};
 use crate::database::Target;
+use crate::judge::DaemonAuthenticator;
 use crate::store::Store;
 
 /// The daemon: its records, what is live, and where the logs are.
@@ -17,10 +19,13 @@ use crate::store::Store;
 pub struct Daemon {
     /// The records.
     pub store: Store,
-    /// The host's keys: the ones the daemon presents, and the ones it
-    /// mints for the credentials it makes. See
-    /// [`judge::key`](crate::judge::key).
-    pub keyring: Keyring,
+    /// The daemon's side of every handshake: its own tokens, and whom
+    /// it admits.
+    pub authenticator: Arc<DaemonAuthenticator>,
+    /// The providers it works with, as its configuration says.
+    pub providers: Providers,
+    /// The other daemons it reaches, as its configuration says.
+    pub remotes: Vec<Remote>,
     /// What is nobody's record.
     pub live: Live,
     /// `<dir>/agents/`, where every agent's log is: see
@@ -48,15 +53,18 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    /// A daemon on an open store and keyring, holding its agents' logs under
-    /// `logs`, ending a run unused for `idle`, serving the database
+    /// A daemon on an open store, admitting by `authenticator`,
+    /// working with the configuration's `providers` and `remotes`,
+    /// holding its agents' logs under `logs`, ending a run unused for `idle`, serving the database
     /// `database`, accepting other daemons when `accept_daemons`,
     /// asking every provider's capacity again after `capacity_poll`,
     /// stopped through `stop`, with nothing live yet.
-    pub fn new(store: Store, keyring: Keyring, logs: PathBuf, idle: Duration, database: Target, accept_daemons: bool, capacity_poll: Duration, stop: watch::Sender<bool>) -> Self {
+    pub fn new(store: Store, authenticator: Arc<DaemonAuthenticator>, providers: Providers, remotes: Vec<Remote>, logs: PathBuf, idle: Duration, database: Target, accept_daemons: bool, capacity_poll: Duration, stop: watch::Sender<bool>) -> Self {
         Daemon {
             store,
-            keyring,
+            authenticator,
+            providers,
+            remotes,
             live: Live::new(),
             logs,
             idle,

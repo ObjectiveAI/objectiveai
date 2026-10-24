@@ -1,6 +1,5 @@
 //! Creating an agent.
 
-use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::agents::create::client::request;
 use diverge_sdk::daemon::endpoints::agents::create::server::response::Frame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -46,7 +45,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Secrets::Missing(what) => return Ok(Frame::Error(reply::secrets(&what))),
         Secrets::Forbidden => return Ok(Frame::Forbidden),
     }
-    match inner::providers(&mut tx, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts).await? {
+    match inner::providers(daemon, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts) {
         Checked::Ok(()) => {}
         Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
@@ -64,9 +63,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         fuse_file_mounts: inner.fuse_file_mounts,
         fuse_directory_mounts: inner.fuse_directory_mounts,
         secrets: inner.secrets,
-        creator: Creator::Client(Client {
-            identity: standing.identity.clone(),
-        }),
+        creator: standing.creator.clone(),
     };
     match agents::create(&mut tx, &new).await? {
         agents::Created::Created(..) => {}

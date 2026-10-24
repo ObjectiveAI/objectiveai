@@ -24,8 +24,8 @@ pub type PairFrames = Pin<Box<dyn Stream<Item = pair::server::Owned> + Send>>;
 
 /// Serve the far side's client frames, arriving on `from`, as a
 /// connection carried inside the process for `who` — a container's
-/// program, or another daemon come through a provider — by the same
-/// session and dispatch a socket gets, no credential passing; what
+/// program — by the same session and dispatch a socket gets, no token
+/// passing; what
 /// comes back is the session's frames as the daemon's half of the
 /// pair. Every frame received is noted on `touched` when one is given,
 /// since a container's every frame is a use of it. The far side's

@@ -12,10 +12,9 @@
 //!
 //! # What serves today
 //!
-//! Every request of the wire, all eighty-nine: the fourteen over
-//! accounts and roles, the twenty-one over outgoing providers,
-//! incoming credentials and the daemons reached through them, the
-//! twelve over the two template families,
+//! Every request of the wire: the fourteen over accounts and roles,
+//! the four over the providers and the remote daemons the
+//! configuration names, the twelve over the two template families,
 //! the thirteen over agents — their logs, their messages, and the
 //! files of their containers — the fifteen over tools, attachments
 //! and connections and their containers' files, the twelve over
@@ -38,15 +37,22 @@
 //! connections, its tool calls, its mounts, its dependencies — are
 //! answered by [`containers`]; its database
 //! connections reach one scope of its own, the handshake the daemon's
-//! and the rest relayed unread, by [`database`]. An outgoing provider on record is dialled and dialled
-//! again for the daemon's life; a provider that dials in is admitted
-//! by a credential the daemon minted; on either connection the daemon
-//! is the caller of the provider protocol, [`providers`]. Another
-//! daemon on record is reached through a provider both are connected
-//! to, as a client of it, [`daemons`], and a tool it holds is served
-//! over that connection by its `tools::connect`; a daemon that reaches
-//! this one comes the same way, admitted by a credential as any client
-//! is, through every provider this daemon accepts on. The records live in the one Postgres
+//! and the rest relayed unread, by [`database`]. Every connection
+//! opens with the [`handshake`](diverge_sdk::wire::handshake): each
+//! end presents a token from one issuer, and the daemon presents the
+//! subject its `identities` names there. The providers are the
+//! configuration's — the identities it accepts, the addresses it
+//! dials — and a provider is served the same whichever end dialled; a
+//! dialled one is dialled again for the daemon's life; on either
+//! connection the daemon is the caller of the provider protocol,
+//! [`providers`]. A client is an account: an `(issuer, subject)` the
+//! daemon holds, and none by default. Another daemon of the
+//! configuration's is reached through a provider both are connected
+//! to, as a client of it, [`daemons`] — this daemon's identity one of
+//! its accounts — and a tool it holds is served over that connection
+//! by its `tools::connect`; a daemon that reaches this one comes the
+//! same way, admitted as any client is, through every provider this
+//! daemon accepts on. The records live in the one Postgres
 //! the daemon runs on — its own, started beside it, or a remote one,
 //! as its `daemon.yaml` says, [`config`] — in a schema of the daemon's,
 //! [`store`]; who a
@@ -61,14 +67,11 @@
 //!
 //! # The first connection
 //!
-//! A fresh database — one with no accounts table before this daemon
-//! initialized it — is seeded with a role `root` holding every grant
-//! and an account `root` holding it, whose key is the word `root`.
-//! Both are ordinary records: the first client connects with `root`,
-//! makes the roles and accounts that are wanted, and rotates or
-//! deletes root's credential with an edit, since until then the
-//! daemon is open to whoever reaches its port. A database that has
-//! the table is never seeded again, so a root deleted stays deleted.
+//! Nothing is seeded. An account is an `(issuer, subject)` the
+//! database holds, and a fresh database holds none, so a daemon with
+//! no account admits no client and a daemon with no accepted provider
+//! admits no provider: by default the daemon accepts no connection at
+//! all. How the first account comes to be is not this crate's to say.
 //!
 //! # The directory
 //!

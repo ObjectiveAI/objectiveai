@@ -14,19 +14,20 @@ use crate::volumes::{self, Listed};
 pub enum Located {
     /// The volume, as a list reports it.
     Volume(Listed),
-    /// The provider is not on record, or lists no such volume.
+    /// The provider is none the configuration accepts, or lists no
+    /// such volume.
     None,
     /// The provider is on record but could not be asked: not
     /// connected, or it failed.
     Failed(String),
 }
 
-/// The volume: `None` for a provider not on record or a name its
+/// The volume: `None` for a provider not accepted or a name its
 /// provider does not list, `Failed` for a provider that could not be
 /// asked, else the listing's entry with the agents and tools that
 /// mount it and the tags on it.
 pub async fn locate(conn: &mut PgConnection, daemon: &Daemon, volume: &reference::Volume) -> Result<Located, store::Error> {
-    if !inner::on_record(conn, &volume.provider).await? {
+    if !inner::on_record(daemon, &volume.provider) {
         return Ok(Located::None);
     }
     let found = match volumes::find(daemon, volume).await {

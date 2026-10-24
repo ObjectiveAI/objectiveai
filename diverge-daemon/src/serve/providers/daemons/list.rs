@@ -1,17 +1,18 @@
-//! Listing daemon records, and keeping the list.
+//! Listing the remote daemons, and keeping the list.
 
 use std::future::Future;
 
 use diverge_sdk::daemon::endpoints::providers::daemons::list::client::request::{self, Filter};
 use diverge_sdk::daemon::endpoints::providers::daemons::list::server::response::{self, Frame};
-use diverge_sdk::daemon::grant::providers_daemons::Over;
+use diverge_sdk::daemon::grant::daemons::Action;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
+use super::get::report;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Source};
 use crate::serve::reply;
-use crate::store::{self, providers_daemons};
+use crate::store;
 
 /// Send the list and its changes, then finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -21,13 +22,12 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// One `Forbidden` with no `list` grant at all; else every daemon
-/// record any `list` grant reaches that the request's filter lets
-/// through, oldest added first, the first `count` of them, one frame
-/// each, then the word that the listing is whole — and from then on
-/// each record added, changed or removed as the records and the
-/// connections change, until the client cancels. Which are connected is
-/// read afresh at every change.
+/// One `Forbidden` with no `list` grant; else every remote daemon of
+/// the configuration's that the request's filter lets through, in the
+/// configuration's order, the first `count` of them, one frame each,
+/// then the word that the listing is whole — and from then on each
+/// remote changed as the connections change, until the client
+/// cancels.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;
@@ -37,23 +37,20 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     };
-    if !judge::providers_daemons::holds(&standing, Over::List) {
+    if !judge::daemons::holds(&standing, Action::List) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
     let source = Listed {
         daemon,
-        standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing(scope, daemon, &[Kind::ProvidersDaemons], frame.count, &source, Frame::from)
-    .await
+    stream::listing(scope, daemon, &[Kind::Daemons], frame.count, &source, Frame::from).await
 }
 
-/// The daemon records as the caller may list them now.
+/// The remote daemons as the filter lets them through now.
 struct Listed<'a> {
     daemon: &'a Daemon,
-    standing: &'a Standing,
     filter: &'a Filter,
 }
 
@@ -64,17 +61,15 @@ impl Source for Listed<'_> {
 
     fn read(&self) -> impl Future<Output = Result<Vec<(String, response::Daemon)>, store::Error>> + Send {
         async move {
-            let all = {
-                let mut conn = self.daemon.store.acquire().await?;
-                providers_daemons::all(&mut conn).await?
-            };
-            let mut connected = self.daemon.live.connected_daemons().await;
-            Ok(all
+            let connected = self.daemon.live.connected_daemons().await;
+            Ok(self
+                .daemon
+                .remotes
                 .iter()
-                .map(|record| (record, connected.remove(&record.name).unwrap_or_default()))
-                .filter(|(record, connected)| judge::providers_daemons::over(self.standing, Over::List, record, !connected.is_empty()))
-                .filter(|(record, connected)| filter::providers_daemons::test(self.filter, record, !connected.is_empty()))
-                .map(|(record, connected)| (record.name.clone(), record.report(connected)))
+                .filter_map(|remote| {
+                    let connected = connected.contains(&remote.name);
+                    filter::daemons::test(self.filter, remote, connected).then(|| (remote.name.clone(), report(remote, connected)))
+                })
                 .collect())
         }
     }

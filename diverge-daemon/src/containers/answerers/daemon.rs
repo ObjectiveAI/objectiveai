@@ -16,8 +16,8 @@ use crate::serve::{self, PairFrames};
 /// every request, or a dependency's grants, fixed at its deploy, with
 /// its `self` read fresh — and declined when it has none, as an agent
 /// container never has: served by [`serve::serve_pair`], the same
-/// session and dispatch a socket gets, for that standing — no
-/// credential passes. Every frame the program sends is a use of the
+/// session and dispatch a socket gets, for that standing — no token
+/// passes. Every frame the program sends is a use of the
 /// container.
 impl DaemonAnswerer for Answerer {
     type Frames = PairFrames;

@@ -22,7 +22,7 @@ use crate::daemon::{Daemon, Kind};
 use crate::daemons;
 use crate::store::agents::Agent;
 use crate::store::tools::{Origin, Tool, attachments};
-use crate::store::{agents, agents_templates, providers_daemons, tools as tool_records, tools_templates};
+use crate::store::{agents, agents_templates, tools as tool_records, tools_templates};
 
 /// The agent's run, started now if it was not up: the providers it
 /// may run on found, the mounts served, the attached tools served
@@ -296,18 +296,9 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
             let service = record.template.r#type.mode == Mode::Service;
             (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service, Some(stream), secrets)
         }
-        Origin::Connected {
-            daemon: name,
-            account,
-            tool: remote,
-        } => {
-            let record = {
-                let mut conn = daemon.store.acquire().await?;
-                providers_daemons::by_name(&mut conn, name, false)
-                    .await?
-                    .ok_or_else(|| StartError::NoDaemon(name.clone()))?
-            };
-            let peer = daemons::connect(daemon, &record, account).await.map_err(StartError::Daemon)?;
+        Origin::Connected { daemon: name, tool: remote } => {
+            let remote_daemon = daemon.remotes.iter().find(|remote| &remote.name == name).ok_or_else(|| StartError::NoDaemon(name.clone()))?;
+            let peer = daemons::connect(daemon, remote_daemon).await.map_err(StartError::Daemon)?;
             let request = connect_request::Frame {
                 tool: remote.clone(),
                 relay: None,
@@ -322,7 +313,6 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 index: tool.index,
                 name: tool.name.clone(),
                 daemon: name.clone(),
-                account: account.clone(),
             };
             (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation, false, None, None)
         }

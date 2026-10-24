@@ -14,7 +14,7 @@ use super::{Origin, Tool};
 use crate::store::{AccountId, Error, ToolId};
 
 /// The columns every tool query selects.
-pub(super) const SELECT: &str = "SELECT id, kind, template, provider, connected_daemon, connected_account, connected_tool, index, name, \
+pub(super) const SELECT: &str = "SELECT id, kind, template, provider, connected_daemon, connected_tool, index, name, \
      account, fuse_file_mounts, fuse_directory_mounts, secrets, last_provider, last_active, tags, created, creator \
      FROM diverge.tools";
 
@@ -39,7 +39,6 @@ pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
             };
             Origin::Connected {
                 daemon: row.try_get::<Option<String>, _>("connected_daemon")?.unwrap_or_default(),
-                account: row.try_get::<Option<String>, _>("connected_account")?.unwrap_or_default(),
                 tool,
             }
         }

@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use diverge_sdk::daemon::creator::{Client, Creator};
+use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::events::Action;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::channel_request;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::request;
@@ -49,8 +49,9 @@ const CONNECTED: &str = "a connected tool is another daemon's, and is served the
 /// daemon to attest with, and then the scope held until the run ends
 /// or the client disconnects: every channel the client opens is one
 /// of the five MCP exchanges, put to the tool stamped with the caller
-/// as this daemon authorized the connection — its identity,
-/// unbrokered, and nothing the client said of itself, in place of
+/// as this daemon authorized the connection — the identity its
+/// handshake established, and nothing the client said of itself, in
+/// place of
 /// anything the client stamped — the tool's run activated for it
 /// first, its secrets taken and fed — and answered by the tool's
 /// server on a task of its own, each answer attested as this daemon's
@@ -64,16 +65,15 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     };
-    let caller = Arc::new(Caller::Unbrokered {
-        identity: standing.identity.clone(),
-    });
-    let sender = Arc::new(Creator::Client(Client {
-        identity: standing.identity.clone(),
-    }));
-    if !judge::standalone_tools::holds(&standing, Over::Connect) {
+    // A dependency tool is no account, and a connect is attested as
+    // the account the client is: a standing with no account is
+    // refused.
+    let (Some(identity), true) = (standing.identity.clone(), judge::standalone_tools::holds(&standing, Over::Connect)) else {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
-    }
+    };
+    let caller = Arc::new(Caller::Client { identity });
+    let sender = Arc::new(standing.creator.clone());
     let Some(tool) = resolve(&mut conn, &frame.tool, false).await? else {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());

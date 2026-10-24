@@ -1,21 +1,22 @@
 //! Who is asking, and what their grants reach.
 //!
 //! Two judgments, and nothing else decides anything. The first is at
-//! the handshake: [`admit_peer`] turns a credential and the address
-//! it came from into a [`Peer`] — a [`Who`], the account the
-//! connection is served for, or the identity of a provider that
-//! dialled in — or into nothing, which is the socket closed; see
-//! [`key`] for how a key is minted and how it is kept as a hash. A
-//! dependency tool's `/daemon` connection is admitted by no
-//! credential: its [`Who`] is the [`Dependent`] its template fixed,
+//! the handshake: the [`DaemonAuthenticator`] verifies the token the
+//! other end presents and [`admit`](DaemonAuthenticator::admit)s the
+//! `(issuer, subject)` it establishes as [`Admitted`] — a provider the
+//! configuration accepts, or the account that identity is, a [`Who`] —
+//! or as nothing, which is the socket closed. With no account and no
+//! accepted provider, nothing is admitted. A dependency tool's
+//! `/daemon` connection is admitted by no token: its [`Who`] is the
+//! [`Dependent`] its template fixed,
 //! the grants and which tool's attachments its `self` is. The
 //! second is per request: [`Standing`] is who is asking as of THIS
 //! request — an account's identity and the union of the grants of
 //! the roles it holds, read fresh inside the request's own
 //! transaction, or a dependency's grants as fixed with the agents its
 //! `self` reaches read fresh — and
-//! [`accounts`], [`roles`], [`providers_outgoing`],
-//! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
+//! [`accounts`], [`roles`], [`providers`],
+//! [`daemons`], [`agents_templates`],
 //! [`standalone_tools_templates`], [`dependency_tools`],
 //! [`agents`], [`standalone_tools`], [`postgres`], [`vault`], [`events`] and [`volumes`] are the pure functions that say whether a
 //! standing holds a making action, holds an action over a record, or
@@ -50,11 +51,9 @@ pub mod agents_templates;
 pub mod dependency_tools;
 pub mod events;
 pub mod filter;
-pub mod key;
 pub mod postgres;
-pub mod providers_daemons;
-pub mod providers_incoming;
-pub mod providers_outgoing;
+pub mod daemons;
+pub mod providers;
 pub mod roles;
 pub mod standalone_tools;
 pub mod standalone_tools_templates;

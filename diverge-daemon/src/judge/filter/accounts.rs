@@ -7,13 +7,7 @@ use crate::store::accounts::Account;
 /// Whether `account` passes `filter`, given whether a client is
 /// connected as it now.
 pub fn test(filter: &Filter, account: &Account, connected: bool) -> bool {
-    let named = account.name.as_deref();
-    let identity = account.identity.as_deref();
-    (filter.names.is_empty() || named.is_some_and(|name| filter.names.iter().any(|wanted| wanted == name)))
-        && (filter.identities.is_empty()
-            || identity.is_some_and(|identity| filter.identities.iter().any(|wanted| wanted == identity)))
-        && filter.named.is_none_or(|wanted| named.is_some() == wanted)
-        && filter.credentialed.is_none_or(|wanted| identity.is_some() == wanted)
+    (filter.identities.is_empty() || filter.identities.contains(&account.identity))
         && (filter.roles.is_empty() || filter.roles.iter().any(|role| account.roles.contains(role)))
         && filter.connected.is_none_or(|wanted| connected == wanted)
         && (filter.creators.is_empty() || filter.creators.contains(&account.creator))

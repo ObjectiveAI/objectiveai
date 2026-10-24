@@ -1,6 +1,5 @@
 //! Creating a agent template.
 
-use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::agents::templates::create::client::request;
 use diverge_sdk::daemon::endpoints::agents::templates::create::server::response::Frame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -42,9 +41,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let new = agents_templates::New {
         id: id.clone(),
         template: frame.template,
-        creator: Creator::Client(Client {
-            identity: standing.identity.clone(),
-        }),
+        creator: standing.creator.clone(),
     };
     let made = agents_templates::create(&mut tx, &new).await?;
     tx.commit().await?;

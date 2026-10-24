@@ -2,9 +2,9 @@
 
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::accounts::Reference;
 use diverge_sdk::daemon::endpoints::roles::list::server::response;
 use diverge_sdk::daemon::grant::Grant;
+use diverge_sdk::shared::Identity;
 
 use crate::store::{AccountId, RoleId};
 
@@ -29,30 +29,13 @@ pub struct Role {
     pub creator: Creator,
 }
 
-/// An account holding a role: enough to name it either way the wire
-/// does, so that a filter naming an account by identity finds a named
-/// holder that also has that credential.
+/// An account holding a role: its row and the identity it is.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Holder {
     /// The account.
     pub id: AccountId,
-    /// Its name, if any.
-    pub name: Option<String>,
-    /// Its credential's identity, if any.
-    pub identity: Option<String>,
-}
-
-impl Holder {
-    /// How the wire names the holder: by name when it has one, else
-    /// by identity.
-    pub fn reference(&self) -> Reference {
-        match (&self.name, &self.identity) {
-            (Some(name), _) => Reference::Name { name: name.clone() },
-            (None, identity) => Reference::Identity {
-                identity: identity.clone().unwrap_or_default(),
-            },
-        }
-    }
+    /// The identity the account is: how the wire names it.
+    pub identity: Identity,
 }
 
 impl Role {
@@ -62,7 +45,7 @@ impl Role {
             name: self.name.clone(),
             description: self.description.clone(),
             grants: self.grants.clone(),
-            accounts: self.holders.iter().map(Holder::reference).collect(),
+            accounts: self.holders.iter().map(|holder| holder.identity.clone()).collect(),
             tags: self.tags.clone(),
             created: self.created,
             creator: self.creator.clone(),

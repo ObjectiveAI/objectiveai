@@ -1,10 +1,4 @@
-//! The seven requests over daemon records, served.
+//! The two requests over the remote daemons, served.
 
-pub mod accounts;
-pub mod add;
-pub mod delete;
-pub mod edit;
 pub mod get;
 pub mod list;
-pub mod tag;
-pub mod untag;

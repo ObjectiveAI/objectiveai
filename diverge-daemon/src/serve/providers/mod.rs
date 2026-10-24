@@ -1,12 +1,12 @@
-//! The twenty-one requests over providers and daemons, served.
+//! The four requests over providers and the remote daemons, served.
 //!
-//! [`outgoing`] has one handler per request over the providers the
-//! daemon dials; [`incoming`] one per request over the credentials of
-//! those that dial in; [`daemons`] one per request over the records of
-//! other daemons, reached through either. Each the shape
-//! [`serve`](super) states, with `connected` taken from what the
-//! daemon holds now.
+//! Both are the configuration's, and nothing here adds, edits or
+//! deletes either: [`get`] and [`list`] report the providers the
+//! configuration accepts, each with where the daemon stands with it
+//! now; [`daemons`] reports the remote daemons it reaches through
+//! them. Each the shape [`serve`](super) states, with `connected`
+//! taken from what the daemon holds now.
 
 pub mod daemons;
-pub mod incoming;
-pub mod outgoing;
+pub mod get;
+pub mod list;

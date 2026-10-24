@@ -1,42 +1,28 @@
-//! The providers connected now, one connection per identity and per
-//! credential.
+//! The providers connected now, one connection per identity.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::endpoints::providers::Status;
 use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;
 use diverge_sdk::wire::client::handle::Handle;
-use tokio::sync::Notify;
 
-/// Every provider the daemon holds a connection to, under one lock
-/// over both keys: no two connections hold one identity, and no two
-/// hold one credential — the hash of the key an incoming provider
-/// presented. A second connection that collides on either is refused
+/// Every provider the daemon holds a connection to, one slot per
+/// identity: no two connections hold one `(issuer, subject)`, whichever
+/// end dialled. A second connection under a held identity is refused
 /// at its attach and its socket closed without a word.
 #[derive(Default)]
 pub struct Peers {
     /// One slot per identity connected, or being admitted.
     pub slots: HashMap<Identity, Slot>,
-    /// The credential hashes held by the incoming ones.
-    pub credentials: HashSet<String>,
 }
 
-/// One provider's connection: where the daemon stands with it, the
-/// word that evicts it, and the credential it holds, for an incoming
-/// one.
+/// One provider's connection: where the daemon stands with it.
 pub struct Slot {
     /// Reserved, connected, or a different version: see
     /// [`Standing`].
     pub standing: Standing,
-    /// Told once when the daemon ends the connection itself — an
-    /// incoming credential edited — on which the connection's own
-    /// task closes the socket and gives the slot back.
-    pub evict: Arc<Notify>,
-    /// The hash of the key the provider presented, for an incoming
-    /// provider; an outgoing one presents the daemon's.
-    pub credential: Option<String>,
 }
 
 /// Where the daemon stands with the provider in a slot.
@@ -76,30 +62,15 @@ pub enum Standing {
 }
 
 impl Peers {
-    /// Reserve the slot for `identity`, holding `credential` with it:
-    /// `None` when a connection holds the identity, or one holds the
-    /// credential, already; else the slot's eviction word, the slot
-    /// pending and the caller's to fill and to give back.
-    pub fn reserve(&mut self, identity: Identity, credential: Option<String>) -> Option<Arc<Notify>> {
+    /// Reserve the slot for `identity`: `false` when a connection
+    /// holds the identity already; else `true`, the slot pending and
+    /// the caller's to fill and to give back.
+    pub fn reserve(&mut self, identity: Identity) -> bool {
         if self.slots.contains_key(&identity) {
-            return None;
+            return false;
         }
-        if credential.as_ref().is_some_and(|hash| self.credentials.contains(hash)) {
-            return None;
-        }
-        let evict = Arc::new(Notify::new());
-        if let Some(hash) = &credential {
-            self.credentials.insert(hash.clone());
-        }
-        self.slots.insert(
-            identity,
-            Slot {
-                standing: Standing::Pending,
-                evict: Arc::clone(&evict),
-                credential,
-            },
-        );
-        Some(evict)
+        self.slots.insert(identity, Slot { standing: Standing::Pending });
+        true
     }
 
     /// The slot filled with where the daemon stands now; `false` when
@@ -114,16 +85,9 @@ impl Peers {
         }
     }
 
-    /// The slot given back, and the credential it held with it;
-    /// `false` when there was none to give.
+    /// The slot given back; `false` when there was none to give.
     pub fn release(&mut self, identity: &Identity) -> bool {
-        let Some(slot) = self.slots.remove(identity) else {
-            return false;
-        };
-        if let Some(hash) = slot.credential {
-            self.credentials.remove(&hash);
-        }
-        true
+        self.slots.remove(identity).is_some()
     }
 
     /// The standing of the identity's slot as a list reports it: a

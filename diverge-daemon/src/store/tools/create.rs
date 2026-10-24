@@ -12,7 +12,7 @@ use super::Origin;
 use crate::store::{AccountId, Error, ToolId, counters};
 
 /// What a new tool is made of: its origin, checked by the caller —
-/// the template live, the daemon record there — and what a create
+/// the template live, the remote daemon configured — and what a create
 /// adds, which a connect adds none of but the name.
 #[derive(Debug, Clone)]
 pub struct New {
@@ -49,26 +49,25 @@ pub enum Created {
 pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error> {
     let key = match &new.origin {
         Origin::Created { template, .. } => format!("tools:{template}"),
-        Origin::Connected { daemon, account, tool } => {
+        Origin::Connected { daemon, tool } => {
             let tool = canonical::bytes(tool).map_err(Error::Json)?;
-            format!("tools:{daemon}:{account}:{}", String::from_utf8_lossy(&tool))
+            format!("tools:{daemon}:{}", String::from_utf8_lossy(&tool))
         }
     };
     let index = counters::next(conn, &key).await?;
-    let (kind, template, provider, connected_daemon, connected_account, connected_tool) = match &new.origin {
-        Origin::Created { template, provider } => ("created", Some(template.clone()), provider.as_ref().map(Json), None, None, None),
-        Origin::Connected { daemon, account, tool } => ("connected", None, None, Some(daemon.clone()), Some(account.clone()), Some(Json(tool))),
+    let (kind, template, provider, connected_daemon, connected_tool) = match &new.origin {
+        Origin::Created { template, provider } => ("created", Some(template.clone()), provider.as_ref().map(Json), None, None),
+        Origin::Connected { daemon, tool } => ("connected", None, None, Some(daemon.clone()), Some(Json(tool))),
     };
     let inserted = sqlx::query(
-        "INSERT INTO diverge.tools (kind, template, provider, connected_daemon, connected_account, connected_tool, index, name, \
+        "INSERT INTO diverge.tools (kind, template, provider, connected_daemon, connected_tool, index, name, \
          account, fuse_file_mounts, fuse_directory_mounts, secrets, creator) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
     )
     .bind(kind)
     .bind(template)
     .bind(provider)
     .bind(connected_daemon)
-    .bind(connected_account)
     .bind(connected_tool)
     .bind(i64::try_from(index).unwrap_or(i64::MAX))
     .bind(&new.name)

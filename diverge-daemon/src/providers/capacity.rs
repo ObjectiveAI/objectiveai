@@ -3,7 +3,6 @@
 
 use std::sync::Arc;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::provider::endpoints::capacity::client::execute;
 use diverge_sdk::wire::client::handle::Handle;
 
@@ -31,12 +30,12 @@ use crate::daemon::{Capacity, Daemon, Kind};
 /// not parse — leaves the last answer standing. The connection gone
 /// — the request not sent, or the connection closed before the
 /// answer — ends this; the cell goes with the connection's slot.
-pub async fn poll_capacity(daemon: Arc<Daemon>, identity: Identity, handle: Handle, cell: Arc<Capacity>) {
+pub async fn poll_capacity(daemon: Arc<Daemon>, handle: Handle, cell: Arc<Capacity>) {
     loop {
         match execute::execute(&handle).await {
             Ok(frame) => {
                 if cell.swap(frame) {
-                    daemon.live.changed(Kind::of_provider(&identity));
+                    daemon.live.changed(Kind::Providers);
                 }
             }
             Err(execute::ExecuteError::Send(_) | execute::ExecuteError::Closed) => return,

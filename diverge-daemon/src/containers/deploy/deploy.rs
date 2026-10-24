@@ -235,7 +235,7 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
         owner: key::Owner::Agent(agent_key.clone()),
     });
     let dependent = (!tool.declared.permissions.is_empty()).then(|| Dependent {
-        fixed: Arc::new(Fixed::new(identity(agent_key, &tool.template), Converted::from(tool.declared.permissions.clone()))),
+        fixed: Arc::new(Fixed::new(sender.clone(), Converted::from(tool.declared.permissions.clone()))),
         tool: tool.id,
     });
     let touched = watch::channel(Instant::now()).0;
@@ -328,20 +328,9 @@ async fn up(daemon: &Daemon, key: ToolKey) -> Result<(), String> {
 }
 
 /// The first eight characters of a template id: what a dependency is
-/// served to its agent as, and known as in a standing's identity.
+/// served to its agent as.
 pub fn short(template_id: &str) -> String {
     template_id.chars().take(8).collect()
-}
-
-/// The identity a transient tool's requests are served under: the
-/// agent's name, or its template's first eight digits and its index,
-/// then the dependency's template, short.
-fn identity(agent: &key::Agent, template_id: &str) -> String {
-    let agent = match &agent.name {
-        Some(name) => name.clone(),
-        None => format!("{}-{}", agent.template.chars().take(8).collect::<String>(), agent.index),
-    };
-    format!("{agent}/{}", short(template_id))
 }
 
 /// The run's error, naming the dependency by its template's id.

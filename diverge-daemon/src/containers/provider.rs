@@ -10,7 +10,6 @@ use tokio::task::JoinHandle;
 use super::capable::{self, Needs};
 use super::images;
 use crate::daemon::Daemon;
-use crate::store::{self, providers_incoming, providers_outgoing};
 
 /// Why no provider could be had.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,28 +62,11 @@ impl NoProvider {
 impl std::fmt::Display for NoProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NoProvider::NotConnected(Identity::Outgoing { address }) => {
-                write!(f, "the outgoing provider at {address} is not connected now")
-            }
-            NoProvider::NotConnected(Identity::IncomingUnbrokered { identity }) => {
-                write!(f, "the incoming provider {identity} is not connected now")
-            }
-            NoProvider::Unsupported(Identity::Outgoing { address }, what) => {
-                write!(f, "the outgoing provider at {address} cannot run it: {what}")
-            }
-            NoProvider::Unsupported(Identity::IncomingUnbrokered { identity }, what) => {
-                write!(f, "the incoming provider {identity} cannot run it: {what}")
-            }
+            NoProvider::NotConnected(identity) => write!(f, "the provider {identity} is not connected now"),
+            NoProvider::Unsupported(identity, what) => write!(f, "the provider {identity} cannot run it: {what}"),
             NoProvider::None => f.write_str("no provider is connected"),
             NoProvider::NoneCapable(what) => write!(f, "no connected provider can run it: {what}"),
-            NoProvider::NoSource {
-                pinned: Some(Identity::Outgoing { address }),
-                what,
-            } => write!(f, "the outgoing provider at {address} cannot source the image: {what}"),
-            NoProvider::NoSource {
-                pinned: Some(Identity::IncomingUnbrokered { identity }),
-                what,
-            } => write!(f, "the incoming provider {identity} cannot source the image: {what}"),
+            NoProvider::NoSource { pinned: Some(identity), what } => write!(f, "the provider {identity} cannot source the image: {what}"),
             NoProvider::NoSource { pinned: None, what } => write!(f, "no connected provider can source the image: {what}"),
         }
     }
@@ -94,7 +76,7 @@ impl std::fmt::Display for NoProvider {
 /// the one its record pins it to, which must be connected now, whose
 /// capabilities must hold out what the run `needs`, and which must be
 /// able to source the run's image, and no other; or, pinned to none,
-/// every provider on record that is connected now and passes the
+/// every provider the configuration accepts that is connected now and passes the
 /// same judgements, the one with the most room for the run first —
 /// see below — and a start that fails on one goes on to the next.
 ///
@@ -163,15 +145,12 @@ pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: 
         }
         return Ok(vec![(identity.clone(), handle)]);
     }
-    let on_record = match on_record(daemon).await {
-        Ok(on_record) => on_record,
-        Err(_) => Vec::new(),
-    };
+    let on_record = &daemon.providers.accepted;
     let mut listed = Vec::with_capacity(on_record.len());
     let mut unlisted = Vec::new();
     let mut lacked = None;
     let mut reason = None;
-    for identity in on_record {
+    for identity in on_record.iter().cloned() {
         let Some(handle) = daemon.live.provider(&identity).await else {
             continue;
         };
@@ -264,16 +243,4 @@ async fn held(asked: Option<JoinHandle<bool>>) -> bool {
 fn no_source(reason: &str, needs: &Needs) -> String {
     let digest = needs.image.as_ref().map(|image| image.digest.as_str()).unwrap_or_default();
     format!("{reason}, and no connected provider holds the image {digest}")
-}
-
-/// Every provider on record, outgoing first, each oldest first.
-async fn on_record(daemon: &Daemon) -> Result<Vec<Identity>, store::Error> {
-    let mut conn = daemon.store.acquire().await?;
-    let mut identities: Vec<Identity> = providers_outgoing::all(&mut conn)
-        .await?
-        .into_iter()
-        .map(|outgoing| outgoing.identity())
-        .collect();
-    identities.extend(providers_incoming::all(&mut conn).await?.into_iter().map(|incoming| incoming.provider()));
-    Ok(identities)
 }

@@ -1,7 +1,6 @@
 //! Inserting a value into a vault key: the key made with it as its
 //! first value, the value appended, or one slot's value replaced.
 
-use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::vault::insert::client::request;
 use diverge_sdk::daemon::endpoints::vault::insert::server::response::Frame;
 use diverge_sdk::daemon::grant::vault::{Make, Over};
@@ -58,9 +57,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !allowed {
         return Ok(Frame::Forbidden);
     }
-    let creator = Creator::Client(Client {
-        identity: standing.identity.clone(),
-    });
+    let creator = standing.creator.clone();
     match vault::insert(&mut tx, &frame.key, frame.slot, &frame.value, &creator).await? {
         vault::Insert::Created | vault::Insert::Appended(_) | vault::Insert::Replaced => {}
         vault::Insert::NotFound => return Ok(Frame::NotFound),

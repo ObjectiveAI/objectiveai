@@ -1,9 +1,8 @@
 //! Registering another daemon's tool under a name.
 
-use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::standalone_tools::register::client::request;
 use diverge_sdk::daemon::endpoints::standalone_tools::register::server::response::Frame;
-use diverge_sdk::daemon::grant::providers_daemons::Over;
+use diverge_sdk::daemon::grant::daemons::Action;
 use diverge_sdk::daemon::grant::standalone_tools::Make;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use indexmap::IndexMap;
@@ -12,7 +11,7 @@ use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::tools::Origin;
-use crate::store::{self, providers_daemons, tools};
+use crate::store::{self, tools};
 
 /// Answer the register and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -24,10 +23,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` without the `register` grant, or without a `connect`
-/// grant over the daemon record as the account named; the error for a daemon
-/// record the caller does not have; `InUse` for a name another tool
-/// has; else the tool held — a connected one, with no account and no
+/// `Forbidden` without the `register` grant, or without the `connect`
+/// grant through the remote daemons; the error for a remote daemon the
+/// configuration does not name; `InUse` for a name another tool has;
+/// else the tool held — a connected one, with no account and no
 /// mounts, its index the next among tools registered from that
 /// daemon's tool — and nothing connected: the daemon is connected to
 /// and its connect opened while an attached agent uses the tool.
@@ -39,20 +38,15 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::standalone_tools::make(&standing, Make::Register) {
         return Ok(Frame::Forbidden);
     }
-    let Some(record) = providers_daemons::by_name(&mut tx, &frame.daemon, false).await? else {
-        return Ok(Frame::Error(reply::failure(&"the daemon named is none on record")));
-    };
-    if record.account(&frame.account).is_none() {
-        return Ok(Frame::Error(reply::failure(&"the daemon record has no account of the name")));
+    if !daemon.remotes.iter().any(|remote| remote.name == frame.daemon) {
+        return Ok(Frame::Error(reply::failure(&"the daemon named is none the configuration names")));
     }
-    let connected = daemon.live.is_daemon_connected(&record.name).await;
-    if !judge::providers_daemons::through(&standing, Over::Connect, &record, connected, &frame.account) {
+    if !judge::daemons::holds(&standing, Action::Connect) {
         return Ok(Frame::Forbidden);
     }
     let new = tools::New {
         origin: Origin::Connected {
             daemon: frame.daemon,
-            account: frame.account,
             tool: frame.tool,
         },
         name: frame.name,
@@ -60,9 +54,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         fuse_file_mounts: Vec::new(),
         fuse_directory_mounts: Vec::new(),
         secrets: IndexMap::new(),
-        creator: Creator::Client(Client {
-            identity: standing.identity.clone(),
-        }),
+        creator: standing.creator.clone(),
     };
     match tools::create(&mut tx, &new).await? {
         tools::Created::Created(..) => {}

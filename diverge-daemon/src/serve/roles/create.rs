@@ -1,6 +1,5 @@
 //! Creating a role.
 
-use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::roles::create::client::request;
 use diverge_sdk::daemon::endpoints::roles::create::server::response::Frame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -35,9 +34,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         name: frame.name,
         description: frame.description,
         grants: frame.grants,
-        creator: Creator::Client(Client {
-            identity: standing.identity.clone(),
-        }),
+        creator: standing.creator.clone(),
     };
     match roles::create(&mut tx, &new).await? {
         roles::Created::Created(_) => {}

@@ -36,8 +36,8 @@ pub enum Postgres {
         /// `postgres://user@host:port/database`, with whatever
         /// parameters the daemon's own driver takes, and no password.
         url: String,
-        /// The keyring entry the password is kept in; absent, the
-        /// daemon dials with none. The daemon sets it into the URL as
+        /// The password, as written; absent, the daemon dials with
+        /// none. The daemon sets it into the URL as
         /// it dials, and its `postgres get` reports the URL with the
         /// password taken out.
         #[serde(default, skip_serializing_if = "Option::is_none")]

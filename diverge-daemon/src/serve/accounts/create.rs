@@ -1,15 +1,12 @@
 //! Creating an account.
 
-use diverge_sdk::daemon::creator::{Client, Creator};
-use diverge_sdk::daemon::endpoints::accounts::Definition;
 use diverge_sdk::daemon::endpoints::accounts::create::client::request;
 use diverge_sdk::daemon::endpoints::accounts::create::server::response::Frame;
-use diverge_sdk::keyring::Key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{NamedRoles, named_roles};
 use crate::daemon::{Daemon, Kind};
-use crate::judge::{self, Standing, Who, key};
+use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, accounts};
 
@@ -25,11 +22,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` without the `create` grant or the `grant` grant over
 /// a role named; `NoRole` for a role the daemon does not have;
-/// `Exists` for a name or an identity another account has; else the
-/// account made, holding its roles from the first, with the key
-/// minted when a credential was given — kept in the keyring once the
-/// account is committed, and the entry it is kept in answered, never
-/// the key.
+/// `Exists` for an identity another account is; else the account
+/// made, holding its roles from the first. From the commit on, a
+/// client whose token establishes the identity is admitted at the
+/// handshake as the account.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -43,20 +39,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         NamedRoles::NoRole => return Ok(Frame::NoRole),
         NamedRoles::Forbidden => return Ok(Frame::Forbidden),
     };
-    let (name, credential) = match frame.definition {
-        Definition::Named { name, credential } => (Some(name), credential),
-        Definition::Unnamed { credential } => (None, Some(credential)),
-    };
-    let minted = credential.as_ref().map(|credential| (key::account(&credential.identity), Key::mint()));
     let new = accounts::New {
-        name,
-        identity: credential.as_ref().map(|credential| credential.identity.clone()),
-        address: credential.and_then(|credential| credential.address),
-        key_hash: minted.as_ref().map(|(_, key)| key.hash()),
+        identity: frame.identity,
         description: frame.description,
-        creator: Creator::Client(Client {
-            identity: standing.identity.clone(),
-        }),
+        creator: standing.creator.clone(),
     };
     let id = match accounts::create(&mut tx, &new).await? {
         accounts::Created::Created(id) => id,
@@ -66,9 +52,5 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     tx.commit().await?;
     daemon.live.changed(Kind::Accounts);
     daemon.live.changed(Kind::Roles);
-    let Some((entry, key)) = minted else {
-        return Ok(Frame::Created(None));
-    };
-    key::keep(&daemon.keyring, &entry, &key).await?;
-    Ok(Frame::Created(Some(entry)))
+    Ok(Frame::Created)
 }

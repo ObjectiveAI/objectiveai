@@ -34,8 +34,10 @@ pub enum Error {
     /// The local Postgres could not be started, or the remote's
     /// password could not be read.
     Postgres(postgres::Error),
-    /// The keyring could not be opened.
-    Keyring(diverge_sdk::keyring::Error),
+    /// The root's identities could not be opened.
+    Identities(diverge_sdk::identities::Error),
+    /// The key-set cache could not be made.
+    KeySets(diverge_sdk::identities::VerifyError),
     /// The store could not be opened, or its schema applied.
     Store(store::Error),
     /// The database URL could not be read for where and how to dial.
@@ -59,7 +61,8 @@ impl fmt::Display for Error {
                 None => write!(f, "another daemon holds {}", root.display()),
             },
             Error::Postgres(error) => write!(f, "the Postgres could not be started or named: {error}"),
-            Error::Keyring(error) => write!(f, "the keyring could not be opened: {error}"),
+            Error::Identities(error) => write!(f, "the identities could not be opened: {error}"),
+            Error::KeySets(error) => write!(f, "the key-set cache could not be made: {error}"),
             Error::Store(error) => write!(f, "the store could not be opened: {error}"),
             Error::Database(error) => write!(f, "{error}"),
             Error::Directory(error) => write!(f, "the daemon's directory could not be made: {error}"),
@@ -83,7 +86,8 @@ impl std::error::Error for Error {
             Error::Lock(error) => Some(error),
             Error::Locked { .. } => None,
             Error::Postgres(error) => Some(error),
-            Error::Keyring(error) => Some(error),
+            Error::Identities(error) => Some(error),
+            Error::KeySets(error) => Some(error),
             Error::Store(error) => Some(error),
             Error::Database(error) => Some(error),
         }

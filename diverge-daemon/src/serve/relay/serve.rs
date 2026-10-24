@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::ClientRequest;
-use diverge_sdk::daemon::grant::providers_daemons::Over;
+use diverge_sdk::daemon::grant::daemons::Action;
 use diverge_sdk::shared::relay::Relay;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
@@ -12,15 +12,15 @@ use crate::daemon::Daemon;
 use crate::daemons;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::providers_daemons;
 
 /// Serve `request` — decoded only for its name and its refusals —
-/// on the daemon `relay` names, as the account it names, carrying
-/// `bytes`, the request with `relay` taken out. `Forbidden`, in the
-/// request's own words, with no standing, or with no `relay` grant
-/// over the record as that account; the request's own `Error` for a
-/// record or an account that is none on record, a store that cannot
-/// be read, or a connection that could not be opened; else the
+/// on the remote daemon `relay` names, carrying `bytes`, the request
+/// with `relay` taken out — served there as the account this daemon's
+/// identity is. `Forbidden`, in the request's own words, with no
+/// standing, or with no `relay` grant through the remote daemons; the
+/// request's own `Error` for a remote the configuration does not
+/// name, a store that cannot be read, or a connection that could not
+/// be opened; else the
 /// conduit, to the remote's finish — or, the connection ending at any
 /// frame before that, the one [`LOST`] error, then the finish. An
 /// invalid request has no words and is finished with nothing, as it
@@ -53,7 +53,7 @@ pub const LOST: &str = "the connection to the daemon ended before the request wa
 
 /// Why a relay was not made.
 enum Refusal {
-    /// The caller may not act as that account on that daemon.
+    /// The caller may not relay.
     Forbidden,
     /// Something else, in words.
     Error(String),
@@ -62,30 +62,19 @@ enum Refusal {
 /// The caller judged and the connection taken or opened: the handle
 /// every frame of the relay rides.
 async fn judge_and_connect(relay: &Relay, who: Who, daemon: &Arc<Daemon>) -> Result<diverge_sdk::wire::client::handle::Handle, Refusal> {
-    let record = {
+    {
         let mut conn = daemon.store.acquire().await.map_err(|error| Refusal::Error(error.to_string()))?;
         let Some(standing) = Standing::of(&mut conn, who).await.map_err(|error| Refusal::Error(error.to_string()))? else {
             return Err(Refusal::Forbidden);
         };
-        if !judge::providers_daemons::holds(&standing, Over::Relay) {
+        if !judge::daemons::holds(&standing, Action::Relay) {
             return Err(Refusal::Forbidden);
         }
-        let Some(record) = providers_daemons::by_name(&mut conn, &relay.daemon, false)
-            .await
-            .map_err(|error| Refusal::Error(error.to_string()))?
-        else {
-            return Err(Refusal::Error("the daemon named is none on record".to_string()));
-        };
-        if record.account(&relay.account).is_none() {
-            return Err(Refusal::Error("the daemon record has no account of the name".to_string()));
-        }
-        let connected = daemon.live.is_daemon_connected(&record.name).await;
-        if !judge::providers_daemons::through(&standing, Over::Relay, &record, connected, &relay.account) {
-            return Err(Refusal::Forbidden);
-        }
-        record
+    }
+    let Some(remote) = daemon.remotes.iter().find(|remote| remote.name == relay.daemon) else {
+        return Err(Refusal::Error("the daemon named is none the configuration names".to_string()));
     };
-    let peer = daemons::connect(daemon, &record, &relay.account).await.map_err(|fail| Refusal::Error(fail.to_string()))?;
+    let peer = daemons::connect(daemon, remote).await.map_err(|fail| Refusal::Error(fail.to_string()))?;
     Ok(peer.connected.handle.clone())
 }
 

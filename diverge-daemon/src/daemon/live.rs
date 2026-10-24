@@ -9,7 +9,7 @@ use diverge_sdk::daemon::endpoints::providers::Status;
 use diverge_sdk::provider::endpoints::capacity::server::response::Frame as CapacityFrame;
 use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;
 use diverge_sdk::wire::client::handle::Handle;
-use tokio::sync::{Mutex, Notify, watch};
+use tokio::sync::{Mutex, watch};
 use tokio::task::AbortHandle;
 
 use chrono::{DateTime, Utc};
@@ -29,8 +29,8 @@ use crate::volumes::Mirror;
 /// connected as them, and how many; which providers the daemon holds
 /// a connection to, the handle it speaks to each on, the info each
 /// answered and the capacity each last answered; and the dial
-/// tasks keeping the outgoing ones connected; which daemons it holds
-/// a connection to through them; which providers hold which image,
+/// tasks keeping the ones it dials connected; which remote daemons it
+/// holds a connection to through them; which providers hold which image,
 /// and the pull scope held on each; every agent's log as
 /// it is appended and watched; which agents and tools run — a tool
 /// on record, or a dependency tool — and what is
@@ -40,13 +40,18 @@ use crate::volumes::Mirror;
 pub struct Live {
     /// Connections per account, for the accounts with any.
     connected: Mutex<HashMap<AccountId, usize>>,
-    /// The providers connected now, one slot per identity and one
-    /// connection per credential, and the caller's handle on each:
-    /// what every request to a provider rides. See [`Peers`].
+    /// The providers connected now, one slot per identity, and the
+    /// caller's handle on each: what every request to a provider
+    /// rides. See [`Peers`].
     providers: Mutex<Peers>,
-    /// The dial task of every outgoing provider, by address, to be
-    /// ended when the provider is forgotten or the daemon stops.
+    /// The dial task of every provider the daemon dials, by address,
+    /// to be ended when the daemon stops.
     dials: Mutex<HashMap<String, AbortHandle>>,
+    /// The address each provider was last reached at by a dial, by
+    /// the identity it answered the handshake as: what a list reports
+    /// as its address, since an entry the daemon dials names an
+    /// address and an issuer, never the identity that answers there.
+    addresses: Mutex<HashMap<Identity, String>>,
     /// Every agent's log that has been appended to or watched since
     /// the start, by agent.
     logs: Mutex<HashMap<AgentId, Arc<Log>>>,
@@ -77,10 +82,10 @@ pub struct Live {
     changes: Changes,
     /// Each connected provider's volumes, as its listing streams them.
     volumes: Mutex<HashMap<Identity, Arc<Mirror>>>,
-    /// The daemons connected to now, by record name and account name,
-    /// each through one provider: what a connected tool's exchanges
-    /// and a relayed request ride.
-    daemons: Mutex<HashMap<(String, String), Arc<Peer>>>,
+    /// The remote daemons connected to now, by the name the
+    /// configuration gives each, each through one provider: what a
+    /// connected tool's exchanges and a relayed request ride.
+    daemons: Mutex<HashMap<String, Arc<Peer>>>,
     /// The next number for a connect scope another daemon opens.
     next_connect: Mutex<u64>,
     /// Which providers are known to hold which image, by digest: what
@@ -172,16 +177,14 @@ impl Live {
         self.connected.lock().await.keys().copied().collect()
     }
 
-    /// Reserve the provider's slot for a connection being admitted,
-    /// holding `credential` — the hash of the key an incoming provider
-    /// presented — with it: `None` when a connection holds the
-    /// identity, or one holds the credential, already, and the
-    /// newcomer is refused; else the slot's eviction word, the slot
-    /// pending. Nothing is said of it yet: a pending slot reads as no
-    /// connection. What is reserved is given back with
-    /// `disconnect_provider`, on every path.
-    pub async fn reserve_provider(&self, identity: Identity, credential: Option<String>) -> Option<Arc<Notify>> {
-        self.providers.lock().await.reserve(identity, credential)
+    /// Reserve the provider's slot for a connection being admitted:
+    /// `false` when a connection holds the identity already, and the
+    /// newcomer is refused; else `true`, the slot pending. Nothing is
+    /// said of it yet: a pending slot reads as no connection. What is
+    /// reserved is given back with `disconnect_provider`, on every
+    /// path.
+    pub async fn reserve_provider(&self, identity: Identity) -> bool {
+        self.providers.lock().await.reserve(identity)
     }
 
     /// The provider answered its info with the daemon's version: its
@@ -202,7 +205,7 @@ impl Live {
                 map.insert(identity.clone(), Arc::clone(&cell));
                 map
             });
-            self.changes.changed(Kind::of_provider(identity));
+            self.changes.changed(Kind::Providers);
         }
         (info, cell)
     }
@@ -217,13 +220,12 @@ impl Live {
             info: Arc::new(info),
         };
         if self.providers.lock().await.fill(identity, standing) {
-            self.changes.changed(Kind::of_provider(identity));
+            self.changes.changed(Kind::Providers);
         }
     }
 
-    /// The provider's connection ended: its slot given back, with the
-    /// credential it held, and its capacity cell dropped from the map
-    /// and nudged, so a poller asleep on its interval wakes, finds the
+    /// The provider's connection ended: its slot given back, and its
+    /// capacity cell dropped from the map and nudged, so a poller asleep on its interval wakes, finds the
     /// connection gone and ends.
     pub async fn disconnect_provider(&self, identity: &Identity) {
         if self.providers.lock().await.release(identity) {
@@ -236,7 +238,7 @@ impl Live {
             if let Some(cell) = cell {
                 cell.nudge();
             }
-            self.changes.changed(Kind::of_provider(identity));
+            self.changes.changed(Kind::Providers);
         }
         if self.volumes.lock().await.remove(identity).is_some() {
             self.changes.changed(Kind::Volumes);
@@ -314,16 +316,6 @@ impl Live {
         self.changes.subscribe()
     }
 
-    /// End the provider's connection: its own task is told, closes
-    /// the socket, and gives the slot back — so the slot is held
-    /// until that has happened, and a connection arriving between is
-    /// refused as one arriving before would be.
-    pub async fn evict_provider(&self, identity: &Identity) {
-        if let Some(slot) = self.providers.lock().await.slots.get(identity) {
-            slot.evict.notify_one();
-        }
-    }
-
     /// Whether the daemon uses the provider now: its info cached, its
     /// version the daemon's. A provider still being asked, and one of
     /// another version, are not connected.
@@ -396,17 +388,19 @@ impl Live {
         }
     }
 
-    /// End the dial task for the address, and the connection it holds
-    /// with it — and give the slot back, since a task ended mid-way
-    /// does not get to. An address with no dial is nothing to end.
-    pub async fn stop_dial(&self, address: &str) {
-        if let Some(dial) = self.dials.lock().await.remove(address) {
-            dial.abort();
+    /// A dial to `address` was answered by the provider `identity`:
+    /// remembered as its address, for the daemon's life.
+    pub async fn dialled(&self, identity: Identity, address: String) {
+        let changed = self.addresses.lock().await.insert(identity, address.clone()).is_none_or(|earlier| earlier != address);
+        if changed {
+            self.changes.changed(Kind::Providers);
         }
-        self.disconnect_provider(&Identity::Outgoing {
-            address: address.to_string(),
-        })
-        .await;
+    }
+
+    /// The address the provider was last reached at by a dial, if a
+    /// dial has reached it.
+    pub async fn address(&self, identity: &Identity) -> Option<String> {
+        self.addresses.lock().await.get(identity).cloned()
     }
 
     /// End every dial task: the daemon is stopping, and nothing reads
@@ -620,87 +614,50 @@ impl Live {
         self.operations.lock().await.remove(volume);
     }
 
-    /// The connection to the daemon record as the account, if one is
+    /// The connection to the remote daemon of the name, if one is
     /// held.
-    pub async fn daemon_peer(&self, daemon: &str, account: &str) -> Option<Arc<Peer>> {
-        self.daemons.lock().await.get(&(daemon.to_string(), account.to_string())).cloned()
+    pub async fn daemon_peer(&self, name: &str) -> Option<Arc<Peer>> {
+        self.daemons.lock().await.get(name).cloned()
     }
 
-    /// A connection to a daemon as an account is open: held under the
-    /// record's name and the account's, replacing one that ended.
+    /// A connection to a remote daemon is open: held under its name,
+    /// replacing one that ended.
     pub async fn insert_daemon(&self, peer: Arc<Peer>) {
-        self.daemons.lock().await.insert((peer.daemon.clone(), peer.account.clone()), peer);
-        self.changes.changed(Kind::ProvidersDaemons);
+        self.daemons.lock().await.insert(peer.daemon.clone(), peer);
+        self.changes.changed(Kind::Daemons);
     }
 
     /// The peer's connection ended: forgotten, unless a newer one has
     /// taken its place.
     pub async fn remove_peer(&self, peer: &Arc<Peer>) {
-        let key = (peer.daemon.clone(), peer.account.clone());
         let removed = {
             let mut daemons = self.daemons.lock().await;
-            match daemons.get(&key) {
-                Some(held) if Arc::ptr_eq(held, peer) => daemons.remove(&key).is_some(),
+            match daemons.get(&peer.daemon) {
+                Some(held) if Arc::ptr_eq(held, peer) => daemons.remove(&peer.daemon).is_some(),
                 _ => false,
             }
         };
         if removed {
-            self.changes.changed(Kind::ProvidersDaemons);
+            self.changes.changed(Kind::Daemons);
         }
     }
 
-    /// The record is deleted: whatever connections it had, as any
-    /// account, are let go.
-    pub async fn remove_daemon(&self, name: &str) {
-        let mut daemons = self.daemons.lock().await;
-        let before = daemons.len();
-        daemons.retain(|(daemon, _), _| daemon != name);
-        if daemons.len() != before {
-            self.changes.changed(Kind::ProvidersDaemons);
-        }
-    }
-
-    /// The account is edited or deleted: the connection held as it, if
-    /// any, is let go, so the next one presents the credential as it
-    /// is now, or none.
-    pub async fn remove_account(&self, daemon: &str, account: &str) {
-        if self.daemons.lock().await.remove(&(daemon.to_string(), account.to_string())).is_some() {
-            self.changes.changed(Kind::ProvidersDaemons);
-        }
-    }
-
-    /// Whether this daemon holds a connection to the daemon record
-    /// now, as any of its accounts, one that has not ended.
+    /// Whether this daemon holds a connection to the remote daemon of
+    /// the name now, one that has not ended.
     pub async fn is_daemon_connected(&self, name: &str) -> bool {
-        self.daemons
-            .lock()
-            .await
-            .iter()
-            .any(|((daemon, _), peer)| daemon == name && !peer.connected.is_ended())
+        self.daemons.lock().await.get(name).is_some_and(|peer| !peer.connected.is_ended())
     }
 
-    /// The accounts this daemon holds a connection to the record as
-    /// now, by name, in no order.
-    pub async fn connected_accounts(&self, name: &str) -> Vec<String> {
+    /// Every remote daemon connected to now, by name: one snapshot,
+    /// for a list.
+    pub async fn connected_daemons(&self) -> HashSet<String> {
         self.daemons
             .lock()
             .await
             .iter()
-            .filter(|((daemon, _), peer)| daemon == name && !peer.connected.is_ended())
-            .map(|((_, account), _)| account.clone())
+            .filter(|(_, peer)| !peer.connected.is_ended())
+            .map(|(name, _)| name.clone())
             .collect()
-    }
-
-    /// Every daemon record connected to now, with the accounts it is
-    /// connected as: one snapshot, for a list.
-    pub async fn connected_daemons(&self) -> HashMap<String, Vec<String>> {
-        let mut connected: HashMap<String, Vec<String>> = HashMap::new();
-        for ((daemon, account), peer) in self.daemons.lock().await.iter() {
-            if !peer.connected.is_ended() {
-                connected.entry(daemon.clone()).or_default().push(account.clone());
-            }
-        }
-        connected
     }
 
     /// A number for a connect scope another daemon is opening, never

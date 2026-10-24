@@ -8,13 +8,12 @@ use diverge_sdk::daemon::endpoints::volumes::list::server::response::{self, Fram
 use diverge_sdk::daemon::grant::volumes::Over;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
-use sqlx::PgConnection;
 
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Source};
 use crate::serve::reply;
-use crate::store::{self, providers_incoming, providers_outgoing, volumes as volume_tags};
+use crate::store::{self, volumes as volume_tags};
 use crate::volumes::{self, Listed, Whole};
 
 /// Send the list and its changes, then finish the scope.
@@ -57,7 +56,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
     stream::listing(
         scope,
         daemon,
-        &[Kind::Volumes, Kind::ProvidersOutgoing, Kind::ProvidersIncoming, Kind::Agents, Kind::StandaloneTools],
+        &[Kind::Volumes, Kind::Providers, Kind::Agents, Kind::StandaloneTools],
         frame.count,
         &source,
         Frame::from,
@@ -81,9 +80,12 @@ impl Source for Mirrored<'_> {
         async move {
             let named = judge::volumes::providers(self.standing, Over::List);
             let mut conn = self.daemon.store.acquire().await?;
-            let providers: Vec<Identity> = on_record(&mut conn)
-                .await?
-                .into_iter()
+            let providers: Vec<Identity> = self
+                .daemon
+                .providers
+                .accepted
+                .iter()
+                .cloned()
                 .filter(|identity| named.as_ref().is_none_or(|named| named.contains(identity)))
                 .collect();
             let mut tagged = volume_tags::all(&mut conn).await?;
@@ -117,12 +119,4 @@ impl Source for Mirrored<'_> {
             Ok(listed)
         }
     }
-}
-
-/// Every provider on record, outgoing then incoming, each in its
-/// record order.
-async fn on_record(conn: &mut PgConnection) -> Result<Vec<Identity>, store::Error> {
-    let mut identities: Vec<Identity> = providers_outgoing::all(conn).await?.iter().map(|outgoing| outgoing.identity()).collect();
-    identities.extend(providers_incoming::all(conn).await?.iter().map(|incoming| incoming.provider()));
-    Ok(identities)
 }

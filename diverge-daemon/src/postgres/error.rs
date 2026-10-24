@@ -4,7 +4,6 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
-use diverge_sdk::keyring;
 
 /// What [`start`](super::start) fails with: the local program, or the
 /// remote URL's password. A URL that cannot be reached is the store's
@@ -26,10 +25,6 @@ pub enum Error {
     /// Its stdout ended before it wrote the ready line: the program
     /// failed to start, and said why on its own stderr.
     Ended,
-    /// The keyring could not be read for the remote's password.
-    Keyring(keyring::Error),
-    /// The keyring holds no entry of the name the password names.
-    NoPassword(String),
     /// The remote URL did not parse, so no password could be set in it.
     Url(url::ParseError),
     /// The remote URL names no user, so it takes no password.
@@ -43,8 +38,6 @@ impl fmt::Display for Error {
             Error::Spawn { path, source } => write!(f, "`{}` could not be started: {source}", path.display()),
             Error::Stdout(error) => write!(f, "diverge-postgres could not be read: {error}"),
             Error::Ended => write!(f, "diverge-postgres ended before it was ready"),
-            Error::Keyring(error) => write!(f, "the keyring could not be read for the password: {error}"),
-            Error::NoPassword(entry) => write!(f, "the keyring holds no `{entry}`, the remote's password"),
             Error::Url(error) => write!(f, "the remote URL did not parse: {error}"),
             Error::NoUser => write!(f, "the remote URL names no user, so it takes no password"),
         }
@@ -56,9 +49,8 @@ impl std::error::Error for Error {
         match self {
             Error::Executable(error) | Error::Stdout(error) => Some(error),
             Error::Spawn { source, .. } => Some(source),
-            Error::Keyring(error) => Some(error),
             Error::Url(error) => Some(error),
-            Error::Ended | Error::NoPassword(_) | Error::NoUser => None,
+            Error::Ended | Error::NoUser => None,
         }
     }
 }

@@ -13,7 +13,6 @@ use indexmap::IndexMap;
 use tokio::sync::{Mutex, watch};
 
 use crate::containers::answerers::Answerer;
-use crate::containers::deploy::short;
 use crate::containers::fuse::Mounts;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
@@ -90,10 +89,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         owner,
     };
     let dependent = Dependent {
-        fixed: Arc::new(Fixed::new(
-            format!("service/{}", short(&tool.template)),
-            Converted::from(tool.declared.permissions.clone()),
-        )),
+        fixed: Arc::new(Fixed::new(sender.clone(), Converted::from(tool.declared.permissions.clone()))),
         tool: tool.id,
     };
     let touched = watch::channel(Instant::now()).0;

@@ -6,7 +6,7 @@ use diverge_sdk::daemon::grant::accounts::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
-use crate::judge::{self, Standing, Who, key};
+use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, accounts};
 
@@ -33,7 +33,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::accounts::holds(&standing, Over::Delete) {
         return Ok(Frame::Forbidden);
     }
-    let Some(account) = accounts::by_reference(&mut tx, &frame.account, true).await? else {
+    let Some(account) = accounts::by_identity(&mut tx, &frame.account, true).await? else {
         return Ok(Frame::NotFound);
     };
     let connected = daemon.live.is_connected(account.id).await;
@@ -47,8 +47,5 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     tx.commit().await?;
     daemon.live.changed(Kind::Accounts);
     daemon.live.changed(Kind::Roles);
-    if let Some(identity) = &account.identity {
-        key::forget(&daemon.keyring, &key::account(identity)).await?;
-    }
     Ok(Frame::Deleted)
 }

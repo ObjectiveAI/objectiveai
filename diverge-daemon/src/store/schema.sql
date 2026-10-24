@@ -4,33 +4,22 @@
 CREATE SCHEMA IF NOT EXISTS diverge;
 
 -- Nothing that is not the daemon reads these tables: a container's
--- login role lives in this same database and must never see a key
--- hash.
+-- login role lives in this same database and must never see them.
 REVOKE ALL ON SCHEMA diverge FROM PUBLIC;
 
 CREATE TABLE IF NOT EXISTS diverge.accounts (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    -- One account per name.
-    name        TEXT UNIQUE,
-    -- One credential per identity; the key is kept as its SHA-256 hex.
-    identity    TEXT UNIQUE,
-    key_hash    TEXT UNIQUE,
-    -- The one peer address the key is accepted from, as text; absent,
-    -- any address.
-    address     TEXT,
+    -- The identity the account is: the issuer and the subject of the
+    -- token a client presents, one account per identity.
+    issuer      TEXT NOT NULL,
+    subject     TEXT NOT NULL,
     description TEXT,
     -- Sorted bytewise, deduplicated, rewritten whole.
     tags        TEXT[] NOT NULL DEFAULT '{}',
     created     TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- The wire's Creator, as JSON.
     creator     JSONB NOT NULL,
-    -- A name, a credential, or both, and never neither.
-    CONSTRAINT accounts_never_neither CHECK (name IS NOT NULL OR identity IS NOT NULL),
-    -- A credential is an identity and a key together, and an address
-    -- only beside them.
-    CONSTRAINT accounts_credential_whole CHECK (
-        (identity IS NULL) = (key_hash IS NULL) AND (address IS NULL OR identity IS NOT NULL)
-    )
+    UNIQUE (issuer, subject)
 );
 
 CREATE TABLE IF NOT EXISTS diverge.roles (
@@ -55,62 +44,6 @@ CREATE TABLE IF NOT EXISTS diverge.account_roles (
 );
 
 CREATE INDEX IF NOT EXISTS account_roles_role ON diverge.account_roles (role);
-
-CREATE TABLE IF NOT EXISTS diverge.providers_outgoing (
-    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    -- The address is the identity: the string as given, dialled as is.
-    address        TEXT NOT NULL UNIQUE,
-    -- The wire's Mode, as JSON: how the daemon authenticates there,
-    -- credential and all. Never answered whole.
-    mode           JSONB NOT NULL,
-    -- When the daemon's connection to it last opened or closed; absent
-    -- for one never dialled.
-    last_connected TIMESTAMPTZ,
-    tags           TEXT[] NOT NULL DEFAULT '{}',
-    created        TIMESTAMPTZ NOT NULL DEFAULT now(),
-    creator        JSONB NOT NULL
-);
-
--- Another daemon the caller holds accounts on, reached through a
--- provider both are connected to and never otherwise: the links it
--- is reached through, each a provider of the caller's and the identity
--- the remote is known by there. Its accounts are the rows below.
-CREATE TABLE IF NOT EXISTS diverge.providers_daemons (
-    id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    -- One record per name.
-    name    TEXT NOT NULL UNIQUE,
-    -- The wire's links, as a JSON array.
-    links   JSONB NOT NULL DEFAULT '[]',
-    tags    TEXT[] NOT NULL DEFAULT '{}',
-    created TIMESTAMPTZ NOT NULL DEFAULT now(),
-    creator JSONB NOT NULL
-);
-
--- One account this daemon holds on a daemon record: a name of the
--- caller's choosing, unique on that record, and the mode this daemon
--- authenticates to the remote in as it, credential and all. Never
--- answered whole. Goes with the record.
-CREATE TABLE IF NOT EXISTS diverge.providers_daemons_accounts (
-    daemon  BIGINT NOT NULL REFERENCES diverge.providers_daemons(id) ON DELETE CASCADE,
-    name    TEXT NOT NULL,
-    -- The wire's Mode, as JSON.
-    mode    JSONB NOT NULL,
-    created TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (daemon, name)
-);
-
-CREATE TABLE IF NOT EXISTS diverge.providers_incoming (
-    id       BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    -- One credential per identity; the key is kept as its SHA-256 hex.
-    identity TEXT NOT NULL UNIQUE,
-    key_hash TEXT NOT NULL UNIQUE,
-    -- The one peer address the key is accepted from, as text; absent,
-    -- any address.
-    address  TEXT,
-    tags     TEXT[] NOT NULL DEFAULT '{}',
-    created  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    creator  JSONB NOT NULL
-);
 
 -- A template is held by the hash of its own JSON; a deleted one keeps
 -- its row, so that one made anew is the one that was deleted, with the
@@ -199,7 +132,6 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
     template              TEXT,
     provider              JSONB,
     connected_daemon      TEXT,
-    connected_account     TEXT,
     connected_tool        JSONB,
     index                 BIGINT NOT NULL,
     name                  TEXT UNIQUE,
@@ -218,7 +150,7 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
         (kind = 'created' AND template IS NOT NULL
             AND connected_daemon IS NULL AND connected_tool IS NULL)
         OR (kind = 'connected' AND template IS NULL AND provider IS NULL
-            AND connected_daemon IS NOT NULL AND connected_account IS NOT NULL
+            AND connected_daemon IS NOT NULL
             AND connected_tool IS NOT NULL)
     )
 );

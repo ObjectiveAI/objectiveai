@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::grant::Grant;
+use diverge_sdk::shared::Identity;
 use sqlx::postgres::PgRow;
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
@@ -24,7 +25,7 @@ pub(super) async fn roles(conn: &mut PgConnection, rows: &[PgRow]) -> Result<Vec
     let mut roles = rows.iter().map(role).collect::<Result<Vec<Role>, Error>>()?;
     let ids: Vec<i64> = roles.iter().map(|role| role.id.0).collect();
     let held = sqlx::query(
-        "SELECT ar.role, a.id, a.name, a.identity FROM diverge.account_roles ar \
+        "SELECT ar.role, a.id, a.issuer, a.subject FROM diverge.account_roles ar \
          JOIN diverge.accounts a ON a.id = ar.account WHERE ar.role = ANY($1)",
     )
     .bind(&ids)
@@ -35,8 +36,7 @@ pub(super) async fn roles(conn: &mut PgConnection, rows: &[PgRow]) -> Result<Vec
         let role: i64 = row.try_get("role")?;
         holders.entry(role).or_default().push(Holder {
             id: AccountId(row.try_get("id")?),
-            name: row.try_get("name")?,
-            identity: row.try_get("identity")?,
+            identity: Identity { issuer: row.try_get("issuer")?, subject: row.try_get("subject")? },
         });
     }
     for role in &mut roles {

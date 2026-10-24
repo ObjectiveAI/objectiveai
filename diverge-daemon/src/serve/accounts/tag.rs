@@ -32,7 +32,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::accounts::holds_tagging(&standing, Tagging::Tag) {
         return Ok(Frame::Forbidden);
     }
-    let Some(account) = accounts::by_reference(&mut tx, &frame.account, true).await? else {
+    let Some(account) = accounts::by_identity(&mut tx, &frame.account, true).await? else {
         return Ok(Frame::NotFound);
     };
     let connected = daemon.live.is_connected(account.id).await;

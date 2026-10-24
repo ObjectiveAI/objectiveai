@@ -3,19 +3,21 @@
 
 use std::sync::Arc;
 
+use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::grant::{self, Converted, Grant};
 
 use crate::store::DependencyToolId;
 
 /// What a dependency tool template fixed for the tool's life: the
-/// identity its requests are served under, the daemon's grants its
+/// creator its requests make things as, the daemon's grants its
 /// template converts to, and the actions over agents it holds within
 /// `self`, which no daemon grant can say and which are judged against
 /// the tool's own agents.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Fixed {
-    /// What a `Creator::Client` carries for the tool's requests.
-    pub identity: String,
+    /// What the tool's requests make things as: the tool itself, a
+    /// `Creator::Tool` naming its template and whose it is.
+    pub creator: Creator,
     /// Every grant a role could hold, in no order.
     pub grants: Vec<Grant>,
     /// The actions over agents held within `self`, in no order.
@@ -24,9 +26,9 @@ pub struct Fixed {
 
 impl Fixed {
     /// From a template's permissions, converted.
-    pub fn new(identity: String, converted: Converted) -> Fixed {
+    pub fn new(creator: Creator, converted: Converted) -> Fixed {
         Fixed {
-            identity,
+            creator,
             grants: converted.grants,
             self_actions: converted.self_actions,
         }

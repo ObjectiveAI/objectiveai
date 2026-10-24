@@ -8,9 +8,8 @@ use diverge_sdk::provider::endpoints::info::client::execute::ExecuteError;
 /// or the one thing asked of a provider before it counts as connected.
 #[derive(Debug)]
 pub enum Error {
-    /// Another connection holds the identity, or holds the
-    /// credential: one connection per either, and the newcomer's
-    /// socket is dropped without a word.
+    /// Another connection holds the identity: one connection per
+    /// identity, and the newcomer's socket is dropped without a word.
     Held,
     /// The provider did not answer its info, or answered something
     /// that is not one: the socket is not a provider's, or is already
@@ -21,7 +20,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Held => f.write_str("another connection holds the identity or the credential"),
+            Error::Held => f.write_str("another connection holds the identity"),
             Error::Info(error) => write!(f, "the provider did not answer its info: {error}"),
         }
     }

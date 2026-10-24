@@ -19,8 +19,8 @@ pub enum StartError {
     NoTemplate(String),
     /// No provider to run on.
     Provider(NoProvider),
-    /// The daemon record a connected tool names is not on record any
-    /// more.
+    /// The remote daemon a connected tool names is none the
+    /// configuration names.
     NoDaemon(String),
     /// No connection to the daemon named could be opened.
     Daemon(daemons::Fail),
@@ -48,7 +48,7 @@ impl fmt::Display for StartError {
             StartError::Store(error) => write!(f, "{error}"),
             StartError::NoTemplate(id) => write!(f, "the template {id} is not on record"),
             StartError::Provider(error) => write!(f, "{error}"),
-            StartError::NoDaemon(name) => write!(f, "the daemon {name} is not on record"),
+            StartError::NoDaemon(name) => write!(f, "the daemon {name} is none the configuration names"),
             StartError::Daemon(error) => write!(f, "{error}"),
             StartError::Mounts(error) => write!(f, "a mount could not be served: {error}"),
             StartError::Secrets(what) => write!(f, "a secret could not be taken: {what}"),

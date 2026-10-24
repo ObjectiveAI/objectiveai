@@ -1,6 +1,5 @@
 //! A message to an agent.
 
-use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::agents::message::client::channel_request;
 use diverge_sdk::daemon::endpoints::agents::message::client::request;
 use diverge_sdk::daemon::endpoints::agents::message::server::response::Frame;
@@ -62,9 +61,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
             }));
         }
     };
-    let sender = Creator::Client(Client {
-        identity: standing.identity.clone(),
-    });
+    let sender = standing.creator.clone();
     let (key, fate) = message::enqueue_keyed(daemon, &run, frame.content, sender).await;
     tokio::pin!(fate);
     let fate = tokio::select! {

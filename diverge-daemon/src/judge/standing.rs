@@ -2,7 +2,9 @@
 
 use std::collections::HashSet;
 
+use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::grant::{self, Grant};
+use diverge_sdk::shared::Identity;
 use sqlx::PgConnection;
 
 use super::Who;
@@ -21,9 +23,12 @@ use crate::store::{self, AgentId, dependency_tools};
 /// attached to a service.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Standing {
-    /// The account's name when it has one, else its credential's
-    /// identity: what a `Creator::Client` carries.
-    pub identity: String,
+    /// The account's identity, for an account; none for a dependency
+    /// tool, which is no account.
+    pub identity: Option<Identity>,
+    /// What the requests make things as: the client, for an account;
+    /// the tool itself, for a dependency tool.
+    pub creator: Creator,
     /// Every grant, in no order.
     grants: Vec<Grant>,
     /// The actions over agents held within `self`, in no order: a
@@ -40,7 +45,8 @@ impl Standing {
     pub async fn of(conn: &mut PgConnection, who: Who) -> Result<Option<Standing>, store::Error> {
         match who {
             Who::Account(id) => Ok(store::of_account(conn, id).await?.map(|(identity, grants)| Standing {
-                identity,
+                creator: Creator::Client(Client { identity: identity.clone() }),
+                identity: Some(identity),
                 grants,
                 self_actions: Vec::new(),
                 selves: HashSet::new(),
@@ -52,7 +58,8 @@ impl Standing {
                     .map(|attachment| attachment.agent)
                     .collect();
                 Ok(Some(Standing {
-                    identity: dependent.fixed.identity.clone(),
+                    identity: None,
+                    creator: dependent.fixed.creator.clone(),
                     grants: dependent.fixed.grants.clone(),
                     self_actions: dependent.fixed.self_actions.clone(),
                     selves,
@@ -87,18 +94,18 @@ impl Standing {
         })
     }
 
-    /// The grants over outgoing providers.
-    pub fn providers_outgoing(&self) -> impl Iterator<Item = &grant::providers_outgoing::Permission> {
+    /// The grants over the providers.
+    pub fn providers(&self) -> impl Iterator<Item = &grant::providers::Permission> {
         self.grants.iter().filter_map(|grant| match grant {
-            Grant::ProvidersOutgoing(permission) => Some(permission),
+            Grant::Providers(permission) => Some(permission),
             _ => None,
         })
     }
 
-    /// The grants over daemon records.
-    pub fn providers_daemons(&self) -> impl Iterator<Item = &grant::providers_daemons::Permission> {
+    /// The grants through the remote daemons.
+    pub fn daemons(&self) -> impl Iterator<Item = &grant::daemons::Permission> {
         self.grants.iter().filter_map(|grant| match grant {
-            Grant::ProvidersDaemons(permission) => Some(permission),
+            Grant::Daemons(permission) => Some(permission),
             _ => None,
         })
     }
@@ -123,14 +130,6 @@ impl Standing {
     pub fn dependency_tools(&self) -> impl Iterator<Item = &grant::dependency_tools::Permission> {
         self.grants.iter().filter_map(|grant| match grant {
             Grant::DependencyTools(permission) => Some(permission),
-            _ => None,
-        })
-    }
-
-    /// The grants over incoming credentials.
-    pub fn providers_incoming(&self) -> impl Iterator<Item = &grant::providers_incoming::Permission> {
-        self.grants.iter().filter_map(|grant| match grant {
-            Grant::ProvidersIncoming(permission) => Some(permission),
             _ => None,
         })
     }

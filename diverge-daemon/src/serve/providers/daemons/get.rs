@@ -1,14 +1,16 @@
-//! Getting one daemon record.
+//! Getting one remote daemon.
 
 use diverge_sdk::daemon::endpoints::providers::daemons::get::client::request;
 use diverge_sdk::daemon::endpoints::providers::daemons::get::server::response::Frame;
-use diverge_sdk::daemon::grant::providers_daemons::Over;
+use diverge_sdk::daemon::endpoints::providers::daemons::list::server::response;
+use diverge_sdk::daemon::grant::daemons::Action;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
+use crate::config::Remote;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::{self, providers_daemons};
+use crate::store;
 
 /// Answer the get and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -20,23 +22,29 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` with no `get` grant at all; `NotFound`; `Forbidden` for
-/// a record the grants do not reach; else the record as a list reports
-/// it, never its credential.
+/// `Forbidden` with no `get` grant; `NotFound` for a name the
+/// configuration does not give; else the remote as a list reports it.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
         return Ok(Frame::Forbidden);
     };
-    if !judge::providers_daemons::holds(&standing, Over::Get) {
+    if !judge::daemons::holds(&standing, Action::Get) {
         return Ok(Frame::Forbidden);
     }
-    let Some(record) = providers_daemons::by_name(&mut conn, &frame.name, false).await? else {
+    let Some(remote) = daemon.remotes.iter().find(|remote| remote.name == frame.name) else {
         return Ok(Frame::NotFound);
     };
-    let connected = daemon.live.connected_accounts(&record.name).await;
-    if !judge::providers_daemons::over(&standing, Over::Get, &record, !connected.is_empty()) {
-        return Ok(Frame::Forbidden);
+    let connected = daemon.live.is_daemon_connected(&remote.name).await;
+    Ok(Frame::Found(report(remote, connected)))
+}
+
+/// The remote as a get and a list report it, `connected` or not.
+pub fn report(remote: &Remote, connected: bool) -> response::Daemon {
+    response::Daemon {
+        name: remote.name.clone(),
+        issuer: remote.issuer.clone(),
+        links: remote.links.clone(),
+        connected,
     }
-    Ok(Frame::Found(record.report(connected)))
 }

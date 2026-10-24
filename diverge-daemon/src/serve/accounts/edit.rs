@@ -1,18 +1,13 @@
-//! Editing an account: a patch to its name, its credential, its
-//! description, its roles.
-
-use std::net::IpAddr;
+//! Editing an account: a patch to its description and its roles.
 
 use diverge_sdk::daemon::endpoints::accounts::edit::client::request::{self, Editable};
 use diverge_sdk::daemon::endpoints::accounts::edit::server::response::Frame;
 use diverge_sdk::daemon::grant::accounts::Over;
-use diverge_sdk::daemon::patch;
-use diverge_sdk::keyring::Key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{NamedRoles, named_roles};
 use crate::daemon::{Daemon, Kind};
-use crate::judge::{self, Standing, Who, key};
+use crate::judge::{self, Standing, Who};
 use crate::serve::inner;
 use crate::serve::reply;
 use crate::store::{self, accounts};
@@ -31,13 +26,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// for an account the grants do not reach, or a role named the caller
 /// holds no `grant` over; the `patch` error for a patch that could
 /// not be applied or a result that is not an account's editable
-/// members; `NoRole`; `Alone` for a result with neither a name nor a
-/// credential, or that takes the credential from one a client is
-/// connected as, or the name from one a container runs under; `InUse`
-/// for a name or an identity another account has; else the account
-/// as the result states, whole or not at all, with a new key when the
-/// patch wrote the credential, answered here and never again — and
-/// the connection a client holds as the account is not dropped by it.
+/// members; `NoRole`; else the account as the result states, whole or
+/// not at all. The identity is not editable — an account is its
+/// identity — and the connection a client holds as the account is not
+/// dropped by an edit.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -46,7 +38,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::accounts::holds(&standing, Over::Edit) {
         return Ok(Frame::Forbidden);
     }
-    let Some(account) = accounts::by_reference(&mut tx, &frame.account, true).await? else {
+    let Some(account) = accounts::by_identity(&mut tx, &frame.account, true).await? else {
         return Ok(Frame::NotFound);
     };
     let connected = daemon.live.is_connected(account.id).await;
@@ -54,8 +46,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::Forbidden);
     }
     let current = Editable {
-        name: account.name.clone(),
-        credential: account.credential(),
         description: account.description.clone(),
         roles: account.roles.clone(),
     };
@@ -72,49 +62,12 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     } else {
         None
     };
-    let mut minted: Option<(String, Key)> = None;
-    let (identity, address, key_hash): (Option<String>, Option<IpAddr>, Option<String>) = if patch::writes(&frame.patch, "/credential") {
-        match result.credential {
-            Some(credential) => {
-                let key = Key::mint();
-                let hash = key.hash();
-                minted = Some((key::account(&credential.identity), key));
-                (Some(credential.identity), credential.address, Some(hash))
-            }
-            None => (None, None, None),
-        }
-    } else {
-        (account.identity.clone(), account.address, account.key_hash.clone())
-    };
-    let gone = account.identity.as_ref().filter(|old| identity.as_ref() != Some(*old)).map(|old| key::account(old));
-    let name = result.name;
-    let credential_taken = account.identity.is_some() && identity.is_none();
-    let name_taken = account.name.is_some() && name.is_none();
-    if (name.is_none() && identity.is_none()) || (credential_taken && connected) || (name_taken && store::in_use::account(&mut tx, account.id).await?) {
-        return Ok(Frame::Alone);
-    }
-    let columns = accounts::Columns {
-        name,
-        identity,
-        address,
-        key_hash,
-        description: result.description,
-    };
-    if let accounts::Updated::InUse = accounts::update(&mut tx, account.id, &columns).await? {
-        return Ok(Frame::InUse);
-    }
+    accounts::update(&mut tx, account.id, &accounts::Columns { description: result.description }).await?;
     if let Some(roles) = roles {
         accounts::set_roles(&mut tx, account.id, &roles).await?;
     }
     tx.commit().await?;
     daemon.live.changed(Kind::Accounts);
     daemon.live.changed(Kind::Roles);
-    if let Some(gone) = gone {
-        key::forget(&daemon.keyring, &gone).await?;
-    }
-    let Some((entry, key)) = minted else {
-        return Ok(Frame::Edited(None));
-    };
-    key::keep(&daemon.keyring, &entry, &key).await?;
-    Ok(Frame::Edited(Some(entry)))
+    Ok(Frame::Edited)
 }

@@ -1,83 +1,80 @@
-//! The handshake: a credential and an address become an account, a
-//! provider, or nothing.
+//! The handshake: a verified identity becomes an account, a provider,
+//! or nothing.
 
+use std::collections::HashSet;
 use std::net::IpAddr;
 
-use super::{Who, key};
-use crate::store::{self, Store, accounts, providers_incoming};
+use diverge_sdk::identities::Own;
+use diverge_sdk::shared::Identity;
+use diverge_sdk::wire::handshake::{Authenticator, Peer};
+use futures_util::future::BoxFuture;
 
-/// Who a credential admitted: a client, served as an account, or a
-/// provider that dialled in, known by the identity its credential
-/// names.
+use super::Who;
+use crate::store::{self, Store, accounts};
+
+/// What a verified identity is to this daemon.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Peer {
-    /// A client, as the account.
+pub enum Admitted {
+    /// A client: the account the identity is.
     Client(Who),
-    /// A provider, as the identity its credential names, with the
-    /// hash of the credential, which the connection holds.
-    Provider {
-        /// The identity.
-        identity: String,
-        /// The credential's hash.
-        key_hash: String,
-    },
+    /// A provider the daemon works with.
+    Provider(Identity),
 }
 
-/// The account `credential` names, presented from `address`: the one
-/// whose key hashes to the credential's hash, provided its credential
-/// names no address or names this one. `None` is a refusal, and the
-/// caller closes the socket without a word, as the wire requires; a
-/// store that cannot be read is an error, and the caller closes the
-/// socket the same way, since nothing can be said to a peer that has
-/// not been admitted.
+/// The daemon's side of every handshake — with a client, a provider or
+/// another daemon alike. The rules:
 ///
-/// Addresses are compared canonical, so a peer the OS reports as an
-/// IPv4-mapped IPv6 address matches a credential given the IPv4.
-pub async fn admit(store: &Store, credential: &str, address: IpAddr) -> Result<Option<Who>, store::Error> {
-    let mut conn = store.acquire().await?;
-    let Some(account) = accounts::by_key_hash(&mut conn, &key::hash(credential)).await? else {
-        return Ok(None);
-    };
-    if !accepts(account.address, address) {
-        return Ok(None);
-    }
-    Ok(Some(Who::Account(account.id)))
+/// 1. **Presenting.** The daemon presents, at an issuer, the token of
+///    the subject its `identities` names there — see [`Own`].
+/// 2. **Verifying.** The other end's token is verified against its
+///    issuer's keys, trusting exactly the issuers `identities` names.
+/// 3. **Admitting.** A verified identity the configuration's
+///    `providers.accepted` lists is a provider; else one that is an
+///    account's is that account, a client; else it is refused, and the
+///    handshake closes the connection with no frame. A daemon with no
+///    account and no accepted provider admits nothing at all.
+#[derive(Debug)]
+pub struct DaemonAuthenticator {
+    own: Own,
+    providers: HashSet<Identity>,
+    store: Store,
 }
 
-/// The provider `credential` names, presented from `address`: the
-/// identity of the incoming credential whose key hashes to it, by the
-/// same rule as an account's, with that hash.
-pub async fn admit_provider(store: &Store, credential: &str, address: IpAddr) -> Result<Option<Peer>, store::Error> {
-    let mut conn = store.acquire().await?;
-    let key_hash = key::hash(credential);
-    let Some(incoming) = providers_incoming::by_key_hash(&mut conn, &key_hash).await? else {
-        return Ok(None);
-    };
-    if !accepts(incoming.address, address) {
-        return Ok(None);
+impl DaemonAuthenticator {
+    /// The daemon as `own` presents it, working with the `providers`,
+    /// admitting the accounts of `store`.
+    pub fn new(own: Own, providers: impl IntoIterator<Item = Identity>, store: Store) -> DaemonAuthenticator {
+        DaemonAuthenticator { own, providers: providers.into_iter().collect(), store }
     }
-    Ok(Some(Peer::Provider {
-        identity: incoming.identity,
-        key_hash,
-    }))
+
+    /// What `identity` is to this daemon — see rule 3 — or `None`.
+    pub async fn admit(&self, identity: &Identity) -> Result<Option<Admitted>, store::Error> {
+        if self.providers.contains(identity) {
+            return Ok(Some(Admitted::Provider(identity.clone())));
+        }
+        let mut conn = self.store.acquire().await?;
+        Ok(accounts::by_identity(&mut conn, identity, false).await?.map(|account| Admitted::Client(Who::Account(account.id))))
+    }
+
+    /// Whether `identity` is a provider the daemon works with.
+    pub fn provider(&self, identity: &Identity) -> bool {
+        self.providers.contains(identity)
+    }
 }
 
-/// Who `credential` admits: a client and a provider dial the one
-/// port and present the one kind of frame, so both are asked, the
-/// accounts first. A key is minted at random for either, so one that
-/// both hold is not a thing that happens; were it to, the account
-/// wins.
-pub async fn admit_peer(store: &Store, credential: &str, address: IpAddr) -> Result<Option<Peer>, store::Error> {
-    if let Some(who) = admit(store, credential, address).await? {
-        return Ok(Some(Peer::Client(who)));
+impl Authenticator for DaemonAuthenticator {
+    fn present<'a>(&'a self, issuer: &'a str) -> BoxFuture<'a, Result<String, String>> {
+        Box::pin(self.own.present(issuer))
     }
-    admit_provider(store, credential, address).await
-}
 
-/// Whether a credential given `allowed` accepts a peer at `address`.
-fn accepts(allowed: Option<IpAddr>, address: IpAddr) -> bool {
-    match allowed {
-        Some(allowed) => allowed.to_canonical() == address.to_canonical(),
-        None => true,
+    fn verify<'a>(&'a self, token: &'a str, _address: IpAddr) -> BoxFuture<'a, Result<Peer, String>> {
+        Box::pin(async move {
+            let peer = self.own.verify(token).await?;
+            match self.admit(&peer).await {
+                Ok(Some(_)) => Ok(peer),
+                Ok(None) => Err(format!("{peer} is neither an account nor a provider of this daemon's")),
+                Err(error) => Err(error.to_string()),
+            }
+        })
     }
 }
