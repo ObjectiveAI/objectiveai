@@ -34,8 +34,8 @@ pub struct DeviceDecision {
     pub action: Option<String>,
 }
 
-/// `GET /device`: the form — the user code, filled in where the query
-/// names one, and the sign-in.
+/// `GET /device`: the form — the user code, shown and carried where the
+/// query names one, asked for where it does not — and the sign-in.
 pub async fn device_page(State(issuer): State<Arc<Issuer>>, Query(query): Query<DeviceQuery>) -> Response {
     form(&issuer.config, StatusCode::OK, query.user_code.as_deref(), None)
 }
@@ -86,16 +86,36 @@ pub async fn device_decide(State(issuer): State<Arc<Issuer>>, Form(decision): Fo
     }
 }
 
-/// The device page's form, the code filled in, with a note above it.
+/// The device page's form, with a note above it. The rules:
+///
+/// 1. A code the page already has — from the device's link, which
+///    carries it, or from the form posted before — is shown as text
+///    and carried in a hidden field: nothing to type, and nothing to
+///    get wrong.
+/// 2. A page with no code — the bare verification URI, opened by hand
+///    — asks for it in a field.
+///
 /// The form posts to the device page's own URL under the issuer, which
 /// is where a proxy in front of the issuer serves it.
 fn form(config: &Config, status: StatusCode, code: Option<&str>, note: Option<&str>) -> Response {
+    let (lead, field) = match code.filter(|code| !code.is_empty()) {
+        Some(code) => (
+            "Sign in to approve this device.",
+            format!(
+                "<p>Code <strong>{}</strong></p><input type=\"hidden\" name=\"user_code\" value=\"{}\">",
+                escape(code),
+                escape(code)
+            ),
+        ),
+        None => (
+            "Enter the code your device shows, and sign in.",
+            "<label>Code<input name=\"user_code\" autocomplete=\"off\" required></label>".to_string(),
+        ),
+    };
     let body = format!(
-        "{}<form method=\"post\" action=\"{}\">\
-         <label>Code<input name=\"user_code\" value=\"{}\" autocomplete=\"off\" required></label>{}</form>",
-        note.map(paragraph).unwrap_or_else(|| paragraph("Enter the code your device shows, and sign in.")),
+        "{}<form method=\"post\" action=\"{}\">{field}{}</form>",
+        paragraph(note.unwrap_or(lead)),
         escape(&config.endpoint(DEVICE.trim_start_matches('/'))),
-        escape(code.unwrap_or_default()),
         sign_in("Approve"),
     );
     page(status, "Sign in a device", &body)
