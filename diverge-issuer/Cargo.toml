@@ -19,7 +19,7 @@ path = "src/main.rs"
 [dependencies]
 # Path-only, as the provider's: the root's lock, and the keyring the
 # signing key is kept in.
-diverge-sdk = { path = "../diverge-sdk-rs", features = ["keyring"] }
+diverge-sdk = { path = "../diverge-sdk-rs", features = ["identities"] }
 # The issuer's port: HTTP/1, the form bodies every OAuth request is,
 # the JSON every answer is, and the query a page is opened with.
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "form", "json", "query"] }

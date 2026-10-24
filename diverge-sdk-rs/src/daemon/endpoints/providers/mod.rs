@@ -18,7 +18,7 @@
 //! # Two secrets, two directions
 //!
 //! No request and no answer carries a key; each names an entry in
-//! the daemon's host's [`keyring`](crate::keyring). An outgoing
+//! the daemon's host's keyring. An outgoing
 //! provider's key is the provider's: the client puts it in the keyring
 //! and names the entry in the mode, a list and a get report the mode
 //! without it, and an edit replaces the mode whole. An incoming

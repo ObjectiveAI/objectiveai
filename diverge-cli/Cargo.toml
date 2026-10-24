@@ -20,7 +20,7 @@ path = "src/main.rs"
 # Path-only: this crate rides the workspace and is never published, so
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase.
-diverge-sdk = { path = "../diverge-sdk-rs", features = ["keyring"] }
+diverge-sdk = { path = "../diverge-sdk-rs", features = ["identities"] }
 # The daemon's and the provider's documents as Rust, so an edit of
 # `daemon.yaml` or `provider.yaml` is refused by the type its program
 # reads it with; path-only, as the SDK is.

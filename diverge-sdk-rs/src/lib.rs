@@ -11,7 +11,7 @@
 //! | [`file_lock`] | one exclusive lock per file across processes, let go on drop — how Diverge programs take turns at a directory; nothing of it crosses a wire |
 //! | [`postgres_supervisor`] | the two lines a daemon and the `diverge-postgres` it runs beside itself exchange over that program's stdio: the ready line out, the shutdown line in |
 //! | [`process`] | how a Diverge program spawns another: with no console window, on the one host that would open one; nothing of it crosses a wire |
-//! | `keyring` | with the `keyring` feature: the host's one store of keys, `<root>/keyring.db`, which the daemon, the provider, the CLI and the viewer share; a key in it has no way out |
+//! | `identities` | with the `identities` feature: the host's OpenID Connect identities, `<root>/identities/<issuer>/<subject>.json`, each signed in by the device code and kept fresh by its refresh token |
 //! | `tauri_proxy` | with the `tauri-proxy` feature: the commands a Tauri app registers so its page speaks to a daemon through the TypeScript SDK's proxy handle |
 //!
 //! # Nothing is optional, but two things
@@ -23,16 +23,17 @@
 //! crate disagree about what exists. What that costs is compile time;
 //! what it buys is one crate that is the same crate everywhere.
 //!
-//! The `keyring` feature adds `keyring`: the keys a host's programs
-//! present, in one SQLite file. It is behind a flag because nothing
-//! inside a container holds a key, and SQLite is not built there.
+//! The `identities` feature adds `identities`: the OpenID Connect
+//! identities a host's programs present the tokens of, one file each.
+//! It is behind a flag because nothing inside a container holds an
+//! identity.
 //!
 //! The `tauri-proxy` feature adds `tauri_proxy`: Tauri commands, and
 //! nothing of any protocol. It is behind a flag because Tauri is a
 //! GUI framework that does not build where most dependents do — the
 //! images that run inside containers have no windowing system — and
 //! every rule it keeps is in [`wire::proxy`], which every build has.
-//! The proxy presents a key, so it brings `keyring`.
+//! The proxy presents a token, so it brings `identities`.
 //!
 //! # More than one wire format
 //!
@@ -61,8 +62,8 @@
 pub mod container_proxy;
 pub mod daemon;
 pub mod file_lock;
-#[cfg(feature = "keyring")]
-pub mod keyring;
+#[cfg(feature = "identities")]
+pub mod identities;
 pub mod postgres_supervisor;
 pub mod process;
 pub mod provider;

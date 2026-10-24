@@ -15,7 +15,7 @@ pub enum Mode {
     /// credential the provider was told to expect.
     Unbrokered {
         /// The name of the entry in the daemon's host's
-        /// [`keyring`](crate::keyring) that holds the key the daemon
+        /// keyring that holds the key the daemon
         /// presents in its
         /// [`Auth::Unbrokered`](crate::wire::frame::auth::Auth::Unbrokered).
         /// A name, never the key: no request carries a key.

@@ -40,10 +40,10 @@
 //! await wire.proxy.reset(transport);  // after the connection ended: dial again on next use
 //! ```
 //!
-//! The address and the key never reach the page. The key is a
-//! [`Key`](crate::keyring::Key), read from the host's
-//! [`keyring`](crate::keyring) by the entry the app's configuration
-//! names.
+//! The address and the token never reach the page. The token is a
+//! [`Token`](crate::identities::Token), read from the host's
+//! [`identities`](crate::identities) by the identity the app's
+//! configuration names.
 //! [`COMMANDS`] names the six, for an app that lists or checks them.
 
 mod commands;

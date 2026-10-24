@@ -50,7 +50,7 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The account exists, with its roles. When the request gave a
     /// credential, the name of the entry in the daemon's host's
-    /// [`keyring`](crate::keyring) the key the daemon minted is kept
+    /// keyring the key the daemon minted is kept
     /// in — never the key, which no answer carries; `null` for a
     /// named account with none. Tag `0`.
     Created(Option<String>),

@@ -21,7 +21,7 @@ path = "src/main.rs"
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase. The wire, the frames and the clients;
 # the server half is this crate's `protocol`.
-diverge-sdk = { path = "../diverge-sdk-rs", features = ["keyring"] }
+diverge-sdk = { path = "../diverge-sdk-rs", features = ["identities"] }
 # The volume cache: one lock per identity and per name, so callers
 # of different volumes never wait on each other.
 dashmap = "6.2.1"

@@ -47,7 +47,7 @@ use crate::shared::error::Error;
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// The credential exists, and this is the name of the entry in the
-    /// daemon's host's [`keyring`](crate::keyring) its key is kept in:
+    /// daemon's host's keyring its key is kept in:
     /// what a provider on that host presents, by naming the entry, to
     /// be that identity. Never the key, which no answer carries. Tag
     /// `0`.

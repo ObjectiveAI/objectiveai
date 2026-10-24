@@ -57,7 +57,7 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The account is as the request states. When the request set a
     /// credential, the name of the entry in the daemon's host's
-    /// [`keyring`](crate::keyring) the new key the daemon minted is
+    /// keyring the new key the daemon minted is
     /// kept in — never the key; `null` otherwise. Tag `0`.
     Edited(Option<String>),
     /// No account is the one named; nothing changed. Tag `1`.

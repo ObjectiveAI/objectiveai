@@ -1,6 +1,6 @@
 //! What the app manages.
 
-use crate::keyring::Key;
+use crate::identities::Token;
 use crate::wire::proxy::Link;
 
 /// The state the commands read: one [`Link`] to one daemon. The app
@@ -9,11 +9,12 @@ use crate::wire::proxy::Link;
 pub struct TauriProxy(Link);
 
 impl TauriProxy {
-    /// The daemon at `address`, presenting `key`, not yet dialled: the
-    /// page's first use dials it. An address with no scheme is dialled
-    /// as `ws://<address>/`. The key is the app's, from its keyring.
-    pub fn new(address: impl Into<String>, key: &Key) -> TauriProxy {
-        TauriProxy(Link::new(address, key.expose()))
+    /// The daemon at `address`, presenting `token`, not yet dialled:
+    /// the page's first use dials it. An address with no scheme is
+    /// dialled as `ws://<address>/`. The token is the app's identity's,
+    /// from the host's identities.
+    pub fn new(address: impl Into<String>, token: &Token) -> TauriProxy {
+        TauriProxy(Link::new(address, token.expose()))
     }
 
     /// The link the commands use.

@@ -49,7 +49,7 @@ use crate::shared::error::Error;
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
     /// The credential is as the request states, and this is the name
-    /// of the entry in the daemon's host's [`keyring`](crate::keyring)
+    /// of the entry in the daemon's host's keyring
     /// its new key is kept in — never the key; the old key admits
     /// nothing. Tag `0`.
     Edited(String),
