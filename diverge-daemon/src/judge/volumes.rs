@@ -19,6 +19,9 @@ use crate::volumes::Listed;
 
 /// Whether the standing may create a volume.
 pub fn create(standing: &Standing) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .volumes()
         .any(|permission| matches!(permission, Permission::Make(makes) if makes.contains(&Make::Create)))
@@ -26,6 +29,9 @@ pub fn create(standing: &Standing) -> bool {
 
 /// Whether the standing holds `action` over any volume at all.
 pub fn holds(standing: &Standing, action: Over) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .volumes()
         .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
@@ -33,6 +39,9 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
 
 /// Whether the standing may do `action` to the volume.
 pub fn over(standing: &Standing, action: Over, listed: &Listed) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.volumes().any(|permission| match permission {
         Permission::Over { actions, within } => actions.contains(&action) && reaches(within, listed),
         _ => false,
@@ -42,6 +51,9 @@ pub fn over(standing: &Standing, action: Over, listed: &Listed) -> bool {
 /// Whether the standing holds the tagging `action` over any volume
 /// at all.
 pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .volumes()
         .any(|permission| matches!(permission, Permission::Tags { actions, .. } if actions.contains(&action)))
@@ -51,6 +63,9 @@ pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
 /// off, as `action` says: one grant must hold the action, reach the
 /// volume, and name every one of the tags or `any`.
 pub fn tagging(standing: &Standing, action: Tagging, listed: &Listed, tags: &[String]) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.volumes().any(|permission| match permission {
         Permission::Tags {
             actions,
@@ -65,6 +80,9 @@ pub fn tagging(standing: &Standing, action: Tagging, listed: &Listed, tags: &[St
 /// provider — some grant of `action` is `any`, or names none — else
 /// the providers the grants name, which is where a listing looks.
 pub fn providers(standing: &Standing, action: Over) -> Option<Vec<diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity>> {
+    if standing.admin() {
+        return None;
+    }
     let mut named = Vec::new();
     for permission in standing.volumes() {
         let Permission::Over { actions, within } = permission else {

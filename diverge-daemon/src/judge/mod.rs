@@ -4,9 +4,10 @@
 //! the handshake: the [`DaemonAuthenticator`] verifies the token the
 //! other end presents and [`admit`](DaemonAuthenticator::admit)s the
 //! `(issuer, subject)` it establishes as [`Admitted`] — a provider the
-//! configuration accepts, or the account that identity is, a [`Who`] —
-//! or as nothing, which is the socket closed. With no account and no
-//! accepted provider, nothing is admitted. A dependency tool's
+//! configuration accepts, an administrator its `admins` names, or the
+//! account that identity is, a [`Who`] — or as nothing, which is the
+//! socket closed. With no account, no administrator and no accepted
+//! provider, nothing is admitted. A dependency tool's
 //! `/daemon` connection is admitted by no token: its [`Who`] is the
 //! [`Dependent`] its template fixed,
 //! the grants and which tool's attachments its `self` is. The
@@ -23,7 +24,10 @@
 //! holds a tagging action over a record and its tags, by the rule the
 //! wire states: any one grant allowing is the whole of it, nothing
 //! denies, and a grant's `within` is the kind's own list filter read
-//! as a TEST, which [`filter`] is.
+//! as a TEST, which [`filter`] is. An administrator's standing holds no
+//! grant and needs none: every one of those functions allows it
+//! everything, first and without reading a grant — see
+//! [`Standing::admin`].
 //!
 //! # What is not here
 //!

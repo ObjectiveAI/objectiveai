@@ -8,5 +8,8 @@ use super::Standing;
 /// providers: the grant is a list of acts over all of them, since the
 /// providers are the configuration's and none is any account's.
 pub fn holds(standing: &Standing, action: Action) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.providers().any(|Permission(actions)| actions.contains(&action))
 }

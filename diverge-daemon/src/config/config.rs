@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use diverge_sdk::daemon::DEFAULT_PORT;
+use diverge_sdk::shared::Identity;
 use serde::{Deserialize, Serialize};
 
 use super::{Daemons, Postgres, Providers};
@@ -29,6 +30,13 @@ pub struct Config {
     /// [`identities`](diverge_sdk::identities), signed in beforehand.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub identities: BTreeMap<String, String>,
+    /// The identities served as administrators: each admitted as a
+    /// client whether or not it is an account, holding every grant
+    /// there is. What makes a fresh daemon, which has no account,
+    /// reachable at all: the first account is made by an administrator.
+    /// Absent, none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub admins: Vec<Identity>,
     /// The providers the daemon works with: see [`Providers`]. Absent,
     /// none.
     pub providers: Providers,
@@ -74,6 +82,7 @@ impl Default for Config {
         Config {
             port: DEFAULT_PORT,
             identities: BTreeMap::new(),
+            admins: Vec::new(),
             providers: Providers::default(),
             daemons: Daemons::default(),
             postgres: Postgres::default(),

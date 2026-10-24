@@ -37,6 +37,8 @@ pub struct Standing {
     /// The agents `self` reaches: a dependency tool's own, and none for
     /// an account.
     selves: HashSet<AgentId>,
+    /// Whether this is an administrator, which every judgment allows.
+    admin: bool,
 }
 
 impl Standing {
@@ -50,6 +52,7 @@ impl Standing {
                 grants,
                 self_actions: Vec::new(),
                 selves: HashSet::new(),
+                admin: false,
             })),
             Who::Dependency(dependent) => {
                 let selves = dependency_tools::attachments::attached(conn, dependent.tool)
@@ -63,9 +66,24 @@ impl Standing {
                     grants: dependent.fixed.grants.clone(),
                     self_actions: dependent.fixed.self_actions.clone(),
                     selves,
+                    admin: false,
                 }))
             }
+            Who::Admin(identity) => Ok(Some(Standing {
+                creator: Creator::Client(Client { identity: identity.clone() }),
+                identity: Some(identity),
+                grants: Vec::new(),
+                self_actions: Vec::new(),
+                selves: HashSet::new(),
+                admin: true,
+            })),
         }
+    }
+
+    /// Whether this is an administrator: every judge allows it
+    /// everything, with no grant read.
+    pub fn admin(&self) -> bool {
+        self.admin
     }
 
     /// The actions over agents held within `self`.

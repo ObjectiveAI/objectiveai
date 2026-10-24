@@ -80,7 +80,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
         }
     };
     let (stop, _) = watch::channel(false);
-    let authenticator = Arc::new(DaemonAuthenticator::new(own, config.providers.accepted.clone(), config.daemons.accepted.clone(), store.clone()));
+    let authenticator = Arc::new(DaemonAuthenticator::new(own, config.providers.accepted.clone(), config.daemons.accepted.clone(), config.admins.clone(), store.clone()));
     let daemon = Arc::new(Daemon::new(
         store,
         authenticator,

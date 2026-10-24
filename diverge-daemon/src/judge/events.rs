@@ -10,6 +10,9 @@ use super::Standing;
 
 /// Whether the standing holds `action` over the events.
 pub fn holds(standing: &Standing, action: Action) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .events()
         .any(|Permission(actions)| actions.contains(&action))

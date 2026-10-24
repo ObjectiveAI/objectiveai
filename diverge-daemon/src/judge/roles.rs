@@ -14,6 +14,9 @@ use crate::store::roles::Role;
 
 /// Whether the standing may create a role.
 pub fn create(standing: &Standing) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .roles()
         .any(|permission| matches!(permission, Permission::Make(makes) if makes.contains(&Make::Create)))
@@ -21,6 +24,9 @@ pub fn create(standing: &Standing) -> bool {
 
 /// Whether the standing holds `action` over any role at all.
 pub fn holds(standing: &Standing, action: Over) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .roles()
         .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
@@ -28,6 +34,9 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
 
 /// Whether the standing may do `action` to `role`.
 pub fn over(standing: &Standing, action: Over, role: &Role) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.roles().any(|permission| match permission {
         Permission::Over { actions, within } => actions.contains(&action) && reaches(within, role),
         _ => false,
@@ -37,6 +46,9 @@ pub fn over(standing: &Standing, action: Over, role: &Role) -> bool {
 /// Whether the standing holds the tagging `action` over any role at
 /// all.
 pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .roles()
         .any(|permission| matches!(permission, Permission::Tags { actions, .. } if actions.contains(&action)))
@@ -45,6 +57,9 @@ pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
 /// Whether the standing may put `tags` on `role`, or take them off, as
 /// `action` says.
 pub fn tagging(standing: &Standing, action: Tagging, role: &Role, tags: &[String]) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.roles().any(|permission| match permission {
         Permission::Tags {
             actions,

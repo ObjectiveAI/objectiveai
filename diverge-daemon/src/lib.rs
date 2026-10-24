@@ -71,7 +71,9 @@
 //! database holds, and a fresh database holds none, so a daemon with
 //! no account admits no client and a daemon with no accepted provider
 //! admits no provider: by default the daemon accepts no connection at
-//! all. How the first account comes to be is not this crate's to say.
+//! all. The first account is made by an administrator: an identity
+//! `daemon.yaml`'s `admins` names, admitted as a client holding every
+//! grant, whether or not it is an account.
 //!
 //! # The directory
 //!

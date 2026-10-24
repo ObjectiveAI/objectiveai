@@ -20,6 +20,9 @@ use super::filter::{self, dependency_tools::Facts};
 /// Whether the standing holds `action` over any dependency tool at
 /// all.
 pub fn holds(standing: &Standing, action: Over) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .dependency_tools()
         .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
@@ -28,6 +31,9 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
 /// Whether the standing may do `action` to the tool the facts
 /// describe.
 pub fn over(standing: &Standing, action: Over, facts: &Facts<'_>) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.dependency_tools().any(|permission| match permission {
         Permission::Over { actions, within } => actions.contains(&action) && reaches(within, facts),
         Permission::Tags { .. } => false,
@@ -37,6 +43,9 @@ pub fn over(standing: &Standing, action: Over, facts: &Facts<'_>) -> bool {
 /// Whether the standing holds the tagging `action` over any dependency
 /// tool at all.
 pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .dependency_tools()
         .any(|permission| matches!(permission, Permission::Tags { actions, .. } if actions.contains(&action)))
@@ -45,6 +54,9 @@ pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
 /// Whether the standing may put `tags` on the tool, or take them
 /// off, as `action` says.
 pub fn tagging(standing: &Standing, action: Tagging, facts: &Facts<'_>, tags: &[String]) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.dependency_tools().any(|permission| match permission {
         Permission::Tags {
             actions,

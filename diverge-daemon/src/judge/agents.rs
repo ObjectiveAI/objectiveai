@@ -20,6 +20,9 @@ use crate::store::agents::Agent;
 
 /// Whether the standing may create an agent.
 pub fn create(standing: &Standing) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .agents()
         .any(|permission| matches!(permission, Permission::Make(makes) if makes.contains(&Make::Create)))
@@ -28,6 +31,9 @@ pub fn create(standing: &Standing) -> bool {
 /// Whether the standing holds `action` over any agent at all: by a
 /// grant, or within `self`.
 pub fn holds(standing: &Standing, action: Over) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.self_actions().contains(&action)
         || standing
             .agents()
@@ -38,6 +44,9 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
 /// loop runs in it now: by a grant that reaches it, or within `self`
 /// where the agent is one of the standing's own.
 pub fn over(standing: &Standing, action: Over, agent: &Agent, active: bool) -> bool {
+    if standing.admin() {
+        return true;
+    }
     (standing.self_actions().contains(&action) && standing.is_self(agent.id))
         || standing.agents().any(|permission| match permission {
             Permission::Over { actions, within } => actions.contains(&action) && reaches(within, agent, active),
@@ -48,6 +57,9 @@ pub fn over(standing: &Standing, action: Over, agent: &Agent, active: bool) -> b
 /// Whether the standing holds the tagging `action` over any agent at
 /// all.
 pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .agents()
         .any(|permission| matches!(permission, Permission::Tags { actions, .. } if actions.contains(&action)))
@@ -56,6 +68,9 @@ pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
 /// Whether the standing may put `tags` on `agent`, or take them off,
 /// as `action` says.
 pub fn tagging(standing: &Standing, action: Tagging, agent: &Agent, active: bool, tags: &[String]) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.agents().any(|permission| match permission {
         Permission::Tags {
             actions,
