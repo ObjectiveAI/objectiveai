@@ -11,6 +11,9 @@
 //! |--------|----|
 //! | [`config`] | `issuer.yaml`, and the root it is found in |
 //! | [`password`] | passwords, as argon2id hashes |
+//! | [`signing`] | the RSA keys every token is signed with, kept in the root's keyring |
+//! | [`tokens`] | the access token, the ID token, and the opaque secrets |
+//! | [`endpoints`] | the routes, one file each |
 //! | [`store`] | `issuer.sqlite`: the identities, the clients, the codes and the refresh tokens, every secret in it a hash |
 //! | [`serve`] | the process: the root's lock, the port, the stop |
 //!
@@ -18,9 +21,12 @@
 //! and the provider hold theirs.
 
 pub mod config;
+pub mod endpoints;
 pub mod password;
 pub mod serve;
+pub mod signing;
 pub mod store;
+pub mod tokens;
 
 mod clock;
 

@@ -4,10 +4,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::Router;
+use axum::routing::{get, post};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
 use super::{Error, Issuer, stop_route};
+use crate::endpoints;
 
 /// Listen on `port`, on every interface, until `stop` says so. A
 /// request at a path the issuer does not serve is answered as axum
@@ -16,7 +18,11 @@ use super::{Error, Issuer, stop_route};
 /// flight.
 pub async fn listen(issuer: Arc<Issuer>, port: u16, mut stop: watch::Receiver<bool>) -> Result<(), Error> {
     let listener = TcpListener::bind(("0.0.0.0", port)).await.map_err(Error::Bind)?;
-    let router = Router::new().route("/stop", axum::routing::post(stop_route::stop)).with_state(issuer);
+    let router = Router::new()
+        .route(endpoints::DISCOVERY, get(endpoints::discovery))
+        .route(endpoints::JWKS, get(endpoints::jwks))
+        .route("/stop", post(stop_route::stop))
+        .with_state(issuer);
     axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(async move {
             let _ = stop.wait_for(|stopped| *stopped).await;

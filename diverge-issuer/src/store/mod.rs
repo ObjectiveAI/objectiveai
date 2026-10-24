@@ -17,6 +17,7 @@ mod store;
 
 pub mod clients;
 pub mod identities;
+pub mod keys;
 pub mod names;
 
 pub use error::*;

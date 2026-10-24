@@ -38,6 +38,8 @@ jsonwebtoken = { version = "=11.1.0", default-features = false, features = ["rus
 rsa = { version = "=0.9.10", features = ["getrandom"] }
 # Passwords, as argon2id hashes in the PHC string format.
 argon2 = { version = "=0.6.0" }
+# The ID token's times, as openidconnect takes them.
+chrono = { version = "=0.4.39", default-features = false, features = ["clock", "std"] }
 # A key's id, and a user code.
 rand = { version = "=0.9.2", default-features = false, features = ["thread_rng"] }
 # PKCE's S256: the SHA-256 of a verifier, as unpadded base64url; and a

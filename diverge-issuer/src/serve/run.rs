@@ -5,10 +5,13 @@ use std::pin::pin;
 use std::sync::Arc;
 
 use diverge_sdk::file_lock;
+use diverge_sdk::keyring::Keyring;
 use futures_util::future::{self, Either};
 use tokio::sync::watch;
 
 use crate::config::Config;
+use crate::endpoints;
+use crate::signing::Signing;
 use crate::store::Store;
 
 use super::{Error, Issuer, listen, shutdown};
@@ -21,7 +24,11 @@ use super::{Error, Issuer, listen, shutdown};
 ///    with this process's id, and a root another issuer holds refused
 ///    at once, naming the holder's id where it left one.
 /// 2. `issuer.sqlite` is opened, made where it is absent.
-/// 3. The port is listened on until the signal or the route sends the
+/// 3. The signing keys are read from the root's keyring, one minted
+///    where there is none — see [`signing`](crate::signing) — and the
+///    discovery document and the key set made from the configuration
+///    and the keys.
+/// 4. The port is listened on until the signal or the route sends the
 ///    stop; then the listener drains, and the lock is let go, last.
 ///
 /// A port that could not be bound is the error.
@@ -33,9 +40,13 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     };
     held.write(std::process::id().to_string().into_bytes()).await.map_err(Error::Lock)?;
     let store = Store::open(&root).await.map_err(Error::Store)?;
+    let keyring = Keyring::open(&root).await.map_err(Error::Keyring)?;
+    let signing = Signing::load(&store, &keyring).await.map_err(Error::Signing)?;
+    let discovery = endpoints::document(&config).map_err(Error::Discovery)?;
+    let key_set = serde_json::to_string(&signing.key_set()).map_err(|error| Error::Discovery(error.to_string()))?;
     let port = config.port;
     let (stop, _) = watch::channel(false);
-    let issuer = Arc::new(Issuer { config, store, stop });
+    let issuer = Arc::new(Issuer { config, store, signing, discovery, key_set, stop });
     let listening = pin!(listen(Arc::clone(&issuer), port, issuer.stop.subscribe()));
     let signal = pin!(shutdown());
     let outcome = match future::select(listening, signal).await {
