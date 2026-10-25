@@ -17,6 +17,8 @@ export const t = {
   },
   graph: {
     title: "Graph",
+    empty: "Nothing yet",
+    actions: { message: "message", call: "call", read: "read" },
   },
   agents: {
     title: "Agents",
