@@ -1,10 +1,11 @@
 //! Events: the graph of who sent what to whom through the daemon.
 //!
-//! An EVENT is one edge of that graph: a sender, a receiver and an
-//! action — who sent, who received, and what passed between them. The
-//! daemon records three actions, each at the seam it passes through:
-//! a `message`, enqueued to an agent; a `call`, an MCP tool call into
-//! a tool; a `read`, an MCP resource read into a tool. Either end is
+//! An EVENT is one edge of that graph: a sender and a receiver — who
+//! sent, and who received. The daemon records an occurrence at three
+//! seams: a message enqueued to an agent, an MCP tool call into a
+//! tool, and an MCP resource read into a tool. The event does not say
+//! which seam it passed: the receiver's kind implies it, a message
+//! for an agent and a call or a read for a tool. Either end is
 //! a [`Creator`](crate::daemon::creator::Creator) — the client over
 //! an endpoint, or an agent or a tool of the client's — which is who
 //! the daemon knows to have acted; a tool connected from another
@@ -14,7 +15,7 @@
 //!
 //! # One row per edge
 //!
-//! One event per sender, receiver and action, with a `count` that
+//! One event per sender and receiver, with a `count` that
 //! grows: the first occurrence adds the edge, and every one after it
 //! raises the count by one. A pair that exchanges a thousand messages
 //! is one event whose count is a thousand, so the graph is as large
@@ -23,18 +24,16 @@
 //! occurrence — so a list of events is added to and changed, never
 //! taken from.
 //!
-//! [`list`] is the one request: it lists the events, narrowed — by
-//! action, by a party on either side, by sender, by receiver — the
+//! [`list`] is the one request: it lists the events, narrowed — by a
+//! party on either side, by sender, by receiver — the
 //! latest so many by id, then keeps the scope open for every one
 //! added or changed after. Nothing records an event over this wire:
 //! the daemon writes the graph at the seams the exchanges pass
 //! through, and a client reads it. What a list reports is an
-//! [`Event`]; what passed is its [`Action`].
+//! [`Event`].
 
-mod action;
 mod event;
 
-pub use action::*;
 pub use event::*;
 
 pub mod list;

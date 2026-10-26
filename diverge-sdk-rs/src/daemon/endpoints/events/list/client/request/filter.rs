@@ -3,7 +3,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
-use crate::daemon::endpoints::events::Action;
 
 /// The filter over events: every member optional, and every one given
 /// a condition an event passes or does not. In a [list
@@ -21,11 +20,6 @@ use crate::daemon::endpoints::events::Action;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Filter {
-    /// Any one of these actions: see
-    /// [`Action`](crate::daemon::endpoints::events::Action). Absent
-    /// when empty, and then any action.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub actions: Vec<Action>,
     /// Any one of these on either side, as the sender or as the
     /// receiver: see [`Creator`](crate::daemon::creator::Creator).
     /// Absent when empty, and then anybody on either side.

@@ -1,14 +1,13 @@
-// One edge of the graph: who sent, who received, what, how often.
+// One edge of the graph: who sent, who received, how often.
 
 import { z } from "zod";
 import { Creator } from "../../creator/creator.js";
 import type { Keyed } from "../../../shared/listing/keyed.js";
-import { Action } from "./action.js";
 
 /**
- * One event, as a list reports it: the sender, the receiver, the
- * action between them, and how many times it has passed. One per
- * sender, receiver and action; the id is the daemon's, given once
+ * One event, as a list reports it: the sender, the receiver, and how
+ * many times something has passed between them. One per sender and
+ * receiver; the id is the daemon's, given once
  * when the edge is added, so the latest edges are the highest.
  */
 export const Event = z.object({
@@ -18,8 +17,6 @@ export const Event = z.object({
   sender: Creator,
   /** Who received. */
   receiver: Creator,
-  /** What passed. */
-  action: Action,
   /** How many times it has passed: `1` when added, one more at every occurrence since. */
   count: z.number().int().nonnegative(),
 });
