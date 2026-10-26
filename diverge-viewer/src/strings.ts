@@ -7,7 +7,7 @@ export const t = {
     draft: "draft five",
   },
   rail: {
-    graph: "Graph",
+    world: "World",
     agents: "Agents",
     tools: "Tools",
     unnamed: "Agent",
@@ -15,8 +15,8 @@ export const t = {
     views: "Views",
     settings: "Settings",
   },
-  graph: {
-    title: "Graph",
+  world: {
+    title: "World",
     empty: "Nothing yet",
     actions: { message: "message", call: "call", read: "read" },
   },

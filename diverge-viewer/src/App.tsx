@@ -10,7 +10,7 @@ import { app, errorText } from "./lib/app";
 import { type WireStatus, link, useAgents } from "./lib/daemon";
 import { Agents } from "./screens/Agents";
 import { Conversation } from "./screens/Conversation";
-import { Graph } from "./screens/Graph";
+import { World } from "./screens/World";
 import { NewAgent } from "./screens/NewAgent";
 import { Settings } from "./screens/Settings";
 import { Storage } from "./screens/Storage";
@@ -130,7 +130,7 @@ export function App() {
               <div key={key} className="pane" data-pane={key} hidden={tabs.focused !== key}>
                 {tab.kind === "agent" ? <Conversation template={tab.template} index={tab.index} name={tab.name} /> : null}
                 {tab.kind === "new_agent" ? <NewAgent /> : null}
-                {tab.kind === "graph" ? <Graph /> : null}
+                {tab.kind === "world" ? <World /> : null}
                 {tab.kind === "agents" ? <Agents /> : null}
                 {tab.kind === "tools" ? <Tools /> : null}
                 {tab.kind === "storage" ? <Storage /> : null}

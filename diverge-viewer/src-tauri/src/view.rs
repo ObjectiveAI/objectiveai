@@ -36,7 +36,7 @@ pub enum TabKind {
         name: Option<String>,
     },
     NewAgent,
-    Graph,
+    World,
     Agents,
     Tools,
     Storage,

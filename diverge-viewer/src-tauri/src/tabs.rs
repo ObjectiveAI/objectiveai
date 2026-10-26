@@ -11,11 +11,11 @@ pub struct Tabs {
     focused: Option<String>,
 }
 
-/// The tabs a viewer starts with: Graph, open and focused.
+/// The tabs a viewer starts with: World, open and focused.
 impl Default for Tabs {
     fn default() -> Self {
         let mut tabs = Tabs { generation: 0, tabs: Vec::new(), focused: None };
-        tabs.open(TabKind::Graph);
+        tabs.open(TabKind::World);
         tabs
     }
 }
@@ -24,7 +24,7 @@ pub fn key_of(tab: &TabKind) -> String {
     match tab {
         TabKind::Agent { template, index, .. } => format!("agent:{template}:{index}"),
         TabKind::NewAgent => "new-agent".into(),
-        TabKind::Graph => "graph".into(),
+        TabKind::World => "world".into(),
         TabKind::Agents => "agents".into(),
         TabKind::Tools => "tools".into(),
         TabKind::Storage => "storage".into(),

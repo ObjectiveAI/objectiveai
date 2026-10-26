@@ -66,8 +66,8 @@ and worktree inherits it.
 - Words are tabled: every user-facing string lives in `src/strings.ts`.
 
 ## Screens (draft five, on the SDK)
-The rail: Graph, Agents, Tools, Storage, Views, Settings — Graph open and selected at start (`Tabs::default`);
-no agent list. Graph draws the agents and tools as nodes on a circle and the events between them as edges, a plain SVG (a first cut, to be replaced); Agents and Tools are empty for now. Reached by ⌘N or by whatever opens them: New agent · a
+The rail: World, Agents, Tools, Storage, Views, Settings — World open and selected at start (`Tabs::default`);
+no agent list. World draws the agents and tools as nodes on a circle and the events between them as edges, a plain SVG (a first cut, to be replaced); Agents and Tools are empty for now. Reached by ⌘N or by whatever opens them: New agent · a
 conversation. · Storage (volumes, across providers) · Views (saved log requests) · Settings (the daemon's status, the
 theme, the folder).
 

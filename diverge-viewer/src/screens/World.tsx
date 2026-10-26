@@ -59,11 +59,11 @@ const CENTER = SIZE / 2;
 const RADIUS = 220;
 const NODE = 9;
 
-export function Graph() {
+export function World() {
   const { connected, agents } = useShared();
   const toolsHeld = useListing(TOOLS, connected);
   const eventsHeld = useListing(EVENTS, connected);
-  if (!connected) return <NotConnected title={t.graph.title} />;
+  if (!connected) return <NotConnected title={t.world.title} />;
 
   const nodes = new Map<string, Node>();
   for (const a of agents.items) nodes.set(`agent:${a.template}:${a.index}`, { key: `agent:${a.template}:${a.index}`, kind: "agent", label: a.name ?? `${a.template} #${a.index}` });
@@ -76,7 +76,7 @@ export function Graph() {
     const to = nodeOf(e.receiver);
     if (!nodes.has(from.key)) nodes.set(from.key, from);
     if (!nodes.has(to.key)) nodes.set(to.key, to);
-    return { id: e.id, from: from.key, to: to.key, label: `${t.graph.actions[e.action]} ×${e.count}` };
+    return { id: e.id, from: from.key, to: to.key, label: `${t.world.actions[e.action]} ×${e.count}` };
   });
 
   // Stable order — by kind, then key — so a node keeps its place when another arrives.
@@ -92,17 +92,17 @@ export function Graph() {
   return (
     <div className="page">
       <div className="page-inner">
-        <h1 className="page-title">{t.graph.title}</h1>
+        <h1 className="page-title">{t.world.title}</h1>
         {ended.map((e) => (
           <p key={e} className="muted">{e}</p>
         ))}
         {ordered.length === 0 ? (
-          <Empty title={t.graph.empty} />
+          <Empty title={t.world.empty} />
         ) : (
-          <svg className="graph" viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={t.graph.title}>
+          <svg className="world" viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={t.world.title}>
             <defs>
-              <marker id="graph-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M0 0 L10 5 L0 10 z" className="graph-arrow" />
+              <marker id="world-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" className="world-arrow" />
               </marker>
             </defs>
             {edges.map((e) => {
@@ -122,8 +122,8 @@ export function Graph() {
               const y2 = b.y - (dy / length) * trim + oy;
               return (
                 <g key={e.id}>
-                  <line className="graph-edge" x1={x1} y1={y1} x2={x2} y2={y2} markerEnd="url(#graph-arrow)" />
-                  <text className="graph-edge-label" x={(x1 + x2) / 2 + ox * 2} y={(y1 + y2) / 2 + oy * 2} textAnchor="middle">
+                  <line className="world-edge" x1={x1} y1={y1} x2={x2} y2={y2} markerEnd="url(#world-arrow)" />
+                  <text className="world-edge-label" x={(x1 + x2) / 2 + ox * 2} y={(y1 + y2) / 2 + oy * 2} textAnchor="middle">
                     {e.label}
                   </text>
                 </g>
@@ -133,7 +133,7 @@ export function Graph() {
               const p = at.get(n.key)!;
               const right = p.x >= CENTER;
               return (
-                <g key={n.key} className={n.kind === "client" ? "graph-node graph-client" : "graph-node"}>
+                <g key={n.key} className={n.kind === "client" ? "world-node world-client" : "world-node"}>
                   {n.kind === "agent" ? (
                     <circle cx={p.x} cy={p.y} r={NODE} />
                   ) : n.kind === "tool" ? (
@@ -141,7 +141,7 @@ export function Graph() {
                   ) : (
                     <path d={`M${p.x} ${p.y - NODE - 2} L${p.x + NODE + 2} ${p.y} L${p.x} ${p.y + NODE + 2} L${p.x - NODE - 2} ${p.y} z`} />
                   )}
-                  <text className="graph-label" x={p.x + (right ? NODE + 6 : -NODE - 6)} y={p.y + 4} textAnchor={right ? "start" : "end"}>
+                  <text className="world-label" x={p.x + (right ? NODE + 6 : -NODE - 6)} y={p.y + 4} textAnchor={right ? "start" : "end"}>
                     {n.label}
                   </text>
                 </g>

@@ -15,8 +15,8 @@ export function Rail(props: { focused: string | null }) {
         </div>
 
         <div className="rail-section rail-places">
-          <Row className="rail-item" on={here("graph")} onClick={() => open({ kind: "graph" })}>
-            <Icon name="graph" /> <span className="rail-item-name">{t.rail.graph}</span>
+          <Row className="rail-item" on={here("world")} onClick={() => open({ kind: "world" })}>
+            <Icon name="world" /> <span className="rail-item-name">{t.rail.world}</span>
           </Row>
           <Row className="rail-item" on={here("agents")} onClick={() => open({ kind: "agents" })}>
             <Icon name="agent" /> <span className="rail-item-name">{t.rail.agents}</span>

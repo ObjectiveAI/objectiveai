@@ -22,8 +22,8 @@ const render = (el: ReturnType<typeof createElement>) => renderToStaticMarkup(cr
 
 describe("the rail", () => {
   const html = render(createElement(Rail, { focused: null }));
-  it("lists its places in order, Graph first, and no agent", () => {
-    const places = [t.rail.graph, t.rail.agents, t.rail.tools, t.rail.storage, t.rail.views, t.rail.settings].map((name) => html.indexOf(`>${name}<`));
+  it("lists its places in order, World first, and no agent", () => {
+    const places = [t.rail.world, t.rail.agents, t.rail.tools, t.rail.storage, t.rail.views, t.rail.settings].map((name) => html.indexOf(`>${name}<`));
     expect(places.every((at) => at >= 0)).toBe(true);
     expect([...places].sort((a, b) => a - b)).toEqual(places);
     expect(html).not.toContain(">ada<");

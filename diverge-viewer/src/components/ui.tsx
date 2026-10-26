@@ -155,7 +155,7 @@ export function Empty(props: { title: string; body?: string; children?: ReactNod
   );
 }
 
-export function Icon(props: { name: "plus" | "close" | "chevron" | "folder" | "file" | "link" | "agent" | "machine" | "view" | "files" | "home" | "graph" | "tool" }) {
+export function Icon(props: { name: "plus" | "close" | "chevron" | "folder" | "file" | "link" | "agent" | "machine" | "view" | "files" | "home" | "world" | "tool" }) {
   const common = { width: 14, height: 14, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   switch (props.name) {
     case "plus":
@@ -180,8 +180,8 @@ export function Icon(props: { name: "plus" | "close" | "chevron" | "folder" | "f
       return <svg {...common}><path d="M3 3h4l1 1h5v8H3z" /><path d="M5 12v1.5h9V6" /></svg>;
     case "home":
       return <svg {...common}><path d="M2.5 8L8 3l5.5 5" /><path d="M4 7v6h8V7" /></svg>;
-    case "graph":
-      return <svg {...common}><circle cx="4" cy="4" r="1.75" /><circle cx="12" cy="6" r="1.75" /><circle cx="6" cy="12.5" r="1.75" /><path d="M5.7 4.4l4.6 1.2M10.8 7.3l-3.6 3.9M4.4 5.7l1.2 5" /></svg>;
+    case "world":
+      return <svg {...common}><circle cx="8" cy="8" r="6" /><path d="M2 8h12M8 2c-2.2 2.4-2.2 9.6 0 12M8 2c2.2 2.4 2.2 9.6 0 12" /></svg>;
     case "tool":
       return <svg {...common}><path d="M10.5 2.5a3 3 0 00-3.3 4.1L2.5 11.3a1.4 1.4 0 002 2l4.7-4.7a3 3 0 004.1-3.3l-1.9 1.9-1.6-.4-.4-1.6z" /></svg>;
   }
