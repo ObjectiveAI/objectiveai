@@ -18,7 +18,6 @@ export const t = {
   world: {
     title: "World",
     empty: "Nothing yet",
-    actions: { message: "message", call: "call", read: "read" },
   },
   agents: {
     title: "Agents",

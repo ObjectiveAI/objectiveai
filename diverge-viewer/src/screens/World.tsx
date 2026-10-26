@@ -76,7 +76,7 @@ export function World() {
     const to = nodeOf(e.receiver);
     if (!nodes.has(from.key)) nodes.set(from.key, from);
     if (!nodes.has(to.key)) nodes.set(to.key, to);
-    return { id: e.id, from: from.key, to: to.key, label: `${t.world.actions[e.action]} ×${e.count}` };
+    return { id: e.id, from: from.key, to: to.key, label: `×${e.count}` };
   });
 
   // Stable order — by kind, then key — so a node keeps its place when another arrives.
