@@ -245,18 +245,16 @@ CREATE TABLE IF NOT EXISTS diverge.dependencies (
     template JSONB NOT NULL
 );
 
--- The graph of who sent what to whom through the daemon: one row per
--- sender, receiver and action — each end the wire's Creator, as JSON;
--- the action its snake-case word — with a count raised at every
+-- The graph of who sent to whom through the daemon: one row per
+-- sender and receiver — each end the wire's Creator, as JSON — with a
+-- count raised at every
 -- occurrence since the first. Never removed, since nothing undoes an
 -- occurrence, and never timed: the id orders the edges by when each
 -- was added.
 CREATE TABLE IF NOT EXISTS diverge.events (
     id       BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    action   TEXT NOT NULL,
     sender   JSONB NOT NULL,
     receiver JSONB NOT NULL,
     count    BIGINT NOT NULL DEFAULT 1,
-    CONSTRAINT events_action CHECK (action IN ('message', 'call', 'read')),
-    CONSTRAINT events_edge UNIQUE (sender, receiver, action)
+    CONSTRAINT events_edge UNIQUE (sender, receiver)
 );

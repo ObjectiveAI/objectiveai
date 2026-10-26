@@ -14,7 +14,6 @@ use std::sync::Arc;
 
 use futures_util::{Stream, StreamExt as _, stream};
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::events::Action;
 use diverge_sdk::shared::mcp::attest_request;
 use diverge_sdk::shared::mcp::attestation;
 use rmcp::model::RequestParamsMeta;
@@ -197,7 +196,7 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
 /// knows: in flight into the tool from the ask to the answer, which
 /// holds the tool's run up — a detach meanwhile serves the tool no
 /// more from that instant, and this call is answered still. On the
-/// graph once it reaches the run: one `call` event from the container
+/// graph once it reaches the run: one event from the container
 /// to the tool, however the tool answers.
 pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
     let Some((prefix, name)) = split(&params.name) else {
@@ -215,7 +214,7 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     activate_tool(&context.daemon, &run)
         .await
         .map_err(|error| ErrorData::internal_error(error.0.to_string(), None))?;
-    events::record(&context.daemon, &context.sender, &run.sender, Action::Call).await;
+    events::record(&context.daemon, &context.sender, &run.sender).await;
     let mut result = run
         .handle
         .call_tool(params)
@@ -226,7 +225,7 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
 }
 
 /// The read, from the first served tool that answers it: on the graph
-/// as one `read` event from the container to that tool, and to no
+/// as one event from the container to that tool, and to no
 /// tool that did not.
 pub async fn read_resource(context: &Context, mut params: ReadResourceRequestParams) -> Result<ReadResourceResult, ErrorData> {
     attest(context, &mut params);
@@ -245,7 +244,7 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
             Ok(mut result) => {
                 run.touch();
                 run.attest(result.meta.get_or_insert_default());
-                events::record(&context.daemon, &context.sender, &run.sender, Action::Read).await;
+                events::record(&context.daemon, &context.sender, &run.sender).await;
                 return Ok(result);
             }
             Err(error) => last = Some(error),

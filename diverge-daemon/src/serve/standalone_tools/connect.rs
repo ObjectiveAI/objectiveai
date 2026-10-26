@@ -4,7 +4,6 @@
 use std::sync::Arc;
 
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::events::Action;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::channel_request;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::request;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::server::response::Frame;
@@ -216,7 +215,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                 Ok(()) => {
                     let mut params = request.0;
                     attest_request(&mut params, &*caller);
-                    containers::events::record(&daemon, &sender, &run.sender, Action::Call).await;
+                    containers::events::record(&daemon, &sender, &run.sender).await;
                     match run.handle.call_tool(params).await {
                         Ok(mut result) => {
                             run.attest(result.meta.get_or_insert_default());
@@ -234,7 +233,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                 Ok(()) => {
                     let mut params = request.0;
                     attest_request(&mut params, &*caller);
-                    containers::events::record(&daemon, &sender, &run.sender, Action::Read).await;
+                    containers::events::record(&daemon, &sender, &run.sender).await;
                     match run.handle.read_resource(params).await {
                         Ok(mut result) => {
                             run.attest(result.meta.get_or_insert_default());

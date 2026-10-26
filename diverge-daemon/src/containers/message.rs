@@ -3,7 +3,6 @@
 use std::future::Future;
 
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::events::Action;
 use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::shared::error::Error;
 use rmcp::model::ContentBlock;
@@ -41,11 +40,11 @@ pub async fn enqueue(daemon: &Daemon, run: &AgentRun, content: Vec<ContentBlock>
 /// the future is first polled — see [`activate_agent`](super::activate_agent)
 /// — before the enqueue goes out; an activation that fails is the
 /// fate, kind `secrets`. The message is on the graph from this call:
-/// one `message` event from the sender to the agent, whatever its
+/// one event from the sender to the agent, whatever its
 /// fate, since the graph records what was sent and not what landed.
 pub async fn enqueue_keyed<'a>(daemon: &'a Daemon, run: &'a AgentRun, content: Vec<ContentBlock>, sender: Creator) -> (String, impl Future<Output = Fate> + 'a) {
     let key = uuid::Uuid::new_v4().to_string();
-    events::record(daemon, &sender, &run.sender, Action::Message).await;
+    events::record(daemon, &sender, &run.sender).await;
     run.messages.lock().await.insert(key.clone(), sender);
     run.touch();
     let pending = run.pending.enter();
