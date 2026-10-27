@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Button, Card, Chip, Row, Section } from "../components/ui";
-import { app } from "../lib/app";
+import type { TilesetEntry } from "../bindings/TilesetEntry";
+import { app, errorText } from "../lib/app";
 import { useShared } from "../lib/context";
 import { useAccounts } from "../lib/daemon";
 import { t } from "../strings";
+import { pickTileset } from "../world/tileset";
 
 export function Settings() {
   const { connected, link, redial, info } = useShared();
@@ -33,6 +35,7 @@ export function Settings() {
         </Section>
         <Accounts connected={connected} />
         <ThemePicker />
+        <TilesetPicker />
         {info ? (
           <Section title={t.settings.folder} note={t.settings.folderNote}>
             <p className="mono selectable">{info.folder}</p>
@@ -66,6 +69,45 @@ function Accounts(props: { connected: boolean }) {
           ) : null}
         </Card>
       ))}
+    </Section>
+  );
+}
+
+/**
+ * The tilesets installed, each by its name, or by its folder and why it
+ * cannot be used. A click puts it on at once; one Rust refuses stays
+ * unpicked, and the refusal shows.
+ */
+function TilesetPicker() {
+  const [entries, setEntries] = useState<TilesetEntry[] | null>(null);
+  const [on, setOn] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    Promise.all([app.tilesets(), app.tileset()])
+      .then(([listed, picked]) => {
+        setEntries(listed);
+        setOn(picked);
+      })
+      .catch((e) => setError(errorText(e)));
+  }, []);
+  const pick = (id: string) =>
+    pickTileset(id)
+      .then((kept) => {
+        setOn(kept);
+        setError(null);
+      })
+      .catch((e) => setError(errorText(e)));
+  return (
+    <Section title={t.settings.tileset} note={t.settings.tilesetNote}>
+      {error ? <p className="muted">{error}</p> : null}
+      {entries && entries.length === 0 ? <p className="muted">{t.settings.tilesetsNone}</p> : null}
+      <div className="themes">
+        {(entries ?? []).map((entry) => (
+          <Row key={entry.id} className="theme" choice on={on === entry.id} onClick={() => pick(entry.id)} title={entry.error ?? undefined}>
+            <span className="theme-name">{entry.name ?? `${entry.id}: ${entry.error}`}</span>
+          </Row>
+        ))}
+      </div>
     </Section>
   );
 }

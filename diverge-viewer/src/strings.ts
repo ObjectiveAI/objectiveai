@@ -18,6 +18,7 @@ export const t = {
   world: {
     title: "World",
     empty: "Nothing yet",
+    noTileset: "The world's tileset can't be drawn",
   },
   agents: {
     title: "Agents",
@@ -35,6 +36,9 @@ export const t = {
     themeNote: "How this app looks on this computer. Nobody else sees it.",
     // Every theme in theme.css, by its id there.
     themes: { plum: "Plum and gold", navy: "Navy and orange" } as Record<string, string>,
+    tileset: "Tileset",
+    tilesetNote: "How the world is drawn on this computer: the tilesets in viewer/world/tilesets.",
+    tilesetsNone: "No tileset is installed.",
     folder: "Files",
     folderNote: "Where this app keeps its own files: tabs, the theme, saved Views, the names you gave machines.",
   },
@@ -209,6 +213,7 @@ export const t = {
       "views": "Your Views file",
       "machine names": "Your machine names file",
       "theme": "Your theme file",
+      "tileset": "Your tileset file",
     } as Record<string, string>,
     lastGoodCopy: "(its last good copy)",
     why: {

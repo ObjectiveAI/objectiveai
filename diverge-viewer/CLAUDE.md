@@ -38,7 +38,7 @@ and worktree inherits it.
   `daemon.issuer`, `daemon.subject`: one of `<root>/identities/`, signed in by `diverge identities login` — the
   viewer has no login of its own. main.rs presents it through the SDK's `identities::Presenter`, keeping its token
   fresh and taking the daemon's answer at its word; a document naming no daemon stops the start); `diverge viewer config get|set|patch` edits it with
-  the same type. `<root>/viewer/` holds every file the app keeps. **Setup** is `AppState::open(folder)`
+  the same type. `<root>/viewer/` holds every file the app keeps, and `world/` in it the tilesets, which the app only reads. **Setup** is `AppState::open(folder)`
   (actions.rs); main.rs resolves the root and loads the document.
 - **No menu bar and no tab strip** (both removed 2026-10-23 at the owner's word): main.rs builds no menu, and the
   page shows only the page you're on — the rail is the way between them. Rust still keeps what is open (`tabs.rs`),
@@ -67,7 +67,7 @@ and worktree inherits it.
 
 ## Screens (draft five, on the SDK)
 The rail: World, Agents, Tools, Storage, Views, Settings — World open and selected at start (`Tabs::default`);
-no agent list. World draws the agents and tools as nodes on a circle and the events between them as edges, a plain SVG (a first cut, to be replaced); Agents and Tools are empty for now. Reached by ⌘N or by whatever opens them: New agent · a
+no agent list. World is a tile grid (`src/world/`): the accounts, agents and tools are entities on islands, never two side by side, and the events between them are lines over the grid; it is drawn with the tileset you picked in Settings, read from `<root>/viewer/world/tilesets/<id>/` (`tileset.json` + its atlas PNG, code page 437 order, rules in `src-tauri/src/tileset.rs`), which is copied there by hand from the tracked `diverge-viewer/world/`. The island layout is provisional — laid out afresh on every change; Agents and Tools are empty for now. Reached by ⌘N or by whatever opens them: New agent · a
 conversation. · Storage (volumes, across providers) · Views (saved log requests) · Settings (the daemon's status, the
 theme, the folder).
 

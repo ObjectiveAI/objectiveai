@@ -245,11 +245,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* Your card, and a card as someone sees it. */
 
 
-/* The world: one SVG, the nodes on a circle and the events between them. */
-.world { width: 100%; height: auto; }
-.world-node circle, .world-node rect, .world-node path { fill: var(--surface-2); stroke: var(--accent); stroke-width: 1.5; }
-.world-account path { fill: var(--accent); }
-.world-label { fill: var(--text); font-size: var(--text-sm); }
-.world-edge { stroke: var(--line-strong); stroke-width: 1.2; }
-.world-arrow { fill: var(--line-strong); }
-.world-edge-label { fill: var(--text-3); font-size: var(--text-xs); }
+/* The world: the grid on a canvas, its pixels kept square, and the links over it. */
+.world-stage { position: relative; overflow: auto; max-width: 100%; }
+.world-canvas { display: block; image-rendering: pixelated; }
+.world-links { position: absolute; top: 0; left: 0; pointer-events: none; }
+.world-link { stroke: var(--text); stroke-width: 2; stroke-linecap: round; }
+.world-spot { fill: none; pointer-events: all; }
