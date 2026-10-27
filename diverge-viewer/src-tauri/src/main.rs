@@ -11,13 +11,15 @@
 //! `<root>/viewer.yaml` says which daemon and as which identity
 //! (`diverge_viewer_config`), `<root>/identities/` holds that identity,
 //! signed in by `diverge identities login`, and `<root>/viewer/` holds
-//! every file the app keeps.
+//! every file the app keeps, and `world/` in it the world's tilesets
+//! ([`tileset`]).
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod actions;
 mod store;
 mod tabs;
+mod tileset;
 mod view;
 
 use std::sync::Arc;
@@ -62,6 +64,11 @@ fn main() {
             actions::machines_rename,
             actions::theme_get,
             actions::theme_set,
+            actions::tilesets_list,
+            actions::tileset_load,
+            actions::tileset_image,
+            actions::tileset_get,
+            actions::tileset_set,
             actions::views_list,
             actions::views_save,
             actions::views_delete,

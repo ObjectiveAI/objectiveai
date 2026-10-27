@@ -98,7 +98,7 @@ impl From<&crate::store::Hold> for FolderHeld {
 #[derive(Serialize, TS, Clone, Debug, PartialEq)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct FileNoticeView {
-    /// What kind of file it is: `views`, `machine names`, `theme`. The
+    /// What kind of file it is: `views`, `machine names`, `theme`, `tileset`. The
     /// screen words it from `src/strings.ts`.
     pub kind: String,
     /// Whether it's the last good copy kept beside the file, not the file itself.

@@ -49,10 +49,12 @@ pub const VIEWS: Format = Format { name: "views", version: 1, keep_previous: tru
 pub const MACHINE_NAMES: Format = Format { name: "machine names", version: 1, keep_previous: true };
 /// The theme you picked; none until you pick one, and the app shows the default.
 pub const THEME: Format = Format { name: "theme", version: 1, keep_previous: true };
+/// The tileset you picked; none until you pick one, and the app shows the default.
+pub const TILESET: Format = Format { name: "tileset", version: 1, keep_previous: true };
 
 /// Every kind of file the app keeps.
 #[allow(dead_code)] // read by the test that every kind has words on screen
-pub const FORMATS: &[Format] = &[VIEWS, MACHINE_NAMES, THEME];
+pub const FORMATS: &[Format] = &[VIEWS, MACHINE_NAMES, THEME, TILESET];
 
 /// Why a file can't be used.
 #[derive(Debug, Clone, PartialEq, Eq)]

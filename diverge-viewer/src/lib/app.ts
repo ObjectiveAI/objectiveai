@@ -11,6 +11,8 @@ import type { FileNoticeView } from "../bindings/FileNoticeView";
 import type { SavedView } from "../bindings/SavedView";
 import type { TabKind } from "../bindings/TabKind";
 import type { TabsSnapshot } from "../bindings/TabsSnapshot";
+import type { Tileset } from "../bindings/Tileset";
+import type { TilesetEntry } from "../bindings/TilesetEntry";
 
 export const app = {
   info: () => invoke<AppInfo>("app_info"),
@@ -22,6 +24,13 @@ export const app = {
 
   theme: () => invoke<string | null>("theme_get"),
   themeSet: (theme: string | null) => invoke<string | null>("theme_set", { theme }),
+
+  tilesets: () => invoke<TilesetEntry[]>("tilesets_list"),
+  tilesetLoad: (id: string) => invoke<Tileset>("tileset_load", { id }),
+  // The atlas's bytes come raw, as an ArrayBuffer.
+  tilesetImage: (id: string) => invoke<ArrayBuffer>("tileset_image", { id }),
+  tileset: () => invoke<string>("tileset_get"),
+  tilesetSet: (tileset: string | null) => invoke<string>("tileset_set", { tileset }),
 
   views: () => invoke<SavedView[]>("views_list"),
   viewSave: (view: SavedView) => invoke<SavedView>("views_save", { view }),

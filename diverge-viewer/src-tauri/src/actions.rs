@@ -1,7 +1,8 @@
 //! The action registry: everything the page asks Rust for that is the
 //! app's own — never the daemon's, which the page reaches itself through
 //! the SDK over the proxy. Tabs, the theme, saved Views, the names you
-//! gave machines, and what the app knows of its own folder.
+//! gave machines, what the app knows of its own folder, and the world's
+//! tilesets.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -11,6 +12,7 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::store;
 use crate::tabs::Tabs;
+use crate::tileset;
 use crate::view::*;
 
 pub struct AppState {
@@ -25,12 +27,22 @@ pub struct AppState {
     pub machine_names: Mutex<HashMap<String, String>>,
     /// The theme you picked, by its id in theme.css; none until you pick one (the default shows).
     pub theme: Mutex<Option<String>>,
+    /// The world folder, `world/` in the app's folder: the tilesets,
+    /// read and never written.
+    pub world: PathBuf,
+    /// The tileset you picked, by its folder's name; none until you pick
+    /// one, and [`DEFAULT_TILESET`] shows.
+    pub tileset: Mutex<Option<String>>,
 }
 
 /// The files the app keeps, in its folder.
 const VIEWS_FILE: &str = "views.json";
 const MACHINE_NAMES_FILE: &str = "machine_names.json";
 const THEME_FILE: &str = "theme.json";
+const TILESET_FILE: &str = "tileset.json";
+
+/// The tileset shown until you pick one.
+pub const DEFAULT_TILESET: &str = "classic";
 
 /// The app's own folder under the root, beside `viewer.yaml`: every
 /// file the app keeps is in it, as the daemon's are in `daemon/`.
@@ -53,6 +65,8 @@ impl AppState {
             machine_names: Mutex::new(kept(held, &data.join(MACHINE_NAMES_FILE), store::MACHINE_NAMES).unwrap_or_default()),
             // A theme that's no longer in theme.css falls back to the default.
             theme: Mutex::new(kept::<Option<String>>(held, &data.join(THEME_FILE), store::THEME).flatten().filter(|id| theme_ids().contains(&id.as_str()))),
+            tileset: Mutex::new(kept::<Option<String>>(held, &data.join(TILESET_FILE), store::TILESET).flatten()),
+            world: data.join(tileset::WORLD),
             data,
             folder,
         }
@@ -75,6 +89,11 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("machines_rename", "Call a machine by a name of your own"),
     ("theme_get", "The theme you picked (none: the default)"),
     ("theme_set", "Pick a theme by its id, or none for the default"),
+    ("tilesets_list", "Every installed tileset: its name, or why it cannot be used"),
+    ("tileset_load", "A tileset's manifest, held to every rule"),
+    ("tileset_image", "A tileset's atlas image, as its bytes"),
+    ("tileset_get", "The tileset you picked, or the default"),
+    ("tileset_set", "Pick a tileset by its id, or none for the default"),
     ("views_list", "List saved Views"),
     ("views_save", "Save a View (a saved log request)"),
     ("views_delete", "Delete a saved View"),
@@ -152,6 +171,44 @@ pub fn theme_set(state: State<'_, AppState>, theme: Option<String>) -> Result<Op
     *kept = theme;
     state.keep(THEME_FILE, store::THEME, &*kept);
     Ok(kept.clone())
+}
+
+// --- the world's tilesets ------------------------------------------------
+
+#[tauri::command]
+pub async fn tilesets_list(state: State<'_, AppState>) -> Result<Vec<tileset::TilesetEntry>, String> {
+    tileset::list(&state.world).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn tileset_load(state: State<'_, AppState>, id: String) -> Result<tileset::Tileset, String> {
+    tileset::load(&state.world, &id).await.map_err(|e| e.to_string())
+}
+
+/// The atlas image's bytes, raw: the page makes a `blob:` URL of them.
+#[tauri::command]
+pub async fn tileset_image(state: State<'_, AppState>, id: String) -> Result<tauri::ipc::Response, String> {
+    tileset::image(&state.world, &id).await.map(tauri::ipc::Response::new).map_err(|e| e.to_string())
+}
+
+/// The tileset you picked, else the default; whether it is installed is
+/// `tileset_load`'s to say.
+#[tauri::command]
+pub fn tileset_get(state: State<'_, AppState>) -> String {
+    state.tileset.lock().unwrap().clone().unwrap_or_else(|| DEFAULT_TILESET.to_owned())
+}
+
+/// Pick a tileset; one that does not hold up is refused, and the pick is
+/// unchanged.
+#[tauri::command]
+pub async fn tileset_set(state: State<'_, AppState>, tileset: Option<String>) -> Result<String, String> {
+    if let Some(id) = &tileset {
+        tileset::load(&state.world, id).await.map_err(|e| e.to_string())?;
+    }
+    let mut kept = state.tileset.lock().unwrap();
+    *kept = tileset;
+    state.keep(TILESET_FILE, store::TILESET, &*kept);
+    Ok(kept.clone().unwrap_or_else(|| DEFAULT_TILESET.to_owned()))
 }
 
 // --- saved Views -----------------------------------------------------------
