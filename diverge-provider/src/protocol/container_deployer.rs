@@ -6,6 +6,7 @@ use std::future::Future;
 use super::caller::Caller;
 use super::container::Container;
 use super::deployment::Deployment;
+use super::image_info::ImageInfo;
 use diverge_sdk::shared::containers::request::Image;
 
 /// What runs a container for a provider.
@@ -254,4 +255,15 @@ pub trait ContainerDeployer: Send + Sync {
         image: &Image,
         caller: &Caller,
     ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
+
+    /// Read the `/DIVERGE.md` of the image `image` names, running
+    /// nothing: see [`ImageInfo`].
+    ///
+    /// The image is found where [`deploy`](Self::deploy) would find it,
+    /// less the caller, whom a request with no channel to ask on cannot
+    /// be asked: its own store, by digest, and a referenced registry its
+    /// policy lists. The image a deploy of the same image would run is
+    /// the image whose file is read. How the file comes out of the image
+    /// is the implementation's own; nothing of the image is started.
+    fn read_info(&self, client_identity: &Identity, image: &Image) -> impl Future<Output = Result<ImageInfo, Self::Error>> + Send;
 }

@@ -201,6 +201,7 @@ pub mod handle;
 pub mod hold;
 pub mod holders;
 pub mod image_checker;
+pub mod image_info;
 pub mod image_manager;
 pub mod image_registry;
 pub mod image_source;

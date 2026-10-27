@@ -63,7 +63,7 @@ async fn after_limits(
     caps: (Held, Held),
 ) -> Result<Container, Error> {
     let (image, bound) = future::join(
-        obtain(deployer, client_identity, image, caller),
+        obtain(deployer, client_identity, image, Some(caller)),
         bind(deployer, &deployment.mounts),
     )
     .await;
@@ -106,8 +106,9 @@ async fn after_limits(
 /// nobody asked; else wherever of every referenced registry the
 /// configuration lists and the caller first answers that it holds
 /// it, pulled from there, which answers the id. Every way counted in
-/// the cache. The source and the id.
-async fn obtain(deployer: &ContainerDeployer, client_identity: &Identity, image: &Image, caller: &Caller) -> Result<(Source, String), Error> {
+/// the cache, as starting: the obtainer says when it [ended](super::Images::ended).
+/// The source and the id. With no caller, the caller is not asked.
+pub(super) async fn obtain(deployer: &ContainerDeployer, client_identity: &Identity, image: &Image, caller: Option<&Caller>) -> Result<(Source, String), Error> {
     let (source, id) = match own(deployer, client_identity, &image.digest).await {
         Some(source) => {
             let id = pull(deployer, &source).await?;

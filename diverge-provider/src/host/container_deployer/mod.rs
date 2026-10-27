@@ -108,6 +108,7 @@ mod container_deployer;
 mod deploy;
 mod error;
 mod images;
+mod info;
 #[cfg(not(target_os = "linux"))]
 mod machine;
 mod mounts;
@@ -115,6 +116,7 @@ mod mounts;
 mod root;
 mod shared;
 mod source;
+mod tar;
 #[cfg(not(target_os = "linux"))]
 mod tunnel;
 

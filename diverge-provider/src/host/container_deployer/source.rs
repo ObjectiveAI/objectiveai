@@ -43,14 +43,19 @@ pub enum Source {
 /// waited for — a look into a registry still running is a podman
 /// dropped and killed. No yes from any of them is
 /// [`Error::Unavailable`].
-pub(super) async fn find(deployer: &ContainerDeployer, image: &Image, caller: &Caller) -> Result<Source, Error> {
+///
+/// With no caller — a request whose scope has no channel to ask it
+/// on, an image's info — only the registries are asked.
+pub(super) async fn find(deployer: &ContainerDeployer, image: &Image, caller: Option<&Caller>) -> Result<Source, Error> {
     let mut asked = FuturesUnordered::new();
     for reference in &image.references {
         if deployer.podman.registries.iter().any(|registry| registry.host == reference.registry) {
             asked.push(Either::Left(in_registry(deployer.auth_file(), &reference.registry, &reference.name, &image.digest)));
         }
     }
-    asked.push(Either::Right(with_caller(deployer, caller, &image.digest)));
+    if let Some(caller) = caller {
+        asked.push(Either::Right(with_caller(deployer, caller, &image.digest)));
+    }
     while let Some(found) = asked.next().await {
         if let Some(source) = found? {
             return Ok(source);

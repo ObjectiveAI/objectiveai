@@ -165,6 +165,13 @@ where
                     endpoints::containers::fuse_serve::handle(scope, frame, &identity, directory).await;
                 });
             }
+            ClientRequest::ContainersInfo(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let deployer = Arc::clone(&deployer);
+                scopes.spawn(async move {
+                    endpoints::containers::info::handle(scope, frame, &identity, &*deployer).await;
+                });
+            }
             ClientRequest::VolumesList(_) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
