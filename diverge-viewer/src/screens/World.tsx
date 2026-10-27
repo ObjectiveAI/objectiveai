@@ -13,7 +13,7 @@ const tools = daemon.endpoints.standalone_tools.list;
 const events = daemon.endpoints.events.list;
 type Tool = daemon.endpoints.standalone_tools.list.server.response.Tool;
 type Event = daemon.endpoints.events.Event;
-type Creator = daemon.creator.Creator;
+type Party = daemon.endpoints.events.Party;
 
 const TOOLS: ListSpec<Tool, daemon.endpoints.standalone_tools.list.server.response.Frame> = {
   open: (h) => tools.client.execute(h, {}),
@@ -27,33 +27,38 @@ const EVENTS: ListSpec<Event, daemon.endpoints.events.list.server.response.Frame
   change: events.server.response.change,
 };
 
-type Kind = "client" | "agent" | "tool";
+type Kind = "account" | "agent" | "tool";
 type Node = { key: string; kind: Kind; label: string };
 
-/** The node a party of an event is: its key, its kind and its label. */
-function nodeOf(party: Creator): Node {
-  switch (party.type) {
-    case "client":
-      return { key: `client:${party.identity.issuer}:${party.identity.subject}`, kind: "client", label: party.identity.subject };
+/** A template and an index, as a label: the template's first eight characters. */
+const short = (template: string, index: number) => `${template.slice(0, 8)} #${index}`;
+
+/**
+ * The node a party of an event is: its key, its kind and its label. A
+ * listed agent or tool is set first, with its name; this is the node
+ * for a party no list holds.
+ */
+function nodeOf(party: Party): Node {
+  switch (party.kind) {
+    case "account":
+      return { key: `account:${party.issuer}:${party.subject}`, kind: "account", label: party.subject };
     case "agent":
-      return { key: `agent:${party.template}:${party.index}`, kind: "agent", label: party.name ?? `${party.template} #${party.index}` };
-    case "tool":
-      if ("record" in party) {
-        const r = party.record;
-        return { key: `tool:${r.template}:${r.index}`, kind: "tool", label: r.name ?? `${r.template} #${r.index}` };
-      }
-      return { key: `dep:${party.dependency.template}:${JSON.stringify(party.dependency.owner)}`, kind: "tool", label: party.dependency.template };
+      return { key: `agent:${party.template}:${party.index}`, kind: "agent", label: short(party.template, party.index) };
+    case "standalone_tool":
+      return { key: `standalone_tool:${party.template}:${party.index}`, kind: "tool", label: short(party.template, party.index) };
+    case "dependency_tool":
+      return { key: `dependency_tool:${party.template}:${party.index}`, kind: "tool", label: short(party.template, party.index) };
   }
 }
 
 /** The node a listed tool is. */
 function toolNode(tool: Tool): Node {
   const o = tool.origin;
-  if (o.kind === "created") return { key: `tool:${o.template}:${o.index}`, kind: "tool", label: tool.name ?? `${o.template} #${o.index}` };
+  if (o.kind === "created") return { key: `standalone_tool:${o.template}:${o.index}`, kind: "tool", label: tool.name ?? short(o.template, o.index) };
   return { key: `connected:${o.daemon}:${o.index}`, kind: "tool", label: tool.name ?? `${o.daemon} #${o.index}` };
 }
 
-const ORDER: Record<Kind, number> = { client: 0, agent: 1, tool: 2 };
+const ORDER: Record<Kind, number> = { account: 0, agent: 1, tool: 2 };
 const SIZE = 640;
 const CENTER = SIZE / 2;
 const RADIUS = 220;
@@ -66,7 +71,7 @@ export function World() {
   if (!connected) return <NotConnected title={t.world.title} />;
 
   const nodes = new Map<string, Node>();
-  for (const a of agents.items) nodes.set(`agent:${a.template}:${a.index}`, { key: `agent:${a.template}:${a.index}`, kind: "agent", label: a.name ?? `${a.template} #${a.index}` });
+  for (const a of agents.items) nodes.set(`agent:${a.template}:${a.index}`, { key: `agent:${a.template}:${a.index}`, kind: "agent", label: a.name ?? short(a.template, a.index) });
   for (const tool of toolsHeld.items) {
     const n = toolNode(tool);
     nodes.set(n.key, n);
@@ -133,7 +138,7 @@ export function World() {
               const p = at.get(n.key)!;
               const right = p.x >= CENTER;
               return (
-                <g key={n.key} className={n.kind === "client" ? "world-node world-client" : "world-node"}>
+                <g key={n.key} className={n.kind === "account" ? "world-node world-account" : "world-node"}>
                   {n.kind === "agent" ? (
                     <circle cx={p.x} cy={p.y} r={NODE} />
                   ) : n.kind === "tool" ? (
