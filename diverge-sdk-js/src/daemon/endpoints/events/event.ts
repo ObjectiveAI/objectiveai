@@ -1,8 +1,8 @@
 // One edge of the graph: who sent, who received, how often.
 
 import { z } from "zod";
-import { Creator } from "../../creator/creator.js";
 import type { Keyed } from "../../../shared/listing/keyed.js";
+import { Party } from "./party.js";
 
 /**
  * One event, as a list reports it: the sender, the receiver, and how
@@ -13,14 +13,14 @@ import type { Keyed } from "../../../shared/listing/keyed.js";
 export const Event = z.object({
   /** The daemon's number for this edge, given when it was added. */
   id: z.number().int().nonnegative(),
-  /** Who sent. */
-  sender: Creator,
-  /** Who received. */
-  receiver: Creator,
+  /** Who sent: one `Party`. */
+  sender: Party,
+  /** Who received: one `Party`. */
+  receiver: Party,
   /** How many times it has passed: `1` when added, one more at every occurrence since. */
   count: z.number().int().nonnegative(),
 });
 export type Event = z.infer<typeof Event>;
 
-/** Keyed by the id: a `changed` event is the whole record with its count raised. */
+/** Keyed by the id: a `changed` event is the whole record with its count raised, a `removed` one the record as last sent. */
 export const key: Keyed<Event> = (event) => event.id;

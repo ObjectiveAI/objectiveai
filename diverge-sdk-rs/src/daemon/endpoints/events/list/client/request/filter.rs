@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::creator::Creator;
+use crate::daemon::endpoints::events::Party;
 
 /// The filter over events: every member optional, and every one given
 /// a condition an event passes or does not. In a [list
@@ -21,18 +21,18 @@ use crate::daemon::creator::Creator;
 #[derive(schemars::JsonSchema)]
 pub struct Filter {
     /// Any one of these on either side, as the sender or as the
-    /// receiver: see [`Creator`](crate::daemon::creator::Creator).
+    /// receiver: see [`Party`](crate::daemon::endpoints::events::Party).
     /// Absent when empty, and then anybody on either side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub parties: Vec<Creator>,
+    pub parties: Vec<Party>,
     /// Sent by any one of these: see
-    /// [`Creator`](crate::daemon::creator::Creator). Absent when
+    /// [`Party`](crate::daemon::endpoints::events::Party). Absent when
     /// empty, and then sent by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub senders: Vec<Creator>,
+    pub senders: Vec<Party>,
     /// Received by any one of these: see
-    /// [`Creator`](crate::daemon::creator::Creator). Absent when
+    /// [`Party`](crate::daemon::endpoints::events::Party). Absent when
     /// empty, and then received by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub receivers: Vec<Creator>,
+    pub receivers: Vec<Party>,
 }

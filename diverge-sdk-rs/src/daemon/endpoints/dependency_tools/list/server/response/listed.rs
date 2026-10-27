@@ -26,6 +26,12 @@ pub struct Listed {
     /// Whose the tool is, as the template's scope decides: the one
     /// agent, the one agent template, or nobody. See [`key::Owner`].
     pub owner: key::Owner,
+    /// Its number among all dependency tools ever made from the
+    /// template, whatever their owners: the first is `1`, and no
+    /// number is given twice. The template and the index name the tool
+    /// once and for all, as an
+    /// [`events`](crate::daemon::endpoints::events) party does.
+    pub index: u64,
     /// When the first registration that declared the template under
     /// this owner made the tool. On the wire an RFC 3339 timestamp in
     /// UTC.

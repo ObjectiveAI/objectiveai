@@ -7,33 +7,36 @@ import type { Change } from "../../../../../../shared/listing/change.js";
 import { Event } from "../../../../../../daemon/endpoints/events/event.js";
 
 /**
- * A list's answer: an event added or changed, the word that the list
- * is whole, forbidden, or a failure. First the latest `count` events
- * that match, in id order, each as `added`; then exactly one
+ * A list's answer: an event added, changed or removed, the word that
+ * the list is whole, forbidden, or a failure. First the latest `count`
+ * events that match, in id order, each as `added`; then exactly one
  * `listed`; then, for the scope's life and with no cap, an event come
- * to be — or one the window left out, now changed — as `added`, and
- * one sent already whose count has been raised as `changed`. There is
- * no `removed`: an edge of the graph is never taken away.
+ * to be — or one the window left out, now changed — as `added`, one
+ * sent already whose count has been raised as `changed`, and one sent
+ * already whose sender or receiver was deleted as `removed`.
  */
 export const Frame = z.union([
   /** One event that matches, listed now and not before. Tag `0`. */
   z.strictObject({ added: Event }),
   /** One event listed already, as it is now: its count raised since it was last sent. Tag `1`. */
   z.strictObject({ changed: Event }),
-  /** Every event in the window when the scope opened has been sent. Tag `2`. */
+  /** One event listed already that is no more: its sender or its receiver was deleted. The record as last sent. Tag `2`. */
+  z.strictObject({ removed: Event }),
+  /** Every event in the window when the scope opened has been sent. Tag `3`. */
   z.literal("listed"),
-  /** The account the request is served for holds no grant allowing it; nothing was sent. Tag `3`. */
+  /** The account the request is served for holds no grant allowing it; nothing was sent. Tag `4`. */
   z.literal("forbidden"),
-  /** A failure. See `shared.error.Error` for why it says so little. Tag `4`. */
+  /** A failure. See `shared.error.Error` for why it says so little. Tag `5`. */
   z.strictObject({ error: Error }),
 ]);
 export type Frame = z.infer<typeof Frame>;
 
 const ADDED = 0;
 const CHANGED = 1;
-const LISTED = 2;
-const FORBIDDEN = 3;
-const ERROR = 4;
+const REMOVED = 2;
+const LISTED = 3;
+const FORBIDDEN = 4;
+const ERROR = 5;
 
 /**
  * A frame out of its payload: the tag byte, then the variant's own
@@ -48,6 +51,8 @@ export function decode(bytes: Uint8Array): Frame {
       return { added: Event.parse(jsonOf(rest)) };
     case CHANGED:
       return { changed: Event.parse(jsonOf(rest)) };
+    case REMOVED:
+      return { removed: Event.parse(jsonOf(rest)) };
     case LISTED:
       return "listed";
     case FORBIDDEN:
@@ -76,6 +81,9 @@ export function change(frame: Frame): Change<Event> | null {
   }
   if ("changed" in frame) {
     return { kind: "changed", item: frame.changed };
+  }
+  if ("removed" in frame) {
+    return { kind: "removed", item: frame.removed };
   }
   return null;
 }

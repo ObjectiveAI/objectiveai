@@ -20,6 +20,8 @@ export const Listed = z.object({
   id: z.string(),
   /** Whose the tool is, as the template's scope decides: the one agent, the one agent template, or nobody. See `key::Owner`. */
   owner: Owner,
+  /** Its number among all dependency tools ever made from the template, whatever their owners: the first is `1`, and no number is given twice. The template and the index name the tool once and for all, as an events party does. */
+  index: z.number().int().nonnegative(),
   /** When the first registration that declared the template under this owner made the tool. On the wire an RFC 3339 timestamp in UTC. */
   created: z.iso.datetime({ offset: true }),
   /** Who made it: the agent whose registration first declared the template under this owner. One `Creator`, the direct maker; the maker's own maker is on the maker's list item. */

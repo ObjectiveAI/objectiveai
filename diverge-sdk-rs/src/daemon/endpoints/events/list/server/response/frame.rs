@@ -10,27 +10,28 @@ use crate::shared::listing::Change;
 
 use crate::daemon::endpoints::events::Event;
 
-/// A list's answer: an event added or changed, the word that the list
-/// is whole, forbidden, or a failure.
+/// A list's answer: an event added, changed or removed, the word that
+/// the list is whole, forbidden, or a failure.
 ///
 /// A list is a stream kept open. First the latest `count` events that
 /// match, by id, as the daemon holds them, in id order, each as
 /// [`Added`](Self::Added); then exactly one [`Listed`](Self::Listed);
 /// then, for the scope's life and with no cap, an event come to be —
 /// or one the window left out, now changed, which the client has not
-/// seen — as `Added`, and one sent already whose count has been
-/// raised as [`Changed`](Self::Changed). There is no `Removed`: an
-/// edge of the graph is never taken away, only added or its count
-/// raised, since nothing undoes an occurrence, so nothing a list has
-/// sent ever stops matching. The finish follows the client's cancel,
+/// seen — as `Added`, one sent already whose count has been raised as
+/// [`Changed`](Self::Changed), and one sent already whose sender or
+/// receiver was deleted as [`Removed`](Self::Removed). An edge is
+/// removed with its parties and at no other time, as
+/// [`events`](crate::daemon::endpoints::events) states; one never
+/// sent goes unsaid. The finish follows the client's cancel,
 /// the client's connection ending, or exactly one
 /// [`Error`](Self::Error); or the scope is exactly one
 /// [`Forbidden`](Self::Forbidden), then the finish. A payload leads
 /// with one byte saying which — `0` for `Added`, `1` for `Changed`,
-/// `2` for `Listed`, `3` for `Forbidden`, `4` for `Error` — and the
-/// rest is that variant's own JSON: one
+/// `2` for `Removed`, `3` for `Listed`, `4` for `Forbidden`, `5` for
+/// `Error` — and the rest is that variant's own JSON: one
 /// [`Event`](crate::daemon::endpoints::events::Event) for the first
-/// two, the error for the last, nothing for the others.
+/// three, the error for the last, nothing for the others.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -68,16 +69,19 @@ pub enum Frame {
     /// One event listed already, as it is now: its count raised since
     /// it was last sent. Tag `1`.
     Changed(Event),
+    /// One event listed already that is no more: its sender or its
+    /// receiver was deleted. The record as it was last sent. Tag `2`.
+    Removed(Event),
     /// Every event in the window when the scope opened has been sent.
-    /// Tag `2`.
+    /// Tag `3`.
     ///
     /// Carries nothing — the variant is bare. A client that wants the
     /// list once cancels here; one that watches reads on.
     Listed,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing was sent. Tag `3`.
+    /// it; nothing was sent. Tag `4`.
     Forbidden,
-    /// A failure. Tag `4`.
+    /// A failure. Tag `5`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -90,14 +94,17 @@ const ADDED: u8 = 0;
 /// Tag for [`Frame::Changed`].
 const CHANGED: u8 = 1;
 
+/// Tag for [`Frame::Removed`].
+const REMOVED: u8 = 2;
+
 /// Tag for [`Frame::Listed`].
-const LISTED: u8 = 2;
+const LISTED: u8 = 3;
 
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 3;
+const FORBIDDEN: u8 = 4;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 5;
 
 /// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
@@ -114,6 +121,10 @@ impl Encode for Frame {
             }
             Frame::Changed(item) => {
                 out.extend_from_slice(&[CHANGED]);
+                serde_json::to_writer(out, item)
+            }
+            Frame::Removed(item) => {
+                out.extend_from_slice(&[REMOVED]);
                 serde_json::to_writer(out, item)
             }
             Frame::Listed => {
@@ -142,6 +153,7 @@ impl Decode<'_> for Frame {
         match *tag {
             ADDED => serde_json::from_slice(rest).map(Frame::Added).map_err(FrameError::Event),
             CHANGED => serde_json::from_slice(rest).map(Frame::Changed).map_err(FrameError::Event),
+            REMOVED => serde_json::from_slice(rest).map(Frame::Removed).map_err(FrameError::Event),
             LISTED => Ok(Frame::Listed),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
@@ -154,12 +166,12 @@ impl Frame {
     /// What this frame tells a listing — a [`Change`], for
     /// [`Listing::push`](crate::shared::listing::Listing::push) — or
     /// the frame itself where it tells a listing nothing: forbidden,
-    /// or a failure, the answers that end the scope. No frame is
-    /// `Removed`, since no event is ever taken away.
+    /// or a failure, the answers that end the scope.
     pub fn change(self) -> Result<Change<Event>, Frame> {
         match self {
             Frame::Added(item) => Ok(Change::Added(item)),
             Frame::Changed(item) => Ok(Change::Changed(item)),
+            Frame::Removed(item) => Ok(Change::Removed(item)),
             Frame::Listed => Ok(Change::Listed),
             other => Err(other),
         }
@@ -171,9 +183,9 @@ impl Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
-    /// The event, added or changed, did not parse.
+    /// The event, added, changed or removed, did not parse.
     Event(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
