@@ -3,7 +3,8 @@
 //! A GRANT is one permission over one kind of thing the daemon holds —
 //! agents, agent templates, standalone tools, their templates,
 //! dependency tools, providers, daemons,
-//! accounts, roles, volumes, the vault, the database, the events — and a
+//! accounts, roles, volumes, the vault, the database, the events,
+//! images — and a
 //! [role](crate::daemon::endpoints::roles) is a
 //! list of them, held by
 //! [accounts](crate::daemon::endpoints::accounts). On the wire a grant
@@ -33,9 +34,10 @@
 //! of them.
 //! `{"agents":{"actions":["tag"],"within":"any","tags":["crew","idle"]}}`.
 //! - **Over the one thing.** For the database, of which the daemon
-//!   serves exactly one, and the events, one graph of which it keeps,
-//! a bare array of the kind's actions,
-//! `{"postgres":["get","connections"]}`, `{"events":["list"]}`: there
+//!   serves exactly one, the events, one graph of which it keeps, and
+//!   images, which it names and never holds, a bare array of the
+//!   kind's actions, `{"postgres":["get","connections"]}`,
+//!   `{"events":["list"]}`, `{"images":["info"]}`: there
 //! is nothing to name and nothing to narrow, so holding the action is
 //! the whole of it, as for making.
 //!
@@ -125,3 +127,4 @@ pub mod vault;
 pub mod volumes;
 pub use crate::shared::permission::postgres;
 pub use crate::shared::permission::events;
+pub use crate::shared::permission::images;

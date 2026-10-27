@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{accounts, agents, agents_templates, dependency_tools, daemons, events, postgres, providers, roles, standalone_tools, standalone_tools_templates, vault, volumes};
+use super::{accounts, agents, agents_templates, dependency_tools, daemons, events, images, postgres, providers, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 
 /// One grant that names nothing: a permission over one kind of thing
 /// the daemon holds, reaching by tags alone. Externally tagged by the
@@ -13,7 +13,7 @@ use super::{accounts, agents, agents_templates, dependency_tools, daemons, event
 /// wire: `"agents"`, `"agents_templates"`, `"standalone_tools"`,
 /// `"standalone_tools_templates"`, `"dependency_tools"`,
 /// `"providers"`, `"daemons"`, `"accounts"`,
-/// `"roles"`, `"volumes"`, `"vault"`, `"postgres"`, `"events"` — the
+/// `"roles"`, `"volumes"`, `"vault"`, `"postgres"`, `"events"`, `"images"` — the
 /// kinds of the daemon's [`Grant`](crate::daemon::grant::Grant), which
 /// is made of these.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -47,4 +47,6 @@ pub enum Grant {
     Postgres(postgres::Permission),
     /// Over the events: see [`events::Permission`].
     Events(events::Permission),
+    /// Over images: see [`images::Permission`].
+    Images(images::Permission),
 }

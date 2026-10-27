@@ -8,7 +8,7 @@
 // kind's making actions; OVER WHAT EXISTS, `actions` and `within` —
 // `"any"`, or the kind's own list filter read as a test; TAGGING,
 // `actions`, `within` and `tags`; and OVER THE ONE THING, the
-// database and the events, a bare array of actions. The actions are
+// database, the events and images, a bare array of actions. The actions are
 // the shared ones, defined once in `shared.permission` and
 // re-exported here.
 
@@ -29,3 +29,4 @@ export * as postgres from "../../shared/permission/postgres/index.js";
 export * as providers from "../../shared/permission/providers/index.js";
 export * as daemons from "../../shared/permission/daemons/index.js";
 export * as events from "../../shared/permission/events/index.js";
+export * as images from "../../shared/permission/images/index.js";

@@ -156,7 +156,7 @@ tag table is stated once, in the module, as the Rust states it.
 - `index.ts` barrels at every level, `export * as client`, `export
   * as server`, `export * as request`, `export * as response`.
 
-Every tag of the daemon's table has its folder: ninety endpoints,
+Every tag of the daemon's table has its folder: ninety-one endpoints,
 which `find src/daemon/endpoints -name execute.ts` counts.
 Family-level types sit at the family's root as the Rust's do
 (`accounts/reference.ts`, `providers/daemons/link.ts`). A provider

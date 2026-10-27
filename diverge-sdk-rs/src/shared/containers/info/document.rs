@@ -16,6 +16,7 @@ use super::ParseError;
 /// does not read either; a caller reads the schema to learn what an
 /// image's program takes without knowing the image.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Document {
     /// The JSON Schema of the image's
     /// [`arguments`](crate::shared::containers::request::Container::arguments),

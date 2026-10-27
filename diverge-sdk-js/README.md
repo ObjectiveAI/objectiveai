@@ -147,7 +147,7 @@ console.log(uploaded); // "uploaded", or why not
   the five MCP exchanges as frames, the server's error whole, and
   the attestation this SDK puts in a `_meta`.
 - `daemon` — the daemon protocol: the exchange shapes under
-  `client`, and the ninety endpoints under `endpoints`, one folder
+  `client`, and the ninety-one endpoints under `endpoints`, one folder
   each.
 - `provider` — the provider protocol as far as the daemon's answers
   reach into it: a volume's mode and its write content answer, a

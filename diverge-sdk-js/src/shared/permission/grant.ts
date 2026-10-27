@@ -7,6 +7,7 @@ import * as agents_templates from "./agents_templates/index.js";
 import * as daemons from "./daemons/index.js";
 import * as dependency_tools from "./dependency_tools/index.js";
 import * as events from "./events/index.js";
+import * as images from "./images/index.js";
 import * as postgres from "./postgres/index.js";
 import * as providers from "./providers/index.js";
 import * as roles from "./roles/index.js";
@@ -19,11 +20,11 @@ import * as volumes from "./volumes/index.js";
  * One grant that names nothing: a permission over one kind of thing
  * the daemon holds, reaching by tags alone. Externally tagged by the
  * kind's name — one object with one member, `{"agents":…}` — whose
- * value is that kind's `Permission`. The thirteen kinds, snake case:
+ * value is that kind's `Permission`. The fourteen kinds, snake case:
  * `agents`, `agents_templates`, `standalone_tools`,
  * `standalone_tools_templates`, `dependency_tools`, `providers`,
  * `daemons`, `accounts`, `roles`, `volumes`, `vault`, `postgres`,
- * `events`.
+ * `events`, `images`.
  */
 export const Grant = z.union([
   z.strictObject({ agents: agents.Permission }),
@@ -39,5 +40,6 @@ export const Grant = z.union([
   z.strictObject({ vault: vault.Permission }),
   z.strictObject({ postgres: postgres.Permission }),
   z.strictObject({ events: events.Permission }),
+  z.strictObject({ images: images.Permission }),
 ]);
 export type Grant = z.infer<typeof Grant>;

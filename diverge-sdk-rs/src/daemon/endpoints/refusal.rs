@@ -1,6 +1,6 @@
 //! A request refused in its own words, whichever request it is.
 
-use super::{ClientRequest, accounts, agents, dependency_tools, events, postgres, providers, roles, standalone_tools, vault, volumes};
+use super::{ClientRequest, accounts, agents, dependency_tools, events, images, postgres, providers, roles, standalone_tools, vault, volumes};
 use crate::shared::error::Error;
 use crate::wire::encode::{Encode, Writer};
 
@@ -103,6 +103,7 @@ impl ClientRequest<'_> {
             ClientRequest::VaultTag(_) => bytes(&vault::tag::server::response::Frame::Forbidden),
             ClientRequest::VaultUntag(_) => bytes(&vault::untag::server::response::Frame::Forbidden),
             ClientRequest::EventsList(_) => bytes(&events::list::server::response::Frame::Forbidden),
+            ClientRequest::ImagesInfo(_) => bytes(&images::info::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
     }
@@ -202,6 +203,7 @@ impl ClientRequest<'_> {
             ClientRequest::VaultTag(_) => bytes(&vault::tag::server::response::Frame::Error(error)),
             ClientRequest::VaultUntag(_) => bytes(&vault::untag::server::response::Frame::Error(error)),
             ClientRequest::EventsList(_) => bytes(&events::list::server::response::Frame::Error(error)),
+            ClientRequest::ImagesInfo(_) => bytes(&images::info::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
     }
