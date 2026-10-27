@@ -12,7 +12,7 @@ use crate::store::{AgentId, DependencyToolId, Error};
 
 /// The columns every dependency tool query selects: the row joined to
 /// its template's body.
-pub(super) const SELECT: &str = "SELECT t.id, t.template, d.template AS declared, t.scope, t.owner_agent, t.owner_template, t.tags, t.created, t.creator \
+pub(super) const SELECT: &str = "SELECT t.id, t.template, t.index, d.template AS declared, t.scope, t.owner_agent, t.owner_template, t.tags, t.created, t.creator \
      FROM diverge.dependency_tools t JOIN diverge.dependencies d ON d.id = t.template";
 
 /// The order: oldest first.
@@ -28,9 +28,11 @@ pub(super) fn tool(row: &PgRow) -> Result<DependencyTool, Error> {
     let Json(declared): Json<Template> = row.try_get("declared")?;
     let Json(creator): Json<Creator> = row.try_get("creator")?;
     let created: DateTime<Utc> = row.try_get("created")?;
+    let index: i64 = row.try_get("index")?;
     Ok(DependencyTool {
         id: DependencyToolId(row.try_get("id")?),
         template: row.try_get("template")?,
+        index: u64::try_from(index).unwrap_or(0),
         declared,
         scope,
         owner_agent: owner_agent.map(AgentId),

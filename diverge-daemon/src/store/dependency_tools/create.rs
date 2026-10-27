@@ -6,7 +6,7 @@ use sqlx::PgConnection;
 use sqlx::types::Json;
 
 use super::{DependencyTool, by_scope, scope_name};
-use crate::store::{AgentId, Error};
+use crate::store::{AgentId, Error, counters};
 
 /// What a registration declares, checked by the caller: the template
 /// by id, whose body is on record, its scope — `instance` for a
@@ -27,9 +27,11 @@ pub struct Declared<'a> {
 }
 
 /// The tool under the declaration's scope key: the one there is, or
-/// one made now. Two registrations racing to make one both come to
-/// the one row: the insert yields to a unique violation on the scope
-/// key, and the row is read again.
+/// one made now, numbered by the next index among the dependency tools
+/// ever made from its template. Two registrations racing to make one
+/// both come to the one row: the insert yields to a unique violation
+/// on the scope key, and the row is read again; the loser's number is
+/// spent, since no number is given twice.
 pub async fn find_or_create(conn: &mut PgConnection, declared: &Declared<'_>) -> Result<DependencyTool, Error> {
     let (owner_agent, owner_template) = match declared.scope {
         Scope::Instance => (Some(declared.agent), None),
@@ -39,11 +41,13 @@ pub async fn find_or_create(conn: &mut PgConnection, declared: &Declared<'_>) ->
     if let Some(found) = by_scope(conn, declared.template, declared.scope, owner_agent, owner_template, false).await? {
         return Ok(found);
     }
+    let index = counters::next(conn, &format!("dependency_tools:{}", declared.template)).await?;
     sqlx::query(
-        "INSERT INTO diverge.dependency_tools (template, scope, owner_agent, owner_template, creator) \
-         VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+        "INSERT INTO diverge.dependency_tools (template, index, scope, owner_agent, owner_template, creator) \
+         VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING",
     )
     .bind(declared.template)
+    .bind(i64::try_from(index).unwrap_or(i64::MAX))
     .bind(scope_name(declared.scope))
     .bind(owner_agent.map(|agent| agent.0))
     .bind(owner_template)

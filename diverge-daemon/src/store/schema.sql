@@ -193,6 +193,9 @@ CREATE INDEX IF NOT EXISTS template_attachments_template ON diverge.template_att
 CREATE TABLE IF NOT EXISTS diverge.dependency_tools (
     id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     template       TEXT NOT NULL,
+    -- Its number among the dependency tools ever made from the
+    -- template, whatever their owners.
+    index          BIGINT NOT NULL,
     -- `instance`, `template` or `global`.
     scope          TEXT NOT NULL,
     owner_agent    BIGINT REFERENCES diverge.agents(id) ON DELETE CASCADE,
@@ -213,6 +216,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS dependency_tools_per_template
 CREATE UNIQUE INDEX IF NOT EXISTS dependency_tools_global
     ON diverge.dependency_tools (template) WHERE scope = 'global';
 CREATE INDEX IF NOT EXISTS dependency_tools_template ON diverge.dependency_tools (template);
+CREATE UNIQUE INDEX IF NOT EXISTS dependency_tools_index ON diverge.dependency_tools (template, index);
 
 -- An agent attached to a dependency tool: its last registration
 -- declared the tool's template, at `declared`. `seq` is the order of
@@ -246,15 +250,56 @@ CREATE TABLE IF NOT EXISTS diverge.dependencies (
 );
 
 -- The graph of who sent to whom through the daemon: one row per
--- sender and receiver — each end the wire's Creator, as JSON — with a
--- count raised at every
--- occurrence since the first. Never removed, since nothing undoes an
--- occurrence, and never timed: the id orders the edges by when each
--- was added.
+-- sender and receiver, with a count raised at every occurrence since
+-- the first, and never timed: the id orders the edges by when each
+-- was added. Each end is its kind and the columns that kind uses: an
+-- account by its identity, compared by value since an administrator
+-- has no account row, its edges deleted by the account's delete; an
+-- agent, a standalone tool or a dependency tool by its row, so its
+-- delete — or the delete of what it went with — takes its edges.
 CREATE TABLE IF NOT EXISTS diverge.events (
-    id       BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    sender   JSONB NOT NULL,
-    receiver JSONB NOT NULL,
-    count    BIGINT NOT NULL DEFAULT 1,
-    CONSTRAINT events_edge UNIQUE (sender, receiver)
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    -- `account`, `agent`, `standalone_tool` or `dependency_tool`.
+    sender_kind         TEXT NOT NULL,
+    sender_issuer       TEXT,
+    sender_subject      TEXT,
+    sender_agent        BIGINT REFERENCES diverge.agents(id) ON DELETE CASCADE,
+    sender_tool         BIGINT REFERENCES diverge.tools(id) ON DELETE CASCADE,
+    sender_dependency   BIGINT REFERENCES diverge.dependency_tools(id) ON DELETE CASCADE,
+    -- `account`, `agent`, `standalone_tool` or `dependency_tool`.
+    receiver_kind       TEXT NOT NULL,
+    receiver_issuer     TEXT,
+    receiver_subject    TEXT,
+    receiver_agent      BIGINT REFERENCES diverge.agents(id) ON DELETE CASCADE,
+    receiver_tool       BIGINT REFERENCES diverge.tools(id) ON DELETE CASCADE,
+    receiver_dependency BIGINT REFERENCES diverge.dependency_tools(id) ON DELETE CASCADE,
+    count               BIGINT NOT NULL DEFAULT 1,
+    CONSTRAINT events_sender CHECK (
+        (sender_kind = 'account' AND sender_issuer IS NOT NULL AND sender_subject IS NOT NULL
+            AND sender_agent IS NULL AND sender_tool IS NULL AND sender_dependency IS NULL)
+        OR (sender_kind = 'agent' AND sender_agent IS NOT NULL AND sender_issuer IS NULL
+            AND sender_subject IS NULL AND sender_tool IS NULL AND sender_dependency IS NULL)
+        OR (sender_kind = 'standalone_tool' AND sender_tool IS NOT NULL AND sender_issuer IS NULL
+            AND sender_subject IS NULL AND sender_agent IS NULL AND sender_dependency IS NULL)
+        OR (sender_kind = 'dependency_tool' AND sender_dependency IS NOT NULL AND sender_issuer IS NULL
+            AND sender_subject IS NULL AND sender_agent IS NULL AND sender_tool IS NULL)
+    ),
+    CONSTRAINT events_receiver CHECK (
+        (receiver_kind = 'account' AND receiver_issuer IS NOT NULL AND receiver_subject IS NOT NULL
+            AND receiver_agent IS NULL AND receiver_tool IS NULL AND receiver_dependency IS NULL)
+        OR (receiver_kind = 'agent' AND receiver_agent IS NOT NULL AND receiver_issuer IS NULL
+            AND receiver_subject IS NULL AND receiver_tool IS NULL AND receiver_dependency IS NULL)
+        OR (receiver_kind = 'standalone_tool' AND receiver_tool IS NOT NULL AND receiver_issuer IS NULL
+            AND receiver_subject IS NULL AND receiver_agent IS NULL AND receiver_dependency IS NULL)
+        OR (receiver_kind = 'dependency_tool' AND receiver_dependency IS NOT NULL AND receiver_issuer IS NULL
+            AND receiver_subject IS NULL AND receiver_agent IS NULL AND receiver_tool IS NULL)
+    ),
+    CONSTRAINT events_edge UNIQUE NULLS NOT DISTINCT (sender_kind, sender_issuer, sender_subject, sender_agent, sender_tool, sender_dependency,
+        receiver_kind, receiver_issuer, receiver_subject, receiver_agent, receiver_tool, receiver_dependency)
 );
+CREATE INDEX IF NOT EXISTS events_sender_agent ON diverge.events (sender_agent);
+CREATE INDEX IF NOT EXISTS events_receiver_agent ON diverge.events (receiver_agent);
+CREATE INDEX IF NOT EXISTS events_sender_tool ON diverge.events (sender_tool);
+CREATE INDEX IF NOT EXISTS events_receiver_tool ON diverge.events (receiver_tool);
+CREATE INDEX IF NOT EXISTS events_sender_dependency ON diverge.events (sender_dependency);
+CREATE INDEX IF NOT EXISTS events_receiver_dependency ON diverge.events (receiver_dependency);

@@ -1,7 +1,6 @@
 //! One event, as the store holds it.
 
-use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::events;
+use diverge_sdk::daemon::endpoints::events::{self, Party};
 
 /// One edge of the graph: the sender, the receiver, and how many times
 /// something has passed between them.
@@ -11,9 +10,9 @@ pub struct Event {
     /// later edge has a higher id.
     pub id: u64,
     /// Who sent.
-    pub sender: Creator,
+    pub sender: Party,
     /// Who received.
-    pub receiver: Creator,
+    pub receiver: Party,
     /// How many times it has passed: `1` when the edge was added, and
     /// one more at every occurrence since.
     pub count: u64,

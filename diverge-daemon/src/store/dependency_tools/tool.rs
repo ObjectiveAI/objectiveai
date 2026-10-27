@@ -16,6 +16,9 @@ pub struct DependencyTool {
     pub id: DependencyToolId,
     /// The template it is of, by id.
     pub template: String,
+    /// Its number among the dependency tools of the template, once
+    /// and for all.
+    pub index: u64,
     /// The template, whole.
     pub declared: Template,
     /// How far it is shared: what its scope key is made of. A
@@ -69,6 +72,7 @@ impl DependencyTool {
         Listed {
             id: self.template.clone(),
             owner,
+            index: self.index,
             created: self.created,
             creator: self.creator.clone(),
             tags: self.tags.clone(),
