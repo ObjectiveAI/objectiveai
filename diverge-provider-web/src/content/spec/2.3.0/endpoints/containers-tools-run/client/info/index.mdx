@@ -21,3 +21,6 @@ and relays its answer.
   as the proxy sent it and reads neither its schema nor its body.
 - **Missing.** An image that ships no `/DIVERGE.md` is answered by the
   byte `1`. That is a fact about the image and not a failure.
+- **Without a container.** [containers::info](/endpoints/containers-info/)
+  answers the same document from the image itself, with no container
+  of it running.

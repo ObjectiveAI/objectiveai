@@ -1,0 +1,58 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the document, is the byte 1 alone when the image ships no /DIVERGE.md, is the byte 2 alone when the server found no copy of the image, or begins with the byte 3 followed by an error, and the response finish follows it.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope. The response
+finish follows the response, and no frame follows the finish.
+
+```text
+[0][document JSON …]   the image's /DIVERGE.md, parsed
+[1]                    the image ships no /DIVERGE.md
+[2]                    the server found no copy of the image
+[3][error JSON …]      the server did not read a document, and why
+```
+
+- **The sequence.** Exactly one response precedes the response
+  finish, and nothing follows the finish. A response finish that no
+  response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides.
+- **The document.** The byte `0` is followed by exactly one JSON
+  object of two members. `schema` is the JSON Schema of the
+  `arguments` a container of the image accepts, as the image states
+  it, and is a JSON object. `body` is a string: the markdown text
+  beneath the schema in the image's `/DIVERGE.md`, verbatim.
+- **Missing.** The byte `1` alone states that the image ships no
+  `/DIVERGE.md`, or that what the image holds at that path is not a
+  regular file. Nothing follows the byte. That is a fact about the
+  image and not a failure.
+- **No source.** The byte `2` alone states that the server found the
+  image in none of the places it looks, and that it read nothing.
+  Nothing follows the byte. **Remark.** A container request naming
+  the image may still succeed where the client holds the image and
+  the server obtains it from the client.
+- **The error.** The byte `3` is followed by exactly one JSON value in
+  the form defined on the [volumes::list response](/endpoints/volumes-list/response/)
+  page. An error whose `kind` is `info` states that the file is not
+  UTF-8 or breaks a rule of the document; the server states the error
+  of the info channel of a running container in the same words. Any
+  other error states that the server could not obtain or read the
+  image.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is none of `0`, `1`, `2` and `3`, and a payload whose bytes after
+  `0` or `3` do not parse as the document or as the error are
+  malformed. A payload whose first byte is `1` or `2` is read by that
+  byte alone; bytes after it are not read.
+
+The response frame is defined by
+`diverge-sdk-rs/src/provider/endpoints/containers/info/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/info/server/response/frame.rs
+```
+
+and the document by `diverge-sdk-rs/src/shared/containers/info/document.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/document.rs
+```

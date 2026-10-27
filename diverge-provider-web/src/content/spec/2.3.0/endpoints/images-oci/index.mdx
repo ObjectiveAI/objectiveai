@@ -1,12 +1,12 @@
 ---
 title: 'images::oci'
-summary: 'Tag 19: a client opens a scope to pull what the server holds for it; the server sends nothing on the main stream and, for as long as the scope lives, answers on channels the client opens whether it holds an image for the client and under what name, a manifest by digest, and a blob by digest; the client disconnects, or its connection ends, and the response finish follows.'
-order: 19
+summary: 'Tag 20: a client opens a scope to pull what the server holds for it; the server sends nothing on the main stream and, for as long as the scope lives, answers on channels the client opens whether it holds an image for the client and under what name, a manifest by digest, and a blob by digest; the client disconnects, or its connection ends, and the response finish follows.'
+order: 20
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`19` and nothing more. The server sends no response on the scope,
+`20` and nothing more. The server sends no response on the scope,
 unless it keeps no client image, in which case it sends exactly one.
 The scope stays open: the client opens on it, as channels, the three asks
 the server makes of a client on a run scope — whether an image is

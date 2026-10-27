@@ -1,12 +1,12 @@
 ---
 title: 'images::delete'
-summary: 'Tag 18: a client names an image from its listing; the server sends exactly one response stating that the image no longer exists, that a running container runs it and it was not deleted, or an error, and the scope finishes; the deletion is not reversible.'
-order: 18
+summary: 'Tag 19: a client names an image from its listing; the server sends exactly one response stating that the image no longer exists, that a running container runs it and it was not deleted, or an error, and the scope finishes; the deletion is not reversible.'
+order: 19
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`18` followed by the name of an image. The server sends exactly one
+`19` followed by the name of an image. The server sends exactly one
 response, which states that the image is deleted, that a running
 container of the client runs the image and it was not deleted, that
 the server keeps no client image, or an error. The response finish follows the response, and no frame follows

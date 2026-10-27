@@ -1,12 +1,12 @@
 ---
 title: 'images::list'
-summary: 'Tag 15: a client asks which images it has built on the server; the server sends every such image as added, says when the listing is whole, keeps sending as images are built and deleted, and finishes when the client stops.'
-order: 15
+summary: 'Tag 16: a client asks which images it has built on the server; the server sends every such image as added, says when the listing is whole, keeps sending as images are built and deleted, and finishes when the client stops.'
+order: 16
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`15` and nothing more. The server sends every image the client built
+`16` and nothing more. The server sends every image the client built
 on it, one response each, then the word that the listing is whole,
 and keeps the scope open: an image built is sent as added, an image
 deleted as removed, for as long as the scope lives. The scope ends at

@@ -1,12 +1,12 @@
 ---
 title: 'images::stat'
-summary: 'Tag 16: a client names an image from its listing; the server sends exactly one response carrying the image as the listing reports it and the Containerfile it was built from, or an error, and the scope finishes.'
-order: 16
+summary: 'Tag 17: a client names an image from its listing; the server sends exactly one response carrying the image as the listing reports it and the Containerfile it was built from, or an error, and the scope finishes.'
+order: 17
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`16` followed by the name of an image. The server sends exactly one
+`17` followed by the name of an image. The server sends exactly one
 response, which is the image examined, the word that the server
 keeps no client image, or an error. The
 response finish follows the response, and no frame follows the

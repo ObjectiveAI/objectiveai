@@ -1,12 +1,12 @@
 ---
 title: 'images::check'
-summary: 'Tag 14: a client names an image by digest and references and says where the server is to look, among its own images and the registries; the server sends exactly one response stating whether a source asked has the image, that no source was asked, or an error, and the scope finishes.'
-order: 14
+summary: 'Tag 15: a client names an image by digest and references and says where the server is to look, among its own images and the registries; the server sends exactly one response stating whether a source asked has the image, that no source was asked, or an error, and the scope finishes.'
+order: 15
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`14` followed by the image's digest and references, and the sources
+`15` followed by the image's digest and references, and the sources
 the server is to look in. The server sends exactly one response,
 which is the answer, the word that no source was asked, or an error.
 The response finish follows the response, and no frame follows the

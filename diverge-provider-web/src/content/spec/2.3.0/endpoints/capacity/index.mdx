@@ -1,12 +1,12 @@
 ---
 title: 'capacity'
-summary: 'Tag 21: a client asks how much it may still use; the server sends exactly one response carrying, as JSON, four counts of bytes — the room for a new volume, the room in the client image store, the memory and the overlay disk a container run could still reserve — each the most the client could use as of the instant of the response, and the scope finishes.'
-order: 21
+summary: 'Tag 22: a client asks how much it may still use; the server sends exactly one response carrying, as JSON, four counts of bytes — the room for a new volume, the room in the client image store, the memory and the overlay disk a container run could still reserve — each the most the client could use as of the instant of the response, and the scope finishes.'
+order: 22
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`21` and nothing more. The server sends exactly one response, whose
+`22` and nothing more. The server sends exactly one response, whose
 payload is one JSON object carrying four members, `volumes_disk`,
 `images_disk`, `container_memory` and `container_disk`, each a count
 of bytes. The response finish follows the response, and no frame

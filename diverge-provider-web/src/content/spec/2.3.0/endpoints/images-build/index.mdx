@@ -1,12 +1,12 @@
 ---
 title: 'images::build'
-summary: 'Tag 17: a client names an image, hands a Containerfile and names a directory of one of its volumes as the context, or none; the server sends the build’s output line by line, then exactly one response stating that the image exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the image persists until the client deletes it.'
-order: 17
+summary: 'Tag 18: a client names an image, hands a Containerfile and names a directory of one of its volumes as the context, or none; the server sends the build’s output line by line, then exactly one response stating that the image exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the image persists until the client deletes it.'
+order: 18
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`17` followed by the name, the Containerfile, and the context of the
+`18` followed by the name, the Containerfile, and the context of the
 build. The server sends zero or more responses, each one line of the
 build's output, then exactly one response which states that the
 image exists, that the server has insufficient capacity for it,

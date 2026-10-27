@@ -1,0 +1,46 @@
+---
+title: 'containers::info'
+summary: 'Tag 3: a client names an image by digest and references; the server obtains the image as a container request obtains it, reads the image’s /DIVERGE.md without running the image, sends exactly one response carrying the document parsed, the word that the image ships none, the word that the server found no copy of the image, or an error, and the scope finishes.'
+order: 3
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`3` followed by the image's digest and references. The server sends
+exactly one response, which is the document, the word that the image
+ships none, the word that the server found no copy of the image, or an
+error. The response finish follows the response, and no frame follows
+the finish.
+
+- **The request.** The request names a manifest digest and zero or
+  more references, each a registry host and a repository path, in the
+  form a container request names its image.
+  [Request](/endpoints/containers-info/request/) states its form.
+- **The image.** The server obtains the image from the places a
+  [containers::agents::run](/endpoints/containers-agents-run/) request
+  naming the same image obtains it from, less the client: the images
+  the client built on the server by
+  [images::build](/endpoints/images-build/), the images the server
+  holds, and every referenced registry the server's policy lists. The
+  scope has no channel on which the server asks the client whether it
+  holds the image, so the server does not ask the client.
+- **Nothing runs.** The server reads the file at `/DIVERGE.md` in the
+  filesystem of the image. The server starts no container of the
+  image, runs no program of it, and injects no proxy into it.
+- **The document.** The document is the image's `/DIVERGE.md`, parsed
+  by the rules that govern the [info](/endpoints/containers-agents-run/client/info/)
+  channel of a running container. A file that the info channel of a
+  container of the image answers as a document is answered here as the
+  same document.
+- **Missing.** An image that ships no `/DIVERGE.md`, or whose
+  `/DIVERGE.md` is not a regular file, is answered by the byte `1`.
+  That is a fact about the image and not a failure.
+- **No source.** An image the server finds in none of the places it
+  looks is answered by the byte `2`. The server reads nothing.
+- **The error.** An error states that the server did not read a
+  document: the file is not UTF-8, the file breaks a rule of the
+  document, or the server could not obtain or read the image.
+  [Response](/endpoints/containers-info/response/) states the form of
+  every response.
+- **No capability.** The request requires no
+  [capability](/capabilities/).
