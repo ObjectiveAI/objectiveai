@@ -116,7 +116,6 @@ mod mounts;
 mod root;
 mod shared;
 mod source;
-mod tar;
 #[cfg(not(target_os = "linux"))]
 mod tunnel;
 

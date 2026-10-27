@@ -66,16 +66,7 @@ pub async fn run(program: &str, mut command: Command) -> Result<Finished, Error>
 /// [`Error::Status`], since a tool that refused wrote no answer worth
 /// reading; an answer that is not UTF-8 is [`Error::Output`]. Stdin
 /// and the kill on drop are as [`run`]'s.
-pub async fn capture(program: &str, command: Command) -> Result<String, Error> {
-    String::from_utf8(capture_bytes(program, command).await?).map_err(|_| Error::Output {
-        program: program.to_string(),
-    })
-}
-
-/// [`capture`], with stdout kept as the bytes it was: for the tools
-/// that answer in something other than text — a tar stream out of
-/// `podman cp`. An exit other than success is [`Error::Status`].
-pub async fn capture_bytes(program: &str, mut command: Command) -> Result<Vec<u8>, Error> {
+pub async fn capture(program: &str, mut command: Command) -> Result<String, Error> {
     let output = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -94,7 +85,9 @@ pub async fn capture_bytes(program: &str, mut command: Command) -> Result<Vec<u8
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         });
     }
-    Ok(output.stdout)
+    String::from_utf8(output.stdout).map_err(|_| Error::Output {
+        program: program.to_string(),
+    })
 }
 
 /// Start `command` and hand back the child, for a program that lives
