@@ -6,7 +6,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, dependency_tools, events, postgres, providers, relay, roles, standalone_tools, vault, volumes};
+use super::{accounts, agents, dependency_tools, events, images, postgres, providers, relay, roles, standalone_tools, vault, volumes};
 use crate::daemon::Daemon;
 use crate::judge::Who;
 
@@ -18,7 +18,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// hundred and ten has a handler. A payload that is no request at all is
+/// hundred and eleven has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -117,6 +117,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::VaultTag(frame) => vault::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::VaultUntag(frame) => vault::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::EventsList(frame) => events::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::ImagesInfo(frame) => images::info::handle(scope, frame, who, daemon).await,
         ClientRequest::Invalid(_) => scope.send_response_finish().await,
     }
 }

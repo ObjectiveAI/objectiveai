@@ -71,6 +71,7 @@ pub mod accounts;
 pub mod agents;
 pub mod dependency_tools;
 pub mod events;
+pub mod images;
 pub mod files;
 pub mod inner;
 pub mod postgres;

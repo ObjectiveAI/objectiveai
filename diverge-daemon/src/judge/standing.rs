@@ -199,4 +199,12 @@ impl Standing {
             _ => None,
         })
     }
+
+    /// Every grant over images the standing holds.
+    pub fn images(&self) -> impl Iterator<Item = &grant::images::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::Images(permission) => Some(permission),
+            _ => None,
+        })
+    }
 }
