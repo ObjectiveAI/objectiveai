@@ -2,7 +2,7 @@ import { daemon } from "@diverge/sdk";
 import { useMemo } from "react";
 import { Empty } from "../components/ui";
 import { useShared } from "../lib/context";
-import { type ListSpec, useListing } from "../lib/daemon";
+import { type ListSpec, useAccounts, useListing } from "../lib/daemon";
 import { t } from "../strings";
 import { Canvas } from "../world/Canvas";
 import { type Entity, type EntityKind, type Link, layout } from "../world/layout";
@@ -16,8 +16,10 @@ import { NotConnected } from "./NotConnected";
 // everything goes is world/layout.ts.
 
 const tools = daemon.endpoints.standalone_tools.list;
+const dependencies = daemon.endpoints.dependency_tools.list;
 const events = daemon.endpoints.events.list;
 type Tool = daemon.endpoints.standalone_tools.list.server.response.Tool;
+type Dependency = daemon.endpoints.dependency_tools.list.server.response.Listed;
 type Event = daemon.endpoints.events.Event;
 type Party = daemon.endpoints.events.Party;
 
@@ -25,6 +27,12 @@ const TOOLS: ListSpec<Tool, daemon.endpoints.standalone_tools.list.server.respon
   open: (h) => tools.client.execute(h, {}),
   key: tools.server.response.key,
   change: tools.server.response.change,
+};
+
+const DEPENDENCIES: ListSpec<Dependency, daemon.endpoints.dependency_tools.list.server.response.Frame> = {
+  open: (h) => dependencies.client.execute(h, {}),
+  key: dependencies.server.response.key,
+  change: dependencies.server.response.change,
 };
 
 const EVENTS: ListSpec<Event, daemon.endpoints.events.list.server.response.Frame> = {
@@ -68,16 +76,28 @@ const SCALE = 2;
 
 export function World() {
   const { connected, agents } = useShared();
+  const accountsHeld = useAccounts(connected);
   const toolsHeld = useListing(TOOLS, connected);
+  const dependenciesHeld = useListing(DEPENDENCIES, connected);
   const eventsHeld = useListing(EVENTS, connected);
   const tileset = useTileset();
   if (!connected) return <NotConnected title={t.world.title} />;
 
+  // Every account, agent and tool listed is on the world, linked or not;
+  // an event's party no list holds is added from the event.
   const nodes = new Map<string, Node>();
+  for (const a of accountsHeld.items) {
+    const key = `account:${a.identity.issuer}:${a.identity.subject}`;
+    nodes.set(key, { key, kind: "account", label: a.identity.subject });
+  }
   for (const a of agents.items) nodes.set(`agent:${a.template}:${a.index}`, { key: `agent:${a.template}:${a.index}`, kind: "agent", label: a.name ?? short(a.template, a.index) });
   for (const tool of toolsHeld.items) {
     const n = toolNode(tool);
     nodes.set(n.key, n);
+  }
+  for (const d of dependenciesHeld.items) {
+    const key = `dependency_tool:${d.id}:${d.index}`;
+    nodes.set(key, { key, kind: "dependency_tool", label: short(d.id, d.index) });
   }
   const links: Link[] = eventsHeld.items.map((e) => {
     const from = nodeOf(e.sender);
@@ -88,7 +108,7 @@ export function World() {
   });
   const entities: Entity[] = [...nodes.values()].map(({ key, kind }) => ({ key, kind }));
   const names = new Map([...nodes.values()].map((n) => [n.key, n.label]));
-  const ended = [agents.ended, toolsHeld.ended, eventsHeld.ended].filter((e): e is string => e !== null);
+  const ended = [accountsHeld.ended, agents.ended, toolsHeld.ended, dependenciesHeld.ended, eventsHeld.ended].filter((e): e is string => e !== null);
 
   return (
     <div className="page">
