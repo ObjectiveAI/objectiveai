@@ -3,6 +3,7 @@ import type { AppInfo } from "./bindings/AppInfo";
 import type { FileNoticeView } from "./bindings/FileNoticeView";
 import type { TabKind } from "./bindings/TabKind";
 import type { TabsSnapshot } from "./bindings/TabsSnapshot";
+import { Fallen } from "./components/Fallen";
 import { Rail } from "./components/Rail";
 import { Empty } from "./components/ui";
 import { SharedContext } from "./lib/context";
@@ -128,14 +129,16 @@ export function App() {
             {tabs.tabs.length === 0 ? <Empty title={t.emptyState.title} body={t.emptyState.body} /> : null}
             {tabs.tabs.map(({ key, tab }) => (
               <div key={key} className="pane" data-pane={key} hidden={tabs.focused !== key}>
-                {tab.kind === "agent" ? <Conversation template={tab.template} index={tab.index} name={tab.name} /> : null}
-                {tab.kind === "new_agent" ? <NewAgent /> : null}
-                {tab.kind === "world" ? <World /> : null}
-                {tab.kind === "agents" ? <Agents /> : null}
-                {tab.kind === "tools" ? <Tools /> : null}
-                {tab.kind === "storage" ? <Storage /> : null}
-                {tab.kind === "views" ? <Views /> : null}
-                {tab.kind === "settings" ? <Settings /> : null}
+                <Fallen>
+                  {tab.kind === "agent" ? <Conversation template={tab.template} index={tab.index} name={tab.name} /> : null}
+                  {tab.kind === "new_agent" ? <NewAgent /> : null}
+                  {tab.kind === "world" ? <World /> : null}
+                  {tab.kind === "agents" ? <Agents /> : null}
+                  {tab.kind === "tools" ? <Tools /> : null}
+                  {tab.kind === "storage" ? <Storage /> : null}
+                  {tab.kind === "views" ? <Views /> : null}
+                  {tab.kind === "settings" ? <Settings /> : null}
+                </Fallen>
               </div>
             ))}
           </div>

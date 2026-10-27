@@ -236,6 +236,12 @@ export const t = {
     inUseShort: "Another copy has this folder",
     uncheckedShort: "Folder not checked",
   },
+  fallen: {
+    title: "This page stopped",
+    body: "Something on it failed while drawing it. The rest of the app carries on.",
+    said: "It said:",
+    again: "Try again",
+  },
   common: {
     close: "Close",
     cancel: "Cancel",
