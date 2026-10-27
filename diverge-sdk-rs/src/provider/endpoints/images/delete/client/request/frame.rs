@@ -51,7 +51,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 18;
+const TAG: u8 = 19;
 
 /// Postcard, matching [`volumes`](crate::provider::endpoints::volumes) and the
 /// rest of this family's store.

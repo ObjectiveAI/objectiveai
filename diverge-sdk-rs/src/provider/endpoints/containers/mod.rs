@@ -16,7 +16,10 @@
 //! caller is running, of either family, and a directory of it, and
 //! answers the nine FUSE asks from it live — the volume FUSE serve's own
 //! vocabulary, with a container at the far end — so that a mount
-//! elsewhere can be a running container's directory.
+//! elsewhere can be a running container's directory. And [`info`],
+//! which runs nothing: it names an image and answers the image's
+//! DIVERGE.md, read out of the image, so a caller learns what a
+//! container of it takes before it asks for one.
 //!
 //! Everything else is identical, and it is most of the wire: the
 //! request that makes a container carries its arguments — a JSON value
@@ -67,6 +70,7 @@
 
 pub mod agents;
 pub mod fuse_serve;
+pub mod info;
 pub mod tools;
 
 pub mod client;

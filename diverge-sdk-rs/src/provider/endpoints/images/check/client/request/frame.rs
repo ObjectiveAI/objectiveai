@@ -59,7 +59,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 14;
+const TAG: u8 = 15;
 
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.

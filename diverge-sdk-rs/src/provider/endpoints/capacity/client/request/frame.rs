@@ -22,7 +22,7 @@ pub struct Frame;
 /// One byte at the front of the payload, which is what tells a reader
 /// which request it holds. See the table in
 /// [`endpoints`](crate::provider::endpoints) for the whole allocation.
-const TAG: u8 = 21;
+const TAG: u8 = 22;
 
 /// One byte, and no serialization. There is nothing to serialize.
 impl Encode for Frame {
