@@ -23,8 +23,8 @@ use crate::{info, inside, program, tool};
 /// registered with the program's server — its refusal is the `Error`,
 /// in its own words, and the connection has not begun — and then
 /// `Begun` goes out carrying the secrets the program takes, by name
-/// and mode, the dependencies it answered with dropped, since a tool
-/// container declares none; the declaration is kept first, and the
+/// and mode, and the permissions it holds, the dependencies it
+/// answered with dropped, since a tool container declares none; the declaration is kept first, and the
 /// activity's gate set from it — open for a program that takes no
 /// secret, closed until the server's first feed for one that does.
 /// The scope is published to every surface inside the container, and
@@ -59,6 +59,7 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
     proxy.activity.set_open(registered.secrets.is_empty());
     let begun = response::Registered {
         secrets: registered.secrets,
+        permissions: registered.permissions,
     };
     if let Some(payload) = encoded(&response::Frame::Begun(begun)) {
         scope.send_response(&payload).await;

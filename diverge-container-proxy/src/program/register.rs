@@ -1,12 +1,13 @@
 //! The arguments and the template, told to the program's server
 //! once: `POST /register`, answered with the dependencies the program
-//! declares and the secrets it takes.
+//! declares, the secrets it takes and the permissions it holds.
 
 use diverge_sdk::container_proxy::inside::register::request::Request;
 use diverge_sdk::container_proxy::inside::register::response::Response;
 use diverge_sdk::shared::containers::dependencies::Template;
 use diverge_sdk::shared::containers::secrets::Declaration;
 use diverge_sdk::shared::error::Error;
+use diverge_sdk::shared::permission::Grant;
 use reqwest::header::CONTENT_TYPE;
 use serde_json::Value;
 
@@ -24,15 +25,21 @@ pub struct Registered {
     /// every inactive. Empty is a program that takes none, whose
     /// gate is never closed.
     pub secrets: Declaration,
+    /// The grants the program holds over the daemon, which a tool
+    /// container's `Begun` carries and an agent container's begin
+    /// drops.
+    pub permissions: Vec<Grant>,
 }
 
 /// Register `arguments` and `template`, the id of the template the
 /// container is made from, with the program's server. A `2xx` is the
 /// two held for the container's life, and its body the dependencies
-/// the program declares and the secrets it takes; a non-`2xx` is the
+/// the program declares, the secrets it takes and the permissions it
+/// holds; a non-`2xx` is the
 /// image refusing them, in its own words, and a server that cannot be
 /// reached is the refusal too. So is a `2xx` whose body is not the
-/// response: the dependencies and the declaration are part of
+/// response: the dependencies, the declaration and the permissions are
+/// part of
 /// registration, and a registration the proxy cannot read has not
 /// happened. No value of any secret is here: values arrive on the
 /// begin scope's secrets channel, after `Begun`.
@@ -60,6 +67,7 @@ pub async fn register(upstream: &Upstream, arguments: Value, template: String) -
         .map(|response| Registered {
             dependencies: response.dependencies,
             secrets: response.secrets,
+            permissions: response.permissions,
         })
         .map_err(|error| {
             Error(serde_json::json!({

@@ -22,7 +22,9 @@ use crate::{agent, info, inside, program};
 /// registered with the program's server — its refusal is the `Error`,
 /// in its own words, and the connection has not begun — and then
 /// `Begun` goes out carrying the dependencies the program answered
-/// with and the secrets it takes, by name and mode; the declaration
+/// with and the secrets it takes, by name and mode, the permissions
+/// it answered with dropped, since an agent asks the daemon nothing;
+/// the declaration
 /// is kept first, since the driver reads it when it starts, and the
 /// driver's gate is closed from here until the server's first feed
 /// when the declaration names anything. The scope is published to
