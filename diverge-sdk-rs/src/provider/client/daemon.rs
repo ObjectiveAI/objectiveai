@@ -29,15 +29,15 @@ use crate::shared::containers::daemon;
 /// program mints the scopes and the channels, as a client of the daemon
 /// does, and the numbers mean nothing outside the connection.
 ///
-/// # The account is the container's
+/// # The permissions are the container's
 ///
 /// Nothing here carries a credential, and the connection presents
-/// none: the session is served for the tool container's
-/// [`account`](crate::daemon::endpoints::standalone_tools::create::client::request::Frame::account), or under its
-/// dependency template's grants, which the caller knows from the run.
+/// none: the session is served under the permissions the tool's
+/// program declared at its registration, which the caller holds from
+/// the run's [`Registrar`](super::Registrar) ask.
 /// Two connections of one container are two sessions, with scopes of
-/// their own. A tool container's alone: an agent container holds no
-/// account, and its run scope has no such channel.
+/// their own. A tool container's alone: an agent container asks the
+/// daemon nothing, and its run scope has no such channel.
 pub trait Daemon: Send + Sync {
     /// The server frames the daemon sends on one connection, in order,
     /// then the end.
