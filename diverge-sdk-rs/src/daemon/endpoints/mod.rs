@@ -17,6 +17,7 @@
 //! | [`postgres`] | see which database containers are served, the daemon's own or a remote one, as the daemon is configured; list the container connections open through it |
 //! | [`events`] | list the events — who sent what to whom through the daemon, a message, an MCP call or an MCP read, and how often — narrowed, the latest so many, and keep the list |
 //! | [`images`] | read an image's DIVERGE.md, from a container of it running or from a provider that can obtain it |
+//! | [`info`] | say what the daemon is: its version |
 //!
 //! # The tags
 //!
@@ -138,8 +139,9 @@
 //! | `108` | [`vault::untag`] |
 //! | `109` | [`events::list`] |
 //! | `110` | [`images::info`] |
+//! | `111` | [`info`] |
 //!
-//! One hundred and eleven, so far. Every one of them carries the optional
+//! One hundred and twelve, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request
@@ -192,6 +194,7 @@ pub mod agents;
 pub mod dependency_tools;
 pub mod events;
 pub mod images;
+pub mod info;
 pub mod postgres;
 pub mod providers;
 pub mod roles;
