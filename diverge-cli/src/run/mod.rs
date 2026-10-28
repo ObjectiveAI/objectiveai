@@ -62,6 +62,7 @@ pub mod agents;
 pub mod dependency_tools;
 pub mod events;
 pub mod images;
+pub mod info;
 pub mod postgres;
 pub mod providers;
 pub mod roles;
@@ -123,6 +124,8 @@ pub enum Command {
     /// The requests over images: an image's DIVERGE.md.
     #[command(subcommand)]
     Images(images::Images),
+    /// Asking what the daemon is: its version.
+    Info(info::Arguments),
     /// The requests over the database.
     #[command(subcommand)]
     Postgres(postgres::Postgres),
@@ -177,6 +180,7 @@ async fn dispatch(
         Command::DependencyTools(command) => dependency_tools::run(command, target, emitter).await,
         Command::Events(command) => events::run(command, target, emitter).await,
         Command::Images(command) => images::run(command, target, emitter).await,
+        Command::Info(arguments) => info::run(arguments, target, emitter).await,
         Command::Postgres(command) => postgres::run(command, target, emitter).await,
         Command::Providers(command) => providers::run(command, target, emitter).await,
         Command::Roles(command) => roles::run(command, target, emitter).await,
