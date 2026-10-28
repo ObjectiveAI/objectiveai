@@ -53,8 +53,8 @@ pub async fn wire_channel_response_finish(proxy: State<'_, TauriProxy>, scope: u
 }
 
 /// How the link stands, dialling first when nothing has been dialled
-/// since the link was made or reset. A link that is down stays down;
-/// this never redials it. Never refused.
+/// since the link was made or reset. A link that is down is not dialled
+/// by this: the redial, or a reset, dials it. Never refused.
 #[tauri::command]
 pub async fn wire_status(proxy: State<'_, TauriProxy>) -> Result<WireStatus, Refusal> {
     let link = proxy.link();
@@ -62,8 +62,8 @@ pub async fn wire_status(proxy: State<'_, TauriProxy>) -> Result<WireStatus, Ref
     Ok(link.status())
 }
 
-/// Put the link back to not yet dialled, so the next use dials. Never
-/// refused.
+/// Put the link back to not yet dialled: the redial dials at once, or,
+/// with none, the next use dials. Never refused.
 #[tauri::command]
 pub async fn wire_reset(proxy: State<'_, TauriProxy>) -> Result<(), Refusal> {
     proxy.link().reset().await;

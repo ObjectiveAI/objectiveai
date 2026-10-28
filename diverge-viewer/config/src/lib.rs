@@ -20,6 +20,7 @@
 //!   address: ws://127.0.0.1:14980/
 //!   issuer: https://auth.example.com
 //!   subject: alice
+//!   redial: 5     # seconds, or `never`; absent, 5
 //! ```
 //!
 //! [`Error`] is why the root or the file could not be used.

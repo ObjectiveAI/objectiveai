@@ -199,7 +199,8 @@ inherits it.
 - **The daemon proxy** is the SDK's `tauri_proxy` runner (the `tauri-proxy` feature): main.rs manages one `TauriProxy`
   from `viewer.yaml`'s daemon, presenting the identity through the SDK's `identities::Presenter`, and registers its six
   commands (`wire_request`, `wire_channel_request`, `wire_channel_response`, `wire_channel_response_finish`,
-  `wire_status`, `wire_reset`). The page's handle over it is `src/lib/wire.ts` (`@diverge/sdk`, by workspace path, built
+  `wire_status`, `wire_reset`), dialling at start and again as `viewer.yaml`'s `daemon.redial` says — every 5 seconds
+  when absent, a whole number of seconds, or `never`. The page's handle over it is `src/lib/wire.ts` (`@diverge/sdk`, by workspace path, built
   by the `sdk` script before `dev`, `build` and `typecheck`). The screens still answer from the seams above.
 - **Providers are OIDC identities** in the SDK; the screens keep telling a machine you dial from one that dials in.
   `view::ProviderView` maps the two onto an identity by issuer — `dial`, with the address as the subject, or `accept`,

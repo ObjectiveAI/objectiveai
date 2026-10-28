@@ -39,15 +39,18 @@
 //!   kinds the page's own send error has. `scope` is the one scope
 //!   not being open; everything else — the socket gone, the router
 //!   gone, no connection, a dial that failed — is `connection`.
-//! - **A connection that ended stays ended.** Every send on it is
-//!   refused `connection` until the app dials again. No send dials on
-//!   the page's behalf; dialling is asked for, as
-//!   [`dial`](crate::wire::client::dial::dial) is a socket client's.
+//! - **A connection that ended is down.** Every send on it is refused
+//!   `connection` until the link is dialled again. No send dials on
+//!   the page's behalf. The app says at the link's making whether it
+//!   dials again by itself — [`Redial`]: every so many seconds, five by
+//!   default, as the daemon redials a provider, or never — and a reset
+//!   asks for it either way.
 //! - **The link's two commands.** `wire_status() -> WireStatus` dials
 //!   when nothing has been dialled since the link was made or reset,
-//!   and answers how the link stands — [`WireStatus`]; a link that is
-//!   down stays down. `wire_reset()` puts the link back to not yet
-//!   dialled, so the next use dials. Neither is refused. [`Link`]
+//!   and answers how the link stands — [`WireStatus`]; it never dials a
+//!   link that is down. `wire_reset()` puts the link back to not yet
+//!   dialled: redialling, it is dialled at once; else the next use
+//!   dials it. Neither is refused. [`Link`]
 //!   keeps these rules; the Tauri commands that state them are
 //!   `crate::tauri_proxy`, with the `tauri-proxy`
 //!   feature.
@@ -60,10 +63,12 @@
 
 pub mod forward;
 pub mod link;
+pub mod redial;
 pub mod refusal;
 pub mod status;
 
 pub use forward::forward;
 pub use link::Link;
+pub use redial::{DEFAULT_PAUSE, Redial};
 pub use refusal::Refusal;
 pub use status::WireStatus;

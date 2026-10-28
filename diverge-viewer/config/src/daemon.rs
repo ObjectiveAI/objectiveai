@@ -1,5 +1,6 @@
 //! The daemon the viewer dials.
 
+use diverge_sdk::wire::proxy::Redial;
 use serde::{Deserialize, Serialize};
 
 /// The daemon the viewer dials, and as whom: the address, and the
@@ -21,4 +22,11 @@ pub struct Daemon {
     pub issuer: String,
     /// The identity's subject at that issuer.
     pub subject: String,
+    /// Whether the app dials the daemon again by itself when the
+    /// connection ends or a dial fails, and how long it waits first:
+    /// `never`, or a whole number of seconds, at least `1`. Absent,
+    /// every 5 seconds, as the daemon redials a provider — see
+    /// [`Redial`].
+    #[serde(default, skip_serializing_if = "Redial::is_default")]
+    pub redial: Redial,
 }

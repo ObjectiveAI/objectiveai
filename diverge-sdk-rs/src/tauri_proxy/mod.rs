@@ -7,19 +7,23 @@
 //! the native side: the managed state, [`TauriProxy`], and the six
 //! commands. It keeps the contract [`wire::proxy`](crate::wire::proxy)
 //! states — whole frames, then the end; refusals by kind; a connection
-//! that ended stays ended until the page asks for a reset — so over
-//! the proxy a page sees a connection exactly as it would over a
-//! socket.
+//! that ended dialled again as the app's [`Redial`](crate::wire::proxy::Redial)
+//! says, or not until the page asks for a reset — so over the proxy a
+//! page sees a connection exactly as it would over a socket.
 //!
 //! # Setting it up
 //!
 //! The app depends on this crate with the `tauri-proxy` feature,
-//! manages one [`TauriProxy`], and lists the six commands in its one
-//! invoke handler beside its own:
+//! manages one [`TauriProxy`] — made in its `setup`, where Tauri's
+//! runtime runs — and lists the six commands in its one invoke handler
+//! beside its own:
 //!
 //! ```ignore
 //! tauri::Builder::default()
-//!     .manage(diverge_sdk::tauri_proxy::TauriProxy::new("ws://127.0.0.1:14980/", &key))
+//!     .setup(|app| {
+//!         app.manage(TauriProxy::new("ws://127.0.0.1:14980/", issuer, presenter, Redial::default()));
+//!         Ok(())
+//!     })
 //!     .invoke_handler(tauri::generate_handler![
 //!         diverge_sdk::tauri_proxy::wire_request,
 //!         diverge_sdk::tauri_proxy::wire_channel_request,
@@ -36,8 +40,8 @@
 //! ```text
 //! const transport = { invoke: (c, a) => invoke(c, a), channel: () => new Channel() };
 //! const handle = wire.proxy.handle(transport);
-//! await wire.proxy.status(transport); // dials, and says how the link stands
-//! await wire.proxy.reset(transport);  // after the connection ended: dial again on next use
+//! await wire.proxy.status(transport); // says how the link stands, dialling one not yet dialled
+//! await wire.proxy.reset(transport);  // dial again: at once when redialling, else on next use
 //! ```
 //!
 //! The address and the tokens never reach the page: the handshake is
