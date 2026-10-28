@@ -45,6 +45,7 @@ members = [
     # The Diverge viewer. Links diverge-sdk by path, so it
     # lives here until the SDK is published.
     "diverge-viewer/src-tauri",
+    "diverge-viewer/room",
     "tests/objectiveai-tests",
     "tests/objectiveai-api-tests",
     "tests/objectiveai-cli-tests",

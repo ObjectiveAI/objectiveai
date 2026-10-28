@@ -40,7 +40,7 @@ describe("theme.css", () => {
     expect([...names].sort()).toEqual([...FIVE].sort());
   });
   it("every theme has a name on screen", () => {
-    expect(Object.keys(t.settings.themes).sort()).toEqual(Object.keys(THEMES).sort());
+    expect(Object.keys(t.profile.themes).sort()).toEqual(Object.keys(THEMES).sort());
   });
   it("the default sets each of the five as a colour, and nothing else is a bare colour", () => {
     const hex = [...base].filter(([, v]) => /^#[0-9a-f]{6}$/i.test(v)).map(([k]) => k);
@@ -146,6 +146,7 @@ const EDGES: [string, string, string][] = [
   ["--line-hover", "--surface-3", "the edge of anything under the mouse"],
   ["--on-accent", "--accent-hover", "the edge of the main button under the mouse (its words' colour: the ink would vanish on pink)"],
   ["--on-bad", "--bad-hover", "the edge of a danger button under the mouse"],
+  ["--here", "--bg", "the bar under the open tab"],
   ["--here", "--surface", "the bar beside the rail row you're on (the rail scrolls over the ground)"],
   ["--here", "--surface-2", "the bar beside the row you're on"],
   ["--accent", "--bg", "the main button, a field being typed in"],

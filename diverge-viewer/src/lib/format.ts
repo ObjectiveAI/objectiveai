@@ -1,3 +1,75 @@
+import type { AgentView } from "../bindings/AgentView";
+import type { CreatorView } from "../bindings/CreatorView";
+import type { ProviderView } from "../bindings/ProviderView";
+import { t } from "../strings";
+
+let machineNames: Record<string, string> = {};
+export function setMachineNames(names: Record<string, string>) {
+  machineNames = names;
+}
+export function identityKey(p: ProviderView): string {
+  return p.kind === "outgoing" ? `outgoing:${p.address}` : `incoming:${p.identity}`;
+}
+/** The daemon's own name for a provider: an address it dials, or an identity it judged. */
+export function providerRaw(p: ProviderView): string {
+  return p.kind === "outgoing" ? p.address : p.identity;
+}
+/** What you call it, if you named it; the daemon's name otherwise. */
+export function providerName(p: ProviderView): string {
+  return machineNames[identityKey(p)] ?? providerRaw(p);
+}
+
+export function providerWay(p: ProviderView): string {
+  return p.kind === "outgoing" ? t.provider.outgoing : t.provider.incoming;
+}
+
+export function kindOf(imageName: string): string {
+  return imageName.replace(/^diverge-agentic-loop-/, "");
+}
+
+export function kindTitle(imageName: string): string {
+  const key = kindOf(imageName);
+  return t.create.kinds[key]?.title ?? key;
+}
+
+/** The words for an answer that isn't the one asked for: something holds it, nothing keeps it, the daemon refused, or the error's own words. */
+export function refusalText(out: { outcome: string }): string {
+  switch (out.outcome) {
+    case "in_use":
+      return t.storage.inUse;
+    case "unsupported":
+      return t.storage.unsupported;
+    case "mode_unsupported":
+      return t.storage.modeUnsupported;
+    case "forbidden":
+      return t.common.forbidden;
+    default:
+      return "message" in out && typeof out.message === "string" ? out.message : t.common.error;
+  }
+}
+
+/** An agent as the screen names it: its name, or, with none, its kind and the daemon's number for it. */
+export function agentLabel(a: AgentView): string {
+  return a.name ?? `${t.rail.unnamed} ${kindTitle(a.image_name)} #${a.index}`;
+}
+
+/** Who sent a message, as the daemon names its sender: you, or the agent or tool that did, by the screen's own name for it when it's one of yours. */
+export function senderLabel(sender: CreatorView | null, agents: AgentView[]): string {
+  if (!sender) return t.convo.you;
+  switch (sender.kind) {
+    case "client":
+      return t.convo.you;
+    case "agent": {
+      const known = agents.find((a) => a.template === sender.template && a.index === sender.index);
+      return known ? agentLabel(known) : sender.name ?? `${t.rail.unnamed} #${sender.index}`;
+    }
+    case "tool":
+      return sender.name ?? `${t.convo.aTool} #${sender.index}`;
+    case "dependency_tool":
+      return t.convo.aTool;
+  }
+}
+
 export function time(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -24,4 +96,16 @@ export function bytes(n: number): string {
 
 export function number(n: number): string {
   return n.toLocaleString();
+}
+
+/** A room as the screen names it: your profile is "Your profile", a direct room is "You and ada". */
+export function spaceTitle(s: { kind: string; title: string; mine: boolean; host_name: string }): string {
+  if (s.kind === "profile") return s.mine ? t.spaces.yourProfile : `${s.host_name}${t.spaces.profileOf}`;
+  if (s.kind === "dm") return `${t.spaces.youAnd} ${dmWith(s)}`;
+  return s.title;
+}
+
+/** Who a direct room is with: its title when you host it, its host when they do. */
+export function dmWith(s: { title: string; mine: boolean; host_name: string }): string {
+  return s.mine ? s.title : s.host_name;
 }

@@ -1,81 +1,133 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { afterAnswer, afterCardEvent, arrivalKeys, arrivals, noCards } from "./lib/cards";
+import type { AgentsSnapshot } from "./bindings/AgentsSnapshot";
 import type { AppInfo } from "./bindings/AppInfo";
+import type { KnockView } from "./bindings/KnockView";
 import type { FileNoticeView } from "./bindings/FileNoticeView";
+import type { KeysBrokenView } from "./bindings/KeysBrokenView";
+import type { SpaceSummary } from "./bindings/SpaceSummary";
 import type { TabKind } from "./bindings/TabKind";
 import type { TabsSnapshot } from "./bindings/TabsSnapshot";
-import { Fallen } from "./components/Fallen";
 import { Rail } from "./components/Rail";
+import { TabStrip } from "./components/TabStrip";
 import { Empty } from "./components/ui";
 import { SharedContext } from "./lib/context";
-import { app, errorText } from "./lib/app";
-import { type WireStatus, link, useAgents } from "./lib/daemon";
-import { Agents } from "./screens/Agents";
+import { api } from "./lib/ipc";
+import { setMachineNames } from "./lib/format";
+import { AgentsMap } from "./screens/AgentsMap";
 import { Conversation } from "./screens/Conversation";
-import { World } from "./screens/World";
+import { Home } from "./screens/Home";
+import { Inbox } from "./screens/Inbox";
+import { Profile } from "./screens/Profile";
+import { Machines } from "./screens/Machines";
 import { NewAgent } from "./screens/NewAgent";
-import { Settings } from "./screens/Settings";
+import { DoorPage } from "./screens/DoorPage";
+import { Space } from "./screens/Space";
+import { Spaces } from "./screens/Spaces";
 import { Storage } from "./screens/Storage";
-import { Tools } from "./screens/Tools";
 import { Views } from "./screens/Views";
 import { t } from "./strings";
 
+// Files set aside are asked about again on a short clock. Agents aren't: the
+// app holds the daemon's list open and sends every change (agents_watch).
+const RELIST_MS = 2500;
+
 export function App() {
-  // The link, as Rust last said; asked once at start, and again when a
-  // list ends, since a list that ends may be a connection that went.
-  const [status, setStatus] = useState<WireStatus>({ state: "idle" });
-  const refreshLink = useCallback(() => {
-    link.status().then(setStatus).catch((error) => setStatus({ state: "failed", message: errorText(error) }));
-  }, []);
-  const redial = useCallback(() => {
-    setStatus({ state: "dialling" });
-    link.reset().then(refreshLink).catch((error) => setStatus({ state: "failed", message: errorText(error) }));
-  }, [refreshLink]);
-  useEffect(refreshLink, [refreshLink]);
-  const connected = status.state === "connected";
-  // The agents, as the daemon lists them, held open while the link is up.
-  const agents = useAgents(connected);
-  useEffect(() => {
-    if (agents.ended) refreshLink();
-  }, [agents.ended, refreshLink]);
+  const [listed, setListed] = useState<AgentsSnapshot>({ generation: 0, state: { state: "waiting" }, agents: [], tree: [] });
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [tabs, setTabs] = useState<TabsSnapshot>({ generation: 0, tabs: [], focused: null });
+  const [spaces, setSpaces] = useState<SpaceSummary[]>([]);
+  const [homeId, setHomeId] = useState<string | null>(null);
+  const [knocks, setKnocks] = useState<KnockView[]>([]);
+  // Cards waiting on you, and those withdrawn because their agent stopped waiting.
+  const [{ cards, withdrawn }, setCards] = useState(noCards);
+  const answerCard = useCallback(async (id: number, answer: string) => {
+    // A card answered or withdrawn meanwhile takes no answer: it stays until the app's event says which.
+    const taken = await api.cardsAnswer(id, answer).then(() => true, () => false);
+    setCards((s) => afterAnswer(s, id, taken));
+  }, []);
+
+  const refreshSpaces = useCallback(async () => setSpaces(await api.spaces()), []);
+  const answerKnock = useCallback(async (knockId: number, yes: boolean) => {
+    await api.knocksAnswer(knockId, yes);
+    setKnocks((k) => k.filter((x) => x.knock_id !== knockId));
+    refreshSpaces();
+  }, [refreshSpaces]);
 
   // Files the app couldn't use, set aside untouched or left where they are: said on every screen, as they turn up.
   const [setAside, setSetAside] = useState<FileNoticeView[]>([]);
   const refreshSetAside = useCallback(() => {
-    app.filesSetAside().then(setSetAside).catch(() => setSetAside([]));
+    api.filesSetAside().then(setSetAside).catch(() => setSetAside([]));
   }, []);
 
-  const apply = useCallback((snapshot: TabsSnapshot) => setTabs((current) => (snapshot.generation >= current.generation ? snapshot : current)), []);
-
   useEffect(() => {
-    app.info().then(setInfo).catch(() => setInfo(null));
-    app.tabs().then(apply).catch(() => {});
+    api.appInfo().then(setInfo);
+    api.spacesHome().then(setHomeId);
+    api.machineNames().then(setMachineNames);
+    api.tabs().then((snapshot) => {
+      setTabs(snapshot);
+      // Lead with the work: Home is the first thing open.
+      if (snapshot.tabs.length === 0) api.tabOpen({ kind: "home" }).then(apply);
+    });
+    refreshSpaces();
     refreshSetAside();
-    const unlisten = app.onTabs(apply);
+    // Whole snapshots, each newer than the last: a late one never undoes a newer.
+    const agentsScope = api.agentsWatch((snapshot) => setListed((current) => (snapshot.generation >= current.generation ? snapshot : current)));
+    const knocksScope = api.knocksWatch((event) => {
+      if (event.event === "knock") setKnocks((k) => (k.some((x) => x.knock_id === event.knock.knock_id) ? k : [...k, event.knock]));
+    });
+    const cardsScope = api.cardsWatch((event) => setCards((s) => afterCardEvent(s, event)));
+    const timer = setInterval(refreshSetAside, RELIST_MS);
+    const unlisten = api.onTabs((snapshot) => setTabs((current) => (snapshot.generation >= current.generation ? snapshot : current)));
     return () => {
-      unlisten.then((stop) => stop()).catch(() => {});
+      clearInterval(timer);
+      unlisten.then((stop) => stop());
+      knocksScope.then((id) => api.scopeClose(id));
+      cardsScope.then((id) => api.scopeClose(id));
+      agentsScope.then((id) => api.scopeClose(id));
     };
-  }, [apply, refreshSetAside]);
+  }, [refreshSpaces, refreshSetAside]);
 
-  const open = useCallback((tab: TabKind) => void app.tabOpen(tab).then(apply), [apply]);
-  const close = useCallback((key: string) => void app.tabClose(key).then(apply), [apply]);
+  const apply = useCallback((snapshot: TabsSnapshot) => setTabs((current) => (snapshot.generation >= current.generation ? snapshot : current)), []);
+  const open = useCallback((tab: TabKind) => void api.tabOpen(tab).then(apply), [apply]);
+  const close = useCallback((key: string) => void api.tabClose(key).then(apply), [apply]);
+  const focus = useCallback((key: string) => void api.tabFocus(key).then(apply), [apply]);
 
-  // Keyboard: the window has no menu and no tab strip, so the page
-  // handles the two shortcuts there are: ⌘N new agent, ⌘, settings.
+  // Keyboard: the menu carries ⌘N/⌘W/⌘1/⌘2 in the app; the page handles
+  // ⌘3–9 (tabs by position) and ⌘[ / ⌘] (previous / next), and stands in
+  // for the menu in the browser preview.
   useEffect(() => {
+    const act = (id: string) => {
+      if (id === "new-agent") open({ kind: "new_agent" });
+      else if (id === "close-tab" && tabs.focused) close(tabs.focused);
+      else if (id === "go-home") open({ kind: "home" });
+      else if (id === "go-inbox") open({ kind: "inbox" });
+    };
+    const unlisten = api.onMenu(act);
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
-      if (e.key === "n") { e.preventDefault(); open({ kind: "new_agent" }); }
-      else if (e.key === ",") { e.preventDefault(); open({ kind: "settings" }); }
+      const inApp = "__TAURI_INTERNALS__" in window;
+      if (!inApp && e.key === "n") { e.preventDefault(); act("new-agent"); }
+      else if (!inApp && e.key === "w") { e.preventDefault(); act("close-tab"); }
+      else if (!inApp && e.key === "1") { e.preventDefault(); act("go-home"); }
+      else if (!inApp && e.key === "2") { e.preventDefault(); act("go-inbox"); }
+      else if (/^[3-9]$/.test(e.key)) {
+        const tab = tabs.tabs[Number(e.key) - 3];
+        if (tab) { e.preventDefault(); focus(tab.key); }
+      } else if (e.key === "]" || e.key === "[") {
+        const at = tabs.tabs.findIndex((t) => t.key === tabs.focused);
+        const next = tabs.tabs[(at + (e.key === "]" ? 1 : tabs.tabs.length - 1)) % Math.max(1, tabs.tabs.length)];
+        if (next) { e.preventDefault(); focus(next.key); }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
+      unlisten.then((stop) => stop());
     };
-  }, [open]);
+  }, [tabs, open, close, focus]);
 
-  // When a page opens, focus goes to its heading, once the page has one.
+  // When a tab opens, focus goes to its page's heading, once the page has one (a room's comes when it's read).
   const lastFocused = useRef<string | null>(null);
   useEffect(() => {
     const key = tabs.focused;
@@ -99,27 +151,57 @@ export function App() {
     return () => cancelAnimationFrame(frame);
   }, [tabs.focused]);
 
-  const shared = useMemo(() => ({ agents, connected, link: status, redial, info, open, close }), [agents, connected, status, redial, info, open, close]);
+  // Cards and knocks, said aloud as they arrive (politely: after whatever is being read).
+  const [heard, setHeard] = useState<{ seen: Set<string>; said: string }>({ seen: new Set(), said: "" });
+  useEffect(() => {
+    setHeard((h) => {
+      const fresh = arrivals(h.seen, cards, knocks);
+      return fresh.length ? { seen: new Set([...h.seen, ...arrivalKeys(cards, knocks)]), said: fresh.join(". ") } : h;
+    });
+  }, [cards, knocks]);
+
+  // Whether your keys file could be read: if not, nothing is signed, and the app says so everywhere.
+  const [keysBroken, setKeysBroken] = useState<KeysBrokenView | null>(null);
+  useEffect(() => {
+    api.identityBroken().then(setKeysBroken).catch(() => setKeysBroken(null));
+  }, []);
+
+  const shared = useMemo(
+    () => ({ agents: listed.agents, agentsState: listed.state, tree: listed.tree, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard }),
+    [listed, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard],
+  );
 
   return (
     <SharedContext.Provider value={shared}>
       <div className="shell">
         <Rail focused={tabs.focused} />
+        <div className="visually-hidden" role="status" aria-live="polite">{heard.said}</div>
         <main className="stage">
+          <TabStrip snapshot={tabs} onFocus={focus} onClose={close} />
           {info && info.folder_held.state !== "yes" ? (
             <div className="banner banner-warn"><span className="banner-text">
               <strong>{info.folder_held.state === "in_use" ? t.folder.inUse : t.folder.unchecked}</strong> {t.folder.where}{" "}
               <span className="mono selectable">{info.folder}</span>.
               {info.folder_held.state === "unchecked" ? <> {t.folder.systemSaid} <span className="mono selectable">{info.folder_held.error}</span>.</> : null}
             </span></div>
+          ) : info && !info.network ? (
+            <div className="banner banner-warn">
+              <strong>{t.network.absent}</strong>
+            </div>
+          ) : null}
+          {keysBroken ? (
+            <div className="banner banner-warn"><span className="banner-text">
+              <strong>{keysBroken.newer ? t.keys.newer : t.keys.unreadable}</strong> {t.keys.where}{" "}
+              <span className="mono selectable">{keysBroken.file}</span>. {t.keys.untouched}
+            </span></div>
           ) : null}
           {setAside.map((f) => (
             <div key={f.kept_as ?? f.file} className="banner banner-warn"><span className="banner-text">
               <strong>
-                {t.files.kinds[f.kind] ?? f.kind}
+                {f.room ? `${t.files.recordOf} ${f.room}` : (t.files.kinds[f.kind] ?? f.kind)}
                 {f.last_good_copy ? ` ${t.files.lastGoodCopy}` : ""}
               </strong>{" "}
-              {t.files.why[f.why]}
+              {f.why === "refused" && f.kind === "record copy" ? t.files.refusedRecord : t.files.why[f.why]}
               {f.kept_as ? <>, {t.files.setAsideAs} <span className="mono selectable">{f.kept_as}</span>.</> : <>, {t.files.leftInPlace}</>}
               {f.error ? <> {t.files.systemSaid} <span className="mono selectable">{f.error}</span>.</> : null} {t.files.carriedOn[f.carried_on]}{" "}
               {t.files.untouched}
@@ -129,16 +211,18 @@ export function App() {
             {tabs.tabs.length === 0 ? <Empty title={t.emptyState.title} body={t.emptyState.body} /> : null}
             {tabs.tabs.map(({ key, tab }) => (
               <div key={key} className="pane" data-pane={key} hidden={tabs.focused !== key}>
-                <Fallen>
-                  {tab.kind === "agent" ? <Conversation template={tab.template} index={tab.index} name={tab.name} /> : null}
-                  {tab.kind === "new_agent" ? <NewAgent /> : null}
-                  {tab.kind === "world" ? <World /> : null}
-                  {tab.kind === "agents" ? <Agents /> : null}
-                  {tab.kind === "tools" ? <Tools /> : null}
-                  {tab.kind === "storage" ? <Storage /> : null}
-                  {tab.kind === "views" ? <Views /> : null}
-                  {tab.kind === "settings" ? <Settings /> : null}
-                </Fallen>
+                {tab.kind === "agent" ? <Conversation name={tab.name} tabKey={key} /> : null}
+                {tab.kind === "agents" ? <AgentsMap /> : null}
+                {tab.kind === "new_agent" ? <NewAgent tabKey={key} /> : null}
+                {tab.kind === "storage" ? <Storage /> : null}
+                {tab.kind === "home" ? <Home /> : null}
+                {tab.kind === "inbox" ? <Inbox /> : null}
+                {tab.kind === "profile" ? <Profile /> : null}
+                {tab.kind === "spaces" ? <Spaces /> : null}
+                {tab.kind === "space" ? <Space id={tab.id} tabKey={key} /> : null}
+                {tab.kind === "door" ? <DoorPage invite={tab.invite} tabKey={key} /> : null}
+                {tab.kind === "machines" ? <Machines /> : null}
+                {tab.kind === "views" ? <Views /> : null}
               </div>
             ))}
           </div>

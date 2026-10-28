@@ -7,10 +7,14 @@ import type { FileWhy } from "./FileWhy";
  */
 export type FileNoticeView = { 
 /**
- * What kind of file it is: `views`, `machine names`, `theme`. The
+ * What kind of file it is: `keys`, `views`, `record copy`… The
  * screen words it from `src/strings.ts`.
  */
 kind: string, 
+/**
+ * For your copy of a room's record: the room's title, when the app knows the room.
+ */
+room: string | null, 
 /**
  * Whether it's the last good copy kept beside the file, not the file itself.
  */

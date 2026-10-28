@@ -3,6 +3,23 @@ import type { FolderHeld } from "./FolderHeld";
 
 export type AppInfo = { 
 /**
+ * True while the daemon is the stand-in.
+ */
+stand_in: boolean, 
+/**
+ * Whether anything answers for the daemon, machines and rooms. A build
+ * without the stand-in has nothing there yet, and the screens say so.
+ */
+network: boolean, 
+/**
+ * The commit of the SDK's branch the seam was built against.
+ */
+contract_pin: string, 
+/**
+ * Where the stand-in keeps its host's files.
+ */
+stand_in_host: string | null, 
+/**
  * The folder the app keeps its files in.
  */
 folder: string, 

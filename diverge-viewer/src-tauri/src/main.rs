@@ -1,89 +1,158 @@
 //! Diverge — the viewer.
 //!
-//! Rust owns the daemon's address, the identity it is dialled as, and
-//! the one connection to it; the page speaks the daemon's protocol through the TypeScript
-//! SDK, frame by frame over the proxy commands, and asks Rust for the
-//! app's own things — tabs, the theme, saved Views, the names it gave
-//! machines — through [`actions`]. See `diverge-viewer/CLAUDE.md`.
-//!
-//! The root — `--config <dir>`, else `DIVERGE_CONFIG`, else `~/.diverge`
-//! — is the one directory every Diverge program on the host shares:
-//! `<root>/viewer.yaml` says which daemon and as which identity
-//! (`diverge_viewer_config`), `<root>/identities/` holds that identity,
-//! signed in by `diverge identities login`, and `<root>/viewer/` holds
-//! every file the app keeps, and `world/` in it the world's tilesets
-//! ([`tileset`]).
+//! Rust owns the daemon, its address and its credentials; the page gets
+//! commands (see [`actions`]) and one channel per stream. Built with the
+//! `stand-in` feature (the default for now), the daemon and rooms are
+//! stand-ins; without it, nothing answers yet and the screens say so. See
+//! `diverge-viewer/CLAUDE.md`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// Without the stand-in nothing reaches the agent door or most daemon verbs
+// yet: on the wire, the daemon will.
+#![cfg_attr(not(feature = "stand-in"), allow(dead_code))]
 
+mod absent;
+mod account;
 mod actions;
+mod card;
+mod catalog;
+mod daemon;
+mod machines;
+mod marks;
+mod notes;
+mod door;
+mod door_serve;
+mod fleet;
+mod hires;
+mod identity;
+mod preview;
+mod reporter;
+mod spaces;
 mod store;
 mod tabs;
-mod tileset;
 mod view;
 
-use std::sync::Arc;
-
-use diverge_sdk::identities::{Identities, Name, Presenter};
-use tauri::Manager;
+use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::{Emitter, Manager};
 
 use actions::AppState;
 
-/// The app: no menu of its own, so the window has no menu bar; the
-/// page handles every shortcut. On macOS the system's default menu
-/// stays in the system's bar, which is what gives text fields their
-/// Edit keys there.
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
-            // The root, as the daemon and the provider find theirs; the
-            // document in it, which must name the daemon and the
-            // identity it is dialled as; the root's identities; the
-            // app's own folder under the root. A document naming no
-            // daemon stops the start, saying so.
-            let (root, daemon, identities) = tauri::async_runtime::block_on(async {
-                let root = diverge_viewer_config::root(std::env::args_os().skip(1)).await?;
-                let config = diverge_viewer_config::load(&root).await?;
-                let daemon = config.daemon.ok_or(
-                    "viewer.yaml names no daemon identity (daemon: {address, issuer, subject}); sign one in with `diverge identities login`",
-                )?;
-                let identities = Identities::open(&root).await?;
-                Ok::<_, Box<dyn std::error::Error>>((root, daemon, identities))
-            })?;
-            // The daemon's connection, held for the page: the SDK's
-            // runner, presenting the identity and taking the daemon's
-            // answer at its word.
-            let name = Name { issuer: daemon.issuer.clone(), subject: daemon.subject };
-            let presenter = Arc::new(Presenter::new(identities, name));
-            app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(daemon.address, daemon.issuer, presenter));
-            app.manage(AppState::open(root.join(actions::FOLDER)));
+            // The menu: the OS's own Edit items (text fields need them), and
+            // the app's shortcuts. ⌘W closes a tab, not the window.
+            let app_menu = SubmenuBuilder::new(app, "Diverge").about(None).separator().services().separator().hide().hide_others().show_all().separator().quit().build()?;
+            let edit = SubmenuBuilder::new(app, "Edit").undo().redo().separator().cut().copy().paste().select_all().build()?;
+            let new_agent = MenuItemBuilder::with_id("new-agent", "New Agent").accelerator("CmdOrCtrl+N").build(app)?;
+            let close_tab = MenuItemBuilder::with_id("close-tab", "Close Tab").accelerator("CmdOrCtrl+W").build(app)?;
+            let home = MenuItemBuilder::with_id("go-home", "Home").accelerator("CmdOrCtrl+1").build(app)?;
+            let inbox = MenuItemBuilder::with_id("go-inbox", "Inbox").accelerator("CmdOrCtrl+2").build(app)?;
+            let go = SubmenuBuilder::new(app, "Go").item(&home).item(&inbox).separator().item(&new_agent).separator().item(&close_tab).build()?;
+            let window = SubmenuBuilder::new(app, "Window").minimize().maximize().separator().fullscreen().build()?;
+            let menu = MenuBuilder::new(app).items(&[&app_menu, &edit, &go, &window]).build()?;
+            app.set_menu(menu)?;
+            app.on_menu_event(|app, event| {
+                let _ = app.emit("menu://action", event.id().as_ref().to_owned());
+            });
+
+            // Every file the app keeps is in one folder: DIVERGE_DATA_DIR's, when it names one.
+            let data = actions::data_dir(std::env::var_os(actions::DATA_DIR_VAR), || app.path().app_data_dir())?;
+            let state = tauri::async_runtime::block_on(AppState::open(data));
+            app.manage(state);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            actions::machines_names,
+            actions::agents_list,
+            actions::agents_watch,
+            actions::agents_tree,
+            actions::agents_create,
+            actions::agents_delete,
+            actions::agents_edit,
+            actions::agents_mounts,
+            actions::agents_tag,
+            actions::agents_untag,
+            actions::standalone_tools_list,
+            actions::standalone_tools_attach,
+            actions::standalone_tools_detach,
+            actions::agents_message,
+            actions::agents_message_take_back,
+            actions::logs_open,
+            actions::scope_close,
+            actions::volumes_list,
+            actions::volumes_stat,
+            actions::volumes_tree,
+            actions::volumes_read,
+            actions::volumes_write,
+            actions::volumes_room,
+            actions::volumes_create,
+            actions::volumes_room_for,
+            actions::volumes_edit,
+            actions::volumes_delete,
+            actions::home_feed,
+            actions::people_list,
+            actions::profile_get,
+            actions::profile_card_get,
+            actions::profile_card_set,
+            actions::spaces_home,
+            actions::spaces_list,
+            actions::spaces_get,
+            actions::spaces_feed,
+            actions::spaces_call,
+            actions::spaces_watch,
+            actions::spaces_host,
+            actions::spaces_join,
+            actions::spaces_leave,
+            actions::spaces_invite,
+            actions::knocks_watch,
+            actions::knocks_answer,
+            actions::spaces_door,
+            actions::asks_send,
+            actions::spaces_doorways,
+            actions::vouch_for,
+            actions::identity_broken,
+            actions::asks_close,
+            actions::spaces_admitted,
+            actions::spaces_restart,
+            actions::spaces_continue,
+            actions::table_tree,
+            actions::table_read,
+            actions::table_write,
+            actions::table_transfer,
+            actions::personas_list,
+            actions::persona_rename,
+            actions::allowance_get,
+            actions::allowance_set,
+            actions::cards_watch,
+            actions::cards_answer,
+            actions::door_tools,
+            actions::local_agents_list,
+            actions::local_agents_add,
+            actions::local_agents_new_key,
+            actions::local_agents_remove,
+            actions::door_status,
+            actions::agent_bring_in,
+            actions::machines_list,
+            actions::machines_add,
+            actions::machines_remove,
             actions::machines_rename,
+            actions::machines_names,
             actions::theme_get,
             actions::theme_set,
-            actions::tilesets_list,
-            actions::tileset_load,
-            actions::tileset_image,
-            actions::tileset_get,
-            actions::tileset_set,
             actions::views_list,
             actions::views_save,
             actions::views_delete,
+            actions::catalog_images,
+            actions::catalog_check,
             actions::tabs_snapshot,
             actions::tabs_open,
             actions::tabs_close,
+            actions::tabs_focus,
             actions::actions_list,
             actions::app_info,
             actions::files_set_aside,
-            diverge_sdk::tauri_proxy::wire_request,
-            diverge_sdk::tauri_proxy::wire_channel_request,
-            diverge_sdk::tauri_proxy::wire_channel_response,
-            diverge_sdk::tauri_proxy::wire_channel_response_finish,
-            diverge_sdk::tauri_proxy::wire_status,
-            diverge_sdk::tauri_proxy::wire_reset,
+            actions::first_run_get,
+            actions::first_run_finish,
         ])
         .run(tauri::generate_context!())
         .expect("the app could not start");

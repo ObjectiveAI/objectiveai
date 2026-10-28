@@ -1,18 +1,30 @@
 import { createContext, useContext } from "react";
+import type { AgentView } from "../bindings/AgentView";
 import type { AppInfo } from "../bindings/AppInfo";
+import type { CardView } from "../bindings/CardView";
+import type { KnockView } from "../bindings/KnockView";
+import type { ListState } from "../bindings/ListState";
+import type { MapNode } from "../bindings/MapNode";
+import type { SpaceSummary } from "../bindings/SpaceSummary";
 import type { TabKind } from "../bindings/TabKind";
-import type { Agent, Held, WireStatus } from "./daemon";
 
 export type Shared = {
-  /** The agents, as the daemon lists them, kept current. */
-  agents: Held<Agent>;
-  /** Whether the daemon is reached: nothing lists until it is. */
-  connected: boolean;
-  /** How the link stands, as Rust last said. */
-  link: WireStatus;
-  /** Drop the link and dial again. */
-  redial: () => void;
+  /** Your agents, from the app's one live list: oldest made first. */
+  agents: AgentView[];
+  /** Where that list stands: waiting on the daemon, live, refused, or failed (and asked again). */
+  agentsState: ListState;
+  /** The same agents as who made whom, with each one's cards waiting on you (Rust builds it). */
+  tree: MapNode[];
   info: AppInfo | null;
+  spaces: SpaceSummary[];
+  homeId: string | null;
+  refreshSpaces: () => Promise<void>;
+  knocks: KnockView[];
+  cards: CardView[];
+  /** Cards withdrawn because their agent stopped waiting: nothing answers them. */
+  withdrawn: CardView[];
+  answerCard: (id: number, answer: string) => Promise<void>;
+  answerKnock: (knockId: number, yes: boolean) => Promise<void>;
   open: (tab: TabKind) => void;
   close: (key: string) => void;
 };
@@ -23,9 +35,4 @@ export function useShared(): Shared {
   const value = useContext(SharedContext);
   if (!value) throw new Error("outside the app");
   return value;
-}
-
-/** The tab key of an agent: the daemon's key, as Rust spells it. */
-export function agentKey(a: { template: string; index: number }): string {
-  return `agent:${a.template}:${a.index}`;
 }

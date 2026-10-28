@@ -4,17 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "sdk": "pnpm --filter @diverge/sdk build",
-    "dev": "pnpm run sdk && vite",
-    "build": "pnpm run sdk && tsc && vite build",
+    "dev": "vite",
+    "build": "tsc && vite build",
     "tauri": "tauri",
     "bindings": "cargo test -p diverge-viewer --quiet",
-    "typecheck": "pnpm run sdk && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:all": "cargo test -p diverge-viewer && pnpm run typecheck && vitest run"
+    "test:all": "cargo test -p diverge-viewer && cargo test -p diverge-viewer --no-default-features && cargo test -p diverge-viewer-room --features image && vitest run"
   },
   "dependencies": {
-    "@diverge/sdk": "workspace:*",
     "@tauri-apps/api": "^2.10.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

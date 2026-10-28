@@ -1,0 +1,3 @@
+dde2a49c585dc5c3943c972317273a4d9b0c3ffc
+# The origin/main commit this app's seams were built against (2026-10-20: edits are JSON Patches, templates and creates carry secrets, each image ships its DIVERGE.md).
+# Every session, from diverge-viewer/: git fetch origin && git -C .. diff $(head -1 CONTRACT_PIN)..origin/main -- diverge-sdk-rs/src/daemon diverge-sdk-rs/src/provider/endpoints/volumes diverge-sdk-rs/src/provider/endpoints/containers/tools diverge-sdk-rs/src/provider/endpoints/containers/agents diverge-sdk-rs/src/shared diverge-sdk-rs/src/container_proxy/inside

@@ -1,97 +1,216 @@
-// An agent's log, as the conversation shows it: the SDK's log items
-// held open, adjacent pieces of one utterance joined.
-//
-// The daemon stores what a loop streamed: an assistant's text arrives
-// as many items of the same type, one per chunk. The screen shows one
-// turn, so consecutive items of one text type under one parent are
-// joined here, the way the SDK's `push` joins chunks — the first
-// item's index and time stand for the turn.
+// A log is pieces, not messages: text arrives a few words at a time, a
+// tool call and its answer are paired by id, and anything carrying a
+// `parent` belongs inside that tool call (a helper's own conversation).
+// This folds the pieces into what a person reads. Pure — tested.
 
-import { daemon } from "@diverge/sdk";
-import { useEffect, useState } from "react";
-import { handle, whyFailed } from "./daemon";
-import { t } from "../strings";
+import type { LogEntry } from "../bindings/LogEntry";
+import type { CreatorView } from "../bindings/CreatorView";
+import type { ProviderView } from "../bindings/ProviderView";
 
-/** An agent once and for all: its template and its index, the daemon's own key. */
-export type AgentRef = { template: string; index: number };
-export type LogItem = daemon.endpoints.agents.logs.server.response.ItemWrapper;
-export type LogsRequest = daemon.endpoints.agents.logs.client.request.Frame;
+export type Part =
+  | { kind: "reasoning"; text: string; at?: string }
+  | { kind: "text"; text: string }
+  | { kind: "refusal"; text: string }
+  | { kind: "image"; mime: string; data: string }
+  | { kind: "audio"; mime: string }
+  | { kind: "tool"; id: string; name: string; arguments: string | null; answer: { text: string; isError: boolean; at?: string } | null; parts: Part[]; at?: string };
 
-/** One turn as shown: the log item, text joined across its pieces, and how many items it stands for. */
-export type Turn = { item: LogItem; pieces: number };
+export type Block =
+  | { kind: "user"; key: string; sender: CreatorView | null; text: string; at: string; attachments: string[] }
+  | { kind: "turn"; at: string; parts: Part[]; usage: { prompt: number; completion: number; total: number } | null }
+  | { kind: "started"; provider: ProviderView; at: string }
+  | { kind: "finished"; provider: ProviderView; at: string }
+  | { kind: "error"; message: string; at: string }
+  | { kind: "notice"; fatal: boolean; message: unknown; at: string };
 
-/** The log as a screen holds it: the turns so far, and why it ended, if it did. A watch never ends on its own. */
-export type Log = { turns: Turn[]; ended: string | null; done: boolean };
-
-const JOINED = new Set(["assistant_text_content", "assistant_reasoning", "assistant_refusal"]);
-
-/** Fold one item into the turns: joined onto the last when it continues it, else appended. */
-export function fold(turns: Turn[], item: LogItem): Turn[] {
-  const last = turns[turns.length - 1];
-  const text = words(item);
-  if (last && JOINED.has(item.type) && last.item.type === item.type && parent(last.item) === parent(item) && text !== null && words(last.item) !== null) {
-    const joined = { ...last.item, text: words(last.item) + text } as LogItem;
-    return [...turns.slice(0, -1), { item: joined, pieces: last.pieces + 1 }];
-  }
-  return [...turns, { item, pieces: 1 }];
+function appendText(parts: Part[], kind: "reasoning" | "text" | "refusal", text: string, at?: string) {
+  const last = parts[parts.length - 1];
+  if (last && last.kind === kind) last.text += text;
+  else parts.push(kind === "reasoning" ? { kind, text, at } : { kind, text });
 }
 
-/** The item's words, where it has them. */
-function words(item: LogItem): string | null {
-  return "text" in item && typeof item.text === "string" ? item.text : null;
-}
+export function fold(entries: LogEntry[]): Block[] {
+  const blocks: Block[] = [];
+  const tools = new Map<string, Extract<Part, { kind: "tool" }>>();
 
-/** The tool call an item sits under, where it sits under one. */
-function parent(item: LogItem): string | undefined {
-  return "parent_tool_call_id" in item && typeof item.parent_tool_call_id === "string" ? item.parent_tool_call_id : undefined;
-}
+  const turn = (at: string): Extract<Block, { kind: "turn" }> => {
+    const last = blocks[blocks.length - 1];
+    if (last && last.kind === "turn") return last;
+    const fresh: Extract<Block, { kind: "turn" }> = { kind: "turn", at, parts: [], usage: null };
+    blocks.push(fresh);
+    return fresh;
+  };
+  const home = (parent: string | null, at: string): Part[] => {
+    if (parent) {
+      const tool = tools.get(parent);
+      if (tool) return tool.parts;
+    }
+    return turn(at).parts;
+  };
 
-/** Why a frame that is no item ended the log, as text. */
-function endedBy(frame: daemon.endpoints.agents.logs.server.response.Frame): string {
-  return frame === "forbidden" ? t.daemon.forbidden : JSON.stringify(frame);
-}
-
-/**
- * The log `request` asks for, read while the component lives: opened
- * once, every item folded, cancelled on the way out. `request` must
- * be one object for the component's life (memoized), since a new one
- * reopens the log.
- */
-export function useLogs(request: LogsRequest | null, enabled: boolean): Log {
-  const [log, setLog] = useState<Log>({ turns: [], ended: null, done: false });
-  useEffect(() => {
-    setLog({ turns: [], ended: null, done: false });
-    if (!enabled || request === null) return;
-    let stopped = false;
-    let cancel: daemon.client.Cancel | null = null;
-    (async () => {
-      try {
-        const [stream, opened] = await daemon.endpoints.agents.logs.client.execute(handle, request);
-        cancel = opened;
-        for await (const frame of stream) {
-          if (stopped) return;
-          if (typeof frame === "object" && "item" in frame) {
-            const item = frame.item;
-            setLog((l) => ({ ...l, turns: fold(l.turns, item) }));
-          } else {
-            setLog((l) => ({ ...l, ended: endedBy(frame) }));
-          }
-        }
-        if (!stopped) setLog((l) => ({ ...l, done: true }));
-      } catch (error) {
-        if (!stopped) setLog((l) => ({ ...l, ended: whyFailed(error) }));
+  for (const { created: at, sender, item } of entries) {
+    // Tool ids are only unique within one run: a new run starts a new map.
+    if (item.kind === "active") tools.clear();
+    switch (item.kind) {
+      case "user_text": {
+        const last = blocks[blocks.length - 1];
+        if (last && last.kind === "user" && last.key === item.key) last.text += item.text;
+        else blocks.push({ kind: "user", key: item.key, sender, text: item.text, at, attachments: [] });
+        break;
       }
-    })();
-    return () => {
-      stopped = true;
-      cancel?.cancel().catch(() => {});
-    };
-  }, [request, enabled]);
-  return log;
+      case "user_image":
+      case "user_audio":
+      case "user_resource":
+      case "user_resource_link": {
+        const label = item.kind === "user_image" ? "image" : item.kind === "user_audio" ? "audio" : "uri" in item ? item.uri : "file";
+        const last = blocks[blocks.length - 1];
+        if (last && last.kind === "user" && last.key === item.key) last.attachments.push(label);
+        else blocks.push({ kind: "user", key: item.key, sender, text: "", at, attachments: [label] });
+        break;
+      }
+      case "reasoning":
+        appendText(home(item.parent, at), "reasoning", item.text, at);
+        break;
+      case "text":
+        appendText(home(item.parent, at), "text", item.text);
+        break;
+      case "refusal":
+        appendText(home(item.parent, at), "refusal", item.text);
+        break;
+      case "image":
+        home(item.parent, at).push({ kind: "image", mime: item.mime_type, data: item.data });
+        break;
+      case "audio":
+        home(item.parent, at).push({ kind: "audio", mime: item.mime_type });
+        break;
+      case "tool_call": {
+        const existing = tools.get(item.id);
+        if (existing) {
+          // A call can arrive in pieces too: the arguments keep coming.
+          existing.arguments = (existing.arguments ?? "") + (item.arguments ?? "");
+          break;
+        }
+        const tool: Extract<Part, { kind: "tool" }> = { kind: "tool", id: item.id, name: item.name, arguments: item.arguments, answer: null, parts: [], at };
+        tools.set(item.id, tool);
+        home(item.parent, at).push(tool);
+        break;
+      }
+      case "tool_response": {
+        const tool = tools.get(item.id);
+        if (tool) tool.answer = { text: item.text, isError: item.is_error, at };
+        else home(item.parent, at).push({ kind: "tool", id: item.id, name: "?", arguments: null, answer: { text: item.text, isError: item.is_error }, parts: [] });
+        break;
+      }
+      case "usage": {
+        const last = blocks[blocks.length - 1];
+        const u = { prompt: item.prompt_tokens, completion: item.completion_tokens, total: item.total_tokens };
+        if (last && last.kind === "turn") last.usage = u;
+        else blocks.push({ kind: "turn", at, parts: [], usage: u });
+        break;
+      }
+      case "notification":
+        blocks.push({ kind: "notice", fatal: item.fatal, message: item.message, at });
+        break;
+      case "error":
+        blocks.push({ kind: "error", message: item.message, at });
+        break;
+      case "active":
+        blocks.push({ kind: "started", provider: item.provider, at });
+        break;
+      case "inactive":
+        blocks.push({ kind: "finished", provider: item.provider, at });
+        break;
+      default: {
+        const never: never = item;
+        return never;
+      }
+    }
+  }
+  return blocks;
 }
 
-/** The words of a tool result's content: its text blocks, joined; anything else named by its type. */
-export function contentText(content: readonly { type: string; text?: string }[] | undefined): string {
-  if (!content) return "";
-  return content.map((block) => (block.type === "text" && typeof block.text === "string" ? block.text : `[${block.type}]`)).join("\n");
+/** A one-line summary of a tool call's arguments. */
+export function argsLine(args: string | null): string {
+  if (!args) return "";
+  try {
+    const value = JSON.parse(args);
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const first = Object.values(value)[0];
+      if (typeof first === "string") return first;
+      if (Array.isArray(first)) return first.join(" ");
+    }
+    return JSON.stringify(value);
+  } catch {
+    return args;
+  }
+}
+
+export function pretty(args: string | null): string {
+  if (!args) return "";
+  try {
+    return JSON.stringify(JSON.parse(args), null, 2);
+  } catch {
+    return args;
+  }
+}
+
+// --- turns that read ---------------------------------------------------------
+// What a person reads is what the agent SAID. Everything it did between two
+// things it said (thinking, tool calls, helpers) folds into one line of work.
+
+export type Shown =
+  | { kind: "say"; part: Part }
+  | { kind: "work"; steps: Part[]; summary: WorkSummary };
+
+export type WorkSummary = {
+  tools: { name: string; count: number }[];
+  thought: boolean;
+  helpers: number;
+  failed: number;
+  waiting: boolean;
+  seconds: number | null;
+  last: Extract<Part, { kind: "tool" }> | null;
+};
+
+function times(p: Part): string[] {
+  if (p.kind === "reasoning") return p.at ? [p.at] : [];
+  if (p.kind === "tool") return [p.at, p.answer?.at, ...p.parts.flatMap(times)].filter((x): x is string => !!x);
+  return [];
+}
+
+export function summarize(steps: Part[]): WorkSummary {
+  const counts = new Map<string, number>();
+  let thought = false, helpers = 0, failed = 0, waiting = false;
+  let last: Extract<Part, { kind: "tool" }> | null = null;
+  for (const p of steps) {
+    if (p.kind === "reasoning") thought = true;
+    if (p.kind === "tool") {
+      counts.set(p.name, (counts.get(p.name) ?? 0) + 1);
+      if (p.parts.length > 0) helpers++;
+      if (p.answer?.isError) failed++;
+      if (!p.answer) waiting = true;
+      last = p;
+    }
+  }
+  const stamps = steps.flatMap(times).map((t) => Date.parse(t)).filter((n) => !Number.isNaN(n));
+  const seconds = stamps.length > 1 ? Math.max(0, Math.round((Math.max(...stamps) - Math.min(...stamps)) / 1000)) : null;
+  return { tools: [...counts].map(([name, count]) => ({ name, count })), thought, helpers, failed, waiting, seconds, last };
+}
+
+export function shown(parts: Part[]): Shown[] {
+  const out: Shown[] = [];
+  let work: Part[] = [];
+  const flush = () => {
+    if (work.length) out.push({ kind: "work", steps: work, summary: summarize(work) });
+    work = [];
+  };
+  for (const p of parts) {
+    if (p.kind === "reasoning" || p.kind === "tool") work.push(p);
+    else {
+      flush();
+      out.push({ kind: "say", part: p });
+    }
+  }
+  flush();
+  return out;
 }

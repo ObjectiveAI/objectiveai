@@ -1,6 +1,28 @@
 import { useEffect, useRef } from "react";
 
-/** Forms open inline, newest last. Escape closes the newest one still on screen (not in a hidden page). */
+/** Roving focus along a row (the tab strip): where ArrowLeft/ArrowRight, Home or End moves from `at`,
+ *  round the ends. Any other key moves nowhere (null). */
+export function rove(count: number, at: number, key: string): number | null {
+  if (count <= 0) return null;
+  const here = Math.min(Math.max(at, 0), count - 1);
+  switch (key) {
+    case "ArrowRight":
+      return (here + 1) % count;
+    case "ArrowLeft":
+      return (here + count - 1) % count;
+    case "Home":
+      return 0;
+    case "End":
+      return count - 1;
+    default:
+      return null;
+  }
+}
+
+/** Whether a key opens what has focus, as a press would. */
+export const opens = (key: string) => key === "Enter" || key === " ";
+
+/** Forms open inline, newest last. Escape closes the newest one still on screen (not in a hidden tab). */
 export type Escapable = { close: () => void; shown: () => boolean };
 
 export function escapeTop(open: Escapable[]): Escapable | null {

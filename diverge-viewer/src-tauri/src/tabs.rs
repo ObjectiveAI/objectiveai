@@ -5,31 +5,27 @@
 
 use crate::view::{TabKind, TabView, TabsSnapshot};
 
+#[derive(Default)]
 pub struct Tabs {
     generation: u64,
     tabs: Vec<TabView>,
     focused: Option<String>,
 }
 
-/// The tabs a viewer starts with: World, open and focused.
-impl Default for Tabs {
-    fn default() -> Self {
-        let mut tabs = Tabs { generation: 0, tabs: Vec::new(), focused: None };
-        tabs.open(TabKind::World);
-        tabs
-    }
-}
-
 pub fn key_of(tab: &TabKind) -> String {
     match tab {
-        TabKind::Agent { template, index, .. } => format!("agent:{template}:{index}"),
-        TabKind::NewAgent => "new-agent".into(),
-        TabKind::World => "world".into(),
+        TabKind::Agent { name } => format!("agent:{name}"),
         TabKind::Agents => "agents".into(),
-        TabKind::Tools => "tools".into(),
+        TabKind::NewAgent => "new-agent".into(),
         TabKind::Storage => "storage".into(),
+        TabKind::Machines => "machines".into(),
         TabKind::Views => "views".into(),
-        TabKind::Settings => "settings".into(),
+        TabKind::Home => "home".into(),
+        TabKind::Inbox => "inbox".into(),
+        TabKind::Profile => "profile".into(),
+        TabKind::Spaces => "spaces".into(),
+        TabKind::Space { id } => format!("space:{id}"),
+        TabKind::Door { invite } => format!("door:{}", &diverge_viewer_room::seal::digest(invite.as_bytes())[..12]),
     }
 }
 
@@ -55,6 +51,14 @@ impl Tabs {
             if self.focused.as_deref() == Some(key) {
                 self.focused = self.tabs.get(at.min(self.tabs.len().saturating_sub(1))).map(|t| t.key.clone());
             }
+            self.generation += 1;
+        }
+        self.snapshot()
+    }
+
+    pub fn focus(&mut self, key: &str) -> TabsSnapshot {
+        if self.tabs.iter().any(|t| t.key == key) {
+            self.focused = Some(key.to_owned());
             self.generation += 1;
         }
         self.snapshot()

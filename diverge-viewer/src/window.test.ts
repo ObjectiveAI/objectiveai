@@ -51,7 +51,9 @@ describe("zoom keys", () => {
     expect(capability.permissions).toContain("core:webview:allow-set-webview-zoom");
   });
 
-  it("the window has no menu bar to take those keys", () => {
-    expect(read("src-tauri/src/main.rs")).not.toMatch(/set_menu|MenuBuilder|accelerator\(/);
+  it("the menu leaves those keys to the zoom", () => {
+    const keys = [...read("src-tauri/src/main.rs").matchAll(/accelerator\("([^"]+)"\)/g)].map((m) => m[1]);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys.filter((k) => /\+(=|-|0|Plus|Minus|Equal)$/i.test(k))).toEqual([]);
   });
 });
