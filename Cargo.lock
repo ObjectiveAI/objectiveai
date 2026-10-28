@@ -2385,6 +2385,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-world"
+version = "0.1.0"
+dependencies = [
+ "diverge-sdk",
+ "diverge-viewer-config",
+ "tauri",
+ "tauri-build",
+]
+
+[[package]]
 name = "dlopen2"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

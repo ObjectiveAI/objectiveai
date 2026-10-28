@@ -1,0 +1,21 @@
+[package]
+name = "diverge-world"
+version = "0.1.0"
+edition = "2024"
+description = "Diverge World"
+publish = false
+
+[dependencies]
+# The wire. Rust holds the one connection to the daemon and speaks the
+# frames for the page, through the SDK's own `tauri_proxy` runner,
+# which dials the daemon again as `viewer.yaml`'s `redial` says; the
+# identity it presents is one of the root's `identities`.
+diverge-sdk = { path = "../../diverge-sdk-rs", features = ["tauri-proxy", "identities"] }
+# The viewer's own `viewer.yaml`: which daemon, as whom, and how it is
+# dialled again.
+diverge-viewer-config = { path = "../../diverge-viewer/config" }
+
+tauri = { version = "2.10.3", features = [] }
+
+[build-dependencies]
+tauri-build = { version = "2.5.6", features = [] }

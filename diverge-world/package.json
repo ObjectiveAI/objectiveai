@@ -1,0 +1,27 @@
+{
+  "name": "diverge-world",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sdk": "pnpm --filter @diverge/sdk build",
+    "dev": "pnpm run sdk && vite",
+    "build": "pnpm run sdk && tsc && vite build",
+    "tauri": "tauri",
+    "typecheck": "pnpm run sdk && tsc --noEmit"
+  },
+  "dependencies": {
+    "@diverge/sdk": "workspace:*",
+    "@tauri-apps/api": "^2.10.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.1"
+  }
+}

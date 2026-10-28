@@ -1,0 +1,17 @@
+/* The empty world: the whole window, one ground colour. */
+:root {
+  --ground: #0d0f14;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--ground);
+}
+
+.world {
+  height: 100%;
+}

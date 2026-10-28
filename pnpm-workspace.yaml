@@ -2,6 +2,7 @@ packages:
   - diverge-provider-web
   - diverge-sdk-js
   - diverge-viewer
+  - diverge-world
   - objectiveai-sdk-js
   - objectiveai-web
   - objectiveai-viewer

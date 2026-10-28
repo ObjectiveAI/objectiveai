@@ -46,6 +46,7 @@ members = [
     # lives here until the SDK is published.
     "diverge-viewer/src-tauri",
     "diverge-viewer/room",
+    "diverge-world/src-tauri",
     "tests/objectiveai-tests",
     "tests/objectiveai-api-tests",
     "tests/objectiveai-cli-tests",

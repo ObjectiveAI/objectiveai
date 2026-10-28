@@ -95,6 +95,40 @@ importers:
         specifier: ^4.0.18
         version: 4.1.7(@types/node@25.5.0)(jsdom@29.1.1)(vite@8.2.2(@types/node@25.5.0)(esbuild@0.28.2)(jiti@2.7.0))
 
+  diverge-world:
+    dependencies:
+      '@diverge/sdk':
+        specifier: workspace:*
+        version: link:../diverge-sdk-js
+      '@tauri-apps/api':
+        specifier: ^2.10.1
+        version: 2.10.1
+      react:
+        specifier: ^19.2.4
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@tauri-apps/cli':
+        specifier: ^2.10.1
+        version: 2.10.1
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.5(@types/react@19.2.18)
+      '@vitejs/plugin-react':
+        specifier: ^6.0.1
+        version: 6.0.1(vite@8.2.2(@types/node@25.5.0)(esbuild@0.28.2)(jiti@2.7.0))
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.1
+        version: 8.2.2(@types/node@25.5.0)(esbuild@0.28.2)(jiti@2.7.0)
+
   objectiveai-sdk-js:
     dependencies:
       zod:
