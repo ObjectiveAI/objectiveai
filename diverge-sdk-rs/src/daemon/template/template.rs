@@ -39,9 +39,8 @@ use crate::daemon::endpoints::agents::create::client::request::Image;
 /// Its id is its hash: see [`template`](super). What a caller may
 /// not choose is not here at all rather than here and ignored: the
 /// container's name, its ports, its entrypoint and its environment
-/// are the provider's. The account a container runs under is not
-/// here either: it is the create's, so that one template makes
-/// containers of different standing.
+/// are the provider's. What a tool may ask of the daemon is not here
+/// either: its program declares it at its registration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Template<Type> {
@@ -52,10 +51,9 @@ pub struct Template<Type> {
     pub r#type: Type,
     /// How to make a container from this, in words, for whoever does:
     /// what the create has to supply that a template cannot name — the
-    /// volumes and FUSE mounts it needs and at what paths, the account
-    /// it has to run under and what that account has to be able to do,
-    /// which agents it has to be able to message and which have to
-    /// reach it, and anything else about deploying it. The template is
+    /// volumes and FUSE mounts it needs and at what paths, which agents
+    /// it has to be able to message and which have to reach it, and
+    /// anything else about deploying it. The template is
     /// shareable and this travels with it, inside the hash; a template
     /// with nothing to say leaves it absent. Not handed to the
     /// container, and read by nothing but a person.

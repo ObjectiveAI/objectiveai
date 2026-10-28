@@ -7,6 +7,7 @@ use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
 use crate::shared::containers::dependencies::Template;
+use crate::shared::permission::Grant;
 use super::{Attached, Run};
 
 /// One dependency tool of the caller's: its template and its owner,
@@ -63,6 +64,13 @@ pub struct Listed {
     /// answers `InUse` for. Absent while it does not run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run: Option<Run>,
+    /// What its container declared it may ask of the daemon, at its
+    /// registration when it last started: see [`Grant`]. Declared anew
+    /// at every start, so it changes as the image does. Absent when
+    /// empty — a tool whose container declared none, or has never
+    /// started.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub permissions: Vec<Grant>,
 }
 
 /// Keyed by the template's id and the owner, which together name the

@@ -22,7 +22,7 @@ use crate::shared::error::Error;
 ///
 /// [`NotFound`](Self::NotFound) and [`InUse`](Self::InUse) are ANSWERS:
 /// the daemon looked, and either no account is the one named, or one is
-/// and a container runs under it or a client is connected as it now,
+/// and a client is connected as it now,
 /// and in either case nothing changed and nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not delete it, for whatever reason it knows.
@@ -30,8 +30,8 @@ use crate::shared::error::Error;
 /// # Forbidden
 ///
 /// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
-/// account the request is served for — the connection's, or the
-/// `account` of the container it came from — holds no grant allowing
+/// account the request is served for — the connection's — or the tool
+/// the request came from holds no grant allowing
 /// what the request asks over what it names, and nothing changed. Where
 /// the answer is a stream it comes as an error does: exactly one, with
 /// nothing before it, then the finish. Nothing is retried. See
@@ -51,8 +51,8 @@ pub enum Frame {
     Deleted,
     /// No account is the one named; nothing changed. Tag `1`.
     NotFound,
-    /// A container runs under the account, or a client is connected as
-    /// it now, and it was left as it is; nothing changed. Tag `2`.
+    /// A client is connected as the account now, and it was left as it
+    /// is; nothing changed. Tag `2`.
     InUse,
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `3`.

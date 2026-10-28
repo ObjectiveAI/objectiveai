@@ -28,8 +28,8 @@ use crate::shared::error::Error;
 /// # Forbidden
 ///
 /// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
-/// account the request is served for — the connection's, or the
-/// `account` of the container it came from — holds no grant allowing
+/// account the request is served for — the connection's — or the tool
+/// the request came from holds no grant allowing
 /// what the request asks over what it names, and nothing changed. Where
 /// the answer is a stream it comes as an error does: exactly one, with
 /// nothing before it, then the finish. Nothing is retried. See

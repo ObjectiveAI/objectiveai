@@ -9,7 +9,7 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// Ask the daemon to change a tool: a patch to its editable members —
-/// its name, its account, its mounts.
+/// its name, its mounts, its secrets.
 ///
 /// The tool is named by its name, by its template and its index, or
 /// by the daemon and tool it joined, as
@@ -22,8 +22,8 @@ use crate::wire::encode::{Encode, Writer};
 /// and what the provider mounted is what persists; a result differing
 /// in anything else is answered `Active`, and nothing changed. A
 /// [`connect`](crate::daemon::endpoints::standalone_tools::connect)ed tool has
-/// no mounts of this caller's and runs under no account, since it
-/// runs nothing of the caller's: a result differing in anything but
+/// no mounts of this caller's, since it runs nothing of the
+/// caller's: a result differing in anything but
 /// its name is answered `NotOwned`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]

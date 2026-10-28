@@ -4,10 +4,10 @@
 //! shapes [`permission`](crate::shared::permission) states: [`Make`],
 //! the actions that bring one into being; [`Over`], the actions over
 //! those that exist, reaching as far as [`Within`] says — every
-//! agent, the dependency's own, or by tags; and [`Permission`], one
+//! agent, the tool's attached agents, those never active, or by tags; and [`Permission`], one
 //! grant's worth of either, or of tagging. The daemon's grants over
 //! agents are made of the same [`Make`] and [`Over`], and reach by a
-//! filter: the word `self` is this kind's, here, and nowhere else.
+//! filter: the word `attached` is this kind's, here, and nowhere else.
 
 mod make;
 mod over;

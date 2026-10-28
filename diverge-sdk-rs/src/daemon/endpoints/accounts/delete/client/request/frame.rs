@@ -7,9 +7,8 @@ use crate::shared::relay::Relay;
 
 use crate::daemon::endpoints::accounts::Reference;
 /// Ask the daemon to delete an account: see [`Reference`]. An account a
-/// container runs under, or a client is connected as, is not deleted,
-/// and the daemon says so with a variant of its own: delete the
-/// containers, or wait for the client to go, and ask again.
+/// client is connected as is not deleted, and the daemon says so with a
+/// variant of its own: wait for the client to go, and ask again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {

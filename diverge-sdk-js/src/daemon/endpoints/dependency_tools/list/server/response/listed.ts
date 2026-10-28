@@ -5,6 +5,7 @@ import { Creator } from "../../../../../../daemon/creator/creator.js";
 import { Owner } from "../../../../../../daemon/key/owner.js";
 import { Template } from "../../../../../../shared/containers/dependencies/template.js";
 import type { Key, Keyed } from "../../../../../../shared/listing/keyed.js";
+import { Grant } from "../../../../../../shared/permission/grant.js";
 import { Attached } from "./attached.js";
 import { Run } from "./run.js";
 
@@ -34,6 +35,8 @@ export const Listed = z.object({
   agents: z.array(Attached).optional(),
   /** Its run, while its container is up: see `Run`. What a `delete` answers `InUse` for. Absent while it does not run. */
   run: Run.optional(),
+  /** What its container declared it may ask of the daemon, at its registration when it last started. Declared anew at every start. Absent when empty — none declared, or never started. */
+  permissions: z.array(Grant).optional(),
 });
 export type Listed = z.infer<typeof Listed>;
 

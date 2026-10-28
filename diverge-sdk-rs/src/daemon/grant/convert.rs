@@ -1,26 +1,26 @@
-//! A dependency tool template's grants, as grants of the daemon's.
+//! A tool's declared grants, as grants of the daemon's.
 
 use super::{Grant, accounts, agents, agents_templates, dependency_tools, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
-/// A dependency tool template's grants, as the daemon judges them:
-/// the daemon's grants, each the same actions reaching by the kind's
-/// own filter carrying the tags alone, and — apart from them, since
-/// no grant of the daemon's own can say it — the actions over agents
-/// that reach `self`, which the daemon judges by the dependency's own
-/// agents: the one a transient tool was deployed for, every one
-/// attached to a service. `never_active` is a daemon grant of its own,
-/// its filter `{"active": "never"}`. Nothing is widened: a filter of
-/// tags alone reaches what the tags test reaches and nothing else,
-/// `self` reaches the dependency's agents and nothing else, and
-/// `never_active` the agents that have never run and nothing else.
+/// A tool's grants, as its container declared them at registration and
+/// as the daemon judges them: the daemon's grants, each the same
+/// actions reaching by the kind's own filter carrying the tags alone,
+/// and — apart from them, since no grant of the daemon's own can say it
+/// — the actions over agents that reach `attached`, which the daemon
+/// judges by the agents attached to the tool. `never_active` is a
+/// daemon grant of its own, its filter `{"active": "never"}`. Nothing is
+/// widened: a filter of tags alone reaches what the tags test reaches
+/// and nothing else, `attached` reaches the tool's attached agents and
+/// nothing else, and `never_active` the agents that have never run and
+/// nothing else.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Converted {
     /// The grants a role could hold, judged as a role's are.
     pub grants: Vec<Grant>,
-    /// The actions over agents held within `self`, judged against the
-    /// dependency's own agents.
-    pub self_actions: Vec<agents::Over>,
+    /// The actions over agents held within `attached`, judged against
+    /// the agents attached to the tool.
+    pub attached_actions: Vec<agents::Over>,
 }
 
 impl From<Vec<permission::Grant>> for Converted {
@@ -29,7 +29,7 @@ impl From<Vec<permission::Grant>> for Converted {
         for grant in grants {
             match daemon_grant(grant) {
                 Ok(grant) => converted.grants.push(grant),
-                Err(actions) => converted.self_actions.extend(actions),
+                Err(actions) => converted.attached_actions.extend(actions),
             }
         }
         converted
@@ -37,7 +37,7 @@ impl From<Vec<permission::Grant>> for Converted {
 }
 
 /// The daemon's grant a shared grant is, or — for a grant over agents
-/// within `self`, which no daemon grant can say — the actions it
+/// within `attached`, which no daemon grant can say — the actions it
 /// holds, to be judged apart.
 fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
     Ok(match grant {
@@ -46,7 +46,7 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
             permission::agents::Permission::Over { actions, within } => {
                 let within = match within {
                     permission::agents::Within::Any => Within::Any,
-                    permission::agents::Within::Self_ => return Err(actions),
+                    permission::agents::Within::Attached => return Err(actions),
                     permission::agents::Within::NeverActive => Within::Only(never_active()),
                     permission::agents::Within::Only(tags) => Within::Only(agents_filter(tags)),
                 };

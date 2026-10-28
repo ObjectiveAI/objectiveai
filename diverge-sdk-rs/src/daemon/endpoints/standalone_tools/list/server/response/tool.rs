@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
+use crate::shared::permission::Grant;
 use super::Origin;
 
 /// One tool of the caller's: what the daemon knows of it.
@@ -60,6 +61,14 @@ pub struct Tool {
     /// none. Every agent of each has the tool.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attached_agent_templates: Vec<String>,
+    /// What its container declared it may ask of the daemon, at its
+    /// registration when it last started: see [`Grant`]. Declared anew
+    /// at every start, so it changes as the image does. Absent when
+    /// empty — a tool whose container declared none, has never
+    /// started, or is connected, whose container is the other
+    /// daemon's.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub permissions: Vec<Grant>,
     /// Its tags, sorted bytewise: what
     /// [`tag`](crate::daemon::endpoints::standalone_tools::tag) put on it and
     /// [`untag`](crate::daemon::endpoints::standalone_tools::untag) has not taken

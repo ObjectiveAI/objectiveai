@@ -45,8 +45,8 @@ pub(crate) async fn answer<O, T, P, D, M, F>(
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciHas(digest) => oci::has(&handle, scope, channel, digest, answerers.oci).await,
-        Ask::Registration { id, dependencies, secrets } => {
-            registration::registration(&handle, scope, channel, id, dependencies, secrets, answerers.registrar).await
+        Ask::Registration { id, dependencies, secrets, permissions } => {
+            registration::registration(&handle, scope, channel, id, dependencies, secrets, permissions, answerers.registrar).await
         }
         Ask::Write(write_id) => write::write(&handle, scope, channel, write_id, writes, encoders).await,
         Ask::Postgres(connection_id) => {

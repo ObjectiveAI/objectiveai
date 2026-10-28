@@ -8,7 +8,7 @@
 //! of two modes it is, a transient tool of the agent's run or a service
 //! the caller keeps, with the mode's own members — the agent's files
 //! and directories the caller serves live into a transient tool, how
-//! far a service is shared; the grants its account holds — and named by
+//! far a service is shared — and named by
 //! its id, the hash of its canonical bytes, which the caller serves it
 //! to the program under. The proxy carries the list on the agents
 //! begin's `Begun`, beside the secrets the program declared; the

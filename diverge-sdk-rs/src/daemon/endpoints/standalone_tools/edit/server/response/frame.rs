@@ -9,27 +9,26 @@ use crate::shared::error::Error;
 
 /// An edit's answer: the tool is as the request states, no tool is the
 /// one named, the tool is active, the tool is connected, the name is
-/// another's, the account is none the daemon has, or a failure.
+/// another's, forbidden, or a failure.
 ///
 /// An edit is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Edited`](Self::Edited), `1`
 /// for [`NotFound`](Self::NotFound), `2` for [`Active`](Self::Active),
 /// `3` for [`NotOwned`](Self::NotOwned), `4` for
-/// [`InUse`](Self::InUse), `5` for [`NoAccount`](Self::NoAccount), `6`
-/// for [`Forbidden`](Self::Forbidden), `7` for [`Error`](Self::Error) —
-/// and only the error carries anything after it.
+/// [`InUse`](Self::InUse), `5` for [`Forbidden`](Self::Forbidden), `6`
+/// for [`Error`](Self::Error) — and only the error carries anything
+/// after it.
 ///
 /// # Answers, and one failure
 ///
 /// [`NotFound`](Self::NotFound), [`Active`](Self::Active),
-/// [`NotOwned`](Self::NotOwned), [`InUse`](Self::InUse) and
-/// [`NoAccount`](Self::NoAccount) are ANSWERS: the daemon looked, and
+/// [`NotOwned`](Self::NotOwned) and [`InUse`](Self::InUse) are
+/// ANSWERS: the daemon looked, and
 /// no tool of the caller's is the one named, or one is and its container
 /// is running while the result differs in anything but FUSE mounts
 /// added, or it is a connected tool and the
-/// request names a mount or an account, or the name requested is
-/// another tool's, or the account requested is none the daemon has, and
+/// request names a mount, or the name requested is another tool's, and
 /// in each case nothing changed and nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not make the change, for whatever reason it knows, and the tool is
@@ -38,8 +37,8 @@ use crate::shared::error::Error;
 /// # Forbidden
 ///
 /// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
-/// account the request is served for — the connection's, or the
-/// `account` of the container it came from — holds no grant allowing
+/// account the request is served for — the connection's — or the tool
+/// the request came from holds no grant allowing
 /// what the request asks over what it names, and nothing changed. Where
 /// the answer is a stream it comes as an error does: exactly one, with
 /// nothing before it, then the finish. Nothing is retried. See
@@ -64,18 +63,15 @@ pub enum Frame {
     /// anything but FUSE mounts added to it; nothing changed. Tag `2`.
     Active,
     /// The tool is connected, somebody else's container, and the
-    /// request names a mount or an account, which it has none of this
-    /// caller's; nothing changed. Tag `3`.
+    /// request names a mount, which it has none of this caller's;
+    /// nothing changed. Tag `3`.
     NotOwned,
     /// The name requested is another tool's; nothing changed. Tag `4`.
     InUse,
-    /// The account requested is none the daemon has; nothing changed.
-    /// Tag `5`.
-    NoAccount,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `6`.
+    /// it; nothing changed. Tag `5`.
     Forbidden,
-    /// A failure. Tag `7`.
+    /// A failure. Tag `6`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -98,14 +94,11 @@ const NOT_OWNED: u8 = 3;
 /// Tag for [`Frame::InUse`].
 const IN_USE: u8 = 4;
 
-/// Tag for [`Frame::NoAccount`].
-const NO_ACCOUNT: u8 = 5;
-
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 6;
+const FORBIDDEN: u8 = 5;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 7;
+const ERROR: u8 = 6;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -136,10 +129,6 @@ impl Encode for Frame {
                 out.extend_from_slice(&[IN_USE]);
                 Ok(())
             }
-            Frame::NoAccount => {
-                out.extend_from_slice(&[NO_ACCOUNT]);
-                Ok(())
-            }
             Frame::Forbidden => {
                 out.extend_from_slice(&[FORBIDDEN]);
                 Ok(())
@@ -165,7 +154,6 @@ impl Decode<'_> for Frame {
             ACTIVE => Ok(Frame::Active),
             NOT_OWNED => Ok(Frame::NotOwned),
             IN_USE => Ok(Frame::InUse),
-            NO_ACCOUNT => Ok(Frame::NoAccount),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -178,7 +166,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's eight.
+    /// A tag that is none of this frame's seven.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

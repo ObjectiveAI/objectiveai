@@ -9,10 +9,11 @@ use super::{Make, Over, Within};
 /// apart on the wire by their very form, as
 /// [`permission`](crate::shared::permission) states them: a bare array
 /// of [`Make`] actions; an object of [`Over`] actions and how far they
-/// reach — every agent, the dependency's own, or by tags; or an object
+/// reach — every agent, the tool's attached agents, those never active,
+/// or by tags; or an object
 /// of tagging actions, how far they reach, and which tags. An object
 /// that is none of these — an action of one shape among another's, a
-/// member missing, a `within` that is not `"any"`, `"self"`,
+/// member missing, a `within` that is not `"any"`, `"attached"`,
 /// `"never_active"` or a [`Tags`] — does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
@@ -22,12 +23,13 @@ pub enum Permission {
     /// judged but that the action is held.
     Make(Vec<Make>),
     /// Over agents that exist: the [`Over`] actions held, reaching
-    /// every one of them, the dependency's own agents, or only those
+    /// every one of them, the tool's attached agents, those never active,
+    /// or only those
     /// the [`Tags`] let through, read as a test.
     Over {
         /// The actions.
         actions: Vec<Over>,
-        /// How far: `"any"`, `"self"`, `"never_active"`, or the tags as
+        /// How far: `"any"`, `"attached"`, `"never_active"`, or the tags as
         /// a test. See
         /// [`Within`].
         within: Within,

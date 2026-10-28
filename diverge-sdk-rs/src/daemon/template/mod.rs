@@ -13,9 +13,8 @@
 //! template](crate::daemon::endpoints::agents::templates) and `"tool"`
 //! for a [tool template](crate::daemon::endpoints::standalone_tools::templates),
 //! so the two kinds never hash the same and a template's text says what
-//! it is for. Each family makes, lists and deletes its own. The account
-//! a container runs under is not a template's but a create's, and so
-//! is every volume it mounts.
+//! it is for. Each family makes, lists and deletes its own. Every
+//! volume a container mounts is not a template's but a create's.
 //!
 //! # The id is the template's hash
 //!

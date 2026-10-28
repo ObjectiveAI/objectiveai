@@ -1,4 +1,4 @@
-//! Every agent, the dependency's own, those never active, or only these.
+//! Every agent, the tool's attached agents, those never active, or only these.
 
 use std::borrow::Cow;
 
@@ -10,30 +10,34 @@ use serde::{Deserialize, Serialize};
 use crate::shared::permission::Tags;
 
 /// How far a grant over agents reaches: every agent there is, the
-/// dependency's own agents, the agents that have never been active, or
-/// only those the [`Tags`] let through. Flat on the wire: the string
-/// `"any"`, the string `"self"`, the string `"never_active"`, or the
+/// agents attached to the tool holding the grant, the agents that have
+/// never been active, or only those the [`Tags`] let through. Flat on
+/// the wire: the string `"any"`, the string `"attached"`, the string
+/// `"never_active"`, or the
 /// tags object as it is. No word is a tags object, so the four shapes
 /// never collide; a string that is none of the words does not decode.
 ///
-/// # `self` is the agents the dependency is a dependency of
+/// # `attached` is the agents attached to the tool
 ///
 /// The one word the agents kind has that no other has, and that no
-/// grant of the daemon's own has: it names nothing and reaches, for a
-/// transient tool, the one agent it was deployed for, and, for a
-/// service, every agent attached to it — attached by a registration
-/// that declared the service's template, and still so — whether or
-/// not any of them is active. A tool that may `message` within
-/// `self` may message its own agents and no other, whatever their
-/// tags, which is what a tool that answers to its agents asks for.
+/// grant of the daemon's own has: it names nothing and reaches the
+/// agents attached to the tool that holds the grant, judged at every
+/// request, whether or not any of them is active. For a standalone
+/// tool, those it is attached to directly, and every agent of every
+/// template it is attached to. For a dependency tool, those attached
+/// to it by a registration that declared its template, and still so:
+/// for a transient tool the one agent it was deployed for. A tool that
+/// may `message` within `attached` may message its own agents and no
+/// other, whatever their tags, which is what a tool that answers to
+/// its agents asks for.
 ///
 /// # `never_active` is the agents that have never run
 ///
 /// Every agent no container has ever been started for — no
 /// `last_active` — judged per agent at every request, so an agent
 /// leaves this reach the moment it first runs, and is reached after
-/// only if another grant reaches it (`self`, once its registration
-/// attaches it). What a tool asks for that must reach agents before
+/// only if another grant reaches it (`attached`, once it is
+/// attached). What a tool asks for that must reach agents before
 /// they could ever have declared it: to look one up, list them, or
 /// send one its first message. The daemon judges it as its own grant
 /// over agents whose filter is `{"active": "never"}`.
@@ -41,8 +45,8 @@ use crate::shared::permission::Tags;
 pub enum Within {
     /// Every agent: the string `"any"`.
     Any,
-    /// The dependency's own agents: the string `"self"`.
-    Self_,
+    /// The agents attached to the tool: the string `"attached"`.
+    Attached,
     /// The agents that have never been active: the string
     /// `"never_active"`.
     NeverActive,
@@ -54,7 +58,7 @@ impl Serialize for Within {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
             Within::Any => serializer.serialize_str("any"),
-            Within::Self_ => serializer.serialize_str("self"),
+            Within::Attached => serializer.serialize_str("attached"),
             Within::NeverActive => serializer.serialize_str("never_active"),
             Within::Only(only) => only.serialize(serializer),
         }
@@ -66,8 +70,7 @@ impl Serialize for Within {
 #[serde(rename_all = "snake_case")]
 enum Word {
     Any,
-    #[serde(rename = "self")]
-    Self_,
+    Attached,
     NeverActive,
 }
 
@@ -83,7 +86,7 @@ impl<'de> Deserialize<'de> for Within {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         Ok(match Repr::deserialize(deserializer)? {
             Repr::Word(Word::Any) => Within::Any,
-            Repr::Word(Word::Self_) => Within::Self_,
+            Repr::Word(Word::Attached) => Within::Attached,
             Repr::Word(Word::NeverActive) => Within::NeverActive,
             Repr::Only(only) => Within::Only(only),
         })
@@ -107,7 +110,7 @@ impl JsonSchema for Within {
         json_schema!({
             "anyOf": [
                 { "type": "string", "const": "any" },
-                { "type": "string", "const": "self" },
+                { "type": "string", "const": "attached" },
                 { "type": "string", "const": "never_active" },
                 only
             ]

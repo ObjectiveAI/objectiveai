@@ -8,8 +8,8 @@
 // shapes are the daemon's own — to make, over what exists, tagging,
 // the one thing — with one restriction, which is what makes these
 // shareable: a grant here reaches what exists by TAGS alone, `Within`
-// being `"any"` or a `Tags` test, and over agents alone the word
-// `"self"`. Each kind's `Make` and `Over` live here, and the daemon's
+// being `"any"` or a `Tags` test, and over agents alone the words
+// `"attached"` and `"never_active"`. Each kind's `Make` and `Over` live here, and the daemon's
 // grants are built of them.
 
 export * from "./grant.js";

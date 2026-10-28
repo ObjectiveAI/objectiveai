@@ -1,7 +1,7 @@
 //! What an agent's create and a tool's create share.
 //!
 //! An agent container and a tool container are made of the same things:
-//! a template, the account they run under, the provider they run on
+//! a template, the provider they run on
 //! with its volumes, the FUSE mounts of providers' volumes, and the
 //! agent that deploys their declared dependencies. [`Inner`] is those,
 //! written once, and each family's create flattens it into its own

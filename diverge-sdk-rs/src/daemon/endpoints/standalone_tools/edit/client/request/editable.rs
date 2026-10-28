@@ -10,8 +10,7 @@ use crate::daemon::endpoints::agents::create::client::request::{FuseMount, Volum
 /// every member present, a member the patch takes away read as
 /// absent or empty, and no member this type does not have. A
 /// connected tool's document is its name and nothing else of this
-/// caller's: `account` `null` and every mount list empty, which a
-/// patch leaves so.
+/// caller's: every mount list empty, which a patch leaves so.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -21,15 +20,6 @@ pub struct Editable {
     /// once and for all only.
     #[serde(default)]
     pub name: Option<String>,
-    /// The account the tool runs under, by identity: see the create's
-    /// [`account`](crate::daemon::endpoints::standalone_tools::create::client::request::Frame::account).
-    /// An account the daemon does not have is the edit's `NoAccount`,
-    /// one the caller holds no `assign` grant over its `Forbidden`.
-    /// `null`, the tool runs under no account, and everything it asks
-    /// of the daemon is answered `Forbidden` from then on. Changes
-    /// live.
-    #[serde(default)]
-    pub account: Option<crate::shared::Identity>,
     /// Volumes of the provider the create pinned the tool to, as it
     /// is to mount them: see [`VolumeMount`]. Ordered, and applied in
     /// order; no mount's path, in any list, is a prefix of another's.

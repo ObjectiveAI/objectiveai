@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { Creator } from "../../../../../../daemon/creator/creator.js";
 import { Agent } from "../../../../../../daemon/key/agent.js";
+import { Grant } from "../../../../../../shared/permission/grant.js";
 import type { Keyed } from "../../../../../../shared/listing/keyed.js";
 import { Origin } from "./origin.js";
 
@@ -32,6 +33,8 @@ export const Tool = z.object({
   attached_agent_instances: z.array(Agent).optional(),
   /** The agent templates it is attached to, by `attach_agent_template`, each by its id, in the order they were attached; empty for none. Every agent of each has the tool. */
   attached_agent_templates: z.array(z.string()).optional(),
+  /** What its container declared it may ask of the daemon, at its registration when it last started. Declared anew at every start. Absent when empty — none declared, never started, or connected. */
+  permissions: z.array(Grant).optional(),
   /** Its tags, sorted bytewise: what `tag` put on it and `untag` has not taken off. Absent when empty. */
   tags: z.array(z.string()).optional(),
 });

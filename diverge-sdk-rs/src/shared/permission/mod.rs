@@ -1,5 +1,5 @@
-//! Permissions that name nothing: the grants a dependency tool
-//! template asks for its tool, and the actions every grant of the
+//! Permissions that name nothing: the grants a tool's program declares
+//! for itself at its registration, and the actions every grant of the
 //! daemon's is made of.
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds
@@ -21,14 +21,14 @@
 //! attachments — this one is [`Within`]: the string `"any"`, every one
 //! of the kind, or a [`Tags`] test, those carrying every one of some
 //! tags and any one of others — and, over agents alone, the words
-//! `"self"`, [`agents::Within`]: the agents the dependency is a
-//! dependency of, which a template may name without naming anyone,
+//! `"attached"`, [`agents::Within`]: the agents attached to the tool,
+//! which a program may name without naming anyone,
 //! and `"never_active"`, the agents that have never run. A
 //! tagging grant likewise touches `"any"`
 //! tag or a listed set. No name of an agent, a tool, a volume, an
-//! account or a role appears anywhere, and no route: a dependency tool
-//! template is meant to travel — handed from one caller to another,
-//! hashed the same everywhere — and a name is one daemon's word for
+//! account or a role appears anywhere, and no route: a tool's image is
+//! meant to travel — run by one caller and another, declaring the same
+//! everywhere — and a name is one daemon's word for
 //! one thing, while a tag is a convention a template may assume. The
 //! database and the events, of each of which there is one, and images,
 //! which are named and never held, are a bare array of actions each,
@@ -46,14 +46,16 @@
 //!
 //! # Where it is carried
 //!
-//! A [`Template`](crate::shared::containers::dependencies::Template)
-//! carries a list of [`Grant`]s: what the account its tool runs under
-//! holds. The provider relays them and reads nothing; the daemon, when
-//! it makes the tool, gives it an account holding exactly these and
-//! judges everything the tool asks of it by them, as
+//! A tool's program answers its registration with a list of
+//! [`Grant`]s — the `permissions` of the
+//! [`register`](crate::container_proxy::inside::register) answer — at
+//! every start of its container, a standalone tool's and a dependency
+//! tool's alike. The proxy and the provider relay them and read
+//! nothing; the daemon holds the run to exactly these and judges
+//! everything the tool asks of it by them, as
 //! [`daemon::grant`](crate::daemon::grant) states a request is judged.
-//! Every type here derives a JSON Schema, because an image embeds the
-//! template in the schema of its own arguments.
+//! Every type here derives a JSON Schema, because an image embeds its
+//! declarations in the schema of its own documentation.
 
 mod grant;
 mod tags;

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// The actions over accounts that exist, which a grant reaches as far
 /// as its `within` says. Snake case on the wire: `"get"`, `"list"`,
-/// `"delete"`, `"edit"`, `"assign"`.
+/// `"delete"`, `"edit"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -24,9 +24,4 @@ pub enum Over {
     /// [`accounts::edit`](crate::daemon::endpoints::accounts::edit)
     /// does.
     Edit,
-    /// Name one as a container's `account`, at an
-    /// [agent's](crate::daemon::endpoints::agents::create) or a
-    /// [tool's](crate::daemon::endpoints::standalone_tools::create) create or
-    /// edit.
-    Assign,
 }

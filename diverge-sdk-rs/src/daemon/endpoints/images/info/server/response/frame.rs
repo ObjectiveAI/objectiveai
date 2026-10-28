@@ -30,8 +30,8 @@ use crate::wire::encode::{Encode, Writer};
 /// # Forbidden
 ///
 /// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
-/// account the request is served for — the connection's, or the
-/// `account` of the container it came from — holds no grant allowing
+/// account the request is served for — the connection's — or the tool
+/// the request came from holds no grant allowing
 /// what the request asks, and nothing was asked. See
 /// [`grant`](crate::daemon::grant).
 ///
