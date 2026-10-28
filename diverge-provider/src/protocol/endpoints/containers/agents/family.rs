@@ -30,6 +30,7 @@ use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
 use diverge_sdk::shared::containers::secrets::{Declaration, Values};
+use diverge_sdk::shared::permission::Grant;
 use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, registration};
 use diverge_sdk::shared::mcp;
 use diverge_sdk::shared::error::Error;
@@ -136,6 +137,7 @@ impl Runs for Agents {
                     activity: None,
                     dependencies: registered.dependencies,
                     secrets: registered.secrets,
+                    permissions: Vec::new(),
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -148,14 +150,16 @@ impl Runs for Agents {
     }
 
     /// What the agent declared — the dependencies to deploy, the
-    /// secrets to answer — registered with the caller on this family's
-    /// `registration` channel: nothing when it declared neither.
-    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
-        let payload = (!dependencies.is_empty() || !secrets.is_empty()).then(|| {
+    /// secrets to answer, never any permission — registered with the
+    /// caller on this family's `registration` channel: nothing when it
+    /// declared neither.
+    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration, permissions: &[Grant]) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
+        let payload = (!dependencies.is_empty() || !secrets.is_empty() || !permissions.is_empty()).then(|| {
             encoded(&ask::Frame::Registration(registration::request::Request {
                 id: Cow::Borrowed(id),
                 dependencies: Cow::Borrowed(dependencies),
                 secrets: Cow::Borrowed(secrets),
+                permissions: Cow::Borrowed(permissions),
             }))
         });
         async move {

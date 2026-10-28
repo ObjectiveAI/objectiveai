@@ -30,6 +30,7 @@ use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
 use diverge_sdk::shared::containers::secrets::{Declaration, Values};
+use diverge_sdk::shared::permission::Grant;
 use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, registration};
 use diverge_sdk::shared::containers::daemon;
 use diverge_sdk::shared::error::Error;
@@ -142,6 +143,7 @@ impl Runs for Tools {
                     activity: Some(events),
                     dependencies: Vec::new(),
                     secrets: registered.secrets,
+                    permissions: registered.permissions,
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -153,16 +155,17 @@ impl Runs for Tools {
         Some(relayed(ask)?)
     }
 
-    /// The secrets the tool takes, registered with the caller on this
-    /// family's `registration` channel — the dependencies always
-    /// empty, since a tool container declares none: nothing when it
-    /// takes none.
-    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
-        let payload = (!dependencies.is_empty() || !secrets.is_empty()).then(|| {
+    /// The secrets the tool takes and the permissions it holds,
+    /// registered with the caller on this family's `registration`
+    /// channel — the dependencies always empty, since a tool container
+    /// declares none: nothing when it declared neither.
+    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration, permissions: &[Grant]) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
+        let payload = (!dependencies.is_empty() || !secrets.is_empty() || !permissions.is_empty()).then(|| {
             encoded(&ask::Frame::Registration(registration::request::Request {
                 id: Cow::Borrowed(id),
                 dependencies: Cow::Borrowed(dependencies),
                 secrets: Cow::Borrowed(secrets),
+                permissions: Cow::Borrowed(permissions),
             }))
         });
         async move {

@@ -211,7 +211,7 @@ where
 /// error too. Nothing is delivered to the container by its proxy
 /// until this feed, which is why it precedes the id.
 async fn fed<R: Runs>(scope: &ScopeHandle, id: &str, begun: &Begun) -> Result<(), Error> {
-    let Some(values) = R::register(scope, id, &begun.dependencies, &begun.secrets).await? else {
+    let Some(values) = R::register(scope, id, &begun.dependencies, &begun.secrets, &begun.permissions).await? else {
         return Ok(());
     };
     match begun.begin.secrets(values).await {

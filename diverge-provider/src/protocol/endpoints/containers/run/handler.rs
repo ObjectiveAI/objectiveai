@@ -148,6 +148,7 @@ pub(crate) async fn run<R, D, G, V>(
         activity,
         dependencies: _,
         secrets: _,
+        permissions: _,
     } = prepared.begun;
     let run = Arc::new(Run::new(
         Arc::clone(&scope),

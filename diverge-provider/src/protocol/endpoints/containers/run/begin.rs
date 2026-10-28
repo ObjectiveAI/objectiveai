@@ -9,6 +9,7 @@ use diverge_sdk::provider::endpoints::containers::client::{ChannelStream, OpenEr
 use diverge_sdk::shared::containers::dependencies::Template;
 use diverge_sdk::shared::containers::info::Document;
 use diverge_sdk::shared::containers::secrets::{Declaration, Values};
+use diverge_sdk::shared::permission::Grant;
 
 /// The begin scope on a container's proxy connection: the place the
 /// proxy's asks ride, and the family's own exchanges.
@@ -126,4 +127,8 @@ pub(crate) struct Begun {
     /// `Begun`: what the caller is asked the values of, when any, and
     /// what is fed back before the id goes out.
     pub secrets: Declaration,
+    /// The grants a tool container declared at registration, off its
+    /// `Begun`: what the caller holds it to. An agent container's is
+    /// empty: it asks the caller nothing.
+    pub permissions: Vec<Grant>,
 }
