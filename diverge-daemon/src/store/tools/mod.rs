@@ -13,7 +13,8 @@
 //! [`counters`](crate::store::counters); [`update`] rewrites what an
 //! edit may change; [`delete`] removes one, its attachments with it;
 //! [`set_tags`] writes the tags; [`set_last`] keeps
-//! where and when it last ran.
+//! where and when it last ran; [`set_permissions`] keeps what its
+//! container last declared it may ask of the daemon.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -25,6 +26,7 @@ mod delete;
 mod edit;
 mod load;
 mod mode;
+mod permissions;
 mod row;
 mod tags;
 mod tool;
@@ -39,5 +41,6 @@ pub use delete::*;
 pub use edit::*;
 pub use load::*;
 pub use mode::*;
+pub use permissions::*;
 pub use tags::*;
 pub use tool::*;

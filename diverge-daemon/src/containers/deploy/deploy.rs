@@ -7,7 +7,6 @@ use std::time::Instant;
 
 use diverge_sdk::shared::mcp::attestation;
 use diverge_sdk::daemon::creator::{self, Creator};
-use diverge_sdk::daemon::grant::Converted;
 use diverge_sdk::daemon::key;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
 use diverge_sdk::shared::containers::dependencies;
@@ -21,9 +20,9 @@ use crate::containers::fuse::Mounts;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
 use crate::containers::services;
-use crate::containers::{Inflight, Key, ToolHandle, ToolKey, ToolRun, build, provider, pump_tool, secrets, stop};
+use crate::containers::{Inflight, Key, ToolHandle, ToolKey, ToolRun, build, permissions, provider, pump_tool, secrets, stop};
 use crate::daemon::{Daemon, Kind};
-use crate::judge::{Dependent, Fixed};
+use crate::judge::ToolRef;
 use crate::serve::inner;
 use crate::store::agents::{self, Agent};
 use crate::store::dependency_tools::{self, DependencyTool};
@@ -191,7 +190,8 @@ async fn record(
 /// One transient tool started: its secrets bound through the agent's
 /// binding, to be taken at its own registration and held under the
 /// dependency tool as holder, its mounts served from the agent, its
-/// container run on the first candidate provider that will, its run
+/// container run on the first candidate provider that will, what its
+/// program declared it may ask of the daemon kept on its row, its run
 /// entered as live under its row with its pump — a run still live
 /// under the row, from an agent run that ended without it, stopped
 /// first, since a row has one run. The reason it could not be, in a
@@ -234,10 +234,6 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
         template: tool.template.clone(),
         owner: key::Owner::Agent(agent_key.clone()),
     });
-    let dependent = (!tool.declared.permissions.is_empty()).then(|| Dependent {
-        fixed: Arc::new(Fixed::new(sender.clone(), Converted::from(tool.declared.permissions.clone()))),
-        tool: tool.id,
-    });
     let touched = watch::channel(Instant::now()).0;
     let mut last = String::new();
     for (identity, handle) in candidates {
@@ -246,8 +242,8 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             key: Key::Tool(key),
             caller: None,
             sender: sender.clone(),
-            account: None,
-            dependent: dependent.clone(),
+            tool: Some(ToolRef::Dependency(tool.id)),
+            permissions: Mutex::new(Vec::new()),
             provider: identity.clone(),
             mounts: Arc::clone(&mounts),
             served: Arc::new(Mutex::new(Served::new())),
@@ -267,11 +263,14 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
                 continue;
             }
         };
+        let permissions = run_answerer.permissions.lock().await.clone();
+        permissions::record(daemon, ToolRef::Dependency(tool.id), &permissions)
+            .await
+            .map_err(|error| error.to_string())?;
         let run = Arc::new(ToolRun {
             id: key,
             attestation: attestation.clone(),
             sender: sender.clone(),
-            account: None,
             provider: identity,
             container: Some(container_id.id),
             handle: ToolHandle::Run(handle),

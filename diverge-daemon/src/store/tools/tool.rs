@@ -10,7 +10,8 @@ use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::reference;
 use indexmap::IndexMap;
 
-use crate::store::{AccountId, ToolId};
+use crate::store::ToolId;
+use diverge_sdk::shared::permission::Grant;
 
 /// How a tool came to be, and what that way holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,8 +45,6 @@ pub struct Tool {
     pub index: u64,
     /// The name, if the tool has one.
     pub name: Option<String>,
-    /// The account it runs under, if any.
-    pub account: Option<AccountId>,
     /// Files of other providers' volumes, served across the daemon.
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes, likewise.
@@ -53,6 +52,10 @@ pub struct Tool {
     /// Which vault key each secret its template declares is; none for
     /// a connected tool.
     pub secrets: IndexMap<String, String>,
+    /// What its container declared it may ask of the daemon when it
+    /// last started; empty for one that declared none, has never
+    /// started, or is connected.
+    pub permissions: Vec<Grant>,
     /// The provider it last ran on, or was last connected through, if it
     /// ever was.
     pub last_provider: Option<Identity>,
@@ -139,6 +142,7 @@ impl Tool {
             last_active: self.last_active,
             attached_agent_instances: agents,
             attached_agent_templates: templates,
+            permissions: self.permissions.clone(),
             tags: self.tags.clone(),
         }
     }

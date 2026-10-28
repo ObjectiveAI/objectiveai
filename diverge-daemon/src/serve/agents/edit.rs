@@ -140,7 +140,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if mounts_changed {
         match inner::providers(daemon, provider.as_ref(), &result.fuse_file_mounts, &result.fuse_directory_mounts) {
             Checked::Ok(()) => {}
-            Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
             Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
         }
         match inner::mounts(&mut tx, &standing, daemon, provider.as_ref(), &result.fuse_file_mounts, &result.fuse_directory_mounts).await? {

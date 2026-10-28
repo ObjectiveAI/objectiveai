@@ -20,6 +20,8 @@ use super::mcp::Served;
 use super::{AgentRun, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_tool, serve_name, services, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::daemons;
+use crate::containers::permissions;
+use crate::judge::ToolRef;
 use crate::store::agents::Agent;
 use crate::store::tools::{Origin, Tool, attachments};
 use crate::store::{agents, agents_templates, tools as tool_records, tools_templates};
@@ -124,8 +126,8 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
                 key: agent.key(),
             })),
             sender: sender_of_agent(agent),
-            account: None,
-            dependent: None,
+            tool: None,
+            permissions: Mutex::new(Vec::new()),
             provider: identity.clone(),
             mounts: Arc::clone(&mounts),
             served: Arc::clone(&served),
@@ -259,8 +261,8 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     key: Key::Tool(ToolKey::Record(tool.id)),
                     caller: None,
                     sender: sender_of_tool(tool),
-                    account: tool.account,
-                    dependent: None,
+                    tool: Some(ToolRef::Standalone(tool.id)),
+                    permissions: Mutex::new(Vec::new()),
                     provider: identity.clone(),
                     mounts: Arc::clone(&mounts),
                     served: Arc::new(Mutex::new(Served::new())),
@@ -274,6 +276,8 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 match tools_run::execute(&handle, &tools_request::Frame(container.clone()), answerer.set()).await {
                     Ok((id, handle, stream)) => {
                         let secrets = answerer.secrets.lock().await.take();
+                        let permissions = answerer.permissions.lock().await.clone();
+                        permissions::record(daemon, ToolRef::Standalone(tool.id), &permissions).await?;
                         opened = Some((identity, id.id, handle, stream, secrets));
                         break;
                     }
@@ -321,7 +325,6 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         id: ToolKey::Record(tool.id),
         attestation,
         sender: sender_of_tool(tool),
-        account: tool.account,
         provider: identity.clone(),
         container,
         handle,

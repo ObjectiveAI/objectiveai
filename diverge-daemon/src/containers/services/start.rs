@@ -6,7 +6,6 @@ use std::time::Instant;
 
 use diverge_sdk::shared::mcp::attestation;
 use diverge_sdk::daemon::creator::{self, Creator};
-use diverge_sdk::daemon::grant::Converted;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
 use diverge_sdk::shared::containers::dependencies::Scope;
 use indexmap::IndexMap;
@@ -16,9 +15,9 @@ use crate::containers::answerers::Answerer;
 use crate::containers::fuse::Mounts;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
-use crate::containers::{Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, provider, pump_tool, secrets};
+use crate::containers::{Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, permissions, provider, pump_tool, secrets};
 use crate::daemon::{Daemon, Kind};
-use crate::judge::{Dependent, Fixed};
+use crate::judge::ToolRef;
 use crate::store::agents;
 use crate::store::dependency_tools::{DependencyTool, attachments};
 
@@ -28,8 +27,8 @@ use crate::store::dependency_tools::{DependencyTool, attachments};
 /// secrets bound by name through the agent that spawns the run, taken
 /// at the service's own registration and held under the dependency
 /// tool as holder — run on the first candidate provider that will,
-/// under its template's grants with every attached agent as its
-/// `self`, its run entered as live under its row with its pump. The
+/// under the grants its program declared at its registration, kept on
+/// its row, with every attached agent as its `attached`, its run entered as live under its row with its pump. The
 /// agent that spawns the run is the service's owner, for an
 /// `instance` scope, and otherwise the attached agent whose
 /// registration declared the template last — so the binding may
@@ -88,10 +87,6 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         template: tool.template.clone(),
         owner,
     };
-    let dependent = Dependent {
-        fixed: Arc::new(Fixed::new(sender.clone(), Converted::from(tool.declared.permissions.clone()))),
-        tool: tool.id,
-    };
     let touched = watch::channel(Instant::now()).0;
     let mounts = Arc::new(Mounts::empty());
     let mut last = String::new();
@@ -101,8 +96,8 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
             key: Key::Tool(key),
             caller: None,
             sender: sender.clone(),
-            account: None,
-            dependent: Some(dependent.clone()),
+            tool: Some(ToolRef::Dependency(tool.id)),
+            permissions: Mutex::new(Vec::new()),
             provider: identity.clone(),
             mounts: Arc::clone(&mounts),
             served: Arc::new(Mutex::new(Served::new())),
@@ -121,11 +116,12 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
                 continue;
             }
         };
+        let permissions = answerer.permissions.lock().await.clone();
+        permissions::record(daemon, ToolRef::Dependency(tool.id), &permissions).await?;
         let run = Arc::new(ToolRun {
             id: key,
             attestation: attestation.clone(),
             sender: sender.clone(),
-            account: None,
             provider: identity,
             container: Some(id.id),
             handle: ToolHandle::Run(handle),

@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use sqlx::PgConnection;
 use sqlx::types::Json;
 
-use crate::store::{AccountId, Error, ToolId};
+use crate::store::{Error, ToolId};
 
 /// A tool's editable columns, as they are to be: the whole of them,
 /// since an edit is applied whole. The caller computes them from the
@@ -16,8 +16,6 @@ use crate::store::{AccountId, Error, ToolId};
 pub struct Columns {
     /// The name, if any.
     pub name: Option<String>,
-    /// The account, if any.
-    pub account: Option<AccountId>,
     /// The provider pin with its volumes, if any.
     pub provider: Option<Provider>,
     /// Files of other providers' volumes.
@@ -40,12 +38,11 @@ pub enum Updated {
 /// Write the columns.
 pub async fn update(conn: &mut PgConnection, id: ToolId, columns: &Columns) -> Result<Updated, Error> {
     let written = sqlx::query(
-        "UPDATE diverge.tools SET name = $2, account = $3, provider = $4, fuse_file_mounts = $5, \
-         fuse_directory_mounts = $6, secrets = $7 WHERE id = $1",
+        "UPDATE diverge.tools SET name = $2, provider = $3, fuse_file_mounts = $4, \
+         fuse_directory_mounts = $5, secrets = $6 WHERE id = $1",
     )
     .bind(id.0)
     .bind(&columns.name)
-    .bind(columns.account.map(|account| account.0))
     .bind(columns.provider.as_ref().map(Json))
     .bind(Json(&columns.fuse_file_mounts))
     .bind(Json(&columns.fuse_directory_mounts))

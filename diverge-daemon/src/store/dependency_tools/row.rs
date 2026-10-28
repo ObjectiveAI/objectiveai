@@ -9,10 +9,11 @@ use sqlx::types::Json;
 
 use super::{DependencyTool, scope_of};
 use crate::store::{AgentId, DependencyToolId, Error};
+use diverge_sdk::shared::permission::Grant;
 
 /// The columns every dependency tool query selects: the row joined to
 /// its template's body.
-pub(super) const SELECT: &str = "SELECT t.id, t.template, t.index, d.template AS declared, t.scope, t.owner_agent, t.owner_template, t.tags, t.created, t.creator \
+pub(super) const SELECT: &str = "SELECT t.id, t.template, t.index, d.template AS declared, t.scope, t.owner_agent, t.owner_template, t.tags, t.permissions, t.created, t.creator \
      FROM diverge.dependency_tools t JOIN diverge.dependencies d ON d.id = t.template";
 
 /// The order: oldest first.
@@ -27,6 +28,7 @@ pub(super) fn tool(row: &PgRow) -> Result<DependencyTool, Error> {
     let owner_agent: Option<i64> = row.try_get("owner_agent")?;
     let Json(declared): Json<Template> = row.try_get("declared")?;
     let Json(creator): Json<Creator> = row.try_get("creator")?;
+    let Json(permissions): Json<Vec<Grant>> = row.try_get("permissions")?;
     let created: DateTime<Utc> = row.try_get("created")?;
     let index: i64 = row.try_get("index")?;
     Ok(DependencyTool {
@@ -38,6 +40,7 @@ pub(super) fn tool(row: &PgRow) -> Result<DependencyTool, Error> {
         owner_agent: owner_agent.map(AgentId),
         owner_template: row.try_get("owner_template")?,
         tags: row.try_get("tags")?,
+        permissions,
         created,
         creator,
     })

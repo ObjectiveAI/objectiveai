@@ -48,8 +48,8 @@ pub async fn connection(connection: Connection, address: IpAddr, daemon: Arc<Dae
 /// Serve a client admitted as `who`, past its handshake, until the
 /// socket ends.
 ///
-/// The connection counts itself in as its account — a dependency
-/// tool's, served under its grants, is no account's — and every
+/// The connection counts itself in as its account — a tool's, served
+/// under the grants it declared, is no account's — and every
 /// scope the client opens is read as a request and handed to
 /// [`dispatch`] on a task of its own, so a slow answer never holds
 /// the socket; a frame that is not a request ends the connection. When the

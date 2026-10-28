@@ -29,7 +29,7 @@ use super::secrets::Secrets;
 use super::{ConnectionId, Frames, Inflight, ToolKey};
 use crate::content::Pieces;
 use crate::store::dependency_tools::DependencyTool;
-use crate::store::{AccountId, AgentId};
+use crate::store::AgentId;
 
 /// A running agent: the scope held on its provider, whether a loop
 /// runs in it, what is in flight for it, when it was last used, what
@@ -248,8 +248,6 @@ pub struct ToolRun {
     pub attestation: attestation::Tool,
     /// The tool as a sender and a maker.
     pub sender: Creator,
-    /// The account it runs under, if any.
-    pub account: Option<AccountId>,
     /// The provider it runs on, or the daemon connection to its daemon
     /// goes through.
     pub provider: Identity,

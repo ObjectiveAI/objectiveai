@@ -22,7 +22,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for an account the grants do not reach; `InUse` while a client is
-/// connected as it or a container runs under it; else the account
+/// connected as it; else the account
 /// gone, its holdings of roles with it, and what it created keeping
 /// its creator.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -40,7 +40,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::accounts::over(&standing, Over::Delete, &account, connected) {
         return Ok(Frame::Forbidden);
     }
-    if connected || store::in_use::account(&mut tx, account.id).await? {
+    if connected {
         return Ok(Frame::InUse);
     }
     accounts::delete(&mut tx, account.id).await?;

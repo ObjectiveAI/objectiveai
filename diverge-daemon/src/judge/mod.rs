@@ -7,15 +7,15 @@
 //! configuration accepts, an administrator its `admins` names, or the
 //! account that identity is, a [`Who`] — or as nothing, which is the
 //! socket closed. With no account, no administrator and no accepted
-//! provider, nothing is admitted. A dependency tool's
-//! `/daemon` connection is admitted by no token: its [`Who`] is the
-//! [`Dependent`] its template fixed,
-//! the grants and which tool's attachments its `self` is. The
+//! provider, nothing is admitted. A tool's `/daemon` connection is
+//! admitted by no token: its [`Who`] is what its container
+//! [`Declared`] at its registration — the grants, and which tool's
+//! attached agents its `attached` reaches. The
 //! second is per request: [`Standing`] is who is asking as of THIS
 //! request — an account's identity and the union of the grants of
 //! the roles it holds, read fresh inside the request's own
-//! transaction, or a dependency's grants as fixed with the agents its
-//! `self` reaches read fresh — and
+//! transaction, or a tool's grants as declared with the agents its
+//! `attached` reaches read fresh — and
 //! [`accounts`], [`roles`], [`providers`],
 //! [`daemons`], [`agents_templates`],
 //! [`standalone_tools_templates`], [`dependency_tools`],
@@ -40,12 +40,12 @@
 //! through this module and not through the file it lives in.
 
 mod admit;
-mod dependent;
+mod declared;
 mod standing;
 mod who;
 
 pub use admit::*;
-pub use dependent::*;
+pub use declared::*;
 pub use standing::*;
 pub use who::*;
 

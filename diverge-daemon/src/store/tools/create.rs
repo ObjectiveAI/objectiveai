@@ -9,7 +9,7 @@ use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
 use super::Origin;
-use crate::store::{AccountId, Error, ToolId, counters};
+use crate::store::{Error, ToolId, counters};
 
 /// What a new tool is made of: its origin, checked by the caller —
 /// the template live, the remote daemon configured — and what a create
@@ -20,8 +20,6 @@ pub struct New {
     pub origin: Origin,
     /// The name, if any.
     pub name: Option<String>,
-    /// The account it runs under, if any.
-    pub account: Option<AccountId>,
     /// Files of other providers' volumes.
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes.
@@ -61,8 +59,8 @@ pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error
     };
     let inserted = sqlx::query(
         "INSERT INTO diverge.tools (kind, template, provider, connected_daemon, connected_tool, index, name, \
-         account, fuse_file_mounts, fuse_directory_mounts, secrets, creator) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
+         fuse_file_mounts, fuse_directory_mounts, secrets, creator) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
     )
     .bind(kind)
     .bind(template)
@@ -71,7 +69,6 @@ pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error
     .bind(connected_tool)
     .bind(i64::try_from(index).unwrap_or(i64::MAX))
     .bind(&new.name)
-    .bind(new.account.map(|account| account.0))
     .bind(Json(&new.fuse_file_mounts))
     .bind(Json(&new.fuse_directory_mounts))
     .bind(Json(&new.secrets))

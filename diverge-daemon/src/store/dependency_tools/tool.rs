@@ -5,6 +5,7 @@ use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::{Attached, Listed, Run};
 use diverge_sdk::daemon::key;
 use diverge_sdk::shared::containers::dependencies::{Mode, Scope, Template};
+use diverge_sdk::shared::permission::Grant;
 
 use crate::store::agents::Agent;
 use crate::store::{AgentId, DependencyToolId};
@@ -31,6 +32,10 @@ pub struct DependencyTool {
     pub owner_template: Option<String>,
     /// Its tags, sorted bytewise.
     pub tags: Vec<String>,
+    /// What its container declared it may ask of the daemon when it
+    /// last started; empty for one that declared none or has never
+    /// started.
+    pub permissions: Vec<Grant>,
     /// When it was made.
     pub created: DateTime<Utc>,
     /// The agent whose registration made it.
@@ -79,6 +84,7 @@ impl DependencyTool {
             template: self.declared.clone(),
             agents,
             run,
+            permissions: self.permissions.clone(),
         }
     }
 }

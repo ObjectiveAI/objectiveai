@@ -135,12 +135,14 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
     connected_tool        JSONB,
     index                 BIGINT NOT NULL,
     name                  TEXT UNIQUE,
-    account               BIGINT REFERENCES diverge.accounts(id) ON DELETE RESTRICT,
     fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
     fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
     -- Which vault key each secret the template declares is, as for
     -- an agent; empty for a connected tool.
     secrets               JSONB NOT NULL DEFAULT '{}',
+    -- What its container declared it may ask of the daemon at its
+    -- registration when it last started; empty for none.
+    permissions           JSONB NOT NULL DEFAULT '[]',
     last_provider         JSONB,
     last_active           TIMESTAMPTZ,
     tags                  TEXT[] NOT NULL DEFAULT '{}',
@@ -201,6 +203,9 @@ CREATE TABLE IF NOT EXISTS diverge.dependency_tools (
     owner_agent    BIGINT REFERENCES diverge.agents(id) ON DELETE CASCADE,
     owner_template TEXT,
     tags           TEXT[] NOT NULL DEFAULT '{}',
+    -- What its container declared it may ask of the daemon at its
+    -- registration when it last started; empty for none.
+    permissions    JSONB NOT NULL DEFAULT '[]',
     created        TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator        JSONB NOT NULL,
     CONSTRAINT dependency_tools_scope_owner CHECK (

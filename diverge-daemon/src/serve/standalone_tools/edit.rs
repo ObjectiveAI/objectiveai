@@ -1,4 +1,4 @@
-//! Editing a tool: a patch to its name, its account, its mounts —
+//! Editing a tool: a patch to its name, its mounts, its secrets —
 //! while its container runs, to its FUSE mounts alone, and only by
 //! addition.
 
@@ -14,7 +14,7 @@ use crate::judge::{self, Standing, Who};
 use crate::serve::inner::{self, Checked, Mounted, Outcome, Secrets, Which};
 use crate::serve::reply;
 use crate::store::tools::Origin;
-use crate::store::{self, accounts, tools, tools_templates};
+use crate::store::{self, tools, tools_templates};
 
 /// Answer the edit and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -27,15 +27,14 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `edit` grant at all; `NotFound`; `Forbidden`
-/// for a tool the grants do not reach, or an account named the caller
-/// holds no `assign` over; the `patch` error for a patch that could
+/// for a tool the grants do not reach; the `patch` error for a patch that could
 /// not be applied or a result that is not a tool's editable members;
 /// `NotOwned` for a result differing in anything but the name of a
 /// connected tool, which has nothing else of this caller's to change;
 /// `Active` for a result that, while the tool's container runs,
-/// differs in anything but FUSE mounts added — the name, the account,
-/// the volume mounts, the secrets, a FUSE mount removed, replaced or
-/// reordered; `NoAccount`; the error for a provider that is not
+/// differs in anything but FUSE mounts added — the name, the volume
+/// mounts, the secrets, a FUSE mount removed, replaced or reordered;
+/// the error for a provider that is not
 /// there, or volumes named on a tool pinned to no provider; the
 /// `secrets` error for secrets that are not the template's, and
 /// `Forbidden` for a vault key the grants do not reach; `InUse` for a
@@ -86,13 +85,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Origin::Created { provider, .. } => provider.clone(),
         Origin::Connected { .. } => None,
     };
-    let account_identity = match tool.account {
-        Some(id) => accounts::by_id(&mut tx, id).await?.map(|account| account.identity),
-        None => None,
-    };
     let current = Editable {
         name: tool.name.clone(),
-        account: account_identity,
         volume_mounts: pinned.as_ref().map(|provider| provider.volume_mounts.clone()).unwrap_or_default(),
         fuse_file_mounts: tool.fuse_file_mounts.clone(),
         fuse_directory_mounts: tool.fuse_directory_mounts.clone(),
@@ -105,15 +99,14 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let mounts_changed = result.volume_mounts != current.volume_mounts
         || result.fuse_file_mounts != current.fuse_file_mounts
         || result.fuse_directory_mounts != current.fuse_directory_mounts;
-    let account_changed = result.account != current.account;
     let secrets_changed = result.secrets != current.secrets;
-    if tool.is_connected() && (mounts_changed || account_changed || secrets_changed) {
+    if tool.is_connected() && (mounts_changed || secrets_changed) {
         return Ok(Frame::NotOwned);
     }
     let added = match &run {
         None => None,
         Some(_) => {
-            if result.name != current.name || account_changed || result.volume_mounts != current.volume_mounts || secrets_changed {
+            if result.name != current.name || result.volume_mounts != current.volume_mounts || secrets_changed {
                 return Ok(Frame::Active);
             }
             match inner::additions(&current.fuse_file_mounts, &result.fuse_file_mounts, &current.fuse_directory_mounts, &result.fuse_directory_mounts) {
@@ -121,16 +114,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
                 None => return Ok(Frame::Active),
             }
         }
-    };
-    let account = if account_changed {
-        match inner::account(&mut tx, &standing, daemon, result.account.as_ref()).await? {
-            Checked::Ok(account) => account,
-            Checked::NoAccount => return Ok(Frame::NoAccount),
-            Checked::Forbidden => return Ok(Frame::Forbidden),
-            Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
-        }
-    } else {
-        tool.account
     };
     if secrets_changed {
         let Some(id) = tool.template() else {
@@ -161,7 +144,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if mounts_changed {
         match inner::providers(daemon, provider.as_ref(), &result.fuse_file_mounts, &result.fuse_directory_mounts) {
             Checked::Ok(()) => {}
-            Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
             Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
         }
         match inner::mounts(&mut tx, &standing, daemon, provider.as_ref(), &result.fuse_file_mounts, &result.fuse_directory_mounts).await? {
@@ -175,7 +157,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         // Not running: the result is the tool, whole or not at all.
         let columns = tools::Columns {
             name: result.name,
-            account,
             provider,
             fuse_file_mounts: result.fuse_file_mounts,
             fuse_directory_mounts: result.fuse_directory_mounts,
@@ -225,7 +206,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         let mut tx = daemon.store.begin().await?;
         let columns = tools::Columns {
             name: current.name,
-            account,
             provider,
             fuse_file_mounts: made_files,
             fuse_directory_mounts: made_directories,

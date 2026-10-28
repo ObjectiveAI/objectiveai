@@ -50,7 +50,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
             tool: frame.tool,
         },
         name: frame.name,
-        account: None,
         fuse_file_mounts: Vec::new(),
         fuse_directory_mounts: Vec::new(),
         secrets: IndexMap::new(),

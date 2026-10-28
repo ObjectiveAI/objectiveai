@@ -11,11 +11,12 @@ use sqlx::postgres::PgRow;
 use sqlx::types::Json;
 
 use super::{Origin, Tool};
-use crate::store::{AccountId, Error, ToolId};
+use crate::store::{Error, ToolId};
+use diverge_sdk::shared::permission::Grant;
 
 /// The columns every tool query selects.
 pub(super) const SELECT: &str = "SELECT id, kind, template, provider, connected_daemon, connected_tool, index, name, \
-     account, fuse_file_mounts, fuse_directory_mounts, secrets, last_provider, last_active, tags, created, creator \
+     fuse_file_mounts, fuse_directory_mounts, secrets, permissions, last_provider, last_active, tags, created, creator \
      FROM diverge.tools";
 
 /// The order: oldest first.
@@ -47,10 +48,10 @@ pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
         }
     };
     let index: i64 = row.try_get("index")?;
-    let account: Option<i64> = row.try_get("account")?;
     let Json(fuse_file_mounts): Json<Vec<FuseMount>> = row.try_get("fuse_file_mounts")?;
     let Json(fuse_directory_mounts): Json<Vec<FuseMount>> = row.try_get("fuse_directory_mounts")?;
     let Json(secrets): Json<IndexMap<String, String>> = row.try_get("secrets")?;
+    let Json(permissions): Json<Vec<Grant>> = row.try_get("permissions")?;
     let last_provider: Option<Json<Identity>> = row.try_get("last_provider")?;
     let Json(creator): Json<Creator> = row.try_get("creator")?;
     let created: DateTime<Utc> = row.try_get("created")?;
@@ -59,10 +60,10 @@ pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
         origin,
         index: u64::try_from(index).unwrap_or(0),
         name: row.try_get("name")?,
-        account: account.map(AccountId),
         fuse_file_mounts,
         fuse_directory_mounts,
         secrets,
+        permissions,
         last_provider: last_provider.map(|Json(identity)| identity),
         last_active: row.try_get("last_active")?,
         tags: row.try_get("tags")?,

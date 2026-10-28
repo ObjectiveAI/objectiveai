@@ -7,65 +7,70 @@ use diverge_sdk::daemon::grant::{self, Grant};
 use diverge_sdk::shared::Identity;
 use sqlx::PgConnection;
 
-use super::Who;
-use crate::store::{self, AgentId, dependency_tools};
+use super::{ToolRef, Who};
+use crate::store::{self, AgentId, dependency_tools, tools};
 
 /// Who is asking, for the length of one request: the identity they
-/// are served under, every grant they hold, and — a dependency tool's
-/// — the actions over agents it holds within `self` and which agents
+/// are served under, every grant they hold, and — a tool's — the
+/// actions over agents it holds within `attached` and which agents
 /// those are. An account's grants are every grant of every role it
 /// holds, read inside the request's transaction so that the judgment
 /// and the write see one state; `None` is an account deleted since
 /// its client was admitted, which every handler answers as
-/// `Forbidden`. A dependency tool's are its template's, fixed when it
-/// was deployed, and its selves are the agents attached to its row as
-/// of the request: its one agent for a transient tool, every agent
-/// attached to a service.
+/// `Forbidden`. A tool's are what its container declared at its
+/// registration, fixed for the run, and its attached agents are read
+/// as of the request: a standalone tool's, those it is attached to
+/// directly and every agent of every template it is attached to; a
+/// dependency tool's, those attached to its row — its one agent for a
+/// transient tool, every agent attached to a service.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Standing {
-    /// The account's identity, for an account; none for a dependency
-    /// tool, which is no account.
+    /// The account's identity, for an account; none for a tool, which
+    /// is no account.
     pub identity: Option<Identity>,
     /// What the requests make things as: the client, for an account;
-    /// the tool itself, for a dependency tool.
+    /// the tool itself, for a tool.
     pub creator: Creator,
     /// Every grant, in no order.
     grants: Vec<Grant>,
-    /// The actions over agents held within `self`, in no order: a
-    /// dependency tool's, and none for an account.
-    self_actions: Vec<grant::agents::Over>,
-    /// The agents `self` reaches: a dependency tool's own, and none for
-    /// an account.
-    selves: HashSet<AgentId>,
+    /// The actions over agents held within `attached`, in no order: a
+    /// tool's, and none for an account.
+    attached_actions: Vec<grant::agents::Over>,
+    /// The agents `attached` reaches: a tool's attached agents, and
+    /// none for an account.
+    attached: HashSet<AgentId>,
     /// Whether this is an administrator, which every judgment allows.
     admin: bool,
 }
 
 impl Standing {
-    /// The standing of `who` now: an account's read fresh, a
-    /// dependency's as it was fixed, with its selves read fresh.
+    /// The standing of `who` now: an account's read fresh, a tool's as
+    /// its container declared it, with its attached agents read fresh.
     pub async fn of(conn: &mut PgConnection, who: Who) -> Result<Option<Standing>, store::Error> {
         match who {
             Who::Account(id) => Ok(store::of_account(conn, id).await?.map(|(identity, grants)| Standing {
                 creator: Creator::Client(Client { identity: identity.clone() }),
                 identity: Some(identity),
                 grants,
-                self_actions: Vec::new(),
-                selves: HashSet::new(),
+                attached_actions: Vec::new(),
+                attached: HashSet::new(),
                 admin: false,
             })),
-            Who::Dependency(dependent) => {
-                let selves = dependency_tools::attachments::attached(conn, dependent.tool)
-                    .await?
-                    .into_iter()
-                    .map(|attachment| attachment.agent)
-                    .collect();
+            Who::Tool(declared) => {
+                let attached = match declared.tool {
+                    ToolRef::Standalone(tool) => tools::attached_agents(conn, tool).await?.into_iter().collect(),
+                    ToolRef::Dependency(tool) => dependency_tools::attachments::attached(conn, tool)
+                        .await?
+                        .into_iter()
+                        .map(|attachment| attachment.agent)
+                        .collect(),
+                };
                 Ok(Some(Standing {
                     identity: None,
-                    creator: dependent.fixed.creator.clone(),
-                    grants: dependent.fixed.grants.clone(),
-                    self_actions: dependent.fixed.self_actions.clone(),
-                    selves,
+                    creator: declared.fixed.creator.clone(),
+                    grants: declared.fixed.grants.clone(),
+                    attached_actions: declared.fixed.attached_actions.clone(),
+                    attached,
                     admin: false,
                 }))
             }
@@ -73,8 +78,8 @@ impl Standing {
                 creator: Creator::Client(Client { identity: identity.clone() }),
                 identity: Some(identity),
                 grants: Vec::new(),
-                self_actions: Vec::new(),
-                selves: HashSet::new(),
+                attached_actions: Vec::new(),
+                attached: HashSet::new(),
                 admin: true,
             })),
         }
@@ -86,14 +91,14 @@ impl Standing {
         self.admin
     }
 
-    /// The actions over agents held within `self`.
-    pub fn self_actions(&self) -> &[grant::agents::Over] {
-        &self.self_actions
+    /// The actions over agents held within `attached`.
+    pub fn attached_actions(&self) -> &[grant::agents::Over] {
+        &self.attached_actions
     }
 
-    /// Whether the agent is one `self` reaches.
-    pub fn is_self(&self, agent: AgentId) -> bool {
-        self.selves.contains(&agent)
+    /// Whether the agent is one `attached` reaches.
+    pub fn is_attached(&self, agent: AgentId) -> bool {
+        self.attached.contains(&agent)
     }
 
     /// The grants over accounts.

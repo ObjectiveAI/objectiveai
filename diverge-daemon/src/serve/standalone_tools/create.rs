@@ -22,12 +22,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` without the `create` grant, without `assign` over the
-/// account named, or for a vault key the grants do not reach; the
-/// error for a template or a provider that is not there; the
-/// `secrets` error for secrets that are not the template's;
-/// `NoAccount`; `InUse` for a name another
-/// tool has; else the tool made, its index the next for its template,
+/// `Forbidden` without the `create` grant, or for a vault key the
+/// grants do not reach; the error for a template or a provider that is
+/// not there; the `secrets` error for secrets that are not the
+/// template's; `InUse` for a name another tool has; else the tool made, its index the next for its template,
 /// nothing running: the container runs while an attached agent is
 /// active.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -48,15 +46,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Secrets::Missing(what) => return Ok(Frame::Error(reply::secrets(&what))),
         Secrets::Forbidden => return Ok(Frame::Forbidden),
     }
-    let account = match inner::account(&mut tx, &standing, daemon, frame.account.as_ref()).await? {
-        Checked::Ok(account) => account,
-        Checked::NoAccount => return Ok(Frame::NoAccount),
-        Checked::Forbidden => return Ok(Frame::Forbidden),
-        Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
-    };
     match inner::providers(daemon, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts) {
         Checked::Ok(()) => {}
-        Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
     match inner::mounts(&mut tx, &standing, daemon, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts).await? {
@@ -71,7 +62,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
             provider: inner.provider,
         },
         name: frame.name,
-        account,
         fuse_file_mounts: inner.fuse_file_mounts,
         fuse_directory_mounts: inner.fuse_directory_mounts,
         secrets: inner.secrets,

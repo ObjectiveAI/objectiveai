@@ -47,7 +47,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     match inner::providers(daemon, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts) {
         Checked::Ok(()) => {}
-        Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
     match inner::mounts(&mut tx, &standing, daemon, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts).await? {

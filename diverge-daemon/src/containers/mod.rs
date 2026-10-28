@@ -79,6 +79,7 @@ pub mod fuse;
 pub mod images;
 pub mod mcp;
 pub mod message;
+pub mod permissions;
 pub mod services;
 
 pub use activate::*;
