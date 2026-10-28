@@ -190,8 +190,20 @@ inherits it.
   Its agents list is live: a tick on every change (made, deleted, a run starting or ending, an edit, tags, tools).
   Built without it (`--no-default-features`), nothing answers the seams (`absent.rs`): every list is empty, everything else says the network part isn't there yet, and so do the screens. A test checks the
   stand-in's own words are in the program only when the feature is on.
-- **Setup** is `AppState::open(data)` (actions.rs); main.rs builds the menu and picks the folder: the one
-  `DIVERGE_DATA_DIR` names (tests, a second copy of the app), the system's place for the app otherwise.
+- **Setup** is `AppState::open(data)` (actions.rs); main.rs builds the menu and finds the root as the daemon does
+  (`diverge-viewer/config`, crate `diverge-viewer-config`): `--config <dir>`, else `DIVERGE_CONFIG`, else `~/.diverge`.
+  `<root>/viewer.yaml` names the daemon and the identity it is dialled as (`daemon.address`, `daemon.issuer`,
+  `daemon.subject`, one of `<root>/identities/`, signed in by `diverge identities login`); a document naming no daemon
+  stops the start. `diverge viewer config get|set|patch` edits it with the same type. Every file the app keeps is in
+  `<root>/viewer/`.
+- **The daemon proxy** is the SDK's `tauri_proxy` runner (the `tauri-proxy` feature): main.rs manages one `TauriProxy`
+  from `viewer.yaml`'s daemon, presenting the identity through the SDK's `identities::Presenter`, and registers its six
+  commands (`wire_request`, `wire_channel_request`, `wire_channel_response`, `wire_channel_response_finish`,
+  `wire_status`, `wire_reset`). The page's handle over it is `src/lib/wire.ts` (`@diverge/sdk`, by workspace path, built
+  by the `sdk` script before `dev`, `build` and `typecheck`). The screens still answer from the seams above.
+- **Providers are OIDC identities** in the SDK; the screens keep telling a machine you dial from one that dials in.
+  `view::ProviderView` maps the two onto an identity by issuer — `dial`, with the address as the subject, or `accept`,
+  with the name — and the stand-in names its machines that way.
 - **The menu** (main.rs): ⌘N new agent, ⌘W closes a TAB (never the window), ⌘1 Home, ⌘2 Inbox; the page handles ⌘3–9
   and ⌘[ ⌘]. ⌘+ ⌘− ⌘0 (Ctrl on Windows and Linux) zoom the whole window: the window's `zoomHotkeysEnabled` and the
   `core:webview:allow-set-webview-zoom` permission. Keep those keys off the menu (`src/window.test.ts`).
@@ -256,7 +268,7 @@ came from them. Seed content is invented and everyday.
 ## Run it
 `pnpm install` (from the repo root) then `cd diverge-viewer && pnpm tauri dev`. Every test, in one command:
 `pnpm test:all` (the app's Rust tests, again without the stand-in, the room crate with its container program, and
-vitest). A second copy with its own files: `DIVERGE_DATA_DIR=/some/folder pnpm tauri dev`. A build from before files
+vitest). A second copy on its own root: `DIVERGE_CONFIG=/some/root pnpm tauri dev`. A build from before files
 carried versions reads them all as damaged and writes over them: give it a copy of the folder, never this one.
 
 ## Browser preview (reviews, cloud sessions — no Mac window needed)

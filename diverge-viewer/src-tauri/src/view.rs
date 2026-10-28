@@ -27,7 +27,8 @@ const OUT: &str = "../../src/bindings/";
 
 // --- shared ------------------------------------------------------------
 
-/// A provider, only as the daemon names it.
+/// A provider, only as the daemon names it: a machine this app dials, or
+/// one that dials in.
 #[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(export, export_to = "../../src/bindings/")]
@@ -36,11 +37,24 @@ pub enum ProviderView {
     IncomingUnbrokered { identity: String },
 }
 
+/// The issuer a machine this app dials is named under, its address the
+/// subject.
+pub const DIAL_ISSUER: &str = "dial";
+
+/// The issuer a machine that dials in is named under, its name the
+/// subject.
+pub const ACCEPT_ISSUER: &str = "accept";
+
+/// The daemon names a provider by an OIDC identity and nothing more; the
+/// screens tell a machine they dial from one that dials in. The two are
+/// kept apart by issuer: [`ACCEPT_ISSUER`] is one that dials in, every
+/// other a machine dialled at its subject.
 impl From<&Identity> for ProviderView {
     fn from(identity: &Identity) -> Self {
-        match identity {
-            Identity::Outgoing { address } => ProviderView::Outgoing { address: address.clone() },
-            Identity::IncomingUnbrokered { identity } => ProviderView::IncomingUnbrokered { identity: identity.clone() },
+        if identity.issuer == ACCEPT_ISSUER {
+            ProviderView::IncomingUnbrokered { identity: identity.subject.clone() }
+        } else {
+            ProviderView::Outgoing { address: identity.subject.clone() }
         }
     }
 }
@@ -48,8 +62,8 @@ impl From<&Identity> for ProviderView {
 impl From<&ProviderView> for Identity {
     fn from(view: &ProviderView) -> Self {
         match view {
-            ProviderView::Outgoing { address } => Identity::Outgoing { address: address.clone() },
-            ProviderView::IncomingUnbrokered { identity } => Identity::IncomingUnbrokered { identity: identity.clone() },
+            ProviderView::Outgoing { address } => Identity { issuer: DIAL_ISSUER.into(), subject: address.clone() },
+            ProviderView::IncomingUnbrokered { identity } => Identity { issuer: ACCEPT_ISSUER.into(), subject: identity.clone() },
         }
     }
 }
@@ -150,7 +164,7 @@ pub enum OwnerView {
 impl From<&Creator> for CreatorView {
     fn from(creator: &Creator) -> Self {
         match creator {
-            Creator::Client(creator::Client { identity }) => CreatorView::Client { identity: identity.clone() },
+            Creator::Client(creator::Client { identity }) => CreatorView::Client { identity: identity.subject.clone() },
             Creator::Agent(creator::Agent { template, index, name }) => CreatorView::Agent { template: template.clone(), index: *index, name: name.clone() },
             Creator::Tool(creator::Tool::Record { template, index, name }) => CreatorView::Tool { template: template.clone(), index: *index, name: name.clone() },
             Creator::Tool(creator::Tool::Dependency { template, owner }) => {
@@ -170,7 +184,7 @@ fn tool_words(tool: &key::Tool) -> String {
     match tool {
         key::Tool::Record { origin: _, index: _, name: Some(name) } => name.clone(),
         key::Tool::Record { origin: key::Origin::Created { template }, index, name: None } => format!("{template}#{index}"),
-        key::Tool::Record { origin: key::Origin::Connected { daemon, account, tool: _ }, index, name: None } => format!("{account}@{daemon}#{index}"),
+        key::Tool::Record { origin: key::Origin::Connected { daemon, tool: _ }, index, name: None } => format!("{daemon}#{index}"),
         key::Tool::Dependency { template, owner: _ } => template.clone(),
     }
 }
@@ -675,7 +689,7 @@ pub fn tool_item_words(tool: &standalone_tools::list::server::response::Tool) ->
     match (&tool.name, &tool.origin) {
         (Some(name), _) => name.clone(),
         (None, Origin::Created { template, index, mode: _, provider: _, id: _ }) => format!("{template}#{index}"),
-        (None, Origin::Connected { daemon, account, tool: _, index }) => format!("{account}@{daemon}#{index}"),
+        (None, Origin::Connected { daemon, tool: _, index }) => format!("{daemon}#{index}"),
     }
 }
 
@@ -686,7 +700,7 @@ pub fn tool_reference(tool: &standalone_tools::list::server::response::Tool) -> 
     match (&tool.name, &tool.origin) {
         (Some(name), _) => Reference::Name { name: name.clone() },
         (None, Origin::Created { template, index, mode: _, provider: _, id: _ }) => Reference::TemplateIndex { template: template.clone(), index: *index },
-        (None, Origin::Connected { daemon, account, tool, index: _ }) => Reference::Connected { daemon: daemon.clone(), account: account.clone(), tool: Box::new(tool.clone()) },
+        (None, Origin::Connected { daemon, tool, index: _ }) => Reference::Connected { daemon: daemon.clone(), tool: Box::new(tool.clone()) },
     }
 }
 

@@ -32,6 +32,9 @@ mod store;
 mod tabs;
 mod view;
 
+use std::sync::Arc;
+
+use diverge_sdk::identities::{Identities, Name, Presenter};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::{Emitter, Manager};
 
@@ -56,8 +59,28 @@ fn main() {
                 let _ = app.emit("menu://action", event.id().as_ref().to_owned());
             });
 
-            // Every file the app keeps is in one folder: DIVERGE_DATA_DIR's, when it names one.
-            let data = actions::data_dir(std::env::var_os(actions::DATA_DIR_VAR), || app.path().app_data_dir())?;
+            // The root, as the daemon and the provider find theirs; the
+            // document in it, which must name the daemon and the
+            // identity it is dialled as; the root's identities. A
+            // document naming no daemon stops the start, saying so.
+            let (root, daemon, identities) = tauri::async_runtime::block_on(async {
+                let root = diverge_viewer_config::root(std::env::args_os().skip(1)).await?;
+                let config = diverge_viewer_config::load(&root).await?;
+                let daemon = config.daemon.ok_or(
+                    "viewer.yaml names no daemon identity (daemon: {address, issuer, subject}); sign one in with `diverge identities login`",
+                )?;
+                let identities = Identities::open(&root).await?;
+                Ok::<_, Box<dyn std::error::Error>>((root, daemon, identities))
+            })?;
+            // The daemon's connection, held for the page: the SDK's
+            // runner, presenting the identity and taking the daemon's
+            // answer at its word.
+            let name = Name { issuer: daemon.issuer.clone(), subject: daemon.subject };
+            let presenter = Arc::new(Presenter::new(identities, name));
+            app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(daemon.address, daemon.issuer, presenter));
+            // Every file the app keeps is in one folder: the app's own
+            // under the root, beside `viewer.yaml`.
+            let data = root.join(actions::FOLDER);
             let state = tauri::async_runtime::block_on(AppState::open(data));
             app.manage(state);
             Ok(())
@@ -153,6 +176,12 @@ fn main() {
             actions::files_set_aside,
             actions::first_run_get,
             actions::first_run_finish,
+            diverge_sdk::tauri_proxy::wire_request,
+            diverge_sdk::tauri_proxy::wire_channel_request,
+            diverge_sdk::tauri_proxy::wire_channel_response,
+            diverge_sdk::tauri_proxy::wire_channel_response_finish,
+            diverge_sdk::tauri_proxy::wire_status,
+            diverge_sdk::tauri_proxy::wire_reset,
         ])
         .run(tauri::generate_context!())
         .expect("the app could not start");

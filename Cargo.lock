@@ -2327,6 +2327,7 @@ dependencies = [
  "chrono",
  "dirs",
  "diverge-sdk",
+ "diverge-viewer-config",
  "diverge-viewer-room",
  "futures",
  "getrandom 0.2.17",

@@ -82,19 +82,9 @@ const CARD_FILE: &str = "profile_card.json";
 const THEME_FILE: &str = "theme.json";
 const RECORDS_DIR: &str = "records";
 
-/// The variable that puts the app's files in a folder of your choosing:
-/// for tests, and for a second copy of the app beside the first.
-pub const DATA_DIR_VAR: &str = "DIVERGE_DATA_DIR";
-
-/// Where the app keeps its files: the folder [`DATA_DIR_VAR`] names, when
-/// it names one (a relative one from where the app started); the system's
-/// place for this app otherwise.
-pub fn data_dir<E>(from_env: Option<std::ffi::OsString>, system: impl FnOnce() -> Result<PathBuf, E>) -> Result<PathBuf, E> {
-    match from_env.filter(|v| !v.is_empty()).map(PathBuf::from) {
-        Some(dir) => Ok(std::path::absolute(&dir).unwrap_or(dir)),
-        None => system(),
-    }
-}
+/// The app's own folder under the root, beside `viewer.yaml`: every
+/// file the app keeps is in it, as the daemon's are in `daemon/`.
+pub const FOLDER: &str = "viewer";
 
 /// What answers the app's seams, and what the app knows of them before it
 /// has files of its own.
@@ -2801,12 +2791,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn with_the_data_dir_variable_set_the_app_keeps_its_files_there() {
+    async fn the_app_keeps_its_files_in_the_folder_it_is_given() {
         let dir = store::tests::folder("actions-data-dir");
-        let data = data_dir::<std::io::Error>(Some(dir.clone().into_os_string()), || unreachable!("not the system's folder")).unwrap();
-        assert_eq!(data, dir);
-        assert_eq!(data_dir::<()>(Some("".into()), || Ok(PathBuf::from("/the/system/folder"))), Ok(PathBuf::from("/the/system/folder")), "an empty one names nothing");
-        assert_eq!(data_dir::<()>(Some("second-copy".into()), || unreachable!()), Ok(std::env::current_dir().unwrap().join("second-copy")), "a relative one is from where the app started");
+        let data = dir.clone();
         // The stand-in's rooms need the keys every other test has; without it, the app makes its own.
         #[cfg(feature = "stand-in")]
         seeded_keys(&data);
