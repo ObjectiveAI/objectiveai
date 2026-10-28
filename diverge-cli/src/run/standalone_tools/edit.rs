@@ -1,5 +1,5 @@
 //! `diverge run standalone-tools edit`: editing a tool: a patch to its
-//! name, its account, its mounts, as
+//! name, its mounts, its secrets, as
 //! [`edit`](diverge_sdk::daemon::endpoints::standalone_tools::edit)
 //! states it.
 
@@ -8,7 +8,7 @@ use diverge_sdk::daemon::endpoints::standalone_tools::edit::{client::request, se
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Editing a tool: a patch to its name, its account, its mounts.
+/// Editing a tool: a patch to its name, its mounts, its secrets.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {

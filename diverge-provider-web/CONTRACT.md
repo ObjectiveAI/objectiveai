@@ -1037,8 +1037,8 @@ the Proxy's answer to the begin Scope carries one or more dependency
 tool templates or one or more declared secrets, the Provider shall
 open exactly one `registration` Channel on the run Scope carrying the
 id, the templates and the declaration verbatim — every template
-whole, its image, limits, arguments, type, scope, mounts, secrets and
-permissions unread; every declared secret's name and mode unread —
+whole, its image, limits, arguments, type, scope, mounts and secrets
+unread; every declared secret's name and mode unread —
 before the id is sent and beside the FUSE Mounts, and shall read the
 Client's answer to its finish. Where the answer is the byte `0`
 followed by the secrets' values, the Provider shall open exactly one
@@ -1048,10 +1048,13 @@ Proxy's `Fed` lets the run go on. The Provider shall treat the byte
 `1` on either Channel, a Bare Finish on either, and a Client that is
 gone as the run's error and shall stop the Container. The Provider
 shall open no `registration` Channel and feed nothing when the
-templates and the declaration are both empty. On a
+templates, the declaration and the permissions are all empty. On a
 `containers::tools::run` Scope the templates are always empty — a tool
 Container declares no dependencies, and its begin's answer carries
-none — and the `registration` Channel carries the declaration alone.
+none — and the `registration` Channel carries the declaration and the
+permissions the tool Container's program declared, verbatim and
+unread. On a `containers::agents::run` Scope the permissions are always
+empty.
 
 (i) **Send the id.** The id the Provider chose in (h) shall be unique
 among the Containers it is running and not derivable from the

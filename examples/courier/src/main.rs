@@ -29,6 +29,7 @@ mod caller;
 mod courier;
 mod daemon;
 mod failure;
+mod permissions;
 mod register;
 mod secrets;
 mod store;

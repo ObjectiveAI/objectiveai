@@ -54,10 +54,7 @@ agent containers in this repository that is an entry in the agent's
   "disk": 268435456,
   "arguments": {},
   "mode": "service",
-  "scope": "global",
-  "permissions": [
-    { "agents": { "actions": ["message"], "within": "self" } }
-  ]
+  "scope": "global"
 }
 ```
 
@@ -69,6 +66,9 @@ agent containers in this repository that is an entry in the agent's
 - **Scope:** any. Every alarm names the agent it wakes, so agents that
   share one tool never see or wake to each other's; `global` is one
   container for every agent that declares it.
-- **Permissions:** `message` over `self`, the agents attached to the
-  tool; that is the whole of what it asks the daemon.
+- **Permissions:** the tool declares its own, at its registration; an
+  agent declares none for it. It is `message` over `attached`, the
+  agents attached to the tool —
+  `[{ "agents": { "actions": ["message"], "within": "attached" } }]` —
+  and that is the whole of what it asks the daemon.
 - Only agents may use it; a client over a connect is refused.

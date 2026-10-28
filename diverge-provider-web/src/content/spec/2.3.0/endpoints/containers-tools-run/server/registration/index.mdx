@@ -1,22 +1,23 @@
 ---
 title: 'Registration'
-summary: 'Tag 15: the server asks the client to register the container, carrying the run’s id and the secrets the program takes, each by name to its mode, verbatim and with no dependencies; the client answers with exactly one channel response, deployed with the secrets’ first values or an error, and the channel response finish; the server feeds the values to the container before it sends the id, and anything but a deploy and a feed is the run’s error.'
+summary: 'Tag 15: the server asks the client to register the container, carrying the run’s id, the secrets the program takes, each by name to its mode, and the permissions it declared, verbatim and with no dependencies; the client answers with exactly one channel response, deployed with the secrets’ first values or an error, and the channel response finish; the server feeds the values to the container before it sends the id, and anything but a deploy and a feed is the run’s error.'
 order: 15
 draft: false
 ---
 
 The server opens this channel when the `Begun` the proxy answered its
-begin with carries one or more secrets: the secrets the container's
-program declared it takes when it was registered, each by name to the
-mode it takes it in, whose values the client supplies. The client's
-answer decides whether the run goes on, and carries the first values
-of the secrets.
+begin with carries one or more secrets or one or more permissions: the
+secrets the container's program declared it takes when it was
+registered, each by name to the mode it takes it in, whose values the
+client supplies; and the grants the program declared it holds over
+the client. The client's answer decides whether the run goes on, and
+carries the first values of the secrets.
 
 - **When.** After the begin has been answered and before the id is
   sent, beside the FUSE mounts. Exactly once per run, and never on a
   connect scope. The server opens no registration channel when the
-  declaration of secrets is empty, and feeds nothing to such a
-  container.
+  declaration of secrets and the permissions are both empty, and
+  feeds nothing to such a container.
 - **No dependencies.** A tool container declares no dependencies: the
   `dependencies` member of the request is absent on every
   registration channel of a tools-run scope, and a list the
@@ -29,8 +30,8 @@ of the secrets.
   channel has ended and the values have been fed, and no other. The
   container is listed by nothing and found by no connect before the
   response.
-- **The request.** The tag byte `15` followed by the run's id and the
-  declaration as JSON.
+- **The request.** The tag byte `15` followed by the run's id, the
+  declaration and the permissions as JSON.
   [Request](/endpoints/containers-tools-run/server/registration/request/) states its form.
 - **The response.** Exactly one channel response, deployed with the
   values or an error, and the channel response finish.
@@ -43,13 +44,17 @@ of the secrets.
   error, and a channel response finish that no channel response
   precedes, are the run's error: the server stops the container. The
   server sends the id only after `Fed`.
-- **Verbatim.** The server relays the declaration as the proxy sent
-  it and the values as the client sent them, and reads none of them:
-  not the names, not the modes, not the values.
+- **Verbatim.** The server relays the declaration and the permissions
+  as the proxy sent them and the values as the client sent them, and
+  reads none of them: not the names, not the modes, not the values,
+  not the grants.
 - **What the client does.** The client answers, under every name the
   declaration carries, one value: for a `rotating` name a value it
   locks to the container until the `Inactive` that ends the
   container's activity hands it back, and for a `fixed` name a value
   it reads and never takes back. A tool container running as a
   dependency of an agent is answered with values resolved through
-  the vault key that agent binds the same name to.
+  the vault key that agent binds the same name to. The client holds
+  the container to the permissions it declared for the run: they are
+  the whole of what the tool's program may ask of the client, and the
+  word `attached` reaches the agents attached to the tool.

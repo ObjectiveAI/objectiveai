@@ -50,11 +50,7 @@ an entry in the agent's `dependencies` argument:
   "disk": 268435456,
   "arguments": {},
   "mode": "service",
-  "scope": "global",
-  "permissions": [
-    { "agents": { "actions": ["get", "list", "message"], "within": "self" } },
-    { "agents": { "actions": ["get", "list", "message"], "within": "never_active" } }
-  ]
+  "scope": "global"
 }
 ```
 
@@ -64,8 +60,19 @@ an entry in the agent's `dependencies` argument:
   one database for every agent that declares this template, from any
   agent template. The template's id is what the courier keeps its mail
   under, so a different template is a different mail system.
-- **Permissions:** `self` reaches the agents attached to the courier,
-  those whose last registration declared it; `never_active` reaches
+- **Permissions:** the courier declares its own, at its registration;
+  an agent declares none for it. They are `get`, `list` and `message`
+  over `attached` and over `never_active`:
+
+  ```json
+  [
+    { "agents": { "actions": ["get", "list", "message"], "within": "attached" } },
+    { "agents": { "actions": ["get", "list", "message"], "within": "never_active" } }
+  ]
+  ```
+
+  `attached` reaches the agents attached to the courier, those whose
+  last registration declared it; `never_active` reaches
   the agents that have never run, so they can be listed and written to
   before their first start, and the notification starts them. An
   agent that has run and does not declare the courier is reachable by

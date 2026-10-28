@@ -28,6 +28,7 @@ mod arguments;
 mod caller;
 mod daemon;
 mod failure;
+mod permissions;
 mod register;
 mod schedule;
 mod scheduler;

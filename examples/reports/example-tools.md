@@ -59,7 +59,7 @@ daemon's `standalone_tools` family.
 
 ## `courier`: an inbox between agents
 
-**Built:** `examples/courier/` (crate `diverge-example-courier`, binary `courier`), with its `Containerfile` and `DIVERGE.md`. It is a **dependency tool** declared by agents' images (a `service` with `scope: global`, grants `self` and `never_active` over agents), keeps mail per template, has a fifth tool `list_agents` listing whom the caller can write to (attached, then never-run), and a send whose notification cannot be sent fails and keeps nothing.
+**Built:** `examples/courier/` (crate `diverge-example-courier`, binary `courier`), with its `Containerfile` and `DIVERGE.md`. It is a **dependency tool** declared by agents' images (a `service` with `scope: global`; at its own registration it declares `attached` and `never_active` over agents), keeps mail per template, has a fifth tool `list_agents` listing whom the caller can write to (attached, then never-run), and a send whose notification cannot be sent fails and keeps nothing.
 
 Mail between agents. Every agent that uses the courier has an inbox
 of conversations; an agent opens a conversation with another agent on
@@ -231,7 +231,7 @@ daemon, which starts the agent if it is not running.
 `alarm`), with its `Containerfile` and `DIVERGE.md`. It is a
 **dependency tool** declared by agents' images, a `service` (shown
 with `scope: global`; any scope works, since every alarm names its
-agent), granted `agents` `message` within `self`. A service, because
+agent), declaring `agents` `message` within `attached` at its registration. A service, because
 a service is kept running while agents are attached, and a transient
 tool would stop with the agent's run.
 
