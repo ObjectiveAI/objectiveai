@@ -3,8 +3,12 @@
 /**
  * What the screen asks the log for. Mirrors the daemon's logs request.
  */
-export type LogsQuery = { name: string, logs_index_from: number | null, logs_index_to: number | null, created_from: string | null, created_to: string | null, 
+export type LogsQuery = { 
+/**
+ * The agent's key: its name, or its template and index.
+ */
+name: string, logs_index_from: number | null, logs_index_to: number | null, created_from: string | null, created_to: string | null, 
 /**
  * One kind of item, by its wire name (e.g. "tool_response").
  */
-item_type: string | null, jq: string | null, count: number | null, watch: boolean, };
+item_type: string | null, count: number | null, watch: boolean, };

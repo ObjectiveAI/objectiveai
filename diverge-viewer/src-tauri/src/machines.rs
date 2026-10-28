@@ -19,6 +19,8 @@
 //! Nothing above this module knows which it holds.
 
 use async_trait::async_trait;
+use futures::StreamExt;
+use tokio_util::sync::CancellationToken;
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::provider::endpoints::volumes;
@@ -31,6 +33,10 @@ use crate::daemon::Frames;
 #[derive(Debug, Clone)]
 pub enum ReadFrame {
     Body(Vec<u8>),
+    Mounted,
+    FuseServed,
+    Held,
+    Unsupported,
     Error(WireError),
 }
 
@@ -41,17 +47,22 @@ impl ReadFrame {
         use volumes::read::server::response::Frame;
         match frame {
             Frame::Body(body) => ReadFrame::Body(body.0.to_vec()),
+            Frame::Mounted => ReadFrame::Mounted,
+            Frame::FuseServed => ReadFrame::FuseServed,
+            Frame::Held => ReadFrame::Held,
+            Frame::Unsupported => ReadFrame::Unsupported,
             Frame::Error(error) => ReadFrame::Error(error),
         }
     }
 }
 
-/// The provider protocol's volume verbs, tags 3–13 but `serve` (8), which
+/// The provider protocol's volume verbs, tags 3–13 but `fuse_serve` (8), which
 /// is the daemon's to hold for an agent's FUSE mounts, never the app's.
 #[async_trait]
 pub trait Machines: Send + Sync + 'static {
-    /// Tag 3. What the machine offers.
-    async fn volumes_list(&self, on: &Identity) -> volumes::list::server::response::Frame;
+    /// Tag 3. What the machine offers: one `Added` each, then `Listed`,
+    /// then what changes, until `cancel` fires. [`volumes_listed`] reads it once.
+    fn volumes_list(&self, on: &Identity, cancel: CancellationToken) -> Frames<volumes::list::server::response::Frame>;
 
     /// Tag 4. One volume, examined: its size, its mode, what it uses.
     async fn volumes_stat(&self, on: &Identity, request: volumes::stat::client::request::Frame) -> volumes::stat::server::response::Frame;
@@ -80,4 +91,25 @@ pub trait Machines: Send + Sync + 'static {
 
     /// Tag 13. Destroy one. Refused while anything holds it.
     async fn volumes_delete(&self, on: &Identity, request: volumes::delete::client::request::Frame) -> volumes::delete::server::response::Frame;
+}
+
+/// A machine's volumes read once: up to and including `Listed` (or what
+/// ends the list instead), then the scope is cancelled.
+pub async fn volumes_listed(machines: &dyn Machines, on: &Identity) -> Vec<volumes::list::server::response::Frame> {
+    use volumes::list::server::response::Frame;
+    let cancel = CancellationToken::new();
+    let mut frames = machines.volumes_list(on, cancel.clone());
+    let mut out = Vec::new();
+    while let Some(frame) = frames.next().await {
+        let done = match &frame {
+            Frame::Added(_) | Frame::Changed(_) | Frame::Removed(_) => false,
+            Frame::Listed | Frame::Unsupported | Frame::Error(_) => true,
+        };
+        out.push(frame);
+        if done {
+            break;
+        }
+    }
+    cancel.cancel();
+    out
 }

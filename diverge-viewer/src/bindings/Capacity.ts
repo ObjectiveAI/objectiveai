@@ -3,4 +3,4 @@
 /**
  * How much room there is: to make a volume, or for one to grow into.
  */
-export type Capacity = { "outcome": "capacity", bytes: number, } | { "outcome": "error", message: string, };
+export type Capacity = { "outcome": "capacity", bytes: number, } | { "outcome": "unsupported" } | { "outcome": "error", message: string, };

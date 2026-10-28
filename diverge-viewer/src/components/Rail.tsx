@@ -1,11 +1,11 @@
 import { useShared } from "../lib/context";
-import { kindTitle, providerName, spaceTitle } from "../lib/format";
+import { agentLabel, kindTitle, providerName, spaceTitle } from "../lib/format";
 import { t } from "../strings";
 import wordmark from "../assets/wordmark.svg";
 import { Button, Dot, Icon, Row } from "./ui";
 
 export function Rail(props: { focused: string | null }) {
-  const { agents, info, open, spaces, knocks, cards } = useShared();
+  const { agents, agentsState, info, open, spaces, knocks, cards } = useShared();
   const here = (key: string) => props.focused === key;
   return (
     <nav className="rail">
@@ -29,19 +29,26 @@ export function Rail(props: { focused: string | null }) {
         </div>
 
         <div className="rail-section">
-          <div className="rail-head">
-            <span>{t.rail.agents}</span>
-          </div>
-          {agents.length === 0 ? <p className="rail-empty muted">{t.rail.empty}</p> : null}
+          {/* The heading opens the Agents map: who made whom, and what each is doing. */}
+          <Row className="rail-item rail-head-row" on={here("agents")} onClick={() => open({ kind: "agents" })}>
+            <span className="rail-item-name">{t.rail.agents}</span>
+          </Row>
+          {agentsState.state === "forbidden" ? (
+            <p className="rail-empty muted">{t.common.forbidden}</p>
+          ) : agentsState.state === "error" ? (
+            <p className="rail-empty muted">{t.map.listFailed} {agentsState.message}</p>
+          ) : agents.length === 0 ? (
+            <p className="rail-empty muted">{agentsState.state === "waiting" ? t.map.listWaiting : t.rail.empty}</p>
+          ) : null}
           <ul className="rail-list">
             {agents.map((a) => {
               const state = a.active ? "working" : a.last_active ? "idle" : "never";
               return (
-                <li key={a.name}>
-                  <Row className="rail-item" on={here(`agent:${a.name}`)} onClick={() => open({ kind: "agent", name: a.name })} title={a.provider ? `${kindTitle(a.image_name)} · ${providerName(a.provider)}` : kindTitle(a.image_name)}>
+                <li key={a.key}>
+                  <Row className="rail-item" on={here(`agent:${a.key}`)} onClick={() => open({ kind: "agent", name: a.key })} title={a.provider ? `${kindTitle(a.image_name)} · ${providerName(a.provider)}` : kindTitle(a.image_name)}>
                     <Dot state={state} />
-                    <span className="rail-item-name">{a.name}</span>
-                    {cards.some((c) => c.agent === a.name) ? <span className="rail-count">{t.cards.railTag}</span> : <span className="rail-item-kind">{kindTitle(a.image_name)}</span>}
+                    <span className="rail-item-name">{agentLabel(a)}</span>
+                    {cards.some((c) => c.agent === a.key) ? <span className="rail-count">{t.cards.railTag}</span> : <span className="rail-item-kind">{kindTitle(a.image_name)}</span>}
                   </Row>
                 </li>
               );

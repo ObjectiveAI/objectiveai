@@ -5,7 +5,7 @@ import { CardEditor } from "../components/CardEditor";
 import { Markdown } from "../components/Markdown";
 import { Button, Chip, Empty, Escapes, Row, Section, SectionHead } from "../components/ui";
 import { useShared } from "../lib/context";
-import { ago, bytes, kindTitle, providerName, providerWay, time, spaceTitle } from "../lib/format";
+import { agentLabel, ago, bytes, kindTitle, providerName, providerWay, time, spaceTitle } from "../lib/format";
 import { api } from "../lib/ipc";
 import { t } from "../strings";
 
@@ -105,9 +105,9 @@ export function Profile() {
         <Section title={t.profile.agents}>
           <ul className="space-list">
             {p.agents.map((a) => (
-              <li key={a.name}>
-                <Row className="space-row" onClick={() => open({ kind: "agent", name: a.name })}>
-                  <span className="space-row-title">{a.name}</span>
+              <li key={a.key}>
+                <Row className="space-row" onClick={() => open({ kind: "agent", name: a.key })}>
+                  <span className="space-row-title">{agentLabel(a)}</span>
                   <Chip>{kindTitle(a.image_name)}</Chip>
                   <span className="muted small">{a.active ? t.status.working : a.last_active ? `${t.status.idle} · ${ago(a.last_active)}` : t.status.never}</span>
                 </Row>

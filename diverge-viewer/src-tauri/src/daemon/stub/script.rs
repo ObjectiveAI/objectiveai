@@ -220,12 +220,28 @@ pub fn run(kind: Kind, input: &str, read: &dyn Fn(&str) -> String) -> Vec<Step> 
 }
 
 /// The seeded agent that is mid-way through a long job: section after
-/// section, a few seconds each, for about five minutes.
+/// section, a few seconds each, for about five minutes. A minute in, it
+/// sets a helper to check every link, which works on its own for half a
+/// minute (one call waits a while) before it answers.
 pub fn long_job(read: &dyn Fn(&str) -> String) -> Vec<Step> {
     let mut s = Script::new("Go through the whole site and tidy it, section by section.");
     s.think(None, "Long job. I'll go file by file and report as I go.");
     let files = ["/projects/site/index.html", "/projects/site/styles.css", "/projects/site/README.md"];
     for round in 1..=12 {
+        if round == 4 {
+            let task = s.call(None, "Task", json!({ "description": "Check every link on the site", "subagent_type": "general-purpose" }));
+            let p = Some(task.as_str());
+            s.think(p, "Every link on the site, one page at a time.");
+            let id = s.call(p, "Bash", json!({ "command": "grep -o 'href=\"[^\"]*\"' /projects/site/index.html" }));
+            s.answer(p, &id, "href=\"styles.css\"\nhref=\"/projects\"\nhref=\"/notes\"\nhref=\"mailto:hello@example.com\"\nhref=\"/old-page\"", false, 4000);
+            let id = s.call(p, "Bash", json!({ "command": "ls /projects/site/old-page" }));
+            s.answer(p, &id, "ls: /projects/site/old-page: No such file or directory", true, 3000);
+            s.think(p, "One page is gone. The mail link next.");
+            let id = s.call(p, "WebFetch", json!({ "url": "mailto:hello@example.com" }));
+            s.answer(p, &id, "A mail link: nothing to fetch, and nothing wrong with it.", false, 18000);
+            s.say(p, "Checked them all: /old-page is gone, the rest resolve.");
+            s.answer(None, &task, "One broken link: /old-page (\"Archive\"). Everything else resolves.", false, 4000);
+        }
         let file = files[round % files.len()];
         let id = s.call(None, "Read", json!({ "file_path": file }));
         let body = read(file);
@@ -252,7 +268,11 @@ mod tests {
             let steps = run(kind, "Check the site for broken links", &read);
             assert!(steps.len() > 3, "{:?} said almost nothing", kind);
         }
-        assert!(long_job(&read).len() > 20);
+        let job = long_job(&read);
+        assert!(job.len() > 20);
+        // Its helper's work is marked as the helper's: inside the call that set it going.
+        let parented = job.iter().filter(|s| matches!(&s.piece, Piece::Item(Item::Chunk(c)) if serde_json::to_value(c).unwrap()["parent_tool_call_id"].is_string())).count();
+        assert!(parented > 5, "{parented}");
         let doors = run(Kind::Cc, "Claim the open task", &read).into_iter().filter(|s| matches!(s.piece, Piece::Door { .. })).count();
         assert_eq!(doors, 3, "the task flow goes through the door three times");
     }

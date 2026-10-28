@@ -4,6 +4,7 @@
 // This folds the pieces into what a person reads. Pure — tested.
 
 import type { LogEntry } from "../bindings/LogEntry";
+import type { CreatorView } from "../bindings/CreatorView";
 import type { ProviderView } from "../bindings/ProviderView";
 
 export type Part =
@@ -15,7 +16,7 @@ export type Part =
   | { kind: "tool"; id: string; name: string; arguments: string | null; answer: { text: string; isError: boolean; at?: string } | null; parts: Part[]; at?: string };
 
 export type Block =
-  | { kind: "user"; key: string; text: string; at: string; attachments: string[] }
+  | { kind: "user"; key: string; sender: CreatorView | null; text: string; at: string; attachments: string[] }
   | { kind: "turn"; at: string; parts: Part[]; usage: { prompt: number; completion: number; total: number } | null }
   | { kind: "started"; provider: ProviderView; at: string }
   | { kind: "finished"; provider: ProviderView; at: string }
@@ -47,14 +48,14 @@ export function fold(entries: LogEntry[]): Block[] {
     return turn(at).parts;
   };
 
-  for (const { created: at, item } of entries) {
+  for (const { created: at, sender, item } of entries) {
     // Tool ids are only unique within one run: a new run starts a new map.
     if (item.kind === "active") tools.clear();
     switch (item.kind) {
       case "user_text": {
         const last = blocks[blocks.length - 1];
         if (last && last.kind === "user" && last.key === item.key) last.text += item.text;
-        else blocks.push({ kind: "user", key: item.key, text: item.text, at, attachments: [] });
+        else blocks.push({ kind: "user", key: item.key, sender, text: item.text, at, attachments: [] });
         break;
       }
       case "user_image":
@@ -64,7 +65,7 @@ export function fold(entries: LogEntry[]): Block[] {
         const label = item.kind === "user_image" ? "image" : item.kind === "user_audio" ? "audio" : "uri" in item ? item.uri : "file";
         const last = blocks[blocks.length - 1];
         if (last && last.kind === "user" && last.key === item.key) last.attachments.push(label);
-        else blocks.push({ kind: "user", key: item.key, text: "", at, attachments: [label] });
+        else blocks.push({ kind: "user", key: item.key, sender, text: "", at, attachments: [label] });
         break;
       }
       case "reasoning":

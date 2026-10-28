@@ -1,3 +1,5 @@
+import type { AgentView } from "../bindings/AgentView";
+import type { CreatorView } from "../bindings/CreatorView";
 import type { ProviderView } from "../bindings/ProviderView";
 import { t } from "../strings";
 
@@ -28,6 +30,44 @@ export function kindOf(imageName: string): string {
 export function kindTitle(imageName: string): string {
   const key = kindOf(imageName);
   return t.create.kinds[key]?.title ?? key;
+}
+
+/** The words for an answer that isn't the one asked for: something holds it, nothing keeps it, the daemon refused, or the error's own words. */
+export function refusalText(out: { outcome: string }): string {
+  switch (out.outcome) {
+    case "in_use":
+      return t.storage.inUse;
+    case "unsupported":
+      return t.storage.unsupported;
+    case "mode_unsupported":
+      return t.storage.modeUnsupported;
+    case "forbidden":
+      return t.common.forbidden;
+    default:
+      return "message" in out && typeof out.message === "string" ? out.message : t.common.error;
+  }
+}
+
+/** An agent as the screen names it: its name, or, with none, its kind and the daemon's number for it. */
+export function agentLabel(a: AgentView): string {
+  return a.name ?? `${t.rail.unnamed} ${kindTitle(a.image_name)} #${a.index}`;
+}
+
+/** Who sent a message, as the daemon names its sender: you, or the agent or tool that did, by the screen's own name for it when it's one of yours. */
+export function senderLabel(sender: CreatorView | null, agents: AgentView[]): string {
+  if (!sender) return t.convo.you;
+  switch (sender.kind) {
+    case "client":
+      return t.convo.you;
+    case "agent": {
+      const known = agents.find((a) => a.template === sender.template && a.index === sender.index);
+      return known ? agentLabel(known) : sender.name ?? `${t.rail.unnamed} #${sender.index}`;
+    }
+    case "tool":
+      return sender.name ?? `${t.convo.aTool} #${sender.index}`;
+    case "dependency_tool":
+      return t.convo.aTool;
+  }
 }
 
 export function time(iso: string): string {

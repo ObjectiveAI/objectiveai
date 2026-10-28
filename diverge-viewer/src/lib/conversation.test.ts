@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { LogEntry } from "../bindings/LogEntry";
 import type { LogItem } from "../bindings/LogItem";
+import type { AgentView } from "../bindings/AgentView";
+import type { CreatorView } from "../bindings/CreatorView";
 import { fold, shown } from "./conversation";
+import { senderLabel } from "./format";
+import { t } from "../strings";
 
 let i = 0;
-const e = (item: LogItem): LogEntry => ({ logs_index: ++i, created: "2026-09-25T12:00:00Z", item });
+const e = (item: LogItem, sender: CreatorView | null = null): LogEntry => ({ logs_index: ++i, created: "2026-09-25T12:00:00Z", sender, item });
 const here = { kind: "outgoing" as const, address: "127.0.0.1:4640" };
 
 describe("fold", () => {
@@ -78,5 +82,17 @@ describe("fold", () => {
   it("shows an error where it happened", () => {
     const blocks = fold([e({ kind: "error", message: "no key" })]);
     expect(blocks).toEqual([{ kind: "error", message: "no key", at: "2026-09-25T12:00:00Z" }]);
+  });
+
+  it("keeps who sent a message, and names them: you, or the agent that did", () => {
+    const by: CreatorView = { kind: "agent", template: "t1", index: 0, name: "site-fixes" };
+    const [mine, theirs] = fold([
+      e({ kind: "user_text", key: "m1", text: "hi" }, { kind: "client", identity: "you" }),
+      e({ kind: "user_text", key: "m2", text: "check the links" }, by),
+    ]).filter((b) => b.kind === "user");
+    expect(mine.kind === "user" && senderLabel(mine.sender, [])).toBe(t.convo.you);
+    expect(theirs.kind === "user" && senderLabel(theirs.sender, [])).toBe("site-fixes");
+    const unnamed: CreatorView = { kind: "agent", template: "t1", index: 3, name: null };
+    expect(senderLabel(unnamed, [] as AgentView[])).toBe(`${t.rail.unnamed} #3`);
   });
 });

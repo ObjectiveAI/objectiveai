@@ -12,6 +12,8 @@ type ButtonProps = {
   small?: boolean;
   title?: string;
   type?: "button" | "submit";
+  /** For a button that shows and hides something beside it: whether that's showing. */
+  expanded?: boolean;
 } & ({ kind: Exclude<ButtonKind, "icon">; children: ReactNode } | { kind: "icon"; label: string; children?: ReactNode });
 
 export function Button(props: ButtonProps) {
@@ -25,6 +27,7 @@ export function Button(props: ButtonProps) {
       disabled={props.disabled}
       title={props.title ?? label}
       aria-label={label}
+      aria-expanded={props.expanded}
     >
       {props.children}
     </button>

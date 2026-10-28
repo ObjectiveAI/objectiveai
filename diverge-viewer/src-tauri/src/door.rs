@@ -32,13 +32,12 @@ use std::sync::{Arc, Mutex};
 
 use chrono::{NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
-use futures::{StreamExt, stream};
+use futures::stream;
 use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, ErrorData, JsonObject, ListToolsResult, ReadResourceResult, ResourceContents, Tool};
 use serde_json::{Value, json};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
-use diverge_sdk::daemon::endpoints::agents;
 
 use crate::daemon::{Daemon, Frames};
 use crate::identity::{Actor, AgentId, AgentKind, Identity};
@@ -272,8 +271,8 @@ impl Door {
                 if self.daemon_agents.lock().unwrap().contains(name) {
                     return true;
                 }
-                let listed = crate::view::listed(self.daemon.agents_list(agents::list::client::request::Frame {}).collect::<Vec<_>>().await);
-                let names: BTreeSet<String> = listed.agents.into_iter().map(|a| a.name).collect();
+                let listed = crate::view::agents_listed(self.daemon.as_ref()).await;
+                let names: BTreeSet<String> = listed.agents.into_iter().map(|a| a.key).collect();
                 let known = names.contains(name);
                 *self.daemon_agents.lock().unwrap() = names;
                 known
@@ -687,6 +686,7 @@ impl Door {
 #[cfg(all(test, feature = "stand-in"))]
 mod tests {
     use super::*;
+    use futures::StreamExt;
     use std::time::Duration;
     use crate::daemon::stub::StubDaemon;
     use crate::spaces::stub::{StubSpaces, board, open_task};

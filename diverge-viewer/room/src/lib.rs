@@ -436,17 +436,17 @@ pub(crate) mod tests {
         juno.call(&mut profile, &host, "admit", json!({ "account": one_device(&ren, "ren's root"), "name": "ren" })).unwrap();
         juno.call(&mut profile, &host, "admit", json!({ "account": one_device(&ada, "ada's root"), "name": "ada" })).unwrap();
         let ren_reads = envelope::OpenKey::for_author(&ren.keypair, &id);
-        let to_maya = [notes.public(), ren_reads.public()];
+        let to_juno = [notes.public(), ren_reads.public()];
 
         // Nothing a visitor leaves reaches the room in the clear.
         assert!(ren.call(&mut profile, &host, "leave_note", json!({ "body": "love the lamp" })).is_err(), "a plain note");
         assert!(ren.call(&mut profile, &host, "hire", json!({ "agent": "site-fixes", "what": "check my links" })).is_err(), "a plain hire");
-        let mixed = envelope::seal_args(&id, "hire", json!({ "what": "check my links" }).as_object().unwrap(), &ren.key(), &to_maya).unwrap();
+        let mixed = envelope::seal_args(&id, "hire", json!({ "what": "check my links" }).as_object().unwrap(), &ren.key(), &to_juno).unwrap();
         let mut mixed = Value::Object(mixed);
         mixed["agent"] = json!("site-fixes");
         assert!(ren.call(&mut profile, &host, "hire", mixed).unwrap_err().contains("travels sealed"), "nor any part of one");
-        sealed_call(&mut ren, &mut profile, &host, "leave_note", json!({ "body": "love the lamp" }), &to_maya).unwrap();
-        let asked = sealed_call(&mut ren, &mut profile, &host, "hire", json!({ "agent": "site-fixes", "what": "check my links", "pledge": "a coffee", "reply_to": ren_reads.public() }), &to_maya).unwrap();
+        sealed_call(&mut ren, &mut profile, &host, "leave_note", json!({ "body": "love the lamp" }), &to_juno).unwrap();
+        let asked = sealed_call(&mut ren, &mut profile, &host, "hire", json!({ "agent": "site-fixes", "what": "check my links", "pledge": "a coffee", "reply_to": ren_reads.public() }), &to_juno).unwrap();
         let hire = asked.rsplit_once('(').and_then(|(_, h)| h.strip_suffix(')')).unwrap().to_owned();
         assert_eq!(host.hires.lock().unwrap().last().unwrap(), &format!("{hire} ren sealed"), "the host hears of it, sealed");
 

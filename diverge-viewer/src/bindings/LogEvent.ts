@@ -2,7 +2,6 @@
 import type { LogEntry } from "./LogEntry";
 
 /**
- * One value a logs scope sent: an item as it is, or — when a `jq`
- * program reshaped it — whatever the program yielded.
+ * What a logs scope sent: an item, typed, or why there are none.
  */
-export type LogEvent = { "event": "entry", entry: LogEntry, } | { "event": "value", value: unknown, } | { "event": "error", message: string, } | { "event": "end" };
+export type LogEvent = { "event": "entry", entry: LogEntry, } | { "event": "forbidden" } | { "event": "error", message: string, } | { "event": "end" };

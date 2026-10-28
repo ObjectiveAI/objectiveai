@@ -12,7 +12,7 @@ const room: SpaceSummary = {
   id: "room-1", title: "Saturday Workshop for anyone who fixes things", kind: "board", host: { kind: "outgoing", address: "203.0.113.7:7000" }, host_name: "juno",
   mine: true, online: true, you_are: "juno", you_key: "k", you_account: null, fresh: false,
 };
-const shared = { agents: [], listedAt: 0, info: null, spaces: [room], homeId: null, knocks: [], cards: [], withdrawn: [], open: () => {}, close: () => {} } as unknown as Shared;
+const shared = { agents: [], agentsState: { state: "live" }, info: null, spaces: [room], homeId: null, knocks: [], cards: [], withdrawn: [], open: () => {}, close: () => {} } as unknown as Shared;
 const render = (el: ReturnType<typeof createElement>) => renderToStaticMarkup(createElement(SharedContext.Provider, { value: shared }, el));
 
 describe("the tab strip by keyboard", () => {

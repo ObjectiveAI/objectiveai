@@ -5,7 +5,7 @@ import type { PersonView } from "../bindings/PersonView";
 import { Markdown } from "../components/Markdown";
 import { Button, Card, Chip, Dot, Empty, Row, SectionHead } from "../components/ui";
 import { useShared } from "../lib/context";
-import { ago, kindTitle, time, dmWith } from "../lib/format";
+import { agentLabel, ago, kindTitle, time, dmWith } from "../lib/format";
 import { api } from "../lib/ipc";
 import { Conversation } from "./Conversation";
 import { KnockCard } from "../components/Knock";
@@ -35,7 +35,7 @@ export function Inbox() {
 
   const threads: Thread[] = useMemo(() => {
     const list: Thread[] = [
-      ...agents.map((a) => ({ key: `agent:${a.name}`, kind: "agent" as const, name: a.name, id: a.name, at: a.last_active, sub: kindTitle(a.image_name) })),
+      ...agents.map((a) => ({ key: `agent:${a.key}`, kind: "agent" as const, name: agentLabel(a), id: a.key, at: a.last_active, sub: kindTitle(a.image_name) })),
       ...spaces.filter((s) => s.kind === "dm").map((s) => ({ key: `dm:${s.id}`, kind: "dm" as const, name: dmWith(s), id: s.id, at: dmLast[s.id]?.at ?? null, sub: dmLast[s.id]?.body ?? "" })),
     ];
     return list.sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""));
@@ -96,8 +96,8 @@ export function Inbox() {
         <ul className="threads">
           {threads.length === 0 ? <li className="muted small">{t.inbox.noThreads}</li> : null}
           {threads.map((th) => {
-            const agent = th.kind === "agent" ? agents.find((a) => a.name === th.name) : undefined;
-            const asks = th.kind === "agent" && cards.some((c) => c.agent === th.name);
+            const agent = th.kind === "agent" ? agents.find((a) => a.key === th.id) : undefined;
+            const asks = th.kind === "agent" && cards.some((c) => c.agent === th.id);
             return (
               <li key={th.key}>
                 <Row className="thread" on={selected === th.key} onClick={() => setSelected(th.key)}>

@@ -48,19 +48,19 @@ mod tests {
         // Let the long job get part of the way through (virtual time).
         tokio::time::sleep(Duration::from_secs(70)).await;
 
-        let listed = listed(daemon.agents_list(agents::list::client::request::Frame {}).collect().await);
+        let listed = agents_listed(&daemon).await;
         let mut logs = BTreeMap::new();
         for agent in &listed.agents {
             let request = agents::logs::client::request::Frame {
-                name: agent.name.clone(),
+                agent: crate::daemon::reference_of(&agent.key),
                 logs_index_from: None,
                 logs_index_to: None,
                 created_from: None,
                 created_to: None,
                 r#type: None,
-                jq: None,
                 count: None,
                 watch: None,
+                relay: None,
             };
             let entries: Vec<LogEntry> = daemon
                 .agents_logs(request, CancellationToken::new())
@@ -68,8 +68,18 @@ mod tests {
                 .filter_map(|e| async move { if let LogEvent::Entry { entry } = e { Some(entry) } else { None } })
                 .collect()
                 .await;
-            logs.insert(agent.name.clone(), entries);
+            logs.insert(agent.key.clone(), entries);
         }
+
+        // site-fixes is part-way through, with a helper at work: its lines are marked as the helper's.
+        let helper = |item: &LogItem| match item {
+            LogItem::Reasoning { parent, .. } | LogItem::Text { parent, .. } | LogItem::ToolCall { parent, .. } | LogItem::ToolResponse { parent, .. } => parent.is_some(),
+            _ => false,
+        };
+        let site = &logs["site-fixes"];
+        assert!(site.iter().filter(|e| helper(&e.item)).count() > 3, "the helper's work is in the snapshot");
+        let task = site.iter().find_map(|e| match &e.item { LogItem::ToolCall { name, id, .. } if name == "Task" => Some(id.clone()), _ => None }).expect("a helper set going");
+        assert!(!site.iter().any(|e| matches!(&e.item, LogItem::ToolResponse { id, .. } if *id == task)), "and it's still at work");
 
         // Each machine's volumes, trees and files, keyed by the machine's
         // identity key, then "volume:path" for a file.
@@ -81,8 +91,9 @@ mod tests {
             let on = p.identity.clone();
             let identity: ProviderView = (&p.identity).into();
             let key = identity_key(&identity);
-            let (volumes, volumes_problem) = match VolumesListed::from(daemon.volumes_list(&on).await) {
+            let (volumes, volumes_problem) = match VolumesListed::from(crate::machines::volumes_listed(&daemon, &on).await) {
                 VolumesListed::Volumes { volumes } => (volumes, None),
+                VolumesListed::Unsupported => (Vec::new(), None),
                 VolumesListed::Error { message } => (Vec::new(), Some(message)),
             };
             let mut machine_trees = BTreeMap::new();
@@ -217,6 +228,12 @@ mod tests {
             "actions": crate::actions::actions_list(),
             "catalog": crate::actions::catalog_images(),
             "agents": listed.agents,
+            "tools": ToolsListed::from(crate::daemon::tools_listed(&daemon).await).tools,
+            // Who made whom, as the live list sends it, with each agent's cards waiting.
+            "tree": crate::fleet::tree(&listed.agents, &cards.iter().fold(std::collections::HashMap::new(), |mut n, c| {
+                *n.entry(c.agent.clone()).or_insert(0) += 1;
+                n
+            })),
             "logs": logs,
             "machines": machines,
             "spaces": space_views,
@@ -235,7 +252,7 @@ mod tests {
             },
             "trees": trees,
             "stats": stats,
-            "mounts": daemon.creates().iter().map(|c| (c.name.clone(), AgentMounts::of_create(c).view())).collect::<BTreeMap<_, _>>(),
+            "mounts": daemon.creates().iter().map(|(key, c)| (key.clone(), AgentMounts::of_create(c).view())).collect::<BTreeMap<_, _>>(),
             "files": texts,
         });
         let json = serde_json::to_string_pretty(&fixture).unwrap();
