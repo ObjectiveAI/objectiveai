@@ -198,20 +198,6 @@
 }
 .sheet .resource { color: var(--sheet-copper-bright); }
 
-.sheet .divider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--sheet-dim);
-  font-size: 11px;
-}
-.sheet .divider::before,
-.sheet .divider::after {
-  content: "";
-  flex: 1;
-  border-top: 1px solid var(--sheet-line);
-}
-.sheet .divider .ago { margin-left: 0; order: 2; }
 .sheet .note {
   color: var(--sheet-dim);
   font-style: italic;

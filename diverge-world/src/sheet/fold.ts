@@ -44,8 +44,8 @@ type Open = { role: string; blocks: HTMLElement };
  *    (`sender`), never "user". Within it, text and media follow rule
  *    2's text rules, and the texts of two different messages are
  *    kept a blank line apart.
- * 5. A run's start and end close the open message and draw a divider.
- *    An error is a red message of its own showing its JSON; a
+ * 5. A run's start and end close the open message and draw nothing;
+ *    they only light and dim the sheet's live dot. An error is a red message of its own showing its JSON; a
  *    notification a message of its own. Usage draws nothing.
  * 6. A chunk made inside a tool call is drawn as if it were not.
  * 7. Growing blocks are drawn again at most once an animation frame,
@@ -107,7 +107,6 @@ export class Fold {
       case "inactive":
         // Rule 5.
         this.close();
-        this.divider(item.type === "active" ? "run started" : "run ended", item.created);
         this.active(item.type === "active");
         break;
       case "error":
@@ -270,17 +269,6 @@ export class Fold {
     this.calls.set(id, block);
     this.open?.blocks.append(card);
     this.mark(block);
-  }
-
-  /** Rule 5: a thin line between runs. */
-  private divider(text: string, created: string): void {
-    const el = document.createElement("div");
-    el.className = "divider";
-    const span = document.createElement("span");
-    span.textContent = text;
-    el.append(span, agoElement(created));
-    this.body.append(el);
-    this.grew();
   }
 
   /** Rule 7. */
