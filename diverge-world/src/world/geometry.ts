@@ -1,5 +1,5 @@
 // Points and segments: what the placement measures lines with, and
-// what the links are cut to their cells with.
+// what the links are cut to their hexes with.
 
 /** A point, in whatever unit its caller works in. */
 export type Point = { x: number; y: number };
@@ -38,41 +38,23 @@ export function angleBetween(u: Point, v: Point): number {
 }
 
 /**
- * How far along the direction `d` a point starting `offset` from the
- * centre of a square box, half `half` wide, travels before it leaves
- * the box, in multiples of `d`. The point starts inside.
+ * How far along the direction `d` a point starting at `from`, inside the
+ * convex polygon `corners` (about the same origin), travels before it
+ * leaves the polygon, in multiples of `d`: the nearest side it meets
+ * going forward.
  */
-export function exitAlong(offset: Point, d: Point, half: number): number {
-  let t = Infinity;
-  if (d.x > 0) t = Math.min(t, (half - offset.x) / d.x);
-  if (d.x < 0) t = Math.min(t, (-half - offset.x) / d.x);
-  if (d.y > 0) t = Math.min(t, (half - offset.y) / d.y);
-  if (d.y < 0) t = Math.min(t, (-half - offset.y) / d.y);
-  return t;
-}
-
-/**
- * The cells a segment from `a` to `b` passes over, in cell units,
- * where cell `(x, y)` covers `[x, x + 1)` by `[y, y + 1)`: sampled
- * every tenth of a cell along it, and `spread` either side of it.
- */
-export function cellsUnder(a: Point, b: Point, spread: number): Point[] {
-  const length = Math.hypot(b.x - a.x, b.y - a.y);
-  const nx = length === 0 ? 0 : -(b.y - a.y) / length;
-  const ny = length === 0 ? 0 : (b.x - a.x) / length;
-  const steps = Math.max(1, Math.ceil(length * 10));
-  const seen = new Set<string>();
-  const cells: Point[] = [];
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    for (const side of [-spread, 0, spread]) {
-      const x = Math.floor(a.x + (b.x - a.x) * t + nx * side);
-      const y = Math.floor(a.y + (b.y - a.y) * t + ny * side);
-      const key = `${x},${y}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      cells.push({ x, y });
-    }
+export function exitPolygon(from: Point, d: Point, corners: Point[]): number {
+  let best = Infinity;
+  for (let k = 0; k < corners.length; k++) {
+    const p = corners[k];
+    const e = { x: corners[(k + 1) % corners.length].x - p.x, y: corners[(k + 1) % corners.length].y - p.y };
+    const denominator = d.x * e.y - d.y * e.x;
+    if (denominator === 0) continue;
+    const wx = p.x - from.x;
+    const wy = p.y - from.y;
+    const t = (wx * e.y - wy * e.x) / denominator;
+    const s = (wx * d.y - wy * d.x) / denominator;
+    if (t > 0 && s >= 0 && s <= 1) best = Math.min(best, t);
   }
-  return cells;
+  return best === Infinity ? 0 : best;
 }

@@ -1,88 +1,54 @@
-// The sea and the land, drawn once.
+// The sea and the land, drawn once, hex by hex.
 
 import * as Phaser from "phaser";
-import type { WorldMap } from "../world/map";
-import { cellNoise, valueNoise } from "../world/random";
-import { FOAM, FOREST, GRASS, OCEAN, SAND, SHALLOWS, SHORE, TRUNK, shade } from "./palette";
-import { CELL } from "./scale";
+import { corners, fromOffset, STEPS } from "../world/hex";
+import { isLand, type WorldMap } from "../world/map";
+import { GRASS, INK, SAND, SEA, SHORE } from "./palette";
+import { pixel, SIZE } from "./scale";
 
-/** How wide the sand is along a coast, in pixels. */
-const BEACH = 5;
+/** How far in from a coast the sand reaches, as a share of the way to the centre. */
+const BEACH = 0.16;
 
 /**
  * The terrain, as one graphics object beneath everything.
  *
  * The rules:
  *
- * 1. Every cell is filled with its terrain's colour, shaded a little
- *    by the world's noise — deep water darker, grass lighter and
- *    darker in patches.
- * 2. Every side of a land cell that faces water is sand, `BEACH`
- *    pixels deep, edged in dark on the water side; the water beside it
- *    carries a line of foam.
- * 3. Forest cells carry three small trees.
+ * 1. Every hex of the stored grid is filled: land in one green, sea in
+ *    one blue. Nothing else grows.
+ * 2. Every hex is outlined faintly in ink, so the grid shows.
+ * 3. Every side of a land hex that faces sea is sand, a band along that
+ *    side, edged in dark on the sea side.
  */
 export function drawTerrain(scene: Phaser.Scene, map: WorldMap): Phaser.GameObjects.Graphics {
   const g = scene.add.graphics();
-  const { width, height, terrain } = map;
-  const isLand = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height && terrain[y * width + x] === "land";
-
-  // Rule 1.
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const t = terrain[y * width + x];
-      const patch = valueNoise(map.seed, x, y, 5) - 0.5;
-      const grain = cellNoise(map.seed, x, y) - 0.5;
-      const color = t === "land" ? shade(GRASS, patch * 0.25 + grain * 0.08) : t === "shallows" ? shade(SHALLOWS, grain * 0.06) : shade(OCEAN, -0.15 + patch * 0.2);
-      g.fillStyle(color, 1);
-      g.fillRect(x * CELL, y * CELL, CELL, CELL);
-    }
-  }
-
-  // Rule 2.
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (!isLand(x, y)) continue;
-      const px = x * CELL;
-      const py = y * CELL;
-      const sides = [
-        { water: !isLand(x, y - 1), sand: [px, py, CELL, BEACH], edge: [px, py - 1, CELL, 2], foam: [px, py - 5, CELL, 2] },
-        { water: !isLand(x, y + 1), sand: [px, py + CELL - BEACH, CELL, BEACH], edge: [px, py + CELL - 1, CELL, 2], foam: [px, py + CELL + 3, CELL, 2] },
-        { water: !isLand(x - 1, y), sand: [px, py, BEACH, CELL], edge: [px - 1, py, 2, CELL], foam: [px - 5, py, 2, CELL] },
-        { water: !isLand(x + 1, y), sand: [px + CELL - BEACH, py, BEACH, CELL], edge: [px + CELL - 1, py, 2, CELL], foam: [px + CELL + 3, py, 2, CELL] },
-      ];
-      for (const side of sides) {
-        if (!side.water) continue;
-        const [sx, sy, sw, sh] = side.sand;
-        g.fillStyle(SAND, 1);
-        g.fillRect(sx, sy, sw, sh);
-        const [ex, ey, ew, eh] = side.edge;
-        g.fillStyle(SHORE, 0.55);
-        g.fillRect(ex, ey, ew, eh);
-        const [fx, fy, fw, fh] = side.foam;
-        g.fillStyle(FOAM, 0.35);
-        g.fillRect(fx, fy, fw, fh);
+  const outer = corners(SIZE);
+  const inner = corners(SIZE * (1 - BEACH));
+  for (let row = 0; row < map.rows; row++) {
+    for (let col = 0; col < map.columns; col++) {
+      const h = fromOffset({ col, row });
+      const c = pixel(h);
+      const shape = outer.map((p) => new Phaser.Math.Vector2(c.x + p.x, c.y + p.y));
+      const landed = map.land[row * map.columns + col] === 1;
+      // Rule 1.
+      g.fillStyle(landed ? GRASS : SEA, 1);
+      g.fillPoints(shape, true);
+      // Rule 3.
+      if (landed) {
+        STEPS.forEach((step, k) => {
+          if (isLand(map, { q: h.q + step.q, r: h.r + step.r })) return;
+          const a = outer[k];
+          const b = outer[(k + 1) % 6];
+          const band = [a, b, inner[(k + 1) % 6], inner[k]].map((p) => new Phaser.Math.Vector2(c.x + p.x, c.y + p.y));
+          g.fillStyle(SAND, 1);
+          g.fillPoints(band, true);
+          g.lineStyle(1.5, SHORE, 0.7);
+          g.lineBetween(c.x + a.x, c.y + a.y, c.x + b.x, c.y + b.y);
+        });
       }
-    }
-  }
-
-  // Rule 3.
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (!map.forest[y * width + x]) continue;
-      const trees = [
-        [0.3, 0.42],
-        [0.68, 0.38],
-        [0.5, 0.72],
-      ];
-      for (const [tx, ty] of trees) {
-        const cx = (x + tx) * CELL;
-        const cy = (y + ty) * CELL;
-        g.fillStyle(TRUNK, 1);
-        g.fillRect(cx - 1, cy + 4, 2, 4);
-        g.fillStyle(shade(FOREST, (cellNoise(map.seed + 7, x * 3 + tx * 10, y) - 0.5) * 0.2), 1);
-        g.fillTriangle(cx, cy - 7, cx - 6, cy + 5, cx + 6, cy + 5);
-      }
+      // Rule 2.
+      g.lineStyle(1, INK, 0.18);
+      g.strokePoints(shape, true);
     }
   }
   return g;

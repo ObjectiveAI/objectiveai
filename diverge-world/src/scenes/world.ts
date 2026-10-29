@@ -5,7 +5,7 @@ import * as Phaser from "phaser";
 import { drawEntities } from "../render/entities";
 import { makeIcons } from "../render/icons";
 import { drawLinks } from "../render/links";
-import { CELL } from "../render/scale";
+import { extent } from "../render/scale";
 import { drawTerrain } from "../render/terrain";
 import { build } from "../world/map";
 import { model } from "../world/model";
@@ -60,7 +60,8 @@ export class World extends Phaser.Scene {
     drawTerrain(this, map);
     drawLinks(this, map);
     drawEntities(this, map, (entity) => this.registry.set(HOVER, entity satisfies Hover));
-    controls(this, map.width * CELL, map.height * CELL);
+    const size = extent(map.columns, map.rows);
+    controls(this, size.width, size.height);
     const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, dependency_tool: 0, links: 0 };
     for (const e of map.entities) counts[e.kind]++;
     for (const p of map.pairs) counts.links += (p.ab ? 1 : 0) + (p.ba ? 1 : 0);

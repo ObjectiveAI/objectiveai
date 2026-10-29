@@ -3,14 +3,10 @@
 
 import type { Kind } from "../world/model";
 
-export const OCEAN = 0x1f4a7a;
-export const SHALLOWS = 0x2f7896;
+export const SEA = 0x1f4a7a;
 export const GRASS = 0x5e9a3a;
 export const SAND = 0xdcc68c;
-export const FOAM = 0xcfe9f2;
 export const SHORE = 0x24361c;
-export const FOREST = 0x2c5a22;
-export const TRUNK = 0x4a3420;
 
 /** The ink lines and outlines are drawn with. */
 export const INK = 0x16120a;

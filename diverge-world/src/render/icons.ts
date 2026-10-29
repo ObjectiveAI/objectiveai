@@ -3,7 +3,9 @@
 import * as Phaser from "phaser";
 import type { Kind } from "../world/model";
 import { INK, KIND, shade } from "./palette";
-import { CELL } from "./scale";
+
+/** Pixels on a side of a shield's texture: it fits inside a hex. */
+const CELL = 32;
 
 /** The texture of a kind's shield. */
 export const iconKey = (kind: Kind) => `icon:${kind}`;

@@ -9,10 +9,12 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 - **The world is the daemon drawn once** (`scenes/world.ts`): five lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again. Every account, agent, standalone tool and
   dependency tool is an entity; every event a directed link (`world/model.ts`). Each connected group is an island
-  (`islands.ts`); `place.ts` lays an island's entities 3 cells apart and anneals their slots so lines avoid entities,
-  plates, each other and tight fans; `land.ts` grows the coast, `pack.ts` packs the islands, `map.ts` puts it together.
-  `render/` draws it procedurally, no art files: terrain, then links (one arrowed line per direction, a two-way pair
-  two parallel lines), then the shields and name plates. The rules are numbered beside each piece.
+  (`islands.ts`). The grid is pointy-top hexes (`hex.ts`). `place.ts` puts an island's entities on slots 2 hexes apart
+  whose rings join into one island, and anneals them so lines avoid entities, plates, each other and tight fans.
+  `land.ts` is only each entity's hex and its six neighbours, nothing more; `pack.ts` packs the islands; `map.ts` puts
+  it together. `render/` draws it procedurally, no art files: hexes of sea and land with sand coasts, then links (one
+  arrowed line per direction, a two-way pair two parallel lines), then the shields and name plates. The rules are
+  numbered beside each piece.
 - **The page speaks the daemon's protocol itself**, with the TypeScript SDK (`@diverge/sdk`, a path dependency through
   the pnpm workspace, built by the `sdk` script before `dev`, `build` and `typecheck`). Its one handle is
   `src/lib/wire.ts`: `wire.proxy.handle(...)` over the app's Rust. Every daemon endpoint is

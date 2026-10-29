@@ -2,67 +2,79 @@
 // lines out of each other's way.
 
 import { angleBetween, crosses, distanceToSegment, type Point } from "./geometry";
+import { centre, distance, type Hex, STEPS } from "./hex";
 import type { Pair } from "./model";
 import { generator } from "./random";
 
-/** A slot of an island's lattice: its column and its row. */
-export type Slot = { col: number; row: number };
-
-/** Cells from one slot to the next: two empty cells between any two entities. */
-export const PITCH = 3;
+/** Hexes from one slot to the next: one empty hex between any two neighbouring entities. */
+export const PITCH = 2;
 
 /** What each fault costs. */
 const COST = {
-  /** A line over another entity's cell. */
+  /** A line over another entity's hex. */
   through: 500,
-  /** A line over an entity's name plate, its own or another's. */
+  /** A line over another entity's name plate. */
   plate: 150,
+  /** A line over its own end's name plate. */
+  ownPlate: 60,
   /** Two lines crossing. */
   crossing: 100,
   /** Two lines leaving one entity too close together. */
   fan: 40,
-  /** Every cell of every line's length. */
+  /** Every hex width of every line's length. */
   length: 1,
-  /** Every cell of the island's bounding box. */
+  /** Every hex of the island's bounding box. */
   area: 0.2,
 };
 
-/** A line nearer than this to an entity's centre, in cells, is over its cell. */
-const NEAR = 0.6;
-/** A line nearer than this to a plate's centre, in cells, is over the plate. */
-const PLATE_NEAR = 0.45;
+/** One hex's width, for hexes whose corners are `1` from their centres. */
+const WIDTH = Math.sqrt(3);
+/** A line nearer than this to an entity's centre is over its hex. */
+const NEAR = 0.55 * WIDTH;
+/** Where a name plate is, beneath its entity's centre: two points, its left and its right. */
+const PLATE: Point[] = [
+  { x: -0.45, y: 1 },
+  { x: 0.45, y: 1 },
+];
+/** A line nearer than this to a plate's point is over the plate. */
+const PLATE_NEAR = 0.3;
 /** Two lines leaving one entity closer than this, in radians, fan into one another. */
 const FAN = (20 * Math.PI) / 180;
 
 /**
- * The slots of one island's entities, its top-left slot `(0, 0)`.
+ * The hex of each of one island's entities.
  *
  * The rules:
  *
- * 1. Entities sit on a lattice whose slots are `PITCH` cells apart,
- *    so every entity has two empty cells between it and the next, and
- *    its eight neighbours are empty. Its name plate is the cell below
- *    it. The lattice has about twice as many slots as there are
- *    entities, about as wide as it is high, so there is room to move.
- * 2. The first placement is greedy: breadth first from the entity with
+ * 1. Entities sit on slots `PITCH` hexes apart: the hexes `(2i, 2j)`,
+ *    a lattice of triangles, so every slot has six neighbouring slots
+ *    and two entities in neighbouring slots have one empty hex between
+ *    them. No two entities are ever neighbours, so every entity's six
+ *    neighbours are empty land.
+ * 2. An island's land is only its entities' rings, which join only
+ *    between neighbouring slots; so an island's entities always hold
+ *    slots that join, neighbour to neighbour, into one group. A move
+ *    that would split them is never made.
+ * 3. The slots are those within a radius of the middle slot, about
+ *    twice as many as there are entities, so there is room to move.
+ * 4. The first placement is greedy: breadth first from the entity with
  *    the most pairs (then the first key), each entity on the free slot
- *    nearest its placed neighbours.
- * 3. The placement is then improved by simulated annealing: a move
+ *    beside one already taken that is nearest its placed neighbours.
+ * 5. The placement is then improved by simulated annealing: a move
  *    takes one entity to another slot, swapping with the entity there
  *    if there is one, and is kept if it lowers the cost, or by chance
  *    that shrinks as the search cools. The best placement seen is the
  *    answer.
- * 4. The cost is the sum, heaviest first, of: each line over another
- *    entity's cell; each line over a name plate; each two lines that
+ * 6. The cost is the sum, heaviest first, of: each line over another
+ *    entity's hex; each line over a name plate; each two lines that
  *    cross; each two lines leaving one entity less than 20° apart; the
  *    length of every line; and the area of the island. See `COST`.
- * 5. Chance is seeded with `seed`, so the same island always lands the
+ * 7. Chance is seeded with `seed`, so the same island always lands the
  *    same way.
- * 6. The answer is moved so its top-left occupied slot is `(0, 0)`.
  */
-export function place(keys: string[], pairs: Pair[], seed: number): Map<string, Slot> {
+export function place(keys: string[], pairs: Pair[], seed: number): Map<string, Hex> {
   const n = keys.length;
-  if (n === 1) return new Map([[keys[0], { col: 0, row: 0 }]]);
+  if (n === 1) return new Map([[keys[0], { q: 0, r: 0 }]]);
 
   const index = new Map(keys.map((k, i) => [k, i]));
   const edges: [number, number][] = pairs.filter((p) => index.has(p.a) && index.has(p.b)).map((p) => [index.get(p.a)!, index.get(p.b)!]);
@@ -72,16 +84,41 @@ export function place(keys: string[], pairs: Pair[], seed: number): Map<string, 
     incident[b].push(e);
   });
 
-  // Rule 1: the lattice.
-  const cols = Math.ceil(Math.sqrt(2 * n));
-  const rows = Math.ceil((2 * n) / cols);
-  const slots = cols * rows;
+  // Rules 1 and 3: the slots, in lattice steps, within `radius` of the middle.
+  let radius = 1;
+  while (1 + 3 * radius * (radius + 1) < 2 * n) radius++;
+  const lattice: Hex[] = [];
+  for (let i = -radius; i <= radius; i++) {
+    for (let j = -radius; j <= radius; j++) if (distance({ q: i, r: j }, { q: 0, r: 0 }) <= radius) lattice.push({ q: i, r: j });
+  }
+  const slotOf = new Map(lattice.map((s, k) => [`${s.q},${s.r}`, k]));
+  const beside: number[][] = lattice.map((s) => STEPS.map((d) => slotOf.get(`${s.q + d.q},${s.r + d.r}`)).filter((k): k is number => k !== undefined));
+  const points: Point[] = lattice.map((s) => centre({ q: PITCH * s.q, r: PITCH * s.r }));
+  const slots = lattice.length;
   const pos = new Int32Array(n).fill(-1);
   const occupant = new Int32Array(slots).fill(-1);
-  const at = (i: number): Point => ({ x: (pos[i] % cols) * PITCH, y: Math.floor(pos[i] / cols) * PITCH });
-  const slotPoint = (s: number): Point => ({ x: (s % cols) * PITCH, y: Math.floor(s / cols) * PITCH });
+  const at = (i: number): Point => points[pos[i]];
 
-  // Rule 2: breadth first from the most joined, each beside its placed neighbours.
+  // Rule 2: whether the taken slots join into one group.
+  const joined = (): boolean => {
+    const seen = new Uint8Array(slots);
+    const queue = [pos[0]];
+    seen[pos[0]] = 1;
+    let reached = 0;
+    while (queue.length > 0) {
+      const s = queue.pop()!;
+      reached++;
+      for (const t of beside[s]) {
+        if (seen[t] === 0 && occupant[t] >= 0) {
+          seen[t] = 1;
+          queue.push(t);
+        }
+      }
+    }
+    return reached === n;
+  };
+
+  // Rule 4: breadth first from the most joined, each beside the taken slots, near its placed neighbours.
   const neighbours: number[][] = keys.map((_, i) => incident[i].map((e) => (edges[e][0] === i ? edges[e][1] : edges[e][0])));
   const first = keys.reduce((best, _, i) => (neighbours[i].length > neighbours[best].length ? i : best), 0);
   const order: number[] = [];
@@ -97,16 +134,17 @@ export function place(keys: string[], pairs: Pair[], seed: number): Map<string, 
     }
   }
   for (let i = 0; i < n; i++) if (!queued.has(i)) order.push(i);
-  const middle = Math.floor(rows / 2) * cols + Math.floor(cols / 2);
+  const middle = slotOf.get("0,0")!;
   for (const i of order) {
     const placed = neighbours[i].filter((j) => pos[j] >= 0).map(at);
     let best = -1;
     let bestScore = Infinity;
     for (let s = 0; s < slots; s++) {
       if (occupant[s] >= 0) continue;
-      const p = slotPoint(s);
-      const centre = slotPoint(middle);
-      const score = placed.reduce((sum, q) => sum + Math.hypot(p.x - q.x, p.y - q.y), 0) + 0.01 * Math.hypot(p.x - centre.x, p.y - centre.y);
+      if (i !== order[0] && !beside[s].some((t) => occupant[t] >= 0)) continue;
+      if (i === order[0] && s !== middle) continue;
+      const p = points[s];
+      const score = placed.reduce((sum, q) => sum + Math.hypot(p.x - q.x, p.y - q.y), 0) + 0.01 * Math.hypot(p.x, p.y);
       if (score < bestScore) {
         bestScore = score;
         best = s;
@@ -116,32 +154,27 @@ export function place(keys: string[], pairs: Pair[], seed: number): Map<string, 
     occupant[best] = i;
   }
 
-  // Rule 4: the cost, a term at a time.
-  const plateOf = (p: Point): Point => ({ x: p.x, y: p.y + 1 });
+  // Rule 6: the cost, a term at a time.
+  const overCost = (pa: Point, pb: Point, k: number, own: boolean): number => {
+    const pk = at(k);
+    let cost = 0;
+    if (!own && distanceToSegment(pk, pa, pb) < NEAR) cost += COST.through;
+    if (PLATE.some((o) => distanceToSegment({ x: pk.x + o.x, y: pk.y + o.y }, pa, pb) < PLATE_NEAR)) cost += own ? COST.ownPlate : COST.plate;
+    return cost;
+  };
   /** What a line costs on its own: its length, and what it passes over. */
   const lineCost = (e: number): number => {
     const [a, b] = edges[e];
     const pa = at(a);
     const pb = at(b);
-    let cost = COST.length * Math.hypot(pb.x - pa.x, pb.y - pa.y);
-    for (let k = 0; k < n; k++) {
-      const pk = at(k);
-      if (k !== a && k !== b && distanceToSegment(pk, pa, pb) < NEAR) cost += COST.through;
-      if (distanceToSegment(plateOf(pk), pa, pb) < PLATE_NEAR) cost += COST.plate;
-    }
+    let cost = (COST.length * Math.hypot(pb.x - pa.x, pb.y - pa.y)) / WIDTH;
+    for (let k = 0; k < n; k++) cost += overCost(pa, pb, k, k === a || k === b);
     return cost;
   };
   /** What a line costs for passing over entity `k`, which is not one of its ends. */
-  const overCost = (e: number, k: number): number => {
+  const lineOver = (e: number, k: number): number => {
     const [a, b] = edges[e];
-    if (k === a || k === b) return 0;
-    const pa = at(a);
-    const pb = at(b);
-    const pk = at(k);
-    let cost = 0;
-    if (distanceToSegment(pk, pa, pb) < NEAR) cost += COST.through;
-    if (distanceToSegment(plateOf(pk), pa, pb) < PLATE_NEAR) cost += COST.plate;
-    return cost;
+    return k === a || k === b ? 0 : overCost(at(a), at(b), k, false);
   };
   /** What two lines cost together: crossing, or fanning into one another from a shared end. */
   const pairCost = (e: number, f: number): number => {
@@ -157,19 +190,18 @@ export function place(keys: string[], pairs: Pair[], seed: number): Map<string, 
     return crosses(at(a), at(b), at(c), at(d)) ? COST.crossing : 0;
   };
   const areaCost = (): number => {
-    let minC = Infinity;
-    let maxC = -Infinity;
-    let minR = Infinity;
-    let maxR = -Infinity;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
     for (let i = 0; i < n; i++) {
-      const c = pos[i] % cols;
-      const r = Math.floor(pos[i] / cols);
-      minC = Math.min(minC, c);
-      maxC = Math.max(maxC, c);
-      minR = Math.min(minR, r);
-      maxR = Math.max(maxR, r);
+      const p = at(i);
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
     }
-    return COST.area * ((maxC - minC) * PITCH + 1) * ((maxR - minR) * PITCH + 1);
+    return (COST.area * (maxX - minX + 2 * WIDTH) * (maxY - minY + 3)) / (WIDTH * 1.5);
   };
   /**
    * Every term that involves an entity of `moved`: what changes when
@@ -180,7 +212,7 @@ export function place(keys: string[], pairs: Pair[], seed: number): Map<string, 
     let cost = areaCost();
     for (const e of lines) cost += lineCost(e);
     for (let f = 0; f < edges.length; f++) {
-      if (!lines.has(f)) for (const k of moved) cost += overCost(f, k);
+      if (!lines.has(f)) for (const k of moved) cost += lineOver(f, k);
     }
     for (const e of lines) {
       for (let f = 0; f < edges.length; f++) {
@@ -191,7 +223,7 @@ export function place(keys: string[], pairs: Pair[], seed: number): Map<string, 
     return cost;
   };
 
-  // Rule 3 and 5: anneal, keeping the best.
+  // Rules 5 and 7: anneal, keeping the best.
   const random = generator(seed);
   const iterations = Math.min(60000, 400 * n);
   const hot = 100;
@@ -208,10 +240,19 @@ export function place(keys: string[], pairs: Pair[], seed: number): Map<string, 
     const moved = j >= 0 ? [i, j] : [i];
     const before = local(moved);
     const from = pos[i];
-    pos[i] = s;
-    occupant[s] = i;
-    occupant[from] = j;
-    if (j >= 0) pos[j] = from;
+    const apply = (to: number, back: number) => {
+      pos[i] = to;
+      occupant[to] = i;
+      occupant[back] = j;
+      if (j >= 0) pos[j] = back;
+    };
+    // Undone by `apply(from, s)`: a swap keeps the taken slots, a move to an empty slot frees `s` again.
+    apply(s, from);
+    // Rule 2: a move that splits the island is undone before it is weighed.
+    if (j < 0 && !joined()) {
+      apply(from, s);
+      continue;
+    }
     const delta = local(moved) - before;
     if (delta <= 0 || random() < Math.exp(-delta / temperature)) {
       current += delta;
@@ -220,15 +261,9 @@ export function place(keys: string[], pairs: Pair[], seed: number): Map<string, 
         bestPos = pos.slice();
       }
     } else {
-      pos[i] = from;
-      occupant[from] = i;
-      occupant[s] = j;
-      if (j >= 0) pos[j] = s;
+      apply(from, s);
     }
   }
 
-  // Rule 6.
-  const minCol = Math.min(...Array.from(bestPos, (s) => s % cols));
-  const minRow = Math.min(...Array.from(bestPos, (s) => Math.floor(s / cols)));
-  return new Map(keys.map((k, i) => [k, { col: (bestPos[i] % cols) - minCol, row: Math.floor(bestPos[i] / cols) - minRow }]));
+  return new Map(keys.map((k, i) => [k, { q: PITCH * lattice[bestPos[i]].q, r: PITCH * lattice[bestPos[i]].r }]));
 }
