@@ -203,7 +203,6 @@
   max-height: 200px;
   overflow-y: auto;
 }
-.sheet .args { color: var(--sheet-dim); }
 .sheet .args::before,
 .sheet .response::before {
   display: block;
