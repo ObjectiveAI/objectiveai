@@ -14,7 +14,9 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   `land.ts` is only each entity's hex and its six neighbours, nothing more; `pack.ts` packs the islands; `map.ts` puts
   it together. `render/` draws it procedurally, no art files: hexes of sea and land with sand coasts, then links (one
   arrowed line per direction, a two-way pair two parallel lines), then the entity tiles (each filling its hex) and name plates. The rules are
-  numbered beside each piece.
+  numbered beside each piece. The sea has no edge: `scenes/sea.ts`, the first scene, draws one tiling sprite of sea
+  hexes (`render/sea.ts`, the map's own grid) under the world, moved and scaled to the world camera every frame;
+  the map itself draws only land.
 - **The page speaks the daemon's protocol itself**, with the TypeScript SDK (`@diverge/sdk`, a path dependency through
   the pnpm workspace, built by the `sdk` script before `dev`, `build` and `typecheck`). Its one handle is
   `src/lib/wire.ts`: `wire.proxy.handle(...)` over the app's Rust. Every daemon endpoint is
