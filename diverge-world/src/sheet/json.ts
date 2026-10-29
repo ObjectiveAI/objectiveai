@@ -56,14 +56,3 @@ export function jsonBlock(value: unknown): HTMLElement {
   }
   return block;
 }
-
-/** `text` as JSON when it is a JSON object or array, else `undefined`. */
-export function asJson(text: string): unknown {
-  const t = text.trim();
-  if (!(t.startsWith("{") || t.startsWith("["))) return undefined;
-  try {
-    return JSON.parse(t);
-  } catch {
-    return undefined;
-  }
-}

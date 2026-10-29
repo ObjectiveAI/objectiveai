@@ -1,13 +1,11 @@
 // One piece of content — text, an image, a sound, a resource — as the
 // sheet shows it.
 
-import { asJson, jsonBlock } from "./json";
+import { jsonBlock } from "./json";
 import { renderMarkdown } from "./markdown";
 
-/** A text block: rendered markdown, or JSON when the text is a JSON object or array. */
+/** A text block, rendered as markdown: text is never read as JSON, whatever it looks like. */
 export function textElement(text: string): HTMLElement {
-  const json = asJson(text);
-  if (json !== undefined) return jsonBlock(json);
   const el = document.createElement("div");
   el.className = "text";
   renderMarkdown(el, text);
