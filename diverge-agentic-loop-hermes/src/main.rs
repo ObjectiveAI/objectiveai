@@ -335,6 +335,7 @@ async fn register(Json(request): Json<diverge_sdk::container_proxy::inside::regi
             Json(Response {
                 dependencies,
                 secrets,
+                permissions: Vec::new(),
             }),
         )),
         Err(_) => Err((

@@ -340,7 +340,7 @@ async fn register(Json(request): Json<register::request::Request>) -> Result<(St
     let dependencies = agent.dependencies.clone();
     let secrets = agent.declaration();
     match registration::register(agent).await {
-        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies, secrets }))),
+        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies, secrets, permissions: Vec::new() }))),
         Err(error) => Err((error.status(), Json(error.message()))),
     }
 }

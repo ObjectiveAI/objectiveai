@@ -321,6 +321,7 @@ async fn register(
                 Json(Response {
                     dependencies,
                     secrets: declaration,
+                    permissions: Vec::new(),
                 }),
             ))
         }
