@@ -246,6 +246,14 @@ CREATE TABLE IF NOT EXISTS diverge.volume_tags (
     PRIMARY KEY (provider, name)
 );
 
+-- What the daemon has learnt of an image's /DIVERGE.md, by digest: a
+-- digest is the image, so an answer found once is the answer for good.
+-- `document` is the document parsed; NULL is that the image ships none.
+CREATE TABLE IF NOT EXISTS diverge.image_info (
+    digest   TEXT PRIMARY KEY,
+    document JSONB
+);
+
 -- A dependency template, by the hash of its own JSON: the body every
 -- dependency tool of it shares. Made by the first registration that
 -- declares it, gone with the template's delete.

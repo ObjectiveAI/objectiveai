@@ -1,5 +1,5 @@
-//! An image's DIVERGE.md: from a container of it running, or from a
-//! provider that can obtain it.
+//! An image's DIVERGE.md: from the daemon's record, from a container
+//! of it running, or from a provider that can obtain it.
 
 use std::sync::Arc;
 
@@ -18,35 +18,71 @@ use crate::containers::capable;
 use crate::containers::run::ToolHandle;
 use crate::daemon::Daemon;
 use crate::serve::reply;
+use crate::store;
 
 /// The image's `/DIVERGE.md`, as the daemon can reach it.
 ///
 /// The rules, in order:
 ///
-/// 1. Every container the daemon runs whose image's digest is the
+/// 1. The daemon's record of the digest
+///    ([`store::image_info`]) is read first. An answer on it is the
+///    answer — `Info` with the document recorded, `Missing` when the
+///    image ships none — and nothing is asked: the digest is the
+///    image, so what it ships does not change.
+/// 2. Every container the daemon runs whose image's digest is the
 ///    request's is a candidate — an agent's, or a tool's the daemon runs
 ///    itself; a connected tool is another daemon's container and has no
 ///    info channel here. The digest is the image, so the references are
 ///    not compared. The candidates are not narrowed by the asker's
 ///    grants over agents or tools: the answer says nothing of the
 ///    container, only of the image the asker named.
-/// 2. With any candidate, one is chosen at random and its run's `info`
+/// 3. With any candidate, one is chosen at random and its run's `info`
 ///    channel asked: its document is `Info`, none shipped is `Missing`,
 ///    a failure is `Error`. No other candidate and no provider is asked
 ///    after a failure.
-/// 3. With none, a connected provider is chosen at random among those
+/// 4. With none, a connected provider is chosen at random among those
 ///    that pull from a registry one of the image's references names —
 ///    the test a run's choice makes, [`capable::registry`]; with none
 ///    of those, the provider [`locate`] finds holding the image among
 ///    the daemon's own built images. With no provider either way, the
 ///    answer is `NoSource`, and nothing is asked.
-/// 4. The provider is asked
+/// 5. The provider is asked
 ///    [`containers::info`](diverge_sdk::provider::endpoints::containers::info),
 ///    which reads the file out of the image and runs nothing: its
 ///    document is `Info`, none shipped is `Missing`, the image found
 ///    nowhere is `NoSource`, and a failure is `Error`, in the
 ///    provider's words where it said any. Nothing is retried.
-pub async fn info(daemon: &Arc<Daemon>, image: &Image) -> Frame {
+/// 6. An `Info` or a `Missing` that rules 3 to 5 found is put on the
+///    record before it is answered. A `NoSource` and an `Error` are
+///    not: neither is a fact about the image, and a later ask may
+///    reach one.
+///
+/// A record that cannot be read or written is the `Err`, and no
+/// answer is given.
+pub async fn info(daemon: &Arc<Daemon>, image: &Image) -> Result<Frame, store::Error> {
+    let recorded = {
+        let mut conn = daemon.store.acquire().await?;
+        store::image_info::by_digest(&mut conn, &image.digest).await?
+    };
+    if let Some(found) = recorded {
+        return Ok(document(found));
+    }
+    let answer = reach(daemon, image).await;
+    let found = match &answer {
+        Frame::Info(document) => Some(Some(document)),
+        Frame::Missing => Some(None),
+        Frame::NoSource | Frame::Forbidden | Frame::Error(_) => None,
+    };
+    if let Some(found) = found {
+        let mut conn = daemon.store.acquire().await?;
+        store::image_info::save(&mut conn, &image.digest, found).await?;
+    }
+    Ok(answer)
+}
+
+/// Rules 2 to 5: the answer of a running container, else of a
+/// provider.
+async fn reach(daemon: &Arc<Daemon>, image: &Image) -> Frame {
     if let Some(answer) = from_running(daemon, image).await {
         return answer;
     }
@@ -65,7 +101,7 @@ pub async fn info(daemon: &Arc<Daemon>, image: &Image) -> Frame {
     }
 }
 
-/// Rules 1 and 2: the answer of a running container of the image, or
+/// Rules 2 and 3: the answer of a running container of the image, or
 /// `None` when none runs.
 async fn from_running(daemon: &Daemon, image: &Image) -> Option<Frame> {
     let agents: Vec<_> = daemon
@@ -101,7 +137,7 @@ async fn from_running(daemon: &Daemon, image: &Image) -> Option<Frame> {
     })
 }
 
-/// Rule 3: the provider to ask, or `None` when no connected provider
+/// Rule 4: the provider to ask, or `None` when no connected provider
 /// can obtain the image.
 async fn choose_provider(daemon: &Arc<Daemon>, image: &Image) -> Option<Identity> {
     let mut pulling = Vec::new();

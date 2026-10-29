@@ -36,5 +36,5 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if !judge::images::holds(&standing, Action::Info) {
         return Ok(Frame::Forbidden);
     }
-    Ok(images::info(daemon, &frame.image).await)
+    images::info(daemon, &frame.image).await
 }
