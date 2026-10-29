@@ -7,8 +7,11 @@ import type { Snapshot } from "./snapshot";
 /** The four kinds of entity. */
 export type Kind = "account" | "agent" | "standalone_tool" | "dependency_tool";
 
-/** One entity: its key, its kind, the name on its plate, and what its hover says. */
-export type Entity = { key: string; kind: Kind; label: string; detail: string };
+/**
+ * One entity: its key, its kind, the name on its plate, what its hover
+ * says, and — an agent's — its template and index.
+ */
+export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number } };
 
 /**
  * Two entities joined: `a` before `b` by key, and which ways something
@@ -16,8 +19,12 @@ export type Entity = { key: string; kind: Kind; label: string; detail: string };
  */
 export type Pair = { a: string; b: string; ab: boolean; ba: boolean };
 
-/** The world as entities and the pairs among them. */
-export type Model = { entities: Entity[]; pairs: Pair[] };
+/**
+ * The world as entities and the pairs among them, and the image name
+ * of every listed dependency tool by its template's first eight
+ * characters — the prefix its MCP tools are called by.
+ */
+export type Model = { entities: Entity[]; pairs: Pair[]; images: Map<string, string> };
 
 type Party = daemon.endpoints.events.Party;
 type Tool = daemon.endpoints.standalone_tools.list.server.response.Tool;
@@ -35,7 +42,13 @@ function partyEntity(party: Party): Entity {
     case "account":
       return { key: `account:${party.issuer}:${party.subject}`, kind: "account", label: party.subject, detail: `${party.subject} at ${party.issuer}` };
     case "agent":
-      return { key: `agent:${party.template}:${party.index}`, kind: "agent", label: short(party.template, party.index), detail: `${party.template} #${party.index}` };
+      return {
+        key: `agent:${party.template}:${party.index}`,
+        kind: "agent",
+        label: short(party.template, party.index),
+        detail: `${party.template} #${party.index}`,
+        agent: { template: party.template, index: party.index },
+      };
     case "standalone_tool":
       return { key: `standalone_tool:${party.template}:${party.index}`, kind: "standalone_tool", label: short(party.template, party.index), detail: `${party.template} #${party.index}` };
     case "dependency_tool":
@@ -86,7 +99,7 @@ export function model(snapshot: Snapshot): Model {
   }
   for (const a of snapshot.agents) {
     const label = a.name ?? short(a.template, a.index);
-    put({ key: `agent:${a.template}:${a.index}`, kind: "agent", label, detail: `${label} — ${a.template} #${a.index}` });
+    put({ key: `agent:${a.template}:${a.index}`, kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent: { template: a.template, index: a.index } });
   }
   for (const tool of snapshot.tools) put(toolEntity(snapshot, tool));
   for (const d of snapshot.dependencies) {
@@ -108,5 +121,10 @@ export function model(snapshot: Snapshot): Model {
     else pair.ba = true;
     pairs.set(id, pair);
   }
-  return { entities: [...entities.values()], pairs: [...pairs.values()] };
+  const images = new Map<string, string>();
+  for (const d of snapshot.dependencies) {
+    const name = snapshot.names.get(d.template.image.digest);
+    if (name !== undefined) images.set(d.id.slice(0, 8), name);
+  }
+  return { entities: [...entities.values()], pairs: [...pairs.values()], images };
 }

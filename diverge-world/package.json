@@ -13,6 +13,8 @@
   "dependencies": {
     "@diverge/sdk": "workspace:*",
     "@tauri-apps/api": "^2.10.1",
+    "micromark": "4.0.2",
+    "micromark-extension-gfm": "3.0.0",
     "phaser": "^4.2.1"
   },
   "devDependencies": {

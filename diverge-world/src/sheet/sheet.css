@@ -1,0 +1,219 @@
+/* The agent sheet: ink, cream and copper, the world's own colours. */
+:root {
+  --sheet-ink: #16120a;
+  --sheet-raised: #221b11;
+  --sheet-line: #3a2f1f;
+  --sheet-cream: #f5ead0;
+  --sheet-text: #e6dcc4;
+  --sheet-dim: #a89c84;
+  --sheet-copper: #d97706;
+  --sheet-copper-bright: #fbbf24;
+  --sheet-account: #d9a521;
+  --sheet-agent: #6f9fe8;
+  --sheet-tool: #b58ae0;
+  --sheet-error: #e0604f;
+}
+
+/* Rule 1: along the bottom, the full width; rule 5: it takes every press made on it. */
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--sheet-ink) 96%, transparent);
+  border-top: 2px solid var(--sheet-copper);
+  box-shadow: 0 -6px 24px #000a;
+  color: var(--sheet-text);
+  font: 13px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace;
+  z-index: 10;
+  touch-action: none;
+}
+.sheet[hidden] {
+  display: none;
+}
+
+.sheet .handle {
+  flex: none;
+  height: 16px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.sheet .handle::before {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 4px;
+  margin: 6px auto 0;
+  border-radius: 2px;
+  background: var(--sheet-line);
+}
+
+.sheet > header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 8px 16px;
+  border-bottom: 1px solid var(--sheet-line);
+  font-family: Georgia, "Times New Roman", serif;
+}
+.sheet .live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sheet-line);
+}
+.sheet .live.on {
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade80;
+}
+.sheet .title {
+  color: var(--sheet-cream);
+  font-size: 16px;
+}
+.sheet .sub {
+  color: var(--sheet-dim);
+  font-size: 12px;
+}
+.sheet .exit {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  color: var(--sheet-cream);
+  font-size: 14px;
+  cursor: pointer;
+}
+.sheet .exit:hover {
+  border-color: var(--sheet-copper);
+}
+
+.sheet .body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 10px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A message: its label once, then its blocks. */
+.sheet .message > header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.sheet .label {
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.sheet .message.agent .label { color: var(--sheet-agent); }
+.sheet .message.account .label { color: var(--sheet-account); }
+.sheet .message.tool .label { color: var(--sheet-tool); }
+.sheet .message.error .label,
+.sheet .message.failed .label { color: var(--sheet-error); }
+.sheet .message.failed .blocks { color: var(--sheet-error); }
+.sheet .ago {
+  margin-left: auto;
+  color: var(--sheet-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.sheet .blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 8px;
+  border-left: 1px solid var(--sheet-line);
+}
+
+/* Text, rendered. */
+.sheet .text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.sheet .text p { margin: 0 0 4px; }
+.sheet .text ul,
+.sheet .text ol { margin: 0 0 4px; padding-left: 18px; }
+.sheet .text blockquote { margin: 0; padding-left: 8px; border-left: 2px solid var(--sheet-copper); }
+.sheet .text code { background: var(--sheet-raised); padding: 0 3px; border-radius: 2px; }
+.sheet .text pre { white-space: pre; overflow-x: auto; background: var(--sheet-raised); padding: 6px 8px; border-radius: 4px; }
+.sheet .text pre code { padding: 0; }
+.sheet .text table { border-collapse: collapse; }
+.sheet .text th,
+.sheet .text td { border: 1px solid var(--sheet-line); padding: 2px 6px; }
+.sheet .link { text-decoration: underline; }
+.sheet .refusal { color: var(--sheet-error); }
+
+.sheet .reasoning summary {
+  cursor: pointer;
+  color: var(--sheet-dim);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.sheet .reasoning > div {
+  color: var(--sheet-dim);
+  font-style: italic;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* A tool call. */
+.sheet .call {
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  padding: 4px 8px;
+}
+.sheet .call-name { color: var(--sheet-copper-bright); }
+.sheet .args {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 160px;
+  overflow-y: auto;
+  color: var(--sheet-dim);
+}
+
+.sheet .json {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sheet .media {
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  align-self: flex-start;
+  border-radius: 4px;
+}
+.sheet .resource { color: var(--sheet-copper-bright); }
+
+.sheet .divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--sheet-dim);
+  font-size: 11px;
+}
+.sheet .divider::before,
+.sheet .divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--sheet-line);
+}
+.sheet .divider .ago { margin-left: 0; order: 2; }
+.sheet .note {
+  color: var(--sheet-dim);
+  font-style: italic;
+  text-align: center;
+}
