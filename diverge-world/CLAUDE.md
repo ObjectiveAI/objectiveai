@@ -13,7 +13,7 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   whose rings join into one island, and anneals them so lines avoid entities, plates, each other and tight fans.
   `land.ts` is only each entity's hex and its six neighbours, nothing more; `pack.ts` packs the islands; `map.ts` puts
   it together. `render/` draws it procedurally, no art files: hexes of sea and land with sand coasts, then links (one
-  arrowed line per direction, a two-way pair two parallel lines), then the shields and name plates. The rules are
+  arrowed line per direction, a two-way pair two parallel lines), then the entity tiles (each filling its hex) and name plates. The rules are
   numbered beside each piece.
 - **The page speaks the daemon's protocol itself**, with the TypeScript SDK (`@diverge/sdk`, a path dependency through
   the pnpm workspace, built by the `sdk` script before `dev`, `build` and `typecheck`). Its one handle is

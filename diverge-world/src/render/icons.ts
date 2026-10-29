@@ -1,36 +1,47 @@
-// One shield for each kind of entity, drawn once into a texture.
+// One tile for each kind of entity, drawn once into a texture: a hex
+// in the kind's colour, the whole of the entity's hex.
 
 import * as Phaser from "phaser";
+import { corners } from "../world/hex";
 import type { Kind } from "../world/model";
 import { INK, KIND, shade } from "./palette";
+import { SIZE } from "./scale";
 
-/** Pixels on a side of a shield's texture: it fits inside a hex. */
-const CELL = 32;
+/** Pixels on a side of a tile's texture: the hex, centred, with room for its outline. */
+const CELL = 2 * SIZE + 2;
 
-/** The texture of a kind's shield. */
+/** The texture of a kind's tile. */
 export const iconKey = (kind: Kind) => `icon:${kind}`;
+
+/** A tile's hex, in its texture's own pixels: what the pointer is over when it is over the entity. */
+export const tileShape = (): Phaser.Geom.Polygon => new Phaser.Geom.Polygon(corners(SIZE).map((p) => new Phaser.Math.Vector2(CELL / 2 + p.x, CELL / 2 + p.y)));
 
 const WHITE = 0xffffff;
 
 /**
- * Make the four textures, `CELL` square: a rounded shield in the
- * kind's colour, lit along its top and outlined in ink, with a white
- * glyph — a smiley face for an account, a robot's head for an agent,
- * a hammer for a standalone tool, a gear for a dependency tool.
+ * Make the four textures, `CELL` square: the entity's hex filled to its
+ * edges in the kind's colour, lit along its upper sides, darkened along
+ * its lower ones, and outlined in ink, with a white glyph — a smiley
+ * face for an account, a robot's head for an agent, a hammer for a
+ * standalone tool, a gear for a dependency tool.
  */
 export function makeIcons(scene: Phaser.Scene): void {
   const kinds: Kind[] = ["account", "agent", "standalone_tool", "dependency_tool"];
+  const c = CELL / 2;
+  const at = (radius: number) => corners(radius).map((p) => new Phaser.Math.Vector2(c + p.x, c + p.y));
+  const outer = at(SIZE - 1);
+  const inner = at(SIZE - 4);
   for (const kind of kinds) {
     const g = scene.make.graphics({}, false);
-    const c = CELL / 2;
-    g.fillStyle(INK, 0.45);
-    g.fillRoundedRect(3, 4, CELL - 4, CELL - 4, 7);
     g.fillStyle(KIND[kind], 1);
-    g.fillRoundedRect(2, 2, CELL - 4, CELL - 4, 7);
-    g.fillStyle(shade(KIND[kind], 0.3), 1);
-    g.fillRoundedRect(4, 3, CELL - 8, 6, 3);
+    g.fillPoints(outer, true);
+    // Corners 3, 4 and 5 are the west, north-west and north-east tops: the upper sides catch the light.
+    g.lineStyle(3, shade(KIND[kind], 0.35), 1);
+    g.strokePoints([inner[3], inner[4], inner[5], inner[0]], false);
+    g.lineStyle(3, shade(KIND[kind], -0.3), 1);
+    g.strokePoints([inner[0], inner[1], inner[2], inner[3]], false);
     g.lineStyle(2, INK, 1);
-    g.strokeRoundedRect(2, 2, CELL - 4, CELL - 4, 7);
+    g.strokePoints(outer, true);
     glyph[kind](g, c);
     g.generateTexture(iconKey(kind), CELL, CELL);
     g.destroy();
