@@ -15,6 +15,9 @@ type TextKind = "text" | "reasoning" | "refusal";
 /** A block whose content grows: its buffer, and how it is drawn again. */
 type Growing = { buffer: string; draw: () => void };
 
+/** A tool call's card: its arguments as they grow, its status mark, and where its response goes. */
+type Call = { args: Growing; card: HTMLElement; status: HTMLElement; response: HTMLElement };
+
 /** The message being added to: its role, as a key, and where its blocks go. */
 type Open = { role: string; blocks: HTMLElement };
 
@@ -34,11 +37,14 @@ type Open = { role: string; blocks: HTMLElement };
  *      below it, and text after it starts a new block below that;
  *    - reasoning and refusals are text blocks of their own kinds:
  *      reasoning a closed disclosure, a refusal drawn red;
- *    - a tool call is one card per call id, its argument fragments
- *      added to it, shown as JSON once they parse.
- * 3. Every tool response is a message of its own, never joined,
- *    labelled with its call's tool name (`toolName`), its content
- *    drawn block by block, red when it is an error.
+ *    - a tool call is one card per call id, closed until opened: its
+ *      tool name (`toolName`) and a mark — pending, done, or failed —
+ *      over its arguments, the fragments added together and shown as
+ *      JSON once they parse, and its response beneath them.
+ * 3. A tool response goes into its call's card, matched by id, its
+ *    content drawn block by block, the card marked failed when it is
+ *    an error; the open message stays open. A response whose call the
+ *    log has not shown is a message of its own, labelled "tool".
  * 4. A user part joins the open message only when that message is a
  *    user message from the same sender; its label is the sender
  *    (`sender`), never "user". Within it, text and media follow rule
@@ -54,7 +60,7 @@ type Open = { role: string; blocks: HTMLElement };
 export class Fold {
   private open: Open | null = null;
   private text: { kind: TextKind; block: Growing; key: string | null } | null = null;
-  private readonly calls = new Map<string, Growing>();
+  private readonly calls = new Map<string, Call>();
   private readonly names = new Map<string, string>();
   private readonly dirty = new Set<Growing>();
   private frame: number | null = null;
@@ -93,12 +99,21 @@ export class Fold {
         break;
       case "tool_response": {
         // Rule 3.
-        this.close();
-        const name = toolName(this.names.get(item.id) ?? "tool", this.images);
-        this.ensure("tool", name, "tool", item.created);
         const content = (item.content ?? []) as ({ type: string } & Record<string, unknown>)[];
-        for (const block of content) this.place(contentElement(block));
-        if (content.length === 0 && item.structuredContent !== undefined) this.place(jsonBlock(item.structuredContent));
+        const drawn = content.map((block) => contentElement(block));
+        if (content.length === 0 && item.structuredContent !== undefined) drawn.push(jsonBlock(item.structuredContent));
+        const call = this.calls.get(item.id);
+        if (call) {
+          call.response.replaceChildren(...drawn);
+          call.response.hidden = false;
+          call.status.textContent = item.isError ? "✕" : "✓";
+          call.card.classList.toggle("failed", item.isError === true);
+          this.grew();
+          break;
+        }
+        this.close();
+        this.ensure("tool", "tool", "tool", item.created);
+        for (const el of drawn) this.place(el);
         if (item.isError) this.open?.blocks.parentElement?.classList.add("failed");
         this.close();
         break;
@@ -241,18 +256,26 @@ export class Fold {
     this.names.set(id, name);
     const known = this.calls.get(id);
     if (known) {
-      known.buffer += args;
-      this.mark(known);
+      known.args.buffer += args;
+      this.mark(known.args);
       return;
     }
-    const card = document.createElement("div");
+    const card = document.createElement("details");
     card.className = "call";
-    const head = document.createElement("div");
-    head.className = "call-name";
-    head.textContent = `→ ${toolName(name, this.images)}`;
+    const head = document.createElement("summary");
+    const status = document.createElement("span");
+    status.className = "status";
+    status.textContent = "…";
+    const title = document.createElement("span");
+    title.className = "call-name";
+    title.textContent = toolName(name, this.images);
+    head.append(status, title);
     const body = document.createElement("div");
     body.className = "args";
-    card.append(head, body);
+    const response = document.createElement("div");
+    response.className = "response";
+    response.hidden = true;
+    card.append(head, body, response);
     const block: Growing = {
       buffer: args,
       draw: () => {
@@ -266,7 +289,7 @@ export class Fold {
         else body.replaceChildren(jsonBlock(parsed));
       },
     };
-    this.calls.set(id, block);
+    this.calls.set(id, { args: block, card, status, response });
     this.open?.blocks.append(card);
     this.mark(block);
   }

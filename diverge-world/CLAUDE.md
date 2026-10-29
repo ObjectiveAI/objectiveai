@@ -7,8 +7,8 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   file under `src/scenes/`. `world` draws the map and starts `ui` over itself; `ui` draws the menus — game menus,
   drawn in the engine — with a camera of its own. Text panels are the exception, HTML over the canvas: clicking an
   agent opens its bottom sheet (`src/sheet/`), the agent's log followed live (`agents logs` with `watch`) and folded
-  into messages (`sheet/fold.ts`): assistant chunks join into one message (text contiguous, an image breaking it), every
-  tool response stands alone, user parts join per sender and are labelled by the sender. Clicking it again, another
+  into messages (`sheet/fold.ts`): assistant chunks join into one message (text contiguous, an image breaking it), each
+  tool call a card holding its response, user parts join per sender and are labelled by the sender. Clicking it again, another
   agent, or ✕ closes it.
 - **The world is the daemon drawn once** (`scenes/world.ts`): six lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its

@@ -169,21 +169,52 @@
   overflow-y: auto;
 }
 
-/* A tool call. */
+/* A tool call, its response beneath its arguments; closed until opened. */
 .sheet .call {
   border: 1px solid var(--sheet-line);
   border-radius: 4px;
   background: var(--sheet-raised);
   padding: 4px 8px;
 }
+.sheet .call > summary {
+  display: flex;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.sheet .call > summary::-webkit-details-marker { display: none; }
+.sheet .call > summary::before {
+  content: "▸";
+  color: var(--sheet-dim);
+  transition: transform 0.1s;
+}
+.sheet .call[open] > summary::before { transform: rotate(90deg); }
+.sheet .call .status { width: 1ch; color: var(--sheet-dim); }
+.sheet .call.failed .status,
+.sheet .call.failed .response { color: var(--sheet-error); }
 .sheet .call-name { color: var(--sheet-copper-bright); }
-.sheet .args {
+.sheet .args,
+.sheet .response {
+  margin: 4px 0 0 2ch;
+  padding-left: 8px;
+  border-left: 1px solid var(--sheet-line);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  max-height: 160px;
+  max-height: 200px;
   overflow-y: auto;
+}
+.sheet .args { color: var(--sheet-dim); }
+.sheet .args::before,
+.sheet .response::before {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--sheet-dim);
 }
+.sheet .args::before { content: "call"; }
+.sheet .response::before { content: "response"; }
+.sheet .response[hidden] { display: none; }
 
 .sheet .json {
   white-space: pre-wrap;
