@@ -133,7 +133,7 @@ impl ExecuteHandle {
     }
 
     /// What the arguments may be: the image's `/DIVERGE.md`, parsed —
-    /// its schema and its body — or `None` for an image that ships
+    /// its name, its schema and its body — or `None` for an image that ships
     /// none.
     pub async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
         let payload = payload(&channel_request::Frame::Info).map_err(UnaryError::Request)?;

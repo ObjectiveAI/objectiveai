@@ -1,10 +1,13 @@
 ---
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Arguments",
-  "description": "The arguments a memory tool is made with.\n\nNone: the notebook is the tool's database, and the tool is the\nsame whoever calls it. `{}` is the one value; any member is\nrefused, so a misspelled setting is never silently ignored.\n\n# How it runs\n\nAs a dependency tool, declared by the image of the agent that\nkeeps the notes; meant to be transient. Whose notebook it is\nfollows from whose database the tool is given, never from anything\nthe tool decides.",
-  "type": "object",
-  "additionalProperties": false
+  "name": "memory",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Arguments",
+    "description": "The arguments a memory tool is made with.\n\nNone: the notebook is the tool's database, and the tool is the\nsame whoever calls it. `{}` is the one value; any member is\nrefused, so a misspelled setting is never silently ignored.\n\n# How it runs\n\nAs a dependency tool, declared by the image of the agent that\nkeeps the notes; meant to be transient. Whose notebook it is\nfollows from whose database the tool is given, never from anything\nthe tool decides.",
+    "type": "object",
+    "additionalProperties": false
+  }
 }
 ---
 # Memory

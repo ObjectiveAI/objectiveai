@@ -1,7 +1,7 @@
 //! The six official agent images, and what each one's settings may be.
 //!
-//! Each image ships `/DIVERGE.md`, whose frontmatter is the JSON Schema of
-//! its `arguments` (`schema_for!` over its loop's `Agent`), and the provider
+//! Each image ships `/DIVERGE.md`, whose frontmatter is its name and the JSON
+//! Schema of its `arguments` (`schema_for!` over its loop's `Agent`), and the provider
 //! answers a container scope's `info` with it (`shared::containers::info`).
 //! No image is built or reached yet, so each loop's file is compiled in here
 //! from the SDK's source and read with the SDK's own parser. When he changes

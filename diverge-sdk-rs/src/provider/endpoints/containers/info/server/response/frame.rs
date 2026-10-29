@@ -15,7 +15,7 @@ use crate::wire::encode::{Encode, Writer};
 /// # The layout
 ///
 /// ```text
-/// [0][document JSON …]   the image's /DIVERGE.md, parsed: its schema and its body
+/// [0][document JSON …]   the image's /DIVERGE.md, parsed: its name, its schema and its body
 /// [1]                    the image ships no /DIVERGE.md
 /// [2]                    the image is in no store and no registry the provider may ask
 /// [3][error JSON …]      the file is not a document, or the image could not be read, and why

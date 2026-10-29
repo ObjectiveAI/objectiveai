@@ -20,10 +20,11 @@ finish follows the response, and no frame follows the finish.
   response precedes states that the request was not served, as
   [Endpoints](/endpoints/) provides.
 - **The document.** The byte `0` is followed by exactly one JSON
-  object of two members. `schema` is the JSON Schema of the
+  object of three members. `name` is a string, the image's own name,
+  as the image states it. `schema` is the JSON Schema of the
   `arguments` a container of the image accepts, as the image states
   it, and is a JSON object. `body` is a string: the markdown text
-  beneath the schema in the image's `/DIVERGE.md`, verbatim.
+  beneath the frontmatter in the image's `/DIVERGE.md`, verbatim.
 - **Missing.** The byte `1` alone states that the image ships no
   `/DIVERGE.md`, or that what the image holds at that path is not a
   regular file. Nothing follows the byte. That is a fact about the

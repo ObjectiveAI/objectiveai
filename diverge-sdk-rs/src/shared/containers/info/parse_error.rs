@@ -12,10 +12,11 @@ pub enum ParseError {
     /// No later line is exactly `---`, so the frontmatter never
     /// closes.
     Unterminated,
-    /// The frontmatter is not JSON. The message is the parser's, which
-    /// quotes no value.
+    /// The frontmatter is not JSON, or not an object of exactly the
+    /// members `name`, a string, and `schema`. The message is the
+    /// parser's, which quotes no value.
     Json(serde_json::Error),
-    /// The frontmatter is JSON but not an object, which a schema is.
+    /// The frontmatter's `schema` is not an object, which a schema is.
     NotObject,
 }
 
@@ -24,8 +25,8 @@ impl fmt::Display for ParseError {
         match self {
             ParseError::NoFrontmatter => f.write_str("document does not open with a `---` line"),
             ParseError::Unterminated => f.write_str("document frontmatter is never closed by a `---` line"),
-            ParseError::Json(error) => write!(f, "document frontmatter is not JSON: {error}"),
-            ParseError::NotObject => f.write_str("document frontmatter is not a JSON object"),
+            ParseError::Json(error) => write!(f, "document frontmatter is not a name and a schema: {error}"),
+            ParseError::NotObject => f.write_str("document schema is not a JSON object"),
         }
     }
 }

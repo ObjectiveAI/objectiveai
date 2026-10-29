@@ -15,7 +15,7 @@
 //! (the courier takes no secret), and the MCP server at `/mcp`, whose
 //! four tools are in [`tools`]. `--schema`, the program's one
 //! argument, prints the JSON Schema of the arguments it takes, which
-//! is the frontmatter of the image's `/DIVERGE.md`.
+//! is the `schema` of the image's `/DIVERGE.md` frontmatter.
 //!
 //! # Nothing of the proxy's before a tool is called
 //!

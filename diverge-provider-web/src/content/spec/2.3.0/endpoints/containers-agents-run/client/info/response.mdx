@@ -16,11 +16,12 @@ draft: false
   response finish that no channel response precedes states that the
   proxy did not serve the question.
 - **The document.** The byte `0` is followed by exactly one JSON
-  object of two members. `schema` is the JSON Schema of the
+  object of three members. `name` is a string, the image's own name,
+  as the image states it. `schema` is the JSON Schema of the
   container's `arguments`, as the image states it, and is a JSON
-  object. `body` is a string: the markdown text beneath the schema in
-  the image's `/DIVERGE.md`, verbatim. The server reads neither
-  member.
+  object. `body` is a string: the markdown text beneath the
+  frontmatter in the image's `/DIVERGE.md`, verbatim. The server reads
+  no member.
 - **Missing.** The byte `1` states that the image ships no
   `/DIVERGE.md`. Nothing follows the byte. That is a fact about the
   image and not a failure.

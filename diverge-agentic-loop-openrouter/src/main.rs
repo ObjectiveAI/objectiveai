@@ -104,7 +104,7 @@ type Refusal = (StatusCode, Json<Value>);
 /// life; anything else — another argument, or more than one — is a
 /// usage line on stderr and exit 2. The image's ENTRYPOINT never
 /// passes the argument. It exists so the image's `/DIVERGE.md`,
-/// whose frontmatter is this schema and which the proxy reads for
+/// whose frontmatter's `schema` is this schema and which the proxy reads for
 /// what the `arguments` may be, is generated from the type the run
 /// reads — `cargo run -- --schema`, by the assembler — and never
 /// written by hand, so the file and the type cannot disagree.

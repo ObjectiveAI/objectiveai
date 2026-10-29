@@ -1,10 +1,13 @@
 ---
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Arguments",
-  "description": "The arguments a taskboard tool is made with.\n\nNone: the board is the tool's database, and the tool is the same\nwhoever calls it. `{}` is the one value; any member is refused, so\na misspelled setting is never silently ignored.\n\n# How it runs\n\nAs a dependency tool: a service, declared by the image of every\nagent that works from the board. Which agents share one board\nfollows from the service's scope, never from anything the tool\ndecides.",
-  "type": "object",
-  "additionalProperties": false
+  "name": "taskboard",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Arguments",
+    "description": "The arguments a taskboard tool is made with.\n\nNone: the board is the tool's database, and the tool is the same\nwhoever calls it. `{}` is the one value; any member is refused, so\na misspelled setting is never silently ignored.\n\n# How it runs\n\nAs a dependency tool: a service, declared by the image of every\nagent that works from the board. Which agents share one board\nfollows from the service's scope, never from anything the tool\ndecides.",
+    "type": "object",
+    "additionalProperties": false
+  }
 }
 ---
 # Taskboard

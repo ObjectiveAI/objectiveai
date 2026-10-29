@@ -18,7 +18,7 @@ and relays its answer.
   [Response](/endpoints/containers-agents-run/client/info/response/) states the
   sequence.
 - **The document.** The document is the image's. The server relays it
-  as the proxy sent it and reads neither its schema nor its body.
+  as the proxy sent it and reads none of its name, its schema and its body.
 - **Missing.** An image that ships no `/DIVERGE.md` is answered by the
   byte `1`. That is a fact about the image and not a failure.
 - **Without a container.** [containers::info](/endpoints/containers-info/)

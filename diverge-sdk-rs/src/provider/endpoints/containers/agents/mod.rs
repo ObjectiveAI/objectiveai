@@ -12,8 +12,8 @@
 //! [`dequeue`](crate::shared::containers::dequeue) withdraws
 //! everything not yet taken; neither touches the turn being run.
 //! [`info`](crate::shared::containers::info) returns what the
-//! arguments may be — the image's own DIVERGE.md, its schema and its
-//! prose — so a caller can learn an image's agent without knowing the
+//! arguments may be — the image's own DIVERGE.md, its name, its schema
+//! and its prose — so a caller can learn an image's agent without knowing the
 //! image. The arguments being a value is what lets one wire carry
 //! every agent: what an image accepts is its own to say, and its
 //! DIVERGE.md is how it says it.
