@@ -6,8 +6,8 @@ import { centre, distance, type Hex, STEPS } from "./hex";
 import type { Pair } from "./model";
 import { generator } from "./random";
 
-/** Hexes from one slot to the next: one empty hex between any two neighbouring entities. */
-export const PITCH = 2;
+/** Hexes from one slot to the next: two empty hexes between any two neighbouring entities. */
+export const PITCH = 3;
 
 /** What each fault costs. */
 const COST = {
@@ -46,13 +46,14 @@ const FAN = (20 * Math.PI) / 180;
  *
  * The rules:
  *
- * 1. Entities sit on slots `PITCH` hexes apart: the hexes `(2i, 2j)`,
+ * 1. Entities sit on slots `PITCH` hexes apart: the hexes `(3i, 3j)`,
  *    a lattice of triangles, so every slot has six neighbouring slots
- *    and two entities in neighbouring slots have one empty hex between
- *    them. No two entities are ever neighbours, so every entity's six
- *    neighbours are empty land.
- * 2. An island's land is only its entities' rings, which join only
- *    between neighbouring slots; so an island's entities always hold
+ *    and two entities in neighbouring slots have two empty hexes
+ *    between them. Every hex within two of an entity but itself is
+ *    empty land.
+ * 2. An island's land is only the hexes within two of its entities,
+ *    which join only between neighbouring slots — slots any further
+ *    apart are six hexes or more, and their lands leave sea between; so an island's entities always hold
  *    slots that join, neighbour to neighbour, into one group. A move
  *    that would split them is never made.
  * 3. The slots are those within a radius of the middle slot, about

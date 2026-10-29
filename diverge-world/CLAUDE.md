@@ -10,9 +10,9 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its
   `images info` once (`world/names.ts`), and a tool is named by its image's DIVERGE.md `name` where it said one. Every account, agent, standalone tool and
   dependency tool is an entity; every event a directed link (`world/model.ts`). Each connected group is an island
-  (`islands.ts`). The grid is pointy-top hexes (`hex.ts`). `place.ts` puts an island's entities on slots 2 hexes apart
+  (`islands.ts`). The grid is pointy-top hexes (`hex.ts`). `place.ts` puts an island's entities on slots 3 hexes apart
   whose rings join into one island, and anneals them so lines avoid entities, plates, each other and tight fans.
-  `land.ts` is only each entity's hex and its six neighbours, nothing more; `pack.ts` packs the islands; `map.ts` puts
+  `land.ts` is every hex within 2 of an entity, nothing more; `pack.ts` packs the islands; `map.ts` puts
   it together. `render/` draws it procedurally, no art files: hexes of sea and land with sand coasts, then links (one
   arrowed line per direction, a two-way pair two parallel lines), then the entity tiles (each filling its hex) and name plates. The rules are
   numbered beside each piece. The sea has no edge: `scenes/sea.ts`, the first scene, draws one tiling sprite of sea
