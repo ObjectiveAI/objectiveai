@@ -22,6 +22,10 @@ export type Model = { entities: Entity[]; pairs: Pair[] };
 type Party = daemon.endpoints.events.Party;
 type Tool = daemon.endpoints.standalone_tools.list.server.response.Tool;
 
+/** What a tool is named: its image's name, if the image said one, else the fallback. */
+const named = (snapshot: Snapshot, digest: string | undefined, fallback: string) =>
+  (digest === undefined ? undefined : snapshot.names.get(digest)) ?? fallback;
+
 /** A template and an index, as a label: the template's first eight characters. */
 const short = (template: string, index: number) => `${template.slice(0, 8)} #${index}`;
 
@@ -39,11 +43,16 @@ function partyEntity(party: Party): Entity {
   }
 }
 
-/** The entity a listed tool is: a connected tool, another daemon's, is drawn as a standalone tool. */
-function toolEntity(tool: Tool): Entity {
+/**
+ * The entity a listed tool is: a connected tool, another daemon's, is
+ * drawn as a standalone tool. A created tool is named by its image,
+ * else by the name its create gave it, else by its template and index.
+ */
+function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
   const o = tool.origin;
   if (o.kind === "created") {
-    const label = tool.name ?? short(o.template, o.index);
+    const image = snapshot.templates.find((listed) => listed.id === o.template)?.template.image;
+    const label = named(snapshot, image?.digest, tool.name ?? short(o.template, o.index));
     return { key: `standalone_tool:${o.template}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — ${o.template} #${o.index}` };
   }
   const label = tool.name ?? `${o.daemon} #${o.index}`;
@@ -56,7 +65,8 @@ function toolEntity(tool: Tool): Entity {
  * The rules:
  *
  * 1. Every listed account, agent, standalone tool and dependency tool
- *    is an entity, linked or not.
+ *    is an entity, linked or not. A tool is named by its image's name
+ *    (`imageNames`) where the image said one.
  * 2. An event's party that no list holds is an entity too, made from
  *    the event.
  * 3. Every event joins its sender to its receiver, that way. An event
@@ -78,9 +88,10 @@ export function model(snapshot: Snapshot): Model {
     const label = a.name ?? short(a.template, a.index);
     put({ key: `agent:${a.template}:${a.index}`, kind: "agent", label, detail: `${label} — ${a.template} #${a.index}` });
   }
-  for (const tool of snapshot.tools) put(toolEntity(tool));
+  for (const tool of snapshot.tools) put(toolEntity(snapshot, tool));
   for (const d of snapshot.dependencies) {
-    put({ key: `dependency_tool:${d.id}:${d.index}`, kind: "dependency_tool", label: short(d.id, d.index), detail: `${d.id} #${d.index}` });
+    const label = named(snapshot, d.template.image.digest, short(d.id, d.index));
+    put({ key: `dependency_tool:${d.id}:${d.index}`, kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}` });
   }
   // Rules 2 to 4.
   const pairs = new Map<string, Pair>();

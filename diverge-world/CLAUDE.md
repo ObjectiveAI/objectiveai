@@ -6,8 +6,9 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 - **The page is a Phaser game, no React**: `src/main.ts` makes one `Phaser.Game` filling the window, one scene per
   file under `src/scenes/`. `world` draws the map and starts `ui` over itself; `ui` draws the menus — game menus,
   drawn in the engine — with a camera of its own.
-- **The world is the daemon drawn once** (`scenes/world.ts`): five lists read to their `listed` (`world/snapshot.ts`),
-  retried every 5 seconds until a read succeeds, never read again. Every account, agent, standalone tool and
+- **The world is the daemon drawn once** (`scenes/world.ts`): six lists read to their `listed` (`world/snapshot.ts`),
+  retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its
+  `images info` once (`world/names.ts`), and a tool is named by its image's DIVERGE.md `name` where it said one. Every account, agent, standalone tool and
   dependency tool is an entity; every event a directed link (`world/model.ts`). Each connected group is an island
   (`islands.ts`). The grid is pointy-top hexes (`hex.ts`). `place.ts` puts an island's entities on slots 2 hexes apart
   whose rings join into one island, and anneals them so lines avoid entities, plates, each other and tight fans.
