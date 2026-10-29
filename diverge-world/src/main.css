@@ -1,4 +1,4 @@
-/* The empty world: the whole window, one ground colour. */
+/* The whole window, one ground colour, the game's canvas filling it. */
 :root {
   --ground: #0d0f14;
   color-scheme: dark;
@@ -6,12 +6,9 @@
 
 html,
 body,
-#root {
+#world {
   margin: 0;
   height: 100%;
+  overflow: hidden;
   background: var(--ground);
-}
-
-.world {
-  height: 100%;
 }

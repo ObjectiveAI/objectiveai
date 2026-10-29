@@ -3,6 +3,9 @@
 Diverge World: a Tauri app beside the viewer, empty up-front. The product's owner sets the product and its words.
 
 ## The seams
+- **The page is a Phaser game, no React**: `src/main.ts` makes one `Phaser.Game` filling the window, one scene per
+  file under `src/scenes/`. `world` draws the map and starts `ui` over itself; `ui` draws the menus — game menus,
+  drawn in the engine — with a camera of its own. Both are empty up-front.
 - **The page speaks the daemon's protocol itself**, with the TypeScript SDK (`@diverge/sdk`, a path dependency through
   the pnpm workspace, built by the `sdk` script before `dev`, `build` and `typecheck`). Its one handle is
   `src/lib/wire.ts`: `wire.proxy.handle(...)` over the app's Rust. Every daemon endpoint is
