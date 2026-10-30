@@ -12,6 +12,7 @@ pub mod download;
 pub mod filetree;
 pub mod get;
 pub mod list;
+pub mod logs;
 pub mod tag;
 pub mod transfer;
 pub mod untag;
@@ -30,6 +31,8 @@ pub enum DependencyTools {
     Get(get::Arguments),
     /// Listing a caller's dependency tools.
     List(list::Arguments),
+    /// Reading a tool's log, and watching it.
+    Logs(logs::Arguments),
     /// Putting tags on a dependency tool.
     Tag(tag::Arguments),
     /// Copying a file or a directory out of a dependency tool's
@@ -54,6 +57,7 @@ pub async fn run(
         DependencyTools::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         DependencyTools::Get(arguments) => get::run(arguments, target, emitter).await,
         DependencyTools::List(arguments) => list::run(arguments, target, emitter).await,
+        DependencyTools::Logs(arguments) => logs::run(arguments, target, emitter).await,
         DependencyTools::Tag(arguments) => tag::run(arguments, target, emitter).await,
         DependencyTools::Transfer(arguments) => transfer::run(arguments, target, emitter).await,
         DependencyTools::Untag(arguments) => untag::run(arguments, target, emitter).await,
