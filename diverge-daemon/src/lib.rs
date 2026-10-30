@@ -15,10 +15,10 @@
 //! Every request of the wire: the fourteen over accounts and roles,
 //! the four over the providers and the remote daemons the
 //! configuration names, the twelve over the two template families,
-//! the thirteen over agents — their logs, their messages, and the
-//! files of their containers — the fifteen over tools, attachments
-//! and connections and their containers' files, the two that read
-//! a tool's log, the twelve over
+//! the twelve over agents — their messages, and the files of their
+//! containers — the fifteen over tools, attachments
+//! and connections and their containers' files, the one that reads
+//! an agent's or a tool's log, the twelve over
 //! volumes, and the two over the database —
 //! are served as the wire states them, and every connection is
 //! judged. A volume is its provider's, found by asking, judged by what

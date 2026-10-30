@@ -1,20 +1,5 @@
-//! Reading a log, and watching it: what every logs endpoint shares.
-//!
-//! An agent's log and a tool's are read alike. The endpoint judges the
-//! request, finds whose log it is and subscribes to it; [`send`] then
-//! runs the filter over the log as it stands, oldest first, one frame
-//! per item, and — watching — over each item as it lands, until
-//! nothing more can come. The rules:
-//!
-//! 1. Every item is sent once: the historical read ends at an index,
-//!    and the watch begins at the next. The endpoint subscribes before
-//!    the first read, so an append between the read and the wait is not
-//!    missed.
-//! 2. The scope's sending ends when the count is met, when the log
-//!    reaches `logs_index_to`, when an item later than `created_to`
-//!    lands or the clock passes it, when the client cancels, or when
-//!    the log's owner is deleted — its live sender gone.
-//! 3. Without `watch`, the sending ends after the historical read.
+//! Reading a book, and watching it: the loop the endpoint runs once it
+//! knows whose log it is.
 
 use chrono::{DateTime, Utc};
 use diverge_sdk::wire::encode::Encode;

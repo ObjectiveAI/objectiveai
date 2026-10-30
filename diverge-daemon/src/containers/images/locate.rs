@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::endpoints::images::check::client::{execute, request};
 use diverge_sdk::provider::endpoints::images::check::server::response::Response;
 use diverge_sdk::shared::containers::request::Image;

@@ -4,7 +4,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::client::Manifest;
 use diverge_sdk::provider::endpoints::images::oci::client::{execute, request};
 use futures_util::future::ready;

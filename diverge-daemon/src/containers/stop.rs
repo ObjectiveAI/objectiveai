@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use chrono::Utc;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
+use diverge_sdk::daemon::agent_log::{self as log, Item, Provider};
 use futures_util::future;
 
 use super::{AgentRun, Key, ToolHandle, ToolKey, ToolRun, pump, secrets, services};

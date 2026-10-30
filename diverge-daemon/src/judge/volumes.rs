@@ -79,7 +79,7 @@ pub fn tagging(standing: &Standing, action: Tagging, listed: &Listed, tags: &[St
 /// The grants' reach over providers, for a list: `None` for every
 /// provider — some grant of `action` is `any`, or names none — else
 /// the providers the grants name, which is where a listing looks.
-pub fn providers(standing: &Standing, action: Over) -> Option<Vec<diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity>> {
+pub fn providers(standing: &Standing, action: Over) -> Option<Vec<diverge_sdk::daemon::agent_log::Identity>> {
     if standing.admin() {
         return None;
     }

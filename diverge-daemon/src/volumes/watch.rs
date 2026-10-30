@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::endpoints::volumes::list::client::{execute, request};
 use diverge_sdk::wire::client::handle::Handle;
 use futures_util::StreamExt as _;

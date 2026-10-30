@@ -2,7 +2,7 @@
 
 use std::future::Future;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::endpoints::volumes::list::client::request::{self, Filter};
 use diverge_sdk::daemon::endpoints::volumes::list::server::response::{self, Frame};
 use diverge_sdk::daemon::grant::volumes::Over;

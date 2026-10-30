@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::endpoints::providers::Status;
 use diverge_sdk::provider::endpoints::capacity::server::response::Frame as CapacityFrame;
 use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;

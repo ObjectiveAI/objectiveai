@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item};
+use diverge_sdk::daemon::agent_log::{self as log, Item};
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::{Event, ExecuteStream};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use futures_util::StreamExt as _;

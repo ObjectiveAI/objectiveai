@@ -1,7 +1,7 @@
 //! Where and when an agent last ran.
 
 use chrono::{DateTime, Utc};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use sqlx::PgConnection;
 use sqlx::types::Json;
 

@@ -1,7 +1,7 @@
 //! What a dependency tool is attached to, whose it is and whether it
 //! runs, loaded.
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Provider;
+use diverge_sdk::daemon::agent_log::Provider;
 use diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::{Attached, Listed, Run};
 use diverge_sdk::daemon::grant::dependency_tools::Over;
 use diverge_sdk::daemon::key;

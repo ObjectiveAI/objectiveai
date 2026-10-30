@@ -6,7 +6,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::server::channel_request::Frame as Ask;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::FuseMount as VolumeFuseMount;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::client::Listed;
 use diverge_sdk::provider::endpoints::containers::fuse_serve::client::execute::{self as container_serve, ExecuteHandle as ContainerServe};
 use diverge_sdk::provider::endpoints::containers::fuse_serve::client::request::Frame as ContainerServeRequest;

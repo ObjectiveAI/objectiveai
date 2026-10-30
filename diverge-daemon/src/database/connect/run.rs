@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use bytes::Bytes;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item};
+use diverge_sdk::daemon::agent_log::{self as log, Item};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::watch;
 

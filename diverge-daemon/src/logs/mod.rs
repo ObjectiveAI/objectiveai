@@ -15,9 +15,8 @@
 //! log. [`append`] adds one item, which the caller serializes under
 //! the log's live lock — [`Log`](crate::daemon::Log) for an agent's,
 //! [`ToolLog`](crate::daemon::ToolLog) for a tool's; [`count`] is the
-//! length; [`read`] is a span of items by index; [`matches()`] and
-//! [`tool_matches`] are a request's filter over one item, the spans
-//! aside; [`remove`] is the owner deleted. A log outlives every run
+//! length; [`read`] is a span of items by index; [`matches()`] is a
+//! request's filter over one item, the spans aside; [`remove`] is the owner deleted. A log outlives every run
 //! and is removed with its owner.
 //!
 //! Its own files are flattened into it, so everything is named

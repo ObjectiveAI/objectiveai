@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::client::Answerers;
 use indexmap::IndexMap;
 use tokio::sync::{Mutex, watch};

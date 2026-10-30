@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response as agent_log;
+use diverge_sdk::daemon::agent_log as agent_log;
 use diverge_sdk::daemon::tool_log;
 use serde::Serialize;
 use serde::de::DeserializeOwned;

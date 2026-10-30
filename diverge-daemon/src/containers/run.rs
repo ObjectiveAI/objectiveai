@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::ExecuteHandle as ConnectHandle;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};

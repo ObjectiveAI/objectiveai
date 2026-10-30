@@ -22,7 +22,6 @@ pub mod download;
 pub mod filetree;
 pub mod get;
 pub mod list;
-pub mod logs;
 pub mod tag;
 pub mod transfer;
 pub mod untag;

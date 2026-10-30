@@ -1,7 +1,7 @@
 //! The providers a container names, checked to be the configuration's.
 
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 
 use super::Checked;
 use crate::daemon::Daemon;

@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as logs, Identity};
+use diverge_sdk::daemon::agent_log::{self as logs, Identity};
 use diverge_sdk::daemon::endpoints::standalone_tools::list::server::response;
 use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::daemon::key;

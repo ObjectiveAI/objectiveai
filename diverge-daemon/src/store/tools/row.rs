@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::reference;
 use indexmap::IndexMap;
 use sqlx::Row as _;

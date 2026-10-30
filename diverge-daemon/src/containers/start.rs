@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use chrono::Utc;
 use diverge_sdk::shared::mcp::attestation;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
+use diverge_sdk::daemon::agent_log::{self as log, Item, Provider};
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::{execute as tools_connect, request as connect_request};
 use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::{execute as agents_run, request as agents_request};

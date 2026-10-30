@@ -5,7 +5,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::shared::filetree::response::Frame;
 use futures_util::{Stream, StreamExt as _};
 
