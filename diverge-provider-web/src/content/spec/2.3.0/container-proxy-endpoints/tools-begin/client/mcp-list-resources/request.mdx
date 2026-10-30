@@ -6,10 +6,19 @@ draft: false
 ---
 
 ```text
-[4][params JSON …]
+[4]{"session": …, "params": …}
 ```
 
-- **The params.** The params of the MCP method `resources/list`, as JSON.
+- **The session.** The member `session` is the caller whose MCP
+  session the exchange belongs to, as the daemon attests it: the
+  object the key `diverge.network` holds on a request's `_meta`, an
+  agent or a client. Two callers are one session when their agents
+  have one template and one index, or their clients one issuer and one
+  subject. The proxy opens one MCP session to the container's server
+  per session named, on the first channel request that names it, by
+  an `initialize` that carries the caller under `_meta`, and sends the
+  exchange on that session.
+- **The params.** The member `params` holds the params of the MCP method `resources/list`, as JSON.
 - **Malformed.** A channel request whose payload does not decode as
   stated is answered by a channel response finish that no channel
   response precedes, and the server does nothing else for it.
@@ -22,4 +31,9 @@ The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/en
 and by `diverge-sdk-rs/src/shared/mcp/list_resources/request/request.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/mcp/list_resources/request/request.rs
+```
+
+and by `diverge-sdk-rs/src/shared/mcp/session.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/mcp/session.rs
 ```

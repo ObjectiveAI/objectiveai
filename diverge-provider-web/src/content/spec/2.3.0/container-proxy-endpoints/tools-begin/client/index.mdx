@@ -10,6 +10,13 @@ The client opens each of these channels on the scope, as
 its section states, and answers a channel request that does not decode
 by a channel response finish that no channel response precedes.
 
+Each of the five MCP channels names the caller whose MCP session it
+belongs to. The proxy holds one MCP session to the container's server
+per caller, opened by an `initialize` that carries the caller under
+`_meta`; it sends each exchange on its caller's session, and a
+notifications channel carries what the server sends on its own session
+alone.
+
 | Tag | Channel |
 |-----|---------|
 | `0` | [postgres](/container-proxy-endpoints/tools-begin/client/postgres/) |
