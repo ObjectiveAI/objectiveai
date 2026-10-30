@@ -104,8 +104,8 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
             Ok(channel_request::Frame::McpReadResource(request)) => {
                 tokio::spawn(async move { tool::read_resource(&proxy, &scope, channel, request).await });
             }
-            Ok(channel_request::Frame::McpNotifications(_)) => {
-                tokio::spawn(async move { tool::notifications(&proxy.tool, &scope, channel).await });
+            Ok(channel_request::Frame::McpNotifications(request)) => {
+                tokio::spawn(async move { tool::notifications(&proxy, &scope, channel, request).await });
             }
             Ok(channel_request::Frame::Secrets(values)) => {
                 tokio::spawn(tool::feed(proxy, scope, channel, values));

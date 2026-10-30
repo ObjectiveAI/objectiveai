@@ -12,7 +12,7 @@ use crate::filesystem::mount::Mounts;
 use crate::inside::mcp::{Gate, Peers};
 use crate::inside::pairs::Pairs;
 use crate::program::Upstream;
-use crate::tool::{Activity, Tool};
+use crate::tool::{Activity, Sessions};
 
 /// The begin scope, once it has begun: the scope the proxy's own asks
 /// ride, and which family's frames they are.
@@ -51,8 +51,9 @@ pub struct Proxy {
     ending: Notify,
     /// The client the program's server is dialled with.
     pub upstream: Upstream,
-    /// The MCP client a tool container's server is called through.
-    pub tool: Tool,
+    /// The MCP sessions a tool container's server is called
+    /// through, one per caller.
+    pub sessions: Sessions,
     /// A tool container's MCP exchanges in flight, and the gate they
     /// wait behind. An agent container never touches it: its gate is
     /// the driver's.
@@ -80,7 +81,7 @@ impl Proxy {
             declaration: OnceCell::new(),
             ending: Notify::new(),
             upstream: Upstream::new(),
-            tool: Tool::new(),
+            sessions: Sessions::default(),
             activity: Activity::new(),
             mounts: Mounts::new(),
             daemons: Pairs::new(),
