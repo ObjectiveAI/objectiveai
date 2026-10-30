@@ -7,15 +7,15 @@ import type { Snapshot } from "./snapshot";
 /** The four kinds of entity. */
 export type Kind = "account" | "agent" | "standalone_tool" | "dependency_tool";
 
-/** How a tool's log is asked for: a standalone tool's reference, or a dependency tool's. */
-export type ToolRef = { kind: "standalone"; tool: daemon.reference.Tool } | { kind: "dependency"; dependency: daemon.reference.Dependency };
+/** Whose log an entity is: what the root `logs` read names. */
+export type Subject = daemon.endpoints.logs.client.request.Subject;
 
 /**
  * One entity: its key, its kind, the name on its plate, what its hover
- * says, and — an agent's — its template and index, or — a listed
- * tool's — how its log is asked for.
+ * says, an agent's template and index, and — a listed agent's or
+ * tool's — whose log it is.
  */
-export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; tool?: ToolRef };
+export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject };
 
 /**
  * Two entities joined: `a` before `b` by key, and which ways something
@@ -78,12 +78,12 @@ function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
   if (o.kind === "created") {
     const image = snapshot.templates.find((listed) => listed.id === o.template)?.template.image;
     const label = named(snapshot, image?.digest, tool.name ?? short(o.template, o.index));
-    const ref: ToolRef = { kind: "standalone", tool: { template: o.template, index: o.index } };
-    return { key: `standalone_tool:${o.template}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — ${o.template} #${o.index}`, tool: ref };
+    const subject: Subject = { standalone_tool: { template: o.template, index: o.index } };
+    return { key: `standalone_tool:${o.template}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — ${o.template} #${o.index}`, subject };
   }
   const label = tool.name ?? `${o.daemon} #${o.index}`;
-  const ref: ToolRef = { kind: "standalone", tool: { daemon: o.daemon, tool: o.tool } };
-  return { key: `connected:${o.daemon}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — connected from ${o.daemon}`, tool: ref };
+  const subject: Subject = { standalone_tool: { daemon: o.daemon, tool: o.tool } };
+  return { key: `connected:${o.daemon}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — connected from ${o.daemon}`, subject };
 }
 
 /**
@@ -93,10 +93,10 @@ function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
  *
  * 1. Every listed account, agent, standalone tool and dependency tool
  *    is an entity, linked or not. A tool is named by its image's name
- *    (`imageNames`) where the image said one, and carries how its log
- *    is asked for.
+ *    (`imageNames`) where the image said one; each carries whose log
+ *    it is (`Subject`).
  * 2. An event's party that no list holds is an entity too, made from
- *    the event; such a tool carries no way to ask for its log.
+ *    the event, and carries no subject: its log is not asked for.
  * 3. Every event joins its sender to its receiver, that way. An event
  *    whose sender is its receiver joins nothing.
  * 4. All the events between two entities, either way, are one pair,
@@ -114,13 +114,14 @@ export function model(snapshot: Snapshot): Model {
   }
   for (const a of snapshot.agents) {
     const label = a.name ?? short(a.template, a.index);
-    put({ key: `agent:${a.template}:${a.index}`, kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent: { template: a.template, index: a.index } });
+    const agent = { template: a.template, index: a.index };
+    put({ key: `agent:${a.template}:${a.index}`, kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent, subject: { agent } });
   }
   for (const tool of snapshot.tools) put(toolEntity(snapshot, tool));
   for (const d of snapshot.dependencies) {
     const label = named(snapshot, d.template.image.digest, short(d.id, d.index));
-    const tool: ToolRef = { kind: "dependency", dependency: { template: d.id, owner: ownerRef(d.owner) } };
-    put({ key: `dependency_tool:${d.id}:${d.index}`, kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}`, tool });
+    const subject: Subject = { dependency_tool: { template: d.id, owner: ownerRef(d.owner) } };
+    put({ key: `dependency_tool:${d.id}:${d.index}`, kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}`, subject });
   }
   // Rules 2 to 4.
   const pairs = new Map<string, Pair>();

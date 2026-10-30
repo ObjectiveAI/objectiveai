@@ -8,7 +8,7 @@ import { drawLinks } from "../render/links";
 import { makeSelection, type Selection } from "../render/selection";
 import { extent } from "../render/scale";
 import { drawTerrain } from "../render/terrain";
-import { Sheet, type Subject } from "../sheet/sheet";
+import { Sheet } from "../sheet/sheet";
 import { build, type WorldMap } from "../world/map";
 import { type Entity, model } from "../world/model";
 import { type Snapshot, snapshot } from "../world/snapshot";
@@ -93,7 +93,7 @@ export class World extends Phaser.Scene {
       return;
     }
     const at = this.map?.at.get(entity.key);
-    const subject: Subject | null = entity.agent ? { kind: "agent", agent: entity.agent } : entity.tool ? { kind: "tool", tool: entity.tool } : null;
+    const subject = entity.subject;
     if (!subject || !at) return;
     this.selected = entity.key;
     this.selection?.show(at);

@@ -29,7 +29,7 @@ export function drawEntities(scene: Phaser.Scene, map: WorldMap, hover: (entity:
     const icon = scene.add.image(cx, cy, iconKey(entity.kind)).setDepth(2).setInteractive({ hitArea: tileShape(), hitAreaCallback: Phaser.Geom.Polygon.Contains, useHandCursor: true });
     icon.on("pointerover", () => hover(entity));
     icon.on("pointerout", () => hover(null));
-    if (entity.agent || entity.tool) {
+    if (entity.subject) {
       icon.on("pointerup", (pointer: Phaser.Input.Pointer) => {
         if (Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) < CLICK) select(entity);
       });

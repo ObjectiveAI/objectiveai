@@ -1,8 +1,8 @@
 // The bottom sheet: one agent's or one tool's log, in HTML over the map.
 
-import type { ToolRef } from "../world/model";
+import type { Subject } from "../world/model";
 import { Fold } from "./fold";
-import { type AgentRef, type Following, followAgent, followTool } from "./log";
+import { type Entry, type Following, follow } from "./log";
 import { ToolFold } from "./tool_fold";
 import "./sheet.css";
 
@@ -13,9 +13,6 @@ const MOST = 90;
 
 /** How near the bottom, in pixels, still counts as at it. */
 const PINNED = 2;
-
-/** Whose log: an agent's, or a tool's. */
-export type Subject = { kind: "agent"; agent: AgentRef } | { kind: "tool"; tool: ToolRef };
 
 /** What the sheet is opened on: whose log, its label, and the image names for an agent's tools. */
 export type Opened = { subject: Subject; label: string; images: Map<string, string> };
@@ -29,17 +26,17 @@ const short = (template: string, index: number) => `${template.slice(0, 8)} #${i
  * and whose it is.
  */
 function subline(subject: Subject): string {
-  if (subject.kind === "agent") return short(subject.agent.template, subject.agent.index);
-  const tool = subject.tool;
-  if (tool.kind === "standalone") {
-    const ref = tool.tool;
+  if ("agent" in subject) return "template" in subject.agent ? short(subject.agent.template, subject.agent.index) : subject.agent.name;
+  if ("standalone_tool" in subject) {
+    const ref = subject.standalone_tool;
     if ("daemon" in ref) return `from ${ref.daemon}`;
     if ("template" in ref) return short(ref.template, ref.index);
     return ref.name;
   }
-  const owner = tool.dependency.owner;
+  const dependency = subject.dependency_tool;
+  const owner = dependency.owner;
   const whose = owner === "global" ? "global" : "agent" in owner ? ("template" in owner.agent ? short(owner.agent.template, owner.agent.index) : owner.agent.name) : `template ${owner.agent_template.template.slice(0, 8)}`;
-  return `${tool.dependency.template.slice(0, 8)} · ${whose}`;
+  return `${dependency.template.slice(0, 8)} · ${whose}`;
 }
 
 /**
@@ -52,9 +49,10 @@ function subline(subject: Subject): string {
  * 2. Its header names whose log it is (`subline`), and whether the
  *    agent's run is up or the tool has an ask in flight; ✕ closes it
  *    and tells `closed`.
- * 3. Opening follows an agent's log (`followAgent`) into `Fold`, or a
- *    tool's (`followTool`) into `ToolFold`; closing stops it and
- *    empties the body. Opening while open closes first.
+ * 3. Opening follows the subject's log (`follow`, the root `logs`
+ *    read) into `Fold` for an agent, `ToolFold` for a tool, each entry
+ *    unwrapped from its kind; closing stops it and empties the body.
+ *    Opening while open closes first.
  * 4. The body stays at its bottom as it grows while it was at its
  *    bottom — within `PINNED` pixels — and stays where it is when
  *    scrolled up.
@@ -116,15 +114,19 @@ export class Sheet {
     this.root.style.height = `${this.height}vh`;
     this.root.hidden = false;
     const live = (on: boolean) => this.live.classList.toggle("on", on);
-    const subject = opened.subject;
-    if (subject.kind === "agent") {
+    if ("agent" in opened.subject) {
       const fold = new Fold(this.body, opened.images, () => this.stick(), live);
       this.fold = fold;
-      this.following = followAgent(subject.agent, (item) => fold.push(item), (why) => fold.note(why));
+      this.following = follow(opened.subject, (entry) => "agent" in entry && fold.push(entry.agent), (why) => fold.note(why));
     } else {
       const fold = new ToolFold(this.body, () => this.stick(), live);
       this.fold = fold;
-      this.following = followTool(subject.tool, (item) => fold.push(item), (why) => fold.note(why));
+      const tool = (entry: Entry) =>
+        "standalone_tool" in entry ? entry.standalone_tool : "dependency_tool" in entry ? entry.dependency_tool : null;
+      this.following = follow(opened.subject, (entry) => {
+        const item = tool(entry);
+        if (item) fold.push(item);
+      }, (why) => fold.note(why));
     }
   }
 

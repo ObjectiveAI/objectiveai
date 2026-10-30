@@ -7,7 +7,7 @@ import { jsonBlock } from "./json";
 import { audioElement, contentElement, imageElement, resourceElement, textElement } from "./media";
 import { sender, toolName } from "./sender";
 
-type Item = daemon.endpoints.agents.logs.server.response.ItemWrapper;
+type Item = daemon.agent_log.ItemWrapper;
 type Creator = daemon.creator.Creator;
 
 /** What a run of text is: the agent's words, its reasoning, or its refusal. */

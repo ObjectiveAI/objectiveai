@@ -9,7 +9,8 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   agent opens its bottom sheet (`src/sheet/`), the agent's log followed live (`agents logs` with `watch`) and folded
   into messages (`sheet/fold.ts`): assistant chunks join into one message (text contiguous, an image breaking it), each
   tool call a card holding its response, user parts join per sender and are labelled by the sender. A listed tool
-  opens its own log the same way (`standalone-tools logs` / `dependency-tools logs`, folded by `sheet/tool_fold.ts`):
+  opens its own log the same way (folded by `sheet/tool_fold.ts`); both are read through the one root `logs` endpoint,
+  each entity carrying its `Subject`:
   every call and read the daemon routed into it, a card each with its answer, joined per caller, and each
   notification under the caller whose MCP session it came on (the proxy opens one session per caller). Clicking another
   agent or tool swaps the sheet to it; clicking it again, or ✕, closes it.
