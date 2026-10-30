@@ -3,11 +3,12 @@
 use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item};
+use diverge_sdk::daemon::tool_log as tool_log_item;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{Event, ExecuteStream};
 use diverge_sdk::shared::error::Error;
 use futures_util::StreamExt as _;
 
-use super::{ToolRun, activate, pump, stop};
+use super::{ToolRun, activate, pump, stop, tool_log};
 use crate::daemon::Daemon;
 
 /// Read the run's stream to its end: the proxy's `Active`, which
@@ -18,10 +19,9 @@ use crate::daemon::Daemon;
 /// is in flight into it, as [`inactive_tool`](super::inactive_tool)
 /// states; and the stream's end or error the run over —
 /// [`ended_tool`](stop::ended_tool), which releases what it holds.
-/// A tool has no log of its own: an inactive that failed is kept on
-/// the log of the agent a dependency tool is deployed for, naming the
-/// tool's template and never a value, and said nowhere for a tool on
-/// record.
+/// An inactive that failed is kept on the tool's own log, and on the
+/// log of the agent a dependency tool is deployed for as well, naming
+/// the tool's template — each naming secrets and never a value.
 pub async fn pump_tool(daemon: Arc<Daemon>, run: Arc<ToolRun>, mut stream: ExecuteStream) {
     while let Some(event) = stream.next().await {
         match event {
@@ -38,9 +38,10 @@ pub async fn pump_tool(daemon: Arc<Daemon>, run: Arc<ToolRun>, mut stream: Execu
     stop::ended_tool(&daemon, run).await;
 }
 
-/// The error kept on the owner agent's log, for a dependency tool
-/// with one.
+/// The error kept on the tool's log, and on the owner agent's log,
+/// for a dependency tool with one.
 async fn noted(daemon: &Daemon, run: &ToolRun, error: Error) {
+    tool_log::note(daemon, run.id, tool_log_item::Item::Error(tool_log_item::Error { error: error.clone() })).await;
     let Some(tool) = &run.dependency else {
         return;
     };

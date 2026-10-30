@@ -17,7 +17,8 @@
 //! configuration names, the twelve over the two template families,
 //! the thirteen over agents — their logs, their messages, and the
 //! files of their containers — the fifteen over tools, attachments
-//! and connections and their containers' files, the twelve over
+//! and connections and their containers' files, the two that read
+//! a tool's log, the twelve over
 //! volumes, and the two over the database —
 //! are served as the wire states them, and every connection is
 //! judged. A volume is its provider's, found by asking, judged by what
@@ -60,7 +61,8 @@
 //! live and shared is [`daemon`]; the local Postgres is [`postgres`];
 //! the connections to providers are [`providers`]; what every file
 //! movement is made of is [`content`]; every agent's
-//! log is [`logs`]', under `<dir>/agents/`; what runs, and
+//! and every tool's log is [`logs`]', under `<dir>/agents/`,
+//! `<dir>/tools/` and `<dir>/dependency_tools/`; what runs, and
 //! everything that runs through it, is [`containers`];
 //! and [`serve`] is the daemon running: the port bound, every
 //! connection read, every request dispatched, and the stop.

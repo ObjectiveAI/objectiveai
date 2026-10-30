@@ -8,7 +8,7 @@ use diverge_sdk::daemon::grant::dependency_tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::load;
-use crate::containers::services;
+use crate::containers::{ToolKey, services, tool_log};
 use crate::daemon::{Daemon, Kind};
 use crate::database;
 use crate::judge::{self, Standing, Who};
@@ -70,7 +70,11 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     let removed = dependency_tools::delete_of_template(&mut tx, &frame.id).await?;
     dependencies::delete(&mut tx, &frame.id).await?;
     tx.commit().await?;
+    let gone: Vec<ToolKey> = removed.iter().map(|tool| ToolKey::Dependency(tool.id)).collect();
     services::template_deleted(daemon, removed).await;
+    for key in gone {
+        tool_log::forget(daemon, key).await;
+    }
     daemon.live.changed(Kind::DependencyTools);
     daemon.live.changed(Kind::StandaloneTools);
     Ok(Frame::Deleted)

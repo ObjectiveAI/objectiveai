@@ -8,7 +8,7 @@ use diverge_sdk::daemon::grant::standalone_tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{reaches, resolve};
-use crate::containers::{Key, ToolKey, services};
+use crate::containers::{Key, ToolKey, services, tool_log};
 use crate::daemon::{Daemon, Kind};
 use crate::database;
 use crate::judge::{self, Standing, Who};
@@ -56,6 +56,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     database::provision::drop(&mut tx, &role).await?;
     tx.commit().await?;
     services::tool_deleted(daemon, tool.id).await;
+    tool_log::forget(daemon, ToolKey::Record(tool.id)).await;
     daemon.live.forget_scope(Key::Tool(ToolKey::Record(tool.id))).await;
     daemon.live.changed(Kind::StandaloneTools);
     daemon.live.changed(Kind::Volumes);

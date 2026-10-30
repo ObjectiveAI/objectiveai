@@ -1,7 +1,9 @@
-//! A logs request's filter over one item.
+//! A logs request's filter over one item: an agent's or a tool's.
 
+use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::endpoints::agents::logs::client::request::{Frame, ItemType};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Item, ItemWrapper};
+use diverge_sdk::daemon::tool_log;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 
 /// Whether the item is one the request asks for, by its type and the
@@ -11,6 +13,20 @@ pub fn matches(frame: &Frame, wrapper: &ItemWrapper) -> bool {
     frame.r#type.is_none_or(|wanted| item_type(&wrapper.item) == wanted)
         && frame.created_from.is_none_or(|from| wrapper.created >= from)
         && frame.created_to.is_none_or(|to| wrapper.created <= to)
+}
+
+/// Whether a tool's log item is one a request asks for — by its type
+/// and the time span, as [`matches()`] is for an agent's. Both tool
+/// families' requests carry the three the same way.
+pub fn tool_matches(
+    r#type: Option<tool_log::ItemType>,
+    created_from: Option<DateTime<Utc>>,
+    created_to: Option<DateTime<Utc>>,
+    wrapper: &tool_log::ItemWrapper,
+) -> bool {
+    r#type.is_none_or(|wanted| tool_log::ItemType::of(&wrapper.item) == wanted)
+        && created_from.is_none_or(|from| wrapper.created >= from)
+        && created_to.is_none_or(|to| wrapper.created <= to)
 }
 
 /// The kind of the item, as a request's `type` names one.

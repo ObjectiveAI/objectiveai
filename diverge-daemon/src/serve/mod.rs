@@ -53,6 +53,7 @@ mod connection;
 mod dispatch;
 mod error;
 mod listen;
+pub mod logs;
 mod pair;
 pub mod reply;
 mod run;

@@ -67,10 +67,12 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
             return Err(Error::Store(error));
         }
     };
-    let logs = dir.join("agents");
-    if let Err(error) = tokio::fs::create_dir_all(&logs).await {
-        postgres.stop().await;
-        return Err(Error::Directory(error));
+    let logs = dir.clone();
+    for book in ["agents", "tools", "dependency_tools"] {
+        if let Err(error) = tokio::fs::create_dir_all(logs.join(book)).await {
+            postgres.stop().await;
+            return Err(Error::Directory(error));
+        }
     }
     let database = match database::Target::parse(&url, postgres.is_local()) {
         Ok(database) => database,

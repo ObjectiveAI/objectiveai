@@ -1,22 +1,20 @@
-//! Appending one item to an agent's log.
+//! Appending one item to a log.
 
 use std::path::Path;
 
 use chrono::Utc;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Item, ItemWrapper};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt as _;
 
-use super::{ENTRY, Error, dir};
-use crate::store::AgentId;
+use super::{Book, ENTRY, Entry, Error};
 
-/// Append `item` to the agent's log under `root`, numbered one past
-/// the last and stamped now, and hand it back as the wire sends it.
-/// Makes the directory on the first append. The caller holds the
-/// agent's live log lock across this, so that two appends land one
-/// after the other and the index entry counts are right.
-pub async fn append(root: &Path, id: AgentId, item: Item) -> Result<ItemWrapper, Error> {
-    let dir = dir(root, id);
+/// Append `item` to `book`'s log under `root`, numbered one past the
+/// last and stamped now, and hand it back as the wire sends it. Makes
+/// the directory on the first append. The caller holds the log's live
+/// lock across this, so that two appends land one after the other and
+/// the index entry counts are right.
+pub async fn append<B: Book>(root: &Path, book: B, item: <B::Entry as Entry>::Item) -> Result<B::Entry, Error> {
+    let dir = book.dir(root);
     tokio::fs::create_dir_all(&dir).await.map_err(|source| Error::io(&dir, source))?;
     let log_path = dir.join("log");
     let index_path = dir.join("index");
@@ -34,11 +32,7 @@ pub async fn append(root: &Path, id: AgentId, item: Item) -> Result<ItemWrapper,
         .map_err(|source| Error::io(&index_path, source))?;
     let offset = log.metadata().await.map_err(|source| Error::io(&log_path, source))?.len();
     let entries = index.metadata().await.map_err(|source| Error::io(&index_path, source))?.len() / ENTRY;
-    let wrapper = ItemWrapper {
-        logs_index: entries + 1,
-        created: Utc::now(),
-        item,
-    };
+    let wrapper = B::Entry::wrap(entries + 1, Utc::now(), item);
     let mut line = serde_json::to_vec(&wrapper).map_err(Error::Json)?;
     line.push(b'\n');
     log.write_all(&line).await.map_err(|source| Error::io(&log_path, source))?;

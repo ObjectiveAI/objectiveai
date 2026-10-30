@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 use futures_util::{Stream, StreamExt as _, stream};
 use diverge_sdk::daemon::creator::Creator;
+use diverge_sdk::daemon::tool_log::{self as log, Item};
 use diverge_sdk::shared::mcp::attest_request;
 use diverge_sdk::shared::mcp::attestation;
 use rmcp::model::RequestParamsMeta;
@@ -25,7 +26,7 @@ use tokio::sync::{Mutex, mpsc};
 use tokio::task::AbortHandle;
 
 use super::{Entry, Served, exposed, split};
-use crate::containers::{Key, ToolKey, ToolRun, activate_tool, events, tools};
+use crate::containers::{Key, ToolKey, ToolRun, activate_tool, events, tool_log, tools};
 use crate::daemon::Daemon;
 use crate::store::DependencyToolId;
 use crate::store::tools::Tool;
@@ -197,7 +198,10 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
 /// holds the tool's run up — a detach meanwhile serves the tool no
 /// more from that instant, and this call is answered still. On the
 /// graph once it reaches the run: one event from the container
-/// to the tool, however the tool answers.
+/// to the tool, however the tool answers. On the tool's log, an
+/// agent's call is kept once its tool is found, and its answer — the
+/// result, or why there was none — once there is one, as
+/// [`tool_log`] states; a tool container's own call keeps nothing.
 pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
     let Some((prefix, name)) = split(&params.name) else {
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
@@ -206,8 +210,27 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
     };
     let name = name.to_string();
-    let run = running(context, key).await.map_err(|error| ErrorData::internal_error(error, None))?;
+    let ask = match &context.caller {
+        Some(caller) => {
+            let call = log::Call { caller: caller.clone(), name: name.clone(), arguments: params.arguments.clone() };
+            tool_log::begin(&context.daemon, key, Item::Call(call)).await
+        }
+        None => None,
+    };
     params.name = name.into();
+    let answered = routed_call(context, key, params).await;
+    tool_log::end(&context.daemon, key, ask, |call| match &answered {
+        Ok(result) => Item::CallResult(log::CallResult { call, result: result.clone() }),
+        Err(error) => Item::CallError(log::CallError { call, error: tool_log::error_data(error) }),
+    })
+    .await;
+    answered
+}
+
+/// The call, routed: the tool's run found, the call attested, the run
+/// activated, the event recorded, and the tool asked.
+async fn routed_call(context: &Context, key: ToolKey, mut params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
+    let run = running(context, key).await.map_err(|error| ErrorData::internal_error(error, None))?;
     attest(context, &mut params);
     run.touch();
     let _flying = run.inflight.enter();
@@ -226,7 +249,10 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
 
 /// The read, from the first served tool that answers it: on the graph
 /// as one event from the container to that tool, and to no
-/// tool that did not.
+/// tool that did not. On each running tool's log, an agent's read is
+/// kept as it is asked, and its answer — the result, or why that tool
+/// had none — as it comes, as [`tool_log`] states; a tool container's
+/// own read keeps nothing.
 pub async fn read_resource(context: &Context, mut params: ReadResourceRequestParams) -> Result<ReadResourceResult, ErrorData> {
     attest(context, &mut params);
     let keys = context.served.lock().await.keys();
@@ -235,9 +261,18 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
         let Ok(run) = running(context, key).await else {
             continue;
         };
+        let ask = match &context.caller {
+            Some(caller) => {
+                let read = log::Read { caller: caller.clone(), uri: params.uri.clone() };
+                tool_log::begin(&context.daemon, key, Item::Read(read)).await
+            }
+            None => None,
+        };
         let _flying = run.inflight.enter();
         if let Err(error) = activate_tool(&context.daemon, &run).await {
-            last = Some(error.0.to_string());
+            let error = error.0.to_string();
+            tool_log::end(&context.daemon, key, ask, |read| Item::ReadError(log::ReadError { read, error: tool_log::words(&error) })).await;
+            last = Some(error);
             continue;
         }
         match run.handle.read_resource(params.clone()).await {
@@ -245,9 +280,13 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
                 run.touch();
                 run.attest(result.meta.get_or_insert_default());
                 events::record(&context.daemon, &context.sender, &run.sender).await;
+                tool_log::end(&context.daemon, key, ask, |read| Item::ReadResult(log::ReadResult { read, result: result.clone() })).await;
                 return Ok(result);
             }
-            Err(error) => last = Some(error),
+            Err(error) => {
+                tool_log::end(&context.daemon, key, ask, |read| Item::ReadError(log::ReadError { read, error: tool_log::words(&error) })).await;
+                last = Some(error);
+            }
         }
     }
     Err(ErrorData::invalid_params(

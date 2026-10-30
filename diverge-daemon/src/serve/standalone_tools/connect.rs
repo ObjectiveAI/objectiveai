@@ -8,6 +8,7 @@ use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::channel_r
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::request;
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::server::response::Frame;
 use diverge_sdk::daemon::grant::standalone_tools::Over;
+use diverge_sdk::daemon::tool_log::{self as log, Item};
 use diverge_sdk::shared::mcp::attestation::Caller;
 use diverge_sdk::shared::mcp::{self, attest_request};
 use diverge_sdk::wire::decode::Decode as _;
@@ -19,7 +20,7 @@ use rmcp::model::{ErrorData, GetMeta as _};
 use tokio::task::JoinSet;
 
 use super::{reaches, resolve};
-use crate::containers::{self, ToolRun};
+use crate::containers::{self, ToolRun, tool_log};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
@@ -210,6 +211,8 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
             respond(&scope, channel, &frame).await;
         }
         channel_request::Frame::McpCallTool(request) => {
+            let call = log::Call { caller: (*caller).clone(), name: request.0.name.to_string(), arguments: request.0.arguments.clone() };
+            let ask = tool_log::begin(&daemon, run.id, Item::Call(call)).await;
             let frame = match activated {
                 Err(error) => mcp::call_tool::response::Frame::Error(error),
                 Ok(()) => {
@@ -225,9 +228,16 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                     }
                 }
             };
+            tool_log::end(&daemon, run.id, ask, |call| match &frame {
+                mcp::call_tool::response::Frame::Result(result) => Item::CallResult(log::CallResult { call, result: result.clone() }),
+                mcp::call_tool::response::Frame::Error(error) => Item::CallError(log::CallError { call, error: tool_log::error_data(error) }),
+            })
+            .await;
             respond(&scope, channel, &frame).await;
         }
         channel_request::Frame::McpReadResource(request) => {
+            let read = log::Read { caller: (*caller).clone(), uri: request.0.uri.clone() };
+            let ask = tool_log::begin(&daemon, run.id, Item::Read(read)).await;
             let frame = match activated {
                 Err(error) => mcp::read_resource::response::Frame::Error(error),
                 Ok(()) => {
@@ -243,6 +253,11 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                     }
                 }
             };
+            tool_log::end(&daemon, run.id, ask, |read| match &frame {
+                mcp::read_resource::response::Frame::Result(result) => Item::ReadResult(log::ReadResult { read, result: result.clone() }),
+                mcp::read_resource::response::Frame::Error(error) => Item::ReadError(log::ReadError { read, error: tool_log::error_data(error) }),
+            })
+            .await;
             respond(&scope, channel, &frame).await;
         }
         channel_request::Frame::McpNotifications(_) => {

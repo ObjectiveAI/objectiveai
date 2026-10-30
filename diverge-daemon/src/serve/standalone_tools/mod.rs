@@ -37,6 +37,7 @@ pub mod edit;
 pub mod filetree;
 pub mod get;
 pub mod list;
+pub mod logs;
 pub mod register;
 pub mod tag;
 pub mod templates;

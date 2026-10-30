@@ -70,7 +70,11 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         .filter(|tool| !removed.iter().any(|gone| gone.id == tool.id))
         .map(|tool| tool.id)
         .collect();
+    let gone: Vec<containers::ToolKey> = removed.iter().map(|tool| containers::ToolKey::Dependency(tool.id)).collect();
     containers::services::agent_deleted(daemon, removed, left, detached).await;
+    for key in gone {
+        containers::tool_log::forget(daemon, key).await;
+    }
     daemon.live.end_log(agent.id).await;
     logs::remove(&daemon.logs, agent.id).await?;
     daemon.live.changed(Kind::Agents);

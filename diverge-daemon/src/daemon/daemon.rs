@@ -28,8 +28,8 @@ pub struct Daemon {
     pub daemons: Daemons,
     /// What is nobody's record.
     pub live: Live,
-    /// `<dir>/agents/`, where every agent's log is: see
-    /// [`logs`](crate::logs).
+    /// `<dir>`, under which every log is — `agents/`, `tools/` and
+    /// `dependency_tools/`: see [`logs`](crate::logs).
     pub logs: PathBuf,
     /// How long a container may go unused before its run is ended:
     /// `idle_seconds` of the configuration.

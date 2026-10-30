@@ -55,6 +55,9 @@ pub struct Live {
     /// Every agent's log that has been appended to or watched since
     /// the start, by agent.
     logs: Mutex<HashMap<AgentId, Arc<Log>>>,
+    /// Every tool's log that has been appended to or watched since the
+    /// start, by tool.
+    tool_logs: Mutex<HashMap<ToolKey, Arc<ToolLog>>>,
     /// The agents running now.
     agents: Mutex<HashMap<AgentId, Arc<AgentRun>>>,
     /// The tools running now, or joined: records and dependency tools.
@@ -119,6 +122,21 @@ impl std::fmt::Debug for Live {
 pub struct Log {
     /// Taken for the length of one append.
     pub lock: Mutex<()>,
+    /// The `logs_index` of the latest item appended since the start;
+    /// `0` before any. What a reader waits on.
+    pub latest: watch::Sender<u64>,
+}
+
+/// One tool's log as it is live: the lock an append is made under,
+/// holding how many of the tool's asks are in flight — what its
+/// `active` and `inactive` items mark — and the latest index as a
+/// watch, as [`Log`]'s. The sender gone — the tool deleted — ends
+/// every watch.
+#[derive(Debug)]
+pub struct ToolLog {
+    /// Taken for the length of one append, or of an ask's two: the
+    /// asks logged and not yet answered.
+    pub lock: Mutex<u64>,
     /// The `logs_index` of the latest item appended since the start;
     /// `0` before any. What a reader waits on.
     pub latest: watch::Sender<u64>,
@@ -426,6 +444,24 @@ impl Live {
     /// it once the last append has let go.
     pub async fn end_log(&self, id: AgentId) {
         self.logs.lock().await.remove(&id);
+    }
+
+    /// The tool's log, live: the one every append and every watch of
+    /// that log goes through.
+    pub async fn tool_log(&self, key: ToolKey) -> Arc<ToolLog> {
+        let mut logs = self.tool_logs.lock().await;
+        Arc::clone(logs.entry(key).or_insert_with(|| {
+            Arc::new(ToolLog {
+                lock: Mutex::new(0),
+                latest: watch::channel(0).0,
+            })
+        }))
+    }
+
+    /// The tool is deleted: forget its log, which ends every watch on
+    /// it once the last append has let go.
+    pub async fn end_tool_log(&self, key: ToolKey) {
+        self.tool_logs.lock().await.remove(&key);
     }
 
     /// The agent's run, if it is up.

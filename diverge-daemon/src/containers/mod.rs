@@ -81,6 +81,7 @@ pub mod mcp;
 pub mod message;
 pub mod permissions;
 pub mod services;
+pub mod tool_log;
 
 pub use activate::*;
 pub use attached::*;
