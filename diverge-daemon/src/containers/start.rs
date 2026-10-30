@@ -17,7 +17,7 @@ use super::answerers::Answerer;
 use super::capable::Needs;
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{AgentRun, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_tool, serve_name, services, stop, tool_log};
+use super::{AgentRun, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_tool, serve_name, services, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::daemons;
 use crate::containers::permissions;
@@ -339,6 +339,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         tasks: Mutex::new(Vec::new()),
         edits: Mutex::new(()),
         dependency: None,
+        sessions: Mutex::new(HashSet::new()),
         secrets: Mutex::new(secrets),
     });
     {
@@ -361,7 +362,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
             })
         }
     };
-    let mut tasks = vec![watcher.abort_handle(), tool_log::tap(Arc::clone(daemon), &run)];
+    let mut tasks = vec![watcher.abort_handle()];
     if !run.service {
         tasks.push(tokio::spawn(idle::idle_tool(Arc::clone(daemon), Arc::clone(&run))).abort_handle());
     }

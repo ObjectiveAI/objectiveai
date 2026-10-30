@@ -16,18 +16,19 @@
 //!    its answer is not kept; an answer or a note that cannot be
 //!    written is let go.
 //!
-//! [`tap`] is rule 3's notifications: one reader of the tool's own
-//! notifications per run, so each is kept once however many agents it
-//! is forwarded to.
+//! [`session()`] is rule 3's notifications: one reader of what the tool
+//! sends on each caller's MCP session, started at that session's first
+//! use, so each notification is kept once, naming whom it reached.
 
 use std::sync::Arc;
 
 use diverge_sdk::daemon::tool_log;
 use futures_util::StreamExt as _;
+use diverge_sdk::shared::mcp::attestation::Caller;
+use diverge_sdk::shared::mcp::session;
 use rmcp::model::ErrorData;
-use tokio::task::AbortHandle;
 
-use super::{ToolKey, ToolRun};
+use super::{ToolHandle, ToolKey, ToolRun};
 use crate::daemon::Daemon;
 use crate::logs;
 
@@ -94,19 +95,30 @@ pub fn words(error: &str) -> diverge_sdk::shared::error::Error {
     diverge_sdk::shared::error::Error(serde_json::Value::String(error.to_string()))
 }
 
-/// Keep every notification the run's tool sends, until its stream
-/// ends: spawned once where the run is made, the handle among the
-/// run's tasks, so the run's end ends it.
-pub fn tap(daemon: Arc<Daemon>, run: &Arc<ToolRun>) -> AbortHandle {
-    let run = Arc::clone(run);
+/// Rule 3: the first time `caller`'s session is used on the run, keep
+/// every notification the tool sends on it, naming `caller`, until its
+/// stream ends — the reader among the run's tasks, so the run's end
+/// ends it. A connected tool's sessions are the far daemon's, which
+/// keeps what it sends; nothing is read here.
+pub async fn session(daemon: &Arc<Daemon>, run: &Arc<ToolRun>, caller: &Caller) {
+    if let ToolHandle::Connected(_) = run.handle {
+        return;
+    }
+    if !run.sessions.lock().await.insert(session::key(caller)) {
+        return;
+    }
+    let daemon = Arc::clone(daemon);
+    let tapped = Arc::clone(run);
+    let to = caller.clone();
     let task = tokio::spawn(async move {
-        let Ok(mut stream) = run.handle.notifications().await else {
+        let Ok(mut stream) = tapped.handle.notifications(&to).await else {
             return;
         };
         while let Some(Ok(notification)) = stream.next().await {
             let notification = serde_json::to_value(&notification).unwrap_or(serde_json::Value::Null);
-            note(&daemon, run.id, tool_log::Item::Notification(tool_log::Notification { notification })).await;
+            let item = tool_log::Item::Notification(tool_log::Notification { to: to.clone(), notification });
+            note(&daemon, tapped.id, item).await;
         }
     });
-    task.abort_handle()
+    run.tasks.lock().await.push(task.abort_handle());
 }

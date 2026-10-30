@@ -17,7 +17,6 @@ use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::tool_log::{self as log, Item};
 use diverge_sdk::shared::mcp::attest_request;
 use diverge_sdk::shared::mcp::attestation;
-use rmcp::model::RequestParamsMeta;
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, ErrorData, GetMeta as _, ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
     ReadResourceResult, ServerNotification,
@@ -119,12 +118,11 @@ async fn relayed(served: &Mutex<Served>, daemon: &Daemon, key: ToolKey) -> Optio
     daemon.live.tool_run(key).await
 }
 
-/// The caller stamped on `params`: the agent, when the run is one. A
-/// tool's run calls nothing outward, and stamps nothing.
-fn attest<P: RequestParamsMeta>(context: &Context, params: &mut P) {
-    if let Some(agent) = &context.caller {
-        attest_request(params, agent);
-    }
+/// The refusal for a call or a read with no caller: a tool container
+/// calls no tool — a tool declares no dependencies, so nothing is ever
+/// served to one, and no session could name it.
+fn no_caller() -> ErrorData {
+    ErrorData::invalid_params("a tool container calls no tool", None)
 }
 
 /// Every idle served tool started: what a loop beginning does, so its
@@ -141,6 +139,9 @@ pub async fn start_all(context: &Context) {
 /// waited for. A tool that does not answer lists nothing. Each ask is
 /// in flight into its tool for as long as it takes.
 pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) -> Result<ListToolsResult, ErrorData> {
+    let Some(caller) = &context.caller else {
+        return Ok(ListToolsResult::with_all_items(Vec::new()));
+    };
     let keys = context.served.lock().await.keys();
     let mut tools = Vec::new();
     for key in keys {
@@ -151,12 +152,13 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
             continue;
         };
         let mut params = PaginatedRequestParams::default();
-        attest(context, &mut params);
+        attest_request(&mut params, caller);
+        tool_log::session(&context.daemon, &run, caller).await;
         let _flying = run.inflight.enter();
         if activate_tool(&context.daemon, &run).await.is_err() {
             continue;
         }
-        if let Ok(result) = run.handle.list_tools(Some(params)).await {
+        if let Ok(result) = run.handle.list_tools(caller, Some(params)).await {
             run.touch();
             for mut tool in result.tools {
                 tool.name = exposed(&prefix, &tool.name).into();
@@ -170,6 +172,9 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
 
 /// The union of every served tool's resources, verbatim.
 pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>) -> Result<ListResourcesResult, ErrorData> {
+    let Some(caller) = &context.caller else {
+        return Ok(ListResourcesResult::with_all_items(Vec::new()));
+    };
     let keys = context.served.lock().await.keys();
     let mut resources = Vec::new();
     for key in keys {
@@ -177,12 +182,13 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
             continue;
         };
         let mut params = PaginatedRequestParams::default();
-        attest(context, &mut params);
+        attest_request(&mut params, caller);
+        tool_log::session(&context.daemon, &run, caller).await;
         let _flying = run.inflight.enter();
         if activate_tool(&context.daemon, &run).await.is_err() {
             continue;
         }
-        if let Ok(result) = run.handle.list_resources(Some(params)).await {
+        if let Ok(result) = run.handle.list_resources(caller, Some(params)).await {
             run.touch();
             for mut resource in result.resources {
                 run.attest(resource.meta.get_or_insert_default());
@@ -209,16 +215,14 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     let Some(key) = context.served.lock().await.owner(prefix) else {
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
     };
-    let name = name.to_string();
-    let ask = match &context.caller {
-        Some(caller) => {
-            let call = log::Call { caller: caller.clone(), name: name.clone(), arguments: params.arguments.clone() };
-            tool_log::begin(&context.daemon, key, Item::Call(call)).await
-        }
-        None => None,
+    let Some(caller) = &context.caller else {
+        return Err(no_caller());
     };
+    let name = name.to_string();
+    let call = log::Call { caller: caller.clone(), name: name.clone(), arguments: params.arguments.clone() };
+    let ask = tool_log::begin(&context.daemon, key, Item::Call(call)).await;
     params.name = name.into();
-    let answered = routed_call(context, key, params).await;
+    let answered = routed_call(context, caller, key, params).await;
     tool_log::end(&context.daemon, key, ask, |call| match &answered {
         Ok(result) => Item::CallResult(log::CallResult { call, result: result.clone() }),
         Err(error) => Item::CallError(log::CallError { call, error: tool_log::error_data(error) }),
@@ -228,10 +232,12 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
 }
 
 /// The call, routed: the tool's run found, the call attested, the run
-/// activated, the event recorded, and the tool asked.
-async fn routed_call(context: &Context, key: ToolKey, mut params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
+/// activated, the event recorded, and the tool asked on the caller's
+/// session.
+async fn routed_call(context: &Context, caller: &attestation::Caller, key: ToolKey, mut params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
     let run = running(context, key).await.map_err(|error| ErrorData::internal_error(error, None))?;
-    attest(context, &mut params);
+    attest_request(&mut params, caller);
+    tool_log::session(&context.daemon, &run, caller).await;
     run.touch();
     let _flying = run.inflight.enter();
     activate_tool(&context.daemon, &run)
@@ -240,7 +246,7 @@ async fn routed_call(context: &Context, key: ToolKey, mut params: CallToolReques
     events::record(&context.daemon, &context.sender, &run.sender).await;
     let mut result = run
         .handle
-        .call_tool(params)
+        .call_tool(caller, params)
         .await
         .map_err(|error| ErrorData::internal_error(error, None))?;
     run.attest(result.meta.get_or_insert_default());
@@ -254,20 +260,19 @@ async fn routed_call(context: &Context, key: ToolKey, mut params: CallToolReques
 /// had none — as it comes, as [`tool_log`] states; a tool container's
 /// own read keeps nothing.
 pub async fn read_resource(context: &Context, mut params: ReadResourceRequestParams) -> Result<ReadResourceResult, ErrorData> {
-    attest(context, &mut params);
+    let Some(caller) = &context.caller else {
+        return Err(no_caller());
+    };
+    attest_request(&mut params, caller);
     let keys = context.served.lock().await.keys();
     let mut last = None;
     for key in keys {
         let Ok(run) = running(context, key).await else {
             continue;
         };
-        let ask = match &context.caller {
-            Some(caller) => {
-                let read = log::Read { caller: caller.clone(), uri: params.uri.clone() };
-                tool_log::begin(&context.daemon, key, Item::Read(read)).await
-            }
-            None => None,
-        };
+        tool_log::session(&context.daemon, &run, caller).await;
+        let read = log::Read { caller: caller.clone(), uri: params.uri.clone() };
+        let ask = tool_log::begin(&context.daemon, key, Item::Read(read)).await;
         let _flying = run.inflight.enter();
         if let Err(error) = activate_tool(&context.daemon, &run).await {
             let error = error.0.to_string();
@@ -275,7 +280,7 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
             last = Some(error);
             continue;
         }
-        match run.handle.read_resource(params.clone()).await {
+        match run.handle.read_resource(caller, params.clone()).await {
             Ok(mut result) => {
                 run.touch();
                 run.attest(result.meta.get_or_insert_default());
@@ -319,6 +324,13 @@ pub async fn notifications(context: &Context) -> Notifications {
             }
         });
     }
+    // A tool container's context has no caller, and nothing served.
+    let Some(caller) = context.caller.clone() else {
+        return Box::pin(stream::unfold(receiver, |mut receiver| async move {
+            let item = receiver.recv().await?;
+            Some((item, receiver))
+        }));
+    };
     let daemon = Arc::clone(&context.daemon);
     let served = Arc::clone(&context.served);
     tokio::spawn(async move {
@@ -342,7 +354,8 @@ pub async fn notifications(context: &Context) -> Notifications {
                 let Some(run) = relayed(&served, &daemon, key).await else {
                     continue;
                 };
-                let Ok(mut stream) = run.handle.notifications().await else {
+                tool_log::session(&daemon, &run, &caller).await;
+                let Ok(mut stream) = run.handle.notifications(&caller).await else {
                     continue;
                 };
                 let sender = sender.clone();

@@ -163,6 +163,7 @@ async fn over(ended: &mut tokio::sync::watch::Receiver<bool>) {
 /// tool answers; one the activation refused is not, nor is a listing.
 async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>, caller: Arc<Caller>, sender: Arc<Creator>, channel: u32, ask: channel_request::Frame) {
     run.touch();
+    containers::tool_log::session(&daemon, &run, &caller).await;
     let _flying = run.inflight.enter();
     let activated = match &ask {
         channel_request::Frame::Disconnect | channel_request::Frame::McpNotifications(_) => Ok(()),
@@ -178,7 +179,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                 Ok(()) => {
                     let mut params = request.0.unwrap_or_default();
                     attest_request(&mut params, &*caller);
-                    match run.handle.list_tools(Some(params)).await {
+                    match run.handle.list_tools(&caller, Some(params)).await {
                         Ok(mut result) => {
                             for tool in &mut result.tools {
                                 run.attest(tool.meta.get_or_insert_default());
@@ -197,7 +198,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                 Ok(()) => {
                     let mut params = request.0.unwrap_or_default();
                     attest_request(&mut params, &*caller);
-                    match run.handle.list_resources(Some(params)).await {
+                    match run.handle.list_resources(&caller, Some(params)).await {
                         Ok(mut result) => {
                             for resource in &mut result.resources {
                                 run.attest(resource.meta.get_or_insert_default());
@@ -219,7 +220,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                     let mut params = request.0;
                     attest_request(&mut params, &*caller);
                     containers::events::record(&daemon, &sender, &run.sender).await;
-                    match run.handle.call_tool(params).await {
+                    match run.handle.call_tool(&caller, params).await {
                         Ok(mut result) => {
                             run.attest(result.meta.get_or_insert_default());
                             mcp::call_tool::response::Frame::Result(result)
@@ -244,7 +245,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                     let mut params = request.0;
                     attest_request(&mut params, &*caller);
                     containers::events::record(&daemon, &sender, &run.sender).await;
-                    match run.handle.read_resource(params).await {
+                    match run.handle.read_resource(&caller, params).await {
                         Ok(mut result) => {
                             run.attest(result.meta.get_or_insert_default());
                             mcp::read_resource::response::Frame::Result(result)
@@ -261,7 +262,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
             respond(&scope, channel, &frame).await;
         }
         channel_request::Frame::McpNotifications(_) => {
-            match run.handle.notifications().await {
+            match run.handle.notifications(&caller).await {
                 Ok(mut stream) => {
                     while let Some(item) = stream.next().await {
                         let frame = match item {

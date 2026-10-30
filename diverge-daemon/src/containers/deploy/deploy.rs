@@ -20,7 +20,7 @@ use crate::containers::fuse::Mounts;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
 use crate::containers::services;
-use crate::containers::{Inflight, Key, ToolHandle, ToolKey, ToolRun, build, permissions, provider, pump_tool, secrets, stop, tool_log};
+use crate::containers::{Inflight, Key, ToolHandle, ToolKey, ToolRun, build, permissions, provider, pump_tool, secrets, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::ToolRef;
 use crate::serve::inner;
@@ -285,13 +285,14 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
             dependency: Some(tool.clone()),
+            sessions: Mutex::new(HashSet::new()),
             secrets: Mutex::new(run_answerer.secrets.lock().await.take()),
         });
         daemon.live.insert_tool(Arc::clone(&run)).await;
         daemon.live.changed(Kind::DependencyTools);
         daemon.live.nudge_capacity(&run.provider);
         let pumping = tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream));
-        run.tasks.lock().await.extend([pumping.abort_handle(), tool_log::tap(Arc::clone(daemon), &run)]);
+        run.tasks.lock().await.push(pumping.abort_handle());
         return Ok(run);
     }
     mounts.stop().await;

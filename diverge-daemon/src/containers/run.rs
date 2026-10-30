@@ -113,42 +113,46 @@ pub enum ToolHandle {
 pub const CONNECTED_FILES: &str = "a connected tool is another daemon's: its files are there";
 
 impl ToolHandle {
-    /// The tool's MCP tools.
-    pub async fn list_tools(&self, params: Option<PaginatedRequestParams>) -> Result<ListToolsResult, String> {
+    /// The tool's MCP tools, on `session`'s MCP session. A connected
+    /// tool's session is the far daemon's to name, by this daemon's
+    /// identity: see [`session`](diverge_sdk::shared::mcp::session).
+    pub async fn list_tools(&self, session: &attestation::Caller, params: Option<PaginatedRequestParams>) -> Result<ListToolsResult, String> {
         match self {
-            ToolHandle::Run(handle) => handle.list_tools(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.list_tools(session, params).await.map_err(|error| error.to_string()),
             ToolHandle::Connected(handle) => handle.list_tools(params).await.map_err(|error| error.to_string()),
         }
     }
 
-    /// The tool's MCP resources.
-    pub async fn list_resources(&self, params: Option<PaginatedRequestParams>) -> Result<ListResourcesResult, String> {
+    /// The tool's MCP resources, on `session`'s MCP session.
+    pub async fn list_resources(&self, session: &attestation::Caller, params: Option<PaginatedRequestParams>) -> Result<ListResourcesResult, String> {
         match self {
-            ToolHandle::Run(handle) => handle.list_resources(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.list_resources(session, params).await.map_err(|error| error.to_string()),
             ToolHandle::Connected(handle) => handle.list_resources(params).await.map_err(|error| error.to_string()),
         }
     }
 
-    /// One call, by the name the tool itself knows.
-    pub async fn call_tool(&self, params: CallToolRequestParams) -> Result<CallToolResult, String> {
+    /// One call, by the name the tool itself knows, on `session`'s
+    /// MCP session.
+    pub async fn call_tool(&self, session: &attestation::Caller, params: CallToolRequestParams) -> Result<CallToolResult, String> {
         match self {
-            ToolHandle::Run(handle) => handle.call_tool(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.call_tool(session, params).await.map_err(|error| error.to_string()),
             ToolHandle::Connected(handle) => handle.call_tool(params).await.map_err(|error| error.to_string()),
         }
     }
 
-    /// One resource read.
-    pub async fn read_resource(&self, params: ReadResourceRequestParams) -> Result<ReadResourceResult, String> {
+    /// One resource read, on `session`'s MCP session.
+    pub async fn read_resource(&self, session: &attestation::Caller, params: ReadResourceRequestParams) -> Result<ReadResourceResult, String> {
         match self {
-            ToolHandle::Run(handle) => handle.read_resource(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.read_resource(session, params).await.map_err(|error| error.to_string()),
             ToolHandle::Connected(handle) => handle.read_resource(params).await.map_err(|error| error.to_string()),
         }
     }
 
-    /// The tool's notifications, for as long as the scope lives.
-    pub async fn notifications(&self) -> Result<McpNotificationsStream, String> {
+    /// What the tool sends on `session`'s MCP session, for as long as
+    /// the scope lives.
+    pub async fn notifications(&self, session: &attestation::Caller) -> Result<McpNotificationsStream, String> {
         match self {
-            ToolHandle::Run(handle) => handle.notifications().await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.notifications(session).await.map_err(|error| error.to_string()),
             ToolHandle::Connected(handle) => handle.notifications().await.map_err(|error| error.to_string()),
         }
     }
@@ -291,6 +295,11 @@ pub struct ToolRun {
     /// What it is as a dependency tool, when it is one: the row, as
     /// it was when this run started.
     pub dependency: Option<DependencyTool>,
+    /// The callers' MCP sessions the tool has been asked on, by
+    /// [`key`](diverge_sdk::shared::mcp::session::key): each one's
+    /// notifications kept on the tool's log from its first use, as
+    /// [`tool_log::session`](crate::containers::tool_log::session) states.
+    pub sessions: Mutex<HashSet<String>>,
     /// Its secrets, as for an agent's run; a connected tool's `None`,
     /// since the daemon that runs it feeds its container.
     pub secrets: Mutex<Option<Secrets>>,
