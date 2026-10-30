@@ -14,7 +14,8 @@ import { Caller } from "../../shared/mcp/attestation/caller.js";
  *    answers, naming the ask by its `logs_index`.
  * 2. `active` is kept just before an ask while no other is in flight,
  *    `inactive` just after the answer that leaves none in flight.
- * 3. A `notification` is kept once per notification the tool sends.
+ * 3. A `notification` is kept once per notification the tool sends,
+ *    naming the caller whose session it was sent on.
  * 4. An `error` is the daemon's own, met keeping the tool.
  */
 export const Item = z.discriminatedUnion("type", [
@@ -34,8 +35,8 @@ export const Item = z.discriminatedUnion("type", [
   z.object({ type: z.literal("read_result"), read: z.number().int().nonnegative(), result: ReadResourceResultSchema }),
   /** A resource read the tool did not answer, in the daemon's words. */
   z.object({ type: z.literal("read_error"), read: z.number().int().nonnegative(), error: Error }),
-  /** A notification the tool sent, MCP's own JSON as it came. */
-  z.object({ type: z.literal("notification"), notification: z.json() }),
+  /** A notification the tool sent, MCP's own JSON as it came, and the caller whose session it was sent on. */
+  z.object({ type: z.literal("notification"), to: Caller, notification: z.json() }),
   /** An error the daemon met keeping the tool. */
   z.object({ type: z.literal("error"), error: Error }),
 ]);

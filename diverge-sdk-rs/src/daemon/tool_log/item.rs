@@ -18,8 +18,8 @@ use super::{Call, CallError, CallResult, Error, Notification, Read, ReadError, R
 ///    after the answer that leaves none in flight, so the asks between
 ///    the two are exactly those of one stretch of use.
 /// 3. A [`Notification`] is kept once per notification the tool sends,
-///    however many agents it is forwarded to; it is no ask's, and moves
-///    nothing in flight.
+///    naming the caller whose session it was sent on; it is no ask's,
+///    and moves nothing in flight.
 /// 4. An [`Error`] is the daemon's own, met keeping the tool — never an
 ///    ask's answer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

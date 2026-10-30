@@ -11,6 +11,8 @@ use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{daemon, postgres};
 use crate::shared::mcp;
+use crate::shared::mcp::attestation::Caller;
+use crate::shared::mcp::session::Sessioned;
 
 /// The begin scope a tool container's server holds.
 ///
@@ -60,7 +62,7 @@ impl ExecuteHandle {
     /// What tools the container's server has.
     pub async fn list_tools(
         &self,
-        request: mcp::list_tools::request::Request,
+        request: Sessioned<mcp::list_tools::request::Request>,
     ) -> Result<<McpListTools as Answered>::Item, UnaryError<McpListTools>> {
         let payload = payload(&channel_request::Frame::McpListTools(request)).map_err(UnaryError::Request)?;
         unary::<McpListTools>(&self.handle, self.scope, &payload).await
@@ -69,7 +71,7 @@ impl ExecuteHandle {
     /// What resources it has.
     pub async fn list_resources(
         &self,
-        request: mcp::list_resources::request::Request,
+        request: Sessioned<mcp::list_resources::request::Request>,
     ) -> Result<<McpListResources as Answered>::Item, UnaryError<McpListResources>> {
         let payload = payload(&channel_request::Frame::McpListResources(request)).map_err(UnaryError::Request)?;
         unary::<McpListResources>(&self.handle, self.scope, &payload).await
@@ -78,7 +80,7 @@ impl ExecuteHandle {
     /// Run one of its tools.
     pub async fn call_tool(
         &self,
-        request: mcp::call_tool::request::Request,
+        request: Sessioned<mcp::call_tool::request::Request>,
     ) -> Result<<McpCallTool as Answered>::Item, UnaryError<McpCallTool>> {
         let payload = payload(&channel_request::Frame::McpCallTool(request)).map_err(UnaryError::Request)?;
         unary::<McpCallTool>(&self.handle, self.scope, &payload).await
@@ -87,18 +89,17 @@ impl ExecuteHandle {
     /// Read one of its resources.
     pub async fn read_resource(
         &self,
-        request: mcp::read_resource::request::Request,
+        request: Sessioned<mcp::read_resource::request::Request>,
     ) -> Result<<McpReadResource as Answered>::Item, UnaryError<McpReadResource>> {
         let payload = payload(&channel_request::Frame::McpReadResource(request)).map_err(UnaryError::Request)?;
         unary::<McpReadResource>(&self.handle, self.scope, &payload).await
     }
 
-    /// Everything it says on its own account, for as long as the
-    /// channel lives.
-    pub async fn notifications(&self) -> Result<ChannelStream<McpNotifications>, OpenError> {
-        let payload = payload(&channel_request::Frame::McpNotifications(
-            mcp::notifications::request::Request,
-        ))
+    /// Everything it says on its own account on `session`'s MCP
+    /// session, for as long as the channel lives.
+    pub async fn notifications(&self, session: Caller) -> Result<ChannelStream<McpNotifications>, OpenError> {
+        let request = Sessioned { session, request: mcp::notifications::request::Request };
+        let payload = payload(&channel_request::Frame::McpNotifications(request))
         .map_err(OpenError::Request)?;
         let channel = self
             .handle

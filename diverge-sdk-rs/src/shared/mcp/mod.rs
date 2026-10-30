@@ -57,9 +57,12 @@
 //! which is not MCP but has the same `_meta` at its top level, the
 //! daemon sets the agent as it keeps the chunk, so a reader of the
 //! log knows which agent spoke. The daemon replaces a value set under
-//! the key and leaves every other key as it was sent; the proxy and
-//! the provider's server set nothing under `_meta` and relay all of
-//! it as sent. The key's form is MCP's own rule for `_meta` names: a
+//! the key and leaves every other key as it was sent; the provider's
+//! server sets nothing under `_meta` and relays all of it as sent, and
+//! so does the proxy, but for one thing: the proxy inside a tool
+//! container opens one MCP session to its server per caller, and sets
+//! the caller under the key on that session's `initialize` — see
+//! [`session`]. The key's form is MCP's own rule for `_meta` names: a
 //! prefix of dotted labels — here the prefix alone. The side that
 //! receives it reads it back as its type through [`attestation`]: a
 //! tool reads a request's caller, an agent an answer's tool.
@@ -86,3 +89,4 @@ pub mod list_resources;
 pub mod list_tools;
 pub mod notifications;
 pub mod read_resource;
+pub mod session;

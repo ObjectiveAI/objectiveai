@@ -23,6 +23,8 @@ use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{fuse_mount, read, transfer, write_path};
 use crate::shared::mcp;
+use crate::shared::mcp::attestation::Caller;
+use crate::shared::mcp::session::Sessioned;
 
 /// The servers' notifications, for as long as the channel lives.
 pub type McpNotificationsStream = ChannelStream<McpNotifications>;
@@ -150,56 +152,64 @@ impl ExecuteHandle {
         self.0.unary::<FuseMount>(&payload).await
     }
 
-    /// `tools/list` against the server inside the container.
+    /// `tools/list` against the server inside the container, on
+    /// `session`'s MCP session.
     pub async fn list_tools(
         &self,
+        session: &Caller,
         params: Option<PaginatedRequestParams>,
     ) -> Result<ListToolsResult, UnaryError<McpListTools>> {
-        let payload = payload(&channel_request::Frame::McpListTools(mcp::list_tools::request::Request(params)))
+        let request = Sessioned { session: session.clone(), request: mcp::list_tools::request::Request(params) };
+        let payload = payload(&channel_request::Frame::McpListTools(request))
             .map_err(UnaryError::Request)?;
         self.0.unary::<McpListTools>(&payload).await
     }
 
-    /// `resources/list` against the server inside the container.
+    /// `resources/list` against the server inside the container, on
+    /// `session`'s MCP session.
     pub async fn list_resources(
         &self,
+        session: &Caller,
         params: Option<PaginatedRequestParams>,
     ) -> Result<ListResourcesResult, UnaryError<McpListResources>> {
-        let payload = payload(&channel_request::Frame::McpListResources(
-            mcp::list_resources::request::Request(params),
-        ))
+        let request = Sessioned { session: session.clone(), request: mcp::list_resources::request::Request(params) };
+        let payload = payload(&channel_request::Frame::McpListResources(request))
         .map_err(UnaryError::Request)?;
         self.0.unary::<McpListResources>(&payload).await
     }
 
-    /// `tools/call` against the server inside the container.
+    /// `tools/call` against the server inside the container, on
+    /// `session`'s MCP session.
     pub async fn call_tool(
         &self,
+        session: &Caller,
         params: CallToolRequestParams,
     ) -> Result<CallToolResult, UnaryError<McpCallTool>> {
-        let payload = payload(&channel_request::Frame::McpCallTool(mcp::call_tool::request::Request(params)))
+        let request = Sessioned { session: session.clone(), request: mcp::call_tool::request::Request(params) };
+        let payload = payload(&channel_request::Frame::McpCallTool(request))
             .map_err(UnaryError::Request)?;
         self.0.unary::<McpCallTool>(&payload).await
     }
 
-    /// `resources/read` against the server inside the container.
+    /// `resources/read` against the server inside the container, on
+    /// `session`'s MCP session.
     pub async fn read_resource(
         &self,
+        session: &Caller,
         params: ReadResourceRequestParams,
     ) -> Result<ReadResourceResult, UnaryError<McpReadResource>> {
-        let payload = payload(&channel_request::Frame::McpReadResource(
-            mcp::read_resource::request::Request(params),
-        ))
+        let request = Sessioned { session: session.clone(), request: mcp::read_resource::request::Request(params) };
+        let payload = payload(&channel_request::Frame::McpReadResource(request))
         .map_err(UnaryError::Request)?;
         self.0.unary::<McpReadResource>(&payload).await
     }
 
     /// Everything the server inside the container says on its own
-    /// account, for as long as the channel lives.
-    pub async fn notifications(&self) -> Result<McpNotificationsStream, OpenError> {
-        let payload = payload(&channel_request::Frame::McpNotifications(
-            mcp::notifications::request::Request,
-        ))
+    /// account on `session`'s MCP session, for as long as the channel
+    /// lives.
+    pub async fn notifications(&self, session: &Caller) -> Result<McpNotificationsStream, OpenError> {
+        let request = Sessioned { session: session.clone(), request: mcp::notifications::request::Request };
+        let payload = payload(&channel_request::Frame::McpNotifications(request))
         .map_err(OpenError::Request)?;
         self.0.open::<McpNotifications>(&payload).await.map_err(OpenError::Send)
     }

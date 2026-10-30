@@ -10,6 +10,7 @@ use crate::shared::containers::postgres;
 use crate::shared::containers::daemon;
 use crate::shared::containers::secrets::Values;
 use crate::shared::mcp;
+use crate::shared::mcp::session::Sessioned;
 
 /// What the server asks the proxy for once a tool container has
 /// begun.
@@ -64,18 +65,23 @@ pub enum Frame {
     /// The family's own exchange, and the first of five: the caller
     /// speaking to the MCP server inside, each of the exchanges in
     /// [`shared::mcp`](crate::shared::mcp) on a channel of its own,
-    /// answered by the container's own server.
-    McpListTools(mcp::list_tools::request::Request),
+    /// answered by the container's own server — each
+    /// [`Sessioned`]: on the session of the caller it names, which the
+    /// proxy opens on its first exchange, as
+    /// [`session`](crate::shared::mcp::session) states.
+    McpListTools(Sessioned<mcp::list_tools::request::Request>),
     /// What resources it has. Tag `4`.
-    McpListResources(mcp::list_resources::request::Request),
+    McpListResources(Sessioned<mcp::list_resources::request::Request>),
     /// Run one of its tools. Tag `5`.
-    McpCallTool(mcp::call_tool::request::Request),
+    McpCallTool(Sessioned<mcp::call_tool::request::Request>),
     /// Read one of its resources. Tag `6`.
-    McpReadResource(mcp::read_resource::request::Request),
-    /// Everything it says on its own account. Tag `7`.
+    McpReadResource(Sessioned<mcp::read_resource::request::Request>),
+    /// Everything it says on its own account, on the session named.
+    /// Tag `7`.
     ///
-    /// Carries nothing, and answers for as long as the channel lives.
-    McpNotifications(mcp::notifications::request::Request),
+    /// Carries the session alone, and answers for as long as the
+    /// channel lives with what the server sends on that session.
+    McpNotifications(Sessioned<mcp::notifications::request::Request>),
     /// The secrets' values, fed to the program. Tag `8`.
     ///
     /// Carries the [`Values`] as JSON — every name the program
@@ -156,7 +162,7 @@ impl Encode for Frame {
             }
             Frame::McpNotifications(request) => {
                 out.extend_from_slice(&[MCP_NOTIFICATIONS]);
-                request.encode(out).map_err(|error| match error {})
+                request.encode(out)
             }
             Frame::Secrets(values) => {
                 out.extend_from_slice(&[SECRETS]);
@@ -180,26 +186,25 @@ impl Decode<'_> for Frame {
             DAEMON => daemon::request::Daemon::decode(rest)
                 .map(Frame::Daemon)
                 .map_err(FrameError::Daemon),
-            MCP_LIST_TOOLS => mcp::list_tools::request::Request::decode(rest)
+            MCP_LIST_TOOLS => Sessioned::<mcp::list_tools::request::Request>::decode(rest)
                 .map(Frame::McpListTools)
                 .map_err(FrameError::McpParams),
             MCP_LIST_RESOURCES => {
-                mcp::list_resources::request::Request::decode(rest)
+                Sessioned::<mcp::list_resources::request::Request>::decode(rest)
                     .map(Frame::McpListResources)
                     .map_err(FrameError::McpParams)
             }
-            MCP_CALL_TOOL => mcp::call_tool::request::Request::decode(rest)
+            MCP_CALL_TOOL => Sessioned::<mcp::call_tool::request::Request>::decode(rest)
                 .map(Frame::McpCallTool)
                 .map_err(FrameError::McpParams),
             MCP_READ_RESOURCE => {
-                mcp::read_resource::request::Request::decode(rest)
+                Sessioned::<mcp::read_resource::request::Request>::decode(rest)
                     .map(Frame::McpReadResource)
                     .map_err(FrameError::McpParams)
             }
-            MCP_NOTIFICATIONS => Ok(Frame::McpNotifications(
-                mcp::notifications::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
+            MCP_NOTIFICATIONS => Sessioned::<mcp::notifications::request::Request>::decode(rest)
+                .map(Frame::McpNotifications)
+                .map_err(FrameError::McpParams),
             SECRETS => serde_json::from_slice(rest)
                 .map(Frame::Secrets)
                 .map_err(FrameError::Secrets),

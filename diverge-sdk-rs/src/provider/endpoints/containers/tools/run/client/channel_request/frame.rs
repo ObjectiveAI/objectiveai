@@ -7,6 +7,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::mcp;
+use crate::shared::mcp::session::Sessioned;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 use crate::shared::containers::daemon;
@@ -117,36 +118,38 @@ pub enum Frame {
     /// What tools are there. Tag `8`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
-    /// defines. See [`mcp::list_tools`](crate::shared::mcp::list_tools)
+    /// defines, each [`Sessioned`]: the caller whose MCP session it
+    /// belongs to, carried through to the container's proxy, as
+    /// [`session`](crate::shared::mcp::session) states. See [`mcp::list_tools`](crate::shared::mcp::list_tools)
     /// for what it asks and what answers it.
-    McpListTools(mcp::list_tools::request::Request),
+    McpListTools(Sessioned<mcp::list_tools::request::Request>),
     /// What resources are there. Tag `9`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::list_resources`](crate::shared::mcp::list_resources) for
     /// what it asks and what answers it.
-    McpListResources(mcp::list_resources::request::Request),
+    McpListResources(Sessioned<mcp::list_resources::request::Request>),
     /// Run one tool. Tag `10`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See [`mcp::call_tool`](crate::shared::mcp::call_tool)
     /// for what it asks and what answers it.
-    McpCallTool(mcp::call_tool::request::Request),
+    McpCallTool(Sessioned<mcp::call_tool::request::Request>),
     /// Read one resource. Tag `11`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::read_resource`](crate::shared::mcp::read_resource) for
     /// what it asks and what answers it.
-    McpReadResource(mcp::read_resource::request::Request),
+    McpReadResource(Sessioned<mcp::read_resource::request::Request>),
     /// Everything the server says on its own account. Tag `12`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::notifications`](crate::shared::mcp::notifications) for
     /// what it asks and what answers it.
-    McpNotifications(mcp::notifications::request::Request),
+    McpNotifications(Sessioned<mcp::notifications::request::Request>),
     /// A FUSE mount made while the container runs. Tag `13`.
     ///
     /// The caller serves one more file or directory into the
@@ -275,9 +278,7 @@ impl Encode for Frame {
             }
             Frame::McpNotifications(request) => {
                 out.extend_from_slice(&[MCP_NOTIFICATIONS]);
-                // Its error is `Infallible`, and an empty match on one
-                // is how you say so: there is no value to handle.
-                request.encode(out).map_err(|error| match error {})
+                request.encode(out)
             }
             Frame::FuseMount(request) => {
                 out.extend_from_slice(&[FUSE_MOUNT]);
@@ -316,26 +317,25 @@ impl Decode<'_> for Frame {
             DAEMON => daemon::request::Daemon::decode(rest)
                 .map(Frame::Daemon)
                 .map_err(FrameError::Daemon),
-            MCP_LIST_TOOLS => mcp::list_tools::request::Request::decode(rest)
+            MCP_LIST_TOOLS => Sessioned::<mcp::list_tools::request::Request>::decode(rest)
                 .map(Frame::McpListTools)
                 .map_err(FrameError::McpParams),
             MCP_LIST_RESOURCES => {
-                mcp::list_resources::request::Request::decode(rest)
+                Sessioned::<mcp::list_resources::request::Request>::decode(rest)
                     .map(Frame::McpListResources)
                     .map_err(FrameError::McpParams)
             }
-            MCP_CALL_TOOL => mcp::call_tool::request::Request::decode(rest)
+            MCP_CALL_TOOL => Sessioned::<mcp::call_tool::request::Request>::decode(rest)
                 .map(Frame::McpCallTool)
                 .map_err(FrameError::McpParams),
             MCP_READ_RESOURCE => {
-                mcp::read_resource::request::Request::decode(rest)
+                Sessioned::<mcp::read_resource::request::Request>::decode(rest)
                     .map(Frame::McpReadResource)
                     .map_err(FrameError::McpParams)
             }
-            MCP_NOTIFICATIONS => Ok(Frame::McpNotifications(
-                mcp::notifications::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
+            MCP_NOTIFICATIONS => Sessioned::<mcp::notifications::request::Request>::decode(rest)
+                .map(Frame::McpNotifications)
+                .map_err(FrameError::McpParams),
             FUSE_MOUNT => fuse_mount::request::Request::decode(rest)
                 .map(Frame::FuseMount)
                 .map_err(FrameError::FuseMount),
