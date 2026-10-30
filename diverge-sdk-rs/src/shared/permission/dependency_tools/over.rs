@@ -42,7 +42,7 @@ pub enum Over {
     /// does.
     Filetree,
     /// Read one's log, running or not, as
-    /// [`dependencies::logs`](crate::daemon::endpoints::dependency_tools::logs)
+    /// [`logs`](crate::daemon::endpoints::logs)
     /// does.
     Logs,
 }

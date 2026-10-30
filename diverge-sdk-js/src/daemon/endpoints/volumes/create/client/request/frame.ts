@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../shared/relay.js";
-import { Identity } from "../../../../../../daemon/endpoints/agents/logs/server/response/identity.js";
+import { Identity } from "../../../../../agent_log/identity.js";
 import { Mode } from "../../../../../../provider/endpoints/volumes/mode.js";
 
 /**

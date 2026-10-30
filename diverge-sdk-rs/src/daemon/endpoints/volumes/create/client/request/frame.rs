@@ -5,7 +5,7 @@ use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 use crate::shared::relay::Relay;
 
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
+use crate::daemon::agent_log::Identity;
 use crate::provider::endpoints::volumes::Mode;
 /// Ask the daemon to create a volume on a provider, as the provider
 /// protocol's

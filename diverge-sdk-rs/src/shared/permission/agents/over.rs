@@ -25,7 +25,7 @@ pub enum Over {
     /// does.
     Message,
     /// Read one's log, as
-    /// [`agents::logs`](crate::daemon::endpoints::agents::logs) does.
+    /// [`logs`](crate::daemon::endpoints::logs) does.
     Logs,
     /// List them, as
     /// [`agents::list`](crate::daemon::endpoints::agents::list) does;

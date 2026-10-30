@@ -1,7 +1,7 @@
 // Naming a volume: its provider, and its name there.
 
 import { z } from "zod";
-import { Identity } from "../endpoints/agents/logs/server/response/identity.js";
+import { Identity } from "../agent_log/identity.js";
 
 /**
  * One volume: the provider that holds it, by the daemon's `Identity`

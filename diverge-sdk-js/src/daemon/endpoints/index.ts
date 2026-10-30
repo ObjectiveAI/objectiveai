@@ -13,6 +13,7 @@ export * as dependency_tools from "./dependency_tools/index.js";
 export * as events from "./events/index.js";
 export * as images from "./images/index.js";
 export * as info from "./info/index.js";
+export * as logs from "./logs/index.js";
 export * as postgres from "./postgres/index.js";
 export * as providers from "./providers/index.js";
 export * as roles from "./roles/index.js";

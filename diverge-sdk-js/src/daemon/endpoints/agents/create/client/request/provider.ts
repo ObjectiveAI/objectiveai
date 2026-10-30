@@ -1,7 +1,7 @@
 // Pinning a container to one provider, with its volumes.
 
 import { z } from "zod";
-import { Identity } from "../../../logs/server/response/identity.js";
+import { Identity } from "../../../../../agent_log/identity.js";
 import { VolumeMount } from "./volume_mount.js";
 
 /**

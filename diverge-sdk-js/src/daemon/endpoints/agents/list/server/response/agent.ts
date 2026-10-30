@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Creator } from "../../../../../../daemon/creator/creator.js";
 import { Tool } from "../../../../../../daemon/key/tool.js";
 import type { Keyed } from "../../../../../../shared/listing/keyed.js";
-import { Provider } from "../../../logs/server/response/provider.js";
+import { Provider } from "../../../../../agent_log/provider.js";
 
 /**
  * One agent of the caller's: what the daemon knows of it without

@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{accounts, agents, dependency_tools, events, images, info, postgres, providers, roles, standalone_tools, vault, volumes};
+use super::{accounts, agents, dependency_tools, events, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -35,8 +35,6 @@ pub enum ClientRequest<'a> {
     AgentsDelete(agents::delete::client::request::Frame),
     /// Tag `3`. Send an agent a message.
     AgentsMessage(agents::message::client::request::Frame),
-    /// Tag `4`. Read an agent's log, filtered, and perhaps kept open.
-    AgentsLogs(agents::logs::client::request::Frame),
     /// Tag `5`. List the caller's agents, narrowed, and keep the list.
     AgentsList(agents::list::client::request::Frame),
     /// Tag `6`. Change an agent.
@@ -216,10 +214,8 @@ pub enum ClientRequest<'a> {
     ImagesInfo(images::info::client::request::Frame),
     /// Tag `111`. Say what the daemon is: its version.
     Info(info::client::request::Frame),
-    /// Tag `112`. Read a standalone tool's log, and perhaps watch it.
-    StandaloneToolsLogs(standalone_tools::logs::client::request::Frame),
-    /// Tag `113`. Read a dependency tool's log, and perhaps watch it.
-    DependencyToolsLogs(dependency_tools::logs::client::request::Frame),
+    /// Tag `114`. Read an agent's or a tool's log, and perhaps watch it.
+    Logs(logs::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -242,7 +238,6 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsGet(frame) => frame.encode(out),
             ClientRequest::AgentsDelete(frame) => frame.encode(out),
             ClientRequest::AgentsMessage(frame) => frame.encode(out),
-            ClientRequest::AgentsLogs(frame) => frame.encode(out),
             ClientRequest::AgentsList(frame) => frame.encode(out),
             ClientRequest::AgentsEdit(frame) => frame.encode(out),
             ClientRequest::AgentsTag(frame) => frame.encode(out),
@@ -330,8 +325,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::EventsList(frame) => frame.encode(out),
             ClientRequest::ImagesInfo(frame) => frame.encode(out),
             ClientRequest::Info(frame) => frame.encode(out),
-            ClientRequest::StandaloneToolsLogs(frame) => frame.encode(out),
-            ClientRequest::DependencyToolsLogs(frame) => frame.encode(out),
+            ClientRequest::Logs(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -367,9 +361,6 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
                 .ok(),
             3 => agents::message::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsMessage)
-                .ok(),
-            4 => agents::logs::client::request::Frame::decode(bytes)
-                .map(ClientRequest::AgentsLogs)
                 .ok(),
             5 => agents::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsList)
@@ -632,11 +623,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             111 => info::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Info)
                 .ok(),
-            112 => standalone_tools::logs::client::request::Frame::decode(bytes)
-                .map(ClientRequest::StandaloneToolsLogs)
-                .ok(),
-            113 => dependency_tools::logs::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DependencyToolsLogs)
+            114 => logs::client::request::Frame::decode(bytes)
+                .map(ClientRequest::Logs)
                 .ok(),
             _ => None,
         };
@@ -651,7 +639,6 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsGet(_) => f.write_str("agents get"),
             ClientRequest::AgentsDelete(_) => f.write_str("agents delete"),
             ClientRequest::AgentsMessage(_) => f.write_str("agents message"),
-            ClientRequest::AgentsLogs(_) => f.write_str("agents logs"),
             ClientRequest::AgentsList(_) => f.write_str("agents list"),
             ClientRequest::AgentsEdit(_) => f.write_str("agents edit"),
             ClientRequest::AgentsTag(_) => f.write_str("agents tag"),
@@ -739,8 +726,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::EventsList(_) => f.write_str("events list"),
             ClientRequest::ImagesInfo(_) => f.write_str("images info"),
             ClientRequest::Info(_) => f.write_str("info"),
-            ClientRequest::StandaloneToolsLogs(_) => f.write_str("standalone tools logs"),
-            ClientRequest::DependencyToolsLogs(_) => f.write_str("dependency tools logs"),
+            ClientRequest::Logs(_) => f.write_str("logs"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
@@ -757,7 +743,6 @@ pub fn tag(path: &str) -> Option<u8> {
         "agents/get" => Some(1),
         "agents/delete" => Some(2),
         "agents/message" => Some(3),
-        "agents/logs" => Some(4),
         "agents/list" => Some(5),
         "agents/edit" => Some(6),
         "agents/tag" => Some(7),
@@ -845,8 +830,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "events/list" => Some(109),
         "images/info" => Some(110),
         "info" => Some(111),
-        "standalone_tools/logs" => Some(112),
-        "dependency_tools/logs" => Some(113),
+        "logs" => Some(114),
         _ => None,
     }
 }
@@ -860,7 +844,6 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsGet(_) => "agents/get",
             ClientRequest::AgentsDelete(_) => "agents/delete",
             ClientRequest::AgentsMessage(_) => "agents/message",
-            ClientRequest::AgentsLogs(_) => "agents/logs",
             ClientRequest::AgentsList(_) => "agents/list",
             ClientRequest::AgentsEdit(_) => "agents/edit",
             ClientRequest::AgentsTag(_) => "agents/tag",
@@ -948,8 +931,7 @@ impl ClientRequest<'_> {
             ClientRequest::EventsList(_) => "events/list",
             ClientRequest::ImagesInfo(_) => "images/info",
             ClientRequest::Info(_) => "info",
-            ClientRequest::StandaloneToolsLogs(_) => "standalone_tools/logs",
-            ClientRequest::DependencyToolsLogs(_) => "dependency_tools/logs",
+            ClientRequest::Logs(_) => "logs",
             ClientRequest::Invalid(_) => "",
         }
     }

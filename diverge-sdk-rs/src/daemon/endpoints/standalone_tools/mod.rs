@@ -59,8 +59,8 @@
 //! puts files into it, and [`transfer`] copies out of it into an agent,
 //! another tool or a volume, the bytes never reaching the client — the
 //! four of a created tool only, since a connected tool's files are on
-//! the other daemon. [`logs`] reads what the daemon kept of every call
-//! and read it routed into a tool. A dependency an agent declares at register time
+//! the other daemon. [`logs`](super::logs) reads what the daemon kept of
+//! every call and read it routed into a tool. A dependency an agent declares at register time
 //! is no tool of this family: the daemon deploys it then and there,
 //! holds its template as a record of the
 //! [`dependency_tools`](super::dependency_tools) family, and serves the
@@ -79,7 +79,6 @@ pub mod edit;
 pub mod filetree;
 pub mod get;
 pub mod list;
-pub mod logs;
 pub mod register;
 pub mod tag;
 pub mod templates;

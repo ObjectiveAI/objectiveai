@@ -15,9 +15,9 @@
 //! what the tool did.
 //!
 //! [`ItemWrapper`] is one entry, [`Item`] what it holds, and
-//! [`ItemType`] the kinds by name. Both families read it the same way:
-//! [`standalone_tools::logs`](crate::daemon::endpoints::standalone_tools::logs)
-//! and [`dependency_tools::logs`](crate::daemon::endpoints::dependency_tools::logs).
+//! [`ItemType`] the kinds by name. It is read by
+//! [`logs`](crate::daemon::endpoints::logs), the subject a standalone
+//! tool or a dependency tool.
 //!
 //! Its own files are flattened into it, so everything is named through
 //! this module and not through the file it lives in.

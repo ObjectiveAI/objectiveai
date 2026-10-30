@@ -1,6 +1,6 @@
 //! A request refused in its own words, whichever request it is.
 
-use super::{ClientRequest, accounts, agents, dependency_tools, events, images, info, postgres, providers, roles, standalone_tools, vault, volumes};
+use super::{ClientRequest, accounts, agents, dependency_tools, events, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
 use crate::shared::error::Error;
 use crate::wire::encode::{Encode, Writer};
 
@@ -17,7 +17,6 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsGet(_) => bytes(&agents::get::server::response::Frame::Forbidden),
             ClientRequest::AgentsDelete(_) => bytes(&agents::delete::server::response::Frame::Forbidden),
             ClientRequest::AgentsMessage(_) => bytes(&agents::message::server::response::Frame::Forbidden),
-            ClientRequest::AgentsLogs(_) => bytes(&agents::logs::server::response::Frame::Forbidden),
             ClientRequest::AgentsList(_) => bytes(&agents::list::server::response::Frame::Forbidden),
             ClientRequest::AgentsEdit(_) => bytes(&agents::edit::server::response::Frame::Forbidden),
             ClientRequest::AgentsTag(_) => bytes(&agents::tag::server::response::Frame::Forbidden),
@@ -105,8 +104,7 @@ impl ClientRequest<'_> {
             ClientRequest::EventsList(_) => bytes(&events::list::server::response::Frame::Forbidden),
             ClientRequest::ImagesInfo(_) => bytes(&images::info::server::response::Frame::Forbidden),
             ClientRequest::Info(_) => bytes(&info::server::response::Frame::Forbidden),
-            ClientRequest::StandaloneToolsLogs(_) => bytes(&standalone_tools::logs::server::response::Frame::Forbidden),
-            ClientRequest::DependencyToolsLogs(_) => bytes(&dependency_tools::logs::server::response::Frame::Forbidden),
+            ClientRequest::Logs(_) => bytes(&logs::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
     }
@@ -120,7 +118,6 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsGet(_) => bytes(&agents::get::server::response::Frame::Error(error)),
             ClientRequest::AgentsDelete(_) => bytes(&agents::delete::server::response::Frame::Error(error)),
             ClientRequest::AgentsMessage(_) => bytes(&agents::message::server::response::Frame::Error(error)),
-            ClientRequest::AgentsLogs(_) => bytes(&agents::logs::server::response::Frame::Error(error)),
             ClientRequest::AgentsList(_) => bytes(&agents::list::server::response::Frame::Error(error)),
             ClientRequest::AgentsEdit(_) => bytes(&agents::edit::server::response::Frame::Error(error)),
             ClientRequest::AgentsTag(_) => bytes(&agents::tag::server::response::Frame::Error(error)),
@@ -208,8 +205,7 @@ impl ClientRequest<'_> {
             ClientRequest::EventsList(_) => bytes(&events::list::server::response::Frame::Error(error)),
             ClientRequest::ImagesInfo(_) => bytes(&images::info::server::response::Frame::Error(error)),
             ClientRequest::Info(_) => bytes(&info::server::response::Frame::Error(error)),
-            ClientRequest::StandaloneToolsLogs(_) => bytes(&standalone_tools::logs::server::response::Frame::Error(error)),
-            ClientRequest::DependencyToolsLogs(_) => bytes(&dependency_tools::logs::server::response::Frame::Error(error)),
+            ClientRequest::Logs(_) => bytes(&logs::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
     }

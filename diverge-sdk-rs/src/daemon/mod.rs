@@ -45,6 +45,7 @@ pub const DEFAULT_PORT: u16 = crate::container_proxy::outside::OUTSIDE_PORT + 1;
 pub const LOCK_FILE: &str = "daemon.lock";
 
 pub mod client;
+pub mod agent_log;
 pub mod create;
 pub mod creator;
 pub mod download;

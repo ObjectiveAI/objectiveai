@@ -9,7 +9,6 @@ export * as create from "./create/index.js";
 export * as get from "./get/index.js";
 export * as delete from "./delete/index.js";
 export * as message from "./message/index.js";
-export * as logs from "./logs/index.js";
 export * as list from "./list/index.js";
 export * as edit from "./edit/index.js";
 export * as tag from "./tag/index.js";

@@ -48,4 +48,20 @@ impl ItemType {
             Item::Error(_) => ItemType::Error,
         }
     }
+
+    /// The kind's name, as `type` carries it on the wire.
+    pub fn name(self) -> &'static str {
+        match self {
+            ItemType::Active => "active",
+            ItemType::Inactive => "inactive",
+            ItemType::Call => "call",
+            ItemType::CallResult => "call_result",
+            ItemType::CallError => "call_error",
+            ItemType::Read => "read",
+            ItemType::ReadResult => "read_result",
+            ItemType::ReadError => "read_error",
+            ItemType::Notification => "notification",
+            ItemType::Error => "error",
+        }
+    }
 }

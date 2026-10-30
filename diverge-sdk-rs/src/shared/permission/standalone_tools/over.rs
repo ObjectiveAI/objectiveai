@@ -59,7 +59,7 @@ pub enum Over {
     /// [`tools::connect`](crate::daemon::endpoints::standalone_tools::connect) does.
     Connect,
     /// Read one's log, as
-    /// [`tools::logs`](crate::daemon::endpoints::standalone_tools::logs)
+    /// [`logs`](crate::daemon::endpoints::logs)
     /// does.
     Logs,
 }

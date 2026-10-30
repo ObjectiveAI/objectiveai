@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
-use crate::daemon::endpoints::agents::logs::server::response::Provider;
+use crate::daemon::agent_log::Provider;
 
 /// One agent of the caller's: what the daemon knows of it without
 /// reading its log.
 ///
 /// Everything here the daemon holds for the agent's life, so a list
 /// costs no more than the agents it names. What an agent has SAID is
-/// its [`logs`](crate::daemon::endpoints::agents::logs), read
+/// its [`logs`](crate::daemon::endpoints::logs), read
 /// separately; what it was made from is its template's, named by id,
 /// and its mounts are the create's, and neither is repeated here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

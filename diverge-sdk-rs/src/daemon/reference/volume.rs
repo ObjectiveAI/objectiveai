@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
+use crate::daemon::agent_log::Identity;
 
 /// One volume: the provider that holds it, by the daemon's [`Identity`]
 /// for it, and the name that provider lists it under. A volume is a

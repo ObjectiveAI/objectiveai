@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 use crate::shared::listing::Keyed;
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
+use crate::daemon::agent_log::Identity;
 use crate::daemon::key;
 use crate::provider::endpoints::volumes::Mode;
 

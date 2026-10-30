@@ -1,7 +1,7 @@
 // How a tool came to be, and what the daemon knows of it.
 
 import { z } from "zod";
-import { Provider } from "../../../../../../daemon/endpoints/agents/logs/server/response/provider.js";
+import { Provider } from "../../../../../agent_log/provider.js";
 import { Mode } from "../../../../../../daemon/endpoints/standalone_tools/templates/mode.js";
 import * as reference from "../../../../../../daemon/reference/tool.js";
 

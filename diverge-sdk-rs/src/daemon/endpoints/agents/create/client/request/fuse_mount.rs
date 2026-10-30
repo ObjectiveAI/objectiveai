@@ -4,7 +4,7 @@
 use crate::provider::endpoints::volumes::Mode;
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
+use crate::daemon::agent_log::Identity;
 
 /// A file or a directory in a volume of some provider the daemon
 /// knows, mounted into the agent's container over FUSE: which

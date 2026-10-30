@@ -47,15 +47,14 @@
 //! [`transfer`] copies out of it into an agent, a tool, a dependency
 //! tool or a volume, the bytes never reaching the client. Each finds
 //! the tool running or answers `NotFound`, and starts and stops
-//! nothing. [`logs`] reads what the daemon kept of every call and read
-//! it routed into one, running or not.
+//! nothing. [`logs`](super::logs) reads what the daemon kept of every
+//! call and read it routed into one, running or not.
 
 pub mod delete;
 pub mod download;
 pub mod filetree;
 pub mod get;
 pub mod list;
-pub mod logs;
 pub mod tag;
 pub mod transfer;
 pub mod untag;

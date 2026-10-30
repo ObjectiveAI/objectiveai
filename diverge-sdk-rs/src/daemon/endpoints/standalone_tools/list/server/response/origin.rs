@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::agents::logs::server::response::Provider;
+use crate::daemon::agent_log::Provider;
 use crate::daemon::endpoints::standalone_tools::templates::Mode;
 use crate::daemon::reference;
 

@@ -6,9 +6,9 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
-//! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; read one's log; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
-//! | [`dependency_tools`] | list the dependency tools agents' programs declare, one per template and owner, narrowed, each with the agents that depend on it and its run; get one; delete every tool of a template none of which runs; tag one and untag one; watch a running one's container whole; read one's log; download files out of one, upload files into one, transfer files out of one |
+//! | [`agents`] | create an agent under a name; get one; delete one; send one a message; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`dependency_tools`] | list the dependency tools agents' programs declare, one per template and owner, narrowed, each with the agents that depend on it and its run; get one; delete every tool of a template none of which runs; tag one and untag one; watch a running one's container whole; download files out of one, upload files into one, transfer files out of one |
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a credential of providers that dial in, get one, list them, take one out, replace one; add a daemon to connect to, get one, list them, forget one, replace its mode or its links, tag one and untag one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
@@ -18,6 +18,7 @@
 //! | [`events`] | list the events — who sent what to whom through the daemon, a message, an MCP call or an MCP read, and how often — narrowed, the latest so many, and keep the list |
 //! | [`images`] | read an image's DIVERGE.md, from a container of it running or from a provider that can obtain it |
 //! | [`info`] | say what the daemon is: its version |
+//! | [`logs`] | read an agent's or a tool's log, narrowed, and watch it |
 //!
 //! # The tags
 //!
@@ -32,7 +33,7 @@
 //! | `1` | [`agents::get`] |
 //! | `2` | [`agents::delete`] |
 //! | `3` | [`agents::message`] |
-//! | `4` | [`agents::logs`] |
+//! | `4` | unused |
 //! | `5` | [`agents::list`] |
 //! | `6` | [`agents::edit`] |
 //! | `7` | [`agents::tag`] |
@@ -140,10 +141,11 @@
 //! | `109` | [`events::list`] |
 //! | `110` | [`images::info`] |
 //! | `111` | [`info`] |
-//! | `112` | [`standalone_tools::logs`] |
-//! | `113` | [`dependency_tools::logs`] |
+//! | `112` | unused |
+//! | `113` | unused |
+//! | `114` | [`logs`] |
 //!
-//! One hundred and fourteen, so far. Every one of them carries the optional
+//! One hundred and fifteen, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request
@@ -197,6 +199,7 @@ pub mod dependency_tools;
 pub mod events;
 pub mod images;
 pub mod info;
+pub mod logs;
 pub mod postgres;
 pub mod providers;
 pub mod roles;
