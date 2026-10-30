@@ -28,9 +28,10 @@ const RETRY = 5000;
  * 2. What it read is built into a map (`build`) and drawn in order: the
  *    terrain, the links over it, the entities over them.
  * 3. Nothing is read again: the world is the daemon as it stood.
- * 4. Clicking an agent while no sheet is open opens its sheet and rings
- *    its tile; clicking the same agent again, clicking another agent,
- *    or the sheet's ✕ closes it. Nothing else opens or closes it.
+ * 4. Clicking an agent opens its sheet and rings its tile; clicking
+ *    another agent while one is open swaps the sheet and the ring to
+ *    it; clicking the same agent again, or the sheet's ✕, closes it.
+ *    Nothing else opens or closes it.
  */
 export class World extends Phaser.Scene {
   private sheet: Sheet | null = null;
@@ -86,7 +87,7 @@ export class World extends Phaser.Scene {
 
   /** Rule 4. */
   private select(entity: Entity) {
-    if (this.selected !== null) {
+    if (this.selected === entity.key) {
       this.sheet?.close();
       this.deselect();
       return;
