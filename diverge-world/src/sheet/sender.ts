@@ -1,9 +1,10 @@
 // Who sent a user part, as the sheet names it: never "user", always
 // the sender.
 
-import type { daemon } from "@diverge/sdk";
+import type { daemon, shared } from "@diverge/sdk";
 
 type Creator = daemon.creator.Creator;
+type Caller = shared.mcp.attestation.Caller;
 
 /** A template's first eight characters and an index: how a nameless agent or tool is shown. */
 const short = (template: string, index: number) => `${template.slice(0, 8)} #${index}`;
@@ -41,6 +42,21 @@ export function sender(creator: Creator, images: Map<string, string>): Sender {
         label: images.get(creator.dependency.template.slice(0, 8)) ?? creator.dependency.template.slice(0, 8),
         tone: "tool",
       };
+  }
+}
+
+/**
+ * Who asked a tool, as the daemon attests it: an agent is its name,
+ * else its template's first eight characters and its index; a client
+ * its subject. The key is the caller's identity, as `sender`'s is, so
+ * an agent asking and the same agent sending read as one.
+ */
+export function caller(who: Caller): Sender {
+  switch (who.kind) {
+    case "agent":
+      return { key: `agent:${who.template}:${who.index}`, label: who.name ?? short(who.template, who.index), tone: "agent" };
+    case "client":
+      return { key: `client:${who.identity.issuer}:${who.identity.subject}`, label: who.identity.subject, tone: "account" };
   }
 }
 

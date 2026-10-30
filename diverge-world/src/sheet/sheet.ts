@@ -1,7 +1,9 @@
-// The bottom sheet: one agent's log, in HTML over the map.
+// The bottom sheet: one agent's or one tool's log, in HTML over the map.
 
+import type { ToolRef } from "../world/model";
 import { Fold } from "./fold";
-import { type AgentRef, type Following, follow } from "./log";
+import { type AgentRef, type Following, followAgent, followTool } from "./log";
+import { ToolFold } from "./tool_fold";
 import "./sheet.css";
 
 /** The sheet's height when it opens, and the least and most it may be dragged to, in hundredths of the window. */
@@ -12,21 +14,47 @@ const MOST = 90;
 /** How near the bottom, in pixels, still counts as at it. */
 const PINNED = 2;
 
-/** What the sheet is opened on: the agent, its label, and the image names for its tools. */
-export type Opened = { agent: AgentRef; label: string; images: Map<string, string> };
+/** Whose log: an agent's, or a tool's. */
+export type Subject = { kind: "agent"; agent: AgentRef } | { kind: "tool"; tool: ToolRef };
+
+/** What the sheet is opened on: whose log, its label, and the image names for an agent's tools. */
+export type Opened = { subject: Subject; label: string; images: Map<string, string> };
+
+/** A template and an index, as the header shows them: the template's first eight characters. */
+const short = (template: string, index: number) => `${template.slice(0, 8)} #${index}`;
 
 /**
- * The sheet: closed until `open`, one agent at a time.
+ * The header's second line: an agent's or a created tool's template
+ * and index; a connected tool's daemon; a dependency tool's template
+ * and whose it is.
+ */
+function subline(subject: Subject): string {
+  if (subject.kind === "agent") return short(subject.agent.template, subject.agent.index);
+  const tool = subject.tool;
+  if (tool.kind === "standalone") {
+    const ref = tool.tool;
+    if ("daemon" in ref) return `from ${ref.daemon}`;
+    if ("template" in ref) return short(ref.template, ref.index);
+    return ref.name;
+  }
+  const owner = tool.dependency.owner;
+  const whose = owner === "global" ? "global" : "agent" in owner ? ("template" in owner.agent ? short(owner.agent.template, owner.agent.index) : owner.agent.name) : `template ${owner.agent_template.template.slice(0, 8)}`;
+  return `${tool.dependency.template.slice(0, 8)} · ${whose}`;
+}
+
+/**
+ * The sheet: closed until `open`, one log at a time.
  *
  * The rules:
  *
  * 1. It lies along the bottom of the window, the full width, `HEIGHT`
  *    hundredths tall; its handle drags it between `LEAST` and `MOST`.
- * 2. Its header names the agent, its template and index, and whether
- *    a run is up; ✕ closes it and tells `closed`.
- * 3. Opening follows the agent's log (`follow`) into the body
- *    (`Fold`); closing stops it and empties the body. Opening while
- *    open closes first.
+ * 2. Its header names whose log it is (`subline`), and whether the
+ *    agent's run is up or the tool has an ask in flight; ✕ closes it
+ *    and tells `closed`.
+ * 3. Opening follows an agent's log (`followAgent`) into `Fold`, or a
+ *    tool's (`followTool`) into `ToolFold`; closing stops it and
+ *    empties the body. Opening while open closes first.
  * 4. The body stays at its bottom as it grows while it was at its
  *    bottom — within `PINNED` pixels — and stays where it is when
  *    scrolled up.
@@ -39,7 +67,7 @@ export class Sheet {
   private readonly live: HTMLElement;
   private readonly body: HTMLElement;
   private following: Following | null = null;
-  private fold: Fold | null = null;
+  private fold: Fold | ToolFold | null = null;
   private pinned = true;
   private height = HEIGHT;
 
@@ -82,14 +110,22 @@ export class Sheet {
   open(opened: Opened): void {
     this.close();
     this.title.textContent = opened.label;
-    this.sub.textContent = `${opened.agent.template.slice(0, 8)} #${opened.agent.index}`;
+    this.sub.textContent = subline(opened.subject);
     this.live.classList.remove("on");
     this.pinned = true;
     this.root.style.height = `${this.height}vh`;
     this.root.hidden = false;
-    const fold = new Fold(this.body, opened.images, () => this.stick(), (on) => this.live.classList.toggle("on", on));
-    this.fold = fold;
-    this.following = follow(opened.agent, (item) => fold.push(item), (why) => fold.note(why));
+    const live = (on: boolean) => this.live.classList.toggle("on", on);
+    const subject = opened.subject;
+    if (subject.kind === "agent") {
+      const fold = new Fold(this.body, opened.images, () => this.stick(), live);
+      this.fold = fold;
+      this.following = followAgent(subject.agent, (item) => fold.push(item), (why) => fold.note(why));
+    } else {
+      const fold = new ToolFold(this.body, () => this.stick(), live);
+      this.fold = fold;
+      this.following = followTool(subject.tool, (item) => fold.push(item), (why) => fold.note(why));
+    }
   }
 
   /** Rule 3: stop, empty and hide. Closing a closed sheet does nothing. */

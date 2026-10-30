@@ -8,8 +8,10 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   drawn in the engine — with a camera of its own. Text panels are the exception, HTML over the canvas: clicking an
   agent opens its bottom sheet (`src/sheet/`), the agent's log followed live (`agents logs` with `watch`) and folded
   into messages (`sheet/fold.ts`): assistant chunks join into one message (text contiguous, an image breaking it), each
-  tool call a card holding its response, user parts join per sender and are labelled by the sender. Clicking another
-  agent swaps the sheet to it; clicking it again, or ✕, closes it.
+  tool call a card holding its response, user parts join per sender and are labelled by the sender. A listed tool
+  opens its own log the same way (`standalone-tools logs` / `dependency-tools logs`, folded by `sheet/tool_fold.ts`):
+  every call and read the daemon routed into it, a card each with its answer, joined per caller. Clicking another
+  agent or tool swaps the sheet to it; clicking it again, or ✕, closes it.
 - **The world is the daemon drawn once** (`scenes/world.ts`): six lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its
   `images info` once (`world/names.ts`), and a tool is named by its image's DIVERGE.md `name` where it said one. Every account, agent, standalone tool and

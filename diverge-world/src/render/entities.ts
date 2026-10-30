@@ -16,9 +16,10 @@ const CLICK = 6;
 /**
  * Draw every entity at its hex, call `hover` with the entity the
  * pointer comes over and with `null` when it leaves, and call `select`
- * with an agent clicked: pressed and let go on its tile, the pointer
- * moved less than `CLICK` pixels between, so a drag that ends on a
- * tile is no click. Other kinds are never selected.
+ * with an agent or a listed tool clicked: pressed and let go on its
+ * tile, the pointer moved less than `CLICK` pixels between, so a drag
+ * that ends on a tile is no click. Accounts, and tools known only from
+ * events, are never selected.
  */
 export function drawEntities(scene: Phaser.Scene, map: WorldMap, hover: (entity: Entity | null) => void, select: (entity: Entity) => void): void {
   for (const entity of map.entities) {
@@ -28,7 +29,7 @@ export function drawEntities(scene: Phaser.Scene, map: WorldMap, hover: (entity:
     const icon = scene.add.image(cx, cy, iconKey(entity.kind)).setDepth(2).setInteractive({ hitArea: tileShape(), hitAreaCallback: Phaser.Geom.Polygon.Contains, useHandCursor: true });
     icon.on("pointerover", () => hover(entity));
     icon.on("pointerout", () => hover(null));
-    if (entity.kind === "agent") {
+    if (entity.agent || entity.tool) {
       icon.on("pointerup", (pointer: Phaser.Input.Pointer) => {
         if (Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) < CLICK) select(entity);
       });

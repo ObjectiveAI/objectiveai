@@ -2,6 +2,7 @@
 
 import type { daemon } from "@diverge/sdk";
 import { agoElement } from "./ago";
+import { type Card, answer, callCard } from "./card";
 import { jsonBlock } from "./json";
 import { audioElement, contentElement, imageElement, resourceElement, textElement } from "./media";
 import { sender, toolName } from "./sender";
@@ -15,8 +16,8 @@ type TextKind = "text" | "reasoning" | "refusal";
 /** A block whose content grows: its buffer, and how it is drawn again. */
 type Growing = { buffer: string; draw: () => void };
 
-/** A tool call's card: its arguments as they grow, its status mark, and where its response goes. */
-type Call = { args: Growing; card: HTMLElement; status: HTMLElement; response: HTMLElement };
+/** A tool call's card and its arguments as they grow. */
+type Call = { args: Growing; card: Card };
 
 /** The message being added to: its role, as a key, and where its blocks go. */
 type Open = { role: string; blocks: HTMLElement };
@@ -104,10 +105,7 @@ export class Fold {
         if (content.length === 0 && item.structuredContent !== undefined) drawn.push(jsonBlock(item.structuredContent));
         const call = this.calls.get(item.id);
         if (call) {
-          call.response.replaceChildren(...drawn);
-          call.response.hidden = false;
-          call.status.textContent = item.isError ? "✕" : "✓";
-          call.card.classList.toggle("failed", item.isError === true);
+          answer(call.card, drawn, item.isError === true);
           this.grew();
           break;
         }
@@ -260,22 +258,8 @@ export class Fold {
       this.mark(known.args);
       return;
     }
-    const card = document.createElement("details");
-    card.className = "call";
-    const head = document.createElement("summary");
-    const status = document.createElement("span");
-    status.className = "status";
-    status.textContent = "…";
-    const title = document.createElement("span");
-    title.className = "call-name";
-    title.textContent = toolName(name, this.images);
-    head.append(status, title);
-    const body = document.createElement("div");
-    body.className = "args";
-    const response = document.createElement("div");
-    response.className = "response";
-    response.hidden = true;
-    card.append(head, body, response);
+    const card = callCard(toolName(name, this.images));
+    const body = card.args;
     const block: Growing = {
       buffer: args,
       draw: () => {
@@ -289,8 +273,8 @@ export class Fold {
         else body.replaceChildren(jsonBlock(parsed));
       },
     };
-    this.calls.set(id, { args: block, card, status, response });
-    this.open?.blocks.append(card);
+    this.calls.set(id, { args: block, card });
+    this.open?.blocks.append(card.card);
     this.mark(block);
   }
 

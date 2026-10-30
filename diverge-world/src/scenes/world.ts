@@ -8,7 +8,7 @@ import { drawLinks } from "../render/links";
 import { makeSelection, type Selection } from "../render/selection";
 import { extent } from "../render/scale";
 import { drawTerrain } from "../render/terrain";
-import { Sheet } from "../sheet/sheet";
+import { Sheet, type Subject } from "../sheet/sheet";
 import { build, type WorldMap } from "../world/map";
 import { type Entity, model } from "../world/model";
 import { type Snapshot, snapshot } from "../world/snapshot";
@@ -28,10 +28,10 @@ const RETRY = 5000;
  * 2. What it read is built into a map (`build`) and drawn in order: the
  *    terrain, the links over it, the entities over them.
  * 3. Nothing is read again: the world is the daemon as it stood.
- * 4. Clicking an agent opens its sheet and rings its tile; clicking
- *    another agent while one is open swaps the sheet and the ring to
- *    it; clicking the same agent again, or the sheet's ✕, closes it.
- *    Nothing else opens or closes it.
+ * 4. Clicking an agent or a listed tool opens its sheet — its log —
+ *    and rings its tile; clicking another while one is open swaps the
+ *    sheet and the ring to it; clicking the same one again, or the
+ *    sheet's ✕, closes it. Nothing else opens or closes it.
  */
 export class World extends Phaser.Scene {
   private sheet: Sheet | null = null;
@@ -93,10 +93,11 @@ export class World extends Phaser.Scene {
       return;
     }
     const at = this.map?.at.get(entity.key);
-    if (!entity.agent || !at) return;
+    const subject: Subject | null = entity.agent ? { kind: "agent", agent: entity.agent } : entity.tool ? { kind: "tool", tool: entity.tool } : null;
+    if (!subject || !at) return;
     this.selected = entity.key;
     this.selection?.show(at);
-    this.sheet?.open({ agent: entity.agent, label: entity.label, images: this.images });
+    this.sheet?.open({ subject, label: entity.label, images: this.images });
   }
 
   /** Rule 4: the sheet closed, so nothing is selected. */

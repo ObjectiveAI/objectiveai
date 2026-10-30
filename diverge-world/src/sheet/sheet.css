@@ -214,6 +214,7 @@
 .sheet .args::before { content: "call"; }
 .sheet .response::before { content: "response"; }
 .sheet .response[hidden] { display: none; }
+.sheet .args:empty { display: none; }
 
 .sheet .json {
   white-space: pre-wrap;
