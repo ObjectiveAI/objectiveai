@@ -10,7 +10,8 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   into messages (`sheet/fold.ts`): assistant chunks join into one message (text contiguous, an image breaking it), each
   tool call a card holding its response, user parts join per sender and are labelled by the sender. A listed tool
   opens its own log the same way (`standalone-tools logs` / `dependency-tools logs`, folded by `sheet/tool_fold.ts`):
-  every call and read the daemon routed into it, a card each with its answer, joined per caller. Clicking another
+  every call and read the daemon routed into it, a card each with its answer, joined per caller, and each
+  notification under the caller whose MCP session it came on (the proxy opens one session per caller). Clicking another
   agent or tool swaps the sheet to it; clicking it again, or ✕, closes it.
 - **The world is the daemon drawn once** (`scenes/world.ts`): six lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its

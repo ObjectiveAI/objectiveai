@@ -203,8 +203,13 @@
   max-height: 200px;
   overflow-y: auto;
 }
+.sheet .notify {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .sheet .args::before,
-.sheet .response::before {
+.sheet .response::before,
+.sheet .notify::before {
   display: block;
   font-size: 10px;
   letter-spacing: 0.12em;
@@ -213,6 +218,7 @@
 }
 .sheet .args::before { content: "call"; }
 .sheet .response::before { content: "response"; }
+.sheet .notify::before { content: "notification"; }
 .sheet .response[hidden] { display: none; }
 .sheet .args:empty { display: none; }
 

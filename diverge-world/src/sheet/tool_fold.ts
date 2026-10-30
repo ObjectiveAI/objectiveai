@@ -18,9 +18,10 @@ type Open = { key: string; blocks: HTMLElement };
  *
  * The rules:
  *
- * 1. A message is a run of asks from one caller, labelled by the
- *    caller (`caller`) once, at its head, with when it began. An ask
- *    from the same caller joins the open message; another caller's
+ * 1. A message is one caller's run: its asks, and the notifications
+ *    the tool sent on its session, labelled by the caller (`caller`)
+ *    once, at its head, with when it began. An ask or a notification
+ *    of the same caller joins the open message; another caller's
  *    starts a new one.
  * 2. A call is a card: the tool's own name for what was called, over
  *    its arguments as JSON. Its result fills the card, matched by the
@@ -30,8 +31,9 @@ type Open = { key: string; blocks: HTMLElement };
  * 3. A read is a card naming the resource, filled by its contents or
  *    its error the same way.
  * 4. An answer whose ask the log has not shown is a message of its own.
- * 5. A notification is a message of its own showing its JSON, an error
- *    a red one; each closes the open message.
+ * 5. A notification is a block of its recipient's run (rule 1),
+ *    showing its JSON. An error is a red message of its own, and
+ *    closes the open message.
  * 6. `active` and `inactive` draw nothing and close nothing: they only
  *    light and dim the sheet's live dot.
  * 7. Every item comes whole and is drawn as it comes; `grew` is called
@@ -78,10 +80,15 @@ export class ToolFold {
       case "read_error":
         this.fill(item, item.read, [jsonBlock(item.error)], true);
         break;
-      case "notification":
-        // Rule 5.
-        this.alone(item, "notification", "tool", jsonBlock(item.notification), false);
+      case "notification": {
+        // Rules 1 and 5.
+        const block = document.createElement("div");
+        block.className = "notify";
+        block.append(jsonBlock(item.notification));
+        this.join(item, item.to).append(block);
+        this.grew();
         break;
+      }
       case "error":
         this.alone(item, "error", "error", jsonBlock(item.error), true);
         break;
@@ -108,13 +115,18 @@ export class ToolFold {
 
   /** Rule 1: an ask's card, in its caller's message. */
   private ask(item: Item, who: Caller, title: string): Card {
-    const from = caller(who);
-    if (this.open?.key !== from.key) this.open = { key: from.key, blocks: this.message(from.label, from.tone, item.created) };
     const card = callCard(title);
     this.cards.set(item.logs_index, card);
-    this.open.blocks.append(card.card);
+    this.join(item, who).append(card.card);
     this.grew();
     return card;
+  }
+
+  /** Rule 1: the open message if it is `who`'s, else a new one; where its blocks go. */
+  private join(item: Item, who: Caller): HTMLElement {
+    const from = caller(who);
+    if (this.open?.key !== from.key) this.open = { key: from.key, blocks: this.message(from.label, from.tone, item.created) };
+    return this.open.blocks;
   }
 
   /** Rules 2 to 4: an answer into its ask's card, or a message of its own. */
