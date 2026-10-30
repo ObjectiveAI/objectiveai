@@ -16,6 +16,7 @@ export * as attach_agent_template from "./attach_agent_template/index.js";
 export * as detach_agent_template from "./detach_agent_template/index.js";
 export * as delete from "./delete/index.js";
 export * as list from "./list/index.js";
+export * as logs from "./logs/index.js";
 export * as tag from "./tag/index.js";
 export * as untag from "./untag/index.js";
 export * as download from "./download/index.js";

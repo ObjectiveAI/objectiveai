@@ -4,7 +4,7 @@ import { z } from "zod";
 
 /**
  * The actions over tools that exist, which a grant reaches as far as its `within` says.
- * Snake case on the wire: `"get"`, `"edit"`, `"attach"`, `"detach"`, `"delete"`, `"list"`, `"download"`, `"upload"`, `"transfer"`, `"filetree"`, `"connect"`.
+ * Snake case on the wire: `"get"`, `"edit"`, `"attach"`, `"detach"`, `"delete"`, `"list"`, `"download"`, `"upload"`, `"transfer"`, `"filetree"`, `"connect"`, `"logs"`.
  *
  * - `get`: Get one, as `standalone_tools.get` does.
  * - `edit`: Change one, as `standalone_tools.edit` does.
@@ -17,6 +17,7 @@ import { z } from "zod";
  * - `transfer`: Copy files out of one, as `standalone_tools.transfer` does; where they land is judged by its own grant.
  * - `filetree`: Watch one's container whole, as `standalone_tools.filetree` does.
  * - `connect`: Serve one to another daemon, as `standalone_tools.connect` does.
+ * - `logs`: Read one's log, as `standalone_tools.logs` does.
  */
-export const Over = z.enum(["get", "edit", "attach", "detach", "delete", "list", "download", "upload", "transfer", "filetree", "connect"]);
+export const Over = z.enum(["get", "edit", "attach", "detach", "delete", "list", "download", "upload", "transfer", "filetree", "connect", "logs"]);
 export type Over = z.infer<typeof Over>;

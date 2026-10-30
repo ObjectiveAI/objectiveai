@@ -20,6 +20,7 @@ export * as key from "./key/index.js";
 export * as patch from "./patch/index.js";
 export * as reference from "./reference/index.js";
 export * as template from "./template/index.js";
+export * as tool_log from "./tool_log/index.js";
 export * as transfer from "./transfer/index.js";
 
 /**

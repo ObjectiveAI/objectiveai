@@ -54,4 +54,5 @@ pub mod key;
 pub mod patch;
 pub mod reference;
 pub mod template;
+pub mod tool_log;
 pub mod transfer;

@@ -105,6 +105,8 @@ impl ClientRequest<'_> {
             ClientRequest::EventsList(_) => bytes(&events::list::server::response::Frame::Forbidden),
             ClientRequest::ImagesInfo(_) => bytes(&images::info::server::response::Frame::Forbidden),
             ClientRequest::Info(_) => bytes(&info::server::response::Frame::Forbidden),
+            ClientRequest::StandaloneToolsLogs(_) => bytes(&standalone_tools::logs::server::response::Frame::Forbidden),
+            ClientRequest::DependencyToolsLogs(_) => bytes(&dependency_tools::logs::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
     }
@@ -206,6 +208,8 @@ impl ClientRequest<'_> {
             ClientRequest::EventsList(_) => bytes(&events::list::server::response::Frame::Error(error)),
             ClientRequest::ImagesInfo(_) => bytes(&images::info::server::response::Frame::Error(error)),
             ClientRequest::Info(_) => bytes(&info::server::response::Frame::Error(error)),
+            ClientRequest::StandaloneToolsLogs(_) => bytes(&standalone_tools::logs::server::response::Frame::Error(error)),
+            ClientRequest::DependencyToolsLogs(_) => bytes(&dependency_tools::logs::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
     }

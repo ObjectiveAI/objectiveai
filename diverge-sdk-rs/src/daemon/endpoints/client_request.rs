@@ -216,6 +216,10 @@ pub enum ClientRequest<'a> {
     ImagesInfo(images::info::client::request::Frame),
     /// Tag `111`. Say what the daemon is: its version.
     Info(info::client::request::Frame),
+    /// Tag `112`. Read a standalone tool's log, and perhaps watch it.
+    StandaloneToolsLogs(standalone_tools::logs::client::request::Frame),
+    /// Tag `113`. Read a dependency tool's log, and perhaps watch it.
+    DependencyToolsLogs(dependency_tools::logs::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -326,6 +330,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::EventsList(frame) => frame.encode(out),
             ClientRequest::ImagesInfo(frame) => frame.encode(out),
             ClientRequest::Info(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsLogs(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsLogs(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -626,6 +632,12 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             111 => info::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Info)
                 .ok(),
+            112 => standalone_tools::logs::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsLogs)
+                .ok(),
+            113 => dependency_tools::logs::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsLogs)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -727,6 +739,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::EventsList(_) => f.write_str("events list"),
             ClientRequest::ImagesInfo(_) => f.write_str("images info"),
             ClientRequest::Info(_) => f.write_str("info"),
+            ClientRequest::StandaloneToolsLogs(_) => f.write_str("standalone tools logs"),
+            ClientRequest::DependencyToolsLogs(_) => f.write_str("dependency tools logs"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
@@ -831,6 +845,8 @@ pub fn tag(path: &str) -> Option<u8> {
         "events/list" => Some(109),
         "images/info" => Some(110),
         "info" => Some(111),
+        "standalone_tools/logs" => Some(112),
+        "dependency_tools/logs" => Some(113),
         _ => None,
     }
 }
@@ -932,6 +948,8 @@ impl ClientRequest<'_> {
             ClientRequest::EventsList(_) => "events/list",
             ClientRequest::ImagesInfo(_) => "images/info",
             ClientRequest::Info(_) => "info",
+            ClientRequest::StandaloneToolsLogs(_) => "standalone_tools/logs",
+            ClientRequest::DependencyToolsLogs(_) => "dependency_tools/logs",
             ClientRequest::Invalid(_) => "",
         }
     }
