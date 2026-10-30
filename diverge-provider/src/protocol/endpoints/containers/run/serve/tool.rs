@@ -1,5 +1,6 @@
 //! The tools family's own exchanges: the five MCP exchanges, channels
-//! on the begin scope.
+//! on the begin scope, each with the session it names passed on to the
+//! proxy as it came.
 
 use std::sync::Arc;
 
@@ -9,20 +10,21 @@ use super::super::encoded::encoded;
 use super::super::run::Run;
 use diverge_sdk::provider::endpoints::containers::client::{ChannelStreamError, UnaryError};
 use diverge_sdk::shared::mcp;
+use diverge_sdk::shared::mcp::session::Sessioned;
 
 /// What a tool container's caller opens, past the shared six.
 #[derive(Debug)]
 pub(crate) enum Exchange {
     /// What tools the server has.
-    ListTools(mcp::list_tools::request::Request),
+    ListTools(Sessioned<mcp::list_tools::request::Request>),
     /// What resources it has.
-    ListResources(mcp::list_resources::request::Request),
+    ListResources(Sessioned<mcp::list_resources::request::Request>),
     /// Run one tool.
-    CallTool(mcp::call_tool::request::Request),
+    CallTool(Sessioned<mcp::call_tool::request::Request>),
     /// Read one resource.
-    ReadResource(mcp::read_resource::request::Request),
-    /// Everything it says on its own account.
-    Notifications,
+    ReadResource(Sessioned<mcp::read_resource::request::Request>),
+    /// Everything it says on its own account, on one caller's session.
+    Notifications(Sessioned<mcp::notifications::request::Request>),
 }
 
 /// Serve one, to the end: the proxy's answer on the caller's channel
@@ -69,8 +71,8 @@ pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
             };
             run.respond(channel, answer).await;
         }
-        Exchange::Notifications => {
-            if let Ok(mut notifications) = begin.notifications().await {
+        Exchange::Notifications(request) => {
+            if let Ok(mut notifications) = begin.notifications(request.session).await {
                 while let Some(item) = notifications.next().await {
                     match item {
                         Ok(notification) => {
