@@ -24,7 +24,7 @@ use diverge_viewer_room::room::META_HOST_ONLY;
 use diverge_viewer_room::account::Proof;
 use diverge_viewer_room::envelope::{self, OpenKey};
 use diverge_viewer_room::{Args, Host, Key, Keypair, Kind, Move, Record, Room, Statement, account_room_id, room_id, seal_call, tether};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::shared::error::Error as WireError;
 use diverge_sdk::shared::filetree::response::Node;
 

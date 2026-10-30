@@ -13,7 +13,7 @@ use rmcp::model::{CallToolRequestParams, CallToolResult, ErrorData, ListToolsRes
 use serde_json::json;
 use tokio_util::sync::CancellationToken;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::endpoints::{agents, standalone_tools};
 use diverge_sdk::provider::endpoints::volumes;
 use diverge_sdk::shared::error::Error as WireError;
@@ -74,8 +74,8 @@ impl Daemon for Absent {
         agents::message::server::response::Frame::Error(self.no())
     }
 
-    fn agents_logs(&self, _: agents::logs::client::request::Frame, _: CancellationToken) -> Frames<agents::logs::server::response::Frame> {
-        Box::pin(stream::iter([agents::logs::server::response::Frame::Error(self.no())]))
+    fn agents_logs(&self, _: diverge_sdk::daemon::endpoints::logs::client::request::Frame, _: CancellationToken) -> Frames<diverge_sdk::daemon::endpoints::logs::server::response::Frame> {
+        Box::pin(stream::iter([diverge_sdk::daemon::endpoints::logs::server::response::Frame::Error(self.no())]))
     }
 
     /// Nothing to list, said once and held open: there is nothing that could change.

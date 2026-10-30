@@ -13,7 +13,7 @@ use ts_rs::TS;
 
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::endpoints::{agents, standalone_tools};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Identity, Item, ItemWrapper};
+use diverge_sdk::daemon::agent_log::{Identity, Item, ItemWrapper};
 use diverge_sdk::daemon::endpoints::agents::templates::{AgentType, Template as AgentTemplate};
 use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::patch::Operation;
@@ -986,11 +986,12 @@ pub enum LogEvent {
     End,
 }
 
-impl From<agents::logs::server::response::Frame> for LogEvent {
-    fn from(frame: agents::logs::server::response::Frame) -> Self {
-        use agents::logs::server::response::Frame;
+impl From<diverge_sdk::daemon::endpoints::logs::server::response::Frame> for LogEvent {
+    fn from(frame: diverge_sdk::daemon::endpoints::logs::server::response::Frame) -> Self {
+        use diverge_sdk::daemon::endpoints::logs::server::response::{Entry, Frame};
         match frame {
-            Frame::Item(wrapper) => LogEvent::Entry { entry: (&wrapper).into() },
+            Frame::Item(Entry::Agent(wrapper)) => LogEvent::Entry { entry: (&wrapper).into() },
+            Frame::Item(Entry::StandaloneTool(_) | Entry::DependencyTool(_)) => LogEvent::Error { message: "not an agent's log".into() },
             Frame::Forbidden => LogEvent::Forbidden,
             Frame::Error(error) => LogEvent::Error { message: error_text(&error) },
         }
@@ -1017,7 +1018,7 @@ pub struct LogsQuery {
 }
 
 impl LogsQuery {
-    pub fn into_request(self) -> Result<agents::logs::client::request::Frame, String> {
+    pub fn into_request(self) -> Result<diverge_sdk::daemon::endpoints::logs::client::request::Frame, String> {
         let time = |s: Option<String>| -> Result<_, String> {
             s.filter(|s| !s.trim().is_empty())
                 .map(|s| chrono::DateTime::parse_from_rfc3339(&s).map(|t| t.to_utc()).map_err(|e| format!("\"{s}\" is not a time: {e}")))
@@ -1028,8 +1029,8 @@ impl LogsQuery {
             .filter(|t| !t.is_empty())
             .map(|t| serde_json::from_value(Value::String(t.clone())).map_err(|_| format!("no kind of item called \"{t}\"")))
             .transpose()?;
-        Ok(agents::logs::client::request::Frame {
-            agent: crate::daemon::reference_of(&self.name),
+        Ok(diverge_sdk::daemon::endpoints::logs::client::request::Frame {
+            of: diverge_sdk::daemon::endpoints::logs::client::request::Subject::Agent(crate::daemon::reference_of(&self.name)),
             logs_index_from: self.logs_index_from,
             logs_index_to: self.logs_index_to,
             created_from: time(self.created_from)?,

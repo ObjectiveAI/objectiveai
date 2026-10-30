@@ -35,8 +35,8 @@ use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{
     Frame as CreateRequest, FuseMount, Provider as Pin, VolumeMount,
 };
-use diverge_sdk::daemon::endpoints::agents::logs::client::request::{Frame as LogsRequest, ItemType};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{
+use diverge_sdk::daemon::endpoints::logs::client::request::{Frame as LogsRequest, ItemType, Subject};
+use diverge_sdk::daemon::agent_log::{
     Active, ActiveType, Error as ErrorItem, ErrorType, Identity, Inactive, InactiveType, Item, ItemWrapper, Provider, User,
 };
 use diverge_sdk::daemon::endpoints::agents::templates::{AgentType, Template as AgentTemplate};
@@ -769,7 +769,7 @@ mod tests {
     }
 
     fn logs(agent: reference::Agent, count: Option<u64>) -> LogsRequest {
-        LogsRequest { agent, logs_index_from: None, logs_index_to: None, created_from: None, created_to: None, r#type: None, count, watch: None, relay: None }
+        LogsRequest { of: Subject::Agent(agent), logs_index_from: None, logs_index_to: None, created_from: None, created_to: None, r#type: None, count, watch: None, relay: None }
     }
 
     /// A sync Tauri command runs on the main thread, outside any runtime.
@@ -837,7 +837,7 @@ mod tests {
         assert_eq!(made.creator, Creator::Agent(creator::Agent { template: site.template.clone(), index: site.index, name: Some("site-fixes".into()) }));
         let reference = crate::daemon::reference_of(&agent_key(None, &made.template, made.index));
         let mut items = daemon.agents_logs(LogsRequest { r#type: Some(ItemType::UserTextContent), ..logs(reference, None) }, CancellationToken::new());
-        let Some(agents::logs::server::response::Frame::Item(first)) = items.next().await else { panic!("a user part") };
+        let Some(diverge_sdk::daemon::endpoints::logs::server::response::Frame::Item(diverge_sdk::daemon::endpoints::logs::server::response::Entry::Agent(first))) = items.next().await else { panic!("a user part") };
         assert!(matches!(first.item, Item::User(User { sender, .. }) if sender == made.creator));
     }
 
@@ -1364,14 +1364,18 @@ impl Daemon for StubDaemon {
         }
     }
 
-    fn agents_logs(&self, request: LogsRequest, cancel: CancellationToken) -> Frames<agents::logs::server::response::Frame> {
-        use agents::logs::server::response::Frame;
+    fn agents_logs(&self, request: LogsRequest, cancel: CancellationToken) -> Frames<diverge_sdk::daemon::endpoints::logs::server::response::Frame> {
+        use diverge_sdk::daemon::endpoints::logs::server::response::{Entry, Frame};
         let (tx, rx) = mpsc::channel::<Frame>(512);
         let daemon = self.clone();
         self.rt.spawn(async move {
             let found = {
                 let inner = daemon.lock();
-                inner.find(&request.agent).and_then(|id| inner.agents.get(&id)).map(|agent| (agent.log.clone(), agent.live.subscribe(), agent.gone.clone()))
+                match &request.of {
+                    Subject::Agent(agent) => inner.find(agent).and_then(|id| inner.agents.get(&id)).map(|agent| (agent.log.clone(), agent.live.subscribe(), agent.gone.clone())),
+                    // The stand-in keeps agents' logs alone.
+                    Subject::StandaloneTool(_) | Subject::DependencyTool(_) => None,
+                }
             };
             let Some((history, mut live, gone)) = found else {
                 let _ = tx.send(Frame::Error(wire_error("no agent of yours is the one named"))).await;
@@ -1387,7 +1391,7 @@ impl Daemon for StubDaemon {
                 if !in_filter(&request, item) {
                     return true;
                 }
-                if tx.send(Frame::Item(item.clone())).await.is_err() {
+                if tx.send(Frame::Item(Entry::Agent(item.clone()))).await.is_err() {
                     return false;
                 }
                 *sent += 1;

@@ -29,7 +29,7 @@ use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 use tokio_util::sync::CancellationToken;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::endpoints::{agents, standalone_tools};
 use diverge_sdk::daemon::patch::Operation;
 use diverge_sdk::daemon::reference;
@@ -178,12 +178,13 @@ pub trait Daemon: Send + Sync + 'static {
         cancel: CancellationToken,
     ) -> agents::message::server::response::Frame;
 
-    /// Tag 4. Read a log, filtered, perhaps watched. Firing `cancel` ends a watch.
+    /// Tag 114. Read an agent's log, filtered, perhaps watched: the root `logs`
+    /// read, its subject an agent. Firing `cancel` ends a watch.
     fn agents_logs(
         &self,
-        request: agents::logs::client::request::Frame,
+        request: diverge_sdk::daemon::endpoints::logs::client::request::Frame,
         cancel: CancellationToken,
-    ) -> Frames<agents::logs::server::response::Frame>;
+    ) -> Frames<diverge_sdk::daemon::endpoints::logs::server::response::Frame>;
 
     /// Tag 5. The caller's agents: one `Added` each, then `Listed`, then
     /// what changes, until `cancel` fires (the scope's `Cancel`).

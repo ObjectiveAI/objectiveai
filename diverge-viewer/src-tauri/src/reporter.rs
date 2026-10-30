@@ -11,7 +11,7 @@ use rmcp::model::CallToolRequestParams;
 use serde_json::json;
 
 use diverge_sdk::daemon::endpoints::agents;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Item, User};
+use diverge_sdk::daemon::agent_log::{Item, User};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 
 use crate::daemon::Daemon;
@@ -19,9 +19,9 @@ use crate::identity::{Actor, Identity};
 use crate::spaces::Spaces;
 
 /// A whole log read, of the agent the key names, from `from` on.
-fn read_log(key: &str, from: Option<u64>) -> agents::logs::client::request::Frame {
-    agents::logs::client::request::Frame {
-        agent: crate::daemon::reference_of(key),
+fn read_log(key: &str, from: Option<u64>) -> diverge_sdk::daemon::endpoints::logs::client::request::Frame {
+    diverge_sdk::daemon::endpoints::logs::client::request::Frame {
+        of: diverge_sdk::daemon::endpoints::logs::client::request::Subject::Agent(crate::daemon::reference_of(key)),
         logs_index_from: from,
         logs_index_to: None,
         created_from: None,
@@ -43,7 +43,7 @@ pub async fn last_turn(daemon: &dyn Daemon, name: &str) -> (String, Option<Strin
     // means a new paragraph, so the report reads as the agent spoke.
     let mut paragraph_break = false;
     while let Some(frame) = frames.next().await {
-        let agents::logs::server::response::Frame::Item(w) = frame else { continue };
+        let diverge_sdk::daemon::endpoints::logs::server::response::Frame::Item(diverge_sdk::daemon::endpoints::logs::server::response::Entry::Agent(w)) = frame else { continue };
         match w.item {
             Item::Active(_) => {
                 text.clear();
@@ -80,7 +80,7 @@ pub async fn log_end(daemon: &dyn Daemon, name: &str) -> u64 {
     let mut frames = daemon.agents_logs(read_log(name, None), tokio_util::sync::CancellationToken::new());
     let mut end = 0;
     while let Some(frame) = frames.next().await {
-        if let agents::logs::server::response::Frame::Item(w) = frame {
+        if let diverge_sdk::daemon::endpoints::logs::server::response::Frame::Item(diverge_sdk::daemon::endpoints::logs::server::response::Entry::Agent(w)) = frame {
             end = end.max(w.logs_index);
         }
     }
@@ -94,7 +94,7 @@ pub async fn run_after(daemon: &dyn Daemon, name: &str, after: u64) -> (String, 
     let mut frames = daemon.agents_logs(read_log(name, Some(after + 1)), tokio_util::sync::CancellationToken::new());
     let (mut text, mut measured, mut message, mut paragraph_break) = (String::new(), None, None::<String>, false);
     while let Some(frame) = frames.next().await {
-        let agents::logs::server::response::Frame::Item(w) = frame else { continue };
+        let diverge_sdk::daemon::endpoints::logs::server::response::Frame::Item(diverge_sdk::daemon::endpoints::logs::server::response::Entry::Agent(w)) = frame else { continue };
         match w.item {
             Item::User(User { sender: _, chunk }) | Item::Chunk(chunk) => {
                 let v = serde_json::to_value(&chunk).unwrap_or_default();

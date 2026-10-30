@@ -14,7 +14,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
 
 use diverge_sdk::daemon::endpoints::agents;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::endpoints::volumes as pv;
 
 use crate::catalog;

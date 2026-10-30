@@ -6,7 +6,7 @@ inherits it.
 
 ## The seams
 - `src-tauri/src/daemon/mod.rs` — `Daemon`, one method per daemon verb the app uses (`agents::{templates::{create, get},
-  create, delete, message, logs, list, edit, tag, untag}`, `standalone_tools::{templates::create, create, edit, register,
+  create, delete, message, list, edit, tag, untag}`, the root `logs` read with an agent as its subject, `standalone_tools::{templates::create, create, edit, register,
   attach_agent_instance, detach_agent_instance, attach_agent_template, detach_agent_template, delete, list}`). `StubDaemon`
   (feature `stand-in`) now; `WireDaemon` when a daemon ships. The app doesn't use the tools verbs for rooms: a daemon-attached
   tool bypasses the app, which seals agents' calls and asks the person first. It lists your tools, and attaches one to an

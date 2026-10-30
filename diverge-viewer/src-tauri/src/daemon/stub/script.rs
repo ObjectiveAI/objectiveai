@@ -5,7 +5,7 @@
 //! file writes is one the real wire could carry. The tests run every
 //! script through that parse; if the SDK reshapes a chunk, they fail.
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Item;
+use diverge_sdk::daemon::agent_log::Item;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use serde_json::{Value, json};
 
