@@ -1,13 +1,13 @@
-//! `diverge run agents logs`: an agent's log: everything its
-//! conversation has carried, read, as
-//! [`logs`](diverge_sdk::daemon::endpoints::agents::logs) states it.
+//! `diverge run logs`: a log — an agent's or a tool's, the subject
+//! named — read, as
+//! [`logs`](diverge_sdk::daemon::endpoints::logs) states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::agents::logs::{client::request, server::response};
+use diverge_sdk::daemon::endpoints::logs::{client::request, server::response};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// An agent's log: everything its conversation has carried, read.
+/// A log, an agent's or a tool's, read.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -32,10 +32,10 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>("diverge run agents logs", emitter).await;
+            return request_schema::<request::Frame>("diverge run logs", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>("diverge run agents logs", emitter).await;
+            return response_schema::<response::Frame>("diverge run logs", emitter).await;
         }
         None => {}
     }

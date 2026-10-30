@@ -63,6 +63,7 @@ pub mod dependency_tools;
 pub mod events;
 pub mod images;
 pub mod info;
+pub mod logs;
 pub mod postgres;
 pub mod providers;
 pub mod roles;
@@ -126,6 +127,8 @@ pub enum Command {
     Images(images::Images),
     /// Asking what the daemon is: its version.
     Info(info::Arguments),
+    /// Reading a log: an agent's or a tool's, the subject named.
+    Logs(logs::Arguments),
     /// The requests over the database.
     #[command(subcommand)]
     Postgres(postgres::Postgres),
@@ -181,6 +184,7 @@ async fn dispatch(
         Command::Events(command) => events::run(command, target, emitter).await,
         Command::Images(command) => images::run(command, target, emitter).await,
         Command::Info(arguments) => info::run(arguments, target, emitter).await,
+        Command::Logs(arguments) => logs::run(arguments, target, emitter).await,
         Command::Postgres(command) => postgres::run(command, target, emitter).await,
         Command::Providers(command) => providers::run(command, target, emitter).await,
         Command::Roles(command) => roles::run(command, target, emitter).await,

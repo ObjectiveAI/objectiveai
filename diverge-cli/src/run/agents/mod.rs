@@ -15,7 +15,6 @@ pub mod edit;
 pub mod filetree;
 pub mod get;
 pub mod list;
-pub mod logs;
 pub mod message;
 pub mod tag;
 pub mod templates;
@@ -40,8 +39,6 @@ pub enum Agents {
     Get(get::Arguments),
     /// Listing a caller's agents.
     List(list::Arguments),
-    /// An agent's log: everything its conversation has carried, read.
-    Logs(logs::Arguments),
     /// Sending an agent a message.
     Message(message::Arguments),
     /// Putting tags on an agent.
@@ -69,7 +66,6 @@ pub async fn run(command: Agents, target: &Target<'_>, emitter: &mut Emitter) ->
         Agents::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         Agents::Get(arguments) => get::run(arguments, target, emitter).await,
         Agents::List(arguments) => list::run(arguments, target, emitter).await,
-        Agents::Logs(arguments) => logs::run(arguments, target, emitter).await,
         Agents::Message(arguments) => message::run(arguments, target, emitter).await,
         Agents::Tag(arguments) => tag::run(arguments, target, emitter).await,
         Agents::Templates(command) => templates::run(command, target, emitter).await,
