@@ -6,11 +6,12 @@ use crate::daemon::endpoints::accounts;
 use crate::daemon::reference;
 use crate::shared::Identity;
 
-/// Whose log: one member, naming the kind, over the reference its
-/// family names it by.
+/// Whose log: `type` naming the kind, and beside it the members of the
+/// reference its family names it by — `{"type":"agent","name":"alice"}`,
+/// `{"type":"account","issuer":…,"subject":…}`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Subject {
     /// An agent's log: see [`agent_log`](crate::daemon::agent_log).
     Agent(reference::Agent),
