@@ -17,6 +17,7 @@ use diverge_sdk::daemon::grant::{Tagging, Within};
 use super::filter;
 use super::Standing;
 use crate::store::accounts::Account;
+use diverge_sdk::shared::Identity;
 
 /// Whether the standing may create an account.
 pub fn create(standing: &Standing) -> bool {
@@ -48,6 +49,26 @@ pub fn over(standing: &Standing, action: Over, account: &Account, connected: boo
     }
     standing.accounts().any(|permission| match permission {
         Permission::Over { actions, within } => actions.contains(&action) && reaches(within, account, connected),
+        _ => false,
+    })
+}
+
+/// Whether the standing may do `action` to an administrator the
+/// configuration names with no account of its own, given whether a
+/// client is connected as it: as [`over`], the grant's `within` read by
+/// [`filter::accounts::test_admin`].
+pub fn over_admin(standing: &Standing, action: Over, identity: &Identity, connected: bool) -> bool {
+    if standing.admin() {
+        return true;
+    }
+    standing.accounts().any(|permission| match permission {
+        Permission::Over { actions, within } => {
+            actions.contains(&action)
+                && match within {
+                    Within::Any => true,
+                    Within::Only(filter) => filter::accounts::test_admin(filter, identity, connected),
+                }
+        }
         _ => false,
     })
 }

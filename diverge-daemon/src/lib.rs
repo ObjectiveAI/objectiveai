@@ -75,7 +75,10 @@
 //! admits no provider: by default the daemon accepts no connection at
 //! all. The first account is made by an administrator: an identity
 //! `daemon.yaml`'s `admins` names, admitted as a client holding every
-//! grant, whether or not it is an account.
+//! grant, whether or not it is an account. An administrator with no
+//! account of its own is listed among the accounts all the same, marked
+//! `admin`, as [`serve::accounts::admins`] states — still nothing kept,
+//! read from the configuration each time.
 //!
 //! # The directory
 //!

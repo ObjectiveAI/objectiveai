@@ -59,8 +59,10 @@ pub async fn connection(connection: Connection, address: IpAddr, daemon: Arc<Dae
 /// sent, and the connection counts itself out.
 pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
     let mut session = Session::new(connection);
-    if let Some(account) = who.account() {
-        daemon.live.enter(account).await;
+    match &who {
+        Who::Account(account) => daemon.live.enter(*account).await,
+        Who::Admin(identity) => daemon.live.enter_admin(identity).await,
+        Who::Tool(_) => {}
     }
     let mut scopes = JoinSet::new();
     while let Some(received) = session.next().await {
@@ -76,7 +78,9 @@ pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
     }
     drop(session);
     while scopes.join_next().await.is_some() {}
-    if let Some(account) = who.account() {
-        daemon.live.leave(account).await;
+    match &who {
+        Who::Account(account) => daemon.live.leave(*account).await,
+        Who::Admin(identity) => daemon.live.leave_admin(identity).await,
+        Who::Tool(_) => {}
     }
 }

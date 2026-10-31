@@ -11,7 +11,10 @@ use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Source};
 use crate::serve::reply;
-use crate::store::{self, AccountId, accounts};
+use crate::store::{self, accounts};
+use diverge_sdk::shared::Identity;
+
+use super::admins;
 
 /// Send the list and its changes, then finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -26,7 +29,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// oldest created first, the first `count` of them, one frame each,
 /// then the word that the list is whole — and from then on each
 /// account added, changed or removed as the records, the roles and the
-/// connections change, until the client cancels. Whether a client is
+/// connections change, until the client cancels. The administrators
+/// the configuration names are listed too, after the accounts, as
+/// [`admins`](super::admins) states. Whether a client is
 /// connected is read afresh at every change.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let standing = {
@@ -58,24 +63,37 @@ struct Listed<'a> {
 }
 
 impl Source for Listed<'_> {
-    type Key = AccountId;
+    type Key = Identity;
     type Item = Account;
     type Error = store::Error;
 
-    fn read(&self) -> impl Future<Output = Result<Vec<(AccountId, Account)>, store::Error>> + Send {
+    fn read(&self) -> impl Future<Output = Result<Vec<(Identity, Account)>, store::Error>> + Send {
         async move {
             let all = {
                 let mut conn = self.daemon.store.acquire().await?;
                 accounts::all(&mut conn).await?
             };
             let connected = self.daemon.live.connected().await;
-            Ok(all
+            let authenticator = &self.daemon.authenticator;
+            let mut listed: Vec<(Identity, Account)> = all
                 .iter()
                 .map(|account| (account, connected.contains(&account.id)))
                 .filter(|(account, connected)| judge::accounts::over(self.standing, Over::List, account, *connected))
                 .filter(|(account, connected)| filter::accounts::test(self.filter, account, *connected))
-                .map(|(account, connected)| (account.id, account.report(connected)))
-                .collect())
+                .map(|(account, connected)| {
+                    // Admins rule 2: an account the configuration also
+                    // names an administrator says so.
+                    let mut reported = account.report(connected);
+                    reported.admin = authenticator.is_admin(&account.identity);
+                    (account.identity.clone(), reported)
+                })
+                .collect();
+            // Admins rules 1 to 4: the administrators with no account of
+            // their own, after the accounts.
+            for entry in admins::entries(self.daemon, self.standing, Over::List, Some(self.filter), &all).await {
+                listed.push((entry.identity.clone(), entry));
+            }
+            Ok(listed)
         }
     }
 }

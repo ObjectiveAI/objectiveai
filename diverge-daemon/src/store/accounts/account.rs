@@ -36,8 +36,9 @@ impl Account {
             roles: self.roles.clone(),
             connected,
             tags: self.tags.clone(),
-            created: self.created,
-            creator: self.creator.clone(),
+            created: Some(self.created),
+            creator: Some(self.creator.clone()),
+            admin: false,
         }
     }
 }

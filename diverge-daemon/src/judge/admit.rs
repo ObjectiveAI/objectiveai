@@ -119,6 +119,16 @@ impl DaemonAuthenticator {
         Judging { authenticator: self, expected }
     }
 
+    /// The administrators the configuration names.
+    pub fn admins(&self) -> impl Iterator<Item = &Identity> {
+        self.admins.iter()
+    }
+
+    /// Whether the configuration names `identity` an administrator.
+    pub fn is_admin(&self, identity: &Identity) -> bool {
+        self.admins.contains(identity)
+    }
+
     /// What `identity` is to this daemon on an accepted socket, past
     /// its handshake: a provider on the list, else an administrator on
     /// `admins`, else the account it is, else `None`.

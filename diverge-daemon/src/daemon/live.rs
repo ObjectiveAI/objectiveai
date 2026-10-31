@@ -41,6 +41,9 @@ use crate::volumes::Mirror;
 pub struct Live {
     /// Connections per account, for the accounts with any.
     connected: Mutex<HashMap<AccountId, usize>>,
+    /// The administrators connected now, by identity, and how many
+    /// connections each: they have no account to count by.
+    admins_connected: Mutex<HashMap<Identity, usize>>,
     /// The providers connected now, one slot per identity, and the
     /// caller's handle on each: what every request to a provider
     /// rides. See [`Peers`].
@@ -186,6 +189,47 @@ impl Live {
         if last {
             self.changes.changed(Kind::Accounts);
         }
+    }
+
+    /// Count a connection as the administrator in, as
+    /// [`enter`](Self::enter) counts an account's.
+    pub async fn enter_admin(&self, identity: &Identity) {
+        let first = {
+            let mut connected = self.admins_connected.lock().await;
+            let count = connected.entry(identity.clone()).or_insert(0);
+            *count += 1;
+            *count == 1
+        };
+        if first {
+            self.changes.changed(Kind::Accounts);
+        }
+    }
+
+    /// Count a connection as the administrator out.
+    pub async fn leave_admin(&self, identity: &Identity) {
+        let last = {
+            let mut connected = self.admins_connected.lock().await;
+            match connected.get_mut(identity) {
+                Some(count) => {
+                    *count -= 1;
+                    if *count == 0 {
+                        connected.remove(identity);
+                        true
+                    } else {
+                        false
+                    }
+                }
+                None => false,
+            }
+        };
+        if last {
+            self.changes.changed(Kind::Accounts);
+        }
+    }
+
+    /// Every administrator a client is connected as now.
+    pub async fn admins_connected(&self) -> HashSet<Identity> {
+        self.admins_connected.lock().await.keys().cloned().collect()
     }
 
     /// Whether a client is connected as the account now.

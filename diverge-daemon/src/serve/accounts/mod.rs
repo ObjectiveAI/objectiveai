@@ -10,6 +10,7 @@ mod named_roles;
 
 pub use named_roles::*;
 
+pub mod admins;
 pub mod create;
 pub mod delete;
 pub mod edit;
