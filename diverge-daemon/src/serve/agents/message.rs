@@ -10,7 +10,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::active;
+use super::state;
 use crate::containers::{self, message};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
@@ -48,7 +48,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         return Ok(Frame::Error(reply::failure(&"the agent named is none the daemon has")));
     };
     drop(conn);
-    if !judge::agents::over(&standing, Over::Message, &agent, active(daemon, agent.id).await) {
+    if !judge::agents::over(&standing, Over::Message, &agent, state(daemon, agent.id).await) {
         return Ok(Frame::Forbidden);
     }
     scope.allowed().await;

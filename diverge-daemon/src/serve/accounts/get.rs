@@ -44,7 +44,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
             if !judge::accounts::over_admin(&standing, Over::Get, &frame.account, connected) {
                 return Ok(Frame::Forbidden);
             }
-            return Ok(Frame::Found(admins::entry(&frame.account, connected)));
+            return Ok(Frame::Found(admins::entry(&frame.account, connected, daemon.live.admin_last_connected(&frame.account).await)));
         }
         return Ok(Frame::NotFound);
     };

@@ -23,6 +23,7 @@
 //! Its own files are flattened into it, so everything is named through
 //! this module and not through the file it lives in.
 
+mod activity;
 mod create;
 mod delete;
 mod load;
@@ -33,6 +34,7 @@ mod tool;
 
 pub mod attachments;
 
+pub use activity::*;
 pub use create::*;
 pub use delete::*;
 pub use load::*;

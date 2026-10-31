@@ -25,6 +25,8 @@ pub struct Loaded {
     pub attached: Vec<Attached>,
     /// Its run, while its container is up.
     pub run: Option<Run>,
+    /// Whether it is working now: a call or a read in flight.
+    pub active: bool,
 }
 
 impl Loaded {
@@ -40,7 +42,7 @@ impl Loaded {
 
     /// The tool as a list reports it.
     pub fn report(self, tool: &DependencyTool) -> Listed {
-        tool.report(self.owner, self.attached, self.run)
+        tool.report(self.owner, self.attached, self.active, self.run)
     }
 }
 
@@ -74,7 +76,8 @@ pub async fn load(conn: &mut PgConnection, daemon: &Daemon, tool: &DependencyToo
         }
     }
     let run = daemon.live.tool_run(ToolKey::Dependency(tool.id)).await.map(|run| run_of(&run));
-    Ok(Some(Loaded { owner, attached, run }))
+    let active = daemon.live.is_busy(ToolKey::Dependency(tool.id)).await;
+    Ok(Some(Loaded { owner, attached, run, active }))
 }
 
 /// Whether the standing may do `action` to the tool: its owner, its

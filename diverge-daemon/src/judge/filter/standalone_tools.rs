@@ -25,8 +25,11 @@ pub struct Facts<'a> {
     /// Its template's mode, for a created record; a connected tool
     /// runs by another daemon's template and has none here.
     pub mode: Option<Mode>,
-    /// Whether it is active now.
+    /// Whether it is active now: a call or a read in flight.
     pub active: bool,
+    /// Whether it is deployed now: its container up, or its connect
+    /// held.
+    pub deployed: bool,
     /// The agents it is attached to directly.
     pub attached_agent_instances: &'a [key::Agent],
     /// The agent templates it is attached to, by id.
@@ -41,7 +44,7 @@ impl<'a> Facts<'a> {
     /// A record, given whether it is active now, the agents and the
     /// agent templates it is attached to, and its template's mode
     /// when it has one.
-    pub fn record(tool: &'a Tool, active: bool, agents: &'a [key::Agent], templates: &'a [String], mode: Option<Mode>) -> Facts<'a> {
+    pub fn record(tool: &'a Tool, active: bool, deployed: bool, agents: &'a [key::Agent], templates: &'a [String], mode: Option<Mode>) -> Facts<'a> {
         Facts {
             name: tool.name.as_deref(),
             template: tool.template(),
@@ -49,6 +52,7 @@ impl<'a> Facts<'a> {
             kind: if tool.is_connected() { Kind::Connected } else { Kind::Created },
             mode,
             active,
+            deployed,
             attached_agent_instances: agents,
             attached_agent_templates: templates,
             tags: &tool.tags,
@@ -69,6 +73,7 @@ pub fn test(filter: &Filter, facts: &Facts<'_>) -> bool {
         && filter.kind.is_none_or(|wanted| facts.kind == wanted)
         && (filter.modes.is_empty() || facts.mode.is_some_and(|mode| filter.modes.contains(&mode)))
         && filter.active.is_none_or(|wanted| facts.active == wanted)
+        && filter.deployed.is_none_or(|wanted| facts.deployed == wanted)
         && filter
             .attached_agent_instances
             .iter()

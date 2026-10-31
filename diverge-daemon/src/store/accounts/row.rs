@@ -13,7 +13,7 @@ use crate::store::{AccountId, Error};
 
 /// The columns every account query selects, with the roles folded
 /// in: one row per account.
-pub(super) const SELECT: &str = "SELECT a.id, a.issuer, a.subject, a.description, a.tags, a.created, a.creator, \
+pub(super) const SELECT: &str = "SELECT a.id, a.issuer, a.subject, a.description, a.tags, a.last_connected, a.created, a.creator, \
      COALESCE(array_agg(r.name ORDER BY r.name) FILTER (WHERE r.id IS NOT NULL), '{}') AS roles \
      FROM diverge.accounts a \
      LEFT JOIN diverge.account_roles ar ON ar.account = a.id \
@@ -33,6 +33,7 @@ pub(super) fn account(row: &PgRow) -> Result<Account, Error> {
         description: row.try_get("description")?,
         roles: row.try_get("roles")?,
         tags: row.try_get("tags")?,
+        last_connected: row.try_get("last_connected")?,
         created,
         creator,
     })

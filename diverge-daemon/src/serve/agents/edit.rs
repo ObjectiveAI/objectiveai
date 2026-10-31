@@ -6,7 +6,7 @@ use diverge_sdk::daemon::endpoints::agents::edit::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::active;
+use super::state;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::inner::{self, Checked, Mounted, Outcome, Secrets, Which};
@@ -84,8 +84,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         },
         None => agent,
     };
-    let active = active(daemon, agent.id).await;
-    if !judge::agents::over(&standing, Over::Edit, &agent, active) {
+    let state = state(daemon, agent.id).await;
+    if !judge::agents::over(&standing, Over::Edit, &agent, state) {
         return Ok(Frame::Forbidden);
     }
     let current = Editable {

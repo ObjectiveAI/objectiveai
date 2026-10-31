@@ -12,6 +12,7 @@ use tokio::task::JoinSet;
 
 use super::dispatch;
 use crate::daemon::Daemon;
+use crate::store::AccountId;
 use crate::judge::{Admitted, Expected, Who};
 use crate::providers;
 
@@ -60,7 +61,11 @@ pub async fn connection(connection: Connection, address: IpAddr, daemon: Arc<Dae
 pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
     let mut session = Session::new(connection);
     match &who {
-        Who::Account(account) => daemon.live.enter(*account).await,
+        Who::Account(account) => {
+            if daemon.live.enter(*account).await {
+                connected_at(&daemon, *account).await;
+            }
+        }
         Who::Admin(identity) => daemon.live.enter_admin(identity).await,
         Who::Tool(_) => {}
     }
@@ -79,8 +84,20 @@ pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
     drop(session);
     while scopes.join_next().await.is_some() {}
     match &who {
-        Who::Account(account) => daemon.live.leave(*account).await,
+        Who::Account(account) => {
+            if daemon.live.leave(*account).await {
+                connected_at(&daemon, *account).await;
+            }
+        }
         Who::Admin(identity) => daemon.live.leave_admin(identity).await,
         Who::Tool(_) => {}
+    }
+}
+
+/// Keep now as the account's `last_connected`: its first connection
+/// began, or its last ended. A time that cannot be kept fails nothing.
+async fn connected_at(daemon: &Daemon, account: AccountId) {
+    if let Ok(mut conn) = daemon.store.acquire().await {
+        let _ = crate::store::accounts::set_connected(&mut conn, account, chrono::Utc::now()).await;
     }
 }

@@ -7,7 +7,7 @@ use diverge_sdk::daemon::endpoints::agents::transfer::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::active;
+use super::state;
 use crate::content;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
@@ -44,7 +44,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
     let Some(agent) = agents::by_reference(&mut conn, &frame.agent, false).await? else {
         return Ok(Frame::NotFound);
     };
-    if !judge::agents::over(&standing, Over::Transfer, &agent, active(daemon, agent.id).await) {
+    if !judge::agents::over(&standing, Over::Transfer, &agent, state(daemon, agent.id).await) {
         return Ok(Frame::Forbidden);
     }
     if content::inside(&frame.path).is_err() {

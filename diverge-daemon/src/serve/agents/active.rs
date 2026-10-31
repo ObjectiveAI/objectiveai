@@ -1,13 +1,26 @@
-//! Whether a loop runs in an agent.
+//! What an agent is doing now.
 
+use crate::containers::AgentRun;
 use crate::daemon::Daemon;
+use crate::judge::AgentState;
 use crate::store::AgentId;
 
-/// Whether a loop runs in the agent now — its container up and the
-/// proxy's last word `active`: what a list reports as `active`, what
-/// refuses a delete and a detach, and what a filter and a grant's
-/// `within` may ask about. An edit asks whether the container runs,
-/// loop or no loop.
-pub async fn active(daemon: &Daemon, id: AgentId) -> bool {
-    daemon.live.agent_run(id).await.is_some_and(|run| run.is_active())
+/// The agent's state now, as [`AgentState`] states it: a loop running,
+/// its container up, and either or an exchange in flight. What a list
+/// reports, what a filter and a grant's `within` may ask about, and —
+/// `busy` — what refuses a delete.
+pub async fn state(daemon: &Daemon, id: AgentId) -> AgentState {
+    state_of(daemon.live.agent_run(id).await.as_deref())
+}
+
+/// The state a run makes: none, nothing.
+pub fn state_of(run: Option<&AgentRun>) -> AgentState {
+    match run {
+        Some(run) => AgentState {
+            active: *run.loop_active.borrow(),
+            deployed: true,
+            busy: run.is_active(),
+        },
+        None => AgentState::default(),
+    }
 }

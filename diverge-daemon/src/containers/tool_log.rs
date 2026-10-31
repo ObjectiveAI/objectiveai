@@ -41,6 +41,7 @@ pub async fn begin(daemon: &Daemon, key: ToolKey, ask: tool_log::Item) -> Option
     if *flying == 0 {
         let wrapper = logs::append(&daemon.logs, key, tool_log::Item::Active).await.ok()?;
         log.latest.send_replace(wrapper.logs_index);
+        working(daemon, key, true).await;
     }
     let wrapper = logs::append(&daemon.logs, key, ask).await.ok()?;
     log.latest.send_replace(wrapper.logs_index);
@@ -61,11 +62,30 @@ pub async fn end(daemon: &Daemon, key: ToolKey, ask: Option<u64>, answer: impl F
         log.latest.send_replace(wrapper.logs_index);
     }
     *flying = flying.saturating_sub(1);
-    if *flying == 0
-        && let Ok(wrapper) = logs::append(&daemon.logs, key, tool_log::Item::Inactive).await
-    {
-        log.latest.send_replace(wrapper.logs_index);
+    if *flying == 0 {
+        if let Ok(wrapper) = logs::append(&daemon.logs, key, tool_log::Item::Inactive).await {
+            log.latest.send_replace(wrapper.logs_index);
+        }
+        working(daemon, key, false).await;
     }
+}
+
+/// The tool began or ceased working: marked so, now kept as its
+/// `last_active`, and its list told. A time that cannot be kept fails
+/// nothing.
+async fn working(daemon: &Daemon, key: ToolKey, busy: bool) {
+    daemon.live.set_busy(key, busy).await;
+    if let Ok(mut conn) = daemon.store.acquire().await {
+        let now = chrono::Utc::now();
+        let _ = match key {
+            ToolKey::Record(id) => crate::store::tools::set_active(&mut conn, id, now).await,
+            ToolKey::Dependency(id) => crate::store::dependency_tools::set_active(&mut conn, id, now).await,
+        };
+    }
+    daemon.live.changed(match key {
+        ToolKey::Record(_) => crate::daemon::Kind::StandaloneTools,
+        ToolKey::Dependency(_) => crate::daemon::Kind::DependencyTools,
+    });
 }
 
 /// Rules 3 and 4: keep `item` — a notification or an error.

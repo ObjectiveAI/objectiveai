@@ -59,7 +59,10 @@ pub struct Tool {
     /// The provider it last ran on, or was last connected through, if it
     /// ever was.
     pub last_provider: Option<Identity>,
-    /// When it last began or ceased running.
+    /// When its container last came up or went down, or its connect
+    /// was taken or let go.
+    pub last_deployed: Option<DateTime<Utc>>,
+    /// When its calls and reads in flight last began or ceased.
     pub last_active: Option<DateTime<Utc>>,
     /// Its tags, sorted bytewise.
     pub tags: Vec<String>,
@@ -113,12 +116,13 @@ impl Tool {
         })
     }
 
-    /// The record as a list reports it, given whether it is active now,
-    /// its container's id while it runs, the agents and the agent
+    /// The record as a list reports it, given whether it is active now
+    /// (a call or a read in flight), whether it is deployed, its
+    /// container's id while it runs, the agents and the agent
     /// templates it is attached to, and its template's mode — a
     /// created tool's, which the list item carries on its origin; a
     /// connected tool's is not asked.
-    pub fn report(&self, active: bool, running: Option<String>, agents: Vec<key::Agent>, templates: Vec<String>, mode: Option<Mode>) -> response::Tool {
+    pub fn report(&self, active: bool, deployed: bool, running: Option<String>, agents: Vec<key::Agent>, templates: Vec<String>, mode: Option<Mode>) -> response::Tool {
         let origin = match &self.origin {
             Origin::Created { template, .. } => response::Origin::Created {
                 template: template.clone(),
@@ -140,6 +144,8 @@ impl Tool {
             created: self.created,
             active,
             last_active: self.last_active,
+            deployed,
+            last_deployed: self.last_deployed,
             attached_agent_instances: agents,
             attached_agent_templates: templates,
             permissions: self.permissions.clone(),

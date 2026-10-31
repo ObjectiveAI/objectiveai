@@ -7,7 +7,7 @@ use diverge_sdk::daemon::endpoints::agents::delete::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{Failure, active};
+use super::{Failure, state};
 use crate::containers;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
@@ -46,11 +46,11 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     let Some(agent) = agents::by_reference(&mut tx, &frame.agent, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let active = active(daemon, agent.id).await;
-    if !judge::agents::over(&standing, Over::Delete, &agent, active) {
+    let state = state(daemon, agent.id).await;
+    if !judge::agents::over(&standing, Over::Delete, &agent, state) {
         return Ok(Frame::Forbidden);
     }
-    if active {
+    if state.busy {
         return Ok(Frame::Active);
     }
     let attached = dependency_tools::of_agent(&mut tx, agent.id).await?;

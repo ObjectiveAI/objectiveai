@@ -17,7 +17,7 @@ use crate::store::{AgentId, Error};
 /// the order of its first attachment, read off the attachments and the
 /// tools that exist rather than kept twice.
 pub(super) const SELECT: &str = "SELECT id, template, index, name, provider, fuse_file_mounts, fuse_directory_mounts, \
-     secrets, last_provider, last_active, tags, created, creator, \
+     secrets, last_provider, last_deployed, last_active, tags, created, creator, \
      ARRAY(SELECT t.template FROM diverge.dependency_attachments a JOIN diverge.dependency_tools t ON t.id = a.tool \
            WHERE a.agent = diverge.agents.id GROUP BY t.template ORDER BY min(a.seq)) AS dependencies \
      FROM diverge.agents";
@@ -45,6 +45,7 @@ pub(super) fn agent(row: &PgRow) -> Result<Agent, Error> {
         fuse_directory_mounts,
         secrets,
         last_provider: last_provider.map(|Json(identity)| identity),
+        last_deployed: row.try_get("last_deployed")?,
         last_active: row.try_get("last_active")?,
         tags: row.try_get("tags")?,
         created,

@@ -16,7 +16,7 @@ use diverge_sdk::shared::permission::Grant;
 
 /// The columns every tool query selects.
 pub(super) const SELECT: &str = "SELECT id, kind, template, provider, connected_daemon, connected_tool, index, name, \
-     fuse_file_mounts, fuse_directory_mounts, secrets, permissions, last_provider, last_active, tags, created, creator \
+     fuse_file_mounts, fuse_directory_mounts, secrets, permissions, last_provider, last_deployed, last_active, tags, created, creator \
      FROM diverge.tools";
 
 /// The order: oldest first.
@@ -65,6 +65,7 @@ pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
         secrets,
         permissions,
         last_provider: last_provider.map(|Json(identity)| identity),
+        last_deployed: row.try_get("last_deployed")?,
         last_active: row.try_get("last_active")?,
         tags: row.try_get("tags")?,
         created,

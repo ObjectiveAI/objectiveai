@@ -99,16 +99,16 @@ impl Source for Listed<'_> {
                 }
                 (all, attached)
             };
-            let actives = self.daemon.live.active_agents().await;
+            let states = self.daemon.live.agent_states().await;
             let mut listed = Vec::new();
             for agent in &all {
-                let active = actives.contains(&agent.id);
-                if !judge::agents::over(self.standing, Over::List, agent, active) || !filter::agents::test(self.filter, agent, active) {
+                let state = states.get(&agent.id).copied().unwrap_or_default();
+                if !judge::agents::over(self.standing, Over::List, agent, state) || !filter::agents::test(self.filter, agent, state) {
                     continue;
                 }
                 let logs_index = logs::count(&self.daemon.logs, agent.id).await?;
                 let tools = attached.get(&agent.id).cloned().unwrap_or_default();
-                listed.push((agent.id, agent.report(active, tools, logs_index)));
+                listed.push((agent.id, agent.report(state.active, state.deployed, tools, logs_index)));
             }
             Ok(listed)
         }

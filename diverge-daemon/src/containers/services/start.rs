@@ -139,6 +139,9 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
             sessions: Mutex::new(HashSet::new()),
             secrets: Mutex::new(answerer.secrets.lock().await.take()),
         });
+        if let Ok(mut conn) = daemon.store.acquire().await {
+            let _ = crate::store::dependency_tools::set_deployed(&mut conn, tool.id, chrono::Utc::now()).await;
+        }
         daemon.live.insert_tool(Arc::clone(&run)).await;
         daemon.live.changed(Kind::DependencyTools);
         daemon.live.nudge_capacity(&run.provider);

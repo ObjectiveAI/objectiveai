@@ -48,12 +48,14 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
             }
             Ok(Event::Active) => {
                 run.loop_active.send_replace(true);
+                active_at(&daemon, run.id).await;
                 daemon.live.changed(Kind::Agents);
                 run.touch();
                 mcp::start_all(&context).await;
             }
             Ok(Event::Inactive(values)) => {
                 run.loop_active.send_replace(false);
+                active_at(&daemon, run.id).await;
                 daemon.live.changed(Kind::Agents);
                 run.touch();
                 if let Err(error) = activate::inactive_agent(&daemon, &run, values).await {
@@ -112,5 +114,13 @@ fn user_key(chunk: &AgenticLoopChunk) -> Option<&str> {
         AgenticLoopChunk::UserResource(part) => Some(&part.key),
         AgenticLoopChunk::UserResourceLink(part) => Some(&part.key),
         _ => None,
+    }
+}
+
+/// Keep now as the agent's `last_active`: its loop began or ended. A
+/// time that cannot be kept fails nothing.
+async fn active_at(daemon: &Daemon, id: AgentId) {
+    if let Ok(mut conn) = daemon.store.acquire().await {
+        let _ = crate::store::agents::set_active(&mut conn, id, chrono::Utc::now()).await;
     }
 }

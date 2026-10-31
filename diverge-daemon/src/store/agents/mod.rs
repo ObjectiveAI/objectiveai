@@ -10,8 +10,9 @@
 //! [`by_reference`] load; [`create`] makes one, its index from
 //! [`counters`](crate::store::counters); [`update`] rewrites what an
 //! edit may change; [`delete`] removes one, its attachments with it;
-//! [`set_tags`] writes the tags; [`set_last`] keeps where and when it
-//! last ran.
+//! [`set_tags`] writes the tags; [`set_deployed`] keeps where and when
+//! its container last came up or went down, [`set_active`] when its
+//! loop last began or ended.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

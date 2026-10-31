@@ -50,7 +50,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         return Ok(Frame::NoAgent);
     };
     if !reaches(&mut tx, daemon, &standing, Over::Detach, &tool).await?
-        || !judge::agents::over(&standing, AgentsOver::Edit, &agent, agents::active(daemon, agent.id).await)
+        || !judge::agents::over(&standing, AgentsOver::Edit, &agent, agents::state(daemon, agent.id).await)
     {
         return Ok(Frame::Forbidden);
     }

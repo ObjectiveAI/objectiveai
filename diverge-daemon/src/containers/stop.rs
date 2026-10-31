@@ -53,7 +53,7 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     )
     .await;
     if let Ok(mut conn) = daemon.store.acquire().await {
-        let _ = agents::set_last(&mut conn, run.id, &run.provider, Utc::now()).await;
+        let _ = agents::set_deployed(&mut conn, run.id, &run.provider, Utc::now()).await;
     }
     daemon.live.changed(Kind::Agents);
     daemon.live.nudge_capacity(&run.provider);
@@ -93,10 +93,15 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     }
     run.ended.send_replace(true);
     run.mounts.stop().await;
+    if let ToolKey::Dependency(id) = run.id
+        && let Ok(mut conn) = daemon.store.acquire().await
+    {
+        let _ = crate::store::dependency_tools::set_deployed(&mut conn, id, Utc::now()).await;
+    }
     match (run.id, &run.dependency) {
         (ToolKey::Record(id), _) => {
             if let Ok(mut conn) = daemon.store.acquire().await {
-                let _ = tool_records::set_last(&mut conn, id, &run.provider, Utc::now()).await;
+                let _ = tool_records::set_deployed(&mut conn, id, &run.provider, Utc::now()).await;
             }
         }
         (ToolKey::Dependency(_), Some(tool)) if !tool.is_service() => {

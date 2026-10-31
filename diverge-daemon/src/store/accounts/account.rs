@@ -22,6 +22,9 @@ pub struct Account {
     /// Its tags, sorted.
     pub tags: Vec<String>,
     /// When it was made.
+    /// When a client's first connection as it last began, or its last
+    /// one ended.
+    pub last_connected: Option<DateTime<Utc>>,
     pub created: DateTime<Utc>,
     /// Who made it.
     pub creator: Creator,
@@ -35,6 +38,7 @@ impl Account {
             description: self.description.clone(),
             roles: self.roles.clone(),
             connected,
+            last_connected: self.last_connected,
             tags: self.tags.clone(),
             created: Some(self.created),
             creator: Some(self.creator.clone()),

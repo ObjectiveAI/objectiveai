@@ -8,7 +8,7 @@ use diverge_sdk::daemon::endpoints::agents::download::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::active;
+use super::state;
 use crate::content;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
@@ -44,7 +44,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         return Ok(());
     };
     drop(conn);
-    if !judge::agents::over(&standing, Over::Download, &agent, active(daemon, agent.id).await) {
+    if !judge::agents::over(&standing, Over::Download, &agent, state(daemon, agent.id).await) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }

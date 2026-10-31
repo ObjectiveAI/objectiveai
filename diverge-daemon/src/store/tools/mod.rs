@@ -12,8 +12,9 @@
 //! [`by_reference`] load; [`create`] makes one, its index from
 //! [`counters`](crate::store::counters); [`update`] rewrites what an
 //! edit may change; [`delete`] removes one, its attachments with it;
-//! [`set_tags`] writes the tags; [`set_last`] keeps
-//! where and when it last ran; [`set_permissions`] keeps what its
+//! [`set_tags`] writes the tags; [`set_deployed`] keeps where and when
+//! it was last deployed, [`set_active`] when its calls and reads in
+//! flight last began or ceased; [`set_permissions`] keeps what its
 //! container last declared it may ask of the daemon.
 //!
 //! Its own files are flattened into it, so everything is named

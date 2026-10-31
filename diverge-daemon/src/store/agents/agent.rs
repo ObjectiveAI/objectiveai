@@ -32,7 +32,9 @@ pub struct Agent {
     pub secrets: IndexMap<String, String>,
     /// The provider it last ran on, if it ever ran.
     pub last_provider: Option<Identity>,
-    /// When it last began or ceased running.
+    /// When its container last came up or went down.
+    pub last_deployed: Option<DateTime<Utc>>,
+    /// When its loop last began or ended.
     pub last_active: Option<DateTime<Utc>>,
     /// Its tags, sorted bytewise.
     pub tags: Vec<String>,
@@ -67,9 +69,9 @@ impl Agent {
     }
 
     /// The agent as a list reports it, given whether a loop runs in it
-    /// now, the tools attached to it in attach order, and how long its
-    /// log is.
-    pub fn report(&self, active: bool, tools: Vec<key::Tool>, logs_index: u64) -> response::Agent {
+    /// now, whether its container is up, the tools attached to it in
+    /// attach order, and how long its log is.
+    pub fn report(&self, active: bool, deployed: bool, tools: Vec<key::Tool>, logs_index: u64) -> response::Agent {
         response::Agent {
             name: self.name.clone(),
             template: self.template.clone(),
@@ -78,6 +80,8 @@ impl Agent {
             created: self.created,
             active,
             last_active: self.last_active,
+            deployed,
+            last_deployed: self.last_deployed,
             provider: self.last_provider.clone().map(|identity| logs::Provider { identity }),
             logs_index,
             tools,

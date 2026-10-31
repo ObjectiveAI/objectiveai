@@ -40,11 +40,13 @@
 //! through this module and not through the file it lives in.
 
 mod admit;
+mod agent_state;
 mod declared;
 mod standing;
 mod who;
 
 pub use admit::*;
+pub use agent_state::*;
 pub use declared::*;
 pub use standing::*;
 pub use who::*;

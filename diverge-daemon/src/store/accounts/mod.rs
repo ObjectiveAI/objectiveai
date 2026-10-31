@@ -14,6 +14,7 @@
 //! through this module and not through the file it lives in.
 
 mod account;
+mod activity;
 mod create;
 mod delete;
 mod edit;
@@ -23,6 +24,7 @@ mod row;
 mod tags;
 
 pub use account::*;
+pub use activity::*;
 pub use create::*;
 pub use delete::*;
 pub use edit::*;

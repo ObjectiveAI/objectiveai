@@ -90,21 +90,23 @@ impl Source for Listed<'_> {
             }
             drop(conn);
             let states = self.daemon.live.active_tools().await;
+            let busy = self.daemon.live.busy_tools().await;
             let empty = Vec::new();
             let no_templates = Vec::new();
             let mut listed = Vec::new();
             for tool in &all {
                 let key = ToolKey::Record(tool.id);
-                let active = states.contains_key(&key);
+                let deployed = states.contains_key(&key);
+                let active = busy.contains(&key);
                 let attached = attached.get(&tool.id).unwrap_or(&empty);
                 let attached_templates = templates.get(&tool.id).unwrap_or(&no_templates);
                 let mode = tool.template().and_then(|template| modes.get(template).copied());
-                let facts = Facts::record(tool, active, attached, attached_templates, mode);
+                let facts = Facts::record(tool, active, deployed, attached, attached_templates, mode);
                 if !judge::standalone_tools::over(self.standing, Over::List, &facts) || !filter::standalone_tools::test(self.filter, &facts) {
                     continue;
                 }
                 let running = states.get(&key).cloned().flatten();
-                listed.push((key, tool.report(active, running, attached.clone(), attached_templates.clone(), mode)));
+                listed.push((key, tool.report(active, deployed, running, attached.clone(), attached_templates.clone(), mode)));
             }
             Ok(listed)
         }

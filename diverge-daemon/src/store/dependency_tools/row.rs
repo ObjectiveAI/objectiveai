@@ -13,7 +13,7 @@ use diverge_sdk::shared::permission::Grant;
 
 /// The columns every dependency tool query selects: the row joined to
 /// its template's body.
-pub(super) const SELECT: &str = "SELECT t.id, t.template, t.index, d.template AS declared, t.scope, t.owner_agent, t.owner_template, t.tags, t.permissions, t.created, t.creator \
+pub(super) const SELECT: &str = "SELECT t.id, t.template, t.index, d.template AS declared, t.scope, t.owner_agent, t.owner_template, t.tags, t.permissions, t.last_deployed, t.last_active, t.created, t.creator \
      FROM diverge.dependency_tools t JOIN diverge.dependencies d ON d.id = t.template";
 
 /// The order: oldest first.
@@ -41,6 +41,8 @@ pub(super) fn tool(row: &PgRow) -> Result<DependencyTool, Error> {
         owner_template: row.try_get("owner_template")?,
         tags: row.try_get("tags")?,
         permissions,
+        last_deployed: row.try_get("last_deployed")?,
+        last_active: row.try_get("last_active")?,
         created,
         creator,
     })

@@ -22,6 +22,7 @@ use crate::containers::services::State;
 use crate::commands::Commander;
 use crate::containers::{AgentRun, ConnectionId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
+use crate::judge::AgentState;
 use crate::database::Scope;
 use crate::store::{AccountId, AgentId};
 use crate::volumes::Mirror;
@@ -44,6 +45,12 @@ pub struct Live {
     /// The administrators connected now, by identity, and how many
     /// connections each: they have no account to count by.
     admins_connected: Mutex<HashMap<Identity, usize>>,
+    /// When each administrator's connections last began or all ended,
+    /// since the daemon started: they have no row to keep it in.
+    admins_last_connected: Mutex<HashMap<Identity, DateTime<Utc>>>,
+    /// The tools working now — a call or a read in flight — as their
+    /// logs mark them `active`.
+    busy_tools: Mutex<HashSet<ToolKey>>,
     /// The providers connected now, one slot per identity, and the
     /// caller's handle on each: what every request to a provider
     /// rides. See [`Peers`].
@@ -156,8 +163,10 @@ impl Live {
     }
 
     /// Count a connection as the account in. The connection counts
-    /// itself out with [`leave`](Self::leave) when it ends.
-    pub async fn enter(&self, id: AccountId) {
+    /// itself out with [`leave`](Self::leave) when it ends. Whether it
+    /// is the first, which the caller keeps as the account's
+    /// `last_connected`.
+    pub async fn enter(&self, id: AccountId) -> bool {
         let first = {
             let mut connected = self.connected.lock().await;
             let count = connected.entry(id).or_insert(0);
@@ -167,10 +176,11 @@ impl Live {
         if first {
             self.changes.changed(Kind::Accounts);
         }
+        first
     }
 
-    /// Count a connection as the account out.
-    pub async fn leave(&self, id: AccountId) {
+    /// Count a connection as the account out. Whether it was the last.
+    pub async fn leave(&self, id: AccountId) -> bool {
         let last = {
             let mut connected = self.connected.lock().await;
             match connected.get_mut(&id) {
@@ -189,6 +199,7 @@ impl Live {
         if last {
             self.changes.changed(Kind::Accounts);
         }
+        last
     }
 
     /// Count a connection as the administrator in, as
@@ -201,6 +212,7 @@ impl Live {
             *count == 1
         };
         if first {
+            self.admins_last_connected.lock().await.insert(identity.clone(), Utc::now());
             self.changes.changed(Kind::Accounts);
         }
     }
@@ -223,8 +235,15 @@ impl Live {
             }
         };
         if last {
+            self.admins_last_connected.lock().await.insert(identity.clone(), Utc::now());
             self.changes.changed(Kind::Accounts);
         }
+    }
+
+    /// When the administrator's connections last began or all ended,
+    /// since the daemon started.
+    pub async fn admin_last_connected(&self, identity: &Identity) -> Option<DateTime<Utc>> {
+        self.admins_last_connected.lock().await.get(identity).copied()
     }
 
     /// Every administrator a client is connected as now.
@@ -560,6 +579,37 @@ impl Live {
             .filter(|run| run.is_active())
             .map(|run| run.id)
             .collect()
+    }
+
+    /// Every deployed agent's state now: one snapshot, for a list. An
+    /// agent not among them is not deployed.
+    pub async fn agent_states(&self) -> HashMap<AgentId, AgentState> {
+        self.agents
+            .lock()
+            .await
+            .values()
+            .map(|run| (run.id, crate::serve::agents::state_of(Some(run))))
+            .collect()
+    }
+
+    /// Mark the tool working, or not: a call or a read in flight.
+    pub async fn set_busy(&self, key: ToolKey, busy: bool) {
+        let mut tools = self.busy_tools.lock().await;
+        if busy {
+            tools.insert(key);
+        } else {
+            tools.remove(&key);
+        }
+    }
+
+    /// Whether the tool is working now.
+    pub async fn is_busy(&self, key: ToolKey) -> bool {
+        self.busy_tools.lock().await.contains(&key)
+    }
+
+    /// Every tool working now: one snapshot, for a list.
+    pub async fn busy_tools(&self) -> HashSet<ToolKey> {
+        self.busy_tools.lock().await.clone()
     }
 
     /// The tool's run, if it is up.

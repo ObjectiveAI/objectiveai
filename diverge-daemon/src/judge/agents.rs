@@ -14,7 +14,7 @@ use diverge_sdk::daemon::endpoints::agents::list::client::request::Filter;
 use diverge_sdk::daemon::grant::agents::{Make, Over, Permission};
 use diverge_sdk::daemon::grant::{Tagging, Within};
 
-use super::Standing;
+use super::{AgentState, Standing};
 use super::filter;
 use crate::store::agents::Agent;
 
@@ -43,13 +43,13 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
 /// Whether the standing may do `action` to `agent`, given whether a
 /// loop runs in it now: by a grant that reaches it, or within
 /// `attached` where the agent is attached to the standing's tool.
-pub fn over(standing: &Standing, action: Over, agent: &Agent, active: bool) -> bool {
+pub fn over(standing: &Standing, action: Over, agent: &Agent, state: AgentState) -> bool {
     if standing.admin() {
         return true;
     }
     (standing.attached_actions().contains(&action) && standing.is_attached(agent.id))
         || standing.agents().any(|permission| match permission {
-            Permission::Over { actions, within } => actions.contains(&action) && reaches(within, agent, active),
+            Permission::Over { actions, within } => actions.contains(&action) && reaches(within, agent, state),
             _ => false,
         })
 }
@@ -67,7 +67,7 @@ pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
 
 /// Whether the standing may put `tags` on `agent`, or take them off,
 /// as `action` says.
-pub fn tagging(standing: &Standing, action: Tagging, agent: &Agent, active: bool, tags: &[String]) -> bool {
+pub fn tagging(standing: &Standing, action: Tagging, agent: &Agent, state: AgentState, tags: &[String]) -> bool {
     if standing.admin() {
         return true;
     }
@@ -76,16 +76,16 @@ pub fn tagging(standing: &Standing, action: Tagging, agent: &Agent, active: bool
             actions,
             within,
             tags: scope,
-        } => actions.contains(&action) && reaches(within, agent, active) && covers(scope, tags),
+        } => actions.contains(&action) && reaches(within, agent, state) && covers(scope, tags),
         _ => false,
     })
 }
 
 /// Whether a grant's `within` reaches the agent.
-fn reaches(within: &Within<Filter>, agent: &Agent, active: bool) -> bool {
+fn reaches(within: &Within<Filter>, agent: &Agent, state: AgentState) -> bool {
     match within {
         Within::Any => true,
-        Within::Only(filter) => filter::agents::test(filter, agent, active),
+        Within::Only(filter) => filter::agents::test(filter, agent, state),
     }
 }
 

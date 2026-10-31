@@ -37,6 +37,10 @@ pub struct DependencyTool {
     /// started.
     pub permissions: Vec<Grant>,
     /// When it was made.
+    /// When its container last came up or went down.
+    pub last_deployed: Option<DateTime<Utc>>,
+    /// When its calls and reads in flight last began or ceased.
+    pub last_active: Option<DateTime<Utc>>,
     pub created: DateTime<Utc>,
     /// The agent whose registration made it.
     pub creator: Creator,
@@ -72,8 +76,9 @@ impl DependencyTool {
     }
 
     /// The tool as a list reports it, with its owner, the agents
-    /// attached to it and its run, loaded by the caller.
-    pub fn report(&self, owner: key::Owner, agents: Vec<Attached>, run: Option<Run>) -> Listed {
+    /// attached to it, whether it is working now and its run, loaded by
+    /// the caller.
+    pub fn report(&self, owner: key::Owner, agents: Vec<Attached>, active: bool, run: Option<Run>) -> Listed {
         Listed {
             id: self.template.clone(),
             owner,
@@ -83,6 +88,10 @@ impl DependencyTool {
             tags: self.tags.clone(),
             template: self.declared.clone(),
             agents,
+            active,
+            last_active: self.last_active,
+            deployed: run.is_some(),
+            last_deployed: self.last_deployed,
             run,
             permissions: self.permissions.clone(),
         }

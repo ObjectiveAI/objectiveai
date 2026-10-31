@@ -5,7 +5,7 @@ use diverge_sdk::daemon::grant::standalone_tools::Over;
 use diverge_sdk::daemon::reference;
 use sqlx::PgConnection;
 
-use super::{active, agents_of, templates_of};
+use super::{active, deployed, agents_of, templates_of};
 use crate::daemon::Daemon;
 use crate::judge::filter::standalone_tools::Facts;
 use crate::judge::{self, Standing};
@@ -26,5 +26,5 @@ pub async fn reaches(conn: &mut PgConnection, daemon: &Daemon, standing: &Standi
     let agents = agents_of(conn, tool.id).await?;
     let templates = templates_of(conn, tool.id).await?;
     let mode = tools::mode(conn, tool).await?;
-    Ok(judge::standalone_tools::over(standing, action, &Facts::record(tool, active(daemon, tool.id).await, &agents, &templates, mode)))
+    Ok(judge::standalone_tools::over(standing, action, &Facts::record(tool, active(daemon, tool.id).await, deployed(daemon, tool.id).await, &agents, &templates, mode)))
 }

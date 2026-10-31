@@ -3,8 +3,8 @@
 //! [`tag`], [`untag`], [`message`] — an agent's log being read by the
 //! root [`logs`](crate::serve::logs) — the four over the
 //! container's files — [`download`], [`upload`], [`transfer`],
-//! [`filetree`] — and [`templates`], what agents are made from. Whether a loop runs in an agent is
-//! [`active`]; what is attached to one is [`tools_of`]; and
+//! [`filetree`] — and [`templates`], what agents are made from. What an agent is doing now is
+//! [`state`]; what is attached to one is [`tools_of`]; and
 //! [`Failure`] is why a handler could not answer, the store or the
 //! log.
 

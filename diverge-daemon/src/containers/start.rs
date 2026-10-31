@@ -193,7 +193,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         .await?;
         {
             let mut conn = daemon.store.acquire().await?;
-            agents::set_last(&mut conn, agent.id, &identity, Utc::now()).await?;
+            agents::set_deployed(&mut conn, agent.id, &identity, Utc::now()).await?;
         }
         daemon.live.insert_agent(Arc::clone(&run)).await;
         daemon.live.changed(Kind::Agents);
@@ -344,7 +344,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
     });
     {
         let mut conn = daemon.store.acquire().await?;
-        tool_records::set_last(&mut conn, tool.id, &identity, Utc::now()).await?;
+        tool_records::set_deployed(&mut conn, tool.id, &identity, Utc::now()).await?;
     }
     daemon.live.insert_tool(Arc::clone(&run)).await;
     daemon.live.changed(Kind::StandaloneTools);

@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS diverge.accounts (
     description TEXT,
     -- Sorted bytewise, deduplicated, rewritten whole.
     tags        TEXT[] NOT NULL DEFAULT '{}',
+    -- When a client's first connection as it last began, or its last
+    -- one ended.
+    last_connected TIMESTAMPTZ,
     created     TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- The wire's Creator, as JSON.
     creator     JSONB NOT NULL,
@@ -114,8 +117,12 @@ CREATE TABLE IF NOT EXISTS diverge.agents (
     -- secret's name to the key, as the create or the last edit gave
     -- them, in that order.
     secrets               JSONB NOT NULL DEFAULT '{}',
-    -- The provider it last ran on, and when it last began or ceased.
+    -- The provider it was last deployed on.
     last_provider         JSONB,
+    -- When its container last came up or went down.
+    last_deployed         TIMESTAMPTZ,
+    -- When it last began or ceased working: an agent's loop, a tool's
+    -- calls and reads in flight.
     last_active           TIMESTAMPTZ,
     tags                  TEXT[] NOT NULL DEFAULT '{}',
     created               TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -144,6 +151,10 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
     -- registration when it last started; empty for none.
     permissions           JSONB NOT NULL DEFAULT '[]',
     last_provider         JSONB,
+    -- When its container last came up or went down.
+    last_deployed         TIMESTAMPTZ,
+    -- When it last began or ceased working: an agent's loop, a tool's
+    -- calls and reads in flight.
     last_active           TIMESTAMPTZ,
     tags                  TEXT[] NOT NULL DEFAULT '{}',
     created               TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -206,6 +217,10 @@ CREATE TABLE IF NOT EXISTS diverge.dependency_tools (
     -- What its container declared it may ask of the daemon at its
     -- registration when it last started; empty for none.
     permissions    JSONB NOT NULL DEFAULT '[]',
+    -- When its container last came up or went down.
+    last_deployed  TIMESTAMPTZ,
+    -- When its calls and reads in flight last began or ceased.
+    last_active    TIMESTAMPTZ,
     created        TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator        JSONB NOT NULL,
     CONSTRAINT dependency_tools_scope_owner CHECK (
