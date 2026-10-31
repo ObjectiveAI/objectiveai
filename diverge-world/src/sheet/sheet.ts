@@ -26,19 +26,22 @@ const short = (template: string, index: number) => `${template.slice(0, 8)} #${i
  * and whose it is.
  */
 function subline(subject: Subject): string {
-  if ("account" in subject) return subject.account.issuer;
-  if ("admin" in subject) return `admin at ${subject.admin.issuer}`;
-  if ("agent" in subject) return "template" in subject.agent ? short(subject.agent.template, subject.agent.index) : subject.agent.name;
-  if ("standalone_tool" in subject) {
-    const ref = subject.standalone_tool;
-    if ("daemon" in ref) return `from ${ref.daemon}`;
-    if ("template" in ref) return short(ref.template, ref.index);
-    return ref.name;
+  switch (subject.type) {
+    case "account":
+      return subject.issuer;
+    case "admin":
+      return `admin at ${subject.issuer}`;
+    case "agent":
+    case "standalone_tool":
+      if ("daemon" in subject) return `from ${subject.daemon}`;
+      if ("template" in subject) return short(subject.template, subject.index);
+      return subject.name;
+    case "dependency_tool": {
+      const owner = subject.owner;
+      const whose = owner === "global" ? "global" : "agent" in owner ? ("template" in owner.agent ? short(owner.agent.template, owner.agent.index) : owner.agent.name) : `template ${owner.agent_template.template.slice(0, 8)}`;
+      return `${subject.template.slice(0, 8)} · ${whose}`;
+    }
   }
-  const dependency = subject.dependency_tool;
-  const owner = dependency.owner;
-  const whose = owner === "global" ? "global" : "agent" in owner ? ("template" in owner.agent ? short(owner.agent.template, owner.agent.index) : owner.agent.name) : `template ${owner.agent_template.template.slice(0, 8)}`;
-  return `${dependency.template.slice(0, 8)} · ${whose}`;
 }
 
 /**
@@ -117,7 +120,7 @@ export class Sheet {
     this.root.style.height = `${this.height}vh`;
     this.root.hidden = false;
     const live = (on: boolean) => this.live.classList.toggle("on", on);
-    if ("agent" in opened.subject) {
+    if (opened.subject.type === "agent") {
       const fold = new Fold(this.body, opened.images, () => this.stick(), live);
       this.fold = fold;
       this.following = follow(opened.subject, (entry) => "agent" in entry && fold.push(entry.agent), (why) => fold.note(why));

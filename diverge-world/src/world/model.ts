@@ -78,11 +78,11 @@ function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
   if (o.kind === "created") {
     const image = snapshot.templates.find((listed) => listed.id === o.template)?.template.image;
     const label = named(snapshot, image?.digest, tool.name ?? short(o.template, o.index));
-    const subject: Subject = { standalone_tool: { template: o.template, index: o.index } };
+    const subject: Subject = { type: "standalone_tool", template: o.template, index: o.index };
     return { key: `standalone_tool:${o.template}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — ${o.template} #${o.index}`, subject };
   }
   const label = tool.name ?? `${o.daemon} #${o.index}`;
-  const subject: Subject = { standalone_tool: { daemon: o.daemon, tool: o.tool } };
+  const subject: Subject = { type: "standalone_tool", daemon: o.daemon, tool: o.tool };
   return { key: `connected:${o.daemon}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — connected from ${o.daemon}`, subject };
 }
 
@@ -111,18 +111,18 @@ export function model(snapshot: Snapshot): Model {
   for (const a of snapshot.accounts) {
     const { issuer, subject } = a.identity;
     // An administrator the daemon's configuration names reads its log as the `admin` subject.
-    const of: Subject = a.admin ? { admin: { issuer, subject } } : { account: { issuer, subject } };
+    const of: Subject = { type: a.admin ? "admin" : "account", issuer, subject };
     put({ key: `account:${issuer}:${subject}`, kind: "account", label: subject, detail: `${subject} at ${issuer}${a.admin ? " — admin" : ""}`, subject: of });
   }
   for (const a of snapshot.agents) {
     const label = a.name ?? short(a.template, a.index);
     const agent = { template: a.template, index: a.index };
-    put({ key: `agent:${a.template}:${a.index}`, kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent, subject: { agent } });
+    put({ key: `agent:${a.template}:${a.index}`, kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent, subject: { type: "agent", ...agent } });
   }
   for (const tool of snapshot.tools) put(toolEntity(snapshot, tool));
   for (const d of snapshot.dependencies) {
     const label = named(snapshot, d.template.image.digest, short(d.id, d.index));
-    const subject: Subject = { dependency_tool: { template: d.id, owner: ownerRef(d.owner) } };
+    const subject: Subject = { type: "dependency_tool", template: d.id, owner: ownerRef(d.owner) };
     put({ key: `dependency_tool:${d.id}:${d.index}`, kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}`, subject });
   }
   // Rules 2 to 4.
