@@ -8,7 +8,10 @@ import type { Keyed } from "../../../../../../shared/listing/keyed.js";
 /**
  * One account: its identity, what it is for, the roles it holds,
  * whether a client is connected as it now, its tags, when it was
- * created and by whom. A list sends them oldest created first.
+ * created and by whom, and whether the daemon's configuration names it
+ * an administrator. A list sends them oldest created first, the
+ * administrators the configuration names with no account of their own
+ * after them — `admin` true, no `created`, no `creator`.
  */
 export const Account = z.object({
   /** The identity the account is: the `(issuer, subject)` a client's token establishes. */
@@ -21,10 +24,12 @@ export const Account = z.object({
   connected: z.boolean(),
   /** Its tags, sorted bytewise. Absent when empty. */
   tags: z.array(z.string()).optional(),
-  /** When the create made it: an RFC 3339 timestamp in UTC. */
-  created: z.iso.datetime({ offset: true }),
-  /** Who created it, the direct maker. */
-  creator: Creator,
+  /** When the create made it: an RFC 3339 timestamp in UTC. Absent for an administrator with no account of its own. */
+  created: z.iso.datetime({ offset: true }).optional(),
+  /** Who created it, the direct maker. Absent for an administrator with no account of its own. */
+  creator: Creator.optional(),
+  /** Whether the daemon's configuration names the identity an administrator. Absent, false. */
+  admin: z.boolean().optional(),
 });
 export type Account = z.infer<typeof Account>;
 

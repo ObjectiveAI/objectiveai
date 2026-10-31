@@ -9,7 +9,15 @@ use crate::shared::listing::Keyed;
 
 /// One account: its identity, what it is for, the roles it holds,
 /// whether a client is connected as it now, its tags, when it was
-/// created and by whom. A list sends them oldest created first.
+/// created and by whom, and whether the daemon's configuration names it
+/// an administrator. A list sends them oldest created first, the
+/// administrators the configuration names with no account of their
+/// own after them.
+///
+/// An administrator with no account of its own is listed all the same:
+/// `admin` true, nothing to say of roles, tags or what it is for, and
+/// no `created` or `creator`, since the configuration made it and not a
+/// request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Account {
@@ -32,12 +40,19 @@ pub struct Account {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
     /// When the create made it. On the wire an RFC 3339 timestamp in
-    /// UTC.
-    pub created: DateTime<Utc>,
+    /// UTC. Absent for an administrator with no account of its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created: Option<DateTime<Utc>>,
     /// Who created it: the client, over an endpoint, or the agent or
     /// the tool of the client's that did so through the daemon. One
     /// [`Creator`](crate::daemon::creator::Creator), the direct maker.
-    pub creator: Creator,
+    /// Absent for an administrator with no account of its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub creator: Option<Creator>,
+    /// Whether the daemon's configuration names the identity an
+    /// administrator, holding every grant there is. Absent, `false`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub admin: bool,
 }
 
 /// Keyed by the identity, which does not change while it is listed.
