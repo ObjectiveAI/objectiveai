@@ -1374,7 +1374,7 @@ impl Daemon for StubDaemon {
                 match &request.of {
                     Subject::Agent(agent) => inner.find(agent).and_then(|id| inner.agents.get(&id)).map(|agent| (agent.log.clone(), agent.live.subscribe(), agent.gone.clone())),
                     // The stand-in keeps agents' logs alone.
-                    Subject::StandaloneTool(_) | Subject::DependencyTool(_) => None,
+                    Subject::StandaloneTool(_) | Subject::DependencyTool(_) | Subject::Account(_) | Subject::Admin(_) => None,
                 }
             };
             let Some((history, mut live, gone)) = found else {

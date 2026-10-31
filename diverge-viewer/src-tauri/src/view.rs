@@ -991,7 +991,7 @@ impl From<diverge_sdk::daemon::endpoints::logs::server::response::Frame> for Log
         use diverge_sdk::daemon::endpoints::logs::server::response::{Entry, Frame};
         match frame {
             Frame::Item(Entry::Agent(wrapper)) => LogEvent::Entry { entry: (&wrapper).into() },
-            Frame::Item(Entry::StandaloneTool(_) | Entry::DependencyTool(_)) => LogEvent::Error { message: "not an agent's log".into() },
+            Frame::Item(Entry::StandaloneTool(_) | Entry::DependencyTool(_) | Entry::Account(_) | Entry::Admin(_)) => LogEvent::Error { message: "not an agent's log".into() },
             Frame::Forbidden => LogEvent::Forbidden,
             Frame::Error(error) => LogEvent::Error { message: error_text(&error) },
         }
