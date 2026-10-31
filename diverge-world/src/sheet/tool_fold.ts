@@ -7,7 +7,7 @@ import { jsonBlock } from "./json";
 import { contentElement } from "./media";
 import { caller } from "./sender";
 
-type Item = daemon.tool_log.ItemWrapper;
+type Item = daemon.tool_log.ItemWrapper | daemon.command_log.ItemWrapper;
 type Caller = shared.mcp.attestation.Caller;
 
 /** The message being added to: whose asks it holds, as a key, and where its blocks go. */
@@ -38,7 +38,16 @@ type Open = { key: string; blocks: HTMLElement };
  *    light and dim the sheet's live dot.
  * 7. Every item comes whole and is drawn as it comes; `grew` is called
  *    after every drawing.
+ * 8. A command — a request the tool, or the account whose log this
+ *    is, put to the daemon — is a card titled by its path, over its
+ *    request as JSON, marked at once: ✓ when the daemon let it through,
+ *    ✕ and red when it refused. Consecutive commands are one run,
+ *    labelled "commands"; a command closes a caller's run and a call
+ *    closes the commands' run, as rule 1 says of callers.
  */
+/** The key of the commands' run (rule 8): no caller's key is it. */
+const COMMANDS = "commands";
+
 export class ToolFold {
   private open: Open | null = null;
   private readonly cards = new Map<number, Card>();
@@ -92,6 +101,17 @@ export class ToolFold {
       case "error":
         this.alone(item, "error", "error", jsonBlock(item.error), true);
         break;
+      case "command": {
+        // Rule 8.
+        if (this.open?.key !== COMMANDS) this.open = { key: COMMANDS, blocks: this.message("commands", "account", item.created) };
+        const card = callCard(item.path);
+        card.args.replaceChildren(jsonBlock(item.request));
+        card.status.textContent = item.allowed ? "✓" : "✕";
+        card.card.classList.toggle("failed", !item.allowed);
+        this.open.blocks.append(card.card);
+        this.grew();
+        break;
+      }
       case "active":
       case "inactive":
         // Rule 6.

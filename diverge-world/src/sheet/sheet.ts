@@ -26,6 +26,8 @@ const short = (template: string, index: number) => `${template.slice(0, 8)} #${i
  * and whose it is.
  */
 function subline(subject: Subject): string {
+  if ("account" in subject) return subject.account.issuer;
+  if ("admin" in subject) return `admin at ${subject.admin.issuer}`;
   if ("agent" in subject) return "template" in subject.agent ? short(subject.agent.template, subject.agent.index) : subject.agent.name;
   if ("standalone_tool" in subject) {
     const ref = subject.standalone_tool;
@@ -50,7 +52,8 @@ function subline(subject: Subject): string {
  *    agent's run is up or the tool has an ask in flight; ✕ closes it
  *    and tells `closed`.
  * 3. Opening follows the subject's log (`follow`, the root `logs`
- *    read) into `Fold` for an agent, `ToolFold` for a tool, each entry
+ *    read) into `Fold` for an agent, `ToolFold` for a tool or an
+ *    account (whose log is commands alone), each entry
  *    unwrapped from its kind; closing stops it and empties the body.
  *    Opening while open closes first.
  * 4. The body stays at its bottom as it grows while it was at its
@@ -122,7 +125,15 @@ export class Sheet {
       const fold = new ToolFold(this.body, () => this.stick(), live);
       this.fold = fold;
       const tool = (entry: Entry) =>
-        "standalone_tool" in entry ? entry.standalone_tool : "dependency_tool" in entry ? entry.dependency_tool : null;
+        "standalone_tool" in entry
+          ? entry.standalone_tool
+          : "dependency_tool" in entry
+            ? entry.dependency_tool
+            : "account" in entry
+              ? entry.account
+              : "admin" in entry
+                ? entry.admin
+                : null;
       this.following = follow(opened.subject, (entry) => {
         const item = tool(entry);
         if (item) fold.push(item);

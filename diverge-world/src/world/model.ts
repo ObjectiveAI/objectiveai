@@ -110,7 +110,7 @@ export function model(snapshot: Snapshot): Model {
   // Rule 1.
   for (const a of snapshot.accounts) {
     const { issuer, subject } = a.identity;
-    put({ key: `account:${issuer}:${subject}`, kind: "account", label: subject, detail: `${subject} at ${issuer}` });
+    put({ key: `account:${issuer}:${subject}`, kind: "account", label: subject, detail: `${subject} at ${issuer}`, subject: { account: { issuer, subject } } });
   }
   for (const a of snapshot.agents) {
     const label = a.name ?? short(a.template, a.index);

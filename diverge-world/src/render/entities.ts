@@ -16,10 +16,10 @@ const CLICK = 6;
 /**
  * Draw every entity at its hex, call `hover` with the entity the
  * pointer comes over and with `null` when it leaves, and call `select`
- * with an agent or a listed tool clicked: pressed and let go on its
- * tile, the pointer moved less than `CLICK` pixels between, so a drag
- * that ends on a tile is no click. Accounts, and tools known only from
- * events, are never selected.
+ * with a listed agent, tool or account clicked: pressed and let go on
+ * its tile, the pointer moved less than `CLICK` pixels between, so a
+ * drag that ends on a tile is no click. What is known only from events
+ * is never selected.
  */
 export function drawEntities(scene: Phaser.Scene, map: WorldMap, hover: (entity: Entity | null) => void, select: (entity: Entity) => void): void {
   for (const entity of map.entities) {
