@@ -15,7 +15,7 @@ import { type Entity, model } from "../world/model";
 import { type Snapshot, snapshot } from "../world/snapshot";
 import { type Watching, watch } from "../world/watch";
 import { controls } from "./camera";
-import { type Counts, HOVER, type Hover, STATUS, type Status } from "./status";
+import { type Counts, STATUS, type Status } from "./status";
 
 /** How long the world waits before it reads the daemon again, after a try that failed: the link's own redial. */
 const RETRY = 5000;
@@ -38,7 +38,7 @@ const RETRY = 5000;
  *    sheet's ✕, closes it. Nothing else opens or closes it.
  * 5. Every entity's live state is lit (`makeLights`) and kept: the
  *    accounts, agents and tools lists stay open (`watch`), and each
- *    change relights its entity and is what its hover says.
+ *    change relights its entity.
  */
 export class World extends Phaser.Scene {
   private sheet: Sheet | null = null;
@@ -54,7 +54,6 @@ export class World extends Phaser.Scene {
 
   create() {
     this.registry.set(STATUS, { kind: "waiting", reason: null } satisfies Status);
-    this.registry.set(HOVER, null satisfies Hover);
     this.scene.launch("ui");
     // Rule 5: the lists let go with the scene.
     this.events.once("shutdown", () => this.watching?.stop());
@@ -84,7 +83,7 @@ export class World extends Phaser.Scene {
     this.images = made.images;
     drawTerrain(this, map);
     drawLinks(this, map);
-    const plates = drawEntities(this, map, (entity) => this.registry.set(HOVER, entity satisfies Hover), (entity) => this.select(entity));
+    const plates = drawEntities(this, map, (entity) => this.select(entity));
     // Rule 5.
     const lights = makeLights(this, map, plates);
     const byKey = new Map(map.entities.map((entity) => [entity.key, entity]));

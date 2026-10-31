@@ -1,11 +1,9 @@
 // The UI scene: the game's menus, over the world with a camera of its
-// own, so they hold still while the map moves. For now, a status line
-// and a panel naming what is under the pointer.
+// own, so they hold still while the map moves. For now, a status line.
 
 import * as Phaser from "phaser";
-import { ago } from "../sheet/ago";
-import type { Kind, Live } from "../world/model";
-import { HOVER, type Hover, STATUS, type Status } from "./status";
+import type { Kind } from "../world/model";
+import { STATUS, type Status } from "./status";
 
 /** Each kind's name, one and many, in the order the status line gives them. */
 const NAMES: [Kind | "links", string, string][] = [
@@ -16,17 +14,7 @@ const NAMES: [Kind | "links", string, string][] = [
   ["links", "link", "links"],
 ];
 
-/** Each kind's name on the hover panel. */
-const KINDS: Record<Kind, string> = { account: "Account", agent: "Agent", standalone_tool: "Standalone tool", dependency_tool: "Dependency tool" };
-
 /** The status line's words. */
-/** An entity's live state, as its hover says it: "active now", "last connected 3 minutes ago". */
-function liveWords(live: Live): string {
-  const verb = live.kind === "active" ? "active" : "connected";
-  if (live.on) return `${verb} now`;
-  return live.at ? `last ${verb} ${ago(new Date(live.at))}` : `never ${verb}`;
-}
-
 function words(status: Status): string {
   if (status.kind === "waiting") return status.reason === null ? "Waiting for the daemon…" : `Waiting for the daemon… (${status.reason})`;
   const line = NAMES.map(([k, one, many]) => `${status.counts[k]} ${status.counts[k] === 1 ? one : many}`).join("  ·  ");
@@ -49,17 +37,6 @@ export class Ui extends Phaser.Scene {
 
   create() {
     const status = this.add.text(12, 12, words(this.registry.get(STATUS) as Status), STYLE);
-    const panel = this.add.text(12, 0, "", STYLE).setOrigin(0, 1).setVisible(false);
-    const place = () => panel.setY(this.scale.height - 12);
-    place();
-    this.scale.on("resize", place);
     this.registry.events.on(`changedata-${STATUS}`, (_parent: unknown, value: Status) => status.setText(words(value)));
-    this.registry.events.on(`changedata-${HOVER}`, (_parent: unknown, value: Hover) => {
-      if (value === null) {
-        panel.setVisible(false);
-        return;
-      }
-      panel.setText([KINDS[value.kind], value.detail, ...(value.live ? [liveWords(value.live)] : [])].join("\n")).setVisible(true);
-    });
   }
 }

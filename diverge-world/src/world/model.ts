@@ -11,8 +11,8 @@ export type Kind = "account" | "agent" | "standalone_tool" | "dependency_tool";
 export type Subject = daemon.endpoints.logs.client.request.Subject;
 
 /**
- * One entity: its key, its kind, the name on its plate, what its hover
- * says, an agent's template and index, and — a listed agent's or
+ * One entity: its key, its kind, the name on its plate, a longer
+ * line of detail, an agent's template and index, and — a listed agent's or
  * tool's — whose log it is.
  */
 export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; live?: Live };

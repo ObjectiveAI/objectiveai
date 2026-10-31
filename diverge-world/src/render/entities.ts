@@ -14,22 +14,19 @@ const PLATE = 14;
 const CLICK = 6;
 
 /**
- * Draw every entity at its hex, call `hover` with the entity the
- * pointer comes over and with `null` when it leaves, and call `select`
+ * Draw every entity at its hex, and call `select`
  * with a listed agent, tool or account clicked: pressed and let go on
  * its tile, the pointer moved less than `CLICK` pixels between, so a
  * drag that ends on a tile is no click. What is known only from events
  * is never selected. Hands back each entity's name plate, by key.
  */
-export function drawEntities(scene: Phaser.Scene, map: WorldMap, hover: (entity: Entity | null) => void, select: (entity: Entity) => void): Map<string, Phaser.GameObjects.Text> {
+export function drawEntities(scene: Phaser.Scene, map: WorldMap, select: (entity: Entity) => void): Map<string, Phaser.GameObjects.Text> {
   const plates = new Map<string, Phaser.GameObjects.Text>();
   for (const entity of map.entities) {
     const at = map.at.get(entity.key);
     if (!at) continue;
     const { x: cx, y: cy } = pixel(at);
     const icon = scene.add.image(cx, cy, iconKey(entity.kind)).setDepth(2).setInteractive({ hitArea: tileShape(), hitAreaCallback: Phaser.Geom.Polygon.Contains, useHandCursor: true });
-    icon.on("pointerover", () => hover(entity));
-    icon.on("pointerout", () => hover(null));
     if (entity.subject) {
       icon.on("pointerup", (pointer: Phaser.Input.Pointer) => {
         if (Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) < CLICK) select(entity);
