@@ -714,7 +714,7 @@ impl From<&standalone_tools::list::server::response::Tool> for ToolItemView {
                 Origin::Created { .. } => false,
                 Origin::Connected { .. } => true,
             },
-            active: tool.active,
+            active: tool.deployed,
             agents: tool.attached_agent_instances.iter().map(|a| crate::daemon::agent_key(a.name.as_deref(), &a.template, a.index)).collect(),
             templates: tool.attached_agent_templates.clone(),
         }

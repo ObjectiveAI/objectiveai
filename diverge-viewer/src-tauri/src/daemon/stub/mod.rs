@@ -369,6 +369,9 @@ impl Inner {
             created: agent.created,
             active: agent.active.is_some(),
             last_active: last_change.as_ref().map(|(at, _, _)| *at),
+            // The stand-in's run is its container and its loop at once.
+            deployed: agent.active.is_some(),
+            last_deployed: last_change.as_ref().map(|(at, _, _)| *at),
             logs_index: last_change.as_ref().map_or(0, |(_, _, index)| *index),
             provider: last_change.map(|(_, provider, _)| provider),
             tools: self.tools_of(id, &agent.create.inner.template),
@@ -1803,8 +1806,11 @@ impl Daemon for StubDaemon {
                     origin: t.origin.clone(),
                     creator: t.creator.clone(),
                     created: t.created,
-                    active: inner.tool_active(t),
-                    last_active: t.last_active,
+                    // The stand-in calls no tool: never working, deployed while it runs.
+                    active: false,
+                    last_active: None,
+                    deployed: inner.tool_active(t),
+                    last_deployed: t.last_active,
                     attached_agent_instances,
                     attached_agent_templates: t.templates.clone(),
                     permissions: Vec::new(),
