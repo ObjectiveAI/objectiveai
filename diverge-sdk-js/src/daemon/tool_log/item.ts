@@ -4,6 +4,7 @@ import { z } from "zod";
 import { CallToolResultSchema, ReadResourceResultSchema } from "@modelcontextprotocol/core";
 import { Error } from "../../shared/error.js";
 import { Caller } from "../../shared/mcp/attestation/caller.js";
+import { Command } from "../command_log/command.js";
 
 /**
  * One item of a tool's log, told apart by `type`.
@@ -39,5 +40,7 @@ export const Item = z.discriminatedUnion("type", [
   z.object({ type: z.literal("notification"), to: Caller, notification: z.json() }),
   /** An error the daemon met keeping the tool. */
   z.object({ type: z.literal("error"), error: Error }),
+  /** A request the tool put to the daemon. */
+  Command,
 ]);
 export type Item = z.infer<typeof Item>;

@@ -46,6 +46,7 @@ pub const LOCK_FILE: &str = "daemon.lock";
 
 pub mod client;
 pub mod agent_log;
+pub mod command_log;
 pub mod create;
 pub mod creator;
 pub mod download;

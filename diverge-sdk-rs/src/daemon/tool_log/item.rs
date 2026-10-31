@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{Call, CallError, CallResult, Error, Notification, Read, ReadError, ReadResult};
+use crate::daemon::command_log::Command;
 
 /// One item of a tool's log, told apart by `type`.
 ///
@@ -22,6 +23,9 @@ use super::{Call, CallError, CallResult, Error, Notification, Read, ReadError, R
 ///    and moves nothing in flight.
 /// 4. An [`Error`] is the daemon's own, met keeping the tool — never an
 ///    ask's answer.
+/// 5. A [`Command`] is a request the tool's own container put to the
+///    daemon, kept as [`command_log`](crate::daemon::command_log) states;
+///    it moves nothing in flight.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -46,4 +50,6 @@ pub enum Item {
     Notification(Notification),
     /// An error the daemon met keeping the tool: `error`.
     Error(Error),
+    /// A request the tool put to the daemon: `command`.
+    Command(Command),
 }

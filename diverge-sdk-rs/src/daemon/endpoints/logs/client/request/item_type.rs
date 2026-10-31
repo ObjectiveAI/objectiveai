@@ -3,8 +3,9 @@
 use serde::{Deserialize, Serialize};
 
 /// One kind of item, by the name its `type` carries: every name an
-/// [`agent_log`](crate::daemon::agent_log) or a
-/// [`tool_log`](crate::daemon::tool_log) item has. A name both books
+/// [`agent_log`](crate::daemon::agent_log), a
+/// [`tool_log`](crate::daemon::tool_log) or a
+/// [`command_log`](crate::daemon::command_log) item has. A name both books
 /// have — `active`, `inactive`, `error`, `notification` — picks that
 /// kind in whichever book is read; a name the book read does not have
 /// matches nothing.
@@ -58,6 +59,8 @@ pub enum ItemType {
     ReadResult,
     /// `read_error`.
     ReadError,
+    /// `command`.
+    Command,
 }
 
 impl ItemType {
@@ -87,6 +90,7 @@ impl ItemType {
             ItemType::Read => "read",
             ItemType::ReadResult => "read_result",
             ItemType::ReadError => "read_error",
+            ItemType::Command => "command",
         }
     }
 }

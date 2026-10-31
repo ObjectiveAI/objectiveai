@@ -33,5 +33,6 @@ export const ItemType = z.enum([
   "read",
   "read_result",
   "read_error",
+  "command",
 ]);
 export type ItemType = z.infer<typeof ItemType>;

@@ -11,6 +11,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 use super::channel::Channel;
 use super::notice::Notice;
+use super::verdict::{Hook, Verdict};
 use crate::wire::connection::Connection;
 use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame::server::ServerFrame;
@@ -74,7 +75,6 @@ use crate::wire::frame::server::ServerFrame;
 /// client opens inside the scope, which is where the two
 /// `channel_response` calls get the channel number they have to
 /// quote.
-#[derive(Debug)]
 pub struct ScopeHandle {
     /// The scope's number, chosen by the CLIENT.
     ///
@@ -154,6 +154,17 @@ pub struct ScopeHandle {
     /// taken afterwards and separately, which is the whole point of the
     /// buffer being per scope.
     buffer: Mutex<Vec<u8>>,
+    /// Who is told the scope's [`Verdict`], once, if anyone is: taken
+    /// out before it is called.
+    verdict: Mutex<Option<Hook>>,
+}
+
+/// By hand, since the hook is a closure: everything but it, and
+/// whether it is still waiting.
+impl std::fmt::Debug for ScopeHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ScopeHandle").field("scope", &self.scope).finish_non_exhaustive()
+    }
 }
 
 impl ScopeHandle {
@@ -185,6 +196,24 @@ impl ScopeHandle {
             notice_sender,
             sink,
             buffer: Mutex::new(Vec::new()),
+            verdict: Mutex::new(None),
+        }
+    }
+
+    /// Have `hook` told this scope's [`Verdict`]: whichever comes first
+    /// of [`allowed`](Self::allowed), the first response, and the scope
+    /// ending with none. A second hook replaces the first, untold.
+    pub async fn on_verdict(&self, hook: Hook) {
+        *self.verdict.lock().await = Some(hook);
+    }
+
+    /// Say the request was let through, before any answer: for a scope
+    /// whose first response is long in coming. Tells the hook
+    /// [`Verdict::Allowed`] if it has not been told yet.
+    pub async fn allowed(&self) {
+        let hook = self.verdict.lock().await.take();
+        if let Some(hook) = hook {
+            hook(Verdict::Allowed);
         }
     }
 
@@ -234,6 +263,10 @@ impl ScopeHandle {
     /// handle serves every scope on the connection; here the handle IS
     /// the scope, and a misdirected response is not expressible.
     pub async fn send_response(&self, payload: &[u8]) {
+        let hook = self.verdict.lock().await.take();
+        if let Some(hook) = hook {
+            hook(Verdict::Response(payload));
+        }
         self.send_frame(ServerFrame::Response {
             scope: self.scope,
             payload,
@@ -288,6 +321,10 @@ impl ScopeHandle {
     /// begun. Closing before the frame goes out means the number reads
     /// as free from the moment the client could possibly act on it.
     pub async fn send_response_finish(&self) {
+        let hook = self.verdict.lock().await.take();
+        if let Some(hook) = hook {
+            hook(Verdict::Nothing);
+        }
         self.channel_request_receiver.lock().await.close();
         self.send_frame(ServerFrame::ResponseFinish { scope: self.scope })
             .await;
@@ -469,6 +506,9 @@ impl ScopeHandle {
 /// would still look live, and would never be removed at all.
 impl Drop for ScopeHandle {
     fn drop(&mut self) {
+        if let Some(hook) = self.verdict.get_mut().take() {
+            hook(Verdict::Nothing);
+        }
         self.channel_request_receiver.get_mut().close();
         let _ = self.notice_sender.send(Notice::Closed(self.scope, None));
     }

@@ -12,6 +12,7 @@
 
 export * as client from "./client/index.js";
 export * as agent_log from "./agent_log/index.js";
+export * as command_log from "./command_log/index.js";
 export * as create from "./create/index.js";
 export * as creator from "./creator/index.js";
 export * as download from "./download/index.js";

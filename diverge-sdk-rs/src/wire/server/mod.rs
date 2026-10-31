@@ -111,3 +111,4 @@ mod notice;
 pub mod received;
 pub mod scope_handle;
 pub mod session;
+pub mod verdict;

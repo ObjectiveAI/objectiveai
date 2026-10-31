@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::{agent_log, tool_log};
+use crate::daemon::{agent_log, command_log, tool_log};
 
 /// One entry of the log read: one member, naming the subject's kind,
 /// over the entry as that kind's book keeps it. Every entry of one
@@ -19,4 +19,8 @@ pub enum Entry {
     StandaloneTool(tool_log::ItemWrapper),
     /// A dependency tool's.
     DependencyTool(tool_log::ItemWrapper),
+    /// An account's.
+    Account(command_log::ItemWrapper),
+    /// An administrator's.
+    Admin(command_log::ItemWrapper),
 }

@@ -30,6 +30,8 @@ pub enum ItemType {
     Notification,
     /// [`Item::Error`].
     Error,
+    /// [`Item::Command`].
+    Command,
 }
 
 impl ItemType {
@@ -46,6 +48,7 @@ impl ItemType {
             Item::ReadError(_) => ItemType::ReadError,
             Item::Notification(_) => ItemType::Notification,
             Item::Error(_) => ItemType::Error,
+            Item::Command(_) => ItemType::Command,
         }
     }
 
@@ -62,6 +65,7 @@ impl ItemType {
             ItemType::ReadError => "read_error",
             ItemType::Notification => "notification",
             ItemType::Error => "error",
+            ItemType::Command => "command",
         }
     }
 }
