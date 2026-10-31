@@ -3,7 +3,8 @@
 // and a panel naming what is under the pointer.
 
 import * as Phaser from "phaser";
-import type { Kind } from "../world/model";
+import { ago } from "../sheet/ago";
+import type { Kind, Live } from "../world/model";
 import { HOVER, type Hover, STATUS, type Status } from "./status";
 
 /** Each kind's name, one and many, in the order the status line gives them. */
@@ -19,6 +20,13 @@ const NAMES: [Kind | "links", string, string][] = [
 const KINDS: Record<Kind, string> = { account: "Account", agent: "Agent", standalone_tool: "Standalone tool", dependency_tool: "Dependency tool" };
 
 /** The status line's words. */
+/** An entity's live state, as its hover says it: "active now", "last connected 3 minutes ago". */
+function liveWords(live: Live): string {
+  const verb = live.kind === "active" ? "active" : "connected";
+  if (live.on) return `${verb} now`;
+  return live.at ? `last ${verb} ${ago(new Date(live.at))}` : `never ${verb}`;
+}
+
 function words(status: Status): string {
   if (status.kind === "waiting") return status.reason === null ? "Waiting for the daemon…" : `Waiting for the daemon… (${status.reason})`;
   const line = NAMES.map(([k, one, many]) => `${status.counts[k]} ${status.counts[k] === 1 ? one : many}`).join("  ·  ");
@@ -51,7 +59,7 @@ export class Ui extends Phaser.Scene {
         panel.setVisible(false);
         return;
       }
-      panel.setText(`${KINDS[value.kind]}\n${value.detail}`).setVisible(true);
+      panel.setText([KINDS[value.kind], value.detail, ...(value.live ? [liveWords(value.live)] : [])].join("\n")).setVisible(true);
     });
   }
 }

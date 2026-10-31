@@ -19,9 +19,10 @@ const CLICK = 6;
  * with a listed agent, tool or account clicked: pressed and let go on
  * its tile, the pointer moved less than `CLICK` pixels between, so a
  * drag that ends on a tile is no click. What is known only from events
- * is never selected.
+ * is never selected. Hands back each entity's name plate, by key.
  */
-export function drawEntities(scene: Phaser.Scene, map: WorldMap, hover: (entity: Entity | null) => void, select: (entity: Entity) => void): void {
+export function drawEntities(scene: Phaser.Scene, map: WorldMap, hover: (entity: Entity | null) => void, select: (entity: Entity) => void): Map<string, Phaser.GameObjects.Text> {
+  const plates = new Map<string, Phaser.GameObjects.Text>();
   for (const entity of map.entities) {
     const at = map.at.get(entity.key);
     if (!at) continue;
@@ -35,7 +36,7 @@ export function drawEntities(scene: Phaser.Scene, map: WorldMap, hover: (entity:
       });
     }
     const name = entity.label.length > PLATE ? `${entity.label.slice(0, PLATE - 1)}…` : entity.label;
-    scene.add
+    const plate = scene.add
       .text(cx, cy + SIZE + 6, name, {
         fontFamily: "Georgia, 'Times New Roman', serif",
         fontSize: "10px",
@@ -46,5 +47,7 @@ export function drawEntities(scene: Phaser.Scene, map: WorldMap, hover: (entity:
       .setOrigin(0.5)
       .setResolution(3)
       .setDepth(3);
+    plates.set(entity.key, plate);
   }
+  return plates;
 }

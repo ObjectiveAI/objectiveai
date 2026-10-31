@@ -16,6 +16,9 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   every call and read the daemon routed into it, a card each with its answer, joined per caller, and each
   notification under the caller whose MCP session it came on (the proxy opens one session per caller). Clicking another
   agent or tool swaps the sheet to it; clicking it again, or ✕, closes it.
+- **Live lights** (`render/lights.ts`, `world/watch.ts`): the accounts, agents and tools lists stay open after the
+  snapshot, and each entity's state lights it: a pulsing green halo and a plate dot while an agent or tool is `active`
+  (working), a steady halo for a `connected` account; the hover says when it last changed. The map itself is not rebuilt.
 - **The world is the daemon drawn once** (`scenes/world.ts`): six lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its
   `images info` once (`world/names.ts`), and a tool is named by its image's DIVERGE.md `name` where it said one. Every account, agent, standalone tool and

@@ -15,7 +15,28 @@ export type Subject = daemon.endpoints.logs.client.request.Subject;
  * says, an agent's template and index, and — a listed agent's or
  * tool's — whose log it is.
  */
-export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject };
+export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; live?: Live };
+
+/**
+ * Whether a listed entity is live, as its list says: an agent or a
+ * tool `active` (working — a loop, a call or a read in flight), an
+ * account `connected`; and when that last changed.
+ */
+export type Live = { kind: "active" | "connected"; on: boolean; at?: string };
+
+type Account = daemon.endpoints.accounts.list.server.response.Account;
+type Agent = daemon.endpoints.agents.list.server.response.Agent;
+
+/** The keys the lists' items are drawn under, one per kind, as `model` makes them. */
+export const accountKey = (a: Account) => `account:${a.identity.issuer}:${a.identity.subject}`;
+export const agentKey = (a: Agent) => `agent:${a.template}:${a.index}`;
+export const toolKey = (t: Tool) => (t.origin.kind === "created" ? `standalone_tool:${t.origin.template}:${t.origin.index}` : `connected:${t.origin.daemon}:${t.origin.index}`);
+export const dependencyKey = (d: Dependency) => `dependency_tool:${d.id}:${d.index}`;
+
+/** An account's live state: connected. */
+export const accountLive = (a: Account): Live => ({ kind: "connected", on: a.connected, at: a.last_connected });
+/** An agent's, a tool's or a dependency tool's live state: active. */
+export const activeLive = (x: { active: boolean; last_active?: string }): Live => ({ kind: "active", on: x.active, at: x.last_active });
 
 /**
  * Two entities joined: `a` before `b` by key, and which ways something
@@ -92,7 +113,7 @@ function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
  * The rules:
  *
  * 1. Every listed account, agent, standalone tool and dependency tool
- *    is an entity, linked or not. A tool is named by its image's name
+ *    is an entity, linked or not, with its live state (`Live`). A tool is named by its image's name
  *    (`imageNames`) where the image said one; each carries whose log
  *    it is (`Subject`).
  * 2. An event's party that no list holds is an entity too, made from
@@ -112,18 +133,18 @@ export function model(snapshot: Snapshot): Model {
     const { issuer, subject } = a.identity;
     // An administrator the daemon's configuration names reads its log as the `admin` subject.
     const of: Subject = { type: a.admin ? "admin" : "account", issuer, subject };
-    put({ key: `account:${issuer}:${subject}`, kind: "account", label: subject, detail: `${subject} at ${issuer}${a.admin ? " — admin" : ""}`, subject: of });
+    put({ key: accountKey(a), kind: "account", label: subject, detail: `${subject} at ${issuer}${a.admin ? " — admin" : ""}`, subject: of, live: accountLive(a) });
   }
   for (const a of snapshot.agents) {
     const label = a.name ?? short(a.template, a.index);
     const agent = { template: a.template, index: a.index };
-    put({ key: `agent:${a.template}:${a.index}`, kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent, subject: { type: "agent", ...agent } });
+    put({ key: agentKey(a), kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent, subject: { type: "agent", ...agent }, live: activeLive(a) });
   }
-  for (const tool of snapshot.tools) put(toolEntity(snapshot, tool));
+  for (const tool of snapshot.tools) put({ ...toolEntity(snapshot, tool), live: activeLive(tool) });
   for (const d of snapshot.dependencies) {
     const label = named(snapshot, d.template.image.digest, short(d.id, d.index));
     const subject: Subject = { type: "dependency_tool", template: d.id, owner: ownerRef(d.owner) };
-    put({ key: `dependency_tool:${d.id}:${d.index}`, kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}`, subject });
+    put({ key: dependencyKey(d), kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}`, subject, live: activeLive(d) });
   }
   // Rules 2 to 4.
   const pairs = new Map<string, Pair>();

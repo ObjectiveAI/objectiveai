@@ -4,6 +4,7 @@
 import * as Phaser from "phaser";
 import { drawEntities } from "../render/entities";
 import { makeIcons } from "../render/icons";
+import { makeLights } from "../render/lights";
 import { drawLinks } from "../render/links";
 import { makeSelection, type Selection } from "../render/selection";
 import { extent } from "../render/scale";
@@ -12,6 +13,7 @@ import { Sheet } from "../sheet/sheet";
 import { build, type WorldMap } from "../world/map";
 import { type Entity, model } from "../world/model";
 import { type Snapshot, snapshot } from "../world/snapshot";
+import { type Watching, watch } from "../world/watch";
 import { controls } from "./camera";
 import { type Counts, HOVER, type Hover, STATUS, type Status } from "./status";
 
@@ -27,11 +29,16 @@ const RETRY = 5000;
  *    again `RETRY` milliseconds later, until one does not.
  * 2. What it read is built into a map (`build`) and drawn in order: the
  *    terrain, the links over it, the entities over them.
- * 3. Nothing is read again: the world is the daemon as it stood.
+ * 3. The map is not built again: the world is the daemon's entities
+ *    and links as they stood; one added or removed after waits for a
+ *    reload.
  * 4. Clicking an agent or a listed tool opens its sheet — its log —
  *    and rings its tile; clicking another while one is open swaps the
  *    sheet and the ring to it; clicking the same one again, or the
  *    sheet's ✕, closes it. Nothing else opens or closes it.
+ * 5. Every entity's live state is lit (`makeLights`) and kept: the
+ *    accounts, agents and tools lists stay open (`watch`), and each
+ *    change relights its entity and is what its hover says.
  */
 export class World extends Phaser.Scene {
   private sheet: Sheet | null = null;
@@ -39,6 +46,7 @@ export class World extends Phaser.Scene {
   private selected: string | null = null;
   private map: WorldMap | null = null;
   private images = new Map<string, string>();
+  private watching: Watching | null = null;
 
   constructor() {
     super("world");
@@ -48,6 +56,8 @@ export class World extends Phaser.Scene {
     this.registry.set(STATUS, { kind: "waiting", reason: null } satisfies Status);
     this.registry.set(HOVER, null satisfies Hover);
     this.scene.launch("ui");
+    // Rule 5: the lists let go with the scene.
+    this.events.once("shutdown", () => this.watching?.stop());
     makeIcons(this);
     void this.take();
   }
@@ -74,7 +84,17 @@ export class World extends Phaser.Scene {
     this.images = made.images;
     drawTerrain(this, map);
     drawLinks(this, map);
-    drawEntities(this, map, (entity) => this.registry.set(HOVER, entity satisfies Hover), (entity) => this.select(entity));
+    const plates = drawEntities(this, map, (entity) => this.registry.set(HOVER, entity satisfies Hover), (entity) => this.select(entity));
+    // Rule 5.
+    const lights = makeLights(this, map, plates);
+    const byKey = new Map(map.entities.map((entity) => [entity.key, entity]));
+    for (const entity of map.entities) if (entity.live) lights.set(entity.key, entity.live);
+    this.watching = watch((key, live) => {
+      const entity = byKey.get(key);
+      if (!entity) return;
+      entity.live = live ?? undefined;
+      lights.set(key, live);
+    });
     this.selection = makeSelection(this);
     this.sheet = new Sheet(() => this.deselect());
     const size = extent(map.columns, map.rows);
