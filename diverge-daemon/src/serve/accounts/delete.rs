@@ -5,6 +5,8 @@ use diverge_sdk::daemon::endpoints::accounts::delete::server::response::Frame;
 use diverge_sdk::daemon::grant::accounts::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
+use crate::commands::Commander;
+use crate::logs;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
@@ -45,6 +47,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     accounts::delete(&mut tx, account.id).await?;
     tx.commit().await?;
+    // Its command log goes with it; a log that cannot be removed is
+    // left where it lies, the account gone either way.
+    daemon.live.end_command_log(Commander::Account(account.id)).await;
+    let _ = logs::remove(&daemon.logs, account.id).await;
     daemon.live.changed(Kind::Accounts);
     daemon.live.changed(Kind::Roles);
     Ok(Frame::Deleted)

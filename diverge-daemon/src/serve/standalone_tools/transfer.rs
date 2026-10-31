@@ -18,7 +18,7 @@ use crate::transfers::{self, Fail, Source};
 
 /// Answer the transfer and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
-    let answer = match serve(frame, who, daemon).await {
+    let answer = match serve(&scope, frame, who, daemon).await {
         Ok(answer) => answer,
         Err(error) => Frame::Error(reply::failure(&error)),
     };
@@ -34,7 +34,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// destination volume that is held; else the copy — through the
 /// provider when both ends run on it — and `Transferred`; the
 /// container released after.
-async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
+async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
         return Ok(Frame::Forbidden);
@@ -57,6 +57,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         Judged::NoDestination => return Ok(Frame::NoDestination),
         Judged::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
+    scope.allowed().await;
     drop(conn);
     let opened = match files::open_tool(daemon, &tool).await {
         Ok(opened) => opened,

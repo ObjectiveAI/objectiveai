@@ -86,6 +86,7 @@
 //! when the daemon runs one, and `agents/`, every agent's log by its
 //! id.
 
+pub mod commands;
 pub mod config;
 pub mod containers;
 pub mod content;

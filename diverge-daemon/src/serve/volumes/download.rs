@@ -54,6 +54,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
+    scope.allowed().await;
     if content::inside(&frame.path).is_err() {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());

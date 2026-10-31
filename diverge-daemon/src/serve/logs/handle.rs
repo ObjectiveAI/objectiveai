@@ -1,6 +1,7 @@
 //! The `logs` endpoint: whose log, judged, then sent.
 
 use diverge_sdk::daemon::agent_log;
+use diverge_sdk::daemon::command_log;
 use diverge_sdk::daemon::endpoints::logs::client::channel_request;
 use diverge_sdk::daemon::endpoints::logs::client::request::{self, Subject};
 use diverge_sdk::daemon::endpoints::logs::server::response::{Entry, Frame};
@@ -10,6 +11,7 @@ use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{Failure, Span, send};
+use crate::commands::{AdminKey, Commander};
 use crate::containers::ToolKey;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
@@ -33,7 +35,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// 2. A subject that is not there is the scope's error.
 /// 3. Else the log is sent, and watched if asked, as
 ///    [`logs`](crate::serve::logs) states, each item wrapped in the
-///    subject's kind.
+///    subject's kind; the scope is marked let through first, since a
+///    watch's first answer may be long in coming.
+/// 4. An administrator's command log is read by administrators alone.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), Failure> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -63,6 +67,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
                 reply::reply(scope, &Frame::Forbidden).await;
                 return Ok(());
             }
+            scope.allowed().await;
             // Subscribe before the first read; the handle itself is let
             // go, so the agent's deletion — the sender gone — ends the
             // watch.
@@ -84,6 +89,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
                 return Ok(());
             }
             drop(conn);
+            scope.allowed().await;
             let key = ToolKey::Record(tool.id);
             let latest = daemon.live.tool_log(key).await.latest.subscribe();
             let keep = |item: &tool_log::ItemWrapper| crate::logs::matches(r#type, from, to, tool_log::ItemType::of(&item.item).name(), item.created);
@@ -107,10 +113,52 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
                 return Ok(());
             }
             drop(conn);
+            scope.allowed().await;
             let key = ToolKey::Dependency(tool.id);
             let latest = daemon.live.tool_log(key).await.latest.subscribe();
             let keep = |item: &tool_log::ItemWrapper| crate::logs::matches(r#type, from, to, tool_log::ItemType::of(&item.item).name(), item.created);
             send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::DependencyTool(item)), is_cancel).await?;
+        }
+        Subject::Account(identity) => {
+            if !judge::accounts::holds(&standing, grant::accounts::Over::Logs) {
+                reply::reply(scope, &Frame::Forbidden).await;
+                return Ok(());
+            }
+            let Some(account) = store::accounts::by_identity(&mut conn, identity, false).await? else {
+                reply::reply(scope, &Frame::Error(reply::failure(&"the account named is none the daemon has"))).await;
+                return Ok(());
+            };
+            drop(conn);
+            let connected = daemon.live.is_connected(account.id).await;
+            if !judge::accounts::over(&standing, grant::accounts::Over::Logs, &account, connected) {
+                reply::reply(scope, &Frame::Forbidden).await;
+                return Ok(());
+            }
+            scope.allowed().await;
+            let latest = daemon.live.command_log(Commander::Account(account.id)).await.latest.subscribe();
+            let keep = |item: &command_log::ItemWrapper| crate::logs::matches(r#type, from, to, command_log::ItemType::of(&item.item).name(), item.created);
+            send(scope, daemon, account.id, latest, &span, keep, |item| Frame::Item(Entry::Account(item)), is_cancel).await?;
+        }
+        Subject::Admin(identity) => {
+            // Rule 4: an administrator's log is read by administrators
+            // alone; an identity the daemon has kept nothing for reads
+            // empty.
+            if !standing.admin() {
+                reply::reply(scope, &Frame::Forbidden).await;
+                return Ok(());
+            }
+            drop(conn);
+            let key = match store::hash::identity_key(identity) {
+                Ok(key) => AdminKey(key),
+                Err(error) => {
+                    reply::reply(scope, &Frame::Error(reply::failure(&error))).await;
+                    return Ok(());
+                }
+            };
+            scope.allowed().await;
+            let latest = daemon.live.command_log(Commander::Admin(key)).await.latest.subscribe();
+            let keep = |item: &command_log::ItemWrapper| crate::logs::matches(r#type, from, to, command_log::ItemType::of(&item.item).name(), item.created);
+            send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::Admin(item)), is_cancel).await?;
         }
     }
     Ok(())

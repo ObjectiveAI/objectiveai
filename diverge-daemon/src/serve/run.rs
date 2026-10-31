@@ -68,7 +68,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
         }
     };
     let logs = dir.clone();
-    for book in ["agents", "tools", "dependency_tools"] {
+    for book in ["agents", "tools", "dependency_tools", "accounts", "admins"] {
         if let Err(error) = tokio::fs::create_dir_all(logs.join(book)).await {
             postgres.stop().await;
             return Err(Error::Directory(error));

@@ -6,7 +6,9 @@
 //! directory `<dir>/agents/<id>/`; a tool on record by its row,
 //! `<dir>/tools/<id>/`; a dependency tool by its row,
 //! `<dir>/dependency_tools/<id>/` — three directories, since the rows
-//! are numbered apart and would meet in one. Each log is two files:
+//! are numbered apart and would meet in one; and a requester's command
+//! log, an account's by its row, `<dir>/accounts/<id>/`, an
+//! administrator's by its identity's key, `<dir>/admins/<key>/`. Each log is two files:
 //! `log`, one JSON object per line, each an [`Entry`] as the wire
 //! sends it; and `index`, sixteen bytes per item — the line's offset
 //! and its length, big-endian — so that a read from a `logs_index`

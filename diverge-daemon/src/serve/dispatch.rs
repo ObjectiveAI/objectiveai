@@ -16,6 +16,10 @@ use crate::judge::Who;
 /// daemon named as the account named and carries the answers, the
 /// member taken out of what goes on.
 ///
+/// Before either, the request is put in its requester's command log
+/// ([`commands::record`](crate::commands::record)), kept once the
+/// daemon decides whether to let it through.
+///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
 /// hundred and eleven has a handler. A payload that is no request at all is
@@ -23,6 +27,7 @@ use crate::judge::Who;
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
     let request = ClientRequest::decode(payload).unwrap_or_else(|never| match never {});
+    crate::commands::record(&scope, &request, payload, &who, daemon).await;
     if let Some((relay, bytes)) = relay::peel(payload) {
         return relay::serve(scope, &request, bytes, relay, who, daemon).await;
     }

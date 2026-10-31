@@ -15,7 +15,7 @@ use crate::store;
 
 /// Answer the image's info and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
-    let answer = match serve(frame, who, daemon).await {
+    let answer = match serve(&scope, frame, who, daemon).await {
         Ok(answer) => answer,
         Err(error) => Frame::Error(reply::failure(&error)),
     };
@@ -25,7 +25,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `info` grant over images; else the answer
 /// [`images::info`] reaches.
-async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
+async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;
         Standing::of(&mut conn, who).await?
@@ -36,5 +36,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if !judge::images::holds(&standing, Action::Info) {
         return Ok(Frame::Forbidden);
     }
+    scope.allowed().await;
     images::info(daemon, &frame.image).await
 }

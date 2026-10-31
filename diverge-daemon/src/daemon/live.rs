@@ -19,6 +19,7 @@ use diverge_sdk::provider::endpoints::images::oci::client::execute;
 
 use super::{Capacity, Changes, Kind, Peers, Standing};
 use crate::containers::services::State;
+use crate::commands::Commander;
 use crate::containers::{AgentRun, ConnectionId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
 use crate::database::Scope;
@@ -58,6 +59,9 @@ pub struct Live {
     /// Every tool's log that has been appended to or watched since the
     /// start, by tool.
     tool_logs: Mutex<HashMap<ToolKey, Arc<ToolLog>>>,
+    /// Every account's and administrator's command log appended to or
+    /// watched since the start; a tool's commands are in its tool log.
+    command_logs: Mutex<HashMap<Commander, Arc<Log>>>,
     /// The agents running now.
     agents: Mutex<HashMap<AgentId, Arc<AgentRun>>>,
     /// The tools running now, or joined: records and dependency tools.
@@ -462,6 +466,24 @@ impl Live {
     /// it once the last append has let go.
     pub async fn end_tool_log(&self, key: ToolKey) {
         self.tool_logs.lock().await.remove(&key);
+    }
+
+    /// A requester's command log, live: the one every append and every
+    /// watch of that log goes through.
+    pub async fn command_log(&self, commander: Commander) -> Arc<Log> {
+        let mut logs = self.command_logs.lock().await;
+        Arc::clone(logs.entry(commander).or_insert_with(|| {
+            Arc::new(Log {
+                lock: Mutex::new(()),
+                latest: watch::channel(0).0,
+            })
+        }))
+    }
+
+    /// The account is deleted: forget its command log, which ends every
+    /// watch on it once the last append has let go.
+    pub async fn end_command_log(&self, commander: Commander) {
+        self.command_logs.lock().await.remove(&commander);
     }
 
     /// The agent's run, if it is up.

@@ -84,6 +84,7 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
+    scope.allowed().await;
     let Some(template) = tool.template() else {
         reply::reply(scope, &Frame::Error(reply::failure(&CONNECTED))).await;
         return Ok(());

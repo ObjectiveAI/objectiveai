@@ -51,6 +51,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
     if !judge::agents::over(&standing, Over::Message, &agent, active(daemon, agent.id).await) {
         return Ok(Frame::Forbidden);
     }
+    scope.allowed().await;
     let run = match containers::agent(daemon, &agent).await {
         Ok(run) => run,
         Err(error) => {

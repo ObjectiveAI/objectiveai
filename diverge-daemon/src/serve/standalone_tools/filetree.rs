@@ -49,6 +49,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
+    scope.allowed().await;
     let opened = match files::open_tool(daemon, &tool).await {
         Ok(opened) => opened,
         Err(error) => {

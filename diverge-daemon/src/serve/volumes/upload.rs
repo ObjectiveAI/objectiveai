@@ -53,6 +53,7 @@ async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon:
     if !judge::volumes::over(&standing, Over::Upload, &listed) {
         return Ok(Frame::Forbidden);
     }
+    scope.allowed().await;
     if !daemon.live.take_volume(volume).await {
         return Ok(Frame::Held);
     }
