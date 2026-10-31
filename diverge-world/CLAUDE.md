@@ -19,10 +19,11 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 - **Live lights** (`render/lights.ts`, `world/watch.ts`): the accounts, agents and tools lists stay open after the
   snapshot, and each entity's state lights it: a pulsing green halo and a plate dot while an agent or tool is `active`
   (working), a steady halo for a `connected` account. The map itself is not rebuilt.
-- **The world is the daemon drawn once** (`scenes/world.ts`): six lists read to their `listed` (`world/snapshot.ts`),
+- **The world is the daemon drawn once** (`scenes/world.ts`): seven lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its
-  `images info` once (`world/names.ts`), and a tool is named by its image's DIVERGE.md `name` where it said one. Every account, agent, standalone tool and
-  dependency tool is an entity; every event a directed link (`world/model.ts`). Each connected group is an island
+  `images info` once (`world/names.ts`), and a tool is named by its image's DIVERGE.md `name` where it said one. Every account, agent, standalone tool,
+  dependency tool and volume is an entity; every event a directed link, and every volume an agent mounts a dashed
+  mount between them (`world/model.ts`). Each connected group is an island
   (`islands.ts`). The grid is pointy-top hexes (`hex.ts`). `place.ts` puts an island's entities on slots 3 hexes apart
   whose rings join into one island, and anneals them so lines avoid entities, plates, each other and tight fans.
   `land.ts` is every hex within 2 of an entity, nothing more; `pack.ts` packs the islands; `map.ts` puts

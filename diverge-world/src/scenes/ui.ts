@@ -11,6 +11,7 @@ const NAMES: [Kind | "links", string, string][] = [
   ["agent", "agent", "agents"],
   ["standalone_tool", "standalone tool", "standalone tools"],
   ["dependency_tool", "dependency tool", "dependency tools"],
+  ["volume", "volume", "volumes"],
   ["links", "link", "links"],
 ];
 

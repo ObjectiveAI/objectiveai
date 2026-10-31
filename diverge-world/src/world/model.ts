@@ -5,7 +5,7 @@ import type { daemon } from "@diverge/sdk";
 import type { Snapshot } from "./snapshot";
 
 /** The four kinds of entity. */
-export type Kind = "account" | "agent" | "standalone_tool" | "dependency_tool";
+export type Kind = "account" | "agent" | "standalone_tool" | "dependency_tool" | "volume";
 
 /** Whose log an entity is: what the root `logs` read names. */
 export type Subject = daemon.endpoints.logs.client.request.Subject;
@@ -32,6 +32,7 @@ export const accountKey = (a: Account) => `account:${a.identity.issuer}:${a.iden
 export const agentKey = (a: Agent) => `agent:${a.template}:${a.index}`;
 export const toolKey = (t: Tool) => (t.origin.kind === "created" ? `standalone_tool:${t.origin.template}:${t.origin.index}` : `connected:${t.origin.daemon}:${t.origin.index}`);
 export const dependencyKey = (d: Dependency) => `dependency_tool:${d.id}:${d.index}`;
+export const volumeKey = (v: Volume) => `volume:${v.provider.issuer}:${v.provider.subject}:${v.name}`;
 
 /** An account's live state: connected. */
 export const accountLive = (a: Account): Live => ({ kind: "connected", on: a.connected, at: a.last_connected });
@@ -42,7 +43,7 @@ export const activeLive = (x: { active: boolean; last_active?: string }): Live =
  * Two entities joined: `a` before `b` by key, and which ways something
  * has passed between them — `ab` from `a` to `b`, `ba` from `b` to `a`.
  */
-export type Pair = { a: string; b: string; ab: boolean; ba: boolean };
+export type Pair = { a: string; b: string; ab: boolean; ba: boolean; mount?: boolean };
 
 /**
  * The world as entities and the pairs among them, and the image name
@@ -54,6 +55,7 @@ export type Model = { entities: Entity[]; pairs: Pair[]; images: Map<string, str
 type Party = daemon.endpoints.events.Party;
 type Tool = daemon.endpoints.standalone_tools.list.server.response.Tool;
 type Dependency = daemon.endpoints.dependency_tools.list.server.response.Listed;
+type Volume = daemon.endpoints.volumes.list.server.response.Volume;
 
 /** A dependency tool's owner, as a request names it: the list's key, an agent's name left off. */
 function ownerRef(owner: Dependency["owner"]): daemon.reference.Owner {
@@ -122,6 +124,9 @@ function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
  *    whose sender is its receiver joins nothing.
  * 4. All the events between two entities, either way, are one pair,
  *    which says which ways they ran.
+ * 5. Every listed volume is an entity, with no subject — it has no log —
+ *    and every agent that names it in its mounts joins it by a mount: a
+ *    pair of its own, never merged with the events between the two.
  */
 export function model(snapshot: Snapshot): Model {
   const entities = new Map<string, Entity>();
@@ -146,6 +151,10 @@ export function model(snapshot: Snapshot): Model {
     const subject: Subject = { type: "dependency_tool", template: d.id, owner: ownerRef(d.owner) };
     put({ key: dependencyKey(d), kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}`, subject, live: activeLive(d) });
   }
+  for (const v of snapshot.volumes) {
+    const mib = Math.round(v.bytes / 1048576);
+    put({ key: volumeKey(v), kind: "volume", label: v.name, detail: `${v.name} — ${mib} MiB, ${v.mode}` });
+  }
   // Rules 2 to 4.
   const pairs = new Map<string, Pair>();
   for (const event of snapshot.events) {
@@ -160,6 +169,15 @@ export function model(snapshot: Snapshot): Model {
     if (from.key === a) pair.ab = true;
     else pair.ba = true;
     pairs.set(id, pair);
+  }
+  // Rule 5: a mount is a pair of its own, never one an event made.
+  for (const v of snapshot.volumes) {
+    for (const agent of v.agents ?? []) {
+      const a = agentKey(agent as Agent);
+      const b = volumeKey(v);
+      if (!entities.has(a)) continue;
+      pairs.set(`m\n${a}\n${b}`, { a, b, ab: false, ba: false, mount: true });
+    }
   }
   const images = new Map<string, string>();
   for (const d of snapshot.dependencies) {

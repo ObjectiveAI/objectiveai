@@ -5,7 +5,7 @@ import * as Phaser from "phaser";
 import { exitPolygon, type Point } from "../world/geometry";
 import { corners } from "../world/hex";
 import type { WorldMap } from "../world/map";
-import { CREAM, INK } from "./palette";
+import { CREAM, INK, KIND, shade } from "./palette";
 import { pixel, SIZE } from "./scale";
 
 /** How far either line of a two-way pair lies from the pair's middle, in pixels. */
@@ -35,6 +35,9 @@ const OUTLINE = corners(SIZE + CLEAR);
  * 4. Every line ends in an arrowhead, its tip at the receiver.
  * 5. Every line and head is cream over a wider stroke of ink, so it
  *    reads over grass and sea alike.
+ * 6. A mount — an agent and the volume it mounts — is a dashed line in
+ *    the volume's colour over ink, with no arrowhead, beneath the
+ *    arrows.
  */
 export function drawLinks(scene: Phaser.Scene, map: WorldMap): Phaser.GameObjects.Graphics {
   const g = scene.add.graphics().setDepth(1);
@@ -43,14 +46,24 @@ export function drawLinks(scene: Phaser.Scene, map: WorldMap): Phaser.GameObject
     return at ? pixel(at) : null;
   };
   const arrows: { from: Point; to: Point }[] = [];
+  const mounts: { from: Point; to: Point }[] = [];
   for (const pair of map.pairs) {
     const a = centreOf(pair.a);
     const b = centreOf(pair.b);
     if (!a || !b) continue;
+    if (pair.mount) {
+      mounts.push(cut(a, b, 0));
+      continue;
+    }
     // Rules 1 and 2.
     const offset = pair.ab && pair.ba ? APART : 0;
     if (pair.ab) arrows.push(cut(a, b, offset));
     if (pair.ba) arrows.push(cut(b, a, offset));
+  }
+  // Rule 6, first, so the arrows lie over the mounts.
+  for (const [width, color] of [[4, INK], [2, shade(KIND.volume, 0.35)]] as const) {
+    g.lineStyle(width, color, 1);
+    for (const { from, to } of mounts) dashed(g, from, to);
   }
   // Rule 5: all the ink first, then all the cream, so no line's ink covers another's cream.
   for (const [width, color, grow] of [[4, INK, 1.8], [2, CREAM, 0]] as const) {
@@ -73,6 +86,20 @@ export function drawLinks(scene: Phaser.Scene, map: WorldMap): Phaser.GameObject
     }
   }
   return g;
+}
+
+/** How long a mount's dash and its gap are, in pixels. */
+const DASH = 6;
+const GAP = 4;
+
+/** A dashed line from `from` to `to`, in the graphics' line style. */
+function dashed(g: Phaser.GameObjects.Graphics, from: Point, to: Point): void {
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  const d = unit(from, to);
+  for (let at = 0; at < length; at += DASH + GAP) {
+    const end = Math.min(at + DASH, length);
+    g.lineBetween(from.x + d.x * at, from.y + d.y * at, from.x + d.x * end, from.y + d.y * end);
+  }
 }
 
 /** The unit direction from `a` to `b`. */

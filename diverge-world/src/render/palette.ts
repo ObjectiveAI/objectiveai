@@ -19,6 +19,7 @@ export const KIND: Record<Kind, number> = {
   agent: 0x2f6fd0,
   standalone_tool: 0xc0392b,
   dependency_tool: 0x8044b8,
+  volume: 0x1f9e89,
 };
 
 /** `color` made lighter by `amount` (towards white) or darker (negative, towards black). */

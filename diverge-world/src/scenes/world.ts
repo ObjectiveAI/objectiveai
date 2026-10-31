@@ -98,7 +98,7 @@ export class World extends Phaser.Scene {
     this.sheet = new Sheet(() => this.deselect());
     const size = extent(map.columns, map.rows);
     controls(this, size.width, size.height);
-    const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, dependency_tool: 0, links: 0 };
+    const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, dependency_tool: 0, volume: 0, links: 0 };
     for (const e of map.entities) counts[e.kind]++;
     for (const p of map.pairs) counts.links += (p.ab ? 1 : 0) + (p.ba ? 1 : 0);
     this.registry.set(STATUS, { kind: "drawn", counts, forbidden: read.forbidden } satisfies Status);
