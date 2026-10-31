@@ -36,16 +36,22 @@ pub struct Tool {
     pub creator: Creator,
     /// When the create or the connect made it.
     pub created: DateTime<Utc>,
-    /// Whether the tool is active now: for a created tool, its
-    /// container is running; for a connected one, the daemon holds a
-    /// connect scope on it. Either is so while an agent it is
-    /// attached to is active and the container is there.
+    /// Whether the tool is active now: working, a call or a read the
+    /// daemon routed into it in flight — what its log marks `active`.
+    /// Whether its container is up is [`deployed`](Self::deployed).
     pub active: bool,
-    /// When that last changed: the time the container started, if it
-    /// runs; the time it last stopped, if it does not; absent for a
-    /// tool that has never run.
+    /// When that last changed: the time its first call or read in
+    /// flight began, if one is; the time its last ended, if not;
+    /// absent for a tool never asked.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_active: Option<DateTime<Utc>>,
+    /// Whether it is deployed now: for a created tool, its container
+    /// is up; for a connected one, the daemon holds a connect to it.
+    pub deployed: bool,
+    /// When that last changed: the time it came up, if it is up; the
+    /// time it last went down, if not; absent for one never deployed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_deployed: Option<DateTime<Utc>>,
     /// The agents it is attached to directly, by
     /// [`attach_agent_instance`](crate::daemon::endpoints::standalone_tools::attach_agent_instance),
     /// each by its [`key`](crate::daemon::key) — its template and its

@@ -43,16 +43,23 @@ pub struct Agent {
     pub creator: Creator,
     /// When the create made it.
     pub created: DateTime<Utc>,
-    /// Whether the agent is active now: a loop is running in it.
+    /// Whether the agent is active now: working, a loop running in it.
+    /// Whether its container is up is [`deployed`](Self::deployed).
     pub active: bool,
-    /// When its activity last changed: the time it became active, if
-    /// it is; the time it last ceased to be, if it is not; absent
-    /// for an agent that has never been active. The `created` of its
-    /// latest `active` or `inactive` log item.
+    /// When that last changed: the time its loop began, if one runs;
+    /// the time its last loop ended, if not; absent for an agent that
+    /// has never run a loop.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_active: Option<DateTime<Utc>>,
-    /// The provider it runs on, if active, or last ran on; absent
-    /// for an agent that has never been active. See [`Provider`].
+    /// Whether its container is up now.
+    pub deployed: bool,
+    /// When that last changed: the time its container came up, if it
+    /// is up; the time it last went down, if not; absent for one never
+    /// deployed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_deployed: Option<DateTime<Utc>>,
+    /// The provider it is deployed on, or was last; absent for an
+    /// agent never deployed. See [`Provider`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<Provider>,
     /// The `logs_index` of its latest log item: how long its log is,

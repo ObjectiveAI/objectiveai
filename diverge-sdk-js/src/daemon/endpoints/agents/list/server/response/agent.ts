@@ -27,11 +27,15 @@ export const Agent = z.object({
   creator: Creator,
   /** When the create made it. */
   created: z.iso.datetime({ offset: true }),
-  /** Whether the agent is active now: a loop is running in it. */
+  /** Whether the agent is active now: working, a loop running in it. Whether its container is up is `deployed`. */
   active: z.boolean(),
-  /** When its activity last changed: the time it became active, if it is; the time it last ceased to be, if it is not; absent for an agent that has never been active. The `created` of its latest `active` or `inactive` log item. */
+  /** When that last changed: the time its loop began, if one runs; the time its last loop ended, if not; absent for an agent that has never run a loop. */
   last_active: z.iso.datetime({ offset: true }).optional(),
-  /** The provider it runs on, if active, or last ran on; absent for an agent that has never been active. See `Provider`. */
+  /** Whether its container is up now (a connected tool: the daemon holds a connect to it). */
+  deployed: z.boolean(),
+  /** When that last changed; absent for one never deployed. */
+  last_deployed: z.iso.datetime({ offset: true }).optional(),
+  /** The provider it is deployed on, or was last; absent for an agent never deployed. See `Provider`. */
   provider: Provider.optional(),
   /** The `logs_index` of its latest log item: how long its log is, and where a read that wants only what comes next starts. `0` for an empty log. */
   logs_index: z.number().int().nonnegative(),

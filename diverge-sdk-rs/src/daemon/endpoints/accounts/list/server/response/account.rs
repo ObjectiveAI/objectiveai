@@ -33,6 +33,12 @@ pub struct Account {
     pub roles: Vec<String>,
     /// Whether a client is connected as it now.
     pub connected: bool,
+    /// When that last changed: the time the first connection now up
+    /// was made, if one is; the time the last one ended, if not;
+    /// absent for an account never connected as. An administrator with
+    /// no account of its own is known only since the daemon started.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_connected: Option<DateTime<Utc>>,
     /// Its tags, sorted bytewise: what
     /// [`tag`](crate::daemon::endpoints::accounts::tag) put on it and
     /// [`untag`](crate::daemon::endpoints::accounts::untag) has not

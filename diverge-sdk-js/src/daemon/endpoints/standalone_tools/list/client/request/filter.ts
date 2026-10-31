@@ -24,8 +24,10 @@ export const Filter = z.object({
   kind: Kind.optional(),
   /** Made from a template whose `mode` is any one of these; a connected tool passes none. Absent when empty, and then either. */
   modes: z.array(Mode).optional(),
-  /** Whether active — its container running, or its connect scope held — `true`, or not, `false`; absent, either. */
+  /** Whether active — working, a call or a read in flight — `true`, or not, `false`; absent, either. */
   active: z.boolean().optional(),
+  /** Whether deployed — its container up — or not; absent, either. */
+  deployed: z.boolean().optional(),
   /** Attached directly to every one of these agents, by name. Absent when empty. */
   attached_agent_instances: z.array(z.string()).optional(),
   /** Attached to every one of these agent templates, by id. Absent when empty. */

@@ -22,6 +22,8 @@ export const Account = z.object({
   roles: z.array(z.string()).optional(),
   /** Whether a client is connected as it now. */
   connected: z.boolean(),
+  /** When that last changed; absent for one never connected as. */
+  last_connected: z.iso.datetime({ offset: true }).optional(),
   /** Its tags, sorted bytewise. Absent when empty. */
   tags: z.array(z.string()).optional(),
   /** When the create made it: an RFC 3339 timestamp in UTC. Absent for an administrator with no account of its own. */

@@ -21,6 +21,8 @@ export const Filter = z.object({
   creators: z.array(Creator).optional(),
   /** Whether active now — `true`, or not, `false` — or ever: `"ever"`, active at some time, or `"never"`, the agents that have never run. See `Active`. Absent, any. */
   active: Active.optional(),
+  /** Whether deployed — its container up — or not; absent, either. */
+  deployed: z.boolean().optional(),
   /** Depending on any one of these dependency tool templates, by id: an agent whose LAST registration declared one of them, as its `dependencies` say. Absent when empty, and then whatever it depends on, or nothing. */
   dependency_tool_templates: z.array(z.string()).optional(),
   /** Every one of these among the thing's tags. Absent when empty, and then any tags. */

@@ -33,7 +33,15 @@ export const Listed = z.object({
   template: Template,
   /** The agents that depend on it now — every agent whose LAST registration declared the template under this owner, in the order they first did, each with when it last did: see `Attached`. At most one for an instance tool. Absent when empty. */
   agents: z.array(Attached).optional(),
-  /** Its run, while its container is up: see `Run`. What a `delete` answers `InUse` for. Absent while it does not run. */
+  /** Whether active now: a call or a read in flight. */
+  active: z.boolean(),
+  /** When that last changed; absent for a tool never asked. */
+  last_active: z.iso.datetime({ offset: true }).optional(),
+  /** Whether its container is up now. */
+  deployed: z.boolean(),
+  /** When that last changed; absent for one never deployed. */
+  last_deployed: z.iso.datetime({ offset: true }).optional(),
+  /** Its run, while it is deployed: see `Run`. What a `delete` answers `InUse` for. Absent while it does not run. */
   run: Run.optional(),
   /** What its container declared it may ask of the daemon, at its registration when it last started. Declared anew at every start. Absent when empty — none declared, or never started. */
   permissions: z.array(Grant).optional(),

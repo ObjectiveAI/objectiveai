@@ -25,10 +25,15 @@ export const Tool = z.object({
   creator: Creator,
   /** When the create or the connect made it. */
   created: z.iso.datetime({ offset: true }),
-  /** Whether the tool is active now: for a created tool, its container is running; for a connected one, the daemon holds a connect scope on it. Either is so while an agent it is attached to is active and the container is there. */
+  /** Whether the tool is active now: working, a call or a read in flight. Whether its container is up is `deployed`. */
   active: z.boolean(),
   /** When that last changed: the time the container started, if it runs; the time it last stopped, if it does not; absent for a tool that has never run. */
+  /** When that last changed; absent for a tool never asked. */
   last_active: z.iso.datetime({ offset: true }).optional(),
+  /** Whether its container is up now (a connected tool: the daemon holds a connect to it). */
+  deployed: z.boolean(),
+  /** When that last changed; absent for one never deployed. */
+  last_deployed: z.iso.datetime({ offset: true }).optional(),
   /** The agents it is attached to directly, by `attach_agent_instance`, each by its `key` — its template and its index, with its name beside when it has one — in the order they were attached; empty for none. The agents list reports the same attachments from the other side, beside those an agent has through its template. */
   attached_agent_instances: z.array(Agent).optional(),
   /** The agent templates it is attached to, by `attach_agent_template`, each by its id, in the order they were attached; empty for none. Every agent of each has the tool. */

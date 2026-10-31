@@ -46,10 +46,14 @@ pub struct Filter {
     /// none. Absent when empty, and then either.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modes: Vec<Mode>,
-    /// Whether active — its container running, or its connect scope
-    /// held — `true`, or not, `false`; absent, either.
+    /// Whether active — working, a call or a read in flight — `true`,
+    /// or not, `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active: Option<bool>,
+    /// Whether deployed — its container up, or its connect held —
+    /// `true`, or not, `false`; absent, either.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployed: Option<bool>,
     /// Attached directly to every one of these agents, by name. Absent
     /// when empty, and then any attachments.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

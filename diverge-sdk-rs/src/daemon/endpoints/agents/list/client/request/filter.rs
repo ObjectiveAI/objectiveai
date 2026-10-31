@@ -33,11 +33,16 @@ pub struct Filter {
     /// and then made by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
-    /// Whether active now — `true`, or not, `false` — or ever:
-    /// `"ever"`, active at some time, or `"never"`, the agents that
-    /// have never run. See [`Active`]. Absent, any.
+    /// Whether active — working, a loop running — now, `true`, or not,
+    /// `false`, or ever: `"ever"`, active at some time, or `"never"`,
+    /// the agents that have never run a loop. See [`Active`]. Absent,
+    /// any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active: Option<Active>,
+    /// Whether deployed — its container up — `true`, or not, `false`;
+    /// absent, either.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployed: Option<bool>,
     /// Depending on any one of these dependency tool templates, by id:
     /// an agent whose LAST registration declared one of them, as its
     /// `dependencies` say. Absent when empty, and then whatever it
