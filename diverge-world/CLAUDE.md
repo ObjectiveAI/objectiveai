@@ -11,7 +11,8 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   tool call a card holding its response, user parts join per sender and are labelled by the sender. A listed tool
   opens its own log the same way (folded by `sheet/tool_fold.ts`); both are read through the one root `logs` endpoint,
   each entity carrying its `Subject`. A tool's sheet also holds the commands its container put to the daemon, and
-  clicking an account opens its command log — every request it put to the daemon, marked allowed or refused:
+  clicking an account opens its command log — every request it put to the daemon, marked allowed or refused (an
+  administrator the daemon's `admins` names is listed as an account too, its log the `admin` subject — the world's own):
   every call and read the daemon routed into it, a card each with its answer, joined per caller, and each
   notification under the caller whose MCP session it came on (the proxy opens one session per caller). Clicking another
   agent or tool swaps the sheet to it; clicking it again, or ✕, closes it.

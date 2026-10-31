@@ -110,7 +110,9 @@ export function model(snapshot: Snapshot): Model {
   // Rule 1.
   for (const a of snapshot.accounts) {
     const { issuer, subject } = a.identity;
-    put({ key: `account:${issuer}:${subject}`, kind: "account", label: subject, detail: `${subject} at ${issuer}`, subject: { account: { issuer, subject } } });
+    // An administrator the daemon's configuration names reads its log as the `admin` subject.
+    const of: Subject = a.admin ? { admin: { issuer, subject } } : { account: { issuer, subject } };
+    put({ key: `account:${issuer}:${subject}`, kind: "account", label: subject, detail: `${subject} at ${issuer}${a.admin ? " — admin" : ""}`, subject: of });
   }
   for (const a of snapshot.agents) {
     const label = a.name ?? short(a.template, a.index);
