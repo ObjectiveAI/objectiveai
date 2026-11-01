@@ -11,11 +11,22 @@ export type Kind = "account" | "agent" | "standalone_tool" | "dependency_tool" |
 export type Subject = daemon.endpoints.logs.client.request.Subject;
 
 /**
+ * Whose files an entity's are: a container's — an agent's, a tool's, a
+ * dependency tool's — or a volume's, as each family's `filetree` names it.
+ */
+export type Files =
+  | { agent: daemon.reference.Agent }
+  | { tool: daemon.reference.Tool }
+  | { dependency: daemon.reference.Dependency }
+  | { volume: daemon.reference.Volume };
+
+/**
  * One entity: its key, its kind, the name on its plate, a longer
  * line of detail, an agent's template and index, and — a listed agent's or
- * tool's — whose log it is.
+ * tool's — whose log it is, and — a listed agent's, tool's or volume's —
+ * whose files.
  */
-export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; live?: Live };
+export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; files?: Files; live?: Live };
 
 /**
  * Whether a listed entity is live, as its list says: an agent or a
@@ -102,11 +113,11 @@ function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
     const image = snapshot.templates.find((listed) => listed.id === o.template)?.template.image;
     const label = named(snapshot, image?.digest, tool.name ?? short(o.template, o.index));
     const subject: Subject = { type: "standalone_tool", template: o.template, index: o.index };
-    return { key: `standalone_tool:${o.template}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — ${o.template} #${o.index}`, subject };
+    return { key: `standalone_tool:${o.template}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — ${o.template} #${o.index}`, subject, files: { tool: { template: o.template, index: o.index } } };
   }
   const label = tool.name ?? `${o.daemon} #${o.index}`;
   const subject: Subject = { type: "standalone_tool", daemon: o.daemon, tool: o.tool };
-  return { key: `connected:${o.daemon}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — connected from ${o.daemon}`, subject };
+  return { key: `connected:${o.daemon}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — connected from ${o.daemon}`, subject, files: { tool: { daemon: o.daemon, tool: o.tool } } };
 }
 
 /**
@@ -117,7 +128,7 @@ function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
  * 1. Every listed account, agent, standalone tool and dependency tool
  *    is an entity, linked or not, with its live state (`Live`). A tool is named by its image's name
  *    (`imageNames`) where the image said one; each carries whose log
- *    it is (`Subject`).
+ *    it is (`Subject`), and an agent or a tool whose files (`Files`).
  * 2. An event's party that no list holds is an entity too, made from
  *    the event, and carries no subject: its log is not asked for.
  * 3. Every event joins its sender to its receiver, that way. An event
@@ -125,6 +136,7 @@ function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
  * 4. All the events between two entities, either way, are one pair,
  *    which says which ways they ran.
  * 5. Every listed volume is an entity, with no subject — it has no log —
+ *    but its files,
  *    and every agent that names it in its mounts joins it by a mount: a
  *    pair of its own, never merged with the events between the two.
  */
@@ -143,17 +155,17 @@ export function model(snapshot: Snapshot): Model {
   for (const a of snapshot.agents) {
     const label = a.name ?? short(a.template, a.index);
     const agent = { template: a.template, index: a.index };
-    put({ key: agentKey(a), kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent, subject: { type: "agent", ...agent }, live: activeLive(a) });
+    put({ key: agentKey(a), kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent, subject: { type: "agent", ...agent }, files: { agent }, live: activeLive(a) });
   }
   for (const tool of snapshot.tools) put({ ...toolEntity(snapshot, tool), live: activeLive(tool) });
   for (const d of snapshot.dependencies) {
     const label = named(snapshot, d.template.image.digest, short(d.id, d.index));
     const subject: Subject = { type: "dependency_tool", template: d.id, owner: ownerRef(d.owner) };
-    put({ key: dependencyKey(d), kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}`, subject, live: activeLive(d) });
+    put({ key: dependencyKey(d), kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}`, subject, files: { dependency: { template: d.id, owner: ownerRef(d.owner) } }, live: activeLive(d) });
   }
   for (const v of snapshot.volumes) {
     const mib = Math.round(v.bytes / 1048576);
-    put({ key: volumeKey(v), kind: "volume", label: v.name, detail: `${v.name} — ${mib} MiB, ${v.mode}` });
+    put({ key: volumeKey(v), kind: "volume", label: v.name, detail: `${v.name} — ${mib} MiB, ${v.mode}`, files: { volume: { provider: v.provider, name: v.name } } });
   }
   // Rules 2 to 4.
   const pairs = new Map<string, Pair>();

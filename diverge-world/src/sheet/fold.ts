@@ -56,7 +56,7 @@ type Open = { role: string; blocks: HTMLElement };
  *    notification a message of its own. Usage draws nothing.
  * 6. A chunk made inside a tool call is drawn as if it were not.
  * 7. Growing blocks are drawn again at most once an animation frame,
- *    only those that grew; `grew` is called after every drawing.
+ *    only those that grew.
  */
 export class Fold {
   private open: Open | null = null;
@@ -69,7 +69,6 @@ export class Fold {
   constructor(
     private readonly body: HTMLElement,
     private readonly images: Map<string, string>,
-    private readonly grew: () => void,
     private readonly active: (on: boolean) => void,
   ) {}
 
@@ -106,7 +105,6 @@ export class Fold {
         const call = this.calls.get(item.id);
         if (call) {
           answer(call.card, drawn, item.isError === true);
-          this.grew();
           break;
         }
         this.close();
@@ -153,7 +151,6 @@ export class Fold {
     el.className = "note";
     el.textContent = text;
     this.body.append(el);
-    this.grew();
   }
 
   /** Rule 4. */
@@ -213,7 +210,6 @@ export class Fold {
   private place(el: HTMLElement): void {
     this.text = null;
     this.open?.blocks.append(el);
-    this.grew();
   }
 
   /** Rules 2 and 4: add text to the current block of its kind, or start one. */
@@ -286,7 +282,6 @@ export class Fold {
       this.frame = null;
       for (const b of this.dirty) b.draw();
       this.dirty.clear();
-      this.grew();
     });
   }
 

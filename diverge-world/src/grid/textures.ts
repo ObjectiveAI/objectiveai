@@ -3,7 +3,7 @@
 
 import * as Phaser from "phaser";
 import type { Kind } from "../world/model";
-import { FIELD, GRID_BOLD, GRID_FINE, NEON } from "./palette";
+import { FIELD, NEON } from "./palette";
 
 /** A node texture's side, in pixels, and the room its glow takes round the shape. */
 export const NODE = 64;
@@ -16,12 +16,6 @@ export const REACH: Record<Kind, number> = { account: 17, agent: 20, standalone_
 export const nodeKey = (kind: Kind) => `grid-${kind}`;
 export const HALO = "grid-halo";
 export const PULSE = "grid-pulse";
-export const CELL = "grid-cell";
-
-/** One grid cell: `STEP` pixels between fine lines, a bold one every `BOLD` steps. */
-export const STEP = 40;
-const BOLD = 5;
-export const CELL_SIZE = STEP * BOLD;
 
 /** A shape traced as points about the middle. */
 type Shape = { points: Phaser.Math.Vector2[]; closed: boolean }[];
@@ -88,8 +82,6 @@ function neon(g: Phaser.GameObjects.Graphics, shape: Shape, color: number): void
  *    fill so the grid does not show through it.
  * 2. A halo: a soft white ring, tinted by whoever it lights.
  * 3. A pulse: a soft white dot, tinted likewise.
- * 4. A grid cell: the fine lines every `STEP` pixels, the bold one on
- *    the cell's edge.
  */
 export function makeTextures(scene: Phaser.Scene): void {
   // Rule 1.
@@ -113,18 +105,5 @@ export function makeTextures(scene: Phaser.Scene): void {
       g.fillStyle(0xffffff, 0.12 + (8 - r) * 0.1);
       g.fillCircle(8, 8, r);
     }
-  });
-  // Rule 4.
-  make(scene, CELL, CELL_SIZE, CELL_SIZE, (g) => {
-    g.fillStyle(FIELD, 1);
-    g.fillRect(0, 0, CELL_SIZE, CELL_SIZE);
-    g.lineStyle(1, GRID_FINE, 1);
-    for (let i = 1; i < BOLD; i++) {
-      g.lineBetween(i * STEP + 0.5, 0, i * STEP + 0.5, CELL_SIZE);
-      g.lineBetween(0, i * STEP + 0.5, CELL_SIZE, i * STEP + 0.5);
-    }
-    g.lineStyle(1, GRID_BOLD, 1);
-    g.lineBetween(0.5, 0, 0.5, CELL_SIZE);
-    g.lineBetween(0, 0.5, CELL_SIZE, 0.5);
   });
 }

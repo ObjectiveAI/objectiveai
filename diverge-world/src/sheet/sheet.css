@@ -14,7 +14,7 @@
   --sheet-error: #e0604f;
 }
 
-/* Rule 1: along the bottom, the full width; rule 5: it takes every press made on it. */
+/* Rule 1: along the bottom, the full width; rule 6: it takes every press made on it. */
 .sheet {
   position: fixed;
   left: 0;
@@ -92,11 +92,115 @@
   border-color: var(--sheet-copper);
 }
 
-.sheet .body {
+/* Rule 2: the tabs, the one shown copper. */
+.sheet .tabs {
+  margin-left: 16px;
+  display: flex;
+  gap: 4px;
+}
+.sheet .tab {
+  padding: 2px 10px;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: none;
+  color: var(--sheet-dim);
+  font: 12px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  cursor: pointer;
+}
+.sheet .tab:hover { color: var(--sheet-cream); }
+.sheet .tab.on {
+  border-color: var(--sheet-copper);
+  color: var(--sheet-copper-bright);
+}
+.sheet .tabs[hidden],
+.sheet .body[hidden],
+.sheet .files[hidden] {
+  display: none;
+}
+
+/* Rule 5: the filesystem, scrolled from its top; every row on one grid of columns. */
+.sheet .files {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  font-size: 12px;
+}
+.sheet .files .row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem 9.5rem 9.5rem;
+  padding-right: 16px;
+  line-height: 22px;
+}
+.sheet .files .cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sheet .files .cell.name { text-align: left; }
+.sheet .files .cell.none { color: var(--sheet-line); }
+.sheet .files .head {
+  position: sticky;
+  top: 0;
+  background: var(--sheet-ink);
+  border-bottom: 1px solid var(--sheet-line);
+}
+.sheet .files .head .cell:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 0.75rem;
+}
+.sheet .files .sort,
+.sheet .files .again {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--sheet-dim);
+  font: inherit;
+  cursor: pointer;
+}
+.sheet .files .sort:hover,
+.sheet .files .again:hover { color: var(--sheet-cream); }
+.sheet .files .sort.on { color: var(--sheet-copper-bright); }
+.sheet .files .row.directory { cursor: pointer; }
+.sheet .files .row.directory:hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
+.sheet .files .row.directory .name { color: var(--sheet-copper-bright); }
+.sheet .files .row.symlink .name { color: var(--sheet-agent); font-style: italic; }
+.sheet .files .row.stale { opacity: 0.5; }
+.sheet .files .row.empty .name { color: var(--sheet-dim); font-style: italic; }
+.sheet .files .caret {
+  display: inline-block;
+  width: 1rem;
+  color: var(--sheet-dim);
+}
+.sheet .files .note { padding: 12px 16px; }
+.sheet .files .note[hidden] { display: none; }
+/* A changed row glows copper and fades (Files, rule 5). */
+.sheet .files .row.flash { animation: sheet-flash 1.2s ease-out forwards; }
+@keyframes sheet-flash {
+  from { background: color-mix(in srgb, var(--sheet-copper) 35%, transparent); }
+  to { background: transparent; }
+}
+
+/* The scroller: a reversed column, so its resting place is its bottom; it holds the log alone. */
+.sheet .body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  display: flex;
+  flex-direction: column-reverse;
+}
+/* While the history comes in, held at the bottom. */
+.sheet .body.loading {
+  overflow-y: hidden;
+}
+.sheet .log {
   padding: 10px 16px 16px;
   display: flex;
   flex-direction: column;

@@ -19,13 +19,15 @@ export type Following = { stop(): void };
  * 1. The log is asked with `watch` (the root `logs` read): every entry
  *    so far, in order, then every new one as it is kept, each handed
  *    to `entry`.
- * 2. `forbidden`, an error, a stream that ends and a connection that
+ * 2. `watch` — the history sent, the read now live — is told to
+ *    `live`, once, and handed to nothing else.
+ * 3. `forbidden`, an error, a stream that ends and a connection that
  *    fails each end the following, said once to `ended` in words.
- * 3. `stop` cancels the scope, at once if it is open and as soon as it
+ * 4. `stop` cancels the scope, at once if it is open and as soon as it
  *    opens if not; after it, nothing more is handed on and `ended` is
  *    not called.
  */
-export function follow(subject: Subject, entry: (entry: Entry) => void, ended: (why: string) => void): Following {
+export function follow(subject: Subject, entry: (entry: Entry) => void, ended: (why: string) => void, live: () => void): Following {
   let stopped = false;
   let cancel: { cancel(): Promise<void> } | null = null;
   void (async () => {
@@ -40,6 +42,11 @@ export function follow(subject: Subject, entry: (entry: Entry) => void, ended: (
       for await (const frame of stream) {
         if (stopped) return;
         // Rule 2.
+        if (frame === "watch") {
+          live();
+          continue;
+        }
+        // Rule 3.
         if (frame === "forbidden") return ended("this account may not read the log");
         if ("error" in frame) return ended("the daemon could not read the log");
         entry(frame.item);
@@ -50,7 +57,7 @@ export function follow(subject: Subject, entry: (entry: Entry) => void, ended: (
     }
   })();
   return {
-    // Rule 3.
+    // Rule 4.
     stop() {
       stopped = true;
       void cancel?.cancel();

@@ -2,7 +2,16 @@
 // wherever the board's camera looks, so its edge is never seen.
 
 import * as Phaser from "phaser";
-import { CELL, CELL_SIZE, makeTextures } from "../grid/textures";
+import { FIELD, GRID_BOLD, GRID_FINE } from "../grid/palette";
+import { makeTextures } from "../grid/textures";
+
+/** The world's pixels between fine lines, and how many steps apart the bold ones are. */
+const STEP = 40;
+const BOLD = 5;
+
+/** Fine lines closer than `FADE_FROM` screen pixels start to fade, and are gone at `FADE_TO`. */
+const FADE_FROM = 24;
+const FADE_TO = 10;
 
 /**
  * The first scene: it starts the board over itself and draws the grid
@@ -10,17 +19,22 @@ import { CELL, CELL_SIZE, makeTextures } from "../grid/textures";
  *
  * The rules:
  *
- * 1. The grid is one tiling sprite the size of the window, resized
- *    with it.
+ * 1. The field is the camera's own background, the colour of the board.
  * 2. Every frame it reads the board's camera: its zoom, and the world
  *    point at the window's top-left (the scroll, plus half the window,
  *    less half the window at the zoom, as the camera zooms about its
  *    middle).
- * 3. The sprite shows that point at its top-left, within one cell, and
- *    is scaled by the zoom.
+ * 3. The grid is drawn again only when that view or the window has
+ *    changed: in the window's own pixels, every line one pixel wide on
+ *    a whole pixel, so zooming moves the lines apart and never blurs or
+ *    thickens them.
+ * 4. A bold line every `BOLD` steps always shows; the fine lines fade
+ *    out as zooming out brings them within `FADE_TO` pixels of each
+ *    other, so the grid never crowds into a haze.
  */
 export class Backdrop extends Phaser.Scene {
-  private grid!: Phaser.GameObjects.TileSprite;
+  private grid!: Phaser.GameObjects.Graphics;
+  private seen = "";
 
   constructor() {
     super("backdrop");
@@ -29,8 +43,8 @@ export class Backdrop extends Phaser.Scene {
   create() {
     makeTextures(this);
     // Rule 1.
-    this.grid = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, CELL).setOrigin(0, 0);
-    this.scale.on("resize", (size: Phaser.Structs.Size) => this.grid.setSize(size.width, size.height));
+    this.cameras.main.setBackgroundColor(FIELD);
+    this.grid = this.add.graphics();
     this.scene.launch("board");
   }
 
@@ -42,12 +56,32 @@ export class Backdrop extends Phaser.Scene {
     const zoom = camera.zoom;
     const left = camera.scrollX + camera.width / 2 - camera.width / (2 * zoom);
     const top = camera.scrollY + camera.height / 2 - camera.height / (2 * zoom);
+    const width = this.scale.width;
+    const height = this.scale.height;
     // Rule 3.
-    this.grid.tilePositionX = modulo(left, CELL_SIZE);
-    this.grid.tilePositionY = modulo(top, CELL_SIZE);
-    this.grid.setTileScale(zoom, zoom);
+    const view = `${left} ${top} ${zoom} ${width} ${height}`;
+    if (view === this.seen) return;
+    this.seen = view;
+    const g = this.grid.clear();
+    const spacing = STEP * zoom;
+    // Rule 4.
+    const fine = Phaser.Math.Clamp((spacing - FADE_TO) / (FADE_FROM - FADE_TO), 0, 1);
+    const lines = (color: number, alpha: number, every: number) => {
+      if (alpha <= 0) return;
+      g.lineStyle(1, color, alpha);
+      const step = STEP * every;
+      for (let x = Math.ceil(left / step) * step; (x - left) * zoom <= width; x += step) {
+        if (every === 1 && Math.round(x / STEP) % BOLD === 0) continue;
+        const at = Math.round((x - left) * zoom) + 0.5;
+        g.lineBetween(at, 0, at, height);
+      }
+      for (let y = Math.ceil(top / step) * step; (y - top) * zoom <= height; y += step) {
+        if (every === 1 && Math.round(y / STEP) % BOLD === 0) continue;
+        const at = Math.round((y - top) * zoom) + 0.5;
+        g.lineBetween(0, at, width, at);
+      }
+    };
+    lines(GRID_FINE, fine, 1);
+    lines(GRID_BOLD, 1, BOLD);
   }
 }
-
-/** `n` within `[0, period)`. */
-const modulo = (n: number, period: number) => ((n % period) + period) % period;

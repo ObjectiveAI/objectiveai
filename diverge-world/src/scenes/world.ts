@@ -98,9 +98,12 @@ export class World extends Phaser.Scene {
     this.sheet = new Sheet(() => this.deselect());
     const size = extent(map.columns, map.rows);
     controls(this, size.width, size.height);
-    const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, dependency_tool: 0, volume: 0, links: 0 };
+    const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, dependency_tool: 0, volume: 0, call: 0, attachment: 0, creator: 0 };
     for (const e of map.entities) counts[e.kind]++;
-    for (const p of map.pairs) counts.links += (p.ab ? 1 : 0) + (p.ba ? 1 : 0);
+    for (const p of map.pairs) {
+      counts.call += (p.ab ? 1 : 0) + (p.ba ? 1 : 0);
+      if (p.mount) counts.attachment++;
+    }
     this.registry.set(STATUS, { kind: "drawn", counts, forbidden: read.forbidden } satisfies Status);
   }
 
@@ -116,7 +119,7 @@ export class World extends Phaser.Scene {
     if (!subject || !at) return;
     this.selected = entity.key;
     this.selection?.show(at);
-    this.sheet?.open({ subject, label: entity.label, images: this.images });
+    this.sheet?.open({ entity, images: this.images });
   }
 
   /** Rule 4: the sheet closed, so nothing is selected. */

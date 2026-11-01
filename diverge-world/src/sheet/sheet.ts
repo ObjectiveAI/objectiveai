@@ -1,6 +1,7 @@
-// The bottom sheet: one agent's or one tool's log, in HTML over the map.
+// The bottom sheet: one entity's log and files, in HTML over the map.
 
-import type { Subject } from "../world/model";
+import type { Entity, Subject } from "../world/model";
+import { Files } from "./files";
 import { Fold } from "./fold";
 import { type Entry, type Following, follow } from "./log";
 import { ToolFold } from "./tool_fold";
@@ -11,11 +12,14 @@ const HEIGHT = 40;
 const LEAST = 20;
 const MOST = 90;
 
-/** How near the bottom, in pixels, still counts as at it. */
-const PINNED = 2;
+/** What the sheet is opened on: the entity, and the image names for an agent's tools. */
+export type Opened = { entity: Entity; images: Map<string, string> };
 
-/** What the sheet is opened on: whose log, its label, and the image names for an agent's tools. */
-export type Opened = { subject: Subject; label: string; images: Map<string, string> };
+/** The sheet's two tabs. */
+type Tab = "logs" | "files";
+
+/** The tab last chosen, for the page: the next sheet opens on it when it has it. */
+let chosen: Tab = "logs";
 
 /** A template and an index, as the header shows them: the template's first eight characters. */
 const short = (template: string, index: number) => `${template.slice(0, 8)} #${index}`;
@@ -45,34 +49,49 @@ function subline(subject: Subject): string {
 }
 
 /**
- * The sheet: closed until `open`, one log at a time.
+ * The sheet: closed until `open`, one entity at a time.
  *
  * The rules:
  *
  * 1. It lies along the bottom of the window, the full width, `HEIGHT`
  *    hundredths tall; its handle drags it between `LEAST` and `MOST`.
- * 2. Its header names whose log it is (`subline`), and whether the
- *    agent's run is up or the tool has an ask in flight; ✕ closes it
- *    and tells `closed`.
- * 3. Opening follows the subject's log (`follow`, the root `logs`
- *    read) into `Fold` for an agent, `ToolFold` for a tool or an
- *    account (whose log is commands alone), each entry
- *    unwrapped from its kind; closing stops it and empties the body.
- *    Opening while open closes first.
- * 4. The body stays at its bottom as it grows while it was at its
- *    bottom — within `PINNED` pixels — and stays where it is when
- *    scrolled up.
- * 5. Nothing pressed on the sheet reaches the map beneath.
+ * 2. Its header names the entity (`subline`, else its detail), and
+ *    whether the agent's run is up or the tool has an ask in flight;
+ *    its tabs, `logs` and `filesystem`, shown only when it has both;
+ *    and ✕, which closes it and tells `closed`.
+ * 3. An entity with a log (`subject`) has the logs tab, one with files
+ *    (`files`) the filesystem tab. It opens on the tab last chosen
+ *    (`chosen`) if it has it, else on the one it has. A tab's read
+ *    starts the first time it is shown and runs until the sheet
+ *    closes; closing stops both and empties both. Opening while open
+ *    closes first.
+ * 4. The logs tab follows the log (`follow`, the root `logs` read)
+ *    into `Fold` for an agent, `ToolFold` for a tool or an account
+ *    (whose log is commands alone), each entry unwrapped from its
+ *    kind. It is held at its bottom while the history comes in: it
+ *    cannot be scrolled (`loading`) until the read is live, or ends.
+ *    Then it stays tethered to its bottom as it grows, and holds still
+ *    once scrolled up, until scrolled back down. The tether is the
+ *    page's own: the body is a reversed column, whose resting place is
+ *    its bottom, and the browser's scroll anchoring keeps what is read
+ *    in place above it.
+ * 5. The filesystem tab is `Files`, scrolled from its top.
+ * 6. Nothing pressed on the sheet reaches the map beneath.
  */
 export class Sheet {
   private readonly root: HTMLElement;
   private readonly title: HTMLElement;
   private readonly sub: HTMLElement;
   private readonly live: HTMLElement;
+  private readonly tabs: HTMLElement;
+  private readonly tab: Record<Tab, HTMLButtonElement>;
   private readonly body: HTMLElement;
+  private readonly log: HTMLElement;
+  private readonly pane: HTMLElement;
+  private opened: Opened | null = null;
   private following: Following | null = null;
   private fold: Fold | ToolFold | null = null;
-  private pinned = true;
+  private files: Files | null = null;
   private height = HEIGHT;
 
   constructor(private readonly closed: () => void) {
@@ -88,24 +107,42 @@ export class Sheet {
     this.title.className = "title";
     this.sub = document.createElement("span");
     this.sub.className = "sub";
+    // Rule 2.
+    this.tabs = document.createElement("span");
+    this.tabs.className = "tabs";
+    const tab = (which: Tab, words: string) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "tab";
+      button.textContent = words;
+      button.addEventListener("click", () => {
+        chosen = which;
+        this.show(which);
+      });
+      return button;
+    };
+    this.tab = { logs: tab("logs", "logs"), files: tab("files", "filesystem") };
+    this.tabs.append(this.tab.logs, this.tab.files);
     const exit = document.createElement("button");
     exit.className = "exit";
     exit.type = "button";
     exit.textContent = "✕";
     exit.title = "Close";
-    // Rule 2.
     exit.addEventListener("click", () => {
       this.close();
       this.closed();
     });
-    head.append(this.live, this.title, this.sub, exit);
+    head.append(this.live, this.title, this.sub, this.tabs, exit);
     this.body = document.createElement("div");
     this.body.className = "body";
     // Rule 4.
-    this.body.addEventListener("scroll", () => {
-      this.pinned = this.body.scrollHeight - this.body.scrollTop - this.body.clientHeight < PINNED;
-    });
-    this.root.append(handle, head, this.body);
+    this.log = document.createElement("div");
+    this.log.className = "log";
+    this.body.append(this.log);
+    // Rule 5.
+    this.pane = document.createElement("div");
+    this.pane.className = "files";
+    this.root.append(handle, head, this.body, this.pane);
     this.drag(handle);
     document.body.append(this.root);
   }
@@ -113,19 +150,57 @@ export class Sheet {
   /** Rule 3. */
   open(opened: Opened): void {
     this.close();
-    this.title.textContent = opened.label;
-    this.sub.textContent = subline(opened.subject);
+    const { entity } = opened;
+    this.opened = opened;
+    this.title.textContent = entity.label;
+    this.sub.textContent = entity.subject ? subline(entity.subject) : entity.detail;
     this.live.classList.remove("on");
-    this.pinned = true;
+    this.tabs.hidden = !(entity.subject && entity.files);
     this.root.style.height = `${this.height}vh`;
     this.root.hidden = false;
+    this.show(chosen === "files" ? (entity.files ? "files" : "logs") : entity.subject ? "logs" : "files");
+  }
+
+  /** Rule 3: stop, empty and hide. Closing a closed sheet does nothing. */
+  close(): void {
+    this.following?.stop();
+    this.following = null;
+    this.fold?.dispose();
+    this.fold = null;
+    this.log.replaceChildren();
+    this.files?.dispose();
+    this.files = null;
+    this.opened = null;
+    this.root.hidden = true;
+  }
+
+  /** Rule 3: show one tab, starting its read the first time. */
+  private show(which: Tab): void {
+    const opened = this.opened;
+    if (!opened) return;
+    this.tab.logs.classList.toggle("on", which === "logs");
+    this.tab.files.classList.toggle("on", which === "files");
+    this.body.hidden = which !== "logs";
+    this.pane.hidden = which !== "files";
+    const { subject, files } = opened.entity;
+    if (which === "logs" && subject && !this.following) this.logs(subject, opened.images);
+    if (which === "files" && files && !this.files) this.files = new Files(this.pane, files);
+  }
+
+  /** Rule 4. */
+  private logs(subject: Subject, images: Map<string, string>): void {
+    this.body.classList.add("loading");
     const live = (on: boolean) => this.live.classList.toggle("on", on);
-    if (opened.subject.type === "agent") {
-      const fold = new Fold(this.body, opened.images, () => this.stick(), live);
+    const loaded = () => this.body.classList.remove("loading");
+    if (subject.type === "agent") {
+      const fold = new Fold(this.log, images, live);
       this.fold = fold;
-      this.following = follow(opened.subject, (entry) => "agent" in entry && fold.push(entry.agent), (why) => fold.note(why));
+      this.following = follow(subject, (entry) => "agent" in entry && fold.push(entry.agent), (why) => {
+        loaded();
+        fold.note(why);
+      }, loaded);
     } else {
-      const fold = new ToolFold(this.body, () => this.stick(), live);
+      const fold = new ToolFold(this.log, live);
       this.fold = fold;
       const tool = (entry: Entry) =>
         "standalone_tool" in entry
@@ -137,26 +212,14 @@ export class Sheet {
               : "admin" in entry
                 ? entry.admin
                 : null;
-      this.following = follow(opened.subject, (entry) => {
+      this.following = follow(subject, (entry) => {
         const item = tool(entry);
         if (item) fold.push(item);
-      }, (why) => fold.note(why));
+      }, (why) => {
+        loaded();
+        fold.note(why);
+      }, loaded);
     }
-  }
-
-  /** Rule 3: stop, empty and hide. Closing a closed sheet does nothing. */
-  close(): void {
-    this.following?.stop();
-    this.following = null;
-    this.fold?.dispose();
-    this.fold = null;
-    this.body.replaceChildren();
-    this.root.hidden = true;
-  }
-
-  /** Rule 4: back to the bottom, if it was there. */
-  private stick(): void {
-    if (this.pinned) this.body.scrollTop = this.body.scrollHeight;
   }
 
   /** Rule 1: the handle's drag sets the height. */

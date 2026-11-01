@@ -36,8 +36,7 @@ type Open = { key: string; blocks: HTMLElement };
  *    closes the open message.
  * 6. `active` and `inactive` draw nothing and close nothing: they only
  *    light and dim the sheet's live dot.
- * 7. Every item comes whole and is drawn as it comes; `grew` is called
- *    after every drawing.
+ * 7. Every item comes whole and is drawn as it comes.
  * 8. A command — a request the tool, or the account whose log this
  *    is, put to the daemon — is a card titled by its path, over its
  *    request as JSON, marked at once: ✓ when the daemon let it through,
@@ -54,7 +53,6 @@ export class ToolFold {
 
   constructor(
     private readonly body: HTMLElement,
-    private readonly grew: () => void,
     private readonly active: (on: boolean) => void,
   ) {}
 
@@ -95,7 +93,6 @@ export class ToolFold {
         block.className = "notify";
         block.append(jsonBlock(item.notification));
         this.join(item, item.to).append(block);
-        this.grew();
         break;
       }
       case "error":
@@ -109,7 +106,6 @@ export class ToolFold {
         card.status.textContent = item.allowed ? "✓" : "✕";
         card.card.classList.toggle("failed", !item.allowed);
         this.open.blocks.append(card.card);
-        this.grew();
         break;
       }
       case "active":
@@ -127,7 +123,6 @@ export class ToolFold {
     el.className = "note";
     el.textContent = text;
     this.body.append(el);
-    this.grew();
   }
 
   /** Nothing to stop: every item is drawn as it comes. */
@@ -138,7 +133,6 @@ export class ToolFold {
     const card = callCard(title);
     this.cards.set(item.logs_index, card);
     this.join(item, who).append(card.card);
-    this.grew();
     return card;
   }
 
@@ -154,20 +148,17 @@ export class ToolFold {
     const card = this.cards.get(ask);
     if (card) {
       answer(card, drawn, failed);
-      this.grew();
       return;
     }
     const blocks = this.message("answer", "tool", item.created, failed);
     blocks.append(...drawn);
     this.open = null;
-    this.grew();
   }
 
   /** Rule 5: one block, a message of its own. */
   private alone(item: Item, label: string, tone: string, el: HTMLElement, failed: boolean): void {
     this.open = null;
     this.message(label, tone, item.created, failed).append(el);
-    this.grew();
   }
 
   /** A message with its label and when it began; where its blocks go. */

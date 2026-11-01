@@ -15,7 +15,12 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   administrator the daemon's `admins` names is listed as an account too, its log the `admin` subject — the world's own):
   every call and read the daemon routed into it, a card each with its answer, joined per caller, and each
   notification under the caller whose MCP session it came on (the proxy opens one session per caller). Clicking another
-  agent or tool swaps the sheet to it; clicking it again, or ✕, closes it.
+  agent or tool swaps the sheet to it; clicking it again, or ✕, closes it. The sheet has two tabs, `logs` and
+  `filesystem` (`sheet/files.ts`, `sheet/filetree.ts`): an agent's, tool's or dependency tool's container tree watched
+  live (`<family> filetree`), a volume's asked once (`volumes filetree`, ↻ asks again) — columns of name, size, created
+  and modified, directories first, sortable headers, changed rows glowing. Browse only: no file is opened. An account
+  has only logs, a volume only its files; each tab starts reading the first time it is shown, and the tab last chosen
+  carries to the next sheet.
 - **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): a dark Tron grid, every agent,
   standalone tool, dependency tool, account and volume a glowing node in its kind's neon, first standing in a column
   per kind (`grid/place.ts`) and then wherever it is dragged — the links have no say, and positions live only for the

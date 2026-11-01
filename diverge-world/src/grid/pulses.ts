@@ -4,9 +4,8 @@
 import { daemon } from "@diverge/sdk";
 import type * as Phaser from "phaser";
 import { handle } from "../lib/wire";
-import type { Pair } from "../world/model";
 import { keep, keeper, type Watching } from "../world/watch";
-import { offsetOf, segment } from "./links";
+import type { Links } from "./links";
 import type { Nodes } from "./nodes";
 import { NEON } from "./palette";
 import { PULSE } from "./textures";
@@ -44,13 +43,13 @@ function partyKey(party: Party): string {
  *    list opened again sends nothing twice.
  * 2. Every rise sends that many pulses, no more than `CAP` along one
  *    edge at once, `SPACING` apart: a dot in the sender's neon from the
- *    sender to the receiver, on the line the link draws.
- * 3. A pulse reads where both nodes stand at every step, so it follows
- *    a node being dragged.
- * 4. An edge with a node not on the board sends nothing.
+ *    sender to the receiver, on its call's lane (`Links.laneOf`).
+ * 3. A pulse reads its lane at every step, so it follows a node being
+ *    dragged and a lane that moves over.
+ * 4. An edge with a node not on the board, or whose lane is hidden,
+ *    sends nothing.
  */
-export function pulses(scene: Phaser.Scene, nodes: Nodes, pairs: Pair[], baseline: Event[]): Watching {
-  const byPair = new Map(pairs.filter((p) => !p.mount).map((p) => [`${p.a}\n${p.b}`, p]));
+export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline: Event[]): Watching {
   // Rule 1.
   const counts = new Map(baseline.map((e) => [e.id, e.count]));
   const flying = new Map<number, number>();
@@ -63,9 +62,7 @@ export function pulses(scene: Phaser.Scene, nodes: Nodes, pairs: Pair[], baselin
     if (!from || !to) return;
     if ((flying.get(event.id) ?? 0) >= CAP) return;
     flying.set(event.id, (flying.get(event.id) ?? 0) + 1);
-    const pair = byPair.get(fromKey < toKey ? `${fromKey}\n${toKey}` : `${toKey}\n${fromKey}`);
-    const offset = pair ? offsetOf(pair) : 0;
-    const first = segment(from, to, offset);
+    const first = links.laneOf(fromKey, toKey, "call");
     if (!first) {
       flying.set(event.id, (flying.get(event.id) ?? 1) - 1);
       return;
@@ -79,7 +76,7 @@ export function pulses(scene: Phaser.Scene, nodes: Nodes, pairs: Pair[], baselin
       ease: "Sine.easeInOut",
       // Rule 3.
       onUpdate: (tween) => {
-        const s = segment(from, to, offset);
+        const s = links.laneOf(fromKey, toKey, "call");
         if (!s) return;
         const t = tween.getValue() ?? 0;
         dot.setPosition(s.a.x + (s.b.x - s.a.x) * t, s.a.y + (s.b.y - s.a.y) * t);
