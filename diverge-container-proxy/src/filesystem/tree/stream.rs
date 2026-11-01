@@ -54,8 +54,9 @@ async fn run(root: PathBuf, ignore: Arc<Ignore>, out: mpsc::Sender<Result<filetr
     let armed = tokio::task::spawn_blocking({
         let ignore = Arc::clone(&ignore);
         let root = Arc::clone(&root);
+        let lost = Arc::clone(&lost);
         move || {
-            let mut watch = Watch::arm(sender, Arc::clone(&lost))?;
+            let mut watch = Watch::arm(sender, lost)?;
             watch.register(&root, &ignore)?;
             let dark = watch.dark();
             let children = walk::children(&root, &ignore, &dark);

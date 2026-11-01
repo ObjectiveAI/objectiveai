@@ -51,7 +51,7 @@ const handle = wire.proxy.handle({
 
 The app's Rust side is the Rust SDK's `diverge_sdk::tauri_proxy`,
 with the crate's `tauri-proxy` feature: the app manages one
-`TauriProxy` and registers its six commands beside its own.
+`TauriProxy` and registers its eight commands beside its own.
 
 ```rust
 tauri::Builder::default()
@@ -61,6 +61,8 @@ tauri::Builder::default()
         diverge_sdk::tauri_proxy::wire_channel_request,
         diverge_sdk::tauri_proxy::wire_channel_response,
         diverge_sdk::tauri_proxy::wire_channel_response_finish,
+        diverge_sdk::tauri_proxy::wire_took,
+        diverge_sdk::tauri_proxy::wire_dropped,
         diverge_sdk::tauri_proxy::wire_status,
         diverge_sdk::tauri_proxy::wire_reset,
     ])
@@ -71,9 +73,10 @@ The page dials and learns how the link stands with
 ended with `wire.proxy.reset(transport)`. Above the handle, the two
 makers behave the same: when the connection ends, every open stream
 fails with `closed` and every later send with a `connection` send
-error, until the page dials again. The contract the six commands
+error, until the page dials again. The contract the eight commands
 keep — every channel carries whole frames and then one empty
-message, a refusal carries its kind — is stated in
+message, a frame crosses only after the page took the last, a
+refusal carries its kind — is stated in
 `src/wire/proxy/commands.ts`.
 
 | command | arguments | answers |
@@ -82,6 +85,8 @@ message, a refusal carries its kind — is stated in
 | `wire_channel_request` | `scope`, `payload`, `responses: Channel` | the channel number |
 | `wire_channel_response` | `scope`, `channel`, `payload` | nothing |
 | `wire_channel_response_finish` | `scope`, `channel` | nothing |
+| `wire_took` | `channel`, a channel's id | nothing |
+| `wire_dropped` | `channel`, a channel's id | nothing |
 | `wire_status` | none | a `WireStatus` |
 | `wire_reset` | none | nothing |
 

@@ -23,7 +23,7 @@ never spans messages.
   **client** and one as the **server**. The roles are fixed for the
   life of the connection and are independent of which party initiated
   it.
-- **Types.** Seven type values are defined. Which of them a party may
+- **Types.** Eight type values are defined. Which of them a party may
   send depends on its role:
 
 | Type | Client → Server | Server → Client |
@@ -35,6 +35,7 @@ never spans messages.
 | `4` | [channel request](/frames/channels/) | [channel request](/frames/channels/) |
 | `5` | [channel response](/frames/channels/) | [channel response](/frames/channels/) |
 | `6` | [channel response finish](/frames/channels/) | [channel response finish](/frames/channels/) |
+| `7` | [credit](/frames/credits/) | [credit](/frames/credits/) |
 
 - **A frame's kind is determined by its type and direction alone.**
   Where both directions define a type value, it denotes the same kind
@@ -53,16 +54,22 @@ never spans messages.
   read it.
 - **Nothing is acknowledged.** No frame acknowledges the receipt of
   another. A party learns that its request arrived by being answered.
+  A credit states that its sender took a frame off a stream, and is
+  not an acknowledgement of receipt.
+- **Every stream is paced by its reader.** A party sends one frame
+  ahead on each stream and no further, as [Credits](/frames/credits/)
+  states.
 - **A stream ends at its finish frame, and nowhere else.** A quiet
   scope or channel is one that is still open, however long it has been
   quiet. This layer defines no timeout.
 - **Payloads are opaque at this layer.** Their contents are defined by
   higher layers. This revision defines no frame type other than the
-  seven.
+  eight.
 
 The frame types each role sends are enumerated in
 [Client Frames](/frames/client/) and [Server Frames](/frames/server/);
-the requirements governing scopes and channels are
-[Scopes](/frames/scopes/) and [Channels](/frames/channels/). The
+the requirements governing scopes, channels and their pacing are
+[Scopes](/frames/scopes/), [Channels](/frames/channels/) and
+[Credits](/frames/credits/). The
 authorization frame is governed by the next layer,
 [Authorization](/authorization/).

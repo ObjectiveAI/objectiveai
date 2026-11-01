@@ -3,7 +3,8 @@
 //! A page in a Tauri app holds no socket. Its native side — Rust, in
 //! the app — dials, makes the handshake and keeps the one
 //! [`Handle`](crate::wire::client::handle::Handle); the page asks it
-//! to send through four commands and receives what answers on the
+//! to send through four commands, says what it read through two more,
+//! and receives what answers on the
 //! app's channels. The TypeScript SDK's proxy handle is the page's
 //! side of that; this module is what the native side needs to be the
 //! other, so that nothing above the handle can tell a proxied
@@ -32,6 +33,15 @@
 //!   frame by its length alone. The end is sent when the receiver
 //!   closes, whatever closed it: the router forwarding a finish, a
 //!   scope ending, or the connection ending. [`forward()`] does this.
+//! - **A channel is paced by the page.** A frame crosses only after
+//!   the page took the one before it: `wire_took(channel)` — the
+//!   channel's id — after each frame its consumer takes, the finish
+//!   included, lets the next across, and taking it off the receiver is
+//!   what gives the far end room (see [`credit`](crate::wire::credit)).
+//!   `wire_dropped(channel)` says the page reads no more: the
+//!   forwarding ends and the receiver is dropped, which abandons the
+//!   stream. Neither is refused, and a channel no longer forwarded is
+//!   nothing to either.
 //! - **A refusal.** A command that cannot send rejects with a
 //!   [`Refusal`], serialized as
 //!   `{"kind": "connection" | "scope", "message": "..."}`:

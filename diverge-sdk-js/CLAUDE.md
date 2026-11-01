@@ -181,8 +181,13 @@ transport is structurally typed, so this package never imports
 `@tauri-apps/api`. Above the handle nothing differs, closure
 included: each proxy channel ends with one empty message, and a
 command's refusal carries its kind (`wire/proxy/commands.ts`).
+Every stream is one frame ahead on either handle: a receiver credits
+its sender as its consumer takes each frame, and abandoning it — a
+loop left early, a one-shot read — tells the far end
+(`wire/client/window.ts`); through the proxy, the page's
+`wire_took` and `wire_dropped` carry those words to Rust.
 `wire.proxy.status` and `reset` are the link's two commands; the
-Rust side of all six is the Rust SDK's `tauri_proxy` (feature
+Rust side of all eight is the Rust SDK's `tauri_proxy` (feature
 `tauri-proxy`).
 
 ## House rules

@@ -1,0 +1,78 @@
+---
+title: 'Credits'
+summary: 'Every stream is paced by its reader: a sender sends one frame ahead, and the reader returns room for the next with a credit frame when it takes one, or abandons the stream.'
+order: 5
+draft: false
+---
+
+Every stream on a connection is paced by the party that reads it. A
+sender holds room for exactly one frame on each stream it sends. The
+reader returns that room with a **credit** frame (type `7`) each time
+it takes a frame off the stream, and a reader that will read no more
+says so with a credit frame of its own.
+
+```text
+[type: 7][scope: u32, big-endian][channel: u32, big-endian][kind: u8]
+```
+
+- **The streams.** A stream is one of the following, in either
+  direction:
+  - a scope's responses (types `2`), sent by the server;
+  - a scope's channel requests (type `4`) from one party, the stream
+    of every channel that party opens in the scope;
+  - one channel's responses (type `5`), sent by its responder.
+- **The kind.** The payload is exactly one byte:
+
+| Kind | Meaning |
+|------|---------|
+| `0` | room for one more frame on the response stream the header names |
+| `1` | room for one more channel request in the scope |
+| `2` | the reader reads nothing more of the response stream the header names |
+| `3` | the reader reads nothing more of the scope's channel requests |
+
+- **Naming the stream.** The scope field names the scope. For kinds
+  `0` and `2`, the channel field is `0` for the scope's own responses
+  and otherwise the channel number as its opener chose it; the reader
+  of a channel's responses is that channel's opener, so it quotes its
+  own number. For kinds `1` and `3`, the channel field is `0`, and the
+  stream is the channel requests the receiver of the credit sends in
+  the scope.
+- **Opening room.** Every stream opens with room for exactly one
+  frame: a scope's responses with its request, a scope's channel
+  requests from each party with the scope's request, and a channel's
+  responses with its channel request.
+- **Sending spends room.** A party sends a response, a channel request
+  or a channel response only while it holds room on that stream, and
+  each such frame spends one unit of room. A party without room on a
+  stream sends nothing on that stream until a credit of kind `0` or
+  `1` gives it room. Waiting on one stream delays no other stream.
+- **Finishes need no room.** A response finish (type `3`) and a
+  channel response finish (type `6`) spend no room and are sent
+  whether or not room is held. A reader therefore holds at most one
+  unread frame and one finish on each stream.
+- **Room returns when a frame is taken.** A reader sends a credit of
+  kind `0` or `1` when it takes a frame off a stream to act on it, and
+  not when the frame arrives. A finish returns no room.
+- **Abandoning.** A reader that will read no more of a stream before
+  its finish sends a credit of kind `2` or `3`, exactly once. From that
+  credit on, the sender sends no response, channel request or channel
+  response on that stream, and the reader discards any such frame that
+  was already on its way. Abandoning ends neither a scope nor a
+  channel: only a finish ends either, and the responder still sends
+  it.
+- **A frame without room ends the connection.** A party that receives
+  a response, a channel request or a channel response on a stream to
+  which it gave no room closes the connection.
+- **A credit for an unknown stream is disregarded.** A credit naming
+  a scope that is not open, or a stream that has ended, changes
+  nothing and does not end the connection.
+- **Endings end the room.** When a scope finishes, every stream within
+  it ends, and room held on any of them is void. When the connection
+  ends, every stream on it ends.
+- **Opening a scope is not paced.** A request (type `1`) spends no
+  room. A server reads requests at its own pace.
+
+**Remark.** The rules bound what any party holds for any stream to one
+frame and one finish, whatever the speed of either party: a frame is
+at most one message, and no sender runs further ahead of its reader
+than the frame the reader is acting on.

@@ -62,7 +62,7 @@ includes a file of it; the Reference Crate does not otherwise bind the
 Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
-the WebSocket transport, the nine-byte frame header and seven frame
+the WebSocket transport, the nine-byte frame header and eight frame
 types, the authorization handshake, the twenty-four endpoints and their
 channels, and the payload forms the Specification states for each.
 
@@ -375,7 +375,7 @@ big-endian, and a channel number as a `u32` big-endian, followed by
 the payload.
 
 (b) The Provider shall treat a frame whose type byte is not one of the
-seven defined values as malformed, shall disregard it, and shall not
+eight defined values as malformed, shall disregard it, and shall not
 end the Connection on account of it.
 
 (c) The Provider shall ignore every header field the Specification
@@ -384,7 +384,12 @@ value for it.
 
 (d) The Provider shall acknowledge nothing at the frame layer, shall
 impose no timeout at the frame layer, and shall treat a stream as
-ended at its finish frame and nowhere else.
+ended at its finish frame and nowhere else. The Provider shall pace
+every stream by credits as the Specification states: it shall send no
+response, channel request or channel response on a stream without room
+on it, shall return room on every stream it reads when it takes a
+frame off that stream, and shall close the Connection on a frame that
+arrives without room.
 
 (e) The Provider shall send exactly one Response Finish on each
 Scope, and only the Provider shall send it. The Provider shall finish

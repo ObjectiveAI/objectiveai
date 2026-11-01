@@ -1,11 +1,11 @@
 ---
 title: 'Client Frames'
-summary: 'The five frame types a client sends: authorization, request, channel request, channel response, and channel response finish.'
+summary: 'The six frame types a client sends: authorization, request, channel request, channel response, channel response finish, and credit.'
 order: 1
 draft: false
 ---
 
-A client sends five frame types.
+A client sends six frame types.
 
 - **Type `0` — authorization.** The scope and channel fields are
   ignored. The payload is a token. Whether a connection carries one,
@@ -25,3 +25,7 @@ A client sends five frame types.
 - **Type `6` — channel response finish.** Ends a channel the server
   opened, quoting its number. It carries no payload, and it is the
   only way such a channel ends.
+- **Type `7` — credit.** Gives the server room for one more frame on
+  a stream the client reads, or states that the client reads no more
+  of it. The payload is one byte, the credit's kind. Its fields and
+  kinds are [Credits](/frames/credits/)'s to state.

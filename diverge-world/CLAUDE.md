@@ -50,8 +50,9 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   `src/lib/wire.ts`: `wire.proxy.handle(...)` over the app's Rust. Every daemon endpoint is
   `daemon.endpoints.<family>.<request>.client.execute(handle, frame)`.
 - **Rust holds the one connection** — the address, the identity, the socket — through the SDK's own `tauri_proxy`
-  runner (the `tauri-proxy` feature): main.rs manages one `TauriProxy` and registers its six commands, the four sends
-  and `wire_status`/`wire_reset`. The content security policy connects only to Tauri's IPC.
+  runner (the `tauri-proxy` feature): main.rs manages one `TauriProxy` and registers its eight commands, the four sends,
+  `wire_took`/`wire_dropped` (a frame crosses to the page only after it took the last) and
+  `wire_status`/`wire_reset`. The content security policy connects only to Tauri's IPC.
 - **The root and the config are the viewer's**: `--config <dir>`, else `DIVERGE_CONFIG`, else `~/.diverge`, and
   `<root>/viewer.yaml` read with the viewer's own type (`diverge-viewer/config`, crate `diverge-viewer-config`):
   `daemon.address`, `daemon.issuer`, `daemon.subject` — one of `<root>/identities/`, signed in by

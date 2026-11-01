@@ -30,6 +30,12 @@
 // closes its receiver on the end and on nothing else; a finish frame
 // is delivered as a frame like any other, and the end follows it.
 //
+// A CHANNEL IS PACED BY THE PAGE. A frame crosses only after the page
+// took the one before it: `wire_took(channel)`, the channel's id,
+// after each frame its consumer takes, the finish included.
+// `wire_dropped(channel)` reads no more: the forwarding ends and the
+// far end is told. Neither is refused.
+//
 // A REFUSAL. A command that cannot send rejects with a `Refusal`:
 // `{ "kind": "connection" | "scope", "message": string }`, the Rust
 // handle's send error in this package's own two kinds. `scope` is
@@ -48,7 +54,7 @@
 // Neither is refused. `status` and `reset` here invoke them.
 //
 // The Rust SDK's `diverge_sdk::tauri_proxy` (the `tauri-proxy`
-// feature) is all six commands; an app registers them and manages
+// feature) is all eight commands; an app registers them and manages
 // one `TauriProxy`.
 //
 // What the contract buys is parity: over a socket, the connection

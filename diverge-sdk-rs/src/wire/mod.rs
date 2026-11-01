@@ -2,7 +2,8 @@
 //!
 //! One WebSocket, every message one BINARY frame with a nine-byte
 //! header — [`frame`]; the socket either end may hold, accepted or
-//! dialled — [`connection`]; how a type becomes a payload's bytes and
+//! dialled — [`connection`]; how every stream is paced one frame ahead
+//! by its reader — [`credit`]; how a type becomes a payload's bytes and
 //! comes back out — [`encode`] and [`decode`]; and the two frame-level
 //! halves, [`client`], which mints scopes and channels and routes what
 //! answers them, and [`server`], which is told about scopes and

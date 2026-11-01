@@ -165,13 +165,16 @@ no meaning beyond RFC 6455's. It names nothing above the message.
 ### Layer 2 — Frames (`/frames/`)
 
 The header and the multiplexing. It states the nine-byte header, the
-seven type values and the direction each is defined for, the roles,
+eight type values and the direction each is defined for, the roles,
 that a frame's kind is its type and direction alone, that undefined
 types are malformed and disregarded without ending the connection,
 that unread header fields are ignored and never prescribed, that
 nothing is acknowledged, that a stream ends at its finish frame and
 nowhere else with no timeout at this layer, and that payloads are
-opaque here. Its sections: the client's frames, the server's frames,
+opaque here; and credits (every stream opens with room for one frame,
+sending spends it, a finish needs none, the reader returns it on
+taking a frame or abandons the stream, a frame without room ends the
+connection). Its sections: the client's frames, the server's frames,
 scopes (a request opens one; a client mints its number; a scope's
 number may be reused only after its finish; one request per scope;
 the server answers with responses and one finish), and channels

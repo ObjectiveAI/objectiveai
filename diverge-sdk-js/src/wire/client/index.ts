@@ -10,7 +10,8 @@
 // implements too, so that nothing above this line knows which it
 // holds.
 //
-// Every queue here is unbounded. The obligation on a caller is
+// Every queue here holds one frame ahead of its reader, which paces
+// the far end (`window.ts`). The obligation on a caller is
 // therefore sharp: read what you asked for, or drop it.
 
 export * from "./handle.js";
