@@ -249,6 +249,7 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             served: Arc::new(Mutex::new(Served::new())),
             touched: touched.clone(),
             inflight: Arc::clone(&answerer.inflight),
+            files: Arc::clone(&answerer.files),
             services: Mutex::new(None),
             declared: tool.declared.secrets.clone(),
             binding: binding.clone(),
@@ -278,6 +279,8 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             connections: Mutex::new(HashSet::new()),
             held: watch::channel(false).0,
             inflight: Arc::new(Inflight::new()),
+            // The agent's: a use on the dependency holds the agent up.
+            files: Arc::clone(&answerer.files),
             touched: touched.clone(),
             mounts: Arc::clone(&mounts),
             volumes: Vec::new(),

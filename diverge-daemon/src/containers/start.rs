@@ -116,6 +116,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
     }
     let touched = watch::channel(Instant::now()).0;
     let inflight = Arc::new(Inflight::new());
+    let files = Arc::new(Inflight::new());
     let mut last = String::new();
     for (identity, handle) in candidates {
         let answerer = Arc::new(Answerer {
@@ -133,6 +134,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             served: Arc::clone(&served),
             touched: touched.clone(),
             inflight: Arc::clone(&inflight),
+            files: Arc::clone(&files),
             services: Mutex::new(None),
             declared: template.template.secrets.clone(),
             binding: agent.secrets.clone(),
@@ -172,6 +174,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             handle,
             loop_active: watch::channel(false).0,
             inflight,
+            files,
             touched,
             mounts,
             volumes: crate::volumes::of_agent(agent),
@@ -268,6 +271,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     served: Arc::new(Mutex::new(Served::new())),
                     touched: touched.clone(),
                     inflight: Arc::new(Inflight::new()),
+                    files: Arc::new(Inflight::new()),
                     services: Mutex::new(None),
                     declared: record.template.secrets.clone(),
                     binding: tool.secrets.clone(),
@@ -332,6 +336,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         connections: Mutex::new(HashSet::new()),
         held: watch::channel(false).0,
         inflight: Arc::new(Inflight::new()),
+        files: Arc::new(Inflight::new()),
         touched,
         mounts,
         volumes: crate::volumes::of_tool(tool),

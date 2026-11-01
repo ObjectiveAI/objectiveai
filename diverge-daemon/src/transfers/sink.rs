@@ -51,7 +51,10 @@ impl Sink {
                 };
                 let run = containers::agent(daemon, &record).await.map_err(|error| Fail::Error(error.to_string()))?;
                 Ok(Sink::Opened {
-                    opened: Opened::Agent(run),
+                    opened: {
+                        let using = run.file_use();
+                        Opened::Agent(run, using)
+                    },
                     path,
                 })
             }
@@ -66,9 +69,9 @@ impl Sink {
                     return Err(Fail::NoDestination);
                 };
                 let run = containers::use_tool(daemon, &record).await.map_err(|error| Fail::Error(error.to_string()))?;
-                let flying = Arc::new(run.inflight.enter());
+                let using = run.file_use();
                 Ok(Sink::Opened {
-                    opened: Opened::Tool(run, Some(flying)),
+                    opened: Opened::Tool(run, Some(using)),
                     path,
                 })
             }
@@ -83,7 +86,10 @@ impl Sink {
                     return Err(Fail::NoDestination);
                 };
                 Ok(Sink::Opened {
-                    opened: Opened::Tool(run, None),
+                    opened: {
+                        let using = run.file_use();
+                        Opened::Tool(run, Some(using))
+                    },
                     path,
                 })
             }

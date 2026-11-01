@@ -10,7 +10,7 @@ use diverge_sdk::shared::filetree::response::Frame;
 use futures_util::{Stream, StreamExt as _};
 
 use super::fuse::Mounts;
-use super::{AgentRun, Guard, Key, ToolRun};
+use super::{AgentRun, Key, ToolRun, Use};
 use crate::content::Pieces;
 
 /// A container's tree as it is watched: a snapshot, then every
@@ -20,21 +20,22 @@ pub type Frames = Pin<Box<dyn Stream<Item = Result<Frame, String>> + Send>>;
 /// A container a file operation works on.
 #[derive(Clone)]
 pub enum Opened {
-    /// An agent's run.
-    Agent(Arc<AgentRun>),
+    /// An agent's run, and the file use this is, which holds the run
+    /// up until the last clone is dropped.
+    Agent(Arc<AgentRun>, Arc<Use>),
     /// A tool's run, or the connect scope held on another daemon's
     /// tool, whose every file operation answers an error; and, for a
-    /// tool on record, the operation in flight into it, which holds
-    /// the run up until this is dropped. A dependency tool's run is
-    /// nobody's to hold here.
-    Tool(Arc<ToolRun>, Option<Arc<Guard>>),
+    /// run here, the file use this is, which holds the run up until
+    /// the last clone is dropped — a dependency tool's on its agent's
+    /// run, with which it stops.
+    Tool(Arc<ToolRun>, Option<Arc<Use>>),
 }
 
 impl Opened {
     /// The container, by record.
     pub fn key(&self) -> Key {
         match self {
-            Opened::Agent(run) => Key::Agent(run.id),
+            Opened::Agent(run, _) => Key::Agent(run.id),
             Opened::Tool(run, _) => Key::Tool(run.id),
         }
     }
@@ -42,7 +43,7 @@ impl Opened {
     /// The mounts the daemon serves into it.
     pub fn mounts(&self) -> &Arc<Mounts> {
         match self {
-            Opened::Agent(run) => &run.mounts,
+            Opened::Agent(run, _) => &run.mounts,
             Opened::Tool(run, _) => &run.mounts,
         }
     }
@@ -50,7 +51,7 @@ impl Opened {
     /// The provider it runs on, or is connected through.
     pub fn provider(&self) -> &Identity {
         match self {
-            Opened::Agent(run) => &run.provider,
+            Opened::Agent(run, _) => &run.provider,
             Opened::Tool(run, _) => &run.provider,
         }
     }
@@ -60,7 +61,7 @@ impl Opened {
     /// other daemon's.
     pub fn container(&self) -> Option<&str> {
         match self {
-            Opened::Agent(run) => Some(&run.container),
+            Opened::Agent(run, _) => Some(&run.container),
             Opened::Tool(run, _) => run.container.as_deref(),
         }
     }
@@ -68,7 +69,7 @@ impl Opened {
     /// The container was used.
     pub fn touch(&self) {
         match self {
-            Opened::Agent(run) => run.touch(),
+            Opened::Agent(run, _) => run.touch(),
             Opened::Tool(run, _) => run.touch(),
         }
     }
@@ -76,7 +77,7 @@ impl Opened {
     /// The container's tree, watched: the provider's stream.
     pub async fn filetree(&self) -> Result<Frames, String> {
         match self {
-            Opened::Agent(run) => {
+            Opened::Agent(run, _) => {
                 let stream = run.handle.filetree().await.map_err(|error| error.to_string())?;
                 // The channel closing with no finish is the run's scope
                 // ending — the container stopped — which ends a watch
@@ -91,7 +92,7 @@ impl Opened {
     /// One file read out of the container.
     pub async fn read(&self, path: Vec<String>) -> Result<Pieces, String> {
         match self {
-            Opened::Agent(run) => {
+            Opened::Agent(run, _) => {
                 let stream = run.handle.read(path).await.map_err(|error| error.to_string())?;
                 Ok(pieces_of(stream))
             }
@@ -103,7 +104,7 @@ impl Opened {
     pub async fn write(&self, path: Vec<String>, content: Pieces) -> Result<(), String> {
         let content = content.map(|piece| piece.map_err(Source));
         match self {
-            Opened::Agent(run) => run.handle.write(path, content).await.map_err(|error| error.to_string()),
+            Opened::Agent(run, _) => run.handle.write(path, content).await.map_err(|error| error.to_string()),
             Opened::Tool(run, _) => run.handle.write(path, content).await,
         }
     }
@@ -112,7 +113,7 @@ impl Opened {
     /// provider, the bytes staying there.
     pub async fn transfer(&self, path: Vec<String>, id: String, destination: Vec<String>) -> Result<(), String> {
         match self {
-            Opened::Agent(run) => run.handle.transfer(path, id, destination).await.map_err(|error| error.to_string()),
+            Opened::Agent(run, _) => run.handle.transfer(path, id, destination).await.map_err(|error| error.to_string()),
             Opened::Tool(run, _) => run.handle.transfer(path, id, destination).await,
         }
     }

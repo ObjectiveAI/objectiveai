@@ -55,7 +55,8 @@ async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon:
         return Ok(Frame::Forbidden);
     }
     scope.allowed().await;
-    let opened = Opened::Tool(run, None);
+    let using = run.file_use();
+    let opened = Opened::Tool(run, Some(using));
     opened.touch();
     Ok(match files::upload(scope, daemon, Into::Opened(&opened), path, what).await {
         Ok(()) => Frame::Uploaded,

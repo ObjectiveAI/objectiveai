@@ -61,7 +61,8 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
     }
     scope.allowed().await;
     drop(conn);
-    let opened = Opened::Tool(run, None);
+    let using = run.file_use();
+    let opened = Opened::Tool(run, Some(using));
     opened.touch();
     Ok(match transfers::copy(daemon, Source::Opened(opened), &frame.path, frame.to).await {
         Ok(()) => Frame::Transferred,

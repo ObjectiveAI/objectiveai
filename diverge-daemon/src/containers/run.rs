@@ -26,7 +26,7 @@ use tokio::task::AbortHandle;
 use super::fuse::Mounts;
 use super::mcp::Served;
 use super::secrets::Secrets;
-use super::{ConnectionId, Frames, Inflight, ToolKey};
+use super::{ConnectionId, Frames, Inflight, ToolKey, Use};
 use crate::content::Pieces;
 use crate::store::dependency_tools::DependencyTool;
 use crate::store::AgentId;
@@ -55,6 +55,11 @@ pub struct AgentRun {
     /// The MCP exchanges in flight for it: its own, and its
     /// dependencies'. The other thing that makes it active.
     pub inflight: Arc<Inflight>,
+    /// The file uses in progress on it — a filetree watch, a download,
+    /// an upload, a transfer — each holding the run up for its length,
+    /// as `inflight` does, but no work: they make it neither active nor
+    /// busy. What the idle clock waits on, beside `inflight`.
+    pub files: Arc<Inflight>,
     /// When it was last used; what the idle clock runs from.
     pub touched: watch::Sender<Instant>,
     /// What it mounts, served by the daemon.
@@ -87,6 +92,12 @@ impl AgentRun {
     /// The container was used: the idle clock starts over.
     pub fn touch(&self) {
         self.touched.send_replace(Instant::now());
+    }
+
+    /// One file use begins on the run (see `files`): it holds the run
+    /// up until the last clone is dropped, which touches it.
+    pub fn file_use(&self) -> Arc<Use> {
+        Arc::new(self.files.enter_use(self.touched.clone()))
     }
 
     /// Whether the agent is active now: a loop runs in it, or an MCP
@@ -280,6 +291,11 @@ pub struct ToolRun {
     /// until it is answered, however it ends. What a detach mid-call
     /// leaves standing: the call is answered still.
     pub inflight: Arc<Inflight>,
+    /// The file uses in progress on it — a filetree watch, a download,
+    /// an upload, a transfer — each holding the run up for its length,
+    /// as `inflight` does, but no work: they make it neither active nor
+    /// busy. What the idle clock waits on, beside `inflight`.
+    pub files: Arc<Inflight>,
     /// When it was last used.
     pub touched: watch::Sender<Instant>,
     /// What it mounts, served by the daemon.
@@ -313,6 +329,12 @@ impl ToolRun {
     /// The container was used.
     pub fn touch(&self) {
         self.touched.send_replace(Instant::now());
+    }
+
+    /// One file use begins on the run (see `files`): it holds the run
+    /// up until the last clone is dropped, which touches it.
+    pub fn file_use(&self) -> Arc<Use> {
+        Arc::new(self.files.enter_use(self.touched.clone()))
     }
 
     /// Whether anything holds the run up: a connect scope another

@@ -27,9 +27,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// that does not run; `Forbidden` for a tool the grants do not reach;
 /// else a snapshot of the whole tree, the daemon's mounts spliced in,
 /// then every change until the client cancels, the run ends, or the
-/// stream fails. Nothing is started, nothing is released after, and
-/// the watch touches nothing: it never keeps the container up on its
-/// own.
+/// stream fails. Nothing is started. The watch is a file use for its
+/// whole length, held on the agent the dependency was deployed for —
+/// with which it stops — so the agent's idle clock counts from its
+/// end.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -51,7 +52,8 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         return Ok(());
     }
     scope.allowed().await;
-    let opened = Opened::Tool(run, None);
+    let using = run.file_use();
+    let opened = Opened::Tool(run, Some(using));
     let outcome = files::watch(scope, &opened, &|scope, frame| {
         Box::pin(async move {
             reply::reply(scope, &Frame::Filetree(frame)).await;

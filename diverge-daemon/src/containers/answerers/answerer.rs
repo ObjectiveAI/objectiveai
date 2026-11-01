@@ -56,6 +56,10 @@ pub struct Answerer {
     /// The MCP exchanges in flight: the agent's own, which a transient
     /// dependency shares with its agent.
     pub inflight: Arc<Inflight>,
+    /// The file uses in progress: the agent's own, which a dependency
+    /// deployed for it shares, so that a use on the dependency holds
+    /// the agent — with which the dependency stops — up.
+    pub files: Arc<Inflight>,
     /// The services an agent's registration declared, once its
     /// dependencies were deployed: `None` until then, and still
     /// `None` for a program that declared nothing, which is never
