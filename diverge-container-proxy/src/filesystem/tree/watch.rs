@@ -32,11 +32,17 @@ impl Watch {
         sender: mpsc::Sender<notify::Result<notify::Event>>,
         lost: Arc<Notify>,
     ) -> notify::Result<Self> {
-        let watcher = notify::recommended_watcher(move |result| {
+        let watcher = notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
             // On notify's own thread, which must not block: a full
             // queue loses the event and says so, and the stream walks
             // again; a receiver that is gone — the connection ended —
             // means the event has nobody to reach.
+            // An access — the walk itself opens every directory —
+            // changes no tree, and is never queued: a walk's opens
+            // would fill the queue and walk again, without end.
+            if matches!(&result, Ok(event) if matches!(event.kind, notify::EventKind::Access(_))) {
+                return;
+            }
             if let Err(mpsc::error::TrySendError::Full(_)) = sender.try_send(result) {
                 lost.notify_one();
             }

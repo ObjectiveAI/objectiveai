@@ -82,7 +82,8 @@ export function readTree(files: Files, changed: (root: Root, touched: string[][]
         root.update(f);
         changed(root, f.type === "inserted" || f.type === "modified" ? [f.path] : []);
       }
-      if (!stopped) ended("the watch ended");
+      // The container stopped, which ends its watch: the tree stays as it last was.
+      if (!stopped) ended("the container stopped — this is its tree as it last was");
     } catch (error) {
       fail(error);
     }

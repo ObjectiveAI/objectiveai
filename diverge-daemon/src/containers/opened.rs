@@ -78,6 +78,10 @@ impl Opened {
         match self {
             Opened::Agent(run) => {
                 let stream = run.handle.filetree().await.map_err(|error| error.to_string())?;
+                // The channel closing with no finish is the run's scope
+                // ending — the container stopped — which ends a watch
+                // as the run over, not as a failure.
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
                 Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
             }
             Opened::Tool(run, _) => run.handle.filetree().await,

@@ -67,10 +67,12 @@ pub(crate) async fn filetree<F: Family>(run: Arc<Run>, channel: u32) {
     let mut planted = Vec::with_capacity(watches.len());
     match frames.next().await {
         Some(Ok(frame)) => run.respond(channel, F::filetree(frame)).await,
+        // The proxy's connection ending is the container stopped: the
+        // run over, and the tree's end, not its failure.
+        Some(Err(tree::ExecuteStreamError::Closed)) | None => ending.end::<F>().await,
         Some(Err(error)) => {
             ending.fail::<F>(&proxy_error(error)).await;
         }
-        None => ending.end::<F>().await,
     }
     for (watched, mut watch) in run.watched.iter().zip(watches) {
         if ending.over() {
@@ -93,8 +95,9 @@ pub(crate) async fn filetree<F: Family>(run: Arc<Run>, channel: u32) {
     while !ending.over() {
         match next(&mut frames, &ending.stop).await {
             Some(Some(Ok(frame))) => run.respond(channel, F::filetree(frame)).await,
+            // As above: the container stopped.
+            Some(Some(Err(tree::ExecuteStreamError::Closed))) | Some(None) => ending.end::<F>().await,
             Some(Some(Err(error))) => ending.fail::<F>(&proxy_error(error)).await,
-            Some(None) => ending.end::<F>().await,
             None => {}
         }
     }
