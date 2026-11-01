@@ -82,6 +82,10 @@ const keyOf = (path: string[]) => path.join("\0");
  *    land. Outside the pane, or while the pane is not shown, nothing
  *    is aimed at.
  * 11. Transfers run in the strip (`strip`), which outlives the sheet.
+ * 12. Clicking a row, or right-clicking it, selects it: one row at a
+ *    time, held lit more strongly than the pointer's light, through
+ *    every change, until another is chosen or the pane's empty space
+ *    is clicked. A directory clicked also opens or closes.
  */
 export class Files {
   private readonly head: HTMLElement;
@@ -99,6 +103,7 @@ export class Files {
   private dropping: string[] | null = null;
   private unlisten: (() => void) | null = null;
   private disposed = false;
+  private selected: string | null = null;
 
   constructor(
     private readonly pane: HTMLElement,
@@ -113,6 +118,10 @@ export class Files {
     this.banner.className = "aim";
     this.banner.hidden = true;
     this.pane.append(this.head, this.banner, this.rows, this.note);
+    // Rule 12: a click on no row lets go of the selection.
+    this.pane.addEventListener("click", (event) => {
+      if (event.target instanceof Element && !event.target.closest(".row[data-key]")) this.select(null);
+    });
     this.heads();
     this.read();
     // Rule 10.
@@ -226,6 +235,13 @@ export class Files {
     this.later();
   }
 
+  /** Rule 12. */
+  private select(key: string | null): void {
+    if (this.selected === key) return;
+    this.selected = key;
+    this.later();
+  }
+
   /** Rule 9. */
   private download(node: Node, path: string[]): void {
     const total = size(node);
@@ -312,15 +328,21 @@ export class Files {
     // Rule 9.
     row.addEventListener("contextmenu", (event) => {
       event.preventDefault();
+      // Rule 12.
+      this.select(key);
       menu(event.clientX, event.clientY, [{ words: node.type === "directory" ? "Download folder" : "Download", act: () => this.download(node, at) }]);
     });
     row.append(name, cell(node.type === "file" && node.size !== null ? bytes(node.size) : null), cell(node.created_at === null ? null : when(node.created_at)), cell(node.modified_at === null ? null : when(node.modified_at)));
+    // Rule 12, and rule 3 for a directory.
+    row.addEventListener("click", () => {
+      this.select(key);
+      if (node.type !== "directory") return;
+      if (this.open.has(key)) this.open.delete(key);
+      else this.open.add(key);
+      this.later();
+    });
+    if (key === this.selected) row.classList.add("selected");
     if (node.type === "directory") {
-      row.addEventListener("click", () => {
-        if (this.open.has(key)) this.open.delete(key);
-        else this.open.add(key);
-        this.later();
-      });
       // Rule 6.
       if (!node.changes && !("volume" in this.target)) {
         row.classList.add("stale");

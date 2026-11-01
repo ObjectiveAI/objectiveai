@@ -345,6 +345,15 @@
   text-align: center;
 }
 
+/* Files, rule 12: the selected row, lit more strongly than the pointer's light. */
+.sheet .files .row.selected,
+.sheet .files .row.selected:hover {
+  background: color-mix(in srgb, var(--sheet-copper) 32%, transparent);
+  box-shadow: inset 2px 0 0 var(--sheet-copper-bright);
+}
+.sheet .files .row.selected .name { color: var(--sheet-cream); }
+.sheet .files .row.directory.selected .name { color: var(--sheet-copper-bright); }
+
 /* Files, rule 9: every row lights while pointed at, and right-clicks to its menu. */
 .sheet .files .row.file:hover,
 .sheet .files .row.symlink:hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
