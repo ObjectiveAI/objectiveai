@@ -16,9 +16,9 @@ diverge-sdk = { path = "../../diverge-sdk-rs", features = ["tauri-proxy", "ident
 diverge-viewer-config = { path = "../../diverge-viewer/config" }
 
 tauri = { version = "2.10.3", features = [] }
-# The save and folder dialogs a download asks where to put it with,
-# used from Rust alone.
-tauri-plugin-dialog = "2.8.4"
+# The system's save and folder dialogs a download asks where to put it
+# with. Not Tauri's dialog plugin, whose versions require a newer Tauri.
+rfd = "0.17.2"
 # Downloads and uploads, between the disk and the wire in pieces
 # (`transfer.rs`).
 tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "sync", "time"] }

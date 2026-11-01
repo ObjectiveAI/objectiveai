@@ -22,8 +22,7 @@ use diverge_sdk::wire::client::handle::Handle;
 use futures_util::{Stream, StreamExt as _, stream};
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
-use tauri::{AppHandle, State};
-use tauri_plugin_dialog::DialogExt as _;
+use tauri::{AppHandle, Manager as _, State};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::sync::{Mutex, oneshot, watch};
 
@@ -120,21 +119,17 @@ pub async fn files_download(
 ) -> Result<Outcome, String> {
     let name = path.last().cloned().unwrap_or_else(|| "files".to_string());
     // Rule 1.
-    let (chose, chosen) = oneshot::channel();
-    let dialog = app.dialog().file();
-    if directory {
-        dialog.pick_folder(move |picked| {
-            let _ = chose.send(picked);
-        });
-    } else {
-        dialog.set_file_name(&name).save_file(move |picked| {
-            let _ = chose.send(picked);
-        });
-    }
-    let Some(picked) = chosen.await.ok().flatten() else {
+    let dialog = rfd::AsyncFileDialog::new();
+    // Over the window, as its own dialog.
+    let dialog = match app.get_webview_window("main") {
+        Some(window) => dialog.set_parent(&window),
+        None => dialog,
+    };
+    let picked = if directory { dialog.pick_folder().await } else { dialog.set_file_name(&name).save_file().await };
+    let Some(picked) = picked else {
         return Ok(Outcome::Cancelled);
     };
-    let picked = picked.into_path().map_err(|error| error.to_string())?;
+    let picked = picked.path().to_path_buf();
     let base = if directory {
         let base = picked.join(&name);
         if tokio::fs::metadata(&base).await.is_ok() {

@@ -25,7 +25,6 @@ mod transfer;
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
         .manage(transfer::Transfers::default())
         .setup(|app| {
             // The root, as the daemon and the provider find theirs; the
