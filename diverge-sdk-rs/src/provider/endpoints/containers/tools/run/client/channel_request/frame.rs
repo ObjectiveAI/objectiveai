@@ -8,6 +8,7 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::mcp;
 use crate::shared::mcp::session::Sessioned;
+use crate::shared::containers::exec;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 use crate::shared::containers::daemon;
@@ -34,6 +35,7 @@ use crate::shared::containers::daemon;
 /// | `12` | [`McpNotifications`](Self::McpNotifications) |
 /// | `13` | [`FuseMount`](Self::FuseMount) |
 /// | `14` | [`Secrets`](Self::Secrets) |
+/// | `15` | [`Exec`](Self::Exec) |
 ///
 /// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
@@ -175,6 +177,11 @@ pub enum Frame {
     /// `Fed` or the program's refusal — and then the finish. See
     /// [`secrets`](crate::shared::containers::secrets).
     Secrets(Values),
+    /// Run one command in the container, its output streamed: the
+    /// provider opens an exec scope on the proxy and relays the stream,
+    /// as [`exec`](crate::shared::containers::exec) states it. The
+    /// caller abandoning the channel kills the command.
+    Exec(exec::request::Request),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -221,6 +228,9 @@ const FUSE_MOUNT: u8 = 13;
 
 /// Tag for [`Frame::Secrets`].
 const SECRETS: u8 = 14;
+
+/// Tag for [`Frame::Exec`].
+const EXEC: u8 = 15;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -288,6 +298,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[SECRETS]);
                 serde_json::to_writer(out, values)
             }
+            Frame::Exec(request) => {
+                out.extend_from_slice(&[EXEC]);
+                request.encode(out)
+            }
         }
     }
 }
@@ -342,6 +356,9 @@ impl Decode<'_> for Frame {
             SECRETS => serde_json::from_slice(rest)
                 .map(Frame::Secrets)
                 .map_err(FrameError::Secrets),
+            EXEC => exec::request::Request::decode(rest)
+                .map(Frame::Exec)
+                .map_err(FrameError::Exec),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -376,6 +393,8 @@ pub enum FrameError {
     /// The secrets' values did not parse as JSON. The message is the
     /// parser's, which quotes no value.
     Secrets(serde_json::Error),
+    /// The exec request did not parse.
+    Exec(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -407,6 +426,9 @@ impl fmt::Display for FrameError {
             FrameError::Secrets(error) => {
                 write!(f, "secrets feed did not parse: {error}")
             }
+            FrameError::Exec(error) => {
+                write!(f, "exec request did not parse: {error}")
+            }
         }
     }
 }
@@ -419,7 +441,8 @@ impl Error for FrameError {
             | FrameError::Transfer(error)
             | FrameError::McpParams(error)
             | FrameError::FuseMount(error)
-            | FrameError::Secrets(error) => Some(error),
+            | FrameError::Secrets(error)
+            | FrameError::Exec(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Daemon(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,

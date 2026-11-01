@@ -11,6 +11,7 @@
 //! channel carries is what MCP says it carries, whichever direction it
 //! runs.
 
+pub mod exec;
 pub mod filetree;
 pub mod fuse_mount;
 pub mod info;

@@ -489,6 +489,25 @@ impl ScopeHandle {
         self.minter.lock().await.mint()
     }
 
+    /// Resolves once the client reads no more of the scope's responses
+    /// — it abandoned them, or the scope or connection ended — see
+    /// [`Window::gone`]. What a scope whose work costs something waits
+    /// on to stop it.
+    pub async fn responses_gone(&self) {
+        self.responses.gone().await;
+    }
+
+    /// Resolves once the client reads no more of this end's answer on
+    /// its channel `channel`, or the answer is over: as
+    /// [`responses_gone`](Self::responses_gone), one level down. A
+    /// channel never opened resolves at once.
+    pub async fn answer_gone(&self, channel: u32) {
+        match self.answer(channel).await {
+            Some(window) => window.gone().await,
+            None => {}
+        }
+    }
+
     /// The room on a channel the client opened: `None` for one it never
     /// opened, or one already answered.
     async fn answer(&self, channel: u32) -> Option<Window> {

@@ -171,6 +171,8 @@ pub(crate) enum Opened<E> {
     Secrets(Values),
     /// One more FUSE mount, made while the container runs.
     FuseMount(fuse_mount::request::Request),
+    /// One command, run in the container, its output streamed.
+    Exec(diverge_sdk::shared::containers::exec::request::Request),
     /// The family's own.
     Exchange(E),
 }

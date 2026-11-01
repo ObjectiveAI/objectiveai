@@ -13,6 +13,7 @@
 
 pub mod dequeue;
 pub mod enqueue;
+pub mod exec;
 pub mod filetree;
 pub mod fuse_mount;
 pub mod info;

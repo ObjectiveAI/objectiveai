@@ -19,6 +19,7 @@
 //!    ([`Kind::ResponsesAbandoned`], [`Kind::RequestsAbandoned`]). From
 //!    then on its sender's sends on that stream return at once and send
 //!    nothing, and a frame already on its way is discarded on arrival.
+//!    A sender may wait for it ([`Window::gone`]) and stop its work.
 //! 6. A frame that arrives on a stream whose queue is full broke rule 2,
 //!    and ends the connection. A credit for a stream the sender does not
 //!    know — one that already ended — is nothing.
@@ -152,6 +153,15 @@ impl Window {
                 return Err(Ended::Connection);
             }
         }
+    }
+
+    /// Resolves once the stream's reader is gone — it abandoned the
+    /// stream (rule 5) — or the stream ended (rule 7): what a sender
+    /// whose work has a cost of its own, a running command, waits on to
+    /// stop it rather than go on into nothing.
+    pub async fn gone(&self) {
+        let mut changes = self.0.subscribe();
+        let _ = changes.wait_for(|state| state.abandoned || state.ended.is_some()).await;
     }
 
     /// A credit arrived: what it says, applied.

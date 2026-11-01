@@ -62,6 +62,7 @@ impl Family for Tools {
             channel_request::Frame::Info => Opened::Info,
             channel_request::Frame::Secrets(values) => Opened::Secrets(values),
             channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
+            channel_request::Frame::Exec(request) => Opened::Exec(request),
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),
             channel_request::Frame::McpListResources(request) => {
                 Opened::Exchange(tool::Exchange::ListResources(request))

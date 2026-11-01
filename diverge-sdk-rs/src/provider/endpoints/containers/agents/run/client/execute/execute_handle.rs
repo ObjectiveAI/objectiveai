@@ -9,12 +9,13 @@ use futures_util::Stream;
 use rmcp::model::ContentBlock;
 
 use super::super::channel_request;
-use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
+use super::{Exec, ExecStream, Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::agents::run::server;
 use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, FuseMount, Info, Secrets};
 use crate::provider::endpoints::containers::client::{OpenError, Scoped, UnaryError, WaitError};
 use crate::shared::containers::fuse::Kind;
+use crate::shared::containers::exec;
 use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{dequeue, enqueue, fuse_mount, read, transfer, write_path};
@@ -92,6 +93,14 @@ impl ExecuteHandle {
         let payload = payload(&channel_request::Frame::Read(read::request::Request { path }))
             .map_err(OpenError::Request)?;
         self.0.open::<Read>(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Run one command in the container, its output streamed (see
+    /// [`exec`](crate::shared::containers::exec)). Dropping the stream
+    /// abandons it, which kills the command.
+    pub async fn exec(&self, command: exec::request::Request) -> Result<ExecStream, OpenError> {
+        let payload = payload(&channel_request::Frame::Exec(command)).map_err(OpenError::Request)?;
+        self.0.open::<Exec>(&payload).await.map_err(OpenError::Send)
     }
 
     /// Write one file into the container, whole, from `content`'s

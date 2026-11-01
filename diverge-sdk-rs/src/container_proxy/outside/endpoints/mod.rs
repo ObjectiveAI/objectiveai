@@ -1,5 +1,5 @@
 //! What a provider's server asks of the proxy inside a container:
-//! the seven scopes, and the tag table that names them.
+//! the eight scopes, and the tag table that names them.
 //!
 //! Each of these is one SCOPE — a request that opens one, whatever
 //! channels either side needs inside it, and the answer that comes
@@ -14,8 +14,9 @@
 //! | `4` | [`filesystem::read`] |
 //! | `5` | [`filesystem::write`] |
 //! | `6` | [`filesystem::fuse_serve`] |
+//! | `7` | [`exec`] |
 //!
-//! Seven. A `begin` leads, one per family, because it is the server's
+//! Eight. A `begin` leads, one per family, because it is the server's
 //! first act on every connection: the scope the proxy's own asks ride —
 //! the container's database connections, an agent
 //! container's tool calls outward, a tool container's daemon
@@ -24,7 +25,8 @@
 //! tree is one because it does not end by itself. A read and a write
 //! are scopes because each is a stream of its own. A FUSE serve is one
 //! because the asks the server makes of a subtree ride it, for as
-//! long as the server wants them answered.
+//! long as the server wants them answered. An exec is one because a
+//! command's output is a stream, and a stop kills it.
 //!
 //! This table is the whole allocation. Each request states its own
 //! value and points here, because a value chosen in one module has to
@@ -39,7 +41,7 @@
 //! `begin` first, before anything else, and exactly once — carrying
 //! the arguments. Then every FUSE mount, each its own scope, and
 //! every one answered before the next step. Then
-//! trees, reads, writes, serves and the family's own exchanges, as
+//! trees, reads, writes, serves, execs and the family's own exchanges, as
 //! the server pleases, in parallel and in any order.
 //! A channel on `begin` is opened, by either side, only after its
 //! [`Begun`](agents::begin::server::response::Frame::Begun) has
@@ -61,6 +63,7 @@ mod client_request;
 pub use client_request::*;
 
 pub mod agents;
+pub mod exec;
 pub mod filesystem;
 pub mod fuse;
 pub mod tools;

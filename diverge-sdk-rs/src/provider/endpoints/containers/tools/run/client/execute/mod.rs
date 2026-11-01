@@ -14,6 +14,7 @@
 //! through this module and not through the file it lives in.
 
 mod event;
+mod exec;
 mod execute;
 mod execute_handle;
 mod execute_stream;
@@ -23,6 +24,7 @@ mod transfer;
 mod write_path;
 
 pub use event::*;
+pub use exec::*;
 pub use execute::*;
 pub use execute_handle::*;
 pub use execute_stream::*;

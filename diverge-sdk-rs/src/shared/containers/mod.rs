@@ -20,7 +20,8 @@
 //! served into it while it runs, [`filetree`] for its filesystem, a
 //! feed of its [`secrets`] at every activation, and [`info`] for the
 //! image's own word on what its arguments may be — its `/DIVERGE.md`,
-//! read by the proxy.
+//! read by the proxy; and [`exec`] one command run in it, its output
+//! streamed.
 //!
 //! The CONTAINER asks the caller, through the provider: [`postgres`]
 //! carries each database connection it opens, [`daemon`] a frame of the program's daemon connection — the two verbs against its queue —
@@ -39,6 +40,7 @@
 pub mod daemon;
 pub mod dequeue;
 pub mod enqueue;
+pub mod exec;
 pub mod filetree;
 pub mod fuse;
 pub mod fuse_mount;

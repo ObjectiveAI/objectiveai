@@ -51,7 +51,7 @@ eventsource-stream = "0.2.3"
 # driver turns on; `io-util` reads and writes the driver's socket;
 # `time` paces an accept loop that keeps failing; `fs` opens and
 # reads the files the server asks for.
-tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "macros", "net", "process", "rt-multi-thread", "sync", "time"] }
 # The FUSE mounts: files and directories the caller serves live,
 # mounted by the proxy itself. Pure Rust — `fuser` talks to /dev/fuse
 # and mounts through the syscall as the namespace's root. `libc` for
