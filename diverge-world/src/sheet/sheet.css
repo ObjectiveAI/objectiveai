@@ -345,23 +345,32 @@
   text-align: center;
 }
 
-/* Files, rule 9: a row's download, shown while the row is pointed at. */
-.sheet .files .cell.name {
+/* Files, rule 9: every row lights while pointed at, and right-clicks to its menu. */
+.sheet .files .row.file:hover,
+.sheet .files .row.symlink:hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
+.files-menu {
+  position: fixed;
+  z-index: 12;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--sheet-raised);
+  border: 1px solid var(--sheet-copper);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px #000a;
 }
-.sheet .files .get {
-  margin-left: auto;
-  padding: 0 6px;
+.files-menu button {
+  padding: 4px 10px;
   border: none;
+  border-radius: 3px;
   background: none;
-  color: var(--sheet-dim);
-  font: inherit;
+  color: var(--sheet-cream);
+  font: 12px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  text-align: left;
   cursor: pointer;
-  visibility: hidden;
 }
-.sheet .files .row:hover .get { visibility: visible; }
-.sheet .files .get:hover { color: var(--sheet-copper-bright); }
+.files-menu button:hover { background: color-mix(in srgb, var(--sheet-copper) 25%, transparent); }
 
 /* Files, rule 10: where a drag is aimed. */
 .sheet .files .row.aimed { background: color-mix(in srgb, var(--sheet-copper) 22%, transparent); }

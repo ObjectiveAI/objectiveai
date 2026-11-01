@@ -69,9 +69,11 @@ const keyOf = (path: string[]) => path.join("\0");
  *    files`; a read that ends says why, under the last tree if there
  *    was one.
  * 8. A volume's header holds ↻, which asks again.
- * 9. Every row holds ⤓, shown while the row is pointed at: it
- *    downloads the file, or the directory whole, where the system's
- *    dialog says (`download`), its total the tree's sizes.
+ * 9. Every row lights while it is pointed at. Right-clicking one opens
+ *    its menu (`menu`) at the pointer: `Download`, or `Download folder`
+ *    for a directory, saves it where the system's dialog says
+ *    (`download`), its total the tree's sizes. The menu closes on a
+ *    choice, a press anywhere else, Escape, or a scroll.
  * 10. Files dragged over the pane are aimed at a directory: the one
  *    pointed at, a file's own directory, or the root on the pane's
  *    empty space. That directory's row and what is open beneath it
@@ -306,17 +308,12 @@ export class Files {
     caret.textContent = node.type === "directory" ? (opened ? "▾" : "▸") : "";
     const label = document.createElement("span");
     label.textContent = node.type === "directory" ? `${node.name}/` : node.type === "symlink" ? `${node.name} → ${node.path.join("/")}` : node.name;
+    name.append(caret, label);
     // Rule 9.
-    const get = document.createElement("button");
-    get.type = "button";
-    get.className = "get";
-    get.textContent = "⤓";
-    get.title = node.type === "directory" ? "Download the folder" : "Download";
-    get.addEventListener("click", (event) => {
-      event.stopPropagation();
-      this.download(node, at);
+    row.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      menu(event.clientX, event.clientY, [{ words: node.type === "directory" ? "Download folder" : "Download", act: () => this.download(node, at) }]);
     });
-    name.append(caret, label, get);
     row.append(name, cell(node.type === "file" && node.size !== null ? bytes(node.size) : null), cell(node.created_at === null ? null : when(node.created_at)), cell(node.modified_at === null ? null : when(node.modified_at)));
     if (node.type === "directory") {
       row.addEventListener("click", () => {
@@ -366,6 +363,52 @@ function empty(depth: number): HTMLElement {
   span.textContent = "empty";
   row.append(span);
   return row;
+}
+
+/** One thing a row's menu offers: its words, and what choosing it does. */
+type Choice = { words: string; act: () => void };
+
+/** The menu open now, and how it closes; at most one at a time. */
+let closing: (() => void) | null = null;
+
+/** Rule 9: a row's menu, at the pointer, kept inside the window. */
+function menu(x: number, y: number, choices: Choice[]): void {
+  closing?.();
+  const box = document.createElement("div");
+  box.className = "files-menu";
+  for (const choice of choices) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.textContent = choice.words;
+    item.addEventListener("click", () => {
+      close();
+      choice.act();
+    });
+    box.append(item);
+  }
+  document.body.append(box);
+  const { width, height } = box.getBoundingClientRect();
+  box.style.left = `${Math.max(0, Math.min(x, window.innerWidth - width - 4))}px`;
+  box.style.top = `${Math.max(0, Math.min(y, window.innerHeight - height - 4))}px`;
+  const away = (event: Event) => {
+    if (!(event.target instanceof Element) || !box.contains(event.target)) close();
+  };
+  const key = (event: KeyboardEvent) => {
+    if (event.key === "Escape") close();
+  };
+  const close = () => {
+    box.remove();
+    document.removeEventListener("pointerdown", away, true);
+    document.removeEventListener("keydown", key, true);
+    document.removeEventListener("wheel", close, true);
+    window.removeEventListener("blur", close);
+    if (closing === close) closing = null;
+  };
+  document.addEventListener("pointerdown", away, true);
+  document.addEventListener("keydown", key, true);
+  document.addEventListener("wheel", close, true);
+  window.addEventListener("blur", close);
+  closing = close;
 }
 
 /** Rule 9: a file's size, or every file's beneath a directory; `null` where one is not known. */
