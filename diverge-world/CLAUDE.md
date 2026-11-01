@@ -16,6 +16,14 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   every call and read the daemon routed into it, a card each with its answer, joined per caller, and each
   notification under the caller whose MCP session it came on (the proxy opens one session per caller). Clicking another
   agent or tool swaps the sheet to it; clicking it again, or ✕, closes it.
+- **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): a dark Tron grid, every agent,
+  standalone tool, dependency tool, account and volume a glowing node in its kind's neon, first standing in a column
+  per kind (`grid/place.ts`) and then wherever it is dragged — the links have no say, and positions live only for the
+  page. Each way an event ran is a glowing line in the sender's neon with a chevron at the receiver, a mount a dashed
+  green line (`grid/links.ts`); a working agent or tool breathes a halo, a connected account holds one, a container
+  that is down dims its node (`grid/live.ts`); every rise in an event's count runs a pulse of light along its link
+  (`grid/pulses.ts`, the events list kept open). The backdrop tiles the grid under the board's camera, as the sea does
+  for the hex map. The hex map below (`Sea`, `World`) is kept, unlisted in `main.ts`.
 - **Live lights** (`render/lights.ts`, `world/watch.ts`): the accounts, agents and tools lists stay open after the
   snapshot, and each entity's state lights it: a pulsing green halo and a plate dot while an agent or tool is `active`
   (working), a steady halo for a `connected` account. The map itself is not rebuilt.

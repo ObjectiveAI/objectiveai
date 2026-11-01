@@ -7,66 +7,101 @@ import { type Live, accountKey, accountLive, activeLive, agentKey, dependencyKey
 /** How long, in milliseconds, before a list that ended is opened again. */
 const AGAIN = 5000;
 
-/** What is told of one entity: its key, and its live state, or `null` when it is gone. */
-type Told = (key: string, live: Live | null) => void;
+/**
+ * What is told of one entity: its key, and its live state, or `null`
+ * when it is gone; and, for an agent or a tool, whether its container
+ * is up.
+ */
+type Told = (key: string, live: Live | null, deployed?: boolean) => void;
 
-/** One list kept open: how it is opened, how a frame is read, and how an item is told. */
-type Spec<T, F> = {
+/** One list kept open: how it is opened and how a frame is read. */
+export type Opened<T, F> = {
   open: () => Promise<[AsyncIterable<F>, { cancel(): Promise<void> }]>;
   change: (frame: F) => shared.listing.Change<T> | null;
+};
+
+/** One list kept open, and how an item is told. */
+type Spec<T, F> = Opened<T, F> & {
   key: (item: T) => string;
   live: (item: T) => Live;
+  deployed?: (item: T) => boolean;
 };
 
 /** Lists being watched, until `stop`. */
 export type Watching = { stop(): void };
 
-/**
- * Keep one list open and tell every item's state.
- *
- * The rules:
- *
- * 1. Every item added or changed is told with its state; one removed is
- *    told with `null`. The items before `listed` are told as well, so a
- *    state that changed between the snapshot and the watch is not lost.
- * 2. A list that ends, fails or is refused is opened again `AGAIN`
- *    milliseconds later, until `stop`.
- */
-function keep<T, F>(spec: Spec<T, F>, told: Told, stopped: () => boolean, cancels: Set<{ cancel(): Promise<void> }>): void {
-  void (async () => {
-    while (!stopped()) {
-      try {
-        const [stream, cancel] = await spec.open();
-        cancels.add(cancel);
-        for await (const frame of stream) {
-          if (stopped()) break;
-          const change = spec.change(frame);
-          if (change === null || change.kind === "listed") continue;
-          told(spec.key(change.item), change.kind === "removed" ? null : spec.live(change.item));
-        }
-        cancels.delete(cancel);
-      } catch {
-        // Rule 2: tried again below.
-      }
-      if (!stopped()) await new Promise((wake) => setTimeout(wake, AGAIN));
-    }
-  })();
-}
+/** What a set of kept lists share: whether they are stopped, and how each open one is cancelled. */
+export type Keeper = { stopped: () => boolean; cancels: Set<{ cancel(): Promise<void> }> };
 
-/** Watch the accounts, agents, standalone tools and dependency tools, telling each entity's state as it changes. */
-export function watch(told: Told): Watching {
+/** A keeper, and the `Watching` that stops every list kept with it. */
+export function keeper(): Keeper & Watching {
   let stopped = false;
   const cancels = new Set<{ cancel(): Promise<void> }>();
-  const done = () => stopped;
-  const e = daemon.endpoints;
-  keep({ open: () => e.accounts.list.client.execute(handle, {}), change: e.accounts.list.server.response.change, key: accountKey, live: accountLive }, told, done, cancels);
-  keep({ open: () => e.agents.list.client.execute(handle, {}), change: e.agents.list.server.response.change, key: agentKey, live: activeLive }, told, done, cancels);
-  keep({ open: () => e.standalone_tools.list.client.execute(handle, {}), change: e.standalone_tools.list.server.response.change, key: toolKey, live: activeLive }, told, done, cancels);
-  keep({ open: () => e.dependency_tools.list.client.execute(handle, {}), change: e.dependency_tools.list.server.response.change, key: dependencyKey, live: activeLive }, told, done, cancels);
   return {
+    stopped: () => stopped,
+    cancels,
     stop() {
       stopped = true;
       for (const cancel of cancels) void cancel.cancel();
     },
   };
+}
+
+/**
+ * Keep one list open and hand on every change it reads.
+ *
+ * The rules:
+ *
+ * 1. Every change is handed on, `listed` included, in the order read.
+ * 2. A list that ends, fails or is refused is opened again `AGAIN`
+ *    milliseconds later, until the keeper stops.
+ */
+export function keep<T, F>(spec: Opened<T, F>, each: (change: shared.listing.Change<T>) => void, k: Keeper): void {
+  void (async () => {
+    while (!k.stopped()) {
+      try {
+        const [stream, cancel] = await spec.open();
+        k.cancels.add(cancel);
+        for await (const frame of stream) {
+          if (k.stopped()) break;
+          const change = spec.change(frame);
+          if (change !== null) each(change);
+        }
+        k.cancels.delete(cancel);
+      } catch {
+        // Rule 2: tried again below.
+      }
+      if (!k.stopped()) await new Promise((wake) => setTimeout(wake, AGAIN));
+    }
+  })();
+}
+
+/**
+ * Keep one list open and tell every item's state: every item added or
+ * changed with its state, one removed with `null`. The items before
+ * `listed` are told as well, so a state that changed between the
+ * snapshot and the watch is not lost.
+ */
+function tell<T, F>(spec: Spec<T, F>, told: Told, k: Keeper): void {
+  keep(
+    spec,
+    (change) => {
+      if (change.kind === "listed") return;
+      if (change.kind === "removed") return told(spec.key(change.item), null);
+      told(spec.key(change.item), spec.live(change.item), spec.deployed?.(change.item));
+    },
+    k,
+  );
+}
+
+/** Watch the accounts, agents, standalone tools and dependency tools, telling each entity's state as it changes. */
+export function watch(told: Told): Watching {
+  const k = keeper();
+  const e = daemon.endpoints;
+  const deployed = (x: { deployed: boolean }) => x.deployed;
+  tell({ open: () => e.accounts.list.client.execute(handle, {}), change: e.accounts.list.server.response.change, key: accountKey, live: accountLive }, told, k);
+  tell({ open: () => e.agents.list.client.execute(handle, {}), change: e.agents.list.server.response.change, key: agentKey, live: activeLive, deployed }, told, k);
+  tell({ open: () => e.standalone_tools.list.client.execute(handle, {}), change: e.standalone_tools.list.server.response.change, key: toolKey, live: activeLive, deployed }, told, k);
+  tell({ open: () => e.dependency_tools.list.client.execute(handle, {}), change: e.dependency_tools.list.server.response.change, key: dependencyKey, live: activeLive, deployed }, told, k);
+  return k;
 }

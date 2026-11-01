@@ -23,10 +23,10 @@ function words(status: Status): string {
 }
 
 const STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
-  fontFamily: "Georgia, serif",
-  fontSize: "14px",
-  color: "#f6eedb",
-  backgroundColor: "#1a1510e0",
+  fontFamily: "Consolas, 'Courier New', monospace",
+  fontSize: "13px",
+  color: "#22e5ff",
+  backgroundColor: "#05070de0",
   padding: { x: 10, y: 6 },
 };
 

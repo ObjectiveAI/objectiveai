@@ -11,18 +11,20 @@ const STEP = 1.12;
 const clampZoom = (zoom: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
 
 /**
- * The main camera's controls over a world `width` by `height` pixels.
+ * The main camera's controls over a world `width` by `height` pixels;
+ * `held`, when given, says something is being dragged.
  *
  * The rules:
  *
  * 1. At first the whole world fits the window, with a little sea
  *    around it, and is centred.
- * 2. Dragging with any button pans.
+ * 2. Dragging with any button pans, unless `held` says something else
+ *    is being dragged.
  * 3. The wheel zooms between `MIN_ZOOM` and `MAX_ZOOM`, holding still
  *    the point under the pointer.
  * 4. The middle of the view never leaves the world.
  */
-export function controls(scene: Phaser.Scene, width: number, height: number): void {
+export function controls(scene: Phaser.Scene, width: number, height: number, held: () => boolean = () => false): void {
   const camera = scene.cameras.main;
   // Rule 4.
   const keepInside = () => {
@@ -35,7 +37,7 @@ export function controls(scene: Phaser.Scene, width: number, height: number): vo
 
   // Rule 2.
   scene.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-    if (!pointer.isDown) return;
+    if (!pointer.isDown || held()) return;
     camera.scrollX -= (pointer.x - pointer.prevPosition.x) / camera.zoom;
     camera.scrollY -= (pointer.y - pointer.prevPosition.y) / camera.zoom;
     keepInside();
