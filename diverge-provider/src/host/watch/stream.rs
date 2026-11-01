@@ -7,7 +7,7 @@ use std::task::{Context, Poll};
 
 use diverge_sdk::shared::filetree::response::Frame;
 use futures_util::Stream;
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::{Mutex, Notify, mpsc};
 use tokio::task::JoinHandle;
 
 use super::{Error, Mapped, Registered, map, paths, walk};
@@ -21,7 +21,10 @@ use super::{Error, Mapped, Registered, map, paths, walk};
 /// item. A pump task then takes every event the watcher reports, maps
 /// it under a blocking task of its own — one at a time, so the
 /// frames' order is the events' order — and sends its frames; a lost
-/// event re-walks and sends a fresh snapshot. The watcher lives in
+/// event re-walks and sends a fresh snapshot. Bounded both ways: at
+/// most [`EVENTS`] events wait to be mapped — one more is lost, and
+/// re-walks — and one frame waits to be read, the pump waiting on its
+/// reader. The watcher lives in
 /// the pump, and dropping the stream aborts the pump, which
 /// unregisters everything the watcher held.
 pub async fn watch(root: &Path) -> Result<Watch, Error> {
@@ -29,11 +32,13 @@ pub async fn watch(root: &Path) -> Result<Watch, Error> {
     if !tokio::fs::metadata(&root).await.is_ok_and(|meta| meta.is_dir()) {
         return Err(Error::Root(root));
     }
-    let (events_sender, events) = mpsc::unbounded_channel();
+    let (events_sender, events) = mpsc::channel(EVENTS);
+    let lost = Arc::new(Notify::new());
     let armed = tokio::task::spawn_blocking({
         let root = root.clone();
+        let lost = Arc::clone(&lost);
         move || {
-            let mut registered = Registered::arm(events_sender)?;
+            let mut registered = Registered::arm(events_sender, lost)?;
             registered.register(&root)?;
             let dark = registered.dark();
             let children = walk::children(&root, &root, &dark);
@@ -46,9 +51,9 @@ pub async fn watch(root: &Path) -> Result<Watch, Error> {
         Ok(Err(error)) => return Err(Error::Watch(error)),
         Err(error) => return Err(Error::Walk(error)),
     };
-    let (frames_sender, frames) = mpsc::unbounded_channel();
-    let _ = frames_sender.send(Ok(Frame::Snapshot { children }));
-    let pump = tokio::spawn(pump(root, Arc::new(Mutex::new(registered)), events, frames_sender));
+    let (frames_sender, frames) = mpsc::channel(1);
+    let _ = frames_sender.try_send(Ok(Frame::Snapshot { children }));
+    let pump = tokio::spawn(pump(root, Arc::new(Mutex::new(registered)), events, lost, frames_sender));
     Ok(Watch { frames, pump })
 }
 
@@ -58,26 +63,34 @@ pub async fn watch(root: &Path) -> Result<Watch, Error> {
 async fn pump(
     root: PathBuf,
     registered: Arc<Mutex<Registered>>,
-    mut events: mpsc::UnboundedReceiver<notify::Result<notify::Event>>,
-    frames: mpsc::UnboundedSender<Result<Frame, Error>>,
+    mut events: mpsc::Receiver<notify::Result<notify::Event>>,
+    lost: Arc<Notify>,
+    frames: mpsc::Sender<Result<Frame, Error>>,
 ) {
-    while let Some(result) = events.recv().await {
-        let mapped = match result {
-            Ok(event) => {
-                let root = root.clone();
-                let registered = Arc::clone(&registered);
-                match tokio::task::spawn_blocking(move || map(event, &root, &registered)).await {
-                    Ok(mapped) => mapped,
-                    Err(error) => {
-                        let _ = frames.send(Err(Error::Walk(error)));
-                        return;
+    loop {
+        let mapped = tokio::select! {
+            result = events.recv() => {
+                let Some(result) = result else { break };
+                match result {
+                    Ok(event) => {
+                        let root = root.clone();
+                        let registered = Arc::clone(&registered);
+                        match tokio::task::spawn_blocking(move || map(event, &root, &registered)).await {
+                            Ok(mapped) => mapped,
+                            Err(error) => {
+                                let _ = frames.send(Err(Error::Walk(error))).await;
+                                return;
+                            }
+                        }
                     }
+                    Err(_) => Mapped::Resync,
                 }
             }
-            Err(_) => Mapped::Resync,
+            // Events were lost to a full queue: walk again.
+            () = lost.notified() => Mapped::Resync,
         };
-        let sent = match mapped {
-            Mapped::Frames(list) => list.into_iter().all(|frame| frames.send(Ok(frame)).is_ok()),
+        let list = match mapped {
+            Mapped::Frames(list) => list,
             Mapped::Resync => {
                 let root = root.clone();
                 let registered = Arc::clone(&registered);
@@ -87,20 +100,25 @@ async fn pump(
                 })
                 .await;
                 match walked {
-                    Ok(children) => frames.send(Ok(Frame::Snapshot { children })).is_ok(),
+                    Ok(children) => vec![Frame::Snapshot { children }],
                     Err(error) => {
-                        let _ = frames.send(Err(Error::Walk(error)));
+                        let _ = frames.send(Err(Error::Walk(error))).await;
                         return;
                     }
                 }
             }
         };
-        if !sent {
-            return;
+        for frame in list {
+            if frames.send(Ok(frame)).await.is_err() {
+                return;
+            }
         }
     }
-    let _ = frames.send(Err(Error::Stopped));
+    let _ = frames.send(Err(Error::Stopped)).await;
 }
+
+/// How many events wait to be mapped before the next is lost.
+pub const EVENTS: usize = 1024;
 
 /// One directory's watch as a stream: the snapshot, then every
 /// change, then — only if the watch died — the error, and the end.
@@ -109,7 +127,7 @@ async fn pump(
 /// in it dropped, which unregisters everything it held.
 #[must_use = "a watch that is not polled reports nothing"]
 pub struct Watch {
-    frames: mpsc::UnboundedReceiver<Result<Frame, Error>>,
+    frames: mpsc::Receiver<Result<Frame, Error>>,
     pump: JoinHandle<()>,
 }
 

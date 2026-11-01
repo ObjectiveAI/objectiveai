@@ -125,6 +125,9 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
     let mut ended: Option<oneshot::Receiver<Result<Values, Error>>> = None;
     let mut delivering: Option<oneshot::Receiver<Outcome>> = None;
     let mut feeding: Option<Feeding> = None;
+    // The last loop's `Inactive` or `Error`, on its way: the next loop's
+    // relay waits for it, so the main stream keeps its order.
+    let mut word: Option<tokio::task::JoinHandle<()>> = None;
 
     loop {
         tokio::select! {
@@ -164,7 +167,7 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
                         for message in batch {
                             let _ = message.fate.send(Fate::Delivered);
                         }
-                        ended = Some(run::relay(Arc::clone(&proxy), response, Arc::clone(&scope)));
+                        ended = Some(run::relay(Arc::clone(&proxy), response, Arc::clone(&scope), word.take()));
                         driver.run = Run::Active;
                     }
                     Ok(Err(error)) => {
@@ -186,17 +189,24 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
                 // The gate closes with the word, in one step: nothing
                 // launches until the next feed opens it.
                 driver.fed = !driver.gated;
-                match collected {
-                    Ok(Ok(values)) => send(&scope, &response::Frame::Inactive(values)).await,
-                    Ok(Err(error)) => {
-                        send(&scope, &response::Frame::Error(error)).await;
+                // Sent on a task of its own: the main stream is paced
+                // by the daemon's reading (see `credit`), and the
+                // driver waiting on it would hold every feed, enqueue
+                // and dequeue behind it. Order holds: the relay's last
+                // frame went before `ended` fired, and the next loop's
+                // relay waits for this one (`word`).
+                let (frame, ends) = match collected {
+                    Ok(Ok(values)) => (response::Frame::Inactive(values), false),
+                    Ok(Err(error)) => (response::Frame::Error(error), true),
+                    Err(_) => (response::Frame::Error(uncollected()), true),
+                };
+                let (scope, proxy) = (Arc::clone(&scope), Arc::clone(&proxy));
+                word = Some(tokio::spawn(async move {
+                    send(&scope, &frame).await;
+                    if ends {
                         proxy.end();
                     }
-                    Err(_) => {
-                        send(&scope, &response::Frame::Error(uncollected())).await;
-                        proxy.end();
-                    }
-                }
+                }));
             },
             outcome = wait(delivering.as_mut()), if delivering.is_some() => {
                 delivering = None;

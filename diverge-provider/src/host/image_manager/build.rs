@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use futures_util::{Stream, stream};
 use serde_json::Value;
 use tokio::fs;
-use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::sync::mpsc::{self, Sender};
 
 use super::{Error, Meta, Store, name_ok_segment};
 use crate::host::container_deployer::{ContainerDeployer, descend, tool_path};
@@ -84,10 +84,12 @@ pub fn build(
         containerfile: containerfile.to_string(),
         context: context.cloned(),
     };
-    let (sender, receiver) = mpsc::unbounded_channel();
+    // One step waits to be read at a time: the build's output is read
+    // only as fast as its reader takes it.
+    let (sender, receiver) = mpsc::channel(1);
     tokio::spawn(async move {
         if let Err(error) = job.run(&sender).await {
-            let _ = sender.send(Err(error));
+            let _ = sender.send(Err(error)).await;
         }
     });
     Box::pin(stream::unfold(receiver, |mut receiver| async move {
@@ -97,7 +99,7 @@ pub fn build(
 
 impl Job {
     /// The whole build; `Err` is the one error the stream ends with.
-    async fn run(&self, sender: &UnboundedSender<Result<Progress, Error>>) -> Result<(), Error> {
+    async fn run(&self, sender: &Sender<Result<Progress, Error>>) -> Result<(), Error> {
         if !name_ok_segment(&self.name) {
             return Err(Error::Name(self.name.clone()));
         }
@@ -115,7 +117,7 @@ impl Job {
 
     /// The build with its directory made: the context attached, the
     /// tool run, and the context detached after.
-    async fn in_dir(&self, dir: &Path, sender: &UnboundedSender<Result<Progress, Error>>) -> Result<(), Error> {
+    async fn in_dir(&self, dir: &Path, sender: &Sender<Result<Progress, Error>>) -> Result<(), Error> {
         let containerfile = dir.join("Containerfile");
         fs::write(&containerfile, &self.containerfile).await?;
         let (context, attached) = match &self.context {
@@ -144,7 +146,7 @@ impl Job {
 
     /// `podman build` in the cache, read as it speaks, and its end
     /// judged.
-    async fn podman(&self, containerfile: &Path, context: &str, sender: &UnboundedSender<Result<Progress, Error>>) -> Result<(), Error> {
+    async fn podman(&self, containerfile: &Path, context: &str, sender: &Sender<Result<Progress, Error>>) -> Result<(), Error> {
         let reference = self.store.reference(self.deployer.registry_port(), &self.client_identity, &self.name);
         let file = tool_path(containerfile);
         let auth_file = tool_path(self.deployer.auth_file());
@@ -162,7 +164,7 @@ impl Job {
         ]);
         let (mut lines, pending) = tools::stream("podman", command).map_err(Error::Podman)?;
         while let Some(line) = lines.next().await {
-            if sender.send(Ok(Progress::Output(line))).is_err() {
+            if sender.send(Ok(Progress::Output(line))).await.is_err() {
                 // Nobody listens: the build is dropped, and its tool
                 // is killed with it.
                 return Ok(());
@@ -181,7 +183,7 @@ impl Job {
         };
         if self.store.used().await? > self.store.capacity() {
             self.undo(&reference).await;
-            let _ = sender.send(Ok(Progress::InsufficientCapacity));
+            let _ = sender.send(Ok(Progress::InsufficientCapacity)).await;
             return Ok(());
         }
         let meta = Meta {
@@ -198,7 +200,7 @@ impl Job {
         let _ = sender.send(Ok(Progress::Built(Built {
             digest: exported.digest,
             bytes: exported.bytes,
-        })));
+        }))).await;
         Ok(())
     }
 

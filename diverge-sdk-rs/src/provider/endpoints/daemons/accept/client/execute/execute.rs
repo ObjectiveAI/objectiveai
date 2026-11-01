@@ -4,7 +4,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use futures_util::StreamExt as _;
-use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::mpsc::{self};
 
 use super::super::super::server::{channel_request as announced, response};
 use super::super::{channel_request, request};
@@ -55,7 +55,7 @@ pub async fn execute<A: Acceptor + 'static>(handle: &Handle, acceptor: Arc<A>) -
 
 /// Every channel the provider opens on the scope, answered on a task
 /// of its own, until the scope's request stream ends.
-async fn announcements<A: Acceptor + 'static>(mut requests: UnboundedReceiver<bytes::Bytes>, handle: Handle, scope: u32, acceptor: Arc<A>) {
+async fn announcements<A: Acceptor + 'static>(mut requests: crate::wire::credit::Receiver, handle: Handle, scope: u32, acceptor: Arc<A>) {
     while let Some(bytes) = requests.recv().await {
         let Ok(frame::server::ServerFrame::ChannelRequest { channel, payload, .. }) = frame::server::ServerFrame::decode(&bytes) else {
             continue;

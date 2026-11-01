@@ -1,11 +1,8 @@
 //! The daemon, reached through the proxy.
 
-use futures_util::StreamExt as _;
-use tokio::sync::mpsc;
 
 use crate::container_proxy::inside::{Client, Error, INSIDE_PORT};
 use crate::wire::client::handle::Handle;
-use crate::wire::client::router::Router;
 use crate::wire::connection::Connection;
 
 /// The path the proxy serves the daemon protocol on.
@@ -40,13 +37,10 @@ impl Client {
         let (socket, _) = tokio_tungstenite::connect_async(daemon_url())
             .await
             .map_err(Error::DaemonDial)?;
-        let (sink, stream) = Connection::Outgoing(socket).split();
-        let (registration_sender, registration_receiver) = mpsc::unbounded_channel();
-        let (closed_sender, closed_receiver) = mpsc::unbounded_channel();
-        let router = Router::new(stream, registration_receiver, closed_sender);
+        let (handle, router) = Handle::open(Connection::Outgoing(socket));
         tokio::spawn(async move {
             let _ = router.run().await;
         });
-        Ok(Handle::new(sink, registration_sender, closed_receiver))
+        Ok(handle)
     }
 }

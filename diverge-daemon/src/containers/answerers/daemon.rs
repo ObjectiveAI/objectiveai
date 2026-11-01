@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use diverge_sdk::provider::client::Daemon as DaemonAnswerer;
 use diverge_sdk::shared::containers::daemon as pair;
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::Receiver;
 
 use super::Answerer;
 use crate::judge::{Declared, Fixed, Who};
@@ -23,7 +23,7 @@ use crate::serve::{self, PairFrames};
 impl DaemonAnswerer for Answerer {
     type Frames = PairFrames;
 
-    async fn connect(&self, _: u32, from_program: UnboundedReceiver<pair::client::Owned>) -> Option<Self::Frames> {
+    async fn connect(&self, _: u32, from_program: Receiver<pair::client::Owned>) -> Option<Self::Frames> {
         let tool = self.tool?;
         let permissions = self.permissions.lock().await.clone();
         let who = Who::Tool(Declared {

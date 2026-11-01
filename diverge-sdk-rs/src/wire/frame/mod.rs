@@ -105,6 +105,7 @@
 //! | 4    | channel request | channel request |
 //! | 5    | channel response | channel response |
 //! | 6    | channel response finish | channel response finish |
+//! | 7    | credit | credit |
 //!
 //! Auth leads because it leads in time: nothing may precede it, and a
 //! peer reading a connection's opening byte should not have to look
@@ -122,6 +123,10 @@
 //! the property that a type identifies a frame without reference to
 //! who sent it.
 //!
+//! Credit comes last because it is about the others: the reader of a
+//! stream gives its sender room for one more frame, or says it reads
+//! nothing more. See [`credit`](crate::wire::credit).
+//!
 //! # Nothing is acknowledged
 //!
 //! An opening used to be answered before it was answered: a scope got
@@ -137,6 +142,10 @@
 //! would want it, and it adds to what is already too much. A sender
 //! learns its request landed by being answered; a sender that wants a
 //! deadline keeps one itself, because nothing here will.
+//!
+//! A credit is not an acknowledgement. It says the reader TOOK a frame
+//! off its queue, which is a statement about room, not about receipt —
+//! see [`credit`](crate::wire::credit).
 //!
 //! # Requests
 //!

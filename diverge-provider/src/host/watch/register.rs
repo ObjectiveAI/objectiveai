@@ -24,12 +24,15 @@ impl Registered {
     /// Arming before the walk is what lets a change during the walk
     /// arrive as a delta after the snapshot rather than be lost
     /// between the two.
-    pub fn arm(sender: mpsc::UnboundedSender<notify::Result<notify::Event>>) -> notify::Result<Self> {
+    pub fn arm(sender: mpsc::Sender<notify::Result<notify::Event>>, lost: std::sync::Arc<tokio::sync::Notify>) -> notify::Result<Self> {
         let watcher = notify::recommended_watcher(move |result| {
-            // On notify's own thread; an unbounded send never blocks,
-            // and a receiver that is gone — the watch dropped — means
-            // the event has nobody to reach.
-            let _ = sender.send(result);
+            // On notify's own thread, which must not block: a full
+            // queue loses the event and says so, and the pump walks
+            // again; a receiver that is gone — the watch dropped —
+            // means the event has nobody to reach.
+            if let Err(mpsc::error::TrySendError::Full(_)) = sender.try_send(result) {
+                lost.notify_one();
+            }
         })?;
         Ok(Registered {
             watcher,

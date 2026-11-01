@@ -3,7 +3,6 @@
 use std::fmt;
 
 use bytes::Bytes;
-use futures_util::StreamExt as _;
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 use tokio::sync::watch;
 
@@ -12,7 +11,6 @@ use super::super::request;
 use super::Connected;
 use crate::shared::error::Error;
 use crate::wire::client::handle::{Handle, SendError};
-use crate::wire::client::router::Router;
 use crate::wire::connection::Connection;
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
@@ -65,11 +63,7 @@ pub async fn execute(
     let unknown = std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED);
     let Handshook { connection, peer } =
         handshake::connect(Connection::Local { incoming, outgoing }, issuer, authenticator, unknown).await.map_err(ExecuteError::Handshake)?;
-    let (sink, stream) = connection.split();
-    let (registration_sender, registration_receiver) = mpsc::unbounded_channel();
-    let (closed_sender, closed_receiver) = mpsc::unbounded_channel();
-    let router = Router::new(stream, registration_receiver, closed_sender);
-    let daemon = Handle::new(sink, registration_sender, closed_receiver);
+    let (daemon, router) = Handle::open(connection);
     let (ended, ended_receiver) = watch::channel(false);
     tokio::spawn(async move {
         let _ = router.run().await;
@@ -81,7 +75,7 @@ pub async fn execute(
 /// Every response after the first, the acceptor's server frames, fed
 /// to the router whole; the finish, or the connection going, ends
 /// the feed, which ends the router.
-async fn inward(mut responses: UnboundedReceiver<Bytes>, to_router: mpsc::UnboundedSender<Bytes>) {
+async fn inward(mut responses: crate::wire::credit::Receiver, to_router: mpsc::UnboundedSender<Bytes>) {
     while let Some(bytes) = responses.recv().await {
         match frame::server::ServerFrame::decode(&bytes) {
             Ok(frame::server::ServerFrame::Response { payload, .. }) => match response::Frame::decode(payload) {
@@ -100,7 +94,7 @@ async fn inward(mut responses: UnboundedReceiver<Bytes>, to_router: mpsc::Unboun
 /// The one channel the provider opens, waited for; then every client
 /// frame the handle writes, sent on it as a channel response, and
 /// the channel finished when the handle is gone.
-async fn outward(mut requests: UnboundedReceiver<Bytes>, mut from_handle: UnboundedReceiver<Bytes>, provider: Handle, scope: u32) {
+async fn outward(mut requests: crate::wire::credit::Receiver, mut from_handle: UnboundedReceiver<Bytes>, provider: Handle, scope: u32) {
     let channel = loop {
         let Some(bytes) = requests.recv().await else {
             return;

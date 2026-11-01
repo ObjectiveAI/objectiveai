@@ -2,13 +2,11 @@
 
 use std::fmt;
 
-use bytes::Bytes;
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
     ReadResourceResult,
 };
 use tokio::sync::Mutex;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::super::channel_request;
 use crate::provider::endpoints::containers::client::answered::{McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource};
@@ -39,7 +37,7 @@ pub type McpNotificationsStream = ChannelStream<McpNotifications>;
 pub struct ExecuteHandle {
     handle: Handle,
     scope: u32,
-    main: Mutex<UnboundedReceiver<Bytes>>,
+    main: Mutex<crate::wire::credit::Receiver>,
     image: Image,
     template: String,
 }
@@ -52,7 +50,7 @@ fn payload(frame: &channel_request::Frame) -> Result<Vec<u8>, serde_json::Error>
 }
 
 impl ExecuteHandle {
-    pub(super) fn new(handle: Handle, scope: u32, main: UnboundedReceiver<Bytes>, image: Image, template: String) -> Self {
+    pub(super) fn new(handle: Handle, scope: u32, main: crate::wire::credit::Receiver, image: Image, template: String) -> Self {
         ExecuteHandle {
             handle,
             scope,

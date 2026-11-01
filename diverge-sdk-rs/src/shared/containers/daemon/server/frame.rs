@@ -62,6 +62,15 @@ pub enum Frame<'a> {
         /// The program's channel.
         channel: u32,
     },
+    /// A credit (see [`credit`](crate::wire::credit)), passed as it is.
+    Credit {
+        /// The scope.
+        scope: u32,
+        /// The channel whose stream it is.
+        channel: u32,
+        /// What it says, as its byte.
+        kind: u8,
+    },
 }
 
 impl<'a> From<Frame<'a>> for ServerFrame<'a> {
@@ -72,6 +81,7 @@ impl<'a> From<Frame<'a>> for ServerFrame<'a> {
             Frame::ChannelRequest { scope, channel, payload } => ServerFrame::ChannelRequest { scope, channel, payload },
             Frame::ChannelResponse { scope, channel, payload } => ServerFrame::ChannelResponse { scope, channel, payload },
             Frame::ChannelResponseFinish { scope, channel } => ServerFrame::ChannelResponseFinish { scope, channel },
+            Frame::Credit { scope, channel, kind } => ServerFrame::Credit { scope, channel, kind },
         }
     }
 }
@@ -88,6 +98,7 @@ impl<'a> TryFrom<ServerFrame<'a>> for Frame<'a> {
             ServerFrame::ChannelRequest { scope, channel, payload } => Frame::ChannelRequest { scope, channel, payload },
             ServerFrame::ChannelResponse { scope, channel, payload } => Frame::ChannelResponse { scope, channel, payload },
             ServerFrame::ChannelResponseFinish { scope, channel } => Frame::ChannelResponseFinish { scope, channel },
+            ServerFrame::Credit { scope, channel, kind } => Frame::Credit { scope, channel, kind },
         })
     }
 }

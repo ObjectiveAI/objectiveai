@@ -181,6 +181,8 @@ fn main() {
             diverge_sdk::tauri_proxy::wire_channel_request,
             diverge_sdk::tauri_proxy::wire_channel_response,
             diverge_sdk::tauri_proxy::wire_channel_response_finish,
+            diverge_sdk::tauri_proxy::wire_took,
+            diverge_sdk::tauri_proxy::wire_dropped,
             diverge_sdk::tauri_proxy::wire_status,
             diverge_sdk::tauri_proxy::wire_reset,
         ])

@@ -1,6 +1,6 @@
 // The frames a client sends.
 
-import { AUTH, CHANNEL_REQUEST, CHANNEL_RESPONSE, CHANNEL_RESPONSE_FINISH, REQUEST } from "./kind.js";
+import { AUTH, CHANNEL_REQUEST, CHANNEL_RESPONSE, CHANNEL_RESPONSE_FINISH, CREDIT, REQUEST } from "./kind.js";
 import { joinHeader } from "./header.js";
 
 /**
@@ -17,7 +17,8 @@ export type ClientFrame =
   | { readonly kind: "request"; readonly scope: number; readonly payload: Uint8Array }
   | { readonly kind: "channel_request"; readonly scope: number; readonly channel: number; readonly payload: Uint8Array }
   | { readonly kind: "channel_response"; readonly scope: number; readonly channel: number; readonly payload: Uint8Array }
-  | { readonly kind: "channel_response_finish"; readonly scope: number; readonly channel: number };
+  | { readonly kind: "channel_response_finish"; readonly scope: number; readonly channel: number }
+  | { readonly kind: "credit"; readonly scope: number; readonly channel: number; readonly credit: number };
 
 /** The frame's bytes: the header, then the payload if it has one. */
 export function encodeClientFrame(frame: ClientFrame): Uint8Array {
@@ -32,5 +33,7 @@ export function encodeClientFrame(frame: ClientFrame): Uint8Array {
       return joinHeader(CHANNEL_RESPONSE, frame.scope, frame.channel, frame.payload);
     case "channel_response_finish":
       return joinHeader(CHANNEL_RESPONSE_FINISH, frame.scope, frame.channel);
+    case "credit":
+      return joinHeader(CREDIT, frame.scope, frame.channel, Uint8Array.of(frame.credit));
   }
 }

@@ -54,35 +54,19 @@ where
         Opened::Answered(answer) => return answer,
     };
 
-    let mut content = pin!(content);
-    while let Some(piece) = content.next().await {
-        match piece {
-            Ok(bytes) => {
-                for piece in bytes.chunks(CHUNK_SIZE) {
-                    let frame = content::Frame::Body(write_bytes::response::Frame(piece));
-                    let mut payload = Vec::new();
-                    frame.encode(&mut Writer::new(&mut payload)).map_err(ExecuteError::Request)?;
-                    handle
-                        .send_channel_response(scope.scope, channel, &payload)
-                        .await
-                        .map_err(ExecuteError::Send)?;
-                }
-            }
-            Err(error) => {
-                let frame = content::Frame::Error(error.clone());
-                let mut payload = Vec::new();
-                if frame.encode(&mut Writer::new(&mut payload)).is_ok() {
-                    let _ = handle.send_channel_response(scope.scope, channel, &payload).await;
-                }
-                let _ = handle.send_channel_response_finish(scope.scope, channel).await;
-                return Err(ExecuteError::Content(error));
-            }
+    // The content is sent while the answer is listened for: a proxy
+    // that fails the write mid-way answers and reads no more, and a send
+    // waiting on room it will never give would wait forever.
+    let streamed = {
+        let sending = pin!(send(handle, scope.scope, channel, content));
+        let answered = pin!(scope.response_receiver.recv());
+        match future::select(sending, answered).await {
+            Either::Left((streamed, _)) => streamed,
+            Either::Right((Some(bytes), _)) => return answer(&bytes),
+            Either::Right((None, _)) => return Err(ExecuteError::Closed),
         }
-    }
-    handle
-        .send_channel_response_finish(scope.scope, channel)
-        .await
-        .map_err(ExecuteError::Send)?;
+    };
+    streamed?;
 
     // A second channel the proxy opened on this scope is one this end
     // cannot serve: the finish with nothing before it.
@@ -96,6 +80,43 @@ where
 
     let bytes = scope.response_receiver.recv().await.ok_or(ExecuteError::Closed)?;
     answer(&bytes)
+}
+
+/// The content, in pieces of at most [`CHUNK_SIZE`], and the channel's
+/// finish; or the content's error as the channel's own.
+async fn send<S>(handle: &Handle, scope: u32, channel: u32, content: S) -> Result<(), ExecuteError>
+where
+    S: Stream<Item = Result<Bytes, Error>>,
+{
+    let mut content = pin!(content);
+    while let Some(piece) = content.next().await {
+        match piece {
+            Ok(bytes) => {
+                for piece in bytes.chunks(CHUNK_SIZE) {
+                    let frame = content::Frame::Body(write_bytes::response::Frame(piece));
+                    let mut payload = Vec::new();
+                    frame.encode(&mut Writer::new(&mut payload)).map_err(ExecuteError::Request)?;
+                    handle
+                        .send_channel_response(scope, channel, &payload)
+                        .await
+                        .map_err(ExecuteError::Send)?;
+                }
+            }
+            Err(error) => {
+                let frame = content::Frame::Error(error.clone());
+                let mut payload = Vec::new();
+                if frame.encode(&mut Writer::new(&mut payload)).is_ok() {
+                    let _ = handle.send_channel_response(scope, channel, &payload).await;
+                }
+                let _ = handle.send_channel_response_finish(scope, channel).await;
+                return Err(ExecuteError::Content(error));
+            }
+        }
+    }
+    handle
+        .send_channel_response_finish(scope, channel)
+        .await
+        .map_err(ExecuteError::Send)
 }
 
 /// What arrived first on a write's scope.

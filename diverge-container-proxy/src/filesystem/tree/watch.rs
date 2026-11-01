@@ -2,9 +2,10 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher as _};
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc};
 
 use super::Ignore;
 
@@ -20,20 +21,25 @@ pub struct Watch {
 }
 
 impl Watch {
-    /// Make a watcher whose events queue toward `sender`.
+    /// Make a watcher whose events queue toward `sender`; an event
+    /// that finds the queue full is lost, and `lost` is told so.
     ///
     /// Nothing is watched yet; [`register`](Self::register) does that.
     /// Arming before the walk is what lets a change during the walk
     /// arrive as a delta after the snapshot rather than be lost
     /// between the two.
     pub fn arm(
-        sender: mpsc::UnboundedSender<notify::Result<notify::Event>>,
+        sender: mpsc::Sender<notify::Result<notify::Event>>,
+        lost: Arc<Notify>,
     ) -> notify::Result<Self> {
         let watcher = notify::recommended_watcher(move |result| {
-            // On notify's own thread; an unbounded send never blocks,
-            // and a receiver that is gone — the connection ended —
+            // On notify's own thread, which must not block: a full
+            // queue loses the event and says so, and the stream walks
+            // again; a receiver that is gone — the connection ended —
             // means the event has nobody to reach.
-            let _ = sender.send(result);
+            if let Err(mpsc::error::TrySendError::Full(_)) = sender.try_send(result) {
+                lost.notify_one();
+            }
         })?;
         Ok(Self {
             watcher,

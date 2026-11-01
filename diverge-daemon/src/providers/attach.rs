@@ -7,11 +7,9 @@ use std::sync::Arc;
 use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::endpoints::info;
 use diverge_sdk::wire::client::handle::Handle;
-use diverge_sdk::wire::client::router::{InvalidAuthorize, Router};
+use diverge_sdk::wire::client::router::InvalidAuthorize;
 use diverge_sdk::wire::connection::Connection;
-use futures_util::StreamExt as _;
 use futures_util::future::{self, Either};
-use tokio::sync::mpsc;
 
 use super::Error;
 use crate::daemon::Daemon;
@@ -66,11 +64,7 @@ pub struct Attached {
 /// served.
 pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Daemon>) -> Result<Attached, Error> {
     daemon.live.reserve_provider(identity.clone()).await;
-    let (sink, stream) = connection.split();
-    let (registration_sender, registration_receiver) = mpsc::unbounded_channel();
-    let (closed_sender, closed_receiver) = mpsc::unbounded_channel();
-    let router = Router::new(stream, registration_receiver, closed_sender);
-    let handle = Handle::new(sink, registration_sender, closed_receiver);
+    let (handle, router) = Handle::open(connection);
     let mut reading: Pin<Box<dyn Future<Output = Result<(), InvalidAuthorize>> + Send>> = Box::pin(router.run());
     let answered = {
         let asked = pin!(info::client::execute::execute(&handle));

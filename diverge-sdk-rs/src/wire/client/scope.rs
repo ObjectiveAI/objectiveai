@@ -1,7 +1,6 @@
 //! One scope a caller opened, and the frames that arrive in it.
 
-use bytes::Bytes;
-use tokio::sync::mpsc::UnboundedReceiver;
+use crate::wire::credit::Receiver;
 
 /// A scope that has been opened, and the frames that will arrive in it.
 ///
@@ -25,17 +24,13 @@ use tokio::sync::mpsc::UnboundedReceiver;
 /// it: the server numbers its own from zero and so does this end, so
 /// the two cannot share a stream without the numbers colliding.
 ///
-/// # Reading is not optional
+/// # Reading paces the server
 ///
-/// The receivers are unbounded, so a caller that stops reading stalls
-/// nothing — not this scope, not the router, not the connection. What
-/// it does instead is grow, at whatever rate the server is sending, and
-/// nothing in this crate bounds that.
-///
-/// Which makes the rule the same and the reason different: drop what
-/// you are not going to read. A dropped receiver makes the router's
-/// sends fail, which it ignores and carries on, and frees what the
-/// queue was holding.
+/// Each receiver holds one frame ahead of its reader and no more: the
+/// server sends the next only when this end has taken the last (see
+/// [`credit`](crate::wire::credit)). A caller that stops reading stalls
+/// that stream alone, and drops what it will not read — a dropped
+/// receiver tells the server, whose sends on it then cost nothing.
 #[derive(Debug)]
 pub struct Scope {
     /// The scope's number, chosen by this end.
@@ -50,10 +45,10 @@ pub struct Scope {
     /// Whole frames, headers included, exactly as they came off the
     /// socket. Ends at the finish frame; the channel closing without
     /// one means the connection went first.
-    pub response_receiver: UnboundedReceiver<Bytes>,
+    pub response_receiver: Receiver,
     /// The requests the server makes inside this scope.
     ///
     /// Whole frames again, and the channel number in each header is the
     /// SERVER's — it is what an answer has to quote to be understood.
-    pub request_receiver: UnboundedReceiver<Bytes>,
+    pub request_receiver: Receiver,
 }

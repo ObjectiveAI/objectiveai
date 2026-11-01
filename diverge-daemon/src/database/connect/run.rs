@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use bytes::Bytes;
 use diverge_sdk::daemon::agent_log::{self as log, Item};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::watch;
 
 use super::{AUTHENTICATION_OK, Packet, auth, cancel, dial, error_response, read_startup, relay};
@@ -26,14 +26,14 @@ use crate::database::scope;
 pub async fn run(
     daemon: Arc<Daemon>,
     key: Key,
-    mut from_container: UnboundedReceiver<Bytes>,
-    to_container: UnboundedSender<Bytes>,
+    mut from_container: Receiver<Bytes>,
+    to_container: Sender<Bytes>,
     touched: watch::Sender<Instant>,
 ) {
     let scope = match scope(&daemon, key).await {
         Ok(scope) => scope,
         Err(why) => {
-            let _ = to_container.send(error_response("08004", &why));
+            let _ = to_container.send(error_response("08004", &why)).await;
             note(&daemon, key, &why).await;
             return;
         }
@@ -51,7 +51,7 @@ pub async fn run(
     let (mut server, encrypted) = match dial::dial(&daemon.database).await {
         Ok(dialled) => dialled,
         Err(why) => {
-            let _ = to_container.send(error_response("08006", &why));
+            let _ = to_container.send(error_response("08006", &why)).await;
             note(&daemon, key, &why).await;
             return;
         }
@@ -62,16 +62,16 @@ pub async fn run(
             let _ = to_container.send(match failure.response {
                 Some(response) => response,
                 None => error_response("08006", &failure.why),
-            });
+            }).await;
             note(&daemon, key, &failure.why).await;
             return;
         }
     };
-    if to_container.send(Bytes::from_static(&AUTHENTICATION_OK)).is_err() {
+    if to_container.send(Bytes::from_static(&AUTHENTICATION_OK)).await.is_err() {
         return;
     }
     for message in established.replay {
-        if to_container.send(message).is_err() {
+        if to_container.send(message).await.is_err() {
             return;
         }
     }

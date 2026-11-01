@@ -5,7 +5,7 @@ import { SendError } from "../client/error.js";
 import type { Handle } from "../client/handle.js";
 import { Receiver } from "../client/receiver.js";
 import type { Scope } from "../client/scope.js";
-import { WIRE_CHANNEL_REQUEST, WIRE_CHANNEL_RESPONSE, WIRE_CHANNEL_RESPONSE_FINISH, WIRE_REQUEST, bytesOf, refusalKind } from "./commands.js";
+import { WIRE_CHANNEL_REQUEST, WIRE_CHANNEL_RESPONSE, WIRE_CHANNEL_RESPONSE_FINISH, WIRE_DROPPED, WIRE_REQUEST, WIRE_TOOK, bytesOf, refusalKind } from "./commands.js";
 import type { Transport } from "./transport.js";
 
 /**
@@ -18,8 +18,15 @@ import type { Transport } from "./transport.js";
  * opens the channel is invoked, since a channel message and the
  * invoke's settlement are unordered across the boundary.
  */
-function feeding(transport: Transport, receiver: Receiver<Uint8Array>): unknown {
+function feeding(transport: Transport): [Receiver<Uint8Array>, unknown] {
   const channel = transport.channel<unknown>();
+  // The page's words about what it read (see `client/window.ts`): every
+  // frame taken lets the next across; abandoning ends the forwarding.
+  // A word that fails is the link gone, which ends the channel anyway.
+  const say = (command: string) => {
+    transport.invoke(command, { channel: channel.id }).catch(() => undefined);
+  };
+  const receiver = new Receiver<Uint8Array>({ took: () => say(WIRE_TOOK), abandoned: () => say(WIRE_DROPPED) });
   channel.onmessage = (message) => {
     const bytes = bytesOf(message);
     if (bytes.length === 0) {
@@ -28,10 +35,9 @@ function feeding(transport: Transport, receiver: Receiver<Uint8Array>): unknown 
       receiver.push(bytes);
     }
   };
-  return channel;
+  return [receiver, channel];
 }
 
-/** A number as the app's Rust answered it. */
 function numberOf(answer: unknown): number {
   if (typeof answer !== "number" || !Number.isInteger(answer) || answer < 0) {
     throw new TypeError("the proxy answered with no number");
@@ -65,17 +71,14 @@ export class ProxyHandle implements Handle {
   }
 
   async sendRequest(payload: Uint8Array): Promise<Scope> {
-    const responseReceiver = new Receiver<Uint8Array>();
-    const requestReceiver = new Receiver<Uint8Array>();
-    const responses = feeding(this.#transport, responseReceiver);
-    const requests = feeding(this.#transport, requestReceiver);
+    const [responseReceiver, responses] = feeding(this.#transport);
+    const [requestReceiver, requests] = feeding(this.#transport);
     const scope = numberOf(await this.#invoke(WIRE_REQUEST, { payload: Array.from(payload), responses, requests }));
     return { scope, responseReceiver, requestReceiver };
   }
 
   async sendChannelRequest(scope: number, payload: Uint8Array): Promise<Channel> {
-    const responseReceiver = new Receiver<Uint8Array>();
-    const responses = feeding(this.#transport, responseReceiver);
+    const [responseReceiver, responses] = feeding(this.#transport);
     const channel = numberOf(await this.#invoke(WIRE_CHANNEL_REQUEST, { scope, payload: Array.from(payload), responses }));
     return { channel, responseReceiver };
   }

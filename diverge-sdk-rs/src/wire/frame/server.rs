@@ -125,6 +125,19 @@ pub enum ServerFrame<'a> {
         /// CLIENT's numbering.
         channel: u32,
     },
+    /// Type `7`. The reader of a stream gives its sender room for one
+    /// more frame, or says it reads nothing more: see
+    /// [`credit`](crate::wire::credit) for the rules. The payload is the
+    /// one byte of its [`Kind`](crate::wire::credit::Kind).
+    Credit {
+        /// The scope.
+        scope: u32,
+        /// The channel whose stream it is, in the numbering of the end
+        /// SENDING that stream; `0` for the scope's own.
+        channel: u32,
+        /// What it says, as its byte.
+        kind: u8,
+    },
 }
 
 /// The nine bytes of header, then the payload's own.
@@ -157,6 +170,7 @@ impl Encode for ServerFrame<'_> {
             ServerFrame::ChannelResponseFinish { scope, channel } => {
                 (6, *scope, *channel)
             }
+            ServerFrame::Credit { scope, channel, .. } => (7, *scope, *channel),
         };
         out.extend_from_slice(&[r#type]);
         out.extend_from_slice(&scope.to_be_bytes());
@@ -171,6 +185,10 @@ impl Encode for ServerFrame<'_> {
             }
             ServerFrame::ResponseFinish { .. }
             | ServerFrame::ChannelResponseFinish { .. } => Ok(()),
+            ServerFrame::Credit { kind, .. } => {
+                out.extend_from_slice(&[*kind]);
+                Ok(())
+            }
         }
     }
 }
@@ -203,6 +221,7 @@ impl<'a> ServerFrame<'a> {
                 payload,
             },
             6 => ServerFrame::ChannelResponseFinish { scope, channel },
+            7 => ServerFrame::Credit { scope, channel, kind: *payload.first().ok_or(FrameError::Truncated)? },
             other => return Err(FrameError::UnknownType(other)),
         })
     }

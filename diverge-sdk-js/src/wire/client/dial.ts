@@ -1,5 +1,6 @@
 // Dialling a daemon: the socket, the handshake, the two halves.
 
+import { encodeClientFrame } from "../frame/client.js";
 import { Connection } from "../connection.js";
 import type { Authenticator, Peer } from "./authenticator.js";
 import { authorize } from "./authorize.js";
@@ -28,7 +29,15 @@ export function url(address: string): string {
 export async function dial(address: string, issuer: string, authenticator: Authenticator): Promise<{ handle: SocketHandle; peer: Peer }> {
   const connection = await Connection.open(url(address));
   const peer = await authorize(connection, issuer, authenticator);
-  const registry = new Registry();
+  // A credit lost to a socket that is closing is nothing: the
+  // connection is over for every stream it would have paced.
+  const registry = new Registry((scope, channel, credit) => {
+    try {
+      connection.send(encodeClientFrame({ kind: "credit", scope, channel, credit }));
+    } catch {
+      return;
+    }
+  });
   const router = new Router(connection, registry);
   void router.run();
   return { handle: new SocketHandle(connection, registry), peer };

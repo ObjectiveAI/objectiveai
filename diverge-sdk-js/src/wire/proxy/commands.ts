@@ -70,6 +70,10 @@ export const WIRE_CHANNEL_RESPONSE = "wire_channel_response";
 export const WIRE_CHANNEL_RESPONSE_FINISH = "wire_channel_response_finish";
 /** `() -> WireStatus`: how the link stands, dialling from idle. */
 export const WIRE_STATUS = "wire_status";
+/** The page took a frame off a channel: the next may come. */
+export const WIRE_TOOK = "wire_took";
+/** The page reads a channel no more: its forwarding ends, and the far end is told. */
+export const WIRE_DROPPED = "wire_dropped";
 /** `()`: back to not yet dialled. */
 export const WIRE_RESET = "wire_reset";
 

@@ -11,7 +11,7 @@ use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::encode::{Encode as _, Writer};
 use diverge_sdk::wire::frame::server::ServerFrame;
 use futures_util::{Stream, stream};
-use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::mpsc::{self};
 use tokio::sync::watch;
 
 use super::client;
@@ -31,7 +31,7 @@ pub type PairFrames = Pin<Box<dyn Stream<Item = pair::server::Owned> + Send>>;
 /// since a container's every frame is a use of it. The far side's
 /// channel closing ends the session, and the session ending ends the
 /// stream.
-pub fn serve_pair(daemon: Arc<Daemon>, who: Who, mut from: UnboundedReceiver<pair::client::Owned>, touched: Option<watch::Sender<Instant>>) -> PairFrames {
+pub fn serve_pair(daemon: Arc<Daemon>, who: Who, mut from: mpsc::Receiver<pair::client::Owned>, touched: Option<watch::Sender<Instant>>) -> PairFrames {
     let (to_session, incoming) = mpsc::unbounded_channel::<Bytes>();
     let (outgoing, from_session) = mpsc::unbounded_channel::<Bytes>();
     tokio::spawn(async move {

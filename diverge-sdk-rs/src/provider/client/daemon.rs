@@ -4,7 +4,6 @@
 use std::future::Future;
 
 use futures_util::Stream;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::shared::containers::daemon;
 
@@ -50,6 +49,6 @@ pub trait Daemon: Send + Sync {
     fn connect(
         &self,
         connection_id: u32,
-        from_program: UnboundedReceiver<daemon::client::Owned>,
+        from_program: tokio::sync::mpsc::Receiver<daemon::client::Owned>,
     ) -> impl Future<Output = Option<Self::Frames>> + Send;
 }

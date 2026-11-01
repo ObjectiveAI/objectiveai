@@ -17,6 +17,7 @@ export * from "./handle.js";
 export * from "./scope.js";
 export * from "./channel.js";
 export * from "./receiver.js";
+export * from "./window.js";
 export * from "./registry.js";
 export * from "./router.js";
 export * from "./socket_handle.js";

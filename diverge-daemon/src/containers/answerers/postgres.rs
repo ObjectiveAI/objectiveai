@@ -7,7 +7,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use diverge_sdk::provider::client::PostgresDialer;
 use futures_util::{Stream, stream};
-use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::mpsc::{self, Receiver};
 
 use super::Answerer;
 use crate::database::connect;
@@ -21,8 +21,10 @@ use crate::database::connect;
 impl PostgresDialer for Answerer {
     type Connection = Pin<Box<dyn Stream<Item = Bytes> + Send>>;
 
-    async fn dial(&self, _: u32, from_container: UnboundedReceiver<Bytes>) -> Option<Self::Connection> {
-        let (to_container, receiver) = mpsc::unbounded_channel::<Bytes>();
+    async fn dial(&self, _: u32, from_container: Receiver<Bytes>) -> Option<Self::Connection> {
+        // One piece deep: the database is read only as fast as the
+        // container's channel takes what it said.
+        let (to_container, receiver) = mpsc::channel::<Bytes>(1);
         tokio::spawn(connect::run(
             Arc::clone(&self.daemon),
             self.key,

@@ -3,13 +3,11 @@
 
 use std::sync::Arc;
 
-use bytes::Bytes;
 use diverge_sdk::wire::client::handle::{Handle, SendError};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::frame::server::ServerFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use tokio::sync::Mutex;
-use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::task::JoinSet;
 
 /// Put `bytes` on `handle` as a request of its own, and carry the
@@ -83,7 +81,7 @@ async fn client_to_remote(scope: Arc<ScopeHandle>, handle: Handle, remote: u32, 
 
 /// The remote's responses on one channel the client opened, sent to
 /// the client under the client's number, to the finish.
-async fn channel_responses_back(scope: Arc<ScopeHandle>, channel: u32, mut responses: UnboundedReceiver<Bytes>) {
+async fn channel_responses_back(scope: Arc<ScopeHandle>, channel: u32, mut responses: diverge_sdk::wire::credit::Receiver) {
     while let Some(frame) = responses.recv().await {
         match ServerFrame::decode(&frame) {
             Ok(ServerFrame::ChannelResponse { payload, .. }) => scope.send_channel_response(channel, payload).await,
@@ -100,7 +98,7 @@ async fn channel_responses_back(scope: Arc<ScopeHandle>, channel: u32, mut respo
 /// client's scope: the request carried over, and a task carrying the
 /// client's responses over under the remote's number. Ends when the
 /// remote's scope stops yielding requests.
-async fn remote_to_client(scope: Arc<ScopeHandle>, handle: Handle, remote: u32, mut requests: UnboundedReceiver<Bytes>, tasks: Arc<Mutex<JoinSet<()>>>) {
+async fn remote_to_client(scope: Arc<ScopeHandle>, handle: Handle, remote: u32, mut requests: diverge_sdk::wire::credit::Receiver, tasks: Arc<Mutex<JoinSet<()>>>) {
     while let Some(frame) = requests.recv().await {
         let Ok(ServerFrame::ChannelRequest { channel, payload, .. }) = ServerFrame::decode(&frame) else {
             continue;

@@ -32,7 +32,10 @@ pub(crate) async fn postgres<P: PostgresDialer>(
     dialer: Arc<P>,
     encoders: Encoders,
 ) -> Result<(), Stop> {
-    let (from_container, receiver) = mpsc::unbounded_channel();
+    // One piece deep: the forwarder takes the container's next piece —
+    // and so gives the container room for another — only once the
+    // dialer has taken this one.
+    let (from_container, receiver) = mpsc::channel(1);
     let Some(from_database) = dialer.dial(connection_id, receiver).await else {
         return finish(handle, scope, channel).await;
     };
@@ -49,7 +52,7 @@ pub(crate) async fn postgres<P: PostgresDialer>(
         while let Some(bytes) = own.response_receiver.recv().await {
             match frame::server::ServerFrame::decode(&bytes) {
                 Ok(frame::server::ServerFrame::ChannelResponse { payload, .. }) => {
-                    if from_container.send(bytes.slice_ref(payload)).is_err() {
+                    if from_container.send(bytes.slice_ref(payload)).await.is_err() {
                         break;
                     }
                 }

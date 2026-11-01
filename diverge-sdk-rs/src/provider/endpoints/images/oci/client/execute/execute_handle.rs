@@ -2,9 +2,7 @@
 
 use std::fmt;
 
-use bytes::Bytes;
 use tokio::sync::Mutex;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::super::channel_request;
 use super::super::super::server::response;
@@ -37,7 +35,7 @@ pub type BlobStream = ChannelStream<OciBlob>;
 pub struct ExecuteHandle {
     handle: Handle,
     scope: u32,
-    main: Mutex<UnboundedReceiver<Bytes>>,
+    main: Mutex<crate::wire::credit::Receiver>,
 }
 
 /// One channel request of this scope, as its bytes.
@@ -48,7 +46,7 @@ fn payload(frame: &channel_request::Frame) -> Result<Vec<u8>, serde_json::Error>
 }
 
 impl ExecuteHandle {
-    pub(super) fn new(handle: Handle, scope: u32, main: UnboundedReceiver<Bytes>) -> Self {
+    pub(super) fn new(handle: Handle, scope: u32, main: crate::wire::credit::Receiver) -> Self {
         ExecuteHandle {
             handle,
             scope,

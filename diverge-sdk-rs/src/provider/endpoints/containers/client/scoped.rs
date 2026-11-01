@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt as _};
-use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::{Mutex, Notify};
 
 use super::{Answered, ChannelStream, UnaryError, Writes, unary};
@@ -49,7 +48,7 @@ pub struct Scoped {
 /// The main stream: still open, or ended one way or another.
 enum Main {
     /// Frames may still come.
-    Open(UnboundedReceiver<Bytes>),
+    Open(crate::wire::credit::Receiver),
     /// Nothing more will: this is how it ended.
     Ended(Ending),
 }
@@ -89,7 +88,7 @@ pub enum Decoded<T> {
 }
 
 impl Scoped {
-    pub(crate) fn new(handle: Handle, scope: u32, writes: Arc<Writes>, main: UnboundedReceiver<Bytes>) -> Self {
+    pub(crate) fn new(handle: Handle, scope: u32, writes: Arc<Writes>, main: crate::wire::credit::Receiver) -> Self {
         Scoped {
             handle,
             scope,

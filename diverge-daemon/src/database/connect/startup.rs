@@ -7,7 +7,7 @@
 //! of what the daemon ever reads of a container's traffic.
 
 use bytes::{Bytes, BytesMut};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{Receiver, Sender};
 
 /// The code of an `SSLRequest`.
 const SSL_REQUEST: i32 = 80877103;
@@ -46,7 +46,7 @@ pub enum Packet {
 /// `GSSENCRequest` answered `N` and read past, a `CancelRequest` or a
 /// `StartupMessage` the answer. None for the container gone first, or
 /// a packet that is none of these.
-pub async fn read_startup(from: &mut UnboundedReceiver<Bytes>, to: &UnboundedSender<Bytes>) -> Option<Packet> {
+pub async fn read_startup(from: &mut Receiver<Bytes>, to: &Sender<Bytes>) -> Option<Packet> {
     let mut buffer = BytesMut::new();
     loop {
         while buffer.len() >= 4 {
@@ -62,7 +62,7 @@ pub async fn read_startup(from: &mut UnboundedReceiver<Bytes>, to: &UnboundedSen
             let code = i32::from_be_bytes([packet[4], packet[5], packet[6], packet[7]]);
             match code {
                 SSL_REQUEST | GSSENC_REQUEST => {
-                    to.send(Bytes::from_static(b"N")).ok()?;
+                    to.send(Bytes::from_static(b"N")).await.ok()?;
                 }
                 CANCEL_REQUEST => {
                     if packet.len() < 16 {

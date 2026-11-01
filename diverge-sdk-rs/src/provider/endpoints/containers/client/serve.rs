@@ -3,8 +3,6 @@
 
 use std::sync::Arc;
 
-use bytes::Bytes;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::answer;
 use super::{Ask, Encoders, Writes};
@@ -30,7 +28,7 @@ use crate::wire::frame;
 /// order, and an agent making several calls at once is the ordinary
 /// case.
 pub(crate) async fn serve<O, T, P, D, M, F>(
-    mut requests: UnboundedReceiver<Bytes>,
+    mut requests: crate::wire::credit::Receiver,
     handle: Handle,
     scope: u32,
     writes: Arc<Writes>,

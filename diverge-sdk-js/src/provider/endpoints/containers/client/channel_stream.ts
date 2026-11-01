@@ -64,17 +64,29 @@ export class ChannelStream<T, R> implements AsyncIterable<T> {
   }
 
   #end(error: ChannelStreamError<R>): ChannelStreamError<R> {
+    this.#receiver?.abandon();
     this.#receiver = undefined;
     return error;
   }
 
+  /** Read nothing more: the far end is told. */
+  abandon(): void {
+    this.#receiver?.abandon();
+    this.#receiver = undefined;
+  }
+
+  /** Reading to the end; leaving the loop early abandons the rest. */
   async *[Symbol.asyncIterator](): AsyncIterator<T> {
-    for (;;) {
-      const item = await this.next();
-      if (item === undefined) {
-        return;
+    try {
+      for (;;) {
+        const item = await this.next();
+        if (item === undefined) {
+          return;
+        }
+        yield item;
       }
-      yield item;
+    } finally {
+      this.abandon();
     }
   }
 }

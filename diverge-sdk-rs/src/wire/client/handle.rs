@@ -2,18 +2,21 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use bytes::Bytes;
 use futures_util::SinkExt as _;
+use futures_util::StreamExt as _;
 use futures_util::stream::SplitSink;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 use super::channel::Channel;
 use super::registration::Registration;
+use super::router::Router;
 use super::scope::Scope;
 use crate::wire::connection::{self, Connection};
+use crate::wire::credit::{Credit, Ended, Go, Receiver, Window};
 use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame::client::ClientFrame;
 
@@ -52,29 +55,37 @@ use crate::wire::frame::client::ClientFrame;
 pub struct Handle(Arc<Mutex<HandleInner>>);
 
 impl Handle {
-    /// Take the three parts, from whoever made all of them.
+    /// Split a connection that has done its handshake into the handle
+    /// that writes it and the [`Router`] that reads it.
     ///
-    /// The write half of a split [`Connection`], the sending end of the
-    /// registration channel, and the receiving end of the closure
-    /// channel — the exact complements of what a
-    /// [`Router`](super::router::Router) is given. None of them is made
-    /// here, because a split and a channel each produce two ends and
-    /// only one of each belongs on this side.
-    ///
-    /// Pairing them correctly is the caller's to get right, and nothing
-    /// here can check it. Two halves of different sockets, or channels
-    /// crossed with another connection's, type-check exactly as well as
-    /// the right ones.
-    pub fn new(
-        sink: SplitSink<Connection, Bytes>,
-        registration_sender: UnboundedSender<Registration>,
-        closed_receiver: UnboundedReceiver<(u32, Option<u32>)>,
-    ) -> Self {
-        Handle(Arc::new(Mutex::new(HandleInner::new(
-            sink,
-            registration_sender,
-            closed_receiver,
-        ))))
+    /// The router is the caller's to run, on a task of its own, for as
+    /// long as the connection lasts: nothing arrives anywhere until it
+    /// does, and its end is the connection's.
+    pub fn open(connection: Connection) -> (Handle, Router) {
+        let (sink, stream) = connection.split();
+        let (registration_sender, registration_receiver) = mpsc::unbounded_channel();
+        let (closed_sender, closed_receiver) = mpsc::unbounded_channel();
+        let (windows_sender, windows_receiver) = mpsc::unbounded_channel();
+        let (outbox, outbox_receiver) = mpsc::unbounded_channel();
+        let handle = Handle(Arc::new(Mutex::new(HandleInner::new(sink, registration_sender, closed_receiver, windows_receiver, outbox))));
+        let router = Router::new(stream, registration_receiver, closed_sender, windows_sender, outbox_receiver, handle.downgrade());
+        (handle, router)
+    }
+
+    /// A handle that does not keep the connection: what the router's
+    /// credit pump holds, so that the handles callers hold are what
+    /// keep it open.
+    pub(super) fn downgrade(&self) -> WeakHandle {
+        WeakHandle(Arc::downgrade(&self.0))
+    }
+
+    /// Send one credit (see [`credit`](crate::wire::credit)).
+    pub(super) async fn send_credit(&self, credit: Credit) -> Result<(), SendError> {
+        self.0
+            .lock()
+            .await
+            .send_frame(ClientFrame::Credit { scope: credit.scope, channel: credit.channel, kind: credit.kind as u8 })
+            .await
     }
 
     /// Open a scope, and send the request that opens it.
@@ -94,19 +105,13 @@ impl Handle {
     /// callers racing here would otherwise be two callers with the same
     /// scope.
     ///
-    /// # There is no depth to choose
+    /// # One frame ahead
     ///
-    /// The two receivers it comes back with are unbounded, so nothing
-    /// here asks a caller how far a provider may run ahead of it. That
-    /// question had no good answer: a volume listing answers once and a
-    /// file read answers in chunks for as long as the file lasts, and
-    /// one number for both was always going to be wrong for one of
-    /// them.
-    ///
-    /// What a caller owes in exchange is to read what it asked for. An
-    /// unread queue grows rather than stalling anything, so the cost of
-    /// walking away is memory, and the remedy is to drop the
-    /// [`Scope`] — see it for what that does.
+    /// The two receivers it comes back with hold one frame ahead of
+    /// their reader, and the server sends the next only into the room
+    /// taking the last one made (see [`credit`](crate::wire::credit)). A
+    /// caller that stops reading stalls that stream and nothing else; a
+    /// caller that will not read drops the [`Scope`].
     pub async fn send_request(
         &self,
         payload: &[u8],
@@ -142,6 +147,15 @@ impl Handle {
         scope: u32,
         payload: &[u8],
     ) -> Result<Channel, SendError> {
+        // The room is waited for unlocked: one stream waiting must not
+        // take the connection from every other.
+        let asked = self.0.lock().await.asked(scope)?;
+        match asked.take().await {
+            Ok(Go::Send) => {}
+            // The server reads no more channel requests in this scope.
+            Ok(Go::Skip) => return Err(SendError::Scope),
+            Err(ended) => return Err(SendError::ended(ended)),
+        }
         self.0.lock().await.send_channel_request(scope, payload).await
     }
 
@@ -189,6 +203,14 @@ impl Handle {
         channel: u32,
         payload: &[u8],
     ) -> Result<(), SendError> {
+        let window = self.0.lock().await.answer(scope, channel)?;
+        match window.take().await {
+            Ok(Go::Send) => {}
+            // The server reads no more of this answer: sending it is
+            // nothing.
+            Ok(Go::Skip) => return Ok(()),
+            Err(ended) => return Err(SendError::ended(ended)),
+        }
         self.0
             .lock()
             .await
@@ -292,6 +314,11 @@ struct HandleInner {
     /// the stream is over, and this tells whoever is minting numbers
     /// that the number is free.
     closed_receiver: UnboundedReceiver<(u32, Option<u32>)>,
+    /// Where the router hands over the window of each channel the
+    /// server opens, before the request is filed.
+    windows_receiver: UnboundedReceiver<(u32, u32, Window)>,
+    /// Where this end's readers post the credits they owe.
+    outbox: UnboundedSender<Credit>,
     /// Where the next scope number comes from.
     ///
     /// Nobody else mints one, on this connection or anywhere: a scope
@@ -323,7 +350,7 @@ struct HandleInner {
     /// against them. What arrives on one goes to a receiver the router
     /// holds, so the only fact this side keeps is that the number is in
     /// use.
-    scopes: HashMap<u32, (u32, HashSet<u32>)>,
+    scopes: HashMap<u32, Open>,
     /// Where a frame is built, before it is handed to the socket.
     ///
     /// One buffer for the whole connection, which the lock is what
@@ -359,11 +386,15 @@ impl HandleInner {
         sink: SplitSink<Connection, Bytes>,
         registration_sender: UnboundedSender<Registration>,
         closed_receiver: UnboundedReceiver<(u32, Option<u32>)>,
+        windows_receiver: UnboundedReceiver<(u32, u32, Window)>,
+        outbox: UnboundedSender<Credit>,
     ) -> Self {
         HandleInner {
             sink,
             registration_sender,
             closed_receiver,
+            windows_receiver,
+            outbox,
             scope_counter: 0,
             scopes: HashMap::new(),
             buffer: Vec::new(),
@@ -402,13 +433,15 @@ impl HandleInner {
     ) -> Result<Scope, SendError> {
         self.take_back();
         let scope = self.mint_scope();
-        let (response_sender, response_receiver) = mpsc::unbounded_channel();
-        let (request_sender, request_receiver) = mpsc::unbounded_channel();
+        let (response_filer, response_receiver) = Receiver::new(self.outbox.clone(), scope, 0, false);
+        let (request_filer, request_receiver) = Receiver::new(self.outbox.clone(), scope, 0, true);
+        let asked = self.scopes.get(&scope).map(|open| open.asked.clone()).unwrap_or_default();
         self.registration_sender
             .send(Registration::Scope {
                 scope,
-                response_sender,
-                request_sender,
+                response_filer,
+                request_filer,
+                asked,
             })
             .map_err(|_| SendError::Router)?;
         self.send_frame(ClientFrame::Request { scope, payload }).await?;
@@ -440,12 +473,12 @@ impl HandleInner {
         let channel = mint_channel(
             self.scopes.get_mut(&scope).ok_or(SendError::Scope)?,
         );
-        let (response_sender, response_receiver) = mpsc::unbounded_channel();
+        let (response_filer, response_receiver) = Receiver::new(self.outbox.clone(), scope, channel, false);
         self.registration_sender
             .send(Registration::Channel {
                 scope,
                 channel,
-                response_sender,
+                response_filer,
             })
             .map_err(|_| SendError::Router)?;
         self.send_frame(ClientFrame::ChannelRequest {
@@ -492,8 +525,27 @@ impl HandleInner {
         if !self.holds(scope) {
             return Err(SendError::Scope);
         }
+        if let Some(open) = self.scopes.get_mut(&scope) {
+            open.answers.remove(&channel);
+        }
+        let _ = self.registration_sender.send(Registration::Answered { scope, channel });
         self.send_frame(ClientFrame::ChannelResponseFinish { scope, channel })
             .await
+    }
+
+    /// The scope's room for channel requests; [`SendError::Scope`] if it
+    /// is not open.
+    fn asked(&mut self, scope: u32) -> Result<Window, SendError> {
+        self.take_back();
+        self.scopes.get(&scope).map(|open| open.asked.clone()).ok_or(SendError::Scope)
+    }
+
+    /// The room on a channel the server opened. A scope that is not
+    /// open, or a channel the server never opened in it, is
+    /// [`SendError::Scope`]: nothing the server would read.
+    fn answer(&mut self, scope: u32, channel: u32) -> Result<Window, SendError> {
+        self.take_back();
+        self.scopes.get(&scope).and_then(|open| open.answers.get(&channel).cloned()).ok_or(SendError::Scope)
     }
 
     /// Whether this end still has that scope.
@@ -552,15 +604,19 @@ impl HandleInner {
     /// one, is nothing to do. Both mean the same thing, which is that
     /// the number is not in use.
     fn take_back(&mut self) {
+        while let Ok((scope, channel, window)) = self.windows_receiver.try_recv() {
+            if let Some(open) = self.scopes.get_mut(&scope) {
+                open.answers.insert(channel, window);
+            }
+        }
         while let Ok((scope, channel)) = self.closed_receiver.try_recv() {
             match channel {
                 None => {
                     self.scopes.remove(&scope);
                 }
                 Some(channel) => {
-                    if let Some((_, channels)) = self.scopes.get_mut(&scope)
-                    {
-                        channels.remove(&channel);
+                    if let Some(open) = self.scopes.get_mut(&scope) {
+                        open.channels.remove(&channel);
                     }
                 }
             }
@@ -585,7 +641,7 @@ impl HandleInner {
             self.scope_counter = self.scope_counter.wrapping_add(1);
             let scope = self.scope_counter;
             if !self.scopes.contains_key(&scope) {
-                self.scopes.insert(scope, (0, HashSet::new()));
+                self.scopes.insert(scope, Open::default());
                 return scope;
             }
         }
@@ -602,12 +658,34 @@ impl HandleInner {
 /// A free function because a scope's state is a
 /// `(counter, channels)` pair rather than a type — two numbers with
 /// nothing to hold them together but the entry they live in.
-fn mint_channel((counter, channels): &mut (u32, HashSet<u32>)) -> u32 {
+fn mint_channel(open: &mut Open) -> u32 {
     loop {
-        *counter = counter.wrapping_add(1);
-        if channels.insert(*counter) {
-            return *counter;
+        open.counter = open.counter.wrapping_add(1);
+        if open.channels.insert(open.counter) {
+            return open.counter;
         }
+    }
+}
+
+/// One scope this end has open: where its next channel number comes
+/// from, which are open, its room for channel requests, and its room on
+/// each channel the server opened in it.
+#[derive(Debug, Default)]
+struct Open {
+    counter: u32,
+    channels: HashSet<u32>,
+    asked: Window,
+    answers: HashMap<u32, Window>,
+}
+
+/// A [`Handle`] that does not keep its connection open.
+#[derive(Debug, Clone)]
+pub struct WeakHandle(Weak<Mutex<HandleInner>>);
+
+impl WeakHandle {
+    /// The handle, while any other is held.
+    pub fn upgrade(&self) -> Option<Handle> {
+        self.0.upgrade().map(Handle)
     }
 }
 
@@ -665,6 +743,17 @@ pub enum SendError {
     /// still writing an answer into a scope that ended should stop
     /// writing it, and can carry on doing everything else.
     Scope,
+}
+
+impl SendError {
+    /// A window's ending, as a send's: the scope's, or the connection's
+    /// seen from the router's end.
+    fn ended(ended: Ended) -> Self {
+        match ended {
+            Ended::Scope => SendError::Scope,
+            Ended::Connection => SendError::Router,
+        }
+    }
 }
 
 impl fmt::Display for SendError {

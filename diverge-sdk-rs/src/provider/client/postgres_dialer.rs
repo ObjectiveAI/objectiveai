@@ -4,7 +4,6 @@ use std::future::Future;
 
 use bytes::Bytes;
 use futures_util::Stream;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 /// How a caller carries a container's database connection to a
 /// database it holds.
@@ -32,6 +31,6 @@ pub trait PostgresDialer: Send + Sync {
     fn dial(
         &self,
         connection_id: u32,
-        from_container: UnboundedReceiver<Bytes>,
+        from_container: tokio::sync::mpsc::Receiver<Bytes>,
     ) -> impl Future<Output = Option<Self::Connection>> + Send;
 }

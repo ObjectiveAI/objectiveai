@@ -4,9 +4,7 @@ use std::fmt;
 use std::pin::Pin;
 use std::task::{Context, Poll, ready};
 
-use bytes::Bytes;
 use futures_util::Stream;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::super::super::server::response;
 use crate::wire::decode::Decode as _;
@@ -21,11 +19,11 @@ use crate::shared::filetree;
 #[must_use = "a scope that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct ExecuteStream {
-    receiver: Option<UnboundedReceiver<Bytes>>,
+    receiver: Option<crate::wire::credit::Receiver>,
 }
 
 impl ExecuteStream {
-    pub(super) fn new(receiver: UnboundedReceiver<Bytes>) -> Self {
+    pub(super) fn new(receiver: crate::wire::credit::Receiver) -> Self {
         ExecuteStream {
             receiver: Some(receiver),
         }

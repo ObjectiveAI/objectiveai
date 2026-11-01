@@ -1,9 +1,11 @@
-//! The six commands: the four sends, and the link's two.
+//! The eight commands: the four sends, the page's two words about
+//! what it took, and the link's two.
 
-use bytes::Bytes;
+use std::sync::Arc;
+
 use tauri::State;
 use tauri::ipc::{Channel, Response};
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::Semaphore;
 
 use super::TauriProxy;
 use crate::wire::proxy::{Refusal, WireStatus, forward};
@@ -18,8 +20,8 @@ pub async fn wire_request(proxy: State<'_, TauriProxy>, payload: Vec<u8>, respon
     let link = proxy.link();
     let handle = link.handle().await?;
     let scope = link.sent(handle.send_request(&payload).await).await?;
-    pump(scope.response_receiver, responses);
-    pump(scope.request_receiver, requests);
+    pump(&proxy, scope.response_receiver, responses).await;
+    pump(&proxy, scope.request_receiver, requests).await;
     Ok(scope.scope)
 }
 
@@ -32,7 +34,7 @@ pub async fn wire_channel_request(proxy: State<'_, TauriProxy>, scope: u32, payl
     let link = proxy.link();
     let handle = link.handle().await?;
     let channel = link.sent(handle.send_channel_request(scope, &payload).await).await?;
-    pump(channel.response_receiver, responses);
+    pump(&proxy, channel.response_receiver, responses).await;
     Ok(channel.channel)
 }
 
@@ -70,12 +72,41 @@ pub async fn wire_reset(proxy: State<'_, TauriProxy>) -> Result<(), Refusal> {
     Ok(())
 }
 
+/// The page took a frame off the channel with this id: the next may
+/// come. A channel no longer forwarded is nothing.
+#[tauri::command]
+pub async fn wire_took(proxy: State<'_, TauriProxy>, channel: u32) -> Result<(), Refusal> {
+    if let Some(took) = proxy.pumps().lock().await.get(&channel) {
+        took.add_permits(1);
+    }
+    Ok(())
+}
+
+/// The page reads the channel with this id no more: its forwarding
+/// ends, and the receiver is dropped, which tells the far end (see
+/// [`credit`](crate::wire::credit)).
+#[tauri::command]
+pub async fn wire_dropped(proxy: State<'_, TauriProxy>, channel: u32) -> Result<(), Refusal> {
+    if let Some(took) = proxy.pumps().lock().await.remove(&channel) {
+        took.close();
+    }
+    Ok(())
+}
+
 /// Forward every frame `receiver` yields on `channel`, whole, then the
 /// end — one empty message — when the receiver closes:
-/// [`forward()`], with the page's channel as its delivery. A delivery
-/// that fails is the page gone, which ends the forwarding and drops
-/// the receiver. The bytes cross as a raw response: a channel of plain
-/// bytes would cross as a JSON list of numbers.
-fn pump(receiver: UnboundedReceiver<Bytes>, channel: Channel<Response>) {
-    tauri::async_runtime::spawn(forward(receiver, move |frame| channel.send(Response::new(frame.map(|bytes| bytes.to_vec()).unwrap_or_default())).is_ok()));
+/// [`forward()`], with the page's channel as its delivery, and the
+/// next frame only once the page has taken the last ([`wire_took`]).
+/// A delivery that fails is the page gone, which ends the forwarding
+/// and drops the receiver. The bytes cross as a raw response: a
+/// channel of plain bytes would cross as a JSON list of numbers.
+async fn pump(proxy: &TauriProxy, receiver: crate::wire::credit::Receiver, channel: Channel<Response>) {
+    let id = channel.id();
+    let took = Arc::new(Semaphore::new(0));
+    let pumps = Arc::clone(proxy.pumps());
+    pumps.lock().await.insert(id, Arc::clone(&took));
+    tauri::async_runtime::spawn(async move {
+        forward(receiver, move |frame| channel.send(Response::new(frame.map(|bytes| bytes.to_vec()).unwrap_or_default())).is_ok(), took).await;
+        pumps.lock().await.remove(&id);
+    });
 }

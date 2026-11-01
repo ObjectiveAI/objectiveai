@@ -2,8 +2,6 @@
 
 use std::fmt;
 
-use bytes::Bytes;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
@@ -26,11 +24,11 @@ pub struct Accepting {
     pub identity: crate::shared::Identity,
     handle: Handle,
     scope: u32,
-    responses: UnboundedReceiver<Bytes>,
+    responses: crate::wire::credit::Receiver,
 }
 
 impl Accepting {
-    pub(super) fn new(identity: crate::shared::Identity, handle: Handle, scope: u32, responses: UnboundedReceiver<Bytes>) -> Self {
+    pub(super) fn new(identity: crate::shared::Identity, handle: Handle, scope: u32, responses: crate::wire::credit::Receiver) -> Self {
         Accepting {
             identity,
             handle,

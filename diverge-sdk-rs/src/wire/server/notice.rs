@@ -1,7 +1,6 @@
 //! What a scope tells the session that the session cannot see.
 
-use bytes::Bytes;
-use tokio::sync::mpsc::UnboundedSender;
+use crate::wire::credit::Filer;
 
 /// What a scope tells the session it is doing.
 ///
@@ -35,7 +34,7 @@ pub(super) enum Notice {
         /// The channel, chosen by this end.
         channel: u32,
         /// Where the client's answers on it go.
-        response_sender: UnboundedSender<Bytes>,
+        response_filer: Filer,
     },
     /// Something is gone: a whole scope for [`None`], one channel
     /// inside it for [`Some`].
@@ -47,4 +46,8 @@ pub(super) enum Notice {
     /// map is nested — a scope's end is one removal rather than a scan
     /// for everything that belonged to it.
     Closed(u32, Option<u32>),
+    /// This end finished its answer on a channel the client opened, so
+    /// that answer's window is done with: `(scope, channel)`, the
+    /// channel in the CLIENT's numbering.
+    Answered(u32, u32),
 }

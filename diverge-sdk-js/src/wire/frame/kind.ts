@@ -29,3 +29,5 @@ export const CHANNEL_REQUEST = 4;
 export const CHANNEL_RESPONSE = 5;
 /** The channel's responder ending its answer, and the channel. */
 export const CHANNEL_RESPONSE_FINISH = 6;
+/** Credit: the reader of a stream gives its sender room for one more frame, or says it reads no more (`client/window.ts`). Both ends send it. */
+export const CREDIT = 7;

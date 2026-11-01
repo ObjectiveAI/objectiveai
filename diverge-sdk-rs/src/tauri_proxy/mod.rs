@@ -48,7 +48,7 @@
 //! made on the native side, through the
 //! [`Authenticator`](crate::wire::handshake::Authenticator) the app
 //! supplies, backed by the host's [`identities`](crate::identities).
-//! [`COMMANDS`] names the six, for an app that lists or checks them.
+//! [`COMMANDS`] names the eight, for an app that lists or checks them.
 
 mod commands;
 mod proxy;
@@ -56,5 +56,5 @@ mod proxy;
 pub use commands::*;
 pub use proxy::*;
 
-/// The six commands, by the names the page invokes them with.
-pub const COMMANDS: [&str; 6] = ["wire_request", "wire_channel_request", "wire_channel_response", "wire_channel_response_finish", "wire_status", "wire_reset"];
+/// The eight commands, by the names the page invokes them with.
+pub const COMMANDS: [&str; 8] = ["wire_request", "wire_channel_request", "wire_channel_response", "wire_channel_response_finish", "wire_took", "wire_dropped", "wire_status", "wire_reset"];

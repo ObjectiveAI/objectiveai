@@ -2,7 +2,6 @@
 
 use bytes::Bytes;
 use tokio::sync::Mutex;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::super::channel_request;
 use super::AskError;
@@ -26,11 +25,11 @@ pub struct ExecuteHandle {
     scope: u32,
     /// The scope's main stream after the serving: quiet until the
     /// finish that answers the stop, or the connection's end.
-    finish: Mutex<UnboundedReceiver<Bytes>>,
+    finish: Mutex<crate::wire::credit::Receiver>,
 }
 
 impl ExecuteHandle {
-    pub(super) fn new(handle: Handle, scope: u32, finish: UnboundedReceiver<Bytes>) -> Self {
+    pub(super) fn new(handle: Handle, scope: u32, finish: crate::wire::credit::Receiver) -> Self {
         ExecuteHandle {
             handle,
             scope,

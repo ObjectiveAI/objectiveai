@@ -1,6 +1,9 @@
 //! What the app manages.
 
+use std::collections::HashMap;
 use std::sync::Arc;
+
+use tokio::sync::{Mutex, Semaphore};
 
 use crate::wire::handshake::Authenticator;
 use crate::wire::proxy::{Link, Redial};
@@ -8,7 +11,7 @@ use crate::wire::proxy::{Link, Redial};
 /// The state the commands read: one [`Link`] to one daemon. The app
 /// manages exactly one, with `tauri::Builder::manage`; the commands
 /// fail to resolve it otherwise.
-pub struct TauriProxy(Link);
+pub struct TauriProxy(Link, Arc<Mutex<HashMap<u32, Arc<Semaphore>>>>);
 
 impl TauriProxy {
     /// The daemon at `address`, its handshake made from `issuer`
@@ -27,11 +30,17 @@ impl TauriProxy {
         if let Redial::Every(_) = redial {
             tauri::async_runtime::spawn(link.redial());
         }
-        TauriProxy(link)
+        TauriProxy(link, Arc::default())
     }
 
     /// The link the commands use.
     pub fn link(&self) -> &Link {
         &self.0
+    }
+
+    /// The page's channels being forwarded, by their ids: each one's
+    /// permits, one given each time the page takes a frame.
+    pub(super) fn pumps(&self) -> &Arc<Mutex<HashMap<u32, Arc<Semaphore>>>> {
+        &self.1
     }
 }

@@ -1,18 +1,19 @@
 //! One scope, and everything a provider does inside it.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::SinkExt as _;
 use futures_util::stream::SplitSink;
 use tokio::sync::Mutex;
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use super::channel::Channel;
 use super::notice::Notice;
 use super::verdict::{Hook, Verdict};
 use crate::wire::connection::Connection;
+use crate::wire::credit::{Credit, Go, Receiver, Window};
 use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame::server::ServerFrame;
 
@@ -102,7 +103,16 @@ pub struct ScopeHandle {
     /// reads it, so the lock is never contended — it is what makes
     /// [`recv_channel_request`](Self::recv_channel_request) take
     /// `&self` like the rest, not a way of arbitrating anything.
-    channel_request_receiver: Mutex<UnboundedReceiver<Bytes>>,
+    channel_request_receiver: Mutex<Receiver>,
+    /// This end's room for responses in the scope.
+    responses: Window,
+    /// This end's room for channel requests in the scope.
+    asked: Window,
+    /// This end's room on each channel the client opened, as the
+    /// session hands them over, by the client's number.
+    answers: Mutex<(HashMap<u32, Window>, UnboundedReceiver<(u32, Window)>)>,
+    /// Where this end's readers post the credits they owe.
+    outbox: UnboundedSender<Credit>,
     /// Everything it takes to hand out a channel number.
     ///
     /// One lock rather than three fields, because minting reads all of
@@ -178,16 +188,24 @@ impl ScopeHandle {
     /// The bookkeeping is not among them. A scope starts having opened
     /// nothing and written nothing, its first channel at `1`, and there
     /// is no other answer a caller could give.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         scope: u32,
-        channel_request_receiver: UnboundedReceiver<Bytes>,
+        channel_request_receiver: Receiver,
         finished_channel_receiver: UnboundedReceiver<u32>,
         notice_sender: UnboundedSender<Notice>,
         sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
+        (responses, asked): (Window, Window),
+        answers_receiver: UnboundedReceiver<(u32, Window)>,
+        outbox: UnboundedSender<Credit>,
     ) -> Self {
         ScopeHandle {
             scope,
             channel_request_receiver: Mutex::new(channel_request_receiver),
+            responses,
+            asked,
+            answers: Mutex::new((HashMap::new(), answers_receiver)),
+            outbox,
             minter: Mutex::new(Minter {
                 counter: 0,
                 channels: HashSet::new(),
@@ -266,6 +284,11 @@ impl ScopeHandle {
         let hook = self.verdict.lock().await.take();
         if let Some(hook) = hook {
             hook(Verdict::Response(payload));
+        }
+        // Without room this waits; with no reader, or no scope, it is
+        // nothing (see `credit`).
+        if self.responses.take().await != Ok(Go::Send) {
+            return;
         }
         self.send_frame(ServerFrame::Response {
             scope: self.scope,
@@ -360,12 +383,18 @@ impl ScopeHandle {
     /// makes a session's drain-on-miss enough to close the race rather
     /// than merely narrow it.
     pub async fn send_channel_request(&self, payload: &[u8]) -> Channel {
+        // A client that reads no more channel requests, or a scope that
+        // is over, answers nothing: a channel that ends at once.
+        if self.asked.take().await != Ok(Go::Send) {
+            let (_, response_receiver) = Receiver::new(self.outbox.clone(), self.scope, 0, false);
+            return Channel { channel: 0, response_receiver, scope: self.scope, notice_sender: self.notice_sender.clone() };
+        }
         let channel = self.mint().await;
-        let (response_sender, response_receiver) = mpsc::unbounded_channel();
+        let (response_filer, response_receiver) = Receiver::new(self.outbox.clone(), self.scope, channel, false);
         let _ = self.notice_sender.send(Notice::Register {
             scope: self.scope,
             channel,
-            response_sender,
+            response_filer,
         });
         self.send_frame(ServerFrame::ChannelRequest {
             scope: self.scope,
@@ -411,6 +440,10 @@ impl ScopeHandle {
         channel: u32,
         payload: &[u8],
     ) {
+        let Some(window) = self.answer(channel).await else { return };
+        if window.take().await != Ok(Go::Send) {
+            return;
+        }
         self.send_frame(ServerFrame::ChannelResponse {
             scope: self.scope,
             channel,
@@ -436,6 +469,8 @@ impl ScopeHandle {
     /// to this handle when the client finishes a channel THIS end
     /// opened.
     pub async fn send_channel_response_finish(&self, channel: u32) {
+        self.answers.lock().await.0.remove(&channel);
+        let _ = self.notice_sender.send(Notice::Answered(self.scope, channel));
         self.send_frame(ServerFrame::ChannelResponseFinish {
             scope: self.scope,
             channel,
@@ -452,6 +487,17 @@ impl ScopeHandle {
     /// another task choose the same number in between.
     async fn mint(&self) -> u32 {
         self.minter.lock().await.mint()
+    }
+
+    /// The room on a channel the client opened: `None` for one it never
+    /// opened, or one already answered.
+    async fn answer(&self, channel: u32) -> Option<Window> {
+        let mut answers = self.answers.lock().await;
+        let (windows, handed) = &mut *answers;
+        while let Ok((number, window)) = handed.try_recv() {
+            windows.insert(number, window);
+        }
+        windows.get(&channel).cloned()
     }
 
     /// Build one frame and write it.

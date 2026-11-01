@@ -1,7 +1,11 @@
 //! One receiver's frames, delivered to the page, then the end.
 
+use std::sync::Arc;
+
 use bytes::Bytes;
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::Semaphore;
+
+use crate::wire::credit::Receiver;
 
 /// Deliver every frame `receiver` yields, then the end.
 ///
@@ -12,7 +16,12 @@ use tokio::sync::mpsc::UnboundedReceiver;
 /// 2. When the receiver closes — the router forwarded a finish and
 ///    closed it, the scope ended, or the connection ended — `None`
 ///    is delivered exactly once, the end, and nothing after.
-/// 3. `deliver` answers whether the page is still listening. The
+/// 3. After each frame, the next is taken off the receiver only once
+///    the page says it took this one: a permit on `took`. Taking it
+///    is what gives the far end room for another (see
+///    [`credit`](crate::wire::credit)), so at most one frame waits
+///    here and one in the page. `took` closed is the page gone.
+/// 4. `deliver` answers whether the page is still listening. The
 ///    first `false` ends the forwarding at once: the receiver is
 ///    dropped, which frees the queue nobody reads and makes the
 ///    router's sends to it fail, which the router ignores. Nothing
@@ -22,13 +31,18 @@ use tokio::sync::mpsc::UnboundedReceiver;
 /// closes for exactly the reasons the page's own socket client
 /// closes its receivers, so delivering its closure is delivering the
 /// same fact the page would have had over a socket.
-pub async fn forward<F>(mut receiver: UnboundedReceiver<Bytes>, mut deliver: F)
+pub async fn forward<F>(mut receiver: Receiver, mut deliver: F, took: Arc<Semaphore>)
 where
     F: FnMut(Option<Bytes>) -> bool,
 {
     while let Some(frame) = receiver.recv().await {
         if !deliver(Some(frame)) {
             return;
+        }
+        // Rule 3.
+        match took.acquire().await {
+            Ok(permit) => permit.forget(),
+            Err(_) => return,
         }
     }
     deliver(None);

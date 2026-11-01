@@ -24,6 +24,7 @@
 
 pub mod client;
 pub mod connection;
+pub mod credit;
 pub mod decode;
 pub mod encode;
 pub mod frame;
