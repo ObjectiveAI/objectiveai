@@ -18,7 +18,11 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   agent or tool swaps the sheet to it; clicking it again, or ✕, closes it. The sheet has two tabs, `logs` and
   `filesystem` (`sheet/files.ts`, `sheet/filetree.ts`): an agent's, tool's or dependency tool's container tree watched
   live (`<family> filetree`), a volume's asked once (`volumes filetree`, ↻ asks again) — columns of name, size, created
-  and modified, directories first, sortable headers, changed rows glowing. Browse only: no file is opened. An account
+  and modified, directories first, sortable headers, changed rows glowing. Every row's ⤓ downloads it — a file, or a folder whole — where the
+  system's dialog says; files dragged onto the tree upload into the directory they are aimed at (its rows glow, a line
+  says where), a volume re-read after. The app's Rust moves the bytes (`src-tauri/src/transfer.rs`), disk to wire in
+  2 MiB pieces one frame ahead, never through the page; the strip at the window's corner (`sheet/strip.ts`) shows
+  each transfer and stops it. An account
   has only logs, a volume only its files; each tab starts reading the first time it is shown, and the tab last chosen
   carries to the next sheet.
 - **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): a dark Tron grid, every agent,

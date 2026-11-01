@@ -5,6 +5,8 @@ import type { shared } from "@diverge/sdk";
 import type { Files as Target } from "../world/model";
 import { type Root, readTree } from "./filetree";
 import type { Following } from "./log";
+import { bytes, strip } from "./strip";
+import { type Drag, download, onDrag, upload } from "./transfer";
 
 type Node = shared.filetree.response.Node;
 
@@ -14,19 +16,6 @@ type Column = (typeof COLUMNS)[number];
 
 /** How long a changed row glows, in milliseconds; the CSS animation's own length. */
 const FLASH = 1200;
-
-/** A byte count in words: `532 B`, `1.4 KB`, `12.0 MB`, `108 GB`. */
-function bytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  const units = ["KB", "MB", "GB", "TB"];
-  let value = n;
-  let unit = -1;
-  do {
-    value /= 1024;
-    unit++;
-  } while (value >= 1024 && unit < units.length - 1);
-  return `${value >= 100 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
-}
 
 /** Unix seconds as a local time: `2026-07-14 09:31`. */
 function when(seconds: number): string {
@@ -80,6 +69,17 @@ const keyOf = (path: string[]) => path.join("\0");
  *    files`; a read that ends says why, under the last tree if there
  *    was one.
  * 8. A volume's header holds ↻, which asks again.
+ * 9. Every row holds ⤓, shown while the row is pointed at: it
+ *    downloads the file, or the directory whole, where the system's
+ *    dialog says (`download`), its total the tree's sizes.
+ * 10. Files dragged over the pane are aimed at a directory: the one
+ *    pointed at, a file's own directory, or the root on the pane's
+ *    empty space. That directory's row and what is open beneath it
+ *    glow, and a line says where they go. Dropped there, they are
+ *    uploaded (`upload`); a volume's tree is read again once they
+ *    land. Outside the pane, or while the pane is not shown, nothing
+ *    is aimed at.
+ * 11. Transfers run in the strip (`strip`), which outlives the sheet.
  */
 export class Files {
   private readonly head: HTMLElement;
@@ -93,6 +93,10 @@ export class Files {
   private sort: { column: Column; down: boolean } | null = null;
   private frame = 0;
   private timer = 0;
+  private readonly banner: HTMLElement;
+  private dropping: string[] | null = null;
+  private unlisten: (() => void) | null = null;
+  private disposed = false;
 
   constructor(
     private readonly pane: HTMLElement,
@@ -103,13 +107,24 @@ export class Files {
     this.rows = document.createElement("div");
     this.note = document.createElement("div");
     this.note.className = "note";
-    this.pane.append(this.head, this.rows, this.note);
+    this.banner = document.createElement("div");
+    this.banner.className = "aim";
+    this.banner.hidden = true;
+    this.pane.append(this.head, this.banner, this.rows, this.note);
     this.heads();
     this.read();
+    // Rule 10.
+    void onDrag((drag) => this.dragged(drag)).then((unlisten) => {
+      if (this.disposed) unlisten();
+      else this.unlisten = unlisten;
+    });
   }
 
   /** Stop reading and empty the pane. */
   dispose(): void {
+    this.disposed = true;
+    this.unlisten?.();
+    this.pane.classList.remove("aimed");
     this.reading?.stop();
     this.reading = null;
     cancelAnimationFrame(this.frame);
@@ -174,6 +189,47 @@ export class Files {
     this.head.replaceChildren(first, ...rest);
   }
 
+  /** Rule 10: a drag over the window, aimed or not. */
+  private dragged(drag: Drag): void {
+    if (drag.kind === "leave") return this.aim(null);
+    const into = this.aimedAt(drag.x, drag.y);
+    if (drag.kind === "over") return this.aim(into);
+    this.aim(null);
+    if (into === null || drag.paths.length === 0) return;
+    const name = drag.paths.length === 1 ? (drag.paths[0].split(/[\\/]/).pop() ?? drag.paths[0]) : `${drag.paths.length} items`;
+    strip.start(`${name} → /${into.join("/")}`, "up", null, (progress) => upload(this.target, into, drag.paths, progress), (outcome) => {
+      if (!this.disposed && outcome.kind === "done" && "volume" in this.target) this.read();
+    });
+  }
+
+  /** Rule 10: the directory under a point, or `null` off the pane. */
+  private aimedAt(x: number, y: number): string[] | null {
+    if (this.disposed || this.pane.hidden) return null;
+    const under = document.elementFromPoint(x, y);
+    if (!under || !this.pane.contains(under)) return null;
+    const row = under.closest<HTMLElement>(".row[data-key]");
+    if (!row?.dataset.key) return [];
+    const path = row.dataset.key.split("\0");
+    return row.dataset.kind === "directory" ? path : path.slice(0, -1);
+  }
+
+  /** Rule 10: aim at a directory, or at nothing. */
+  private aim(into: string[] | null): void {
+    const same = into === null ? this.dropping === null : this.dropping !== null && keyOf(into) === keyOf(this.dropping) && into.length === this.dropping.length;
+    if (same) return;
+    this.dropping = into;
+    this.banner.hidden = into === null;
+    this.banner.textContent = into === null ? "" : `upload to /${into.join("/")} — files of the same name are replaced`;
+    this.pane.classList.toggle("aimed", into !== null && into.length === 0);
+    this.later();
+  }
+
+  /** Rule 9. */
+  private download(node: Node, path: string[]): void {
+    const total = size(node);
+    strip.start(path.join("/"), "down", total, (progress) => download(this.target, path, node.type === "directory", progress));
+  }
+
   /** Rule 4: draw on the next frame, once. */
   private later(): void {
     if (this.frame) return;
@@ -216,7 +272,7 @@ export class Files {
         const at = [...path, node.name];
         const key = keyOf(at);
         const opened = node.type === "directory" && this.open.has(key);
-        drawn.push(this.row(node, at.length - 1, key, opened, now));
+        drawn.push(this.row(node, at, key, opened, now));
         if (node.type === "directory" && opened) {
           if (node.children.length === 0) drawn.push(empty(at.length));
           else walk(node.children, at);
@@ -236,9 +292,12 @@ export class Files {
   }
 
   /** One row: its caret and name, indented, then its size and times. */
-  private row(node: Node, depth: number, key: string, opened: boolean, now: number): HTMLElement {
+  private row(node: Node, at: string[], key: string, opened: boolean, now: number): HTMLElement {
+    const depth = at.length - 1;
     const row = document.createElement("div");
     row.className = `row ${node.type}`;
+    row.dataset.key = key;
+    row.dataset.kind = node.type;
     const name = document.createElement("span");
     name.className = "cell name";
     name.style.paddingLeft = `${0.75 + depth * 1.25}rem`;
@@ -247,7 +306,17 @@ export class Files {
     caret.textContent = node.type === "directory" ? (opened ? "▾" : "▸") : "";
     const label = document.createElement("span");
     label.textContent = node.type === "directory" ? `${node.name}/` : node.type === "symlink" ? `${node.name} → ${node.path.join("/")}` : node.name;
-    name.append(caret, label);
+    // Rule 9.
+    const get = document.createElement("button");
+    get.type = "button";
+    get.className = "get";
+    get.textContent = "⤓";
+    get.title = node.type === "directory" ? "Download the folder" : "Download";
+    get.addEventListener("click", (event) => {
+      event.stopPropagation();
+      this.download(node, at);
+    });
+    name.append(caret, label, get);
     row.append(name, cell(node.type === "file" && node.size !== null ? bytes(node.size) : null), cell(node.created_at === null ? null : when(node.created_at)), cell(node.modified_at === null ? null : when(node.modified_at)));
     if (node.type === "directory") {
       row.addEventListener("click", () => {
@@ -262,13 +331,18 @@ export class Files {
       }
     }
     // Rule 5.
-    let at = this.flashes.get(key);
-    if (at === undefined && node.type === "directory" && !opened) {
-      for (const [k, t] of this.flashes) if (k.startsWith(`${key}\0`)) at = Math.max(at ?? t, t);
+    let since = this.flashes.get(key);
+    if (since === undefined && node.type === "directory" && !opened) {
+      for (const [k, t] of this.flashes) if (k.startsWith(`${key}\0`)) since = Math.max(since ?? t, t);
     }
-    if (at !== undefined) {
+    if (since !== undefined) {
       row.classList.add("flash");
-      row.style.animationDelay = `${-(now - at)}ms`;
+      row.style.animationDelay = `${-(now - since)}ms`;
+    }
+    // Rule 10.
+    if (this.dropping !== null && this.dropping.length > 0) {
+      const aimed = keyOf(this.dropping);
+      if (key === aimed || key.startsWith(`${aimed}\0`)) row.classList.add("aimed");
     }
     return row;
   }
@@ -292,6 +366,19 @@ function empty(depth: number): HTMLElement {
   span.textContent = "empty";
   row.append(span);
   return row;
+}
+
+/** Rule 9: a file's size, or every file's beneath a directory; `null` where one is not known. */
+function size(node: Node): number | null {
+  if (node.type === "file") return node.size;
+  if (node.type === "symlink") return 0;
+  let total = 0;
+  for (const child of node.children) {
+    const own = size(child);
+    if (own === null) return null;
+    total += own;
+  }
+  return total;
 }
 
 /** Whether a directory stands at `path` in the tree. */

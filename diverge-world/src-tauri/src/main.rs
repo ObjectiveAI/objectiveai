@@ -11,7 +11,8 @@
 //! the app reads the viewer's document in it: `<root>/viewer.yaml` says
 //! which daemon, as which of `<root>/identities/`, and how the daemon is
 //! dialled again when the connection ends (`diverge_viewer_config`). The
-//! app keeps no files.
+//! app keeps no files of its own; it moves the person's between their
+//! disk and an entity's when asked (`transfer`).
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -20,8 +21,12 @@ use std::sync::Arc;
 use diverge_sdk::identities::{Identities, Name, Presenter};
 use tauri::Manager;
 
+mod transfer;
+
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .manage(transfer::Transfers::default())
         .setup(|app| {
             // The root, as the daemon and the provider find theirs; the
             // document in it, which must name the daemon and the
@@ -54,6 +59,9 @@ fn main() {
             diverge_sdk::tauri_proxy::wire_dropped,
             diverge_sdk::tauri_proxy::wire_status,
             diverge_sdk::tauri_proxy::wire_reset,
+            transfer::files_download,
+            transfer::files_upload,
+            transfer::files_cancel,
         ])
         .run(tauri::generate_context!())
         .expect("the app could not start");

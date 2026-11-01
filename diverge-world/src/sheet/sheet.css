@@ -344,3 +344,98 @@
   font-style: italic;
   text-align: center;
 }
+
+/* Files, rule 9: a row's download, shown while the row is pointed at. */
+.sheet .files .cell.name {
+  display: flex;
+  align-items: center;
+}
+.sheet .files .get {
+  margin-left: auto;
+  padding: 0 6px;
+  border: none;
+  background: none;
+  color: var(--sheet-dim);
+  font: inherit;
+  cursor: pointer;
+  visibility: hidden;
+}
+.sheet .files .row:hover .get { visibility: visible; }
+.sheet .files .get:hover { color: var(--sheet-copper-bright); }
+
+/* Files, rule 10: where a drag is aimed. */
+.sheet .files .row.aimed { background: color-mix(in srgb, var(--sheet-copper) 22%, transparent); }
+.sheet .files.aimed { box-shadow: inset 0 0 0 2px var(--sheet-copper); }
+.sheet .files .aim {
+  position: sticky;
+  top: 23px;
+  z-index: 1;
+  padding: 2px 16px;
+  background: var(--sheet-copper);
+  color: var(--sheet-ink);
+  font-weight: bold;
+}
+.sheet .files .aim[hidden] { display: none; }
+
+/* The transfers strip: the window's bottom right, above the sheet. */
+.transfers {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(360px, calc(100vw - 32px));
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--sheet-ink) 96%, transparent);
+  border: 1px solid var(--sheet-copper);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px #000a;
+  color: var(--sheet-text);
+  font: 12px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace;
+  z-index: 11;
+}
+.transfers[hidden] { display: none; }
+.transfers .transfer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  align-items: center;
+}
+.transfers .what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sheet-cream);
+}
+.transfers .exit {
+  border: none;
+  background: none;
+  color: var(--sheet-dim);
+  font: inherit;
+  cursor: pointer;
+}
+.transfers .exit:hover { color: var(--sheet-cream); }
+.transfers .bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--sheet-line);
+  overflow: hidden;
+}
+.transfers .bar[hidden] { display: none; }
+.transfers .bar > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--sheet-copper-bright);
+}
+.transfers .said {
+  grid-column: 1 / -1;
+  color: var(--sheet-dim);
+  overflow-wrap: anywhere;
+}
+.transfers .transfer.done .said { color: #4ade80; }
+.transfers .transfer.failed .said { color: var(--sheet-error); }
