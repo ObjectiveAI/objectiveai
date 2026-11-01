@@ -986,14 +986,16 @@ pub enum LogEvent {
     End,
 }
 
-impl From<diverge_sdk::daemon::endpoints::logs::server::response::Frame> for LogEvent {
-    fn from(frame: diverge_sdk::daemon::endpoints::logs::server::response::Frame) -> Self {
+impl LogEvent {
+    /// What the screen hears of one logs frame; nothing for the mark that the read went live.
+    pub fn of(frame: diverge_sdk::daemon::endpoints::logs::server::response::Frame) -> Option<Self> {
         use diverge_sdk::daemon::endpoints::logs::server::response::{Entry, Frame};
         match frame {
-            Frame::Item(Entry::Agent(wrapper)) => LogEvent::Entry { entry: (&wrapper).into() },
-            Frame::Item(Entry::StandaloneTool(_) | Entry::DependencyTool(_) | Entry::Account(_) | Entry::Admin(_)) => LogEvent::Error { message: "not an agent's log".into() },
-            Frame::Forbidden => LogEvent::Forbidden,
-            Frame::Error(error) => LogEvent::Error { message: error_text(&error) },
+            Frame::Item(Entry::Agent(wrapper)) => Some(LogEvent::Entry { entry: (&wrapper).into() }),
+            Frame::Item(Entry::StandaloneTool(_) | Entry::DependencyTool(_) | Entry::Account(_) | Entry::Admin(_)) => Some(LogEvent::Error { message: "not an agent's log".into() }),
+            Frame::Forbidden => Some(LogEvent::Forbidden),
+            Frame::Error(error) => Some(LogEvent::Error { message: error_text(&error) }),
+            Frame::Watch => None,
         }
     }
 }

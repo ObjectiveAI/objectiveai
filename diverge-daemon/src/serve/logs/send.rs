@@ -26,10 +26,10 @@ pub struct Span {
     pub watch: Option<bool>,
 }
 
-/// Rules 1 to 3: send every item of `book`'s log the span holds and
-/// `keep` lets through, each as `frame` makes it, watching `latest`
-/// if asked; `is_cancel` reads a channel request's payload. The
-/// handler finishes the scope after.
+/// Rules 1 to 3 and 5: send every item of `book`'s log the span holds
+/// and `keep` lets through, each as `frame` makes it, watching `latest`
+/// if asked, with `watched` sent once the history is; `is_cancel` reads
+/// a channel request's payload. The handler finishes the scope after.
 pub async fn send<B: Book, F: Encode>(
     scope: &ScopeHandle,
     daemon: &Daemon,
@@ -38,18 +38,25 @@ pub async fn send<B: Book, F: Encode>(
     span: &Span,
     keep: impl Fn(&B::Entry) -> bool,
     frame: impl Fn(B::Entry) -> F,
+    watched: F,
     is_cancel: fn(&[u8]) -> bool,
 ) -> Result<(), logs::Error> {
     let watching = span.watch.unwrap_or(false);
     let cap = span.count.unwrap_or(u64::MAX);
     let mut sent = 0u64;
     let mut next = span.from.unwrap_or(1).max(1);
+    let mut live = false;
     loop {
         if read_through(scope, daemon, book, span, &keep, &frame, &mut next, &mut sent, cap).await? {
             return Ok(());
         }
         if !watching {
             return Ok(());
+        }
+        // Rule 5.
+        if !live {
+            reply::reply(scope, &watched).await;
+            live = true;
         }
         let deadline = span.created_to.and_then(|to| (to - Utc::now()).to_std().ok());
         tokio::select! {

@@ -63,8 +63,7 @@ mod tests {
             };
             let entries: Vec<LogEntry> = daemon
                 .agents_logs(request, CancellationToken::new())
-                .map(LogEvent::from)
-                .filter_map(|e| async move { if let LogEvent::Entry { entry } = e { Some(entry) } else { None } })
+                .filter_map(|f| async move { if let Some(LogEvent::Entry { entry }) = LogEvent::of(f) { Some(entry) } else { None } })
                 .collect()
                 .await;
             logs.insert(agent.key.clone(), entries);

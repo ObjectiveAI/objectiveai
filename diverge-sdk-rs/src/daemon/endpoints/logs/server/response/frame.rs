@@ -9,7 +9,8 @@ use crate::shared::error::Error;
 
 use super::Entry;
 
-/// A logs read's answer: one item, forbidden, or a failure.
+/// A logs read's answer: one item, the mark that the read is live,
+/// forbidden, or a failure.
 ///
 /// A read is a stream: zero or more items, each one that matches as the
 /// log holds it, in the log's order oldest first, then the finish; or
@@ -20,10 +21,19 @@ use super::Entry;
 /// filter can never match again, on a cancel, or on the subject's
 /// deletion — the request frame says exactly when. A payload leads with
 /// one byte saying which — `0` for [`Item`](Self::Item), `1` for
-/// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error) — and
-/// the rest is that variant's own JSON: one
-/// [`Entry`](super::Entry) for the first, nothing for the
-/// second, the error for the third.
+/// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error), `3`
+/// for [`Watch`](Self::Watch) — and the rest is that variant's own
+/// JSON: one [`Entry`](super::Entry) for the first, nothing for the
+/// second, the error for the third, nothing for the fourth.
+///
+/// # Watch
+///
+/// A request that watches is answered with exactly one
+/// [`Watch`](Self::Watch) once the log as it stood is sent: every item
+/// before it is history, and every item after it landed after the read
+/// began. A watch that ends with the history — the count met,
+/// `logs_index_to` reached, an item past `created_to` — sends none, and
+/// a request that does not watch never sees one.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -63,6 +73,10 @@ pub enum Frame {
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
     Error(Error),
+    /// The history is sent and the read is live: what follows lands as
+    /// it is sent. Sent once, and only to a request that watches. Tag
+    /// `3`.
+    Watch,
 }
 
 /// Tag for [`Frame::Item`].
@@ -73,6 +87,9 @@ const FORBIDDEN: u8 = 1;
 
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 2;
+
+/// Tag for [`Frame::Watch`].
+const WATCH: u8 = 3;
 
 /// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
@@ -95,6 +112,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
             }
+            Frame::Watch => {
+                out.extend_from_slice(&[WATCH]);
+                Ok(())
+            }
         }
     }
 }
@@ -110,6 +131,7 @@ impl Decode<'_> for Frame {
             ITEM => serde_json::from_slice(rest).map(Frame::Item).map_err(FrameError::Item),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
+            WATCH => Ok(Frame::Watch),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -120,7 +142,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The item did not parse.
     Item(serde_json::Error),

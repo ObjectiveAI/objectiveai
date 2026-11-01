@@ -73,7 +73,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
             // watch.
             let latest = daemon.live.log(agent.id).await.latest.subscribe();
             let keep = |item: &agent_log::ItemWrapper| crate::logs::matches(r#type, from, to, agent_log::ItemType::of(&item.item).name(), item.created);
-            send(scope, daemon, agent.id, latest, &span, keep, |item| Frame::Item(Entry::Agent(item)), is_cancel).await?;
+            send(scope, daemon, agent.id, latest, &span, keep, |item| Frame::Item(Entry::Agent(item)), Frame::Watch, is_cancel).await?;
         }
         Subject::StandaloneTool(reference) => {
             if !judge::standalone_tools::holds(&standing, grant::standalone_tools::Over::Logs) {
@@ -93,7 +93,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
             let key = ToolKey::Record(tool.id);
             let latest = daemon.live.tool_log(key).await.latest.subscribe();
             let keep = |item: &tool_log::ItemWrapper| crate::logs::matches(r#type, from, to, tool_log::ItemType::of(&item.item).name(), item.created);
-            send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::StandaloneTool(item)), is_cancel).await?;
+            send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::StandaloneTool(item)), Frame::Watch, is_cancel).await?;
         }
         Subject::DependencyTool(reference) => {
             if !judge::dependency_tools::holds(&standing, grant::dependency_tools::Over::Logs) {
@@ -117,7 +117,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
             let key = ToolKey::Dependency(tool.id);
             let latest = daemon.live.tool_log(key).await.latest.subscribe();
             let keep = |item: &tool_log::ItemWrapper| crate::logs::matches(r#type, from, to, tool_log::ItemType::of(&item.item).name(), item.created);
-            send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::DependencyTool(item)), is_cancel).await?;
+            send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::DependencyTool(item)), Frame::Watch, is_cancel).await?;
         }
         Subject::Account(identity) => {
             if !judge::accounts::holds(&standing, grant::accounts::Over::Logs) {
@@ -137,7 +137,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
             scope.allowed().await;
             let latest = daemon.live.command_log(Commander::Account(account.id)).await.latest.subscribe();
             let keep = |item: &command_log::ItemWrapper| crate::logs::matches(r#type, from, to, command_log::ItemType::of(&item.item).name(), item.created);
-            send(scope, daemon, account.id, latest, &span, keep, |item| Frame::Item(Entry::Account(item)), is_cancel).await?;
+            send(scope, daemon, account.id, latest, &span, keep, |item| Frame::Item(Entry::Account(item)), Frame::Watch, is_cancel).await?;
         }
         Subject::Admin(identity) => {
             // Rule 4: an administrator's log is read by administrators
@@ -158,7 +158,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
             scope.allowed().await;
             let latest = daemon.live.command_log(Commander::Admin(key)).await.latest.subscribe();
             let keep = |item: &command_log::ItemWrapper| crate::logs::matches(r#type, from, to, command_log::ItemType::of(&item.item).name(), item.created);
-            send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::Admin(item)), is_cancel).await?;
+            send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::Admin(item)), Frame::Watch, is_cancel).await?;
         }
     }
     Ok(())

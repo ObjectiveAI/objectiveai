@@ -22,11 +22,12 @@ use super::{ItemType, Subject};
 /// oldest first, and sends every value. Without `watch` that is the
 /// read, and the scope finishes. With `watch` the daemon then runs the
 /// same filter over each item as it lands, sends what it yields as it
-/// yields it, and keeps the scope open. The daemon does not mark where
-/// the historical read ended and the live one began; an item kept as
-/// the one gives way to the other is sent once, not twice and not never
-/// — that is the daemon's to get right, and the index says whether it
-/// did.
+/// yields it, and keeps the scope open. The daemon marks where the
+/// historical read ended and the live one began with one
+/// [`Watch`](crate::daemon::endpoints::logs::server::response::Frame::Watch),
+/// sent once the history is; an item kept as the one gives way to the
+/// other is sent once, not twice and not never — that is the daemon's
+/// to get right, and the index says whether it did.
 ///
 /// # When a watch ends
 ///
@@ -92,7 +93,8 @@ pub struct Frame {
     /// Whether to watch: `true`, the daemon sends what matches now and
     /// then runs the filter over each item as it lands, until the count
     /// is met, the filter can never match again, a cancel, or the
-    /// subject's deletion; `false` or absent, the daemon sends what
+    /// subject's deletion, with one `Watch` between what matched then
+    /// and what lands after; `false` or absent, the daemon sends what
     /// matches now and finishes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub watch: Option<bool>,

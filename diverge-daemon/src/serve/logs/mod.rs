@@ -17,6 +17,9 @@
 //!    the log's owner is deleted — its live sender gone.
 //! 3. Without `watch`, the sending ends after the historical read.
 //! 4. Every item goes out wrapped in its subject's kind.
+//! 5. Watching, once the history is sent and the watch goes on,
+//!    exactly one `Watch` goes out before any live item; a watch that
+//!    ends with the history sends none.
 //!
 //! Its own files are flattened into it, so everything is named through
 //! this module and not through the file it lives in.

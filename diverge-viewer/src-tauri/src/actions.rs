@@ -613,7 +613,8 @@ pub fn logs_open(state: State<'_, AppState>, query: LogsQuery, on_event: Channel
     let mut frames = state.daemon.agents_logs(request, token.clone());
     tauri::async_runtime::spawn(async move {
         while let Some(frame) = frames.next().await {
-            if on_event.send(LogEvent::from(frame)).is_err() {
+            let Some(event) = LogEvent::of(frame) else { continue };
+            if on_event.send(event).is_err() {
                 token.cancel();
                 return;
             }

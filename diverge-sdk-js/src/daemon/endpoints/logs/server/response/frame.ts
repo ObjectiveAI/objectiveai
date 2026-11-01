@@ -6,12 +6,16 @@ import { Error } from "../../../../../shared/error.js";
 import { Entry } from "./entry.js";
 
 /**
- * A log's answer: one item, forbidden, or a failure. Zero or more
- * items, each in log order, then the finish — after the client's
- * cancel, the count met, the span exhausted, or the subject's
- * deletion; or exactly one `error`, last; or the scope is exactly
- * one `forbidden`. A finish with nothing before it is a log in which
- * nothing matched. Not a listing: nothing is ever changed or removed.
+ * A log's answer: one item, the mark that the read is live,
+ * forbidden, or a failure. Zero or more items, each in log order,
+ * then the finish — after the client's cancel, the count met, the
+ * span exhausted, or the subject's deletion; or exactly one `error`,
+ * last; or the scope is exactly one `forbidden`. A request that
+ * watches is answered with exactly one `watch` once the log as it
+ * stood is sent, unless the watch ends with the history; a request
+ * that does not watch never sees one. A finish with nothing before it
+ * is a log in which nothing matched. Not a listing: nothing is ever
+ * changed or removed.
  */
 export const Frame = z.union([
   /** One item of the log, with its place and its time. Tag `0`. */
@@ -20,12 +24,15 @@ export const Frame = z.union([
   z.literal("forbidden"),
   /** A failure. See `shared.error.Error` for why it says so little. Tag `2`. */
   z.strictObject({ error: Error }),
+  /** The history is sent and the read is live: what follows lands as it is sent. Tag `3`. */
+  z.literal("watch"),
 ]);
 export type Frame = z.infer<typeof Frame>;
 
 const ITEM = 0;
 const FORBIDDEN = 1;
 const ERROR = 2;
+const WATCH = 3;
 
 /**
  * A frame out of its payload: the tag byte, then the variant's own
@@ -42,6 +49,8 @@ export function decode(bytes: Uint8Array): Frame {
       return "forbidden";
     case ERROR:
       return { error: Error.parse(jsonOf(rest)) };
+    case WATCH:
+      return "watch";
     default:
       throw new DecodeError("unexpected_tag", tag);
   }
