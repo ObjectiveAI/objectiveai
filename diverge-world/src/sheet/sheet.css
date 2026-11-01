@@ -167,7 +167,7 @@
 .sheet .files .again:hover { color: var(--sheet-cream); }
 .sheet .files .sort.on { color: var(--sheet-copper-bright); }
 .sheet .files .row.directory { cursor: pointer; }
-.sheet .files .row.directory:hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
+.sheet .files .row.directory:not(.selected):hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
 .sheet .files .row.directory .name { color: var(--sheet-copper-bright); }
 .sheet .files .row.symlink .name { color: var(--sheet-agent); font-style: italic; }
 .sheet .files .row.stale { opacity: 0.5; }
@@ -345,9 +345,8 @@
   text-align: center;
 }
 
-/* Files, rule 12: the selected row, lit more strongly than the pointer's light. */
-.sheet .files .row.selected,
-.sheet .files .row.selected:hover {
+/* Files, rule 12: the selected row, lit more strongly than the pointer's light, which passes it by. */
+.sheet .files .row.selected {
   background: color-mix(in srgb, var(--sheet-copper) 32%, transparent);
   box-shadow: inset 2px 0 0 var(--sheet-copper-bright);
 }
@@ -355,8 +354,8 @@
 .sheet .files .row.directory.selected .name { color: var(--sheet-copper-bright); }
 
 /* Files, rule 9: every row lights while pointed at, and right-clicks to its menu. */
-.sheet .files .row.file:hover,
-.sheet .files .row.symlink:hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
+.sheet .files .row.file:not(.selected):hover,
+.sheet .files .row.symlink:not(.selected):hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
 .files-menu {
   position: fixed;
   z-index: 12;
