@@ -1,0 +1,27 @@
+---
+title: 'Frontend'
+summary: 'Tag 21: the client sends the head of one HTTP request and a write id; the server takes the body on a write-bytes channel, sends the request through a frontend scope on the proxy, and relays the response as channel responses.'
+order: 21
+draft: false
+---
+
+The client opens this channel to send one HTTP request to the
+program's frontend. The server opens a
+[frontend](/container-proxy-endpoints/frontend/) scope on the
+container's proxy with the request's head, and relays what the proxy
+sends.
+
+- **The request.** The tag byte `21` followed by the write id and the
+  request's head as JSON. [Request](/endpoints/containers-tools-run/client/frontend/request/) states its form.
+- **The body.** The server opens a [write-bytes](/endpoints/containers-tools-run/server/write-bytes/) channel quoting
+  the write id. The server sends each piece that arrives on it to the
+  proxy as a [body](/container-proxy-endpoints/frontend/client/body/) channel, in the order it arrives, and
+  sends the proxy an [end](/container-proxy-endpoints/frontend/client/end/) channel when the write-bytes
+  channel finishes. A write-bytes channel that ends in an error ends
+  the request: the server opens the proxy's
+  [stop](/container-proxy-endpoints/frontend/client/stop/) channel.
+- **The response.** The proxy's responses, and the channel response
+  finish. [Response](/endpoints/containers-tools-run/client/frontend/response/) states the sequence.
+- **The stop.** The client's abandoning the channel's responses, as
+  [Credits](/frames/credits/) provides, or the end of the scope, makes
+  the server open the proxy's stop channel.

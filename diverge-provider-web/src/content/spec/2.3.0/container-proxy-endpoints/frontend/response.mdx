@@ -1,0 +1,44 @@
+---
+title: 'Response'
+summary: 'The server sends the response''s head, then its body in pieces, and the finish; or one error and the finish.'
+order: 2
+draft: false
+---
+
+```text
+[0][head JSON …]      first: the response's head
+[1][bytes …]          a piece of the response's body
+[2][error JSON …]     the request was not served, or the body broke off
+```
+
+- **The sequence.** Exactly one response whose first byte is `0`,
+  followed by zero or more responses whose first byte is `1`, followed
+  by the response finish. A response whose first byte is `2` may follow the
+  responses whose first byte is `1`; when it does, it is the last
+  response. Alternatively, exactly one response whose first byte is
+  `2`, followed by the response finish.
+- **The head.** After the byte `0`, exactly one JSON object of two
+  members. `status` is an integer from `0` to `65535`: the status code
+  of the program's response. `headers` is an array of two-element
+  arrays of strings, each a header name and its value, in the order
+  of the program's response. A value that is not valid UTF-8 is
+  carried with each invalid sequence replaced by the character
+  `U+FFFD`.
+- **The body.** After the byte `1`, the bytes of one piece of the
+  response's body, verbatim, running to the end of the payload. A
+  piece carries at most 2097152 bytes. The pieces, concatenated in
+  order, are the response's body.
+- **The error.** After the byte `2`, exactly one JSON value in the form
+  defined on the [volumes::list response](/endpoints/volumes-list/response/) page. Preceded by no response,
+  it states that the request was not served. Preceded by the head, it
+  states that the response's body ended before its end.
+- **The pace.** The server sends each response only while it holds room on the
+  stream, as [Credits](/frames/credits/) provides.
+- **A finish with nothing.** A response finish that no response
+  precedes states that the server could not read the request, or that
+  the request was stopped before the program answered it.
+
+The response is defined by `diverge-sdk-rs/src/shared/containers/frontend/output.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/frontend/output.rs
+```

@@ -1,0 +1,22 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 0 and the bytes that follow it.'
+order: 1
+draft: false
+---
+
+```text
+[0][bytes …]
+```
+
+- **The bytes.** After the byte `0`, the bytes of one piece of the
+  body, verbatim, running to the end of the payload.
+- **The order.** The server places the bytes of each channel request
+  after the bytes of every channel request it received before it.
+- **No body.** The server discards the bytes of a body channel on a
+  request that has no body and has not been upgraded.
+
+The channel request is defined by `diverge-sdk-rs/src/shared/containers/frontend/input.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/frontend/input.rs
+```

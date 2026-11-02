@@ -1,6 +1,6 @@
 ---
 title: 'Container Proxy Endpoints'
-summary: 'A request on the container proxy connection opens a scope for exactly one of nine endpoints, designated by the tag byte that begins its payload; a request the server cannot read is answered by a bare response finish.'
+summary: 'A request on the container proxy connection opens a scope for exactly one of ten endpoints, designated by the tag byte that begins its payload; a request the server cannot read is answered by a bare response finish.'
 order: 6
 draft: false
 ---
@@ -22,6 +22,7 @@ endpoint's request content, in the form the endpoint defines.
 | `6` | [filesystem::fuse_serve](/container-proxy-endpoints/filesystem-fuse-serve/) |
 | `7` | [exec](/container-proxy-endpoints/exec/) |
 | `8` | [terminal](/container-proxy-endpoints/terminal/) |
+| `9` | [frontend](/container-proxy-endpoints/frontend/) |
 
 The tag values are normative as tabulated. Each endpoint has its own
 section. Every section of this layer states requirements of the server

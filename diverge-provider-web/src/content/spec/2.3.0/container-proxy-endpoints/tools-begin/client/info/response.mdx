@@ -16,13 +16,16 @@ draft: false
   response precedes states that the server did not serve the
   question.
 - **The document.** The byte `0` is followed by exactly one JSON
-  object of three members, which the server reads from the file. The
+  object of three or four members, which the server reads from the file. The
   file begins with a line that is exactly `---`; the lines after it,
   up to the next line that is exactly `---`, are the frontmatter. The
-  frontmatter is exactly one JSON object with exactly two members:
-  `name`, a string, which the server sends as `name`, the image's own
-  name; and `schema`, a JSON object, which the server sends as
-  `schema`, the JSON Schema of the container's `arguments`. Every byte
+  frontmatter is exactly one JSON object with the members `name`, a
+  string, which the server sends as `name`, the image's own name; and
+  `schema`, a JSON object, which the server sends as `schema`, the
+  JSON Schema of the container's `arguments`; and at most one further
+  member, `frontend`, a boolean. The frontmatter has no other member.
+  The server sends `frontend` with the value `true` when the
+  frontmatter's `frontend` is `true`, and omits it otherwise. Every byte
   after the closing line is `body`, a string, verbatim. The server
   reads the file as UTF-8 and reads no member further.
 - **Missing.** The byte `1` states that the image ships no
