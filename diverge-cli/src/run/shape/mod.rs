@@ -29,6 +29,7 @@ mod upload;
 
 pub mod download;
 pub mod exchange;
+pub mod frontend;
 pub mod mcp;
 pub mod terminal;
 
