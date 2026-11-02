@@ -17,5 +17,6 @@ export * as download from "./download/index.js";
 export * as upload from "./upload/index.js";
 export * as transfer from "./transfer/index.js";
 export * as exec from "./exec/index.js";
+export * as terminal from "./terminal/index.js";
 export * as filetree from "./filetree/index.js";
 export * as templates from "./templates/index.js";
