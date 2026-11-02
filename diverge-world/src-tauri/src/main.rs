@@ -49,6 +49,18 @@ fn main() {
             app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(daemon.address, daemon.issuer, presenter, daemon.redial));
             Ok(())
         })
+        // A page starting to load — a reload above all — leaves the old
+        // page's streams with nobody to take them: the proxy lets them
+        // go and resets the connection, so the daemon ends what the old
+        // page had open.
+        .on_page_load(|webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Started {
+                let app = webview.app_handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    app.state::<diverge_sdk::tauri_proxy::TauriProxy>().page_loading().await;
+                });
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             diverge_sdk::tauri_proxy::wire_request,
             diverge_sdk::tauri_proxy::wire_channel_request,

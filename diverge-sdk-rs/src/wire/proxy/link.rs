@@ -19,8 +19,9 @@ enum State {
     Idle,
     /// Up, with the number of the dial that made it: the connection's
     /// end names its dial, so an older connection's end never takes
-    /// down a newer one.
-    Up { handle: Handle, dialled: u64 },
+    /// down a newer one. `router` is the task running the connection,
+    /// which a reset aborts to close it.
+    Up { handle: Handle, dialled: u64, router: tokio::task::AbortHandle },
     /// Down, with the reason.
     Down(String),
 }
@@ -69,7 +70,7 @@ struct Shared {
 ///    dials again that long after every failed dial and every
 ///    connection that ended, for as long as the task runs, without
 ///    backing off; a [`reset`](Link::reset) dials at once, a
-///    connection that was up dropped first. While it dials it holds the
+///    connection that was up closed first. While it dials it holds the
 ///    lock, as a use does.
 ///
 /// The router runs on a task spawned on the current tokio runtime, so
@@ -180,9 +181,15 @@ impl Link {
 
     /// Put the link back to not yet dialled, whatever it was: the next
     /// use dials, or — redialling — the redial dials at once. A
-    /// connection that was up is dropped with its last handle.
+    /// connection that was up is closed at once: its router is
+    /// aborted, which closes the socket and ends every scope on it,
+    /// at both ends.
     pub async fn reset(&self) {
-        self.0.inner.lock().await.state = State::Idle;
+        let mut inner = self.0.inner.lock().await;
+        if let State::Up { router, .. } = &inner.state {
+            router.abort();
+        }
+        inner.state = State::Idle;
         self.0.changed.notify_one();
     }
 }
@@ -195,9 +202,8 @@ async fn dial_locked(shared: &Arc<Shared>, inner: &mut Inner) -> Result<Handle, 
         Ok((handle, run, _)) => {
             inner.dials += 1;
             let dialled = inner.dials;
-            inner.state = State::Up { handle: handle.clone(), dialled };
             let watched = Arc::clone(shared);
-            tokio::spawn(async move {
+            let router = tokio::spawn(async move {
                 run.await;
                 let mut inner = watched.inner.lock().await;
                 if matches!(&inner.state, State::Up { dialled: up, .. } if *up == dialled) {
@@ -205,6 +211,7 @@ async fn dial_locked(shared: &Arc<Shared>, inner: &mut Inner) -> Result<Handle, 
                     watched.changed.notify_one();
                 }
             });
+            inner.state = State::Up { handle: handle.clone(), dialled, router: router.abort_handle() };
             Ok(handle)
         }
         Err(error) => {

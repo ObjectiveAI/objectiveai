@@ -38,6 +38,31 @@ impl TauriProxy {
         &self.0
     }
 
+    /// A page is loading: the page before it, if any, is gone, and so
+    /// is everything it had open.
+    ///
+    /// The rules:
+    ///
+    /// 1. Every channel still forwarded to the page is let go: its
+    ///    forwarding ends and its receiver is dropped, as
+    ///    `wire_dropped` does — the page that would have taken the
+    ///    next frame is gone, and nothing else will.
+    /// 2. The connection is reset ([`Link::reset`]): it is closed, so
+    ///    the daemon ends every scope the old page had open — a watch,
+    ///    a console, a held container — and the new page starts on a
+    ///    connection of its own.
+    ///
+    /// The app calls it when a page starts loading, the first one
+    /// included, which finds nothing to let go.
+    pub async fn page_loading(&self) {
+        // Rule 1.
+        for (_, took) in self.1.lock().await.drain() {
+            took.close();
+        }
+        // Rule 2.
+        self.0.reset().await;
+    }
+
     /// The page's channels being forwarded, by their ids: each one's
     /// permits, one given each time the page takes a frame.
     pub(super) fn pumps(&self) -> &Arc<Mutex<HashMap<u32, Arc<Semaphore>>>> {
