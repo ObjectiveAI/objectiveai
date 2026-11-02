@@ -1,8 +1,12 @@
-// The world's lists kept open: each entity's live state as it changes.
+// The world's lists kept open: each entity's live state as it changes,
+// and every volume as it is listed.
 
 import { daemon, shared } from "@diverge/sdk";
 import { handle } from "../lib/wire";
 import { type Live, accountKey, accountLive, activeLive, agentKey, dependencyKey, toolKey } from "./model";
+
+/** One volume, as the volumes list states it. */
+export type Volume = daemon.endpoints.volumes.list.server.response.Volume;
 
 /** How long, in milliseconds, before a list that ended is opened again. */
 const AGAIN = 5000;
@@ -94,8 +98,13 @@ function tell<T, F>(spec: Spec<T, F>, told: Told, k: Keeper): void {
   );
 }
 
-/** Watch the accounts, agents, standalone tools and dependency tools, telling each entity's state as it changes. */
-export function watch(told: Told): Watching {
+/**
+ * Watch the accounts, agents, standalone tools and dependency tools,
+ * telling each entity's state as it changes; and the volumes, telling
+ * `volume` each one listed, added or changed, and each one removed
+ * (`gone`).
+ */
+export function watch(told: Told, volume: (item: Volume, gone: boolean) => void): Watching {
   const k = keeper();
   const e = daemon.endpoints;
   const deployed = (x: { deployed: boolean }) => x.deployed;
@@ -103,5 +112,8 @@ export function watch(told: Told): Watching {
   tell({ open: () => e.agents.list.client.execute(handle, {}), change: e.agents.list.server.response.change, key: agentKey, live: activeLive, deployed }, told, k);
   tell({ open: () => e.standalone_tools.list.client.execute(handle, {}), change: e.standalone_tools.list.server.response.change, key: toolKey, live: activeLive, deployed }, told, k);
   tell({ open: () => e.dependency_tools.list.client.execute(handle, {}), change: e.dependency_tools.list.server.response.change, key: dependencyKey, live: activeLive, deployed }, told, k);
+  keep({ open: () => e.volumes.list.client.execute(handle, {}), change: e.volumes.list.server.response.change }, (change) => {
+    if (change.kind !== "listed") volume(change.item, change.kind === "removed");
+  }, k);
   return k;
 }

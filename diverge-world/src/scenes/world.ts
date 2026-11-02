@@ -93,9 +93,10 @@ export class World extends Phaser.Scene {
       if (!entity) return;
       entity.live = live ?? undefined;
       lights.set(key, live);
-    });
+    }, () => {});
     this.selection = makeSelection(this);
-    this.sheet = new Sheet(() => this.deselect());
+    // The hex map lights only the live state: its dot is that.
+    this.sheet = new Sheet(() => this.deselect(), (key) => byKey.get(key)?.live?.on === true);
     const size = extent(map.columns, map.rows);
     controls(this, size.width, size.height);
     const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, dependency_tool: 0, volume: 0, call: 0, attachment: 0, creator: 0 };

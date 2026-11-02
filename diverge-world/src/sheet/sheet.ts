@@ -1,6 +1,6 @@
 // The bottom sheet: one entity's log, files and console, in HTML over the map.
 
-import type { Entity, Live, Subject } from "../world/model";
+import type { Entity, Subject } from "../world/model";
 import { type Container, Console } from "./console";
 import { Files } from "./files";
 import { Fold } from "./fold";
@@ -71,8 +71,9 @@ function subline(subject: Subject): string {
  * 1. It lies along the bottom of the window, the full width, `HEIGHT`
  *    hundredths tall; its handle drags it between `LEAST` and `MOST`.
  * 2. Its header names the entity (`subline`, else its detail), and
- *    whether the agent's run is up, the tool has an ask in flight, or
- *    the account is connected (`told`, as the lists say it now);
+ *    its green dot, lit exactly while its node on the board is bright
+ *    (`bright`, then `told`): an agent or a tool deployed, an account
+ *    connected, a volume mounted into a deployed container;
  *    its tabs, `logs`, `filesystem` and `console`, those it has, shown
  *    however many it has, one among them; and ✕, which closes it and tells
  *    `closed`.
@@ -116,10 +117,11 @@ export class Sheet {
   private files: Files | null = null;
   private console: Console | null = null;
   private height = HEIGHT;
-  /** Every account's connection as the lists last told it, by key: what an account's dot shows. */
-  private readonly connected = new Map<string, boolean>();
 
-  constructor(private readonly closed: () => void) {
+  constructor(
+    private readonly closed: () => void,
+    private readonly bright: (key: string) => boolean,
+  ) {
     this.root = document.createElement("section");
     this.root.className = "sheet";
     this.root.hidden = true;
@@ -182,7 +184,7 @@ export class Sheet {
     this.opened = opened;
     this.title.textContent = entity.label;
     this.sub.textContent = entity.subject ? subline(entity.subject) : entity.detail;
-    this.live.classList.toggle("on", entity.kind === "account" && (this.connected.get(entity.key) ?? entity.live?.on ?? false));
+    this.live.classList.toggle("on", this.bright(entity.key));
     const tabs = tabsOf(entity);
     this.tabs.hidden = tabs.length === 0;
     for (const which of ["logs", "files", "console"] as const) this.tab[which].hidden = !tabs.includes(which);
@@ -191,11 +193,9 @@ export class Sheet {
     this.show(tabs.includes(chosen) ? chosen : (tabs[0] ?? "logs"));
   }
 
-  /** Rule 2: an entity's live state, as its list now says; an open account's dot follows its connection. */
-  told(key: string, live: Live | null): void {
-    if (live?.kind !== "connected") return;
-    this.connected.set(key, live.on);
-    if (this.opened?.entity.key === key) this.live.classList.toggle("on", live.on);
+  /** Rule 2: a node's brightness changed; the open one's dot follows it. */
+  told(key: string, on: boolean): void {
+    if (this.opened?.entity.key === key) this.live.classList.toggle("on", on);
   }
 
   /** Rule 3: stop, empty and hide. Closing a closed sheet does nothing. */
@@ -236,7 +236,8 @@ export class Sheet {
   /** Rule 4. */
   private logs(subject: Subject, images: Map<string, string>): void {
     this.body.classList.add("loading");
-    const live = (on: boolean) => this.live.classList.toggle("on", on);
+    // The dot is the node's brightness (rule 2), never the log's.
+    const live = () => {};
     const loaded = () => this.body.classList.remove("loading");
     if (subject.type === "agent") {
       const fold = new Fold(this.log, images, live);
@@ -246,8 +247,7 @@ export class Sheet {
         fold.note(why);
       }, loaded);
     } else {
-      // An account's dot is its connection (rule 2), not its log's.
-      const fold = new ToolFold(this.log, subject.type === "account" || subject.type === "admin" ? () => {} : live);
+      const fold = new ToolFold(this.log, live);
       this.fold = fold;
       const tool = (entry: Entry) =>
         "standalone_tool" in entry

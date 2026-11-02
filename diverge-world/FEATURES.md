@@ -45,12 +45,17 @@ is named, so the two can be checked against each other.
 
 ### Live state (`grid/live.ts`)
 
+- **Bright or faint.** Every node stands bright or faint, and the green
+  dot in its sheet is lit exactly when it is bright:
+
+  | Kind | Bright when |
+  |---|---|
+  | Agent, standalone tool, dependency tool | its container is deployed |
+  | Account | it is connected |
+  | Volume | an agent or tool it is mounted into is deployed |
+
 - **Working:** an agent or tool that is active (its loop running, or a
-  call or read in flight) has a breathing halo.
-- **Connected:** an account that is connected stands bright, with no
-  halo; one that is not stands faint.
-- **Down:** an agent or tool whose container is not deployed stands
-  faint, and so does an account that is not connected.
+  call or read in flight) also has a breathing halo.
 - These update live, as the daemon's lists change. The nodes themselves
   do not; see [Limits](#limits).
 
@@ -169,8 +174,8 @@ holds.
   height.
 - **The header:** the node's name, a second line of detail (its
   template and index, who owns a dependency tool, an account's issuer),
-  and a green dot while an agent's run is up, a tool has a request in
-  flight, or an account is connected.
+  and a green dot, lit exactly while the node is bright on the board
+  (see [Live state](#live-state-gridlivets)).
 
 ### Tabs by kind
 

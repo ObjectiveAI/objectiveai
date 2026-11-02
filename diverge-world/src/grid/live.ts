@@ -9,7 +9,7 @@ import type { Nodes } from "./nodes";
 const BREATH = 1200;
 const FADE = 400;
 
-/** How faint a node whose container is down, or an account that is not connected, stands. */
+/** How faint a node that is not bright stands. */
 const DOWN = 0.4;
 
 /** The live state, told each node's by its key. */
@@ -24,9 +24,9 @@ export type Lit = { set(key: string, live: Live | null, deployed?: boolean): voi
  *    flight — has its halo breathing.
  * 2. Otherwise the halo goes out. An account has none: its connection
  *    is rule 3's brightness alone, as a deployed agent's is.
- * 3. An agent or a tool whose container is not deployed, and an
- *    account that is not connected, stands faint (`DOWN`), its name
- *    with it.
+ * 3. A node not bright stands faint (`DOWN`), its name with it: an
+ *    agent or a tool whose container is not deployed, an account not
+ *    connected, a volume mounted into no deployed container.
  */
 export function makeLit(scene: Phaser.Scene, nodes: Nodes): Lit {
   const breathing = new Map<string, Phaser.Tweens.Tween>();

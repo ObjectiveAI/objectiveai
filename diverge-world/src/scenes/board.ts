@@ -12,7 +12,8 @@ import { place } from "../grid/place";
 import { pulses } from "../grid/pulses";
 import { REACH } from "../grid/textures";
 import { Sheet } from "../sheet/sheet";
-import { accountKey, agentKey, dependencyKey, type Entity, model, toolKey } from "../world/model";
+import { accountKey, agentKey, dependencyKey, type Entity, model, toolKey, volumeKey } from "../world/model";
+import { mountsOf } from "../world/mounts";
 import { type Snapshot, snapshot } from "../world/snapshot";
 import { type Watching, watch } from "../world/watch";
 import { controls } from "./camera";
@@ -57,6 +58,8 @@ const GLIDE = 700;
  */
 export class Board extends Phaser.Scene {
   private sheet: Sheet | null = null;
+  /** Every listed node's brightness, by key: deployed, connected, or mounted into something deployed. */
+  private readonly bright = new Map<string, boolean>();
   private ring: Phaser.GameObjects.Arc | null = null;
   private selected: string | null = null;
   private hovered: string | null = null;
@@ -122,21 +125,53 @@ export class Board extends Phaser.Scene {
     this.showKinds(this.registry.get(KINDS) as Kinds);
     // Rule 3.
     const lit = makeLit(this, nodes);
-    const deployed = new Map<string, boolean>([
-      ...read.accounts.map((a) => [accountKey(a), a.connected] as const),
-      ...read.agents.map((a) => [agentKey(a), a.deployed] as const),
-      ...read.tools.map((t) => [toolKey(t), t.deployed] as const),
-      ...read.dependencies.map((d) => [dependencyKey(d), d.deployed] as const),
-    ]);
-    for (const e of made.entities) if (e.live) lit.set(e.key, e.live, deployed.get(e.key));
+    // One brightness per node, which the board and the sheet's dot both show.
+    const bright = this.bright;
+    const shine = (key: string, on: boolean) => {
+      bright.set(key, on);
+      this.sheet?.told(key, on);
+    };
+    // A volume is bright while any container it is mounted into is.
+    const mounts = new Map<string, string[]>();
+    const mountsOfVolume = mountsOf(read);
+    const volumeOn = (key: string) => (mounts.get(key) ?? []).some((container) => bright.get(container) === true);
+    const relight = () => {
+      for (const key of mounts.keys()) {
+        const on = volumeOn(key);
+        if (bright.get(key) === on) continue;
+        lit.set(key, null, on);
+        shine(key, on);
+      }
+    };
+    for (const a of read.accounts) shine(accountKey(a), a.connected);
+    for (const a of read.agents) shine(agentKey(a), a.deployed);
+    for (const t of read.tools) shine(toolKey(t), t.deployed);
+    for (const d of read.dependencies) shine(dependencyKey(d), d.deployed);
+    for (const v of read.volumes) mounts.set(volumeKey(v), mountsOfVolume(v));
+    for (const e of made.entities) if (e.live) lit.set(e.key, e.live, bright.get(e.key));
+    for (const key of mounts.keys()) {
+      const on = volumeOn(key);
+      lit.set(key, null, on);
+      shine(key, on);
+    }
     this.watching.push(
-      watch((key, live, up) => {
-        lit.set(key, live, up);
-        this.sheet?.told(key, live);
-      }),
+      watch(
+        (key, live, up) => {
+          lit.set(key, live, up);
+          if (up === undefined) return;
+          shine(key, up);
+          relight();
+        },
+        (volume, gone) => {
+          const key = volumeKey(volume);
+          if (gone) mounts.delete(key);
+          else mounts.set(key, mountsOfVolume(volume));
+          relight();
+        },
+      ),
     );
     this.watching.push(pulses(this, nodes, this.links, read.events));
-    this.sheet = new Sheet(() => this.deselect());
+    this.sheet = new Sheet(() => this.deselect(), (key) => bright.get(key) === true);
     // The view's middle may reach the first columns and every node shown wherever it stands now.
     const reach = () => {
       const e = { left: 0, top: 0, right: placed.width, bottom: placed.height };
