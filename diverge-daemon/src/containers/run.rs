@@ -256,6 +256,30 @@ impl ToolHandle {
         }
     }
 
+    /// One HTTP request to the program's frontend; as
+    /// [`Opened::frontend`](super::Opened::frontend). A connected tool's
+    /// is on the other daemon: [`CONNECTED_FILES`].
+    pub async fn frontend<S>(&self, head: diverge_sdk::shared::containers::frontend::request::Head, body: S) -> Result<(super::FrontendFrames, u32), String>
+    where
+        S: Stream<Item = Result<Bytes, std::convert::Infallible>> + Send + 'static,
+    {
+        match self {
+            ToolHandle::Run(handle) => {
+                let (stream, write_id) = handle.frontend(head, body).await.map_err(|error| error.to_string())?;
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
+                Ok((Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))), write_id))
+            }
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// Take back a frontend request's body, asked for or not.
+    pub async fn forget(&self, write_id: u32) {
+        if let ToolHandle::Run(handle) = self {
+            handle.forget(write_id).await;
+        }
+    }
+
     /// One file read out of the container. A connected tool's is on
     /// the other daemon: [`CONNECTED_FILES`].
     pub async fn read(&self, path: Vec<String>) -> Result<Pieces, String> {

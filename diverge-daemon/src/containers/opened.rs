@@ -28,6 +28,11 @@ pub type ExecFrames = Pin<Box<dyn Stream<Item = Result<diverge_sdk::shared::cont
 /// error last.
 pub type TerminalFrames = Pin<Box<dyn Stream<Item = Result<diverge_sdk::shared::containers::terminal::output::Owned, String>> + Send>>;
 
+/// A frontend request's answer, as a file operation's caller reads it:
+/// its head, then its body, until it ended, the container stopped, or
+/// the stream broke, which is the error last.
+pub type FrontendFrames = Pin<Box<dyn Stream<Item = Result<diverge_sdk::shared::containers::frontend::output::Owned, String>> + Send>>;
+
 /// A container a file operation works on.
 #[derive(Clone)]
 pub enum Opened {
@@ -170,6 +175,26 @@ impl Opened {
         match self {
             Opened::Agent(run, _) => run.handle.terminal_close(id).await.map_err(|error| error.to_string()),
             Opened::Tool(run, _) => run.handle.terminal_close(id).await,
+        }
+    }
+
+    /// One HTTP request to the program's frontend, its body `body`'s
+    /// pieces: its answer, and the write id the body is kept under
+    /// until [`forget`](Self::forget). An agent's program serves none.
+    pub async fn frontend<S>(&self, head: diverge_sdk::shared::containers::frontend::request::Head, body: S) -> Result<(FrontendFrames, u32), String>
+    where
+        S: Stream<Item = Result<Bytes, std::convert::Infallible>> + Send + 'static,
+    {
+        match self {
+            Opened::Agent(..) => Err("an agent serves no frontend".to_string()),
+            Opened::Tool(run, _) => run.handle.frontend(head, body).await,
+        }
+    }
+
+    /// Take back a frontend request's body, asked for or not.
+    pub async fn forget(&self, write_id: u32) {
+        if let Opened::Tool(run, _) = self {
+            run.handle.forget(write_id).await;
         }
     }
 

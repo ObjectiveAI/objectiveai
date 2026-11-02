@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// own, by the tools list filter; a delete, which is by template,
 /// takes the action over every tool of the template.
 /// Snake case on the wire: `"get"`, `"delete"`, `"list"`,
-/// `"download"`, `"upload"`, `"transfer"`, `"filetree"`, `"exec"`, `"logs"`.
+/// `"download"`, `"upload"`, `"transfer"`, `"filetree"`, `"exec"`, `"frontend"`, `"logs"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -45,6 +45,9 @@ pub enum Over {
     /// the container's own user — as
     /// [`dependency_tools::exec`](crate::daemon::endpoints::dependency_tools::exec) does.
     Exec,
+    /// Send HTTP requests to the frontend its program serves, as
+    /// [`dependency_tools::frontend`](crate::daemon::endpoints::dependency_tools::frontend) does.
+    Frontend,
     /// Read one's log, running or not, as
     /// [`logs`](crate::daemon::endpoints::logs)
     /// does.

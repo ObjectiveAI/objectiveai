@@ -228,6 +228,10 @@ pub enum ClientRequest<'a> {
     StandaloneToolsTerminal(standalone_tools::terminal::client::request::Frame),
     /// Tag `120`. An interactive shell in a dependency tool's container, on a terminal.
     DependencyToolsTerminal(dependency_tools::terminal::client::request::Frame),
+    /// Tag `121`. One HTTP request to a standalone tool's frontend.
+    StandaloneToolsFrontend(standalone_tools::frontend::client::request::Frame),
+    /// Tag `122`. One HTTP request to a dependency tool's frontend.
+    DependencyToolsFrontend(dependency_tools::frontend::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -344,6 +348,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsTerminal(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsTerminal(frame) => frame.encode(out),
             ClientRequest::DependencyToolsTerminal(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsFrontend(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsFrontend(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -662,6 +668,12 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             120 => dependency_tools::terminal::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DependencyToolsTerminal)
                 .ok(),
+            121 => standalone_tools::frontend::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsFrontend)
+                .ok(),
+            122 => dependency_tools::frontend::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsFrontend)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -769,6 +781,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsTerminal(_) => f.write_str("agents terminal"),
             ClientRequest::StandaloneToolsTerminal(_) => f.write_str("standalone tools terminal"),
             ClientRequest::DependencyToolsTerminal(_) => f.write_str("dependency tools terminal"),
+            ClientRequest::StandaloneToolsFrontend(_) => f.write_str("standalone tools frontend"),
+            ClientRequest::DependencyToolsFrontend(_) => f.write_str("dependency tools frontend"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
@@ -879,6 +893,8 @@ pub fn tag(path: &str) -> Option<u8> {
         "agents/terminal" => Some(118),
         "standalone_tools/terminal" => Some(119),
         "dependency_tools/terminal" => Some(120),
+        "standalone_tools/frontend" => Some(121),
+        "dependency_tools/frontend" => Some(122),
         _ => None,
     }
 }
@@ -986,6 +1002,8 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsTerminal(_) => "agents/terminal",
             ClientRequest::StandaloneToolsTerminal(_) => "standalone_tools/terminal",
             ClientRequest::DependencyToolsTerminal(_) => "dependency_tools/terminal",
+            ClientRequest::StandaloneToolsFrontend(_) => "standalone_tools/frontend",
+            ClientRequest::DependencyToolsFrontend(_) => "dependency_tools/frontend",
             ClientRequest::Invalid(_) => "",
         }
     }
