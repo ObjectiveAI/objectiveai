@@ -216,6 +216,12 @@ pub enum ClientRequest<'a> {
     Info(info::client::request::Frame),
     /// Tag `114`. Read an agent's or a tool's log, and perhaps watch it.
     Logs(logs::client::request::Frame),
+    /// Tag `115`. Run one command in an agent's container, its output streamed.
+    AgentsExec(agents::exec::client::request::Frame),
+    /// Tag `116`. Run one command in a standalone tool's container, its output streamed.
+    StandaloneToolsExec(standalone_tools::exec::client::request::Frame),
+    /// Tag `117`. Run one command in a dependency tool's container, its output streamed.
+    DependencyToolsExec(dependency_tools::exec::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -326,6 +332,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ImagesInfo(frame) => frame.encode(out),
             ClientRequest::Info(frame) => frame.encode(out),
             ClientRequest::Logs(frame) => frame.encode(out),
+            ClientRequest::AgentsExec(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsExec(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsExec(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -626,6 +635,15 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             114 => logs::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Logs)
                 .ok(),
+            115 => agents::exec::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsExec)
+                .ok(),
+            116 => standalone_tools::exec::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsExec)
+                .ok(),
+            117 => dependency_tools::exec::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsExec)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -727,6 +745,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ImagesInfo(_) => f.write_str("images info"),
             ClientRequest::Info(_) => f.write_str("info"),
             ClientRequest::Logs(_) => f.write_str("logs"),
+            ClientRequest::AgentsExec(_) => f.write_str("agents exec"),
+            ClientRequest::StandaloneToolsExec(_) => f.write_str("standalone tools exec"),
+            ClientRequest::DependencyToolsExec(_) => f.write_str("dependency tools exec"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
@@ -831,6 +852,9 @@ pub fn tag(path: &str) -> Option<u8> {
         "images/info" => Some(110),
         "info" => Some(111),
         "logs" => Some(114),
+        "agents/exec" => Some(115),
+        "standalone_tools/exec" => Some(116),
+        "dependency_tools/exec" => Some(117),
         _ => None,
     }
 }
@@ -932,6 +956,9 @@ impl ClientRequest<'_> {
             ClientRequest::ImagesInfo(_) => "images/info",
             ClientRequest::Info(_) => "info",
             ClientRequest::Logs(_) => "logs",
+            ClientRequest::AgentsExec(_) => "agents/exec",
+            ClientRequest::StandaloneToolsExec(_) => "standalone_tools/exec",
+            ClientRequest::DependencyToolsExec(_) => "dependency_tools/exec",
             ClientRequest::Invalid(_) => "",
         }
     }

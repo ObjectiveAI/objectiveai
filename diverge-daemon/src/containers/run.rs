@@ -195,6 +195,20 @@ impl ToolHandle {
         }
     }
 
+    /// One command run in the container, its stream; as
+    /// [`Opened::exec`](super::Opened::exec). A connected tool's runs on
+    /// the other daemon: [`CONNECTED_FILES`].
+    pub async fn exec(&self, command: diverge_sdk::shared::containers::exec::request::Request) -> Result<super::ExecFrames, String> {
+        match self {
+            ToolHandle::Run(handle) => {
+                let stream = handle.exec(command).await.map_err(|error| error.to_string())?;
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
+                Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
+            }
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
     /// One file read out of the container. A connected tool's is on
     /// the other daemon: [`CONNECTED_FILES`].
     pub async fn read(&self, path: Vec<String>) -> Result<Pieces, String> {

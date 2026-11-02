@@ -17,6 +17,11 @@ use crate::content::Pieces;
 /// change, until the provider ends it or an error does.
 pub type Frames = Pin<Box<dyn Stream<Item = Result<Frame, String>> + Send>>;
 
+/// A command's stream, as a file operation's caller reads it: every
+/// frame the container sent, in order, until the command ended, the
+/// container stopped, or the stream broke, which is the error last.
+pub type ExecFrames = Pin<Box<dyn Stream<Item = Result<diverge_sdk::shared::containers::exec::response::Owned, String>> + Send>>;
+
 /// A container a file operation works on.
 #[derive(Clone)]
 pub enum Opened {
@@ -97,6 +102,21 @@ impl Opened {
                 Ok(pieces_of(stream))
             }
             Opened::Tool(run, _) => run.handle.read(path).await,
+        }
+    }
+
+    /// One command run in the container, its stream (see
+    /// [`exec`](diverge_sdk::shared::containers::exec)). Dropping the
+    /// stream abandons it, which kills the command. The channel closing
+    /// with no finish is the container stopped: the stream's end.
+    pub async fn exec(&self, command: diverge_sdk::shared::containers::exec::request::Request) -> Result<ExecFrames, String> {
+        match self {
+            Opened::Agent(run, _) => {
+                let stream = run.handle.exec(command).await.map_err(|error| error.to_string())?;
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
+                Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
+            }
+            Opened::Tool(run, _) => run.handle.exec(command).await,
         }
     }
 

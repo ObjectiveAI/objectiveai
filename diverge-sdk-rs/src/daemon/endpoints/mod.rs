@@ -144,8 +144,11 @@
 //! | `112` | unused |
 //! | `113` | unused |
 //! | `114` | [`logs`] |
+//! | `115` | [`agents::exec`] |
+//! | `116` | [`standalone_tools::exec`] |
+//! | `117` | [`dependency_tools::exec`] |
 //!
-//! One hundred and fifteen, so far. Every one of them carries the optional
+//! One hundred and eighteen, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request

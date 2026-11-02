@@ -24,6 +24,7 @@ mod answer;
 mod one_shot;
 mod pending;
 mod stream;
+pub mod exec;
 mod upload;
 
 pub mod download;

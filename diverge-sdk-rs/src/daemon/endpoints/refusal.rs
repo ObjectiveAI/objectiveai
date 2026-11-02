@@ -105,6 +105,9 @@ impl ClientRequest<'_> {
             ClientRequest::ImagesInfo(_) => bytes(&images::info::server::response::Frame::Forbidden),
             ClientRequest::Info(_) => bytes(&info::server::response::Frame::Forbidden),
             ClientRequest::Logs(_) => bytes(&logs::server::response::Frame::Forbidden),
+            ClientRequest::AgentsExec(_) => bytes(&agents::exec::server::response::Frame::Forbidden),
+            ClientRequest::StandaloneToolsExec(_) => bytes(&standalone_tools::exec::server::response::Frame::Forbidden),
+            ClientRequest::DependencyToolsExec(_) => bytes(&dependency_tools::exec::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
     }
@@ -206,6 +209,9 @@ impl ClientRequest<'_> {
             ClientRequest::ImagesInfo(_) => bytes(&images::info::server::response::Frame::Error(error)),
             ClientRequest::Info(_) => bytes(&info::server::response::Frame::Error(error)),
             ClientRequest::Logs(_) => bytes(&logs::server::response::Frame::Error(error)),
+            ClientRequest::AgentsExec(_) => bytes(&agents::exec::server::response::Frame::Error(error)),
+            ClientRequest::StandaloneToolsExec(_) => bytes(&standalone_tools::exec::server::response::Frame::Error(error)),
+            ClientRequest::DependencyToolsExec(_) => bytes(&dependency_tools::exec::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
     }

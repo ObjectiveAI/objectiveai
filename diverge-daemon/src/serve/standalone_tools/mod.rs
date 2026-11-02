@@ -34,6 +34,7 @@ pub mod detach_agent_instance;
 pub mod detach_agent_template;
 pub mod download;
 pub mod edit;
+pub mod exec;
 pub mod filetree;
 pub mod get;
 pub mod list;

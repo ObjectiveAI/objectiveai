@@ -12,6 +12,7 @@ pub mod create;
 pub mod delete;
 pub mod download;
 pub mod edit;
+pub mod exec;
 pub mod filetree;
 pub mod get;
 pub mod list;
@@ -35,6 +36,8 @@ pub enum Agents {
     Edit(edit::Arguments),
     /// Watching an agent's container's filesystem, whole.
     Filetree(filetree::Arguments),
+    /// Running one command in an agent's container, its output streamed.
+    Exec(exec::Arguments),
     /// Getting one agent.
     Get(get::Arguments),
     /// Listing a caller's agents.
@@ -63,6 +66,7 @@ pub async fn run(command: Agents, target: &Target<'_>, emitter: &mut Emitter) ->
         Agents::Delete(arguments) => delete::run(arguments, target, emitter).await,
         Agents::Download(arguments) => download::run(arguments, target, emitter).await,
         Agents::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        Agents::Exec(arguments) => exec::run(arguments, target, emitter).await,
         Agents::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         Agents::Get(arguments) => get::run(arguments, target, emitter).await,
         Agents::List(arguments) => list::run(arguments, target, emitter).await,

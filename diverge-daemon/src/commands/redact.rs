@@ -9,6 +9,8 @@ pub const REDACTED: &str = "[redacted]";
 /// The rules:
 ///
 /// 1. `vault/insert`: `value` is the secret itself.
+/// 2. `agents/exec`, `standalone_tools/exec`, `dependency_tools/exec`:
+///    every value of `env`, which may be a secret; the names stay.
 ///
 /// A body that is not JSON is kept as `null`. A request that carries a
 /// secret value adds its rule here.
@@ -24,6 +26,14 @@ pub fn body(path: &str, payload: &[u8]) -> serde_json::Value {
                 && object.contains_key("value")
             {
                 object.insert("value".to_string(), serde_json::Value::String(REDACTED.to_string()));
+            }
+        }
+        // Rule 2.
+        "agents/exec" | "standalone_tools/exec" | "dependency_tools/exec" => {
+            if let Some(env) = body.get_mut("env").and_then(serde_json::Value::as_object_mut) {
+                for value in env.values_mut() {
+                    *value = serde_json::Value::String(REDACTED.to_string());
+                }
             }
         }
         _ => {}

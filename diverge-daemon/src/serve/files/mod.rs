@@ -9,6 +9,7 @@
 mod cancel;
 mod destination;
 mod download;
+mod exec;
 mod open;
 mod upload;
 mod watch;
@@ -16,6 +17,7 @@ mod watch;
 pub use cancel::*;
 pub use destination::*;
 pub use download::*;
+pub use exec::*;
 pub use open::*;
 pub use upload::*;
 pub use watch::*;

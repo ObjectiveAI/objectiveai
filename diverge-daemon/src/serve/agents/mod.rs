@@ -20,6 +20,7 @@ pub mod create;
 pub mod delete;
 pub mod download;
 pub mod edit;
+pub mod exec;
 pub mod filetree;
 pub mod get;
 pub mod list;

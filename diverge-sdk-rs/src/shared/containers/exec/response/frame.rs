@@ -154,3 +154,10 @@ impl std::error::Error for FrameError {
         }
     }
 }
+
+/// A command's bytes as JSON: standard base64, what the JSON form of a
+/// stdout or stderr frame carries wherever one is printed.
+pub fn base64<S: serde::Serializer>(bytes: &Bytes, serializer: S) -> Result<S::Ok, S::Error> {
+    use base64::Engine as _;
+    serializer.serialize_str(&base64::engine::general_purpose::STANDARD.encode(bytes))
+}

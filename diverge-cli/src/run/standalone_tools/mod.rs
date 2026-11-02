@@ -17,6 +17,7 @@ pub mod detach_agent_instance;
 pub mod detach_agent_template;
 pub mod download;
 pub mod edit;
+pub mod exec;
 pub mod filetree;
 pub mod get;
 pub mod list;
@@ -55,6 +56,8 @@ pub enum StandaloneTools {
     Edit(edit::Arguments),
     /// Watching a tool's container's filesystem, whole.
     Filetree(filetree::Arguments),
+    /// Running one command in a standalone tool's container, its output streamed.
+    Exec(exec::Arguments),
     /// Getting one tool.
     Get(get::Arguments),
     /// Listing a caller's tools.
@@ -100,6 +103,7 @@ pub async fn run(
         }
         StandaloneTools::Download(arguments) => download::run(arguments, target, emitter).await,
         StandaloneTools::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        StandaloneTools::Exec(arguments) => exec::run(arguments, target, emitter).await,
         StandaloneTools::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         StandaloneTools::Get(arguments) => get::run(arguments, target, emitter).await,
         StandaloneTools::List(arguments) => list::run(arguments, target, emitter).await,
