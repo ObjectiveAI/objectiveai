@@ -30,6 +30,7 @@ mod upload;
 pub mod download;
 pub mod exchange;
 pub mod mcp;
+pub mod terminal;
 
 pub use answer::*;
 pub use download::{Download, Downloaded, download};

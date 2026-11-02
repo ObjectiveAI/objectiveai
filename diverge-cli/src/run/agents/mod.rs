@@ -19,6 +19,7 @@ pub mod list;
 pub mod message;
 pub mod tag;
 pub mod templates;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;
@@ -38,6 +39,8 @@ pub enum Agents {
     Filetree(filetree::Arguments),
     /// Running one command in an agent's container, its output streamed.
     Exec(exec::Arguments),
+    /// An interactive shell in an agent's container, on a terminal.
+    Terminal(terminal::Arguments),
     /// Getting one agent.
     Get(get::Arguments),
     /// Listing a caller's agents.
@@ -67,6 +70,7 @@ pub async fn run(command: Agents, target: &Target<'_>, emitter: &mut Emitter) ->
         Agents::Download(arguments) => download::run(arguments, target, emitter).await,
         Agents::Edit(arguments) => edit::run(arguments, target, emitter).await,
         Agents::Exec(arguments) => exec::run(arguments, target, emitter).await,
+        Agents::Terminal(arguments) => terminal::run(arguments, target, emitter).await,
         Agents::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         Agents::Get(arguments) => get::run(arguments, target, emitter).await,
         Agents::List(arguments) => list::run(arguments, target, emitter).await,

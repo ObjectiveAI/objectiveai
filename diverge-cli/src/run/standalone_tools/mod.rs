@@ -24,6 +24,7 @@ pub mod list;
 pub mod register;
 pub mod tag;
 pub mod templates;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;
@@ -58,6 +59,8 @@ pub enum StandaloneTools {
     Filetree(filetree::Arguments),
     /// Running one command in a standalone tool's container, its output streamed.
     Exec(exec::Arguments),
+    /// An interactive shell in a standalone tool's container, on a terminal.
+    Terminal(terminal::Arguments),
     /// Getting one tool.
     Get(get::Arguments),
     /// Listing a caller's tools.
@@ -104,6 +107,7 @@ pub async fn run(
         StandaloneTools::Download(arguments) => download::run(arguments, target, emitter).await,
         StandaloneTools::Edit(arguments) => edit::run(arguments, target, emitter).await,
         StandaloneTools::Exec(arguments) => exec::run(arguments, target, emitter).await,
+        StandaloneTools::Terminal(arguments) => terminal::run(arguments, target, emitter).await,
         StandaloneTools::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         StandaloneTools::Get(arguments) => get::run(arguments, target, emitter).await,
         StandaloneTools::List(arguments) => list::run(arguments, target, emitter).await,
