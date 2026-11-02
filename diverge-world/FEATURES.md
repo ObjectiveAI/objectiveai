@@ -162,6 +162,8 @@ holds.
 - **Open:** click a node. It gets a white selection ring, and its sheet
   opens along the bottom of the window.
 - **Swap:** click another node to switch the sheet to it.
+- **Through the sheet:** a click on the sheet never selects a node
+  beneath it.
 - **Close:** click the same node again, or press **✕**.
 - **Resize:** drag the handle at the top, from 20% to 90% of the window
   height.

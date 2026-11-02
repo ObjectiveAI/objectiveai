@@ -64,7 +64,9 @@ export function setDim(node: Node, dim: boolean): void {
  *    `moved`. While one is dragged the board does not pan.
  * 3. A press let go having moved less than that is a click, and calls
  *    `select` with an entity that has a log (`subject`) or files
- *    (`files`).
+ *    (`files`). Both the press and the release are the board's own —
+ *    made on the canvas: a release on the sheet, or anything else over
+ *    the board, selects nothing, though the game hears it.
  * 4. The pointer coming onto a node tells `over`, and leaving it tells
  *    `out`.
  * 5. Where nodes stand lives only here, for as long as the page: a
@@ -105,6 +107,8 @@ export function makeNodes(scene: Phaser.Scene, entities: Entity[], at: Map<strin
     });
     // Rule 3.
     image.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+      const canvas = scene.game.canvas;
+      if (pointer.downElement !== canvas || pointer.upElement !== canvas) return;
       if ((entity.subject || entity.files) && Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) < CLICK) select(entity);
     });
     // Rule 4.
