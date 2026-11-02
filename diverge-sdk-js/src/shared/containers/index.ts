@@ -11,3 +11,4 @@ export * as info from "./info/index.js";
 export * as write_bytes from "./write_bytes/index.js";
 export * as exec from "./exec/index.js";
 export * as terminal from "./terminal/index.js";
+export * as frontend from "./frontend/index.js";

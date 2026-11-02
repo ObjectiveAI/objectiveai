@@ -22,6 +22,7 @@ export * as download from "./download/index.js";
 export * as upload from "./upload/index.js";
 export * as transfer from "./transfer/index.js";
 export * as exec from "./exec/index.js";
+export * as frontend from "./frontend/index.js";
 export * as terminal from "./terminal/index.js";
 export * as filetree from "./filetree/index.js";
 export * as connect from "./connect/index.js";
