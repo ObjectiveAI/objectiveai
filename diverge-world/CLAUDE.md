@@ -32,7 +32,7 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   standalone tool, dependency tool, account and volume a glowing node in its kind's neon, first standing in a column
   per kind (`grid/place.ts`) and then wherever it is dragged — the links have no say, and positions live only for the
   page. Each way an event ran is a glowing line in the sender's neon with a chevron at the receiver, a mount a dashed
-  green line (`grid/links.ts`); a working agent or tool breathes a halo, a connected account holds one, a container
+  green line (`grid/links.ts`); a working agent or tool breathes a halo, an account stands bright only while connected, a container
   that is down dims its node (`grid/live.ts`); every rise in an event's count runs a pulse of light along its link
   (`grid/pulses.ts`, the events list kept open). The backdrop tiles the grid under the board's camera, as the sea does
   for the hex map. The hex map below (`Sea`, `World`) is kept, unlisted in `main.ts`.

@@ -47,7 +47,8 @@ is named, so the two can be checked against each other.
 
 - **Working:** an agent or tool that is active (its loop running, or a
   call or read in flight) has a breathing halo.
-- **Connected:** an account that is connected has a steady halo.
+- **Connected:** an account that is connected stands bright, with no
+  halo; one that is not stands faint.
 - **Down:** an agent or tool whose container is not deployed stands
   faint, and so does an account that is not connected.
 - These update live, as the daemon's lists change. The nodes themselves
