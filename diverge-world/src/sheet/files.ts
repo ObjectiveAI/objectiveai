@@ -230,7 +230,7 @@ export class Files {
     if (same) return;
     this.dropping = into;
     this.banner.hidden = into === null;
-    this.banner.textContent = into === null ? "" : `upload to /${into.join("/")} — files of the same name are replaced`;
+    this.banner.textContent = into === null ? "" : `upload to /${into.join("/")}`;
     this.pane.classList.toggle("aimed", into !== null && into.length === 0);
     this.later();
   }
