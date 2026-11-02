@@ -73,7 +73,7 @@ function subline(subject: Subject): string {
  * 2. Its header names the entity (`subline`, else its detail), and
  *    whether the agent's run is up or the tool has an ask in flight;
  *    its tabs, `logs`, `filesystem` and `console`, those it has, shown
- *    only when it has more than one; and ✕, which closes it and tells
+ *    however many it has, one among them; and ✕, which closes it and tells
  *    `closed`.
  * 3. An entity with a log (`subject`) has the logs tab, one with files
  *    (`files`) the filesystem tab, one with a container (an agent, a
@@ -181,7 +181,7 @@ export class Sheet {
     this.sub.textContent = entity.subject ? subline(entity.subject) : entity.detail;
     this.live.classList.remove("on");
     const tabs = tabsOf(entity);
-    this.tabs.hidden = tabs.length < 2;
+    this.tabs.hidden = tabs.length === 0;
     for (const which of ["logs", "files", "console"] as const) this.tab[which].hidden = !tabs.includes(which);
     this.root.style.height = `${this.height}vh`;
     this.root.hidden = false;

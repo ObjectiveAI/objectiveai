@@ -179,7 +179,8 @@ holds.
 | Account (and admin) | yes | — | — |
 | Volume | — | yes | — |
 
-- The tab bar shows only when a node has more than one tab.
+- The tab bar always shows, even for a node with one tab (an account's
+  logs, a volume's filesystem).
 - A tab starts reading the first time it is shown, and keeps running
   until the sheet closes, so switching back finds it current.
 - The tab you last chose is remembered, and the next node opens on it
