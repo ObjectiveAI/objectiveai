@@ -1,5 +1,5 @@
 //! What a provider's server asks of the proxy inside a container:
-//! the nine scopes, and the tag table that names them.
+//! the ten scopes, and the tag table that names them.
 //!
 //! Each of these is one SCOPE — a request that opens one, whatever
 //! channels either side needs inside it, and the answer that comes
@@ -16,8 +16,9 @@
 //! | `6` | [`filesystem::fuse_serve`] |
 //! | `7` | [`exec`] |
 //! | `8` | [`terminal`] |
+//! | `9` | [`frontend`] |
 //!
-//! Nine. A `begin` leads, one per family, because it is the server's
+//! Ten. A `begin` leads, one per family, because it is the server's
 //! first act on every connection: the scope the proxy's own asks ride —
 //! the container's database connections, an agent
 //! container's tool calls outward, a tool container's daemon
@@ -29,6 +30,7 @@
 //! long as the server wants them answered. An exec is one because a
 //! command's output is a stream, and a stop kills it. A terminal is
 //! one because a shell's output is a stream its input rides beside.
+//! A frontend request is one because an HTTP body streams both ways.
 //!
 //! This table is the whole allocation. Each request states its own
 //! value and points here, because a value chosen in one module has to
@@ -67,6 +69,7 @@ pub use client_request::*;
 pub mod agents;
 pub mod exec;
 pub mod filesystem;
+pub mod frontend;
 pub mod fuse;
 pub mod terminal;
 pub mod tools;

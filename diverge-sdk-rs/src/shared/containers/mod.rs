@@ -42,6 +42,7 @@ pub mod dequeue;
 pub mod enqueue;
 pub mod exec;
 pub mod filetree;
+pub mod frontend;
 pub mod fuse;
 pub mod fuse_mount;
 pub mod info;
