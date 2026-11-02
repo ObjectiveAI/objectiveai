@@ -13,6 +13,7 @@ export * as get from "./get/index.js";
 export * as delete from "./delete/index.js";
 export * as tag from "./tag/index.js";
 export * as untag from "./untag/index.js";
+export * as exec from "./exec/index.js";
 export * as filetree from "./filetree/index.js";
 export * as download from "./download/index.js";
 export * as upload from "./upload/index.js";
