@@ -72,5 +72,7 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 it runs beside the viewer (1430). A second copy on its own root: `DIVERGE_CONFIG=/some/root pnpm tauri dev`.
 
 ## Working on it
+**`FEATURES.md` lists every feature, in plain words, and is kept current:** a change that adds, removes or
+alters one updates it in the same commit.
 Plain words, few of them, tl;dr first. **GitHub: this work lives on the `viewer-edge-graph` branch**, pushed after
 every chunk. **Nothing private enters this repo**, in files or commit messages.
