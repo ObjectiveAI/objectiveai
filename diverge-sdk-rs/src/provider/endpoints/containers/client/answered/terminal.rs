@@ -1,8 +1,10 @@
-//! A provider-held terminal's answers: its id, its output, and done.
+//! A provider-held terminal's answers — its id, its output, and done —
+//! and a frontend request's.
 
 use bytes::Bytes;
 
 use super::Answered;
+use crate::shared::containers::frontend;
 use crate::shared::containers::terminal::{output, session};
 use crate::shared::error::Error;
 use crate::wire::decode::Decode as _;
@@ -54,5 +56,20 @@ impl Answered for TerminalOutput {
 
     fn decode(payload: Bytes) -> Result<Result<output::Owned, Error>, Self::Error> {
         Ok(Ok(output::Frame::decode(&payload)?.owned(&payload)))
+    }
+}
+
+/// A frontend request's stream: every frame of its answer an item, its
+/// `Error` among them.
+#[derive(Debug, Clone, Copy)]
+pub struct FrontendOutput;
+
+impl Answered for FrontendOutput {
+    type Item = frontend::output::Owned;
+    type Error = frontend::output::FrameError;
+    type Refusal = Error;
+
+    fn decode(payload: Bytes) -> Result<Result<frontend::output::Owned, Error>, Self::Error> {
+        Ok(Ok(frontend::output::Frame::decode(&payload)?.owned(&payload)))
     }
 }

@@ -9,7 +9,7 @@ use bytes::Bytes;
 use futures_util::{Stream, StreamExt as _};
 use tokio::sync::{Mutex, Notify};
 
-use super::{Answered, ChannelStream, UnaryError, Writes, unary};
+use super::{Answered, ChannelStream, OpenError, UnaryError, Writes, unary};
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::frame;
 use crate::shared::error::Error;
@@ -121,6 +121,42 @@ impl Scoped {
             .send_channel_request(self.scope, payload)
             .await
             .map(|_| ())
+    }
+
+    /// Open a channel that streams and whose body the provider asks
+    /// for: keep `content` under a fresh write id, open the channel
+    /// `encode` builds for that id, and hand back its stream and the
+    /// id. A body the provider never asks for stays kept until
+    /// [`forget`](Self::forget) takes it back, or the scope ends.
+    pub(crate) async fn open_writing<A, S, E>(
+        &self,
+        encode: impl FnOnce(u32) -> Result<Vec<u8>, serde_json::Error>,
+        content: S,
+    ) -> Result<(ChannelStream<A>, u32), OpenError>
+    where
+        A: Answered,
+        S: Stream<Item = Result<Bytes, E>> + Send + 'static,
+        E: fmt::Display + Send + 'static,
+    {
+        let content = content.map(|piece| piece.map_err(|error| Error(serde_json::Value::String(error.to_string()))));
+        let write_id = self.writes.register(Box::pin(content)).await;
+        let opened = match encode(write_id) {
+            Ok(payload) => self.open::<A>(&payload).await.map_err(OpenError::Send),
+            Err(error) => Err(OpenError::Request(error)),
+        };
+        match opened {
+            Ok(stream) => Ok((stream, write_id)),
+            Err(error) => {
+                self.writes.take(write_id).await;
+                Err(error)
+            }
+        }
+    }
+
+    /// Take a kept body back, asked for or not: nothing is kept for an
+    /// ask that will not arrive.
+    pub(crate) async fn forget(&self, write_id: u32) {
+        self.writes.take(write_id).await;
     }
 
     /// Write a file: keep `content` under a fresh write id, open the

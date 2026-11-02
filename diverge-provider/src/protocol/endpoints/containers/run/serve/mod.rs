@@ -19,6 +19,7 @@ pub(crate) mod agent;
 pub(crate) mod daemon;
 pub(crate) mod exec;
 pub(crate) mod filetree;
+pub(crate) mod frontend;
 pub(crate) mod fuse_mount;
 pub(crate) mod info;
 pub(crate) mod postgres;

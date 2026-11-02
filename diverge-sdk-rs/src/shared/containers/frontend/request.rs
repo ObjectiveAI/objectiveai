@@ -24,6 +24,18 @@ pub struct Head {
     pub headers: Vec<(String, String)>,
 }
 
+/// A frontend request as a run scope's channel carries it: the head,
+/// and the write id the provider asks for the body by, as a write's
+/// content is asked for.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct Request {
+    /// The id the body is asked for by.
+    pub write_id: u32,
+    /// The request's head.
+    #[serde(flatten)]
+    pub head: Head,
+}
+
 impl Head {
     /// Whether the path is one a frontend request may reach.
     ///

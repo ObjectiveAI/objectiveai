@@ -21,7 +21,8 @@ use crate::provider::endpoints::containers::tools::run::server;
 use crate::shared::containers::fuse::Kind;
 use crate::shared::containers::exec;
 use crate::shared::containers::terminal;
-use crate::provider::endpoints::containers::client::answered::{TerminalDone, TerminalOpened, TerminalOutput};
+use crate::provider::endpoints::containers::client::answered::{FrontendOutput, TerminalDone, TerminalOpened, TerminalOutput};
+use crate::shared::containers::frontend;
 use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{fuse_mount, read, transfer, write_path};
@@ -145,6 +146,27 @@ impl ExecuteHandle {
     pub async fn terminal_close(&self, id: u32) -> Result<(), UnaryError<TerminalDone>> {
         let payload = payload(&channel_request::Frame::TerminalClose(terminal::session::Id { id })).map_err(UnaryError::Request)?;
         self.0.unary::<TerminalDone>(&payload).await
+    }
+
+    /// One HTTP request to the program's frontend: `head`, its body
+    /// `body`'s pieces, which the provider asks for; its answer as a
+    /// stream, and the write id the body is kept under until
+    /// [`forget`](Self::forget) takes it back. Dropping the stream
+    /// abandons the request.
+    pub async fn frontend<S, E>(&self, head: frontend::request::Head, body: S) -> Result<(ChannelStream<FrontendOutput>, u32), OpenError>
+    where
+        S: Stream<Item = Result<Bytes, E>> + Send + 'static,
+        E: fmt::Display + Send + 'static,
+    {
+        self.0
+            .open_writing::<FrontendOutput, S, E>(move |write_id| payload(&channel_request::Frame::Frontend(frontend::request::Request { write_id, head })), body)
+            .await
+    }
+
+    /// Take back a body kept for a request whose provider never asked
+    /// for it: called once the request's stream is done.
+    pub async fn forget(&self, write_id: u32) {
+        self.0.forget(write_id).await;
     }
 
     /// Write one file into the container, whole, from `content`'s

@@ -68,6 +68,7 @@ impl Family for Tools {
             channel_request::Frame::TerminalStdin { id, bytes } => Opened::TerminalStdin(id, bytes),
             channel_request::Frame::TerminalResize(resize) => Opened::TerminalResize(resize.id, diverge_sdk::shared::containers::terminal::open::Open { cols: resize.cols, rows: resize.rows }),
             channel_request::Frame::TerminalClose(id) => Opened::TerminalClose(id.id),
+            channel_request::Frame::Frontend(request) => Opened::Frontend(request),
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),
             channel_request::Frame::McpListResources(request) => {
                 Opened::Exchange(tool::Exchange::ListResources(request))

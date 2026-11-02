@@ -183,6 +183,8 @@ pub(crate) enum Opened<E> {
     TerminalResize(u32, diverge_sdk::shared::containers::terminal::open::Open),
     /// Kill a held terminal's shell.
     TerminalClose(u32),
+    /// One HTTP request to a tool program's frontend.
+    Frontend(diverge_sdk::shared::containers::frontend::request::Request),
     /// The family's own.
     Exchange(E),
 }
