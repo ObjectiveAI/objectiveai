@@ -1,6 +1,7 @@
-// The bottom sheet: one entity's log and files, in HTML over the map.
+// The bottom sheet: one entity's log, files and console, in HTML over the map.
 
 import type { Entity, Subject } from "../world/model";
+import { type Container, Console } from "./console";
 import { Files } from "./files";
 import { Fold } from "./fold";
 import { type Entry, type Following, follow } from "./log";
@@ -15,8 +16,22 @@ const MOST = 90;
 /** What the sheet is opened on: the entity, and the image names for an agent's tools. */
 export type Opened = { entity: Entity; images: Map<string, string> };
 
-/** The sheet's two tabs. */
-type Tab = "logs" | "files";
+/** The sheet's three tabs. */
+type Tab = "logs" | "files" | "console";
+
+/** The tabs an entity has, in order: logs with a log, a filesystem with files, a console with a container. */
+function tabsOf(entity: Entity): Tab[] {
+  const tabs: Tab[] = [];
+  if (entity.subject) tabs.push("logs");
+  if (entity.files) tabs.push("files");
+  if (container(entity)) tabs.push("console");
+  return tabs;
+}
+
+/** The entity's container, when it runs in one: an agent, a tool, a dependency tool — never a volume. */
+function container(entity: Entity): Container | null {
+  return entity.files && !("volume" in entity.files) ? entity.files : null;
+}
 
 /** The tab last chosen, for the page: the next sheet opens on it when it has it. */
 let chosen: Tab = "logs";
@@ -57,14 +72,16 @@ function subline(subject: Subject): string {
  *    hundredths tall; its handle drags it between `LEAST` and `MOST`.
  * 2. Its header names the entity (`subline`, else its detail), and
  *    whether the agent's run is up or the tool has an ask in flight;
- *    its tabs, `logs` and `filesystem`, shown only when it has both;
- *    and ✕, which closes it and tells `closed`.
+ *    its tabs, `logs`, `filesystem` and `console`, those it has, shown
+ *    only when it has more than one; and ✕, which closes it and tells
+ *    `closed`.
  * 3. An entity with a log (`subject`) has the logs tab, one with files
- *    (`files`) the filesystem tab. It opens on the tab last chosen
- *    (`chosen`) if it has it, else on the one it has. A tab's read
- *    starts the first time it is shown and runs until the sheet
- *    closes; closing stops both and empties both. Opening while open
- *    closes first.
+ *    (`files`) the filesystem tab, one with a container (an agent, a
+ *    tool, a dependency tool) the console tab (`tabsOf`). It opens on
+ *    the tab last chosen (`chosen`) if it has it, else on the first it
+ *    has. A tab's read starts the first time it is shown and runs until
+ *    the sheet closes; closing stops every one and empties every one.
+ *    Opening while open closes first.
  * 4. The logs tab follows the log (`follow`, the root `logs` read)
  *    into `Fold` for an agent, `ToolFold` for a tool or an account
  *    (whose log is commands alone), each entry unwrapped from its
@@ -76,7 +93,10 @@ function subline(subject: Subject): string {
  *    its bottom, and the browser's scroll anchoring keeps what is read
  *    in place above it.
  * 5. The filesystem tab is `Files`, scrolled from its top.
- * 6. Nothing pressed on the sheet reaches the map beneath.
+ * 6. The console tab is `Console`: one shell, opened the first time
+ *    the tab is shown and closed — killed — with the sheet, or when it
+ *    swaps to another entity; the keys go to it while it is shown.
+ * 7. Nothing pressed on the sheet reaches the map beneath.
  */
 export class Sheet {
   private readonly root: HTMLElement;
@@ -88,10 +108,12 @@ export class Sheet {
   private readonly body: HTMLElement;
   private readonly log: HTMLElement;
   private readonly pane: HTMLElement;
+  private readonly shell: HTMLElement;
   private opened: Opened | null = null;
   private following: Following | null = null;
   private fold: Fold | ToolFold | null = null;
   private files: Files | null = null;
+  private console: Console | null = null;
   private height = HEIGHT;
 
   constructor(private readonly closed: () => void) {
@@ -121,8 +143,8 @@ export class Sheet {
       });
       return button;
     };
-    this.tab = { logs: tab("logs", "logs"), files: tab("files", "filesystem") };
-    this.tabs.append(this.tab.logs, this.tab.files);
+    this.tab = { logs: tab("logs", "logs"), files: tab("files", "filesystem"), console: tab("console", "console") };
+    this.tabs.append(this.tab.logs, this.tab.files, this.tab.console);
     const exit = document.createElement("button");
     exit.className = "exit";
     exit.type = "button";
@@ -142,7 +164,10 @@ export class Sheet {
     // Rule 5.
     this.pane = document.createElement("div");
     this.pane.className = "files";
-    this.root.append(handle, head, this.body, this.pane);
+    // Rule 6.
+    this.shell = document.createElement("div");
+    this.shell.className = "console";
+    this.root.append(handle, head, this.body, this.pane, this.shell);
     this.drag(handle);
     document.body.append(this.root);
   }
@@ -155,10 +180,12 @@ export class Sheet {
     this.title.textContent = entity.label;
     this.sub.textContent = entity.subject ? subline(entity.subject) : entity.detail;
     this.live.classList.remove("on");
-    this.tabs.hidden = !(entity.subject && entity.files);
+    const tabs = tabsOf(entity);
+    this.tabs.hidden = tabs.length < 2;
+    for (const which of ["logs", "files", "console"] as const) this.tab[which].hidden = !tabs.includes(which);
     this.root.style.height = `${this.height}vh`;
     this.root.hidden = false;
-    this.show(chosen === "files" ? (entity.files ? "files" : "logs") : entity.subject ? "logs" : "files");
+    this.show(tabs.includes(chosen) ? chosen : (tabs[0] ?? "logs"));
   }
 
   /** Rule 3: stop, empty and hide. Closing a closed sheet does nothing. */
@@ -170,6 +197,8 @@ export class Sheet {
     this.log.replaceChildren();
     this.files?.dispose();
     this.files = null;
+    this.console?.dispose();
+    this.console = null;
     this.opened = null;
     this.root.hidden = true;
   }
@@ -180,11 +209,18 @@ export class Sheet {
     if (!opened) return;
     this.tab.logs.classList.toggle("on", which === "logs");
     this.tab.files.classList.toggle("on", which === "files");
+    this.tab.console.classList.toggle("on", which === "console");
     this.body.hidden = which !== "logs";
     this.pane.hidden = which !== "files";
+    this.shell.hidden = which !== "console";
     const { subject, files } = opened.entity;
     if (which === "logs" && subject && !this.following) this.logs(subject, opened.images);
     if (which === "files" && files && !this.files) this.files = new Files(this.pane, files);
+    if (which === "console") {
+      const shell = container(opened.entity);
+      if (shell && !this.console) this.console = new Console(this.shell, shell);
+      this.console?.shown();
+    }
   }
 
   /** Rule 4. */

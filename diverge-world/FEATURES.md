@@ -13,8 +13,8 @@ is named, so the two can be checked against each other.
   lines as events happen.
 - A panel at the top left shows and hides each kind of node and each
   type of line, with counts, and can arrange the board.
-- Clicking a node opens a sheet along the bottom: its **logs** and its
-  **filesystem**.
+- Clicking a node opens a sheet along the bottom: its **logs**, its
+  **filesystem**, and a **console** into its container.
 - Files can be downloaded (right-click) and uploaded (drag and drop),
   however large.
 
@@ -171,15 +171,15 @@ holds.
 
 ### Tabs by kind
 
-| Kind | Logs | Filesystem |
-|---|---|---|
-| Agent | yes | yes |
-| Standalone tool | yes | yes |
-| Dependency tool | yes | yes |
-| Account (and admin) | yes | — |
-| Volume | — | yes |
+| Kind | Logs | Filesystem | Console |
+|---|---|---|---|
+| Agent | yes | yes | yes |
+| Standalone tool | yes | yes | yes |
+| Dependency tool | yes | yes | yes |
+| Account (and admin) | yes | — | — |
+| Volume | — | yes | — |
 
-- The tab bar shows only when a node has both tabs.
+- The tab bar shows only when a node has more than one tab.
 - A tab starts reading the first time it is shown, and keeps running
   until the sheet closes, so switching back finds it current.
 - The tab you last chose is remembered, and the next node opens on it
@@ -313,6 +313,31 @@ refused. An administrator's log is the daemon's own admin log.
 
 ---
 
+## The console tab
+
+`sheet/console.ts`
+
+- **A real terminal.** One interactive shell in the container (`bash`,
+  or `sh` where there is no bash), drawn by xterm: colours, cursor
+  movement and full-screen programs work. `cd`, variables and running
+  programs carry on from one command to the next, because it is one
+  shell.
+- **Starting it:** the shell opens the first time the tab is shown,
+  starting the container if it is stopped; it keeps the container
+  running while it is open. Dependency tools are never started for it.
+- **Typing:** keys and pastes go straight to the shell, in order, even
+  while it is printing.
+- **Size:** the terminal fills the sheet; resizing the sheet or the
+  window tells the shell its new size.
+- **Switching tabs** keeps the shell; closing the sheet or opening
+  another node kills it.
+- **When it ends:** the tab says how (`exited 0`, killed by a signal,
+  not found, forbidden, the container stopped), and any key opens a new
+  shell.
+- **Permission:** the account needs the `exec` grant over the node.
+
+---
+
 ## Behind the scenes
 
 - **The daemon is read once.** The world reads the daemon's lists once
@@ -330,6 +355,6 @@ These are the gaps as they stand:
 - **Node positions** are lost on reload.
 - **Opening a file** in place is not possible: files can be browsed,
   downloaded and uploaded, but not viewed in the app.
-- **Containers have no console**, though the daemon supports running
-  commands (`exec`).
+- **One console per sheet.** A shell lives only while its node's sheet
+  is open; there is no reattaching to an earlier one.
 - **Desktop only.** Downloading and uploading need a desktop window.

@@ -15,14 +15,17 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   administrator the daemon's `admins` names is listed as an account too, its log the `admin` subject — the world's own):
   every call and read the daemon routed into it, a card each with its answer, joined per caller, and each
   notification under the caller whose MCP session it came on (the proxy opens one session per caller). Clicking another
-  agent or tool swaps the sheet to it; clicking it again, or ✕, closes it. The sheet has two tabs, `logs` and
+  agent or tool swaps the sheet to it; clicking it again, or ✕, closes it. The sheet has tabs, `logs` and
   `filesystem` (`sheet/files.ts`, `sheet/filetree.ts`): an agent's, tool's or dependency tool's container tree watched
   live (`<family> filetree`), a volume's asked once (`volumes filetree`, ↻ asks again) — columns of name, size, created
   and modified, directories first, sortable headers, changed rows glowing. Right-clicking a row opens a menu that downloads it — a file, or a folder whole — where the
   system's dialog says; files dragged onto the tree upload into the directory they are aimed at (its rows glow, a line
   says where), a volume re-read after. The app's Rust moves the bytes (`src-tauri/src/transfer.rs`), disk to wire in
   2 MiB pieces one frame ahead, never through the page; the strip at the window's corner (`sheet/strip.ts`) shows
-  each transfer and stops it. An account
+  each transfer and stops it. A third tab, `console` (`sheet/console.ts`), is one interactive shell in an agent's,
+  tool's or dependency tool's container (`<family> terminal`), drawn by xterm (`@xterm/xterm`, `@xterm/addon-fit`):
+  keys go to its stdin one write in flight, the rest held and sent as one; the pane's size, settled, is its size;
+  closing or swapping the sheet closes it, which kills the shell. An account
   has only logs, a volume only its files; each tab starts reading the first time it is shown, and the tab last chosen
   carries to the next sheet.
 - **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): a dark Tron grid, every agent,

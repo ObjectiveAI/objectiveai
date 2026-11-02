@@ -118,6 +118,23 @@
   display: none;
 }
 
+/* Rule 6: the console, one terminal filling what the sheet leaves. */
+.sheet .console {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0 4px 8px;
+  background: var(--sheet-ink);
+}
+.sheet .console[hidden] {
+  display: none;
+}
+.sheet .console .xterm {
+  height: 100%;
+}
+.sheet .tab[hidden] {
+  display: none;
+}
+
 /* Rule 5: the filesystem, scrolled from its top; every row on one grid of columns. */
 .sheet .files {
   flex: 1;
