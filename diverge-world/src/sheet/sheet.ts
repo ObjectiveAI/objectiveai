@@ -1,6 +1,6 @@
 // The bottom sheet: one entity's log, files and console, in HTML over the map.
 
-import type { Entity, Subject } from "../world/model";
+import type { Entity, Live, Subject } from "../world/model";
 import { type Container, Console } from "./console";
 import { Files } from "./files";
 import { Fold } from "./fold";
@@ -71,7 +71,8 @@ function subline(subject: Subject): string {
  * 1. It lies along the bottom of the window, the full width, `HEIGHT`
  *    hundredths tall; its handle drags it between `LEAST` and `MOST`.
  * 2. Its header names the entity (`subline`, else its detail), and
- *    whether the agent's run is up or the tool has an ask in flight;
+ *    whether the agent's run is up, the tool has an ask in flight, or
+ *    the account is connected (`told`, as the lists say it now);
  *    its tabs, `logs`, `filesystem` and `console`, those it has, shown
  *    however many it has, one among them; and ✕, which closes it and tells
  *    `closed`.
@@ -115,6 +116,8 @@ export class Sheet {
   private files: Files | null = null;
   private console: Console | null = null;
   private height = HEIGHT;
+  /** Every account's connection as the lists last told it, by key: what an account's dot shows. */
+  private readonly connected = new Map<string, boolean>();
 
   constructor(private readonly closed: () => void) {
     this.root = document.createElement("section");
@@ -179,13 +182,20 @@ export class Sheet {
     this.opened = opened;
     this.title.textContent = entity.label;
     this.sub.textContent = entity.subject ? subline(entity.subject) : entity.detail;
-    this.live.classList.remove("on");
+    this.live.classList.toggle("on", entity.kind === "account" && (this.connected.get(entity.key) ?? entity.live?.on ?? false));
     const tabs = tabsOf(entity);
     this.tabs.hidden = tabs.length === 0;
     for (const which of ["logs", "files", "console"] as const) this.tab[which].hidden = !tabs.includes(which);
     this.root.style.height = `${this.height}vh`;
     this.root.hidden = false;
     this.show(tabs.includes(chosen) ? chosen : (tabs[0] ?? "logs"));
+  }
+
+  /** Rule 2: an entity's live state, as its list now says; an open account's dot follows its connection. */
+  told(key: string, live: Live | null): void {
+    if (live?.kind !== "connected") return;
+    this.connected.set(key, live.on);
+    if (this.opened?.entity.key === key) this.live.classList.toggle("on", live.on);
   }
 
   /** Rule 3: stop, empty and hide. Closing a closed sheet does nothing. */
@@ -236,7 +246,8 @@ export class Sheet {
         fold.note(why);
       }, loaded);
     } else {
-      const fold = new ToolFold(this.log, live);
+      // An account's dot is its connection (rule 2), not its log's.
+      const fold = new ToolFold(this.log, subject.type === "account" || subject.type === "admin" ? () => {} : live);
       this.fold = fold;
       const tool = (entry: Entry) =>
         "standalone_tool" in entry

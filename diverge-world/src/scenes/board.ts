@@ -12,7 +12,7 @@ import { place } from "../grid/place";
 import { pulses } from "../grid/pulses";
 import { REACH } from "../grid/textures";
 import { Sheet } from "../sheet/sheet";
-import { agentKey, dependencyKey, type Entity, model, toolKey } from "../world/model";
+import { accountKey, agentKey, dependencyKey, type Entity, model, toolKey } from "../world/model";
 import { type Snapshot, snapshot } from "../world/snapshot";
 import { type Watching, watch } from "../world/watch";
 import { controls } from "./camera";
@@ -123,12 +123,18 @@ export class Board extends Phaser.Scene {
     // Rule 3.
     const lit = makeLit(this, nodes);
     const deployed = new Map<string, boolean>([
+      ...read.accounts.map((a) => [accountKey(a), a.connected] as const),
       ...read.agents.map((a) => [agentKey(a), a.deployed] as const),
       ...read.tools.map((t) => [toolKey(t), t.deployed] as const),
       ...read.dependencies.map((d) => [dependencyKey(d), d.deployed] as const),
     ]);
     for (const e of made.entities) if (e.live) lit.set(e.key, e.live, deployed.get(e.key));
-    this.watching.push(watch((key, live, up) => lit.set(key, live, up)));
+    this.watching.push(
+      watch((key, live, up) => {
+        lit.set(key, live, up);
+        this.sheet?.told(key, live);
+      }),
+    );
     this.watching.push(pulses(this, nodes, this.links, read.events));
     this.sheet = new Sheet(() => this.deselect());
     // The view's middle may reach the first columns and every node shown wherever it stands now.

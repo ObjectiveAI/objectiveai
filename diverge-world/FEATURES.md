@@ -49,7 +49,7 @@ is named, so the two can be checked against each other.
   call or read in flight) has a breathing halo.
 - **Connected:** an account that is connected has a steady halo.
 - **Down:** an agent or tool whose container is not deployed stands
-  faint.
+  faint, and so does an account that is not connected.
 - These update live, as the daemon's lists change. The nodes themselves
   do not; see [Limits](#limits).
 
@@ -166,8 +166,8 @@ holds.
   height.
 - **The header:** the node's name, a second line of detail (its
   template and index, who owns a dependency tool, an account's issuer),
-  and a green dot while an agent's run is up or a tool has a request in
-  flight.
+  and a green dot while an agent's run is up, a tool has a request in
+  flight, or an account is connected.
 
 ### Tabs by kind
 

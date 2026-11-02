@@ -99,7 +99,7 @@ export function watch(told: Told): Watching {
   const k = keeper();
   const e = daemon.endpoints;
   const deployed = (x: { deployed: boolean }) => x.deployed;
-  tell({ open: () => e.accounts.list.client.execute(handle, {}), change: e.accounts.list.server.response.change, key: accountKey, live: accountLive }, told, k);
+  tell({ open: () => e.accounts.list.client.execute(handle, {}), change: e.accounts.list.server.response.change, key: accountKey, live: accountLive, deployed: (a) => a.connected }, told, k);
   tell({ open: () => e.agents.list.client.execute(handle, {}), change: e.agents.list.server.response.change, key: agentKey, live: activeLive, deployed }, told, k);
   tell({ open: () => e.standalone_tools.list.client.execute(handle, {}), change: e.standalone_tools.list.server.response.change, key: toolKey, live: activeLive, deployed }, told, k);
   tell({ open: () => e.dependency_tools.list.client.execute(handle, {}), change: e.dependency_tools.list.server.response.change, key: dependencyKey, live: activeLive, deployed }, told, k);
