@@ -1,0 +1,27 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 8 followed by the terminal size as JSON: cols and rows.'
+order: 1
+draft: false
+---
+
+```text
+[8][request JSON …]
+```
+
+- **`cols`.** An integer from `0` to `65535`: the number of characters
+  across one line of the terminal.
+- **`rows`.** An integer from `0` to `65535`: the number of lines down
+  the terminal.
+- **Malformed.** A payload that does not decode as stated is answered
+  by a response finish that no response precedes.
+
+The request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/terminal/client/request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/terminal/client/request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/terminal/open.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/terminal/open.rs
+```

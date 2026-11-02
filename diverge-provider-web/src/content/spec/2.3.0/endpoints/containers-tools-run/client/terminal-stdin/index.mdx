@@ -1,0 +1,20 @@
+---
+title: 'Terminal Stdin'
+summary: 'Tag 18: the client writes bytes to a held terminal; the server writes them and answers done.'
+order: 18
+draft: false
+---
+
+The client opens this channel to write to a held terminal's input.
+The server writes the bytes through the proxy's
+[stdin](/container-proxy-endpoints/terminal/client/stdin/) channel and
+answers once they are written.
+
+- **The order.** The client opens the next terminal-stdin channel for
+  a terminal only after the server finished the last one. The server
+  writes the bytes of one channel whole.
+
+- **The request.** [Request](/endpoints/containers-tools-run/client/terminal-stdin/request/) states its form.
+- **The response.** [Response](/endpoints/containers-tools-run/client/terminal-stdin/response/) states the sequence.
+- **The run ends.** When the run scope ends, the server kills the
+  shell of every terminal it holds on it.

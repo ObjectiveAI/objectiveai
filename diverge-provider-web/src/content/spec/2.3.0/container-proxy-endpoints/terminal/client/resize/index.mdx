@@ -1,0 +1,13 @@
+---
+title: 'Resize'
+summary: 'Tag 1: the client sets the terminal size; the server sets it and answers with the channel response finish.'
+order: 1
+draft: false
+---
+
+The client sets the terminal's size by opening this channel. The
+server sets it, which the terminal reports to the shell's foreground
+programs, and answers with the channel response finish.
+
+- **The request.** [Request](/container-proxy-endpoints/terminal/client/resize/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/terminal/client/resize/response/) states the sequence.

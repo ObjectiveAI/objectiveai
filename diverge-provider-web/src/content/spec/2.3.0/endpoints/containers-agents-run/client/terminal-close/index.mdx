@@ -1,0 +1,19 @@
+---
+title: 'Terminal Close'
+summary: 'Tag 16: the client closes a held terminal; the server kills its shell, forgets the id, and answers done.'
+order: 16
+draft: false
+---
+
+The client opens this channel to close a held terminal. The server
+stops the proxy's terminal scope through its
+[stop](/container-proxy-endpoints/terminal/client/stop/) channel, which
+kills the shell, forgets the id, and answers.
+
+- **After the close.** The id names no terminal. A later channel that
+  names it is answered with an error.
+
+- **The request.** [Request](/endpoints/containers-agents-run/client/terminal-close/request/) states its form.
+- **The response.** [Response](/endpoints/containers-agents-run/client/terminal-close/response/) states the sequence.
+- **The run ends.** When the run scope ends, the server kills the
+  shell of every terminal it holds on it.

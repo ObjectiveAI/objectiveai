@@ -1,0 +1,42 @@
+---
+title: 'Response'
+summary: 'The server sends the terminal output, one response per read, then the exit code or the signal, and the finish; or one error and the finish.'
+order: 2
+draft: false
+---
+
+```text
+[0][bytes …]          one read of the terminal
+[1][code JSON]        last: the shell exited
+[2][signal JSON]      last: a signal ended the shell
+[3][error JSON …]     the only response: no shell started
+```
+
+- **The sequence.** Zero or more responses whose first byte is `0`,
+  followed by exactly one response whose first byte is `1` or `2`,
+  followed by the response finish. Alternatively, exactly one response whose
+  first byte is `3`, followed by the response finish.
+- **The terminal's bytes.** After the byte `0`, the bytes of one read
+  of the terminal, verbatim, running to the end of the payload. A read
+  carries at most 2097152 bytes. The terminal has one output: what the
+  shell and its programs write to standard output and to standard
+  error arrives on it together, as a terminal shows it. The bytes,
+  concatenated in order, are the terminal's output.
+- **The end.** After the byte `1`, exactly one JSON integer: the code
+  with which the shell exited. After the byte `2`, exactly one JSON
+  integer: the number of the signal that ended the shell.
+- **The error.** After the byte `3`, exactly one JSON value in the form
+  defined on the [volumes::list response](/endpoints/volumes-list/response/) page. It states that no shell
+  started: the image holds neither `/bin/bash` nor `/bin/sh`, or no
+  pseudo-terminal could be made.
+- **The pace.** The server sends each response only while it holds room on the
+  stream, as [Credits](/frames/credits/) provides. A shell whose output
+  the client does not take waits on its write.
+- **A finish with nothing.** A response finish that no response
+  precedes states that the server could not read the request, or that
+  the shell was killed before the terminal printed anything.
+
+The response is defined by `diverge-sdk-rs/src/shared/containers/terminal/output.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/terminal/output.rs
+```

@@ -1,0 +1,25 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, and what ends it.'
+order: 2
+draft: false
+---
+
+```text
+[0][id u32 BE]        the terminal runs, by this id
+[1][error JSON …]     no terminal started
+```
+
+The server sends exactly one channel response, followed by the channel
+response finish.
+
+- **The id.** After the byte `0`, exactly four bytes: the id, an
+  unsigned 32-bit integer, big-endian.
+- **The error.** After the byte `1`, exactly one JSON value in the form
+  defined on the [volumes::list response](/endpoints/volumes-list/response/) page. It states that the
+  proxy did not open the terminal.
+
+The channel response is defined by `diverge-sdk-rs/src/shared/containers/terminal/session.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/terminal/session.rs
+```

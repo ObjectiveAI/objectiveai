@@ -1,0 +1,25 @@
+---
+title: 'Terminal Attach'
+summary: 'Tag 17: the client names a terminal; the server sends its scrollback, then its output as it is read, then how its shell ended, and the channel response finish.'
+order: 17
+draft: false
+---
+
+The client opens this channel to read a held terminal's output. The
+server sends the terminal's scrollback, then the output as the proxy
+sends it, then how the shell ended, and the channel response finish.
+
+- **One attach.** A terminal has at most one attach. A second attach
+  replaces the first: the server sends nothing more on the first
+  channel and sends its channel response finish.
+- **Detaching.** The client's abandoning the channel's responses, as
+  [Credits](/frames/credits/) provides, ends the attach and nothing
+  else. The terminal goes on, and its output goes to the scrollback
+  again.
+- **The pace.** While an attach is open, the server reads the proxy's
+  output only as fast as the attach takes it.
+
+- **The request.** [Request](/endpoints/containers-tools-run/client/terminal-attach/request/) states its form.
+- **The response.** [Response](/endpoints/containers-tools-run/client/terminal-attach/response/) states the sequence.
+- **The run ends.** When the run scope ends, the server kills the
+  shell of every terminal it holds on it.

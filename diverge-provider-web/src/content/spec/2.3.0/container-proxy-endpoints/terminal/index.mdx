@@ -1,0 +1,53 @@
+---
+title: 'terminal'
+summary: 'Tag 8: the client names a size; the server starts one shell on a pseudo-terminal of that size in the container and sends what the terminal prints, while the client writes its input, resizes it and stops it on channels at any time.'
+order: 8
+draft: false
+---
+
+The client opens the scope with a request whose payload is the tag
+byte `8` followed by the terminal's size, as JSON. The server starts
+one shell on a pseudo-terminal of that size in the container, sends
+what the terminal prints as responses as it is read, then one response
+stating how the shell ended, and ends the scope by the response finish.
+While the scope is open, the client opens channels on it to write the
+terminal's input, to set its size, and to stop it.
+
+- **The request.** [Request](/container-proxy-endpoints/terminal/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/terminal/response/) states the sequence of the main
+  stream.
+- **The channels.** The client opens the channels that
+  [Client Channels](/container-proxy-endpoints/terminal/client/) defines. The server opens no channel on a
+  terminal scope.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Container Proxy Endpoints](/container-proxy-endpoints/) provides.
+2. **The server starts the shell.** The shell is `/bin/bash` when the
+   image holds it, and `/bin/sh` otherwise. It runs in `/`, with the
+   environment of the server and `TERM` set to `xterm-256color`. It is
+   the leader of a session of its own, and a new pseudo-terminal of the
+   requested size is its standard input, standard output, standard
+   error and controlling terminal. A shell that does not start is
+   answered by exactly one error response and the response finish.
+3. **The server sends the output.** One response per read of the
+   terminal.
+4. **The server sends the end.** When the shell exits, the server kills
+   every process remaining in its process group, sends what the
+   terminal still holds, and sends exactly one response stating the
+   exit code or the signal. The response finish follows it.
+
+## The rules that hold throughout
+
+- **Input at any time.** The server serves the client's channels
+  whatever the main stream is doing. Output the client has not taken
+  does not hold input back, and input does not hold output back.
+- **The kill.** The stop, the end of the connection, or the client's
+  abandoning the scope's responses, as [Credits](/frames/credits/)
+  provides, kills the shell's process group with the signal `SIGKILL`.
+  The server sends no response after it, and sends the response
+  finish.
+- **No timeout.** The server imposes no timeout on the shell or the
+  scope.

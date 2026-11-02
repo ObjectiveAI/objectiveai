@@ -1,0 +1,26 @@
+---
+title: 'Terminal Open'
+summary: 'Tag 16: the client names a size; the server opens a terminal scope on the container proxy, holds it under an id, and answers with the id.'
+order: 16
+draft: false
+---
+
+The client opens this channel to start a terminal that the server
+holds. The server opens a [terminal](/container-proxy-endpoints/terminal/)
+scope on the container's proxy at the requested size, holds it under a
+new id, and answers with the id. The terminal lives until the client
+closes it, until its shell ends, or until the run ends; nothing else
+ends it.
+
+- **The id.** An unsigned 32-bit integer that names the terminal on
+  every later terminal channel of this run scope. The server chooses
+  it, and no two terminals it holds at once on one run scope share an
+  id.
+- **Detached output.** While no attach is open, the server keeps
+  reading the terminal's output and keeps its last 1048576 bytes, the
+  scrollback. Older bytes are discarded.
+
+- **The request.** [Request](/endpoints/containers-tools-run/client/terminal-open/request/) states its form.
+- **The response.** [Response](/endpoints/containers-tools-run/client/terminal-open/response/) states the sequence.
+- **The run ends.** When the run scope ends, the server kills the
+  shell of every terminal it holds on it.

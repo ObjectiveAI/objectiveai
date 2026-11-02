@@ -1,0 +1,13 @@
+---
+title: 'Stop'
+summary: 'Tag 2: the client kills the shell; the server answers with the channel response finish and finishes the scope.'
+order: 2
+draft: false
+---
+
+The client kills the shell by opening this channel. The server kills
+the shell's process group with the signal `SIGKILL`, answers with the
+channel response finish, and finishes the scope.
+
+- **The request.** [Request](/container-proxy-endpoints/terminal/client/stop/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/terminal/client/stop/response/) states the sequence.

@@ -21,6 +21,11 @@ The client opens each of these channels on the scope, as [Channels](/frames/chan
 | `9` | [fuse-mount](/endpoints/containers-agents-run/client/fuse-mount/) |
 | `10` | [secrets](/endpoints/containers-agents-run/client/secrets/) |
 | `11` | [exec](/endpoints/containers-agents-run/client/exec/) |
+| `12` | [terminal-open](/endpoints/containers-agents-run/client/terminal-open/) |
+| `13` | [terminal-attach](/endpoints/containers-agents-run/client/terminal-attach/) |
+| `14` | [terminal-stdin](/endpoints/containers-agents-run/client/terminal-stdin/) |
+| `15` | [terminal-resize](/endpoints/containers-agents-run/client/terminal-resize/) |
+| `16` | [terminal-close](/endpoints/containers-agents-run/client/terminal-close/) |
 
 The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/client/channel_request/frame.rs`:
 
