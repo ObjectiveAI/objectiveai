@@ -20,6 +20,7 @@ mod mcp_notifications;
 mod mcp_read_resource;
 mod postgres;
 mod secrets;
+mod terminal;
 
 pub use answered::*;
 pub use daemon::*;
@@ -34,3 +35,4 @@ pub use mcp_notifications::*;
 pub use mcp_read_resource::*;
 pub use postgres::*;
 pub use secrets::*;
+pub use terminal::*;

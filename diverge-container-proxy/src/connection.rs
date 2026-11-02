@@ -74,7 +74,10 @@ async fn connection(socket: WebSocket, proxy: Arc<Proxy>) {
             ClientRequest::Exec(frame) => {
                 scopes.spawn(serve::exec(scope, frame));
             }
-            // Seven scopes have seven error vocabularies, and an invalid
+            ClientRequest::Terminal(frame) => {
+                scopes.spawn(serve::terminal(scope, frame));
+            }
+            // Eight scopes have eight error vocabularies, and an invalid
             // request names none of them: the finish with nothing
             // before it, which is what the wire means by a request
             // that could not be served.

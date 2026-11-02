@@ -66,6 +66,10 @@ pub(crate) struct Run {
     /// by itself, stopped by [`shutdown`](Self::shutdown) before the
     /// task serving it is aborted.
     pub trees: Mutex<HashMap<u32, tree::ExecuteHandle>>,
+    /// Every terminal the caller holds open on this run, by id: each
+    /// one's shell killed by [`shutdown`](Self::shutdown) as the trees
+    /// are stopped.
+    pub terminals: super::serve::terminal::Terminals,
     tasks: Mutex<JoinSet<()>>,
 }
 
@@ -93,6 +97,7 @@ impl Run {
             pairs: Pairs::new(),
             over: Notify::new(),
             trees: Mutex::new(HashMap::new()),
+            terminals: Default::default(),
             tasks: Mutex::new(JoinSet::new()),
         }
     }
@@ -116,6 +121,7 @@ impl Run {
         for (_, handle) in self.trees.lock().await.drain() {
             let _ = handle.stop().await;
         }
+        self.terminals.stop_all().await;
         let mut tasks = self.tasks.lock().await;
         tasks.abort_all();
         while tasks.join_next().await.is_some() {}

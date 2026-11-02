@@ -173,6 +173,16 @@ pub(crate) enum Opened<E> {
     FuseMount(fuse_mount::request::Request),
     /// One command, run in the container, its output streamed.
     Exec(diverge_sdk::shared::containers::exec::request::Request),
+    /// Start a terminal the provider holds.
+    TerminalOpen(diverge_sdk::shared::containers::terminal::open::Open),
+    /// Stream a held terminal's output.
+    TerminalAttach(u32),
+    /// Write to a held terminal's stdin.
+    TerminalStdin(u32, Vec<u8>),
+    /// Set a held terminal's size.
+    TerminalResize(u32, diverge_sdk::shared::containers::terminal::open::Open),
+    /// Kill a held terminal's shell.
+    TerminalClose(u32),
     /// The family's own.
     Exchange(E),
 }

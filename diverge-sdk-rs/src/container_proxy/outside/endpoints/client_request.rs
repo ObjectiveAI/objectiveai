@@ -2,7 +2,7 @@
 
 use std::convert::Infallible;
 
-use super::{agents, exec, filesystem, fuse, tools};
+use super::{agents, exec, filesystem, fuse, terminal, tools};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -45,6 +45,8 @@ pub enum ClientRequest<'a> {
     FilesystemFuseServe(filesystem::fuse_serve::client::request::Frame),
     /// Tag `7`. Run one command in the container, its output streamed.
     Exec(exec::client::request::Frame),
+    /// Tag `8`. An interactive shell in the container, on a terminal.
+    Terminal(terminal::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request the server sends — it is
@@ -55,7 +57,7 @@ pub enum ClientRequest<'a> {
     /// # It is answered, not dropped
     ///
     /// The proxy finishes the scope over it, with nothing in front:
-    /// eight scopes have eight error vocabularies, and an invalid request
+    /// nine scopes have nine error vocabularies, and an invalid request
     /// names none of them — where a finish with nothing before it is
     /// already what the wire means by a request that could not be
     /// served. Which is the point all the same: a server that sent
@@ -67,8 +69,8 @@ pub enum ClientRequest<'a> {
     /// The proxy has the bytes and can ask the specific request to
     /// decode them, which answers precisely: an unknown tag, a body
     /// that would not parse, or nothing at all. Storing a reason here
-    /// would mean this type choosing which of eight error vocabularies
-    /// to speak, and choosing wrong for seven of them.
+    /// would mean this type choosing which of nine error vocabularies
+    /// to speak, and choosing wrong for eight of them.
     Invalid(&'a [u8]),
 }
 
@@ -90,6 +92,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::FilesystemWrite(frame) => frame.encode(out),
             ClientRequest::FilesystemFuseServe(frame) => frame.encode(out),
             ClientRequest::Exec(frame) => frame.encode(out),
+            ClientRequest::Terminal(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -137,6 +140,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
                 .ok(),
             7 => exec::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Exec)
+                .ok(),
+            8 => terminal::client::request::Frame::decode(bytes)
+                .map(ClientRequest::Terminal)
                 .ok(),
             _ => None,
         };

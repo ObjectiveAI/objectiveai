@@ -12,7 +12,8 @@
 //! database half, the image's `/DIVERGE.md`, a feed of the secrets
 //! and the family's own exchange are channels on the begin scope; a FUSE
 //! mount asked for while the container runs is one more mount scope
-//! on the proxy, waited for.
+//! on the proxy, waited for. A terminal is a scope on the proxy the
+//! caller holds by an id across channels, until it closes it.
 
 pub(crate) mod agent;
 pub(crate) mod daemon;
@@ -23,6 +24,7 @@ pub(crate) mod info;
 pub(crate) mod postgres;
 pub(crate) mod read;
 pub(crate) mod secrets;
+pub(crate) mod terminal;
 pub(crate) mod tool;
 pub(crate) mod transfer;
 pub(crate) mod write;

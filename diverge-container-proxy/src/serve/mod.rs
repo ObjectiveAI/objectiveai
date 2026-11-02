@@ -6,6 +6,7 @@ mod exec;
 mod mount;
 mod read;
 mod served;
+mod terminal;
 mod tree;
 mod write;
 
@@ -13,5 +14,6 @@ pub use exec::*;
 pub use mount::*;
 pub use read::*;
 pub use served::*;
+pub use terminal::*;
 pub use tree::*;
 pub use write::*;

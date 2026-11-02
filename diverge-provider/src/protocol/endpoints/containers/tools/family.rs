@@ -63,6 +63,11 @@ impl Family for Tools {
             channel_request::Frame::Secrets(values) => Opened::Secrets(values),
             channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
             channel_request::Frame::Exec(request) => Opened::Exec(request),
+            channel_request::Frame::TerminalOpen(size) => Opened::TerminalOpen(size),
+            channel_request::Frame::TerminalAttach(id) => Opened::TerminalAttach(id.id),
+            channel_request::Frame::TerminalStdin { id, bytes } => Opened::TerminalStdin(id, bytes),
+            channel_request::Frame::TerminalResize(resize) => Opened::TerminalResize(resize.id, diverge_sdk::shared::containers::terminal::open::Open { cols: resize.cols, rows: resize.rows }),
+            channel_request::Frame::TerminalClose(id) => Opened::TerminalClose(id.id),
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),
             channel_request::Frame::McpListResources(request) => {
                 Opened::Exchange(tool::Exchange::ListResources(request))

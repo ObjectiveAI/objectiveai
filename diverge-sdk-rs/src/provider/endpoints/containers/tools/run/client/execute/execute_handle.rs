@@ -20,6 +20,8 @@ use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, S
 use crate::provider::endpoints::containers::tools::run::server;
 use crate::shared::containers::fuse::Kind;
 use crate::shared::containers::exec;
+use crate::shared::containers::terminal;
+use crate::provider::endpoints::containers::client::answered::{TerminalDone, TerminalOpened, TerminalOutput};
 use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{fuse_mount, read, transfer, write_path};
@@ -111,6 +113,38 @@ impl ExecuteHandle {
     pub async fn exec(&self, command: exec::request::Request) -> Result<ExecStream, OpenError> {
         let payload = payload(&channel_request::Frame::Exec(command)).map_err(OpenError::Request)?;
         self.0.open::<Exec>(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Start a terminal the provider holds, and answer its id (see
+    /// [`session`](crate::shared::containers::terminal::session)).
+    pub async fn terminal_open(&self, size: terminal::open::Open) -> Result<u32, UnaryError<TerminalOpened>> {
+        let payload = payload(&channel_request::Frame::TerminalOpen(size)).map_err(UnaryError::Request)?;
+        self.0.unary::<TerminalOpened>(&payload).await
+    }
+
+    /// Stream a held terminal's output: its scrollback, then live.
+    /// Dropping the stream detaches; the terminal goes on.
+    pub async fn terminal_attach(&self, id: u32) -> Result<ChannelStream<TerminalOutput>, OpenError> {
+        let payload = payload(&channel_request::Frame::TerminalAttach(terminal::session::Id { id })).map_err(OpenError::Request)?;
+        self.0.open::<TerminalOutput>(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Write bytes to a held terminal's stdin; resolves once written.
+    pub async fn terminal_stdin(&self, id: u32, bytes: Vec<u8>) -> Result<(), UnaryError<TerminalDone>> {
+        let payload = payload(&channel_request::Frame::TerminalStdin { id, bytes }).map_err(UnaryError::Request)?;
+        self.0.unary::<TerminalDone>(&payload).await
+    }
+
+    /// Set a held terminal's size.
+    pub async fn terminal_resize(&self, id: u32, cols: u16, rows: u16) -> Result<(), UnaryError<TerminalDone>> {
+        let payload = payload(&channel_request::Frame::TerminalResize(terminal::session::Resize { id, cols, rows })).map_err(UnaryError::Request)?;
+        self.0.unary::<TerminalDone>(&payload).await
+    }
+
+    /// Kill a held terminal's shell.
+    pub async fn terminal_close(&self, id: u32) -> Result<(), UnaryError<TerminalDone>> {
+        let payload = payload(&channel_request::Frame::TerminalClose(terminal::session::Id { id })).map_err(UnaryError::Request)?;
+        self.0.unary::<TerminalDone>(&payload).await
     }
 
     /// Write one file into the container, whole, from `content`'s

@@ -7,7 +7,7 @@ use futures_util::future::{self, Either};
 
 use super::super::family::{Opened, Runs};
 use super::super::run::Run;
-use super::{daemon, exec, filetree, fuse_mount, info, postgres, read, secrets, transfer, write};
+use super::{daemon, exec, filetree, fuse_mount, info, postgres, read, secrets, terminal, transfer, write};
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::frame::client::ClientFrame;
 
@@ -59,6 +59,11 @@ pub(crate) async fn serve<F: Runs>(run: &Arc<Run>) -> End {
             Opened::Filetree => run.spawn(filetree::filetree::<F>(Arc::clone(&run), channel)).await,
             Opened::Read(path) => run.spawn(read::read::<F>(Arc::clone(&run), channel, path)).await,
             Opened::Exec(command) => run.spawn(exec::exec(Arc::clone(&run), channel, command)).await,
+            Opened::TerminalOpen(size) => run.spawn(terminal::open(Arc::clone(&run), channel, size)).await,
+            Opened::TerminalAttach(id) => run.spawn(terminal::attach(Arc::clone(&run), channel, id)).await,
+            Opened::TerminalStdin(id, bytes) => run.spawn(terminal::stdin(Arc::clone(&run), channel, id, bytes)).await,
+            Opened::TerminalResize(id, size) => run.spawn(terminal::resize(Arc::clone(&run), channel, id, size)).await,
+            Opened::TerminalClose(id) => run.spawn(terminal::close(Arc::clone(&run), channel, id)).await,
             Opened::Write { write_id, path } => {
                 run.spawn(write::write::<F>(Arc::clone(&run), channel, write_id, path)).await
             }

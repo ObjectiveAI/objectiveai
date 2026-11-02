@@ -9,6 +9,7 @@ use crate::wire::encode::{Encode, Writer};
 use crate::shared::mcp;
 use crate::shared::mcp::session::Sessioned;
 use crate::shared::containers::exec;
+use crate::shared::containers::terminal;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 use crate::shared::containers::daemon;
@@ -36,6 +37,11 @@ use crate::shared::containers::daemon;
 /// | `13` | [`FuseMount`](Self::FuseMount) |
 /// | `14` | [`Secrets`](Self::Secrets) |
 /// | `15` | [`Exec`](Self::Exec) |
+/// | `16` | [`TerminalOpen`](Self::TerminalOpen) |
+/// | `17` | [`TerminalAttach`](Self::TerminalAttach) |
+/// | `18` | [`TerminalStdin`](Self::TerminalStdin) |
+/// | `19` | [`TerminalResize`](Self::TerminalResize) |
+/// | `20` | [`TerminalClose`](Self::TerminalClose) |
 ///
 /// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
@@ -182,6 +188,22 @@ pub enum Frame {
     /// as [`exec`](crate::shared::containers::exec) states it. The
     /// caller abandoning the channel kills the command.
     Exec(exec::request::Request),
+    /// Start a terminal the provider holds, answered by its id (see
+    /// [`session`](crate::shared::containers::terminal::session)).
+    TerminalOpen(terminal::open::Open),
+    /// Stream a held terminal's output: its scrollback, then live.
+    TerminalAttach(terminal::session::Id),
+    /// Write bytes to a held terminal's stdin.
+    TerminalStdin {
+        /// The terminal.
+        id: u32,
+        /// What is written.
+        bytes: Vec<u8>,
+    },
+    /// Set a held terminal's size.
+    TerminalResize(terminal::session::Resize),
+    /// Kill a held terminal's shell.
+    TerminalClose(terminal::session::Id),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -231,6 +253,21 @@ const SECRETS: u8 = 14;
 
 /// Tag for [`Frame::Exec`].
 const EXEC: u8 = 15;
+
+/// Tag for [`Frame::TerminalOpen`].
+const TERMINAL_OPEN: u8 = 16;
+
+/// Tag for [`Frame::TerminalAttach`].
+const TERMINAL_ATTACH: u8 = 17;
+
+/// Tag for [`Frame::TerminalStdin`].
+const TERMINAL_STDIN: u8 = 18;
+
+/// Tag for [`Frame::TerminalResize`].
+const TERMINAL_RESIZE: u8 = 19;
+
+/// Tag for [`Frame::TerminalClose`].
+const TERMINAL_CLOSE: u8 = 20;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -302,6 +339,27 @@ impl Encode for Frame {
                 out.extend_from_slice(&[EXEC]);
                 request.encode(out)
             }
+            Frame::TerminalOpen(size) => {
+                out.extend_from_slice(&[TERMINAL_OPEN]);
+                size.encode(out)
+            }
+            Frame::TerminalAttach(id) => {
+                out.extend_from_slice(&[TERMINAL_ATTACH]);
+                serde_json::to_writer(out, id)
+            }
+            Frame::TerminalStdin { id, bytes } => {
+                out.extend_from_slice(&[TERMINAL_STDIN]);
+                terminal::session::Stdin { id: *id, bytes }.encode(out).unwrap_or_else(|never| match never {});
+                Ok(())
+            }
+            Frame::TerminalResize(resize) => {
+                out.extend_from_slice(&[TERMINAL_RESIZE]);
+                serde_json::to_writer(out, resize)
+            }
+            Frame::TerminalClose(id) => {
+                out.extend_from_slice(&[TERMINAL_CLOSE]);
+                serde_json::to_writer(out, id)
+            }
         }
     }
 }
@@ -359,6 +417,21 @@ impl Decode<'_> for Frame {
             EXEC => exec::request::Request::decode(rest)
                 .map(Frame::Exec)
                 .map_err(FrameError::Exec),
+            TERMINAL_OPEN => terminal::open::Open::decode(rest)
+                .map(Frame::TerminalOpen)
+                .map_err(FrameError::Terminal),
+            TERMINAL_ATTACH => serde_json::from_slice(rest)
+                .map(Frame::TerminalAttach)
+                .map_err(FrameError::Terminal),
+            TERMINAL_STDIN => terminal::session::Stdin::decode(rest)
+                .map(|stdin| Frame::TerminalStdin { id: stdin.id, bytes: stdin.bytes.to_vec() })
+                .map_err(|_| FrameError::TerminalStdin),
+            TERMINAL_RESIZE => serde_json::from_slice(rest)
+                .map(Frame::TerminalResize)
+                .map_err(FrameError::Terminal),
+            TERMINAL_CLOSE => serde_json::from_slice(rest)
+                .map(Frame::TerminalClose)
+                .map_err(FrameError::Terminal),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -395,6 +468,10 @@ pub enum FrameError {
     Secrets(serde_json::Error),
     /// The exec request did not parse.
     Exec(serde_json::Error),
+    /// A terminal request did not parse.
+    Terminal(serde_json::Error),
+    /// A terminal's stdin held no id.
+    TerminalStdin,
 }
 
 impl fmt::Display for FrameError {
@@ -429,6 +506,10 @@ impl fmt::Display for FrameError {
             FrameError::Exec(error) => {
                 write!(f, "exec request did not parse: {error}")
             }
+            FrameError::Terminal(error) => {
+                write!(f, "terminal request did not parse: {error}")
+            }
+            FrameError::TerminalStdin => f.write_str("terminal stdin held no id"),
         }
     }
 }
@@ -442,10 +523,11 @@ impl Error for FrameError {
             | FrameError::McpParams(error)
             | FrameError::FuseMount(error)
             | FrameError::Secrets(error)
-            | FrameError::Exec(error) => Some(error),
+            | FrameError::Exec(error)
+            | FrameError::Terminal(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Daemon(error) => Some(error),
-            FrameError::Empty | FrameError::UnknownTag(_) => None,
+            FrameError::Empty | FrameError::UnknownTag(_) | FrameError::TerminalStdin => None,
         }
     }
 }
