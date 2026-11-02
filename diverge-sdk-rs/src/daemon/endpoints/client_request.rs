@@ -222,6 +222,12 @@ pub enum ClientRequest<'a> {
     StandaloneToolsExec(standalone_tools::exec::client::request::Frame),
     /// Tag `117`. Run one command in a dependency tool's container, its output streamed.
     DependencyToolsExec(dependency_tools::exec::client::request::Frame),
+    /// Tag `118`. An interactive shell in an agent's container, on a terminal.
+    AgentsTerminal(agents::terminal::client::request::Frame),
+    /// Tag `119`. An interactive shell in a standalone tool's container, on a terminal.
+    StandaloneToolsTerminal(standalone_tools::terminal::client::request::Frame),
+    /// Tag `120`. An interactive shell in a dependency tool's container, on a terminal.
+    DependencyToolsTerminal(dependency_tools::terminal::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -335,6 +341,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsExec(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsExec(frame) => frame.encode(out),
             ClientRequest::DependencyToolsExec(frame) => frame.encode(out),
+            ClientRequest::AgentsTerminal(frame) => frame.encode(out),
+            ClientRequest::StandaloneToolsTerminal(frame) => frame.encode(out),
+            ClientRequest::DependencyToolsTerminal(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -644,6 +653,15 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             117 => dependency_tools::exec::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DependencyToolsExec)
                 .ok(),
+            118 => agents::terminal::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsTerminal)
+                .ok(),
+            119 => standalone_tools::terminal::client::request::Frame::decode(bytes)
+                .map(ClientRequest::StandaloneToolsTerminal)
+                .ok(),
+            120 => dependency_tools::terminal::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DependencyToolsTerminal)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -748,6 +766,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsExec(_) => f.write_str("agents exec"),
             ClientRequest::StandaloneToolsExec(_) => f.write_str("standalone tools exec"),
             ClientRequest::DependencyToolsExec(_) => f.write_str("dependency tools exec"),
+            ClientRequest::AgentsTerminal(_) => f.write_str("agents terminal"),
+            ClientRequest::StandaloneToolsTerminal(_) => f.write_str("standalone tools terminal"),
+            ClientRequest::DependencyToolsTerminal(_) => f.write_str("dependency tools terminal"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
@@ -855,6 +876,9 @@ pub fn tag(path: &str) -> Option<u8> {
         "agents/exec" => Some(115),
         "standalone_tools/exec" => Some(116),
         "dependency_tools/exec" => Some(117),
+        "agents/terminal" => Some(118),
+        "standalone_tools/terminal" => Some(119),
+        "dependency_tools/terminal" => Some(120),
         _ => None,
     }
 }
@@ -959,6 +983,9 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsExec(_) => "agents/exec",
             ClientRequest::StandaloneToolsExec(_) => "standalone_tools/exec",
             ClientRequest::DependencyToolsExec(_) => "dependency_tools/exec",
+            ClientRequest::AgentsTerminal(_) => "agents/terminal",
+            ClientRequest::StandaloneToolsTerminal(_) => "standalone_tools/terminal",
+            ClientRequest::DependencyToolsTerminal(_) => "dependency_tools/terminal",
             ClientRequest::Invalid(_) => "",
         }
     }

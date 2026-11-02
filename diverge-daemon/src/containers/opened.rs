@@ -22,6 +22,12 @@ pub type Frames = Pin<Box<dyn Stream<Item = Result<Frame, String>> + Send>>;
 /// container stopped, or the stream broke, which is the error last.
 pub type ExecFrames = Pin<Box<dyn Stream<Item = Result<diverge_sdk::shared::containers::exec::response::Owned, String>> + Send>>;
 
+/// A held terminal's output, as a file operation's caller reads it:
+/// its scrollback, then every frame as it comes, until the shell
+/// ended, the container stopped, or the stream broke, which is the
+/// error last.
+pub type TerminalFrames = Pin<Box<dyn Stream<Item = Result<diverge_sdk::shared::containers::terminal::output::Owned, String>> + Send>>;
+
 /// A container a file operation works on.
 #[derive(Clone)]
 pub enum Opened {
@@ -117,6 +123,53 @@ impl Opened {
                 Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
             }
             Opened::Tool(run, _) => run.handle.exec(command).await,
+        }
+    }
+
+    /// A terminal started in the container, held by the provider: its
+    /// id (see [`session`](diverge_sdk::shared::containers::terminal::session)).
+    pub async fn terminal_open(&self, size: diverge_sdk::shared::containers::terminal::open::Open) -> Result<u32, String> {
+        match self {
+            Opened::Agent(run, _) => run.handle.terminal_open(size).await.map_err(|error| error.to_string()),
+            Opened::Tool(run, _) => run.handle.terminal_open(size).await,
+        }
+    }
+
+    /// A held terminal's output. Dropping the stream detaches; the
+    /// terminal goes on. The channel closing with no finish is the
+    /// container stopped: the stream's end.
+    pub async fn terminal_attach(&self, id: u32) -> Result<TerminalFrames, String> {
+        match self {
+            Opened::Agent(run, _) => {
+                let stream = run.handle.terminal_attach(id).await.map_err(|error| error.to_string())?;
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
+                Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
+            }
+            Opened::Tool(run, _) => run.handle.terminal_attach(id).await,
+        }
+    }
+
+    /// Bytes written to a held terminal's stdin.
+    pub async fn terminal_stdin(&self, id: u32, bytes: Vec<u8>) -> Result<(), String> {
+        match self {
+            Opened::Agent(run, _) => run.handle.terminal_stdin(id, bytes).await.map_err(|error| error.to_string()),
+            Opened::Tool(run, _) => run.handle.terminal_stdin(id, bytes).await,
+        }
+    }
+
+    /// A held terminal's size set.
+    pub async fn terminal_resize(&self, id: u32, size: diverge_sdk::shared::containers::terminal::open::Open) -> Result<(), String> {
+        match self {
+            Opened::Agent(run, _) => run.handle.terminal_resize(id, size.cols, size.rows).await.map_err(|error| error.to_string()),
+            Opened::Tool(run, _) => run.handle.terminal_resize(id, size).await,
+        }
+    }
+
+    /// A held terminal's shell killed, and the terminal forgotten.
+    pub async fn terminal_close(&self, id: u32) -> Result<(), String> {
+        match self {
+            Opened::Agent(run, _) => run.handle.terminal_close(id).await.map_err(|error| error.to_string()),
+            Opened::Tool(run, _) => run.handle.terminal_close(id).await,
         }
     }
 

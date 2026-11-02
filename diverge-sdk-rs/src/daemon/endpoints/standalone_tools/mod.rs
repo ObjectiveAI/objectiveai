@@ -83,6 +83,7 @@ pub mod list;
 pub mod register;
 pub mod tag;
 pub mod templates;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;

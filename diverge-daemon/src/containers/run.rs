@@ -209,6 +209,53 @@ impl ToolHandle {
         }
     }
 
+    /// A terminal started in the container; as
+    /// [`Opened::terminal_open`](super::Opened::terminal_open). A
+    /// connected tool's is on the other daemon: [`CONNECTED_FILES`].
+    pub async fn terminal_open(&self, size: diverge_sdk::shared::containers::terminal::open::Open) -> Result<u32, String> {
+        match self {
+            ToolHandle::Run(handle) => handle.terminal_open(size).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// A held terminal's output; as
+    /// [`Opened::terminal_attach`](super::Opened::terminal_attach).
+    pub async fn terminal_attach(&self, id: u32) -> Result<super::TerminalFrames, String> {
+        match self {
+            ToolHandle::Run(handle) => {
+                let stream = handle.terminal_attach(id).await.map_err(|error| error.to_string())?;
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
+                Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
+            }
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// Bytes written to a held terminal's stdin.
+    pub async fn terminal_stdin(&self, id: u32, bytes: Vec<u8>) -> Result<(), String> {
+        match self {
+            ToolHandle::Run(handle) => handle.terminal_stdin(id, bytes).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// A held terminal's size set.
+    pub async fn terminal_resize(&self, id: u32, size: diverge_sdk::shared::containers::terminal::open::Open) -> Result<(), String> {
+        match self {
+            ToolHandle::Run(handle) => handle.terminal_resize(id, size.cols, size.rows).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// A held terminal's shell killed, and the terminal forgotten.
+    pub async fn terminal_close(&self, id: u32) -> Result<(), String> {
+        match self {
+            ToolHandle::Run(handle) => handle.terminal_close(id).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
     /// One file read out of the container. A connected tool's is on
     /// the other daemon: [`CONNECTED_FILES`].
     pub async fn read(&self, path: Vec<String>) -> Result<Pieces, String> {

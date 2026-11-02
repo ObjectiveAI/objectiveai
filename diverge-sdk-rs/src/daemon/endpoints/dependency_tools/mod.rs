@@ -57,6 +57,7 @@ pub mod filetree;
 pub mod get;
 pub mod list;
 pub mod tag;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;

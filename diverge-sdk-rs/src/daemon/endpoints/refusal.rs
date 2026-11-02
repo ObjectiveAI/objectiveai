@@ -108,6 +108,9 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsExec(_) => bytes(&agents::exec::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsExec(_) => bytes(&standalone_tools::exec::server::response::Frame::Forbidden),
             ClientRequest::DependencyToolsExec(_) => bytes(&dependency_tools::exec::server::response::Frame::Forbidden),
+            ClientRequest::AgentsTerminal(_) => bytes(&agents::terminal::server::response::Frame::Forbidden),
+            ClientRequest::StandaloneToolsTerminal(_) => bytes(&standalone_tools::terminal::server::response::Frame::Forbidden),
+            ClientRequest::DependencyToolsTerminal(_) => bytes(&dependency_tools::terminal::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
     }
@@ -212,6 +215,9 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsExec(_) => bytes(&agents::exec::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsExec(_) => bytes(&standalone_tools::exec::server::response::Frame::Error(error)),
             ClientRequest::DependencyToolsExec(_) => bytes(&dependency_tools::exec::server::response::Frame::Error(error)),
+            ClientRequest::AgentsTerminal(_) => bytes(&agents::terminal::server::response::Frame::Error(error)),
+            ClientRequest::StandaloneToolsTerminal(_) => bytes(&standalone_tools::terminal::server::response::Frame::Error(error)),
+            ClientRequest::DependencyToolsTerminal(_) => bytes(&dependency_tools::terminal::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
     }
