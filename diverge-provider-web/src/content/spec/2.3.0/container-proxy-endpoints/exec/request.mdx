@@ -1,0 +1,32 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 7 followed by the command as JSON: argv, and optionally cwd and env.'
+order: 1
+draft: false
+---
+
+```text
+[7][request JSON …]
+```
+
+- **`argv`.** An array of strings: the program and its arguments. The
+  first item is a path, or a name the server finds on the container's
+  `PATH`. An empty `argv` is answered by an error response.
+- **`cwd`.** An array of strings: the components of a path from the
+  root of the container. An empty array is the root. Absent, the
+  command runs in the working directory of the server.
+- **`env`.** An object whose members are variable names and string
+  values, set over the environment of the server. Absent, nothing is
+  set.
+- **Malformed.** A payload that does not decode as stated is answered
+  by a response finish that no response precedes.
+
+The request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/exec/client/request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/exec/client/request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/exec/request/request.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/exec/request/request.rs
+```

@@ -1,0 +1,53 @@
+---
+title: 'exec'
+summary: 'Tag 7: the client names one command; the server runs it in the container and sends its standard output and standard error as they are read, then how it ended, until the command ends or the client stops it.'
+order: 7
+draft: false
+---
+
+The client opens the scope with a request whose payload is the tag
+byte `7` followed by the command, as JSON. The server runs the command
+in the container and sends its output as responses as it is read, then
+one response stating how the command ended, and ends the scope by the
+response finish. The client asks for the end by opening one channel on
+the scope, the stop, which kills the command.
+
+- **The request.** [Request](/container-proxy-endpoints/exec/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/exec/response/) states the sequence of the main
+  stream.
+- **The channels.** The client opens the channel that
+  [Client Channels](/container-proxy-endpoints/exec/client/) defines. The server opens no channel on an
+  exec scope.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Container Proxy Endpoints](/container-proxy-endpoints/) provides.
+2. **The server starts the command.** It executes `argv` directly, the
+   first item a path or a name found on the container's `PATH`, with
+   no shell. The command's standard input is the null device; its
+   standard output and standard error are pipes. Its working directory
+   is `cwd`, and in its absence the working directory of the server.
+   Its environment is the environment of the server with each entry of
+   `env` set over it. The command is the leader of a process group of
+   its own. A command that does not start is answered by exactly one
+   error response and the response finish.
+3. **The server sends the output.** One response per read of either
+   pipe, in the order the reads complete.
+4. **The server sends the end.** When the command ends, the server
+   kills every process remaining in its process group, reads both
+   pipes to their end, and sends exactly one response stating the exit
+   code or the signal. The response finish follows it.
+
+## The rules that hold throughout
+
+- **The kill.** The stop, the end of the connection, or the client's
+  abandoning the scope's responses, as [Credits](/frames/credits/)
+  provides, kills the command's process group with the signal
+  `SIGKILL`. The server sends no response after it, and sends the
+  response finish.
+- **No input.** The server sends nothing to the command. A command
+  that reads its standard input reads its end.
+- **No timeout.** The server imposes no timeout on the command or the
+  scope.

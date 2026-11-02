@@ -1,0 +1,29 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 11 and the command.'
+order: 1
+draft: false
+---
+
+The payload of the channel request is the tag byte followed by the
+request as JSON, read as [Notation](/endpoints/#notation) provides:
+
+```text
+[11][request JSON …]
+```
+
+- **`argv`, `cwd`, `env`.** The command, as the proxy's
+  [exec request](/container-proxy-endpoints/exec/request/) states them.
+- **Malformed.** A channel request whose payload does not decode as
+  stated is answered by a channel response finish that no channel
+  response precedes, and the server does nothing else for it.
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/client/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/agents/run/client/channel_request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/exec/request/request.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/exec/request/request.rs
+```
