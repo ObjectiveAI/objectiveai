@@ -13,7 +13,11 @@ import { Agent } from "./agent.js";
 export const Caller = z.discriminatedUnion("kind", [
   /** An agent of the daemon's. */
   z.object({ kind: z.literal("agent"), ...Agent.shape }),
-  /** A client of the daemon's, calling over a connect: the account the connection is. */
-  z.object({ kind: z.literal("client"), identity: Identity }),
+  /**
+   * A client of the daemon's, calling over a connect or a frontend
+   * request: the account the connection is, and the scope's id, a
+   * random UUID the daemon minted for that one scope.
+   */
+  z.object({ kind: z.literal("client"), identity: Identity, scope: z.string() }),
 ]);
 export type Caller = z.infer<typeof Caller>;

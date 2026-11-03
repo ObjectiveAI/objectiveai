@@ -72,7 +72,9 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     };
-    let caller = Arc::new(Caller::Client { identity });
+    // The scope's own id, minted fresh: one connect scope, one MCP
+    // session in the tool.
+    let caller = Arc::new(Caller::Client { identity, scope: uuid::Uuid::new_v4().to_string() });
     let sender = Arc::new(standing.creator.clone());
     let Some(tool) = resolve(&mut conn, &frame.tool, false).await? else {
         reply::reply(scope, &Frame::NotFound).await;

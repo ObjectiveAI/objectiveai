@@ -16,9 +16,10 @@
 //!    `params` absent when the request has no bytes of its own — the
 //!    notifications request.
 //! 2. Two callers are one session when their [`key`]s are one: an
-//!    agent by its template and its index, a client by its issuer and
-//!    its subject. The image and the name are not the session's, so an
-//!    agent renamed keeps its session.
+//!    agent by its template and its index, a client by its issuer, its
+//!    subject and its scope — one connect scope, one session. The image
+//!    and the name are not the session's, so an agent renamed keeps its
+//!    session.
 //! 3. Only the exchanges toward a tool container carry a session. An
 //!    agent container's own asks, which reach the daemon and not a
 //!    tool, carry the bare request as before.
@@ -43,7 +44,7 @@ pub struct Sessioned<R> {
 pub fn key(caller: &Caller) -> String {
     match caller {
         Caller::Agent(agent) => format!("agent:{}:{}", agent.key.template, agent.key.index),
-        Caller::Client { identity } => format!("client:{}:{}", identity.issuer, identity.subject),
+        Caller::Client { identity, scope } => format!("client:{}:{}:{}", identity.issuer, identity.subject, scope),
     }
 }
 

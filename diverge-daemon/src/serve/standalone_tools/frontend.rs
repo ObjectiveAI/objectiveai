@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::standalone_tools::frontend::client::request;
 use diverge_sdk::daemon::endpoints::standalone_tools::frontend::server::response::Frame;
+use diverge_sdk::shared::mcp::attestation::Caller;
 use diverge_sdk::daemon::grant::standalone_tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
@@ -23,7 +24,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` with no `frontend` grant at all; `NotFound`; `Forbidden`
+/// `Forbidden` with no `frontend` grant at all, or no account; `NotFound`; `Forbidden`
 /// for a tool the grants do not reach; an `Error` for a connected tool,
 /// whose frontend is the other daemon's; `NoFrontend` for a tool whose
 /// image declares none, before anything is started; the container
@@ -39,6 +40,13 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
+    // The account behind the request, and the scope's own id: a
+    // standing with no account is refused, as a connect refuses one.
+    let Some(identity) = standing.identity.clone() else {
+        reply::reply(scope, &Frame::Forbidden).await;
+        return Ok(());
+    };
+    let caller = Caller::Client { identity, scope: uuid::Uuid::new_v4().to_string() };
     let Some(tool) = resolve(&mut conn, &frame.tool, false).await? else {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
@@ -77,7 +85,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         }
     };
     opened.touch();
-    if let Err(error) = files::frontend::<Frame>(scope, &opened, frame.head).await {
+    if let Err(error) = files::frontend::<Frame>(scope, &opened, frame.head, &caller).await {
         reply::reply(scope, &Frame::Error(reply::failure(&error))).await;
     }
     Ok(())

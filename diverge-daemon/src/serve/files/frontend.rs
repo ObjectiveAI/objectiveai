@@ -9,6 +9,8 @@ use diverge_sdk::daemon::endpoints::images::info::server::response::Frame as Inf
 use diverge_sdk::daemon::endpoints::standalone_tools::frontend::client::channel_request;
 use diverge_sdk::shared::containers::frontend;
 use diverge_sdk::shared::containers::request::Image;
+use diverge_sdk::shared::mcp::attestation::Caller;
+use diverge_sdk::shared::mcp;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::Encode;
 use diverge_sdk::wire::frame::client::ClientFrame;
@@ -54,13 +56,20 @@ pub async fn declares(daemon: &Arc<Daemon>, image: &Image) -> Result<Result<bool
 /// 4. A body the provider never asked for is taken back at the end.
 /// 5. The [`Opened`] is held for the whole of it: the request is a use
 ///    of the container, which holds it up.
+/// 6. The request is stamped with `caller`: every header named
+///    [`KEY`](mcp::KEY), in any case, is removed, and one is set to
+///    [`mcp::header`] of the caller — as `_meta` is stamped on an MCP
+///    request, nothing under the key the client sent is kept.
 ///
 /// Every family's channels are the same bytes, read here as the
 /// standalone tools'.
-pub async fn frontend<R>(scope: &ScopeHandle, opened: &Opened, head: frontend::request::Head) -> Result<(), String>
+pub async fn frontend<R>(scope: &ScopeHandle, opened: &Opened, mut head: frontend::request::Head, caller: &Caller) -> Result<(), String>
 where
     R: From<frontend::output::Owned> + Encode,
 {
+    // Rule 6.
+    head.headers.retain(|(name, _)| !name.eq_ignore_ascii_case(mcp::KEY));
+    head.headers.push((mcp::KEY.to_string(), mcp::header(caller)));
     let (pieces, taken) = mpsc::channel::<Bytes>(1);
     let body = futures_util::stream::unfold(taken, |mut taken| async move { taken.recv().await.map(|piece| (Ok::<Bytes, Infallible>(piece), taken)) });
     let (mut output, write_id) = opened.frontend(head, body).await?;
