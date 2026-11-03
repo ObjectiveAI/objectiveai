@@ -32,7 +32,7 @@ const GLIDE = 700;
  *
  * The rules:
  *
- * 1. The daemon is followed (`follow`): its seven lists kept open, the
+ * 1. The daemon is followed (`follow`): its eight lists kept open, the
  *    world handed on as it changes. Until every list has been whole
  *    once, the board waits.
  * 2. Every entity is a node at its first place (`place`), every edge

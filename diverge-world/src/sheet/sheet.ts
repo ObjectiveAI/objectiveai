@@ -81,8 +81,8 @@ function subline(subject: Subject): string {
  *    `closed`.
  * 3. An entity with a log (`subject`) has the logs tab, one with files
  *    (`files`) the filesystem tab, one with a container (an agent, a
- *    tool, a dependency tool) the console tab, a tool whose image
- *    declares a frontend (`frontend`) the frontend tab (`tabsOf`). It opens on
+ *    tool, a dependency tool) the console tab, an agent or a tool whose
+ *    image declares a frontend (`frontend`) the frontend tab (`tabsOf`). It opens on
  *    the tab last chosen (`chosen`) if it has it, else on the first it
  *    has. A tab's read starts the first time it is shown and runs until
  *    the sheet closes; closing stops every one and empties every one.
@@ -101,7 +101,7 @@ function subline(subject: Subject): string {
  * 6. The console tab is `Console`: one shell, opened the first time
  *    the tab is shown and closed — killed — with the sheet, or when it
  *    swaps to another entity; the keys go to it while it is shown.
- * 7. The frontend tab is `FrontendPane`: the tool's own page in a
+ * 7. The frontend tab is `FrontendPane`: the program's own page in a
  *    frame, served the first time the tab is shown and ended with the
  *    sheet, or when it swaps to another entity — every connection it
  *    had open closed, so it holds the container up no more.

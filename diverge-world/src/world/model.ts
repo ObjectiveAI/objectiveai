@@ -28,8 +28,8 @@ export type Files =
  */
 export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; files?: Files; frontend?: Frontend; live?: Live };
 
-/** Whose frontend an entity serves: a standalone tool's or a dependency tool's, as the daemon's `frontend` names it. */
-export type Frontend = { tool: daemon.reference.Tool } | { dependency: daemon.reference.Dependency };
+/** Whose frontend an entity serves: an agent's, a standalone tool's or a dependency tool's, as the daemon's `frontend` names it. */
+export type Frontend = { agent: daemon.reference.Agent } | { tool: daemon.reference.Tool } | { dependency: daemon.reference.Dependency };
 
 /**
  * Whether a listed entity is live, as its list says: an agent or a
@@ -160,7 +160,9 @@ export function model(snapshot: Snapshot): Model {
   for (const a of snapshot.agents) {
     const label = a.name ?? short(a.template, a.index);
     const agent = { template: a.template, index: a.index };
-    put({ key: agentKey(a), kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent, subject: { type: "agent", ...agent }, files: { agent }, live: activeLive(a) });
+    const image = snapshot.agentTemplates.find((listed) => listed.id === a.template)?.template.image;
+    const frontend = image !== undefined && snapshot.frontends.has(image.digest) ? { agent } : undefined;
+    put({ key: agentKey(a), kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent, subject: { type: "agent", ...agent }, files: { agent }, frontend, live: activeLive(a) });
   }
   for (const tool of snapshot.tools) put({ ...toolEntity(snapshot, tool), live: activeLive(tool) });
   for (const d of snapshot.dependencies) {

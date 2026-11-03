@@ -1,4 +1,4 @@
-// The frontend tab: the page a tool's own program serves, in a frame,
+// The frontend tab: the page an agent's or a tool's own program serves, in a frame,
 // from a server the app's Rust runs for it on the loopback.
 
 import { invoke } from "@tauri-apps/api/core";
@@ -12,9 +12,9 @@ type Opened = { id: number; url: string };
  *
  * The rules:
  *
- * 1. Made, it asks the app's Rust to serve the tool's frontend
+ * 1. Made, it asks the app's Rust to serve the program's frontend
  *    (`frontend_open`) and loads the address it answers in a frame
- *    filling the pane; every request the frame makes goes to the tool
+ *    filling the pane; every request the frame makes goes to the program
  *    through the daemon, a WebSocket's included.
  * 2. Above the frame, ↻ loads the frontend again from its start, and the
  *    address it is served from stands beside it.
@@ -50,7 +50,7 @@ export class FrontendPane {
     bar.append(reload, this.where);
     // Rule 1.
     this.frame = document.createElement("iframe");
-    this.frame.title = "The tool's frontend";
+    this.frame.title = "The frontend";
     this.pane.append(bar, this.frame);
     void invoke<Opened>("frontend_open", { target })
       .then((opened) => {

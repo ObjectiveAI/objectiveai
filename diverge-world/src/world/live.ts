@@ -1,6 +1,6 @@
-// The daemon followed: the seven lists the world is drawn from, kept
-// open for as long as the board is up, and the names of the tools'
-// images as each is first seen.
+// The daemon followed: the eight lists the world is drawn from, kept
+// open for as long as the board is up, and the names of the agents'
+// and tools' images as each is first seen.
 
 import { daemon, shared } from "@diverge/sdk";
 import { handle } from "../lib/wire";
@@ -33,8 +33,9 @@ const e = daemon.endpoints;
  *
  * The rules:
  *
- * 1. The seven lists — accounts, agents, standalone tools, standalone
- *    tool templates, dependency tools, events, volumes — are each kept
+ * 1. The eight lists — accounts, agents, agent templates, standalone
+ *    tools, standalone tool templates, dependency tools, events,
+ *    volumes — are each kept
  *    open and folded into a listing. A list that ends, fails or is
  *    refused is opened again `AGAIN` milliseconds later, until `stop`.
  * 2. A list opened again tells every item it holds once more, and
@@ -42,8 +43,9 @@ const e = daemon.endpoints;
  *    tell again before its `listed` are taken out then.
  * 3. A list the account may not read is empty, and named among the
  *    `forbidden`.
- * 4. Every image a tool runs — a dependency tool's template's, a
- *    created standalone tool's template's — is asked its name once,
+ * 4. Every image an agent or a tool runs — an agent template's, a
+ *    dependency tool's template's, a created standalone tool's
+ *    template's — is asked its name once,
  *    and whether it serves a frontend, the first time it is seen
  *    (`imageInfo`); an answer is one more
  *    change.
@@ -65,6 +67,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
   const kept = <T>(key: shared.listing.Keyed<T>): Kept<T> => ({ listing: new shared.listing.Listing<T>(key), listed: false, forbidden: false });
   const accounts = kept(e.accounts.list.server.response.key);
   const agents = kept(e.agents.list.server.response.key);
+  const agentTemplates = kept(e.agents.templates.list.server.response.key);
   const tools = kept(e.standalone_tools.list.server.response.key);
   const templates = kept(e.standalone_tools.templates.list.server.response.key);
   const dependencies = kept(e.dependency_tools.list.server.response.key);
@@ -73,6 +76,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
   const all: [string, { listed: boolean; forbidden: boolean }][] = [
     ["accounts", accounts],
     ["agents", agents],
+    ["agent templates", agentTemplates],
     ["standalone tools", tools],
     ["standalone tool templates", templates],
     ["dependency tools", dependencies],
@@ -86,6 +90,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
     agents: [...agents.listing.items],
     tools: [...tools.listing.items],
     templates: [...templates.listing.items],
+    agentTemplates: [...agentTemplates.listing.items],
     dependencies: [...dependencies.listing.items],
     events: [...events.listing.items],
     volumes: [...volumes.listing.items],
@@ -98,6 +103,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
   const ask = () => {
     const byId = new Map(templates.listing.items.map((listed) => [listed.id, listed.template.image]));
     const images: Image[] = [
+      ...agentTemplates.listing.items.map((listed) => listed.template.image),
       ...dependencies.listing.items.map((listed) => listed.template.image),
       ...tools.listing.items.flatMap((tool) => {
         const image = tool.origin.kind === "created" ? byId.get(tool.origin.template) : undefined;
@@ -178,6 +184,10 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
 
   keep({ name: "accounts", open: () => e.accounts.list.client.execute(handle, {}), key: e.accounts.list.server.response.key, change: e.accounts.list.server.response.change }, accounts);
   keep({ name: "agents", open: () => e.agents.list.client.execute(handle, {}), key: e.agents.list.server.response.key, change: e.agents.list.server.response.change }, agents);
+  keep(
+    { name: "agent templates", open: () => e.agents.templates.list.client.execute(handle, {}), key: e.agents.templates.list.server.response.key, change: e.agents.templates.list.server.response.change },
+    agentTemplates,
+  );
   keep({ name: "standalone tools", open: () => e.standalone_tools.list.client.execute(handle, {}), key: e.standalone_tools.list.server.response.key, change: e.standalone_tools.list.server.response.change }, tools);
   keep(
     { name: "standalone tool templates", open: () => e.standalone_tools.templates.list.client.execute(handle, {}), key: e.standalone_tools.templates.list.server.response.key, change: e.standalone_tools.templates.list.server.response.change },
