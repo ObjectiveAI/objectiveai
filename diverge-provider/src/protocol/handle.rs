@@ -386,7 +386,7 @@ where
             ClientRequest::Discover(_) => {
                 let discoverable = Arc::clone(&discoverable);
                 scopes.spawn(async move {
-                    endpoints::discover::handle(scope, &discoverable).await;
+                    endpoints::discover::handle(scope, discoverable).await;
                 });
             }
             ClientRequest::Invalid(_) => scope.send_response_finish().await,

@@ -1,6 +1,7 @@
-//! What a provider sends back for a discover request.
+//! Discover listing response data.
 //!
-//! One frame, once — see [`Frame`].
+//! [`Frame`] is what comes back on channel `0`: an identity added or
+//! removed, or the word that the listing is whole.
 
 mod frame;
 

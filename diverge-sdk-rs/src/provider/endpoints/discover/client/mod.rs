@@ -1,9 +1,14 @@
-//! The client side of a discover request: what a client sends.
+//! The client side of a discover listing: what a client sends.
 //!
-//! [`request`] is the whole of what goes on the wire, and it carries
-//! nothing beyond its tag. [`execute`] performs the exchange: hand it a
-//! [`Handle`](crate::wire::client::handle::Handle), get the answer back.
+//! [`request`] opens the scope, and carries nothing beyond its tag;
+//! [`channel_request`] is the one channel a caller opens on it, the
+//! stop: a listing has no end of its own, so the caller says when it
+//! is done. [`execute`] performs the exchange: hand it a
+//! [`Handle`](crate::wire::client::handle::Handle) and a
+//! [`request::Frame`], read the listing off the stream it hands back,
+//! and stop it with the stop it hands back beside.
 
+pub mod channel_request;
 pub mod request;
 
 pub mod execute;

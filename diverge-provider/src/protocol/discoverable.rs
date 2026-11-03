@@ -3,11 +3,15 @@
 use std::collections::BTreeSet;
 
 use diverge_sdk::shared::Identity;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, broadcast};
+
+/// How many nudges a listing may fall behind before it is told it
+/// lagged — and lists again, which is all a nudge asks of it anyway.
+const NUDGES_BEHIND: usize = 256;
 
 /// Every identity connected to this provider whose authorization frame
-/// carried the discover flag `1` — what a `discover` on any connection
-/// answers.
+/// carried the discover flag `1` — what a `discover` listing on any
+/// connection lists, and keeps listing.
 ///
 /// One per provider, shared across every connection, as the
 /// [`Acceptors`](super::acceptors::Acceptors) are. The rules:
@@ -19,31 +23,52 @@ use tokio::sync::Mutex;
 /// 2. **Left with it.** The host lets it go when that connection ends.
 ///    An identity holds at most one connection to a provider, so one
 ///    entry is one connection.
-/// 3. **Listed in order.** By issuer, then by subject — the set's own
+/// 3. **Every change nudges.** An entry entered or left is a nudge to
+///    every listing [`subscribe`](Self::subscribe)d — carrying
+///    nothing, as a [`Changes`](super::changes::Changes) nudge carries
+///    little: a listing lists again and tells what differs.
+/// 4. **Listed in order.** By issuer, then by subject — the set's own
 ///    order.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Discoverable {
     held: Mutex<BTreeSet<Identity>>,
+    nudges: broadcast::Sender<()>,
 }
 
 impl Discoverable {
     pub fn new() -> Self {
-        Discoverable::default()
+        let (nudges, _) = broadcast::channel(NUDGES_BEHIND);
+        Discoverable { held: Mutex::new(BTreeSet::new()), nudges }
+    }
+
+    /// A nudge for every change from now on — subscribed before a
+    /// listing reads, so that nothing between the read and the
+    /// subscription is missed.
+    pub fn subscribe(&self) -> broadcast::Receiver<()> {
+        self.nudges.subscribe()
     }
 
     /// `identity` is connected, and discoverable, until
     /// [`leave`](Self::leave).
     pub(crate) async fn enter(&self, identity: &Identity) {
         self.held.lock().await.insert(identity.clone());
+        let _ = self.nudges.send(());
     }
 
     /// `identity`'s connection is over: nothing lists it any more.
     pub(crate) async fn leave(&self, identity: &Identity) {
         self.held.lock().await.remove(identity);
+        let _ = self.nudges.send(());
     }
 
     /// Every discoverable identity connected now, in order.
-    pub(crate) async fn list(&self) -> Vec<Identity> {
-        self.held.lock().await.iter().cloned().collect()
+    pub(crate) async fn list(&self) -> BTreeSet<Identity> {
+        self.held.lock().await.clone()
+    }
+}
+
+impl Default for Discoverable {
+    fn default() -> Self {
+        Discoverable::new()
     }
 }

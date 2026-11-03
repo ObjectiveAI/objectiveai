@@ -73,13 +73,15 @@ ignored.
 ## The discover flag
 
 The discover flag states whether the server lists the client's
-identity in its answer to [discover](/endpoints/discover/).
+identity in its [discover](/endpoints/discover/) listings.
 
 - **The client's flag binds the server.** The server honors the flag
   of the client's authorization frame, whether the client is the
-  connector or the connectee. A client whose flag is `1` is listed by
-  every `discover` response the server sends, on any connection, for
-  as long as the connection that carried the flag remains open. A
+  connector or the connectee. A client whose flag is `1` is in every
+  `discover` listing the server keeps, on any connection, for as long
+  as the connection that carried the flag remains open: it is sent as
+  added when that connection completes its authorization, and as
+  removed when that connection ends. A
   client whose flag is `0` is not listed on account of that
   connection.
 - **The server's flag.** The server sends the byte `0`. The client
