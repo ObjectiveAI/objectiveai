@@ -245,6 +245,7 @@ refused. An administrator's log is the daemon's own admin log.
 ### Scrolling
 
 - The log opens at the bottom and stays there as new entries arrive.
+- A log shorter than the sheet starts at the top, under the tabs.
 - Scroll up and the view holds still while entries keep arriving
   below.
 - Scroll back to the bottom and it follows again.

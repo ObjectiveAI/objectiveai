@@ -254,7 +254,9 @@
 .sheet .body.loading {
   overflow-y: hidden;
 }
+/* Shorter than the pane, the log stands at its top; taller, the margin is nothing. */
 .sheet .log {
+  margin-bottom: auto;
   padding: 10px 16px 16px;
   display: flex;
   flex-direction: column;
