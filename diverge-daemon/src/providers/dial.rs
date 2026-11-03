@@ -38,7 +38,8 @@ pub async fn dial(daemon: Arc<Daemon>, connect: Connect) {
         if let Ok((socket, _)) = connect_async(url(&connect.address)).await {
             let peer = peer_ip(&socket);
             let expecting = daemon.authenticator.expecting(Expected::Provider);
-            if let Ok(Handshook { connection, peer }) = handshake::connect(Connection::Outgoing(socket), &connect.issuer, &expecting, peer).await {
+            let made = handshake::connect(Connection::Outgoing(socket), &connect.issuer, connect.discover, &expecting, peer).await;
+            if let Ok(Handshook { connection, peer, .. }) = made {
                 daemon.live.dialled(peer.clone(), connect.address.clone()).await;
                 if let Ok(attached) = attach(connection, peer, &daemon).await {
                     attached.serve().await;

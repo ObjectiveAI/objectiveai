@@ -62,8 +62,9 @@ impl Source for Listed<'_> {
 
     fn read(&self) -> impl Future<Output = Result<Vec<(Identity, Provider)>, store::Error>> + Send {
         async move {
-            let mut listed = Vec::with_capacity(self.daemon.providers.accepted.len());
-            for identity in &self.daemon.providers.accepted {
+            let accepted = self.daemon.providers.identities();
+            let mut listed = Vec::with_capacity(accepted.len());
+            for identity in &accepted {
                 let provider = report(self.daemon, identity).await;
                 if filter::providers::test(self.filter, identity, provider.status.connected()) {
                     listed.push((identity.clone(), provider));

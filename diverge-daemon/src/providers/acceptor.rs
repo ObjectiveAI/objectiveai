@@ -58,7 +58,7 @@ impl Acceptor for DaemonAcceptor {
                 }
             }
         });
-        let Handshook { connection: wire, peer } =
+        let Handshook { connection: wire, peer, .. } =
             handshake::accept(Wire::Local { incoming, outgoing }, &self.daemon.authenticator.expecting(Expected::Relayed), connection.address).await.ok()?;
         let Ok(Some(Admitted::Client(who))) = self.daemon.authenticator.account(&peer).await else {
             // The account went between the handshake and here.

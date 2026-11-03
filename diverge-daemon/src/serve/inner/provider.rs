@@ -26,5 +26,5 @@ pub fn providers(daemon: &Daemon, pinned: Option<&Provider>, file_mounts: &[Fuse
 /// Whether the daemon knows a provider by the identity: one its
 /// configuration's `providers.accepted` lists.
 pub fn on_record(daemon: &Daemon, identity: &Identity) -> bool {
-    daemon.providers.accepted.contains(identity)
+    daemon.providers.accepts(identity)
 }

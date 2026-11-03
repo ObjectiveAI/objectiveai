@@ -32,7 +32,7 @@ use crate::providers;
 /// identity a connection holds is dropped the same way; a client
 /// admitted is served here, as a client is.
 pub async fn connection(connection: Connection, address: IpAddr, daemon: Arc<Daemon>) {
-    let Ok(Handshook { connection, peer }) = handshake::accept(connection, &daemon.authenticator.expecting(Expected::Admitted), address).await else {
+    let Ok(Handshook { connection, peer, .. }) = handshake::accept(connection, &daemon.authenticator.expecting(Expected::Admitted), address).await else {
         return;
     };
     match daemon.authenticator.admit(&peer).await {

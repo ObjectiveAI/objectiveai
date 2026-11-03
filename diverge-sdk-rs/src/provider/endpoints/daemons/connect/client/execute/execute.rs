@@ -61,8 +61,8 @@ pub async fn execute(
     tokio::spawn(inward(scope.response_receiver, to_router));
     tokio::spawn(outward(scope.request_receiver, from_handle, handle.clone(), scope.scope));
     let unknown = std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED);
-    let Handshook { connection, peer } =
-        handshake::connect(Connection::Local { incoming, outgoing }, issuer, authenticator, unknown).await.map_err(ExecuteError::Handshake)?;
+    let Handshook { connection, peer, .. } =
+        handshake::connect(Connection::Local { incoming, outgoing }, issuer, false, authenticator, unknown).await.map_err(ExecuteError::Handshake)?;
     let (daemon, router) = Handle::open(connection);
     let (ended, ended_receiver) = watch::channel(false);
     tokio::spawn(async move {

@@ -9,8 +9,9 @@ use crate::wire::connection::Connection;
 /// The handshake, from the end that dialled — see the [rules](super):
 ///
 /// 1. This end's token from `issuer`, from `authenticator`, is sent as
-///    the connection's first frame.
-/// 2. The connectee's first frame is read: its token.
+///    the connection's first frame, under the discover flag `discover`
+///    — the caller's, since nothing is known of the connectee yet.
+/// 2. The connectee's first frame is read: its token, and its flag.
 /// 3. That token is verified by `authenticator`, `address` being the
 ///    connectee's, and its issuer must be `issuer`.
 ///
@@ -19,14 +20,20 @@ use crate::wire::connection::Connection;
 /// [`abandon`](Authenticator::abandon)ed. Every failure is the
 /// [`Error`], with nothing sent after it; the
 /// caller drops the connection, and the close is the whole answer.
-pub async fn connect(mut connection: Connection, issuer: &str, authenticator: &dyn Authenticator, address: IpAddr) -> Result<Handshook, Error> {
+pub async fn connect(
+    mut connection: Connection,
+    issuer: &str,
+    discover: bool,
+    authenticator: &dyn Authenticator,
+    address: IpAddr,
+) -> Result<Handshook, Error> {
     let token = authenticator.present(issuer).await.map_err(Error::Present)?;
-    send(&mut connection, &token).await?;
-    let answer = receive(&mut connection).await?;
+    send(&mut connection, &token, discover).await?;
+    let (answer, discover) = receive(&mut connection).await?;
     let peer = authenticator.verify(&answer, address).await.map_err(Error::Refused)?;
     if peer.issuer != issuer {
         authenticator.abandon(&peer).await;
         return Err(Error::Issuer { sent: issuer.to_string(), answered: peer.issuer });
     }
-    Ok(Handshook { connection, peer })
+    Ok(Handshook { connection, peer, discover })
 }

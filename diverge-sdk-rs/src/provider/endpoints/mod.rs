@@ -10,6 +10,7 @@
 //! | [`images`] | ask whether an image can be supplied; list the images the caller built, and keep the listing; examine one; build one; destroy one; pull what the provider holds for the caller |
 //! | [`volumes`] | list what a provider offers, and keep the listing; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
 //! | [`daemons`] | accept connections from other daemons; connect to another daemon |
+//! | [`discover`] | ask which connected identities are discoverable |
 //! | [`info`] | ask what a provider is: its version, and what it does |
 //! | [`capacity`] | ask how much the caller may still use: room for a volume, room in the image store, memory and disk a run could reserve |
 //!
@@ -47,8 +48,9 @@
 //! | `22` | [`capacity`] |
 //! | `23` | [`daemons::accept`] |
 //! | `24` | [`daemons::connect`] |
+//! | `25` | [`discover`] |
 //!
-//! Twenty-five, grouped by endpoint and ordered within it. The four
+//! Twenty-six, grouped by endpoint and ordered within it. The four
 //! container scopes lead: the agents' run, the tools' run, the serve
 //! that answers a running container's files live, and the info that
 //! reads an image's DIVERGE.md without running it. The eleven volume
@@ -63,7 +65,8 @@
 //! Then [`info`], which asks what a provider is, and [`capacity`],
 //! which asks what is left of it. Last, the two of [`daemons`], added
 //! after: a daemon accepting connections from other daemons, and a
-//! daemon connecting to one.
+//! daemon connecting to one. And [`discover`], added after them, which
+//! asks which of the provider's connected identities may be listed.
 //!
 //! Nothing derives meaning from adjacency, which [`info`] is the
 //! proof of — it is the one a client asks FIRST and it sits near the
@@ -104,6 +107,7 @@ pub use client_request::*;
 pub mod capacity;
 pub mod containers;
 pub mod daemons;
+pub mod discover;
 pub mod images;
 pub mod info;
 pub mod volumes;

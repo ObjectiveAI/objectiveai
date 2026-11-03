@@ -82,6 +82,7 @@ pub enum Expected {
 pub struct DaemonAuthenticator {
     own: Own,
     providers: HashSet<Identity>,
+    discoverable: HashSet<Identity>,
     daemons: HashSet<Identity>,
     admins: HashSet<Identity>,
     store: Store,
@@ -92,11 +93,13 @@ pub struct DaemonAuthenticator {
 
 impl DaemonAuthenticator {
     /// The daemon as `own` presents it, its two lists `providers` and
-    /// `daemons`, its `admins`, admitting the accounts of `store`;
-    /// nothing held.
+    /// `daemons`, the providers it is `discoverable` to when they dial
+    /// in, its `admins`, admitting the accounts of `store`; nothing
+    /// held.
     pub fn new(
         own: Own,
         providers: impl IntoIterator<Item = Identity>,
+        discoverable: impl IntoIterator<Item = Identity>,
         daemons: impl IntoIterator<Item = Identity>,
         admins: impl IntoIterator<Item = Identity>,
         store: Store,
@@ -104,6 +107,7 @@ impl DaemonAuthenticator {
         DaemonAuthenticator {
             own,
             providers: providers.into_iter().collect(),
+            discoverable: discoverable.into_iter().collect(),
             daemons: daemons.into_iter().collect(),
             admins: admins.into_iter().collect(),
             store,
@@ -222,5 +226,13 @@ impl Authenticator for Judging<'_> {
 
     fn abandon<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, ()> {
         Box::pin(self.authenticator.release(self.expected, peer))
+    }
+
+    /// The discover flag the daemon answers with, as the connectee:
+    /// `true` only on a socket it accepted, to a provider whose
+    /// `providers.accepted` entry says `discover`; `false` to every
+    /// client, and to a daemon reaching this one.
+    fn discoverable<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, bool> {
+        Box::pin(async move { self.expected == Expected::Admitted && self.authenticator.discoverable.contains(peer) })
     }
 }

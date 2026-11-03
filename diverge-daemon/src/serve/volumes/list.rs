@@ -83,9 +83,8 @@ impl Source for Mirrored<'_> {
             let providers: Vec<Identity> = self
                 .daemon
                 .providers
-                .accepted
-                .iter()
-                .cloned()
+                .identities()
+                .into_iter()
                 .filter(|identity| named.as_ref().is_none_or(|named| named.contains(identity)))
                 .collect();
             let mut tagged = volume_tags::all(&mut conn).await?;

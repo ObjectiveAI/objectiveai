@@ -11,6 +11,7 @@ use super::acceptors::Acceptors;
 use super::capacity_reporter::CapacityReporter;
 use super::container_deployer::ContainerDeployer;
 use super::directory::Directory;
+use super::discoverable::Discoverable;
 use super::changes::Changes;
 use super::image_checker::ImageChecker;
 use super::image_manager::ImageManager;
@@ -57,7 +58,9 @@ use diverge_sdk::shared::error::Error;
 /// volumes and one for images, through which a listing on this
 /// connection hears of a change made on any other; and the
 /// [`Acceptors`], one per provider likewise, through which a daemon
-/// connecting on this connection finds one accepting on any other.
+/// connecting on this connection finds one accepting on any other; and
+/// the [`Discoverable`], one per provider likewise, which a `discover`
+/// on this connection lists.
 ///
 /// # The handshake is done before
 ///
@@ -82,6 +85,7 @@ pub async fn handle<D, V, I, M, O, R, C>(
     volume_changes: Arc<Changes>,
     image_changes: Arc<Changes>,
     acceptors: Arc<Acceptors>,
+    discoverable: Arc<Discoverable>,
     capabilities: Arc<Capabilities>,
 ) -> Result<(), HandleError>
 where
@@ -377,6 +381,12 @@ where
                 let acceptors = Arc::clone(&acceptors);
                 scopes.spawn(async move {
                     endpoints::daemons::connect::handle(scope, frame, &identity, address, acceptors).await;
+                });
+            }
+            ClientRequest::Discover(_) => {
+                let discoverable = Arc::clone(&discoverable);
+                scopes.spawn(async move {
+                    endpoints::discover::handle(scope, &discoverable).await;
                 });
             }
             ClientRequest::Invalid(_) => scope.send_response_finish().await,

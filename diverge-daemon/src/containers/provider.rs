@@ -145,7 +145,7 @@ pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: 
         }
         return Ok(vec![(identity.clone(), handle)]);
     }
-    let on_record = &daemon.providers.accepted;
+    let on_record = daemon.providers.identities();
     let mut listed = Vec::with_capacity(on_record.len());
     let mut unlisted = Vec::new();
     let mut lacked = None;

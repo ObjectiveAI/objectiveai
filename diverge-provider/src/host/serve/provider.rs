@@ -14,6 +14,7 @@ use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::handshake::{self, Handshook};
 use crate::protocol::acceptors::Acceptors;
 use crate::protocol::directory::Directory;
+use crate::protocol::discoverable::Discoverable;
 use crate::protocol::changes::Changes;
 use crate::protocol::handle::handle;
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
@@ -64,6 +65,9 @@ pub struct Provider {
     /// The daemons accepting connections from other daemons, one map
     /// for the provider.
     acceptors: Arc<Acceptors>,
+    /// The connected identities whose discover flag was `1`, one set
+    /// for the provider.
+    discoverable: Arc<Discoverable>,
     /// Every change to any caller's volumes, for the listings open.
     volume_changes: Arc<Changes>,
     /// Every change to any caller's images, for the listings open.
@@ -139,6 +143,7 @@ impl Provider {
             registry,
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
+            discoverable: Arc::new(Discoverable::new()),
             volume_changes: Arc::new(Changes::new()),
             image_changes: Arc::new(Changes::new()),
             capabilities,
@@ -154,17 +159,25 @@ impl Provider {
     /// another connection holds among the ways — closes the connection
     /// with nothing sent.
     pub async fn accept(&self, connection: Connection, address: IpAddr) {
-        let Ok(Handshook { connection, peer }) = handshake::accept(connection, self.authenticator.as_ref(), address).await else {
+        let Ok(Handshook { connection, peer, discover }) = handshake::accept(connection, self.authenticator.as_ref(), address).await else {
             return;
         };
-        self.held(connection, peer, address).await;
+        self.held(connection, peer, discover, address).await;
     }
 
     /// A connection past its handshake, under `peer`, whose identity
     /// the handshake took: the connection served, and the identity let
-    /// go.
-    pub async fn held(&self, connection: Connection, peer: Identity, address: IpAddr) {
+    /// go. `discover` is the peer's discover flag, honored whichever
+    /// end dialled: when it is set, `peer` is listed to every
+    /// `discover` for exactly as long as the connection is served.
+    pub async fn held(&self, connection: Connection, peer: Identity, discover: bool, address: IpAddr) {
+        if discover {
+            self.discoverable.enter(&peer).await;
+        }
         self.connection(connection, Arc::new(peer.clone()), address).await;
+        if discover {
+            self.discoverable.leave(&peer).await;
+        }
         self.authenticator.release(&peer).await;
     }
 
@@ -207,6 +220,7 @@ impl Provider {
             Arc::clone(&self.volume_changes),
             Arc::clone(&self.image_changes),
             Arc::clone(&self.acceptors),
+            Arc::clone(&self.discoverable),
             Arc::clone(&self.capabilities),
         ));
         let stopping = pin!(async move {

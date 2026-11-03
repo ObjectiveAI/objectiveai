@@ -33,7 +33,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::providers::holds(&standing, Action::Get) {
         return Ok(Frame::Forbidden);
     }
-    if !daemon.providers.accepted.contains(&frame.identity) {
+    if !daemon.providers.accepts(&frame.identity) {
         return Ok(Frame::NotFound);
     }
     Ok(Frame::Found(report(daemon, &frame.identity).await))

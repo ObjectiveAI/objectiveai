@@ -3,7 +3,7 @@
 use std::convert::Infallible;
 use std::fmt;
 
-use super::{capacity, containers, daemons, images, info, volumes};
+use super::{capacity, containers, daemons, discover, images, info, volumes};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -81,6 +81,8 @@ pub enum ClientRequest<'a> {
     DaemonsAccept(daemons::accept::client::request::Frame),
     /// Tag `24`. Connect to another daemon.
     DaemonsConnect(daemons::connect::client::request::Frame),
+    /// Tag `25`. Ask which connected identities are discoverable.
+    Discover(discover::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -91,7 +93,7 @@ pub enum ClientRequest<'a> {
     /// # It is answered, not dropped
     ///
     /// A server finishes the scope over it, with nothing in front:
-    /// twenty-five endpoints have twenty-five error vocabularies, and an invalid
+    /// twenty-six endpoints have twenty-six error vocabularies, and an invalid
     /// request names none of them — where a finish with nothing before
     /// it is already what the wire means by a request that could not
     /// be served, and every executor reads it as its own "unanswered".
@@ -104,15 +106,15 @@ pub enum ClientRequest<'a> {
     /// A server that wants one has the bytes and can ask the specific
     /// request to decode them, which answers precisely: an unknown
     /// tag, a body that would not parse, or nothing at all. Storing a
-    /// reason here would mean this type choosing which of twenty-five
-    /// error vocabularies to speak, and choosing wrong for twenty-four
+    /// reason here would mean this type choosing which of twenty-six
+    /// error vocabularies to speak, and choosing wrong for twenty-five
     /// of them.
     Invalid(&'a [u8]),
 }
 
 impl Encode for ClientRequest<'_> {
-    /// Two ways to fail, because twenty-five requests use two encodings
-    /// between them — and seven of the twenty-five use neither, having
+    /// Two ways to fail, because twenty-six requests use two encodings
+    /// between them — and eight of the twenty-six use neither, having
     /// nothing to encode.
     type Error = ClientRequestEncodeError;
 
@@ -202,6 +204,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::DaemonsConnect(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
+            ClientRequest::Discover(frame) => frame.encode(out).map_err(|error| match error {}),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -301,6 +304,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             24 => daemons::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DaemonsConnect)
                 .ok(),
+            25 => discover::client::request::Frame::decode(bytes)
+                .map(ClientRequest::Discover)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -312,7 +318,7 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
 /// Named for the encoding rather than for the request, because
 /// eighteen requests share two of them and a variant per request
 /// would be eighteen names that mean the same failure — eighteen,
-/// because the other seven have nothing to encode.
+/// because the other eight have nothing to encode.
 #[derive(Debug)]
 pub enum ClientRequestEncodeError {
     /// A JSON request did not serialize.

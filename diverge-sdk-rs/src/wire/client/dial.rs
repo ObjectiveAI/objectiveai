@@ -31,8 +31,8 @@ pub async fn dial(
 ) -> Result<(Handle, impl Future<Output = ()> + Send + 'static, Peer), DialError> {
     let (socket, _) = connect_async(url(address)).await.map_err(|error| DialError::Dial(error.to_string()))?;
     let at = peer_ip(&socket);
-    let Handshook { connection, peer } =
-        connect(Connection::Outgoing(socket), issuer, authenticator, at).await.map_err(|error| DialError::Handshake(error.to_string()))?;
+    let Handshook { connection, peer, .. } =
+        connect(Connection::Outgoing(socket), issuer, false, authenticator, at).await.map_err(|error| DialError::Handshake(error.to_string()))?;
     let (handle, router) = Handle::open(connection);
     let run = async move {
         let _ = router.run().await;

@@ -10,4 +10,8 @@ pub struct Handshook {
     pub connection: Connection,
     /// The other end, verified.
     pub peer: Peer,
+    /// The other end's discover flag: whether it may be listed by a
+    /// provider's [`discover`](crate::provider::endpoints::discover).
+    /// Only a provider honors it.
+    pub discover: bool,
 }

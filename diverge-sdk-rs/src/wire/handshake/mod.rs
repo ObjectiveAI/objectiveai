@@ -11,9 +11,11 @@
 //! on it. The rules:
 //!
 //! 1. **The frame.** Type `0`, scope and channel `0`, one layout in both
-//!    directions. Its payload is a token — an RFC 7519 JWT, as UTF-8,
-//!    the whole payload — see [`Auth`](crate::wire::frame::auth::Auth).
-//!    An empty payload, or one that is not UTF-8, is malformed.
+//!    directions. Its payload is the discover flag — one byte, `0` or
+//!    `1` — and then a token, an RFC 7519 JWT as UTF-8, every byte
+//!    after the flag — see [`Auth`](crate::wire::frame::auth::Auth).
+//!    An empty payload, a flag of any other byte, an empty token, or a
+//!    token that is not UTF-8 is malformed.
 //! 2. **The connector speaks first.** Its first frame is its token from
 //!    the issuer of its choice, and it sends nothing else until the
 //!    connectee has answered.
@@ -36,6 +38,13 @@
 //!    either direction, ends the connection.
 //! 8. **What it establishes.** Each end holds the other's [`Peer`] —
 //!    the pair `(iss, sub)` — for the connection's life.
+//! 9. **The discover flag.** Each end sends one, the connector's its
+//!    caller's choice and the connectee's its
+//!    [`Authenticator::discoverable`]'s. Only a provider honors the one
+//!    it receives — whichever end dialled — listing the peer to its
+//!    [`discover`](crate::provider::endpoints::discover) for the
+//!    connection's life when it is `1`; every other end ignores it. A
+//!    provider sends `0`.
 //!
 //! [`connect`] is the connector's half and [`accept`] the connectee's;
 //! each hands the connection back, as a [`Handshook`], once its half is

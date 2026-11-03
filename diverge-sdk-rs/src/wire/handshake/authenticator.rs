@@ -39,4 +39,15 @@ pub trait Authenticator: Send + Sync {
         let _ = peer;
         Box::pin(async {})
     }
+
+    /// The discover flag this end sends `peer` when it is the
+    /// connectee: asked after [`verify`](Self::verify) accepted `peer`,
+    /// and before this end's token is sent. The connector's flag is
+    /// its caller's, given to [`connect`](super::connect), since it is
+    /// sent before anything is known of the connectee. By default,
+    /// `false`.
+    fn discoverable<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, bool> {
+        let _ = peer;
+        Box::pin(async { false })
+    }
 }
