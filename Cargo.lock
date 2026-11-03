@@ -2404,10 +2404,13 @@ dependencies = [
 name = "diverge-world"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "bytes",
  "diverge-sdk",
  "diverge-viewer-config",
  "futures-util",
+ "hyper",
+ "hyper-util",
  "rfd",
  "serde",
  "serde_json",

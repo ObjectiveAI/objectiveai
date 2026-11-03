@@ -4,7 +4,7 @@
 
 import { daemon, shared } from "@diverge/sdk";
 import { handle } from "../lib/wire";
-import { imageNames } from "./names";
+import { imageInfo } from "./names";
 import type { Snapshot } from "./snapshot";
 import type { Watching } from "./watch";
 
@@ -44,7 +44,8 @@ const e = daemon.endpoints;
  *    `forbidden`.
  * 4. Every image a tool runs — a dependency tool's template's, a
  *    created standalone tool's template's — is asked its name once,
- *    the first time it is seen (`imageNames`); an answer is one more
+ *    and whether it serves a frontend, the first time it is seen
+ *    (`imageInfo`); an answer is one more
  *    change.
  * 5. `changed` is first told once every list has been whole once, and
  *    then after every change, no more than once a frame, so a burst is
@@ -56,6 +57,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
   let stopped = false;
   const cancels = new Set<{ cancel(): Promise<void> }>();
   const names = new Map<string, string>();
+  const frontends = new Set<string>();
   const asked = new Set<string>();
   const waiting: shared.listing.Change<Event>[] = [];
   let frame = 0;
@@ -89,6 +91,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
     volumes: [...volumes.listing.items],
     forbidden: all.filter(([, list]) => list.forbidden).map(([name]) => name),
     names: new Map(names),
+    frontends: new Set(frontends),
   });
 
   /** Rule 4: the images not yet asked, asked. */
@@ -103,9 +106,12 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
     ].filter((image) => !asked.has(image.digest));
     if (images.length === 0) return;
     for (const image of images) asked.add(image.digest);
-    void imageNames(images).then((found) => {
+    void imageInfo(images).then((found) => {
       if (stopped || found.size === 0) return;
-      for (const [digest, name] of found) names.set(digest, name);
+      for (const [digest, image] of found) {
+        names.set(digest, image.name);
+        if (image.frontend) frontends.add(digest);
+      }
       soon();
     });
   };

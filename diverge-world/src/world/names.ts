@@ -1,5 +1,6 @@
-// What each tool's image calls itself: the `name` of its
-// `/DIVERGE.md`, as the daemon's `images info` answers it.
+// What each tool's image calls itself — the `name` of its
+// `/DIVERGE.md`, as the daemon's `images info` answers it — and whether
+// it serves a frontend.
 
 import { daemon, shared } from "@diverge/sdk";
 import { handle } from "../lib/wire";
@@ -23,20 +24,29 @@ const info = daemon.endpoints.images.info;
  *    one image fails no other and not the snapshot.
  */
 export async function imageNames(images: Image[]): Promise<Map<string, string>> {
+  const found = await imageInfo(images);
+  return new Map([...found].map(([digest, info]) => [digest, info.name]));
+}
+
+/** An image as the world names it: its document's `name`, and whether its program serves a frontend. */
+export type ImageInfo = { name: string; frontend: boolean };
+
+/** Every image's name and frontend, by digest, by the rules of `imageNames`. */
+export async function imageInfo(images: Image[]): Promise<Map<string, ImageInfo>> {
   // Rule 1.
   const unique = new Map<string, Image>();
   for (const image of images) if (!unique.has(image.digest)) unique.set(image.digest, image);
   const asked = await Promise.all(
-    [...unique.values()].map(async (image): Promise<[string, string] | null> => {
+    [...unique.values()].map(async (image): Promise<[string, ImageInfo] | null> => {
       try {
         const answer = await info.client.execute(handle, { image });
         // Rule 2; rule 3 for every other answer.
-        return typeof answer === "object" && "info" in answer ? [image.digest, answer.info.name] : null;
+        return typeof answer === "object" && "info" in answer ? [image.digest, { name: answer.info.name, frontend: answer.info.frontend === true }] : null;
       } catch {
         // Rule 3.
         return null;
       }
     }),
   );
-  return new Map(asked.filter((pair): pair is [string, string] => pair !== null));
+  return new Map(asked.filter((pair): pair is [string, ImageInfo] => pair !== null));
 }

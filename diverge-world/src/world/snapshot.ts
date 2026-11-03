@@ -4,7 +4,7 @@
 
 import { daemon, shared } from "@diverge/sdk";
 import { handle } from "../lib/wire";
-import { imageNames } from "./names";
+import { imageInfo } from "./names";
 
 type Account = daemon.endpoints.accounts.list.server.response.Account;
 type Agent = daemon.endpoints.agents.list.server.response.Agent;
@@ -28,6 +28,8 @@ export type Snapshot = {
   volumes: Volume[];
   forbidden: string[];
   names: Map<string, string>;
+  /** The digests of the images whose `/DIVERGE.md` declares a frontend. */
+  frontends: Set<string>;
 };
 
 /** How one list is opened, told apart and folded. */
@@ -110,6 +112,7 @@ export async function snapshot(): Promise<Snapshot> {
       return image ? [image] : [];
     }),
   ];
+  const info = await imageInfo(images);
   return {
     accounts: a.items,
     agents: g.items,
@@ -119,6 +122,7 @@ export async function snapshot(): Promise<Snapshot> {
     events: e.items,
     volumes: v.items,
     forbidden: named.filter(([, read]) => read.forbidden).map(([name]) => name),
-    names: await imageNames(images),
+    names: new Map([...info].map(([digest, image]) => [digest, image.name])),
+    frontends: new Set([...info].filter(([, image]) => image.frontend).map(([digest]) => digest)),
   };
 }

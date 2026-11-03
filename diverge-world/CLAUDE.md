@@ -25,7 +25,12 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   each transfer and stops it. A third tab, `console` (`sheet/console.ts`), is one interactive shell in an agent's,
   tool's or dependency tool's container (`<family> terminal`), drawn by xterm (`@xterm/xterm`, `@xterm/addon-fit`):
   keys go to its stdin one write in flight, the rest held and sent as one; the pane's size, settled, is its size;
-  closing or swapping the sheet closes it, which kills the shell. An account
+  closing or swapping the sheet closes it, which kills the shell. A fourth tab, `frontend` (`sheet/frontend.ts`), shows
+  a tool's own web frontend (its image's DIVERGE.md says `frontend: true`; `Entity.frontend`, from `world/names.ts`'s
+  `imageInfo`) in an `<iframe>`: the app's Rust (`src-tauri/src/frontend.rs`, commands `frontend_open`/`frontend_close`)
+  serves it from `127.0.0.1:<fresh port>` (axum), each request one daemon `<family> frontend` scope over the page's
+  connection, bodies streamed, a `101` piped both ways; gated by Host, `Sec-Fetch-Site` and a key on the first load;
+  closed with the sheet, on a swap, and on every page load. An account
   has only logs, a volume only its files; each tab starts reading the first time it is shown, and the tab last chosen
   carries to the next sheet.
 - **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): a dark Tron grid, every agent,

@@ -15,7 +15,8 @@ is named, so the two can be checked against each other.
 - A panel at the top left shows and hides each kind of node and each
   type of line, with counts, and can arrange the board.
 - Clicking a node opens a sheet along the bottom: its **logs**, its
-  **filesystem**, and a **console** into its container.
+  **filesystem**, a **console** into its container, and — for a tool
+  that serves one — its **frontend**, the tool's own web page.
 - Files can be downloaded (right-click) and uploaded (drag and drop),
   however large.
 
@@ -192,13 +193,13 @@ holds.
 
 ### Tabs by kind
 
-| Kind | Logs | Filesystem | Console |
-|---|---|---|---|
-| Agent | yes | yes | yes |
-| Standalone tool | yes | yes | yes |
-| Dependency tool | yes | yes | yes |
-| Account (and admin) | yes | — | — |
-| Volume | — | yes | — |
+| Kind | Logs | Filesystem | Console | Frontend |
+|---|---|---|---|---|
+| Agent | yes | yes | yes | — |
+| Standalone tool | yes | yes | yes | when its image declares one |
+| Dependency tool | yes | yes | yes | when its image declares one |
+| Account (and admin) | yes | — | — | — |
+| Volume | — | yes | — | — |
 
 - The tab bar always shows, even for a node with one tab (an account's
   logs, a volume's filesystem).
@@ -334,6 +335,40 @@ refused. An administrator's log is the daemon's own admin log.
 - Stopping a transfer tells the daemon at once.
 
 ---
+
+## The frontend tab
+
+`sheet/frontend.ts`, `src-tauri/src/frontend.rs`
+
+- **What it is.** The web page a tool's own program serves, beneath
+  `/frontend`, shown in a frame filling the sheet: every page, form,
+  stream and live connection (WebSocket) it uses works as on any
+  website.
+- **Which tools.** A standalone tool or a dependency tool whose image's
+  `DIVERGE.md` says `"frontend": true`. Others have no frontend tab.
+- **How it reaches the tool.** The app's Rust serves the frame from an
+  address of its own on this machine (`127.0.0.1`, a new port for every
+  tab), and sends every request the page makes to the tool through the
+  daemon. Nothing passes through the world's page.
+- **Who you are to the tool.** Every request is stamped by the daemon
+  with the account the world is signed in as; the tool reads it, and
+  nothing the page sends can pass for it.
+- **Tools are kept apart.** Each frontend is a web origin of its own,
+  so one tool's page cannot read another's cookies or storage, nor
+  reach into the world.
+- **Only the frame gets in.** The address answers only requests from
+  the frame itself (or programs on this machine, which could reach the
+  daemon as you anyway); another website in a browser is refused.
+- **↻** loads the frontend again from its start.
+- **Starting it.** Opening a standalone tool's frontend starts its
+  container if it is stopped. A dependency tool is never started for
+  it; one that is not running says so in the frame.
+- **Keeping it up.** While a request or a live connection of the
+  frontend is open, it keeps the tool's container running.
+- **Closing it.** Closing the sheet, opening another node, the node
+  being deleted, or reloading the page ends the frontend: every
+  connection it had open is closed, so it holds the container up no
+  more. Switching to another tab of the same sheet keeps it.
 
 ## The console tab
 

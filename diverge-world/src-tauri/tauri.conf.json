@@ -28,6 +28,7 @@
         "style-src": "'self'",
         "img-src": "'self' data: blob:",
         "connect-src": "ipc: http://ipc.localhost",
+        "frame-src": "http://127.0.0.1:*",
         "object-src": "'none'",
         "base-uri": "'none'"
       }

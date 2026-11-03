@@ -2,6 +2,7 @@
 
 import type { Entity, Subject } from "../world/model";
 import { type Container, Console } from "./console";
+import { FrontendPane } from "./frontend";
 import { Files } from "./files";
 import { Fold } from "./fold";
 import { type Entry, type Following, follow } from "./log";
@@ -17,7 +18,7 @@ const MOST = 90;
 export type Opened = { entity: Entity; images: Map<string, string> };
 
 /** The sheet's three tabs. */
-type Tab = "logs" | "files" | "console";
+type Tab = "logs" | "files" | "console" | "frontend";
 
 /** The tabs an entity has, in order: logs with a log, a filesystem with files, a console with a container. */
 function tabsOf(entity: Entity): Tab[] {
@@ -25,6 +26,7 @@ function tabsOf(entity: Entity): Tab[] {
   if (entity.subject) tabs.push("logs");
   if (entity.files) tabs.push("files");
   if (container(entity)) tabs.push("console");
+  if (entity.frontend) tabs.push("frontend");
   return tabs;
 }
 
@@ -74,12 +76,13 @@ function subline(subject: Subject): string {
  *    its green dot, lit exactly while its node on the board is bright
  *    (`bright`, then `told`): an agent or a tool deployed, an account
  *    connected, a volume mounted into a deployed container;
- *    its tabs, `logs`, `filesystem` and `console`, those it has, shown
+ *    its tabs, `logs`, `filesystem`, `console` and `frontend`, those it has, shown
  *    however many it has, one among them; and ✕, which closes it and tells
  *    `closed`.
  * 3. An entity with a log (`subject`) has the logs tab, one with files
  *    (`files`) the filesystem tab, one with a container (an agent, a
- *    tool, a dependency tool) the console tab (`tabsOf`). It opens on
+ *    tool, a dependency tool) the console tab, a tool whose image
+ *    declares a frontend (`frontend`) the frontend tab (`tabsOf`). It opens on
  *    the tab last chosen (`chosen`) if it has it, else on the first it
  *    has. A tab's read starts the first time it is shown and runs until
  *    the sheet closes; closing stops every one and empties every one.
@@ -98,7 +101,11 @@ function subline(subject: Subject): string {
  * 6. The console tab is `Console`: one shell, opened the first time
  *    the tab is shown and closed — killed — with the sheet, or when it
  *    swaps to another entity; the keys go to it while it is shown.
- * 7. Nothing pressed on the sheet reaches the map beneath.
+ * 7. The frontend tab is `FrontendPane`: the tool's own page in a
+ *    frame, served the first time the tab is shown and ended with the
+ *    sheet, or when it swaps to another entity — every connection it
+ *    had open closed, so it holds the container up no more.
+ * 8. Nothing pressed on the sheet reaches the map beneath.
  */
 export class Sheet {
   private readonly root: HTMLElement;
@@ -111,11 +118,13 @@ export class Sheet {
   private readonly log: HTMLElement;
   private readonly pane: HTMLElement;
   private readonly shell: HTMLElement;
+  private readonly site: HTMLElement;
   private opened: Opened | null = null;
   private following: Following | null = null;
   private fold: Fold | ToolFold | null = null;
   private files: Files | null = null;
   private console: Console | null = null;
+  private frontend: FrontendPane | null = null;
   private height = HEIGHT;
 
   constructor(
@@ -148,8 +157,8 @@ export class Sheet {
       });
       return button;
     };
-    this.tab = { logs: tab("logs", "logs"), files: tab("files", "filesystem"), console: tab("console", "console") };
-    this.tabs.append(this.tab.logs, this.tab.files, this.tab.console);
+    this.tab = { logs: tab("logs", "logs"), files: tab("files", "filesystem"), console: tab("console", "console"), frontend: tab("frontend", "frontend") };
+    this.tabs.append(this.tab.logs, this.tab.files, this.tab.console, this.tab.frontend);
     const exit = document.createElement("button");
     exit.className = "exit";
     exit.type = "button";
@@ -172,7 +181,10 @@ export class Sheet {
     // Rule 6.
     this.shell = document.createElement("div");
     this.shell.className = "console";
-    this.root.append(handle, head, this.body, this.pane, this.shell);
+    // Rule 7.
+    this.site = document.createElement("div");
+    this.site.className = "frontend";
+    this.root.append(handle, head, this.body, this.pane, this.shell, this.site);
     this.drag(handle);
     document.body.append(this.root);
   }
@@ -187,7 +199,7 @@ export class Sheet {
     this.live.classList.toggle("on", this.bright(entity.key));
     const tabs = tabsOf(entity);
     this.tabs.hidden = tabs.length === 0;
-    for (const which of ["logs", "files", "console"] as const) this.tab[which].hidden = !tabs.includes(which);
+    for (const which of ["logs", "files", "console", "frontend"] as const) this.tab[which].hidden = !tabs.includes(which);
     this.root.style.height = `${this.height}vh`;
     this.root.hidden = false;
     this.show(tabs.includes(chosen) ? chosen : (tabs[0] ?? "logs"));
@@ -209,6 +221,8 @@ export class Sheet {
     this.files = null;
     this.console?.dispose();
     this.console = null;
+    this.frontend?.dispose();
+    this.frontend = null;
     this.opened = null;
     this.root.hidden = true;
   }
@@ -220,9 +234,11 @@ export class Sheet {
     this.tab.logs.classList.toggle("on", which === "logs");
     this.tab.files.classList.toggle("on", which === "files");
     this.tab.console.classList.toggle("on", which === "console");
+    this.tab.frontend.classList.toggle("on", which === "frontend");
     this.body.hidden = which !== "logs";
     this.pane.hidden = which !== "files";
     this.shell.hidden = which !== "console";
+    this.site.hidden = which !== "frontend";
     const { subject, files } = opened.entity;
     if (which === "logs" && subject && !this.following) this.logs(subject, opened.images);
     if (which === "files" && files && !this.files) this.files = new Files(this.pane, files);
@@ -231,6 +247,8 @@ export class Sheet {
       if (shell && !this.console) this.console = new Console(this.shell, shell);
       this.console?.shown();
     }
+    const site = opened.entity.frontend;
+    if (which === "frontend" && site && !this.frontend) this.frontend = new FrontendPane(this.site, site);
   }
 
   /** Rule 4. */

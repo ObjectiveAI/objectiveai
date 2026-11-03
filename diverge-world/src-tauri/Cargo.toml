@@ -21,11 +21,17 @@ tauri = { version = "2.10.3", features = [] }
 rfd = "0.17.2"
 # Downloads and uploads, between the disk and the wire in pieces
 # (`transfer.rs`).
-tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "sync", "time"] }
+tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "net", "sync", "time"] }
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
 bytes = "1.11.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
+# A tool's frontend, served to the page's frame from a server of the
+# app's own on the loopback (`frontend.rs`): every request one daemon
+# frontend request, an upgrade piped both ways.
+axum = "0.8.9"
+hyper = { version = "1.8.1", features = ["server", "http1"] }
+hyper-util = { version = "0.1.20", features = ["tokio"] }
 
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }

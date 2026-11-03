@@ -21,11 +21,13 @@ use std::sync::Arc;
 use diverge_sdk::identities::{Identities, Name, Presenter};
 use tauri::Manager;
 
+mod frontend;
 mod transfer;
 
 fn main() {
     tauri::Builder::default()
         .manage(transfer::Transfers::default())
+        .manage(frontend::Frontends::default())
         .setup(|app| {
             // The root, as the daemon and the provider find theirs; the
             // document in it, which must name the daemon and the
@@ -57,6 +59,7 @@ fn main() {
             if payload.event() == tauri::webview::PageLoadEvent::Started {
                 let app = webview.app_handle().clone();
                 tauri::async_runtime::spawn(async move {
+                    frontend::page_loading(&app).await;
                     app.state::<diverge_sdk::tauri_proxy::TauriProxy>().page_loading().await;
                 });
             }
@@ -73,6 +76,8 @@ fn main() {
             transfer::files_download,
             transfer::files_upload,
             transfer::files_cancel,
+            frontend::frontend_open,
+            frontend::frontend_close,
         ])
         .run(tauri::generate_context!())
         .expect("the app could not start");

@@ -14,7 +14,7 @@
   --sheet-error: #e0604f;
 }
 
-/* Rule 1: along the bottom, the full width; rule 6: it takes every press made on it. */
+/* Rule 1: along the bottom, the full width; rule 8: it takes every press made on it. */
 .sheet {
   position: fixed;
   left: 0;
@@ -133,6 +133,43 @@
 }
 .sheet .tab[hidden] {
   display: none;
+}
+
+/* Rule 7: the frontend, a frame filling what the sheet leaves under its bar. */
+.sheet .frontend {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--sheet-ink);
+}
+.sheet .frontend[hidden] {
+  display: none;
+}
+.sheet .frontend .bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--sheet-line);
+  font-size: 12px;
+}
+.sheet .frontend .bar button {
+  border: 0;
+  background: none;
+  color: var(--sheet-dim);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.sheet .frontend .bar button:hover { color: var(--sheet-cream); }
+.sheet .frontend .where { color: var(--sheet-dim); }
+.sheet .frontend iframe {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: #fff;
 }
 
 /* Rule 5: the filesystem, scrolled from its top; every row on one grid of columns. */

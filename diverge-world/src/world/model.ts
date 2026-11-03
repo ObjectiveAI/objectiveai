@@ -26,7 +26,10 @@ export type Files =
  * tool's — whose log it is, and — a listed agent's, tool's or volume's —
  * whose files.
  */
-export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; files?: Files; live?: Live };
+export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; files?: Files; frontend?: Frontend; live?: Live };
+
+/** Whose frontend an entity serves: a standalone tool's or a dependency tool's, as the daemon's `frontend` names it. */
+export type Frontend = { tool: daemon.reference.Tool } | { dependency: daemon.reference.Dependency };
 
 /**
  * Whether a listed entity is live, as its list says: an agent or a
@@ -113,7 +116,9 @@ function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
     const image = snapshot.templates.find((listed) => listed.id === o.template)?.template.image;
     const label = named(snapshot, image?.digest, tool.name ?? short(o.template, o.index));
     const subject: Subject = { type: "standalone_tool", template: o.template, index: o.index };
-    return { key: `standalone_tool:${o.template}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — ${o.template} #${o.index}`, subject, files: { tool: { template: o.template, index: o.index } } };
+    const reference = { template: o.template, index: o.index };
+    const frontend = image !== undefined && snapshot.frontends.has(image.digest) ? { tool: reference } : undefined;
+    return { key: `standalone_tool:${o.template}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — ${o.template} #${o.index}`, subject, files: { tool: reference }, frontend };
   }
   const label = tool.name ?? `${o.daemon} #${o.index}`;
   const subject: Subject = { type: "standalone_tool", daemon: o.daemon, tool: o.tool };
@@ -161,7 +166,9 @@ export function model(snapshot: Snapshot): Model {
   for (const d of snapshot.dependencies) {
     const label = named(snapshot, d.template.image.digest, short(d.id, d.index));
     const subject: Subject = { type: "dependency_tool", template: d.id, owner: ownerRef(d.owner) };
-    put({ key: dependencyKey(d), kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}`, subject, files: { dependency: { template: d.id, owner: ownerRef(d.owner) } }, live: activeLive(d) });
+    const dependency = { template: d.id, owner: ownerRef(d.owner) };
+    const frontend = snapshot.frontends.has(d.template.image.digest) ? { dependency } : undefined;
+    put({ key: dependencyKey(d), kind: "dependency_tool", label, detail: `${label} — ${d.id} #${d.index}`, subject, files: { dependency }, frontend, live: activeLive(d) });
   }
   for (const v of snapshot.volumes) {
     const mib = Math.round(v.bytes / 1048576);
