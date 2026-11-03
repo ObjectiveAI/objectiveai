@@ -1,5 +1,6 @@
 // The nodes: one glowing shape per entity, its name beneath, each
-// dragged wherever its owner wants it.
+// dragged wherever its owner wants it, coming and going as the world
+// does.
 
 import * as Phaser from "phaser";
 import type { Point } from "../world/geometry";
@@ -19,8 +20,14 @@ const LABEL = 18;
 /** One node: its entity, its shape, its name and its halo, which all move together. */
 export type Node = { entity: Entity; image: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text; halo: Phaser.GameObjects.Image };
 
-/** The nodes by key, and whether one is being dragged. */
-export type Nodes = { byKey: Map<string, Node>; dragging(): boolean };
+/** The nodes by key, whether one is being dragged, and how one comes, goes and changes. */
+export type Nodes = {
+  byKey: Map<string, Node>;
+  dragging(): boolean;
+  add(entity: Entity, at: Point): Node;
+  remove(key: string): void;
+  update(entity: Entity): void;
+};
 
 /** Where a node stands now. */
 export const where = (node: Node): Point => ({ x: node.image.x, y: node.image.y });
@@ -51,50 +58,54 @@ export function setDim(node: Node, dim: boolean): void {
   node.halo.setTint(dim ? scaled(NEON[node.entity.kind], DIM) : NEON[node.entity.kind]);
 }
 
+/** A name as a label shows it: cut at `LABEL` characters, an ellipsis ending a longer one. */
+const shortened = (label: string) => (label.length > LABEL ? `${label.slice(0, LABEL - 1)}…` : label);
+
 /**
  * Make the nodes.
  *
  * The rules:
  *
- * 1. Every entity is one node at its first place: its kind's shape,
- *    its halo behind it (unlit until `live` lights it), its name
+ * 1. Every entity is one node at the place it is added at: its kind's
+ *    shape, its halo behind it (unlit until `live` lights it), its name
  *    beneath in its kind's neon.
  * 2. A node is dragged by pressing on it and moving more than `CLICK`
  *    pixels; its halo and name go with it, and every step tells
  *    `moved`. While one is dragged the board does not pan.
  * 3. A press let go having moved less than that is a click, and calls
- *    `select` with an entity that has a log (`subject`) or files
- *    (`files`). Both the press and the release are the board's own —
- *    made on the canvas: a release on the sheet, or anything else over
- *    the board, selects nothing, though the game hears it.
+ *    `select` with the node's entity as it is now, if it has a log
+ *    (`subject`) or files (`files`). Both the press and the release are
+ *    the board's own — made on the canvas: a release on the sheet, or
+ *    anything else over the board, selects nothing, though the game
+ *    hears it.
  * 4. The pointer coming onto a node tells `over`, and leaving it tells
  *    `out`.
- * 5. Where nodes stand lives only here, for as long as the page: a
+ * 5. Nodes come and go as the world does: `add` makes one, `remove`
+ *    destroys it — its shape, its halo, its name and every handler on
+ *    them — and `update` gives it its entity as it is now, relabelled.
+ * 6. Where nodes stand lives only here, for as long as the page: a
  *    reload stands them at their first places again.
  */
 export function makeNodes(scene: Phaser.Scene, entities: Entity[], at: Map<string, Point>, moved: () => void, select: (entity: Entity) => void, over: (node: Node) => void, out: (node: Node) => void): Nodes {
   const byKey = new Map<string, Node>();
-  let dragging = false;
+  let dragging: string | null = null;
   scene.input.dragDistanceThreshold = CLICK;
-  for (const entity of entities) {
-    const p = at.get(entity.key);
-    if (!p) continue;
+  const add = (entity: Entity, p: Point): Node => {
     // Rule 1.
     const color = NEON[entity.kind];
     const halo = scene.add.image(p.x, p.y, HALO).setTint(color).setAlpha(0).setDepth(4);
     const image = scene.add.image(p.x, p.y, nodeKey(entity.kind)).setDepth(5);
-    const name = entity.label.length > LABEL ? `${entity.label.slice(0, LABEL - 1)}…` : entity.label;
     const label = scene.add
-      .text(p.x, p.y + REACH[entity.kind] + 12, name, { fontFamily: "Consolas, 'Courier New', monospace", fontSize: "11px", color: css(color) })
+      .text(p.x, p.y + REACH[entity.kind] + 12, shortened(entity.label), { fontFamily: "Consolas, 'Courier New', monospace", fontSize: "11px", color: css(color) })
       .setOrigin(0.5)
       .setAlpha(0.9)
       .setDepth(6);
-    const node = { entity, image, label, halo };
+    const node: Node = { entity, image, label, halo };
     byKey.set(entity.key, node);
     // Rule 2.
     image.setInteractive({ hitArea: new Phaser.Geom.Circle(image.width / 2, image.height / 2, REACH[entity.kind] + 6), hitAreaCallback: Phaser.Geom.Circle.Contains, draggable: true, useHandCursor: true });
     image.on("dragstart", () => {
-      dragging = true;
+      dragging = node.entity.key;
       image.setDepth(7);
     });
     image.on("drag", (_pointer: Phaser.Input.Pointer, x: number, y: number) => {
@@ -102,18 +113,46 @@ export function makeNodes(scene: Phaser.Scene, entities: Entity[], at: Map<strin
       moved();
     });
     image.on("dragend", () => {
-      dragging = false;
+      dragging = null;
       image.setDepth(5);
     });
     // Rule 3.
     image.on("pointerup", (pointer: Phaser.Input.Pointer) => {
       const canvas = scene.game.canvas;
       if (pointer.downElement !== canvas || pointer.upElement !== canvas) return;
-      if ((entity.subject || entity.files) && Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) < CLICK) select(entity);
+      const now = node.entity;
+      if ((now.subject || now.files) && Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) < CLICK) select(now);
     });
     // Rule 4.
     image.on("pointerover", () => over(node));
     image.on("pointerout", () => out(node));
+    return node;
+  };
+  for (const entity of entities) {
+    const p = at.get(entity.key);
+    if (p) add(entity, p);
   }
-  return { byKey, dragging: () => dragging };
+  return {
+    byKey,
+    dragging: () => dragging !== null,
+    add,
+    // Rule 5.
+    remove(key) {
+      const node = byKey.get(key);
+      if (!node) return;
+      if (dragging === key) dragging = null;
+      scene.tweens.killTweensOf([node.halo, node.image, node.label]);
+      node.image.destroy();
+      node.label.destroy();
+      node.halo.destroy();
+      byKey.delete(key);
+    },
+    update(entity) {
+      const node = byKey.get(entity.key);
+      if (!node) return;
+      node.entity = entity;
+      const text = shortened(entity.label);
+      if (node.label.text !== text) node.label.setText(text);
+    },
+  };
 }

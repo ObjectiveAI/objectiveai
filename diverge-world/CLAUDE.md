@@ -39,7 +39,13 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 - **Live lights** (`render/lights.ts`, `world/watch.ts`): the accounts, agents and tools lists stay open after the
   snapshot, and each entity's state lights it: a pulsing green halo and a plate dot while an agent or tool is `active`
   (working), a steady halo for a `connected` account. The map itself is not rebuilt.
-- **The world is the daemon drawn once** (`scenes/world.ts`): seven lists read to their `listed` (`world/snapshot.ts`),
+- **The board follows the daemon** (`world/live.ts`, `follow`): the seven lists kept open for the page's life, a list
+  that reopens reconciled against what it held, the world handed to `scenes/board.ts` at most once a frame once every
+  list was whole once. The board draws the first world, then diffs every later one by key (`apply`): new entities are
+  nodes at `placeOne`, gone ones are removed (their sheet closed), kept ones relabelled; the edges are replaced
+  (`links.setEdges`), the lights reapplied (`light`), the legend counts reset; pulses take the same events stream
+  (`pulses.told`) after the world holding their line is drawn.
+- **The hex world is the daemon drawn once** (`scenes/world.ts`, unlisted): seven lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its
   `images info` once (`world/names.ts`), and a tool is named by its image's DIVERGE.md `name` where it said one. Every account, agent, standalone tool,
   dependency tool and volume is an entity; every event a directed link, and every volume an agent mounts a dashed

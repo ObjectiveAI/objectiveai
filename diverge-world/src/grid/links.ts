@@ -30,6 +30,7 @@ export type Lane = { a: Point; b: Point };
 /** The links: drawn again on `redraw`, shown by type, focused on one node. */
 export type Links = {
   redraw(): void;
+  setEdges(next: Edge[]): void;
   show(visible: Record<EdgeType, boolean>): void;
   focus(key: string | null): void;
   laneOf(from: string, to: string, type: EdgeType): Lane | null;
@@ -65,20 +66,27 @@ function rank(e: Edge): number {
  *    at the maker.
  * 4. While a node is focused, every line not touching it is drawn
  *    `UNFOCUSED` as bright.
- * 5. They are drawn again only on a move, a show or a focus.
+ * 5. They are drawn again only on a move, a show, a focus, or new
+ *    edges (`setEdges`), which replace every edge as the world now has
+ *    them.
  * 6. A node's touching nodes are those a line of a type shown joins it
  *    to, both ends shown.
  */
-export function makeLinks(scene: Phaser.Scene, nodes: Nodes, all: Edge[]): Links {
+export function makeLinks(scene: Phaser.Scene, nodes: Nodes, first: Edge[]): Links {
+  let all = first;
   const g = scene.add.graphics().setDepth(3);
   const pairs = new Map<string, Edge[]>();
-  for (const e of all) {
-    const id = `${e.a}\n${e.b}`;
-    const list = pairs.get(id) ?? [];
-    list.push(e);
-    pairs.set(id, list);
-  }
-  for (const list of pairs.values()) list.sort((x, y) => rank(x) - rank(y));
+  const pair = () => {
+    pairs.clear();
+    for (const e of all) {
+      const id = `${e.a}\n${e.b}`;
+      const list = pairs.get(id) ?? [];
+      list.push(e);
+      pairs.set(id, list);
+    }
+    for (const list of pairs.values()) list.sort((x, y) => rank(x) - rank(y));
+  };
+  pair();
   let visible: Record<EdgeType, boolean> = { call: true, attachment: true, creator: true };
   let focused: string | null = null;
 
@@ -126,6 +134,12 @@ export function makeLinks(scene: Phaser.Scene, nodes: Nodes, all: Edge[]): Links
   redraw();
   return {
     redraw,
+    // Rule 5.
+    setEdges(next) {
+      all = next;
+      pair();
+      redraw();
+    },
     show(next) {
       visible = { ...next };
       redraw();

@@ -1,26 +1,24 @@
 // The board scene: every entity as a glowing node on the dark grid,
-// dragged wherever its owner wants it. It reads the daemon once and
-// keeps what it drew alive.
+// dragged wherever its owner wants it. It follows the daemon: what is
+// made appears, what changes is redrawn, what is deleted goes.
 
 import * as Phaser from "phaser";
 import { arrange } from "../grid/arrange";
 import { type Edge, edges } from "../grid/edges";
 import { type Links, makeLinks } from "../grid/links";
-import { makeLit } from "../grid/live";
+import { type Lit, makeLit } from "../grid/live";
 import { makeNodes, type Node, type Nodes, setAt, setDim, setShown, where } from "../grid/nodes";
-import { place } from "../grid/place";
-import { pulses } from "../grid/pulses";
+import { place, placeOne } from "../grid/place";
+import { type Pulses, pulses } from "../grid/pulses";
 import { REACH } from "../grid/textures";
 import { Sheet } from "../sheet/sheet";
-import { accountKey, agentKey, dependencyKey, type Entity, model, toolKey, volumeKey } from "../world/model";
+import { follow } from "../world/live";
+import { accountKey, agentKey, dependencyKey, type Entity, type Model, model, toolKey, volumeKey } from "../world/model";
 import { mountsOf } from "../world/mounts";
-import { type Snapshot, snapshot } from "../world/snapshot";
-import { type Watching, watch } from "../world/watch";
+import type { Snapshot } from "../world/snapshot";
+import type { Watching } from "../world/watch";
 import { controls } from "./camera";
 import { ARRANGE, type Counts, KINDS, type Kinds, LINES, type Lines, STATUS, type Status } from "./status";
-
-/** How long the board waits before it reads the daemon again, after a try that failed: the link's own redial. */
-const RETRY = 5000;
 
 /** The selection ring's colour: white light. */
 const RING = 0xffffff;
@@ -34,25 +32,33 @@ const GLIDE = 700;
  *
  * The rules:
  *
- * 1. The daemon is read once (`snapshot`). A read that fails is tried
- *    again `RETRY` milliseconds later, until one does not.
+ * 1. The daemon is followed (`follow`): its seven lists kept open, the
+ *    world handed on as it changes. Until every list has been whole
+ *    once, the board waits.
  * 2. Every entity is a node at its first place (`place`), every edge
  *    (`edges`) — call, attachment, creator — a line under them, side by
  *    side in lanes (`makeLinks`). A node dragged takes its lines, its
- *    ring and its pulses with it. One added or removed after waits for
- *    a reload. The legend shows and hides each type of line (`LINES`)
- *    and each kind of node (`KINDS`); a hidden node takes its lines
- *    and pulses with it, and closes its sheet if it was open.
- * 3. The nodes are lit from the snapshot and then as the lists kept
- *    open tell (`watch`); pulses run as the events tell (`pulses`).
- * 4. Clicking an agent, a tool, an account or a volume opens its sheet —
+ *    ring and its pulses with it. The legend shows and hides each type
+ *    of line (`LINES`) and each kind of node (`KINDS`); a hidden node
+ *    takes its lines and pulses with it, and closes its sheet if it was
+ *    open.
+ * 3. Every later world is drawn against the board (`apply`): an entity
+ *    new to it is a node at its own place (`placeOne`), one gone from it
+ *    is removed with its lines — its sheet closed if it was open — and
+ *    one still in it is relabelled; the lines are the world's edges
+ *    now. A node that stays keeps where it stands. The legend's counts
+ *    are the world's.
+ * 4. Every node is lit as the world says (`light`): bright or faint,
+ *    its halo breathing while it works; pulses run as the events tell
+ *    (`pulses`), after the world that holds their line is drawn.
+ * 5. Clicking an agent, a tool, an account or a volume opens its sheet —
  *    its log, its files, or both — and rings it; clicking another swaps the sheet and the ring;
  *    clicking the same one again, or the sheet's ✕, closes it.
- * 5. Arrange (`ARRANGE`) gives every node shown a new place by the
+ * 6. Arrange (`ARRANGE`) gives every node shown a new place by the
  *    lines shown (`arrange`), and the nodes glide there over `GLIDE`, their
  *    lines and ring following. It does nothing while a node is
  *    dragged, or while nodes are still gliding.
- * 6. The hovered node, else the one whose sheet is open, is focused:
+ * 7. The hovered node, else the one whose sheet is open, is focused:
  *    its lines stay bright and the rest are faint (`Links.focus`), and
  *    every node it has no line to is dimmed (`setDim`).
  */
@@ -68,7 +74,11 @@ export class Board extends Phaser.Scene {
   private edges: Edge[] = [];
   private gliding = false;
   private images = new Map<string, string>();
-  private watching: Watching[] = [];
+  private following: Watching | null = null;
+  private lit: Lit | null = null;
+  private pulses: Pulses | null = null;
+  /** What each node was last lit with, so a world that changes nothing about it relights nothing. */
+  private readonly litWith = new Map<string, string>();
 
   constructor() {
     super("board");
@@ -90,28 +100,18 @@ export class Board extends Phaser.Scene {
     this.game.events.on(ARRANGE, arranged);
     this.events.once("shutdown", () => {
       this.game.events.off(ARRANGE, arranged);
-      for (const w of this.watching) w.stop();
+      this.following?.stop();
       this.registry.events.off(`changedata-${LINES}`, show);
       this.registry.events.off(`changedata-${KINDS}`, shown);
     });
-    void this.take();
+    // Rule 1.
+    this.following = follow(
+      (world) => (this.nodes ? this.apply(world) : this.draw(world)),
+      (change) => this.pulses?.told(change),
+    );
   }
 
-  /** Rule 1. */
-  private async take() {
-    let read: Snapshot;
-    try {
-      read = await snapshot();
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      this.registry.set(STATUS, { kind: "waiting", reason } satisfies Status);
-      this.time.delayedCall(RETRY, () => void this.take());
-      return;
-    }
-    this.draw(read);
-  }
-
-  /** Rules 2 and 3. */
+  /** Rule 2: the first world. */
   private draw(read: Snapshot) {
     const made = model(read);
     this.images = made.images;
@@ -123,55 +123,10 @@ export class Board extends Phaser.Scene {
     this.links = makeLinks(this, nodes, this.edges);
     this.links.show(this.registry.get(LINES) as Lines);
     this.showKinds(this.registry.get(KINDS) as Kinds);
-    // Rule 3.
-    const lit = makeLit(this, nodes);
-    // One brightness per node, which the board and the sheet's dot both show.
-    const bright = this.bright;
-    const shine = (key: string, on: boolean) => {
-      bright.set(key, on);
-      this.sheet?.told(key, on);
-    };
-    // A volume is bright while any container it is mounted into is.
-    const mounts = new Map<string, string[]>();
-    const mountsOfVolume = mountsOf(read);
-    const volumeOn = (key: string) => (mounts.get(key) ?? []).some((container) => bright.get(container) === true);
-    const relight = () => {
-      for (const key of mounts.keys()) {
-        const on = volumeOn(key);
-        if (bright.get(key) === on) continue;
-        lit.set(key, null, on);
-        shine(key, on);
-      }
-    };
-    for (const a of read.accounts) shine(accountKey(a), a.connected);
-    for (const a of read.agents) shine(agentKey(a), a.deployed);
-    for (const t of read.tools) shine(toolKey(t), t.deployed);
-    for (const d of read.dependencies) shine(dependencyKey(d), d.deployed);
-    for (const v of read.volumes) mounts.set(volumeKey(v), mountsOfVolume(v));
-    for (const e of made.entities) if (e.live) lit.set(e.key, e.live, bright.get(e.key));
-    for (const key of mounts.keys()) {
-      const on = volumeOn(key);
-      lit.set(key, null, on);
-      shine(key, on);
-    }
-    this.watching.push(
-      watch(
-        (key, live, up) => {
-          lit.set(key, live, up);
-          if (up === undefined) return;
-          shine(key, up);
-          relight();
-        },
-        (volume, gone) => {
-          const key = volumeKey(volume);
-          if (gone) mounts.delete(key);
-          else mounts.set(key, mountsOfVolume(volume));
-          relight();
-        },
-      ),
-    );
-    this.watching.push(pulses(this, nodes, this.links, read.events));
-    this.sheet = new Sheet(() => this.deselect(), (key) => bright.get(key) === true);
+    this.lit = makeLit(this, nodes);
+    this.pulses = pulses(this, nodes, this.links, read.events);
+    this.sheet = new Sheet(() => this.deselect(), (key) => this.bright.get(key) === true);
+    this.light(read, made);
     // The view's middle may reach the first columns and every node shown wherever it stands now.
     const reach = () => {
       const e = { left: 0, top: 0, right: placed.width, bottom: placed.height };
@@ -186,6 +141,82 @@ export class Board extends Phaser.Scene {
       return e;
     };
     controls(this, placed.width, placed.height, () => nodes.dragging(), reach);
+    this.count(read, made);
+  }
+
+  /** Rule 3: a later world, drawn against the board. */
+  private apply(read: Snapshot) {
+    const nodes = this.nodes;
+    const links = this.links;
+    if (!nodes || !links) return;
+    const made = model(read);
+    this.images = made.images;
+    const now = new Map(made.entities.map((entity) => [entity.key, entity]));
+    // Gone: its sheet closed, its focus let go, its light forgotten, the node removed.
+    for (const key of [...nodes.byKey.keys()]) {
+      if (now.has(key)) continue;
+      if (this.selected === key) {
+        this.sheet?.close();
+        this.deselect();
+      }
+      if (this.hovered === key) this.hovered = null;
+      this.lit?.forget(key);
+      this.litWith.delete(key);
+      this.bright.delete(key);
+      nodes.remove(key);
+    }
+    // New: a node at its own place, shown as its kind is; still there: relabelled.
+    const kinds = this.registry.get(KINDS) as Kinds;
+    const standing = [...nodes.byKey.values()].map((node) => ({ kind: node.entity.kind, at: where(node) }));
+    for (const entity of made.entities) {
+      if (nodes.byKey.has(entity.key)) {
+        nodes.update(entity);
+        continue;
+      }
+      const at = placeOne(entity.kind, standing);
+      standing.push({ kind: entity.kind, at });
+      setShown(nodes.add(entity, at), kinds[entity.kind]);
+    }
+    this.edges = edges(read, made);
+    links.setEdges(this.edges);
+    this.light(read, made);
+    this.moved();
+    this.refocus();
+    this.count(read, made);
+  }
+
+  /**
+   * Rule 4: every node lit as the world says — accounts bright while
+   * connected; agents, tools and dependency tools while deployed;
+   * volumes while mounted into something bright; the halo breathing
+   * while it works — and the open sheet's dot told. A node whose light
+   * did not change is not lit again, so its breath runs on.
+   */
+  private light(read: Snapshot, made: Model) {
+    const lit = this.lit;
+    if (!lit) return;
+    const bright = new Map<string, boolean>();
+    for (const a of read.accounts) bright.set(accountKey(a), a.connected);
+    for (const a of read.agents) bright.set(agentKey(a), a.deployed);
+    for (const t of read.tools) bright.set(toolKey(t), t.deployed);
+    for (const d of read.dependencies) bright.set(dependencyKey(d), d.deployed);
+    const mountsOfVolume = mountsOf(read);
+    for (const v of read.volumes) bright.set(volumeKey(v), mountsOfVolume(v).some((container) => bright.get(container) === true));
+    for (const entity of made.entities) {
+      const on = bright.get(entity.key);
+      const signature = JSON.stringify([entity.live?.kind ?? null, entity.live?.on ?? null, on ?? null]);
+      if (this.litWith.get(entity.key) === signature) continue;
+      this.litWith.set(entity.key, signature);
+      lit.set(entity.key, entity.live ?? null, on);
+      if (on !== undefined && this.bright.get(entity.key) !== on) {
+        this.bright.set(entity.key, on);
+        this.sheet?.told(entity.key, on);
+      }
+    }
+  }
+
+  /** Rule 3: the legend's counts, as the world has them. */
+  private count(read: Snapshot, made: Model) {
     const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, dependency_tool: 0, volume: 0, call: 0, attachment: 0, creator: 0 };
     for (const e of made.entities) counts[e.kind]++;
     for (const e of this.edges) counts[e.type]++;
@@ -216,7 +247,7 @@ export class Board extends Phaser.Scene {
     this.refocus();
   }
 
-  /** Rule 5. */
+  /** Rule 6. */
   private arrange() {
     const nodes = this.nodes;
     if (!nodes || nodes.dragging() || this.gliding) return;
@@ -244,21 +275,21 @@ export class Board extends Phaser.Scene {
     });
   }
 
-  /** Rule 6: the pointer came onto a node, so it is focused. */
+  /** Rule 7: the pointer came onto a node, so it is focused. */
   private hover(node: Node) {
     if (this.hovered === node.entity.key) return;
     this.hovered = node.entity.key;
     this.refocus();
   }
 
-  /** Rule 6: the pointer left a node. */
+  /** Rule 7: the pointer left a node. */
   private unhover(node: Node) {
     if (this.hovered !== node.entity.key) return;
     this.hovered = null;
     this.refocus();
   }
 
-  /** Rule 4. */
+  /** Rule 5. */
   private select(entity: Entity) {
     if (this.selected === entity.key) {
       this.sheet?.close();
@@ -273,14 +304,14 @@ export class Board extends Phaser.Scene {
     this.sheet?.open({ entity, images: this.images });
   }
 
-  /** Rule 4: the sheet closed, so nothing is selected. */
+  /** Rule 5: the sheet closed, so nothing is selected. */
   private deselect() {
     this.selected = null;
     this.ring?.setVisible(false);
     this.refocus();
   }
 
-  /** Rule 6. */
+  /** Rule 7. */
   private refocus() {
     const focused = this.hovered ?? this.selected;
     this.links?.focus(focused);

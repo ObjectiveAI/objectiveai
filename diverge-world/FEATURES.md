@@ -8,7 +8,8 @@ is named, so the two can be checked against each other.
 ## At a glance
 
 - A dark grid with every account, agent, tool and volume on it as a
-  glowing node, and lines for how they are connected.
+  glowing node, and lines for how they are connected — all of it live:
+  what is made appears, what changes is redrawn, what is deleted goes.
 - Nodes light up while they work, and pulses of light run along the
   lines as events happen.
 - A panel at the top left shows and hides each kind of node and each
@@ -38,6 +39,19 @@ is named, so the two can be checked against each other.
   tool and volume the signed-in account may list. A party that appears
   only in an event, with no list holding it, is drawn too, but cannot
   be opened.
+- **Live.** The board follows the daemon (`world/live.ts`): every list
+  stays open.
+  - **Appears:** something made — an agent, a tool, an account, a
+    volume — appears as a node without a reload, and so do its lines.
+  - **Changes:** something renamed is relabelled; something attached,
+    detached, mounted or messaged for the first time gains or loses its
+    line.
+  - **Goes:** something deleted disappears with its lines; if its sheet
+    was open, the sheet closes.
+- **Where new nodes land** (`grid/place.ts`, `placeOne`): below the
+  lowest node of its kind, in that kind's column; the first of its kind
+  starts a column of its own to the right. Nodes already on the board
+  stay where they are.
 - **Names.** Each node has its name beneath it. A tool is named by its
   image's `DIVERGE.md` `name` when the image gives one.
 - **Starting places.** Nodes first stand in one column per kind
@@ -56,8 +70,7 @@ is named, so the two can be checked against each other.
 
 - **Working:** an agent or tool that is active (its loop running, or a
   call or read in flight) also has a breathing halo.
-- These update live, as the daemon's lists change. The nodes themselves
-  do not; see [Limits](#limits).
+- These update live, as the daemon's lists change.
 
 ### Lines (`grid/edges.ts`, `grid/styles.ts`, `grid/links.ts`)
 
@@ -349,9 +362,13 @@ refused. An administrator's log is the daemon's own admin log.
 
 ## Behind the scenes
 
-- **The daemon is read once.** The world reads the daemon's lists once
-  when it opens (retrying every 5 seconds while it cannot), then
-  follows live lights, pulses, logs and trees.
+- **The daemon is followed.** The world keeps the daemon's seven lists
+  open for as long as it runs (`world/live.ts`), and redraws from them
+  whenever one changes, at most once a frame. It waits until every list
+  has been read whole once. A list that drops is opened again 5 seconds
+  later, and anything deleted while it was closed is taken off the
+  board when it comes back.
+- **The legend counts are live**, as the board is.
 - **Reconnecting.** The connection is held by the app's Rust and redials
   by itself as `viewer.yaml` says.
 - **Nothing is saved.** The app keeps no files of its own.
@@ -360,7 +377,6 @@ refused. An administrator's log is the daemon's own admin log.
 
 These are the gaps as they stand:
 
-- **New or removed nodes** appear only after a reload.
 - **Node positions** are lost on reload.
 - **Opening a file** in place is not possible: files can be browsed,
   downloaded and uploaded, but not viewed in the app.

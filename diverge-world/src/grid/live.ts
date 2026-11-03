@@ -13,7 +13,7 @@ const FADE = 400;
 const DOWN = 0.4;
 
 /** The live state, told each node's by its key. */
-export type Lit = { set(key: string, live: Live | null, deployed?: boolean): void };
+export type Lit = { set(key: string, live: Live | null, deployed?: boolean): void; forget(key: string): void };
 
 /**
  * Light the nodes.
@@ -31,6 +31,11 @@ export type Lit = { set(key: string, live: Live | null, deployed?: boolean): voi
 export function makeLit(scene: Phaser.Scene, nodes: Nodes): Lit {
   const breathing = new Map<string, Phaser.Tweens.Tween>();
   return {
+    // A node removed: its breathing stopped and forgotten.
+    forget(key) {
+      breathing.get(key)?.stop();
+      breathing.delete(key);
+    },
     set(key, live, deployed) {
       const node = nodes.byKey.get(key);
       if (!node) return;

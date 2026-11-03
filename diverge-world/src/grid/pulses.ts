@@ -1,10 +1,8 @@
 // Pulses: a dot of light runs a link each time something passes along
 // it, as the events list tells.
 
-import { daemon } from "@diverge/sdk";
+import type { daemon, shared } from "@diverge/sdk";
 import type * as Phaser from "phaser";
-import { handle } from "../lib/wire";
-import { keep, keeper, type Watching } from "../world/watch";
 import type { Links } from "./links";
 import type { Nodes } from "./nodes";
 import { NEON } from "./palette";
@@ -33,14 +31,17 @@ function partyKey(party: Party): string {
   }
 }
 
+/** The pulses: told every change of the events list, after the world that holds it is drawn. */
+export type Pulses = { told(change: shared.listing.Change<Event>): void };
+
 /**
- * Keep the events list open and run pulses.
+ * Run pulses as the events list tells (`told`).
  *
  * The rules:
  *
- * 1. Every edge's count as the snapshot read it is where it starts; one
- *    first seen later starts at nothing. Only rises are pulses, so a
- *    list opened again sends nothing twice.
+ * 1. Every edge's count as the first world held it is where it starts;
+ *    one first seen later starts at nothing. Only rises are pulses, so
+ *    a list opened again sends nothing twice.
  * 2. Every rise sends that many pulses, no more than `CAP` along one
  *    edge at once, `SPACING` apart: a dot in the sender's neon from the
  *    sender to the receiver, on its call's lane (`Links.laneOf`).
@@ -49,7 +50,7 @@ function partyKey(party: Party): string {
  * 4. An edge with a node not on the board, or whose lane is hidden,
  *    sends nothing.
  */
-export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline: Event[]): Watching {
+export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline: Event[]): Pulses {
   // Rule 1.
   const counts = new Map(baseline.map((e) => [e.id, e.count]));
   const flying = new Map<number, number>();
@@ -87,11 +88,8 @@ export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline
       },
     });
   };
-  const k = keeper();
-  const events = daemon.endpoints.events.list;
-  keep(
-    { open: () => events.client.execute(handle, {}), change: events.server.response.change },
-    (change) => {
+  return {
+    told(change) {
       if (change.kind === "listed") return;
       const event = change.item;
       if (change.kind === "removed") {
@@ -103,7 +101,5 @@ export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline
       counts.set(event.id, event.count);
       for (let i = 0; i < Math.min(rise, CAP); i++) scene.time.delayedCall(i * SPACING, () => run(event));
     },
-    k,
-  );
-  return k;
+  };
 }

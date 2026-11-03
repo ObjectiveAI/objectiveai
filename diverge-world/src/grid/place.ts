@@ -1,4 +1,5 @@
-// Where every node first stands, before anyone drags it.
+// Where every node first stands, before anyone drags it, and where one
+// that comes later does.
 
 import type { Point } from "../world/geometry";
 import type { Entity, Kind } from "../world/model";
@@ -10,6 +11,22 @@ const COLUMNS: Kind[] = ["account", "agent", "standalone_tool", "dependency_tool
 const ACROSS = 240;
 const DOWN = 96;
 const EDGE = 120;
+
+/**
+ * Where a node that came after the first places stands: in its kind's
+ * column — the middle of where its kind's nodes stand across — `DOWN`
+ * below the lowest of them; or, the first of its kind, a column of its
+ * own `ACROSS` right of every node, level with the highest.
+ */
+export function placeOne(kind: Kind, standing: { kind: Kind; at: Point }[]): Point {
+  const mine = standing.filter((s) => s.kind === kind).map((s) => s.at);
+  if (mine.length > 0) {
+    const xs = mine.map((p) => p.x).sort((a, b) => a - b);
+    return { x: xs[Math.floor(xs.length / 2)] ?? EDGE, y: Math.max(...mine.map((p) => p.y)) + DOWN };
+  }
+  if (standing.length === 0) return { x: EDGE, y: EDGE };
+  return { x: Math.max(...standing.map((s) => s.at.x)) + ACROSS, y: Math.min(...standing.map((s) => s.at.y)) };
+}
 
 /** Every node's first place, and the size of the board they fill. */
 export type Placed = { at: Map<string, Point>; width: number; height: number };
