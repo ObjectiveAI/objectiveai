@@ -29,7 +29,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// whose frontend is the other daemon's; `NoFrontend` for a tool whose
 /// image declares none, before anything is started; the container
 /// started, which failing is the `Error`; else the request (see
-/// [`files::frontend`]), which does not hold the container up.
+/// [`files::frontend`]), the container held up while it is answered.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -85,12 +85,6 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         }
     };
     opened.touch();
-    // The request is no use of the container: the use the open made is
-    // let go, and the idle clock runs under it (`files::frontend`, rule 5).
-    let opened = match opened {
-        containers::Opened::Tool(run, _) => containers::Opened::Tool(run, None),
-        other => other,
-    };
     if let Err(error) = files::frontend::<Frame>(scope, &opened, frame.head, &caller).await {
         reply::reply(scope, &Frame::Error(reply::failure(&error))).await;
     }
