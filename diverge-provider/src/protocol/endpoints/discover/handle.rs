@@ -15,7 +15,7 @@ use crate::protocol::discoverable::Discoverable;
 /// read the request once already, and it carries nothing beyond its
 /// tag.
 pub async fn handle(scope: ScopeHandle, discoverable: &Discoverable) {
-    let frame = response::Frame { identities: discoverable.list().await };
+    let frame = response::Frame(discoverable.list().await);
     let mut buffer = Vec::new();
     if frame.encode(&mut Writer::new(&mut buffer)).is_ok() {
         scope.send_response(&buffer).await;

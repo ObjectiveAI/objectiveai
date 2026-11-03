@@ -10,11 +10,12 @@ use crate::wire::encode::{Encode, Writer};
 /// `1`.
 ///
 /// One of these on channel `0`, then the scope finishes. The payload
-/// is this struct as JSON — no tag, because there is nothing to
-/// discriminate.
+/// is a JSON array of identities, and nothing else — no tag, because
+/// there is nothing to discriminate, and no object around it, because
+/// there is nothing to say beside the list.
 ///
 /// ```json
-/// {"identities":[{"issuer":"https://issuer.example","subject":"daemon"}]}
+/// [{"issuer":"https://issuer.example","subject":"daemon"}]
 /// ```
 ///
 /// The rules:
@@ -33,12 +34,10 @@ use crate::wire::encode::{Encode, Writer};
 ///    None connected and discoverable is the empty list.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
-pub struct Frame {
-    /// The discoverable identities, in order.
-    pub identities: Vec<Identity>,
-}
+#[serde(transparent)]
+pub struct Frame(pub Vec<Identity>);
 
-/// The struct as JSON, and nothing in front of it.
+/// The array as JSON, and nothing in front of it.
 impl Encode for Frame {
     /// The ordinary JSON failure.
     type Error = serde_json::Error;
@@ -49,7 +48,7 @@ impl Encode for Frame {
 }
 
 impl Decode<'_> for Frame {
-    /// Bytes that are not this struct's JSON.
+    /// Bytes that are not this array's JSON.
     type Error = serde_json::Error;
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {

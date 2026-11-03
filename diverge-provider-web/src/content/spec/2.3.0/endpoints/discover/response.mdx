@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload is one JSON object with the one member identities, an array of every discoverable connected identity sorted by issuer and then by subject, with no tag and no length, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload is one JSON array of every discoverable connected identity, sorted by issuer and then by subject, with no tag and no length, and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -13,18 +13,17 @@ finish follows the response, and no frame follows the finish.
 ```
 
 ```json
-{"identities":[{"issuer":"https://issuer.example","subject":"daemon"}]}
+[{"issuer":"https://issuer.example","subject":"daemon"}]
 ```
 
-- **The payload.** The payload of the response is one JSON object,
+- **The payload.** The payload of the response is one JSON array,
   read as [Notation](/endpoints/#notation) provides, running to the
-  end of the frame. No tag precedes it and no length prefixes it.
-  The object has exactly one member, `identities`, and the server
-  sends no other member.
-- **`identities`.** An array of identities. Each identity is an
-  object with exactly the members `issuer` and `subject`, each a
-  string: the `iss` and `sub` claims of the token under which the
-  identity's connection was authorized.
+  end of the frame. No tag precedes it, no length prefixes it, and no
+  object encloses it.
+- **An identity.** Each element of the array is an object with
+  exactly the members `issuer` and `subject`, each a string: the
+  `iss` and `sub` claims of the token under which the identity's
+  connection was authorized.
 - **Every discoverable identity.** The array holds the identity of
   every connection open to the server whose client sent the discover
   flag `1`, as [discover](/endpoints/discover/) provides, and no other
@@ -33,15 +32,14 @@ finish follows the response, and no frame follows the finish.
 - **In order.** The array is sorted by `issuer`, and identities of the
   same `issuer` by `subject`, each compared byte by byte as UTF-8.
 - **None.** A server with no discoverable identity connected sends
-  the array empty, as `{"identities":[]}`.
+  the array empty, as `[]`.
 - **The sequence.** Exactly one response precedes the response
   finish, and nothing follows the finish. A response finish that no
   response precedes states that the request was not served, as
   [Endpoints](/endpoints/) provides.
 - **Malformed.** A payload that is not valid UTF-8, a payload that is
-  not exactly one JSON object, an object with no `identities` member,
-  and an `identities` member that is not an array of identities are
-  malformed.
+  not exactly one JSON array, and an element that is not an identity
+  are malformed.
 
 The response is defined by
 `diverge-sdk-rs/src/provider/endpoints/discover/server/response/frame.rs`:

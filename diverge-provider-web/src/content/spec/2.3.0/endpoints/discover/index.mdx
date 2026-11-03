@@ -1,14 +1,14 @@
 ---
 title: 'discover'
-summary: 'Tag 25: a client asks which connected identities are discoverable; the server sends exactly one response carrying, as JSON, every identity connected to it whose discover flag is 1, and the scope finishes.'
+summary: 'Tag 25: a client asks which connected identities are discoverable; the server sends exactly one response carrying, as a JSON array, every identity connected to it whose discover flag is 1, and the scope finishes.'
 order: 25
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
 `25` and nothing more. The server sends exactly one response, whose
-payload is one JSON object carrying `identities`, the identity of
-every client connected to the server whose
+payload is one JSON array holding the identity of every client
+connected to the server whose
 [discover flag](/authorization/#the-discover-flag) is `1`. The
 response finish follows the response, and no frame follows the
 finish.
