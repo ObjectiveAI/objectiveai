@@ -2209,6 +2209,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-example-human"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "axum",
+ "diverge-sdk",
+ "futures-util",
+ "rmcp 3.1.2",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "diverge-example-memory"
 version = "0.1.0"
 dependencies = [

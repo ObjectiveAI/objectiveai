@@ -1,0 +1,43 @@
+[package]
+name = "diverge-example-human"
+version = "0.1.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "An example Diverge agent container with no model: a person is the agent, through its web frontend"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[[bin]]
+name = "human"
+path = "src/main.rs"
+
+[dependencies]
+# The SDK, by path: the container's contract with the proxy beside it
+# (registration, secrets, the run, the queue, Postgres, the MCP
+# session), the chunks a run is made of, and the caller the daemon
+# stamps on every frontend request.
+diverge-sdk = { path = "../../diverge-sdk-rs" }
+# The run as a generator of events.
+async-stream = { version = "0.3.6" }
+# The program's door: an HTTP server on the loopback the proxy dials,
+# `/register`, the secrets' two paths, `/run` as server-sent events,
+# the queue's two verbs, and the frontend beneath `/frontend`, its
+# live sockets included.
+axum = { version = "0.8.9", features = ["ws"] }
+# The tools the person calls, over the proxy's MCP; the same version
+# and features the agent images use.
+rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
+# `--schema` states the arguments'.
+schemars = { version = "1.2.2" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+# The transcript: the agent's database, through the proxy's loopback
+# pgwire. `json` binds a chunk as jsonb.
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "json"] }
+# A socket's two halves.
+futures-util = { version = "0.3.33", default-features = false, features = ["std", "sink"] }
+# The runtime under the listener, the desk's lock, the run's channel,
+# and the fan-out to open pages.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync", "macros"] }
