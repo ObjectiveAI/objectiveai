@@ -2177,6 +2177,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-example-chat"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "diverge-sdk",
+ "futures-util",
+ "rmcp 3.1.2",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "diverge-example-courier"
 version = "0.1.0"
 dependencies = [

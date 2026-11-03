@@ -26,6 +26,7 @@ members = [
     "examples/memory",
     "examples/taskboard",
     "examples/alarm",
+    "examples/chat",
     "objectiveai-sdk-rs",
     "objectiveai-json-schema/builder",
     "objectiveai-sdk-rs-wasm-js",
