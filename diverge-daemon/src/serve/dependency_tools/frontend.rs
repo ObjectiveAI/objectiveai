@@ -28,8 +28,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// is none, or does not run — nothing is started for it; `Forbidden`
 /// for a tool the grants do not reach; `NoFrontend` for a tool whose
 /// image declares none; else the request (see
-/// [`files::frontend`]), the run held up — with the agent it was deployed
-/// for — while it is answered.
+/// [`files::frontend`]), which does not hold the run up.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -69,8 +68,8 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
             return Ok(());
         }
     }
-    let using = run.file_use();
-    let opened = Opened::Tool(run, Some(using));
+    // The request is no use of the run (`files::frontend`, rule 5).
+    let opened = Opened::Tool(run, None);
     opened.touch();
     if let Err(error) = files::frontend::<Frame>(scope, &opened, frame.head, &caller).await {
         reply::reply(scope, &Frame::Error(reply::failure(&error))).await;

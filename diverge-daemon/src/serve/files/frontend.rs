@@ -54,8 +54,10 @@ pub async fn declares(daemon: &Arc<Daemon>, image: &Image) -> Result<Result<bool
 ///    at the client gone; a stream that breaks is the error, after what
 ///    was sent. Its end drops the request.
 /// 4. A body the provider never asked for is taken back at the end.
-/// 5. The [`Opened`] is held for the whole of it: the request is a use
-///    of the container, which holds it up.
+/// 5. The request holds nothing up: the [`Opened`] it is handed is no
+///    use of the container (its use is `None`), so the idle clock runs
+///    under it, and a container stopped under a long request ends it,
+///    as the container stopped.
 /// 6. The request is stamped with `caller`: every header named
 ///    [`KEY`](mcp::KEY), in any case, is removed, and one is set to
 ///    [`mcp::header`] of the caller — as `_meta` is stamped on an MCP
