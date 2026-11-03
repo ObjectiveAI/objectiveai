@@ -1,6 +1,6 @@
 ---
 title: 'Authorization'
-summary: 'The connector’s first frame is its token, and the connectee’s first frame is its own token from the same issuer; a token either party does not accept closes the connection, and no frame says why.'
+summary: 'The connector’s first frame is its discover flag and its token, and the connectee’s first frame is its own flag and token from the same issuer; a token either party does not accept closes the connection, and no frame says why.'
 order: 3
 draft: false
 ---
@@ -9,8 +9,8 @@ The party that initiated the WebSocket connection is the
 **connector**; the party that accepted it is the **connectee**. Either
 protocol role may occupy either position: a client may connect to a
 server, and a server may connect to a client. Each party sends exactly
-one authorization frame, which carries its token. The connector sends
-its token first. The connectee answers with its own token, from the
+one authorization frame, which carries its discover flag and its
+token. The connector sends its frame first. The connectee answers with its own token, from the
 same issuer. A token that either party does not accept closes the
 connection.
 
@@ -22,13 +22,13 @@ connection.
   Protocol is not governed by this layer, and carries no authorization
   frame.
 - **The connector's first frame.** The first frame the connector
-  sends is an authorization frame (type `0`), whose payload is the
-  connector's token. No frame precedes it. The connector sends no
+  sends is an authorization frame (type `0`), whose payload carries
+  the connector's discover flag and the connector's token. No frame precedes it. The connector sends no
   other frame until the connectee's authorization frame has arrived
   and the connector has accepted it.
 - **The connectee's first frame.** The first frame the connectee
-  sends is an authorization frame, whose payload is the connectee's
-  token. The connectee sends it only after it has accepted the
+  sends is an authorization frame, whose payload carries the
+  connectee's discover flag and the connectee's token. The connectee sends it only after it has accepted the
   connector's token. The connectee serves no frame of the connector's
   before it has sent its own authorization frame.
 - **The same issuer.** The `iss` claim of the connectee's token is
@@ -44,20 +44,52 @@ connection.
   audience, and the subjects a party admits — are not part of this
   protocol.
 
-## The token
+## The payload
 
-The authorization frame's payload is the token: a JSON Web Token, as
-RFC 7519 defines one, encoded as UTF-8. The token is the whole
-payload. There is no mode byte and no length field, because WebSocket
-already delimits messages. The scope and channel fields of the frame
-are ignored.
+The authorization frame's payload is one byte, the discover flag,
+followed by the token. The scope and channel fields of the frame are
+ignored.
 
+```text
+[discover][token …]
+```
+
+- **The discover flag.** The first byte of the payload. The byte `0`
+  states that the sender is not discoverable. The byte `1` states that
+  the sender is discoverable. [The discover flag](#the-discover-flag)
+  states what the flag binds.
+- **The token.** Every byte of the payload after the flag: a JSON Web
+  Token, as RFC 7519 defines one, encoded as UTF-8. No length field
+  precedes it, because WebSocket already delimits messages.
 - **The issuer.** The token's `iss` claim names the issuer of the
   token. The connectee reads it to determine the issuer of its own
   token.
-- **Malformed.** A payload that is empty, or that is not valid UTF-8,
-  is malformed. A party that receives a malformed payload closes the
+- **Malformed.** A payload that is empty, a payload whose first byte
+  is neither `0` nor `1`, a payload with no byte after the flag, and a
+  payload whose bytes after the flag are not valid UTF-8 are
+  malformed. A party that receives a malformed payload closes the
   connection.
+
+## The discover flag
+
+The discover flag states whether the server lists the client's
+identity in its answer to [discover](/endpoints/discover/).
+
+- **The client's flag binds the server.** The server honors the flag
+  of the client's authorization frame, whether the client is the
+  connector or the connectee. A client whose flag is `1` is listed by
+  every `discover` response the server sends, on any connection, for
+  as long as the connection that carried the flag remains open. A
+  client whose flag is `0` is not listed on account of that
+  connection.
+- **The server's flag.** The server sends the byte `0`. The client
+  reads the server's flag and ignores it.
+- **For the connection's life.** A flag holds for the connection that
+  carried it. No frame changes it. A client changes its flag only by
+  opening another connection.
+- **Malformed.** A flag that is neither `0` nor `1` is malformed, and
+  the party that receives it closes the connection, as
+  [The payload](#the-payload) provides.
 
 ## Refusal is a close
 
@@ -90,3 +122,7 @@ transmit it on the wire, does not derive a value it sends from it, and
 does not serve a scope under any identity other than that of the
 connection the scope was opened on. The layers at which the identity
 bears on an exchange name it where it applies.
+
+Acceptance also establishes, at the server, the client's discover
+flag, which the server holds for the life of the connection, as
+[The discover flag](#the-discover-flag) provides.

@@ -1,0 +1,35 @@
+---
+title: 'discover'
+summary: 'Tag 25: a client asks which connected identities are discoverable; the server sends exactly one response carrying, as JSON, every identity connected to it whose discover flag is 1, and the scope finishes.'
+order: 25
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`25` and nothing more. The server sends exactly one response, whose
+payload is one JSON object carrying `identities`, the identity of
+every client connected to the server whose
+[discover flag](/authorization/#the-discover-flag) is `1`. The
+response finish follows the response, and no frame follows the
+finish.
+
+- **The request.** The request carries no parameter; the tag is the
+  whole of it. [Request](/endpoints/discover/request/) states its
+  form.
+- **The response.** The response lists every discoverable connected
+  identity, in order. [Response](/endpoints/discover/response/) states
+  its form.
+- **Connected and discoverable.** An identity is listed exactly when
+  a connection authorized under it is open to the server and that
+  connection's client sent the discover flag `1`, whether the client
+  was the connector or the connectee. An identity whose connection
+  ended is not listed. An identity whose connection carried the flag
+  `0` is not listed.
+- **The asking client.** The server serves the request for every
+  client it serves. The asking client's own identity is listed when
+  its own connection carried the flag `1`.
+- **A moment's answer.** The response states the identities connected
+  and discoverable when the server sent it. The server sends nothing
+  further on the scope when that changes.
+- **No error.** This endpoint defines no error frame and no refusal.
+  The scope carries exactly one response and the response finish.
