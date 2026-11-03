@@ -47,7 +47,7 @@ pub enum ClientRequest<'a> {
     Exec(exec::client::request::Frame),
     /// Tag `8`. An interactive shell in the container, on a terminal.
     Terminal(terminal::client::request::Frame),
-    /// Tag `9`. One HTTP request to the tool program's frontend.
+    /// Tag `9`. One HTTP request to the program's frontend.
     Frontend(frontend::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///

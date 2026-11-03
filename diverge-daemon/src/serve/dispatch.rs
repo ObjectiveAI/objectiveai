@@ -100,6 +100,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::AgentsFiletree(frame) => agents::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsExec(frame) => agents::exec::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTerminal(frame) => agents::terminal::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsFrontend(frame) => agents::frontend::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsFiletree(frame) => standalone_tools::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsExec(frame) => standalone_tools::exec::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTerminal(frame) => standalone_tools::terminal::handle(scope, frame, who, daemon).await,

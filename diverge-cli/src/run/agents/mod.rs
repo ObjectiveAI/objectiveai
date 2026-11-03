@@ -13,6 +13,7 @@ pub mod delete;
 pub mod download;
 pub mod edit;
 pub mod exec;
+pub mod frontend;
 pub mod filetree;
 pub mod get;
 pub mod list;
@@ -41,6 +42,8 @@ pub enum Agents {
     Exec(exec::Arguments),
     /// An interactive shell in an agent's container, on a terminal.
     Terminal(terminal::Arguments),
+    /// One HTTP request to an agent's frontend.
+    Frontend(frontend::Arguments),
     /// Getting one agent.
     Get(get::Arguments),
     /// Listing a caller's agents.
@@ -71,6 +74,7 @@ pub async fn run(command: Agents, target: &Target<'_>, emitter: &mut Emitter) ->
         Agents::Edit(arguments) => edit::run(arguments, target, emitter).await,
         Agents::Exec(arguments) => exec::run(arguments, target, emitter).await,
         Agents::Terminal(arguments) => terminal::run(arguments, target, emitter).await,
+        Agents::Frontend(arguments) => frontend::run(arguments, target, emitter).await,
         Agents::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         Agents::Get(arguments) => get::run(arguments, target, emitter).await,
         Agents::List(arguments) => list::run(arguments, target, emitter).await,

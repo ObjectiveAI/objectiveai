@@ -1,4 +1,4 @@
-//! A frontend request to a tool's program, served for as long as the
+//! A frontend request to a tool's or an agent's program, served for as long as the
 //! scope is open.
 
 use std::convert::Infallible;

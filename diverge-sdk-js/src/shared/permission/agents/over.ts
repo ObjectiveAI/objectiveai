@@ -4,7 +4,7 @@ import { z } from "zod";
 
 /**
  * The actions over agents that exist, which a grant reaches as far as its `within` says.
- * Snake case on the wire: `"get"`, `"delete"`, `"edit"`, `"message"`, `"logs"`, `"list"`, `"download"`, `"upload"`, `"transfer"`, `"filetree"`, `"exec"`.
+ * Snake case on the wire: `"get"`, `"delete"`, `"edit"`, `"message"`, `"logs"`, `"list"`, `"download"`, `"upload"`, `"transfer"`, `"filetree"`, `"exec"`, `"frontend"`.
  *
  * - `get`: Get one, as `agents.get` does.
  * - `delete`: Delete one, as `agents.delete` does.
@@ -17,6 +17,7 @@ import { z } from "zod";
  * - `transfer`: Copy files out of one, as `agents.transfer` does; where they land is judged by its own grant.
  * - `filetree`: Watch one's container whole, as `agents.filetree` does.
  * - `exec`: Run a command in one's container — any program it holds, as the container's own user — as `agents.exec` does.
+ * - `frontend`: Send HTTP requests to the frontend its program serves, as `agents.frontend` does.
  */
-export const Over = z.enum(["get", "delete", "edit", "message", "logs", "list", "download", "upload", "transfer", "filetree", "exec"]);
+export const Over = z.enum(["get", "delete", "edit", "message", "logs", "list", "download", "upload", "transfer", "filetree", "exec", "frontend"]);
 export type Over = z.infer<typeof Over>;

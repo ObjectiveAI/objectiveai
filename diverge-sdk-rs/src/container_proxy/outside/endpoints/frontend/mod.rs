@@ -1,4 +1,4 @@
-//! One HTTP request to the tool program's frontend, beneath `/frontend`.
+//! One HTTP request to the program's frontend, beneath `/frontend`.
 //!
 //! The server opens it with the request's head and gets the program's
 //! response — its head, then its body — until it ends or the server

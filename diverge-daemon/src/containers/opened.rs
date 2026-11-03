@@ -180,21 +180,26 @@ impl Opened {
 
     /// One HTTP request to the program's frontend, its body `body`'s
     /// pieces: its answer, and the write id the body is kept under
-    /// until [`forget`](Self::forget). An agent's program serves none.
+    /// until [`forget`](Self::forget).
     pub async fn frontend<S>(&self, head: diverge_sdk::shared::containers::frontend::request::Head, body: S) -> Result<(FrontendFrames, u32), String>
     where
         S: Stream<Item = Result<Bytes, std::convert::Infallible>> + Send + 'static,
     {
         match self {
-            Opened::Agent(..) => Err("an agent serves no frontend".to_string()),
+            Opened::Agent(run, _) => {
+                let (stream, write_id) = run.handle.frontend(head, body).await.map_err(|error| error.to_string())?;
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
+                Ok((Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))), write_id))
+            }
             Opened::Tool(run, _) => run.handle.frontend(head, body).await,
         }
     }
 
     /// Take back a frontend request's body, asked for or not.
     pub async fn forget(&self, write_id: u32) {
-        if let Opened::Tool(run, _) = self {
-            run.handle.forget(write_id).await;
+        match self {
+            Opened::Agent(run, _) => run.handle.forget(write_id).await,
+            Opened::Tool(run, _) => run.handle.forget(write_id).await,
         }
     }
 

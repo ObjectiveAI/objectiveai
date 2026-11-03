@@ -7,6 +7,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::containers::exec;
+use crate::shared::containers::frontend;
 use crate::shared::containers::terminal;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{dequeue, enqueue};
@@ -36,6 +37,7 @@ use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path
 /// | `14` | [`TerminalStdin`](Self::TerminalStdin) |
 /// | `15` | [`TerminalResize`](Self::TerminalResize) |
 /// | `16` | [`TerminalClose`](Self::TerminalClose) |
+/// | `17` | [`Frontend`](Self::Frontend) |
 ///
 /// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
@@ -176,6 +178,10 @@ pub enum Frame {
     TerminalResize(terminal::session::Resize),
     /// Kill a held terminal's shell.
     TerminalClose(terminal::session::Id),
+    /// One HTTP request to the program's frontend, its body asked for
+    /// by its write id as a write's content is (see
+    /// [`frontend`](crate::shared::containers::frontend)).
+    Frontend(frontend::request::Request),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -228,6 +234,9 @@ const TERMINAL_RESIZE: u8 = 15;
 
 /// Tag for [`Frame::TerminalClose`].
 const TERMINAL_CLOSE: u8 = 16;
+
+/// Tag for [`Frame::Frontend`].
+const FRONTEND: u8 = 17;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -304,6 +313,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[TERMINAL_CLOSE]);
                 serde_json::to_writer(out, id)
             }
+            Frame::Frontend(request) => {
+                out.extend_from_slice(&[FRONTEND]);
+                serde_json::to_writer(out, request)
+            }
         }
     }
 }
@@ -360,6 +373,9 @@ impl Decode<'_> for Frame {
             TERMINAL_CLOSE => serde_json::from_slice(rest)
                 .map(Frame::TerminalClose)
                 .map_err(FrameError::Terminal),
+            FRONTEND => serde_json::from_slice(rest)
+                .map(Frame::Frontend)
+                .map_err(FrameError::Frontend),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -395,6 +411,8 @@ pub enum FrameError {
     Terminal(serde_json::Error),
     /// A terminal's stdin held no id.
     TerminalStdin,
+    /// The frontend request did not parse.
+    Frontend(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -435,6 +453,9 @@ impl fmt::Display for FrameError {
                 write!(f, "terminal request did not parse: {error}")
             }
             FrameError::TerminalStdin => f.write_str("terminal stdin held no id"),
+            FrameError::Frontend(error) => {
+                write!(f, "frontend request did not parse: {error}")
+            }
         }
     }
 }
@@ -450,7 +471,8 @@ impl Error for FrameError {
             | FrameError::FuseMount(error)
             | FrameError::Secrets(error)
             | FrameError::Exec(error)
-            | FrameError::Terminal(error) => Some(error),
+            | FrameError::Terminal(error)
+            | FrameError::Frontend(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) | FrameError::TerminalStdin => None,
         }
