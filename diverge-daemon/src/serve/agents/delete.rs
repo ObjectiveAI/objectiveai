@@ -50,7 +50,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if !judge::agents::over(&standing, Over::Delete, &agent, state) {
         return Ok(Frame::Forbidden);
     }
-    if state.busy {
+    if state.active {
         return Ok(Frame::Active);
     }
     let attached = dependency_tools::of_agent(&mut tx, agent.id).await?;

@@ -16,6 +16,7 @@ pub use active::*;
 pub use attached::*;
 pub use failure::*;
 
+pub mod connect;
 pub mod create;
 pub mod delete;
 pub mod download;

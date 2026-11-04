@@ -17,7 +17,7 @@ use super::answerers::Answerer;
 use super::capable::Needs;
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{AgentRun, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_tool, serve_name, services, stop};
+use super::{AgentRun, Inflight, activity, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_tool, serve_name, services, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::daemons;
 use crate::containers::permissions;
@@ -203,7 +203,8 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         daemon.live.nudge_capacity(&run.provider);
         let pumping = tokio::spawn(pump::pump(Arc::clone(daemon), Arc::clone(&run), stream));
         let clock = tokio::spawn(idle::idle(Arc::clone(daemon), Arc::clone(&run)));
-        run.tasks.lock().await.extend([pumping.abort_handle(), clock.abort_handle()]);
+        let watching = tokio::spawn(activity::activity(Arc::clone(daemon), Arc::clone(&run)));
+        run.tasks.lock().await.extend([pumping.abort_handle(), clock.abort_handle(), watching.abort_handle()]);
         return Ok(run);
     }
     mounts.stop().await;

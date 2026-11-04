@@ -52,6 +52,7 @@
 //! through this module and not through the file it lives in.
 
 mod activate;
+mod activity;
 mod attached;
 mod build;
 mod error;
@@ -84,6 +85,7 @@ pub mod services;
 pub mod tool_log;
 
 pub use activate::*;
+pub use activity::*;
 pub use attached::*;
 pub use build::*;
 pub use error::*;

@@ -12,7 +12,9 @@ use super::Answerer;
 use crate::containers::mcp::{self, Context, Notifications};
 
 impl Answerer {
-    /// The merge's context for this run.
+    /// The merge's context for this run — for an agent, what
+    /// [`AgentRun::context`](crate::containers::AgentRun::context)
+    /// makes.
     fn context(&self) -> Context {
         Context {
             daemon: Arc::clone(&self.daemon),

@@ -8,16 +8,17 @@ use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use futures_util::StreamExt as _;
 
-use super::mcp::{self, Context};
-use super::{AgentRun, Key, activate, stop};
-use crate::daemon::{Daemon, Kind};
+use super::mcp;
+use super::{AgentRun, activate, stop};
+use crate::daemon::Daemon;
 use crate::logs;
 use crate::store::AgentId;
 
 /// Read the run's stream to its end: every chunk kept, the agent
 /// attested under its `_meta` — a user part as its sender's, by the
 /// key the message was enqueued under — the loop's begin and end kept
-/// as whether a loop runs, the served tools started on the begin so
+/// as whether a loop runs (what that makes of the agent's activity is
+/// [`activity`](super::activity)'s), the served tools started on the begin so
 /// its calls find them up — each held up by its own use from then on,
 /// and the dependencies run on for the agent's life — the container's
 /// inactive, with what its program made of its rotating secrets,
@@ -26,13 +27,7 @@ use crate::store::AgentId;
 /// failure kept as an `Error` item naming secrets and never a value —
 /// and the stream's end or error the run over.
 pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteStream) {
-    let context = Context {
-        daemon: Arc::clone(&daemon),
-        user: Key::Agent(run.id),
-        caller: Some(run.attestation.clone()),
-        sender: run.sender.clone(),
-        served: Arc::clone(&run.served),
-    };
+    let context = run.context(&daemon);
     while let Some(event) = stream.next().await {
         match event {
             Ok(Event::Chunk(mut chunk)) => {
@@ -48,15 +43,11 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
             }
             Ok(Event::Active) => {
                 run.loop_active.send_replace(true);
-                active_at(&daemon, run.id).await;
-                daemon.live.changed(Kind::Agents);
                 run.touch();
                 mcp::start_all(&context).await;
             }
             Ok(Event::Inactive(values)) => {
                 run.loop_active.send_replace(false);
-                active_at(&daemon, run.id).await;
-                daemon.live.changed(Kind::Agents);
                 run.touch();
                 if let Err(error) = activate::inactive_agent(&daemon, &run, values).await {
                     let _ = append(
@@ -114,13 +105,5 @@ fn user_key(chunk: &AgenticLoopChunk) -> Option<&str> {
         AgenticLoopChunk::UserResource(part) => Some(&part.key),
         AgenticLoopChunk::UserResourceLink(part) => Some(&part.key),
         _ => None,
-    }
-}
-
-/// Keep now as the agent's `last_active`: its loop began or ended. A
-/// time that cannot be kept fails nothing.
-async fn active_at(daemon: &Daemon, id: AgentId) {
-    if let Ok(mut conn) = daemon.store.acquire().await {
-        let _ = crate::store::agents::set_active(&mut conn, id, chrono::Utc::now()).await;
     }
 }

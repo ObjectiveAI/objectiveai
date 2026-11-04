@@ -24,10 +24,11 @@ use tokio::sync::{Mutex, watch};
 use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
-use super::mcp::Served;
+use super::mcp::{Context, Served};
 use super::secrets::Secrets;
-use super::{ConnectionId, Frames, Inflight, ToolKey, Use};
+use super::{ConnectionId, Frames, Inflight, Key, ToolKey, Use};
 use crate::content::Pieces;
+use crate::daemon::Daemon;
 use crate::store::dependency_tools::DependencyTool;
 use crate::store::AgentId;
 
@@ -105,6 +106,19 @@ impl AgentRun {
     /// Exactly those two, and nothing else.
     pub fn is_active(&self) -> bool {
         *self.loop_active.borrow() || self.inflight.is_busy()
+    }
+
+    /// The merge's context for the agent: its tools, its caller and
+    /// its sender — what its own container's exchanges are answered
+    /// with, and what an exchange run as the agent is answered with.
+    pub fn context(&self, daemon: &Arc<Daemon>) -> Context {
+        Context {
+            daemon: Arc::clone(daemon),
+            user: Key::Agent(self.id),
+            caller: Some(self.attestation.clone()),
+            sender: self.sender.clone(),
+            served: Arc::clone(&self.served),
+        }
     }
 }
 

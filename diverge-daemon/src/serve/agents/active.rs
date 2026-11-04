@@ -5,10 +5,10 @@ use crate::daemon::Daemon;
 use crate::judge::AgentState;
 use crate::store::AgentId;
 
-/// The agent's state now, as [`AgentState`] states it: a loop running,
-/// its container up, and either or an exchange in flight. What a list
+/// The agent's state now, as [`AgentState`] states it: a loop running
+/// or an exchange in flight, and its container up. What a list
 /// reports, what a filter and a grant's `within` may ask about, and —
-/// `busy` — what refuses a delete.
+/// `active` — what refuses a delete.
 pub async fn state(daemon: &Daemon, id: AgentId) -> AgentState {
     state_of(daemon.live.agent_run(id).await.as_deref())
 }
@@ -17,9 +17,8 @@ pub async fn state(daemon: &Daemon, id: AgentId) -> AgentState {
 pub fn state_of(run: Option<&AgentRun>) -> AgentState {
     match run {
         Some(run) => AgentState {
-            active: *run.loop_active.borrow(),
+            active: run.is_active(),
             deployed: true,
-            busy: run.is_active(),
         },
         None => AgentState::default(),
     }
