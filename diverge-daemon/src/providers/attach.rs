@@ -88,6 +88,7 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
         if daemon.accept_daemons {
             tokio::spawn(super::accept(Arc::clone(daemon), handle.clone()));
         }
+        daemon.live.discovery.connected(daemon, identity.clone(), handle.clone()).await;
         if info.capabilities.volumes() {
             tokio::spawn(crate::volumes::watch(Arc::clone(daemon), identity.clone(), handle));
         }

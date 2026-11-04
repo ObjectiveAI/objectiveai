@@ -8,5 +8,6 @@
 //! taken from what the daemon holds now.
 
 pub mod daemons;
+pub mod discover;
 pub mod get;
 pub mod list;

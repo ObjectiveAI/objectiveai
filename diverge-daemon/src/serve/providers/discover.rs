@@ -1,0 +1,73 @@
+//! Discovering peers through the connected providers, and keeping the
+//! listing.
+
+use std::future::Future;
+use std::sync::Arc;
+
+use diverge_sdk::daemon::endpoints::providers::discover::client::request;
+use diverge_sdk::daemon::endpoints::providers::discover::server::response::{Discovered, Frame};
+use diverge_sdk::daemon::grant::providers::Action;
+use diverge_sdk::shared::Identity;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+
+use crate::daemon::{Daemon, Kind};
+use crate::judge::{self, Standing, Who};
+use crate::serve::reply;
+use crate::serve::stream::{self, Source};
+use crate::store;
+
+/// Send the listing and its changes, then finish the scope.
+pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
+    if let Err(error) = serve(&scope, frame, who, daemon).await {
+        reply::reply(&scope, &Frame::Error(reply::failure(&error))).await;
+    }
+    scope.send_response_finish().await;
+}
+
+/// The rules:
+///
+/// 1. **Judged.** One `Forbidden` with no `discover` grant.
+/// 2. **Watching.** The scope is a watcher of the daemon's
+///    [`Discovery`](crate::discovery::Discovery) from before its first
+///    read to its end, however it ends: every connected provider's
+///    listing open and whole before anything is sent.
+/// 3. **The listing.** Every identity the merge holds, in order, the
+///    first `count` of them, one frame each, then the word that the
+///    listing is whole — and from then on each identity added, changed
+///    or removed as the providers' listings tell, and as providers
+///    connect and disconnect, until the client cancels.
+async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
+    let standing = {
+        let mut conn = daemon.store.acquire().await?;
+        Standing::of(&mut conn, who).await?
+    };
+    // Rule 1.
+    let Some(standing) = standing else {
+        reply::reply(scope, &Frame::Forbidden).await;
+        return Ok(());
+    };
+    if !judge::providers::holds(&standing, Action::Discover) {
+        reply::reply(scope, &Frame::Forbidden).await;
+        return Ok(());
+    }
+    // Rules 2 and 3.
+    daemon.live.discovery.enter(daemon).await;
+    let listed = stream::listing(scope, daemon, &[Kind::Discover], frame.count, &Merged { daemon }, Frame::from).await;
+    daemon.live.discovery.leave().await;
+    listed
+}
+
+/// The merge as it is now.
+struct Merged<'a> {
+    daemon: &'a Daemon,
+}
+
+impl Source for Merged<'_> {
+    type Key = Identity;
+    type Item = Discovered;
+    type Error = store::Error;
+
+    fn read(&self) -> impl Future<Output = Result<Vec<(Identity, Discovered)>, store::Error>> + Send {
+        async move { Ok(self.daemon.live.discovery.read(self.daemon).await) }
+    }
+}

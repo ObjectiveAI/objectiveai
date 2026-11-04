@@ -96,6 +96,7 @@ pub mod content;
 pub mod daemon;
 pub mod daemons;
 pub mod database;
+pub mod discovery;
 pub mod judge;
 pub mod logs;
 pub mod postgres;

@@ -25,6 +25,7 @@ use crate::daemons::Peer;
 use crate::judge::AgentState;
 use crate::database::Scope;
 use crate::store::{AccountId, AgentId};
+use crate::discovery::Discovery;
 use crate::volumes::Mirror;
 
 /// The live state of the daemon: which accounts have a client
@@ -99,6 +100,9 @@ pub struct Live {
     changes: Changes,
     /// Each connected provider's volumes, as its listing streams them.
     volumes: Mutex<HashMap<Identity, Arc<Mirror>>>,
+    /// Each connected provider's discover listing, while something
+    /// watches: see [`Discovery`].
+    pub discovery: Discovery,
     /// The remote daemons connected to now, by the name the
     /// configuration gives each, each through one provider: what a
     /// connected tool's exchanges and a relayed request ride.
@@ -326,6 +330,9 @@ impl Live {
         }
         if self.volumes.lock().await.remove(identity).is_some() {
             self.changes.changed(Kind::Volumes);
+        }
+        if self.discovery.disconnected(identity).await {
+            self.changes.changed(Kind::Discover);
         }
         for holders in self.holders.lock().await.values_mut() {
             holders.retain(|holder| holder != identity);

@@ -152,6 +152,15 @@ impl DaemonAuthenticator {
         Ok(accounts::by_identity(&mut conn, identity, false).await?.map(|account| Admitted::Client(Who::Account(account.id))))
     }
 
+    /// The identity this daemon presents at `issuer`, if it has one
+    /// there: what it answers a handshake as at every provider of that
+    /// issuer, whichever end dialled, since both answer from the
+    /// provider's issuer.
+    pub fn own_at(&self, issuer: &str) -> Option<Identity> {
+        let subject = self.own.subject(issuer)?;
+        Some(Identity { issuer: issuer.to_string(), subject: subject.to_string() })
+    }
+
     /// The connection holding `identity`, of the kind `expected` names,
     /// ended: the identity is let go — rule 4. A client socket's
     /// account was never held, and is nothing to let go.
