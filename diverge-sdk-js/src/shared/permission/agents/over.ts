@@ -4,7 +4,7 @@ import { z } from "zod";
 
 /**
  * The actions over agents that exist, which a grant reaches as far as its `within` says.
- * Snake case on the wire: `"get"`, `"delete"`, `"edit"`, `"message"`, `"logs"`, `"list"`, `"download"`, `"upload"`, `"transfer"`, `"filetree"`, `"exec"`, `"frontend"`.
+ * Snake case on the wire: `"get"`, `"delete"`, `"edit"`, `"message"`, `"logs"`, `"list"`, `"download"`, `"upload"`, `"transfer"`, `"filetree"`, `"exec"`, `"frontend"`, `"connect"`.
  *
  * - `get`: Get one, as `agents.get` does.
  * - `delete`: Delete one, as `agents.delete` does.
@@ -18,6 +18,7 @@ import { z } from "zod";
  * - `filetree`: Watch one's container whole, as `agents.filetree` does.
  * - `exec`: Run a command in one's container — any program it holds, as the container's own user — as `agents.exec` does.
  * - `frontend`: Send HTTP requests to the frontend its program serves, as `agents.frontend` does.
+ * - `connect`: Run MCP exchanges as one — list and call its tools, list and read its resources, as its own container would — as `agents.connect` does.
  */
-export const Over = z.enum(["get", "delete", "edit", "message", "logs", "list", "download", "upload", "transfer", "filetree", "exec", "frontend"]);
+export const Over = z.enum(["get", "delete", "edit", "message", "logs", "list", "download", "upload", "transfer", "filetree", "exec", "frontend", "connect"]);
 export type Over = z.infer<typeof Over>;
