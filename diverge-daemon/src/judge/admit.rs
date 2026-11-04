@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 use std::net::IpAddr;
 
-use diverge_sdk::identities::Own;
+use diverge_sdk::identities::{Identities, Own};
 use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::handshake::{Authenticator, Peer};
 use futures_util::future::BoxFuture;
@@ -159,6 +159,12 @@ impl DaemonAuthenticator {
     pub fn own_at(&self, issuer: &str) -> Option<Identity> {
         let subject = self.own.subject(issuer)?;
         Some(Identity { issuer: issuer.to_string(), subject: subject.to_string() })
+    }
+
+    /// Every identity on the host, as the daemon opened them at its
+    /// start: what a listing of them reads.
+    pub fn identities(&self) -> &Identities {
+        self.own.identities()
     }
 
     /// The connection holding `identity`, of the kind `expected` names,

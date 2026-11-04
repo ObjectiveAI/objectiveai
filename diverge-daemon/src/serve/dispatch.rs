@@ -6,7 +6,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, dependency_tools, events, images, info, logs, postgres, providers, relay, roles, standalone_tools, vault, volumes};
+use super::{accounts, agents, dependency_tools, events, identities, images, info, logs, postgres, providers, relay, roles, standalone_tools, vault, volumes};
 use crate::daemon::Daemon;
 use crate::judge::Who;
 
@@ -22,7 +22,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// hundred and twenty-six has a handler. A payload that is no request at all is
+/// hundred and twenty-eight has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -103,6 +103,8 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::AgentsFrontend(frame) => agents::frontend::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsConnect(frame) => agents::connect::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersDiscover(frame) => providers::discover::handle(scope, frame, who, daemon).await,
+        ClientRequest::IdentitiesIssuers(frame) => identities::issuers::handle(scope, frame, who, daemon).await,
+        ClientRequest::IdentitiesSubjects(frame) => identities::subjects::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsFiletree(frame) => standalone_tools::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsExec(frame) => standalone_tools::exec::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTerminal(frame) => standalone_tools::terminal::handle(scope, frame, who, daemon).await,

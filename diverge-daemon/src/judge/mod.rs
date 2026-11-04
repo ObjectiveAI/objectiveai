@@ -56,6 +56,7 @@ pub mod agents;
 pub mod agents_templates;
 pub mod dependency_tools;
 pub mod events;
+pub mod identities;
 pub mod images;
 pub mod filter;
 pub mod postgres;

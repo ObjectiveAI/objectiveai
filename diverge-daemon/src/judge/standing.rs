@@ -212,4 +212,12 @@ impl Standing {
             _ => None,
         })
     }
+
+    /// Every grant over the host's identities the standing holds.
+    pub fn identities(&self) -> impl Iterator<Item = &grant::identities::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::Identities(permission) => Some(permission),
+            _ => None,
+        })
+    }
 }

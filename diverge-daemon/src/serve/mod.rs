@@ -72,6 +72,7 @@ pub mod accounts;
 pub mod agents;
 pub mod dependency_tools;
 pub mod events;
+pub mod identities;
 pub mod images;
 pub mod info;
 pub mod files;
