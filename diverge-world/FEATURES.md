@@ -98,8 +98,9 @@ is named, so the two can be checked against each other.
 - **Pan:** drag the empty board with any mouse button.
 - **Zoom:** the mouse wheel, from a quarter size to three times, around
   the pointer.
-- **Bounds:** the view's middle cannot leave the area the nodes cover,
-  so you can always reach every node however far you zoom.
+- **Bounds:** the view's middle can roam twice the width and height of
+  the area the nodes cover, around its middle, and no further — so you
+  can always reach every node however far you zoom.
 - **The grid** (`scenes/backdrop.ts`) is redrawn sharp at every zoom.
   It has a bright line every fifth square; the faint lines in between
   fade out as you zoom out rather than turning into a haze.
