@@ -77,8 +77,8 @@ function subline(subject: Subject): string {
  *    (`bright`, then `told`): an agent or a tool deployed, an account
  *    connected, a volume mounted into a deployed container;
  *    its tabs, `logs`, `filesystem`, `console` and `frontend`, those it has, shown
- *    however many it has, one among them; and ✕, which closes it and tells
- *    `closed`.
+ *    however many it has, one among them; the fill button; and ✕, which
+ *    closes it and tells `closed`.
  * 3. An entity with a log (`subject`) has the logs tab, one with files
  *    (`files`) the filesystem tab, one with a container (an agent, a
  *    tool, a dependency tool) the console tab, an agent or a tool whose
@@ -106,6 +106,10 @@ function subline(subject: Subject): string {
  *    sheet, or when it swaps to another entity — every connection it
  *    had open closed, so it holds the container up no more.
  * 8. Nothing pressed on the sheet reaches the map beneath.
+ * 9. The fill button (⤢) makes the sheet fill the whole window, every
+ *    tab with it, its handle hidden; pressed again (⤡) it is back at
+ *    the height it was dragged to. Closing ends the fill, so the next
+ *    sheet opens along the bottom.
  */
 export class Sheet {
   private readonly root: HTMLElement;
@@ -125,7 +129,9 @@ export class Sheet {
   private files: Files | null = null;
   private console: Console | null = null;
   private frontend: FrontendPane | null = null;
+  private readonly fill: HTMLButtonElement;
   private height = HEIGHT;
+  private full = false;
 
   constructor(
     private readonly closed: () => void,
@@ -159,6 +165,11 @@ export class Sheet {
     };
     this.tab = { logs: tab("logs", "logs"), files: tab("files", "filesystem"), console: tab("console", "console"), frontend: tab("frontend", "frontend") };
     this.tabs.append(this.tab.logs, this.tab.files, this.tab.console, this.tab.frontend);
+    // Rule 9.
+    this.fill = document.createElement("button");
+    this.fill.className = "fill";
+    this.fill.type = "button";
+    this.fill.addEventListener("click", () => this.filled(!this.full));
     const exit = document.createElement("button");
     exit.className = "exit";
     exit.type = "button";
@@ -168,7 +179,7 @@ export class Sheet {
       this.close();
       this.closed();
     });
-    head.append(this.live, this.title, this.sub, this.tabs, exit);
+    head.append(this.live, this.title, this.sub, this.tabs, this.fill, exit);
     this.body = document.createElement("div");
     this.body.className = "body";
     // Rule 4.
@@ -186,6 +197,7 @@ export class Sheet {
     this.site.className = "frontend";
     this.root.append(handle, head, this.body, this.pane, this.shell, this.site);
     this.drag(handle);
+    this.filled(false);
     document.body.append(this.root);
   }
 
@@ -200,7 +212,7 @@ export class Sheet {
     const tabs = tabsOf(entity);
     this.tabs.hidden = tabs.length === 0;
     for (const which of ["logs", "files", "console", "frontend"] as const) this.tab[which].hidden = !tabs.includes(which);
-    this.root.style.height = `${this.height}vh`;
+    this.filled(false);
     this.root.hidden = false;
     this.show(tabs.includes(chosen) ? chosen : (tabs[0] ?? "logs"));
   }
@@ -225,6 +237,16 @@ export class Sheet {
     this.frontend = null;
     this.opened = null;
     this.root.hidden = true;
+    this.filled(false);
+  }
+
+  /** Rule 9: fill the window, or lie along the bottom at the dragged height. */
+  private filled(full: boolean): void {
+    this.full = full;
+    this.root.classList.toggle("full", full);
+    this.root.style.height = full ? "100vh" : `${this.height}vh`;
+    this.fill.textContent = full ? "⤡" : "⤢";
+    this.fill.title = full ? "Restore" : "Fill the window";
   }
 
   /** Rule 3: show one tab, starting its read the first time. */

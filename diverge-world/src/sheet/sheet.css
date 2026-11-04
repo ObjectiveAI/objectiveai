@@ -77,8 +77,21 @@
   color: var(--sheet-dim);
   font-size: 12px;
 }
-.sheet .exit {
+/* Rule 9: filling the window, the handle gone. */
+.sheet.full {
+  border-top: none;
+}
+.sheet.full .handle {
+  display: none;
+}
+.sheet.full > header {
+  padding-top: 8px;
+}
+.sheet .fill {
   margin-left: auto;
+}
+.sheet .fill,
+.sheet .exit {
   width: 32px;
   height: 32px;
   border: 1px solid var(--sheet-line);
@@ -88,6 +101,7 @@
   font-size: 14px;
   cursor: pointer;
 }
+.sheet .fill:hover,
 .sheet .exit:hover {
   border-color: var(--sheet-copper);
 }

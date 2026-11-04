@@ -187,6 +187,9 @@ holds.
 - **Close:** click the same node again, or press **✕**.
 - **Resize:** drag the handle at the top, from 20% to 90% of the window
   height.
+- **Fill the window:** press **⤢** beside ✕ and the sheet, whatever tab
+  is shown, covers the whole window; press **⤡** to put it back at the
+  height it was. Closing the sheet puts it back too.
 - **The header:** the node's name, a second line of detail (its
   template and index, who owns a dependency tool, an account's issuer),
   and a green dot, lit exactly while the node is bright on the board
