@@ -30,3 +30,4 @@ export * as providers from "../../shared/permission/providers/index.js";
 export * as daemons from "../../shared/permission/daemons/index.js";
 export * as events from "../../shared/permission/events/index.js";
 export * as images from "../../shared/permission/images/index.js";
+export * as identities from "../../shared/permission/identities/index.js";

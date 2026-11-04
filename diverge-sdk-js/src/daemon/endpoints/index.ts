@@ -11,6 +11,7 @@ export * as accounts from "./accounts/index.js";
 export * as agents from "./agents/index.js";
 export * as dependency_tools from "./dependency_tools/index.js";
 export * as events from "./events/index.js";
+export * as identities from "./identities/index.js";
 export * as images from "./images/index.js";
 export * as info from "./info/index.js";
 export * as logs from "./logs/index.js";
