@@ -115,6 +115,7 @@ impl ClientRequest<'_> {
             ClientRequest::DependencyToolsFrontend(_) => bytes(&dependency_tools::frontend::server::response::Frame::Forbidden),
             ClientRequest::AgentsFrontend(_) => bytes(&agents::frontend::server::response::Frame::Forbidden),
             ClientRequest::AgentsConnect(_) => bytes(&agents::connect::server::response::Frame::Forbidden),
+            ClientRequest::ProvidersDiscover(_) => bytes(&providers::discover::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
     }
@@ -226,6 +227,7 @@ impl ClientRequest<'_> {
             ClientRequest::DependencyToolsFrontend(_) => bytes(&dependency_tools::frontend::server::response::Frame::Error(error)),
             ClientRequest::AgentsFrontend(_) => bytes(&agents::frontend::server::response::Frame::Error(error)),
             ClientRequest::AgentsConnect(_) => bytes(&agents::connect::server::response::Frame::Error(error)),
+            ClientRequest::ProvidersDiscover(_) => bytes(&providers::discover::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
     }

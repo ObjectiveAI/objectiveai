@@ -11,4 +11,8 @@ pub enum Action {
     Get,
     /// List them.
     List,
+    /// Discover the identities their discover listings hold, as
+    /// [`providers::discover`](crate::daemon::endpoints::providers::discover)
+    /// does.
+    Discover,
 }

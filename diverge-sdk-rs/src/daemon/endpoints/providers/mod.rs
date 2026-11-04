@@ -31,12 +31,15 @@
 //! # And the daemons beyond them
 //!
 //! [`daemons`] are the other daemons this daemon reaches through its
-//! providers, also its configuration's.
+//! providers, also its configuration's. [`discover`] lists the
+//! identities discoverable through its connected providers: what a
+//! remote of `daemons` is made from.
 
 mod status;
 
 pub use status::*;
 
 pub mod daemons;
+pub mod discover;
 pub mod get;
 pub mod list;

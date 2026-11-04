@@ -236,6 +236,9 @@ pub enum ClientRequest<'a> {
     AgentsFrontend(agents::frontend::client::request::Frame),
     /// Tag `124`. MCP exchanges as an agent's own.
     AgentsConnect(agents::connect::client::request::Frame),
+    /// Tag `125`. Every identity discoverable through the connected
+    /// providers, kept.
+    ProvidersDiscover(providers::discover::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -356,6 +359,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::DependencyToolsFrontend(frame) => frame.encode(out),
             ClientRequest::AgentsFrontend(frame) => frame.encode(out),
             ClientRequest::AgentsConnect(frame) => frame.encode(out),
+            ClientRequest::ProvidersDiscover(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -686,6 +690,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             124 => agents::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsConnect)
                 .ok(),
+            125 => providers::discover::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDiscover)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -797,6 +804,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::DependencyToolsFrontend(_) => f.write_str("dependency tools frontend"),
             ClientRequest::AgentsFrontend(_) => f.write_str("agents frontend"),
             ClientRequest::AgentsConnect(_) => f.write_str("agents connect"),
+            ClientRequest::ProvidersDiscover(_) => f.write_str("providers discover"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
@@ -911,6 +919,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "dependency_tools/frontend" => Some(122),
         "agents/frontend" => Some(123),
         "agents/connect" => Some(124),
+        "providers/discover" => Some(125),
         _ => None,
     }
 }
@@ -1022,6 +1031,7 @@ impl ClientRequest<'_> {
             ClientRequest::DependencyToolsFrontend(_) => "dependency_tools/frontend",
             ClientRequest::AgentsFrontend(_) => "agents/frontend",
             ClientRequest::AgentsConnect(_) => "agents/connect",
+            ClientRequest::ProvidersDiscover(_) => "providers/discover",
             ClientRequest::Invalid(_) => "",
         }
     }
