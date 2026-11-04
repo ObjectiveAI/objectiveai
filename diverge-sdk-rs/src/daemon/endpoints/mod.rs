@@ -155,8 +155,10 @@
 //! | `123` | [`agents::frontend`] |
 //! | `124` | [`agents::connect`] |
 //! | `125` | [`providers::discover`] |
+//! | `126` | [`identities::issuers`] |
+//! | `127` | [`identities::subjects`] |
 //!
-//! One hundred and twenty-six, so far. Every one of them carries the optional
+//! One hundred and twenty-eight, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request
@@ -208,6 +210,7 @@ pub mod accounts;
 pub mod agents;
 pub mod dependency_tools;
 pub mod events;
+pub mod identities;
 pub mod images;
 pub mod info;
 pub mod logs;

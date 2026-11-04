@@ -46,6 +46,12 @@ impl Own {
         Ok(Own { identities: Identities::open(root).await?, own, key_sets })
     }
 
+    /// Every identity on the host, as the program opened them: what a
+    /// listing of them reads.
+    pub fn identities(&self) -> &Identities {
+        &self.identities
+    }
+
     /// The subject this program presents at `issuer`, where it has one.
     pub fn subject(&self, issuer: &str) -> Option<&str> {
         self.own.get(issuer).map(String::as_str)

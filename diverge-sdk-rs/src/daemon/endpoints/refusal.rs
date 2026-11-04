@@ -1,6 +1,6 @@
 //! A request refused in its own words, whichever request it is.
 
-use super::{ClientRequest, accounts, agents, dependency_tools, events, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
+use super::{ClientRequest, accounts, agents, dependency_tools, events, identities, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
 use crate::shared::error::Error;
 use crate::wire::encode::{Encode, Writer};
 
@@ -116,6 +116,8 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsFrontend(_) => bytes(&agents::frontend::server::response::Frame::Forbidden),
             ClientRequest::AgentsConnect(_) => bytes(&agents::connect::server::response::Frame::Forbidden),
             ClientRequest::ProvidersDiscover(_) => bytes(&providers::discover::server::response::Frame::Forbidden),
+            ClientRequest::IdentitiesIssuers(_) => bytes(&identities::issuers::server::response::Frame::Forbidden),
+            ClientRequest::IdentitiesSubjects(_) => bytes(&identities::subjects::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
     }
@@ -228,6 +230,8 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsFrontend(_) => bytes(&agents::frontend::server::response::Frame::Error(error)),
             ClientRequest::AgentsConnect(_) => bytes(&agents::connect::server::response::Frame::Error(error)),
             ClientRequest::ProvidersDiscover(_) => bytes(&providers::discover::server::response::Frame::Error(error)),
+            ClientRequest::IdentitiesIssuers(_) => bytes(&identities::issuers::server::response::Frame::Error(error)),
+            ClientRequest::IdentitiesSubjects(_) => bytes(&identities::subjects::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
     }

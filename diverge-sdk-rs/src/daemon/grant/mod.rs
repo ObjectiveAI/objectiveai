@@ -128,3 +128,4 @@ pub mod volumes;
 pub use crate::shared::permission::postgres;
 pub use crate::shared::permission::events;
 pub use crate::shared::permission::images;
+pub use crate::shared::permission::identities;
