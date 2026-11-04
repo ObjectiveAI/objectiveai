@@ -11,5 +11,6 @@
 
 export * from "./status.js";
 export * as daemons from "./daemons/index.js";
+export * as discover from "./discover/index.js";
 export * as get from "./get/index.js";
 export * as list from "./list/index.js";
