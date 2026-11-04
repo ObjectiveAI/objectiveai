@@ -61,6 +61,7 @@ pub mod accounts;
 pub mod agents;
 pub mod dependency_tools;
 pub mod events;
+pub mod identities;
 pub mod images;
 pub mod info;
 pub mod logs;
@@ -125,6 +126,10 @@ pub enum Command {
     /// The requests over images: an image's DIVERGE.md.
     #[command(subcommand)]
     Images(images::Images),
+    /// The requests over the daemon's host's identities: its issuers,
+    /// and the subjects at one.
+    #[command(subcommand)]
+    Identities(identities::Identities),
     /// Asking what the daemon is: its version.
     Info(info::Arguments),
     /// Reading a log: an agent's or a tool's, the subject named.
@@ -183,6 +188,7 @@ async fn dispatch(
         Command::DependencyTools(command) => dependency_tools::run(command, target, emitter).await,
         Command::Events(command) => events::run(command, target, emitter).await,
         Command::Images(command) => images::run(command, target, emitter).await,
+        Command::Identities(command) => identities::run(command, target, emitter).await,
         Command::Info(arguments) => info::run(arguments, target, emitter).await,
         Command::Logs(arguments) => logs::run(arguments, target, emitter).await,
         Command::Postgres(command) => postgres::run(command, target, emitter).await,

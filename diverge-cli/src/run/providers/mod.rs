@@ -10,8 +10,8 @@ use clap::Subcommand;
 use crate::run::{Emitter, Error, Target};
 
 pub mod daemons;
-pub mod get;
 pub mod discover;
+pub mod get;
 pub mod list;
 
 /// The requests over providers and the remote daemons reached through
