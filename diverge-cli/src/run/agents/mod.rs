@@ -8,6 +8,7 @@ use clap::Subcommand;
 
 use crate::run::{Emitter, Error, Target};
 
+pub mod connect;
 pub mod create;
 pub mod delete;
 pub mod download;
@@ -44,6 +45,10 @@ pub enum Agents {
     Terminal(terminal::Arguments),
     /// One HTTP request to an agent's frontend.
     Frontend(frontend::Arguments),
+    /// MCP as an agent: its tools and resources, held for one MCP
+    /// exchange.
+    #[command(subcommand)]
+    Connect(connect::Connect),
     /// Getting one agent.
     Get(get::Arguments),
     /// Listing a caller's agents.
@@ -75,6 +80,7 @@ pub async fn run(command: Agents, target: &Target<'_>, emitter: &mut Emitter) ->
         Agents::Exec(arguments) => exec::run(arguments, target, emitter).await,
         Agents::Terminal(arguments) => terminal::run(arguments, target, emitter).await,
         Agents::Frontend(arguments) => frontend::run(arguments, target, emitter).await,
+        Agents::Connect(command) => connect::run(command, target, emitter).await,
         Agents::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         Agents::Get(arguments) => get::run(arguments, target, emitter).await,
         Agents::List(arguments) => list::run(arguments, target, emitter).await,
