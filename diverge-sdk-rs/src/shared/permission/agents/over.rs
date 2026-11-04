@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// The actions over agents that exist, which a grant reaches as far as
 /// its `within` says. Snake case on the wire: `"get"`, `"delete"`,
 /// `"edit"`, `"message"`, `"logs"`, `"list"`, `"download"`, `"upload"`,
-/// `"transfer"`, `"filetree"`, `"exec"`, `"frontend"`.
+/// `"transfer"`, `"filetree"`, `"exec"`, `"frontend"`, `"connect"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -54,4 +54,9 @@ pub enum Over {
     /// Send HTTP requests to the frontend its program serves, as
     /// [`agents::frontend`](crate::daemon::endpoints::agents::frontend) does.
     Frontend,
+    /// Run MCP exchanges as one — list and call its tools, list and
+    /// read its resources, as its own container would — as
+    /// [`agents::connect`](crate::daemon::endpoints::agents::connect)
+    /// does.
+    Connect,
 }

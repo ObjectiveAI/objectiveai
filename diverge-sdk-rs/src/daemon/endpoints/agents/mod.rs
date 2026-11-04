@@ -22,9 +22,11 @@
 //! client a file or a directory out of one's container, [`upload`] puts
 //! files into it, and [`transfer`] copies out of it into another agent,
 //! a tool or a volume, the bytes never reaching the client; [`frontend`]
-//! sends one HTTP request to the web frontend its program serves. The MCP servers an agent calls are [`standalone_tools`](super::standalone_tools),
+//! sends one HTTP request to the web frontend its program serves; [`connect`] runs MCP
+//! exchanges as one, as its own container would. The MCP servers an agent calls are [`standalone_tools`](super::standalone_tools),
 //! attached to it by name, or to its template by the template's id.
 
+pub mod connect;
 pub mod create;
 pub mod delete;
 pub mod download;

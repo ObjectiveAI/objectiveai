@@ -234,6 +234,8 @@ pub enum ClientRequest<'a> {
     DependencyToolsFrontend(dependency_tools::frontend::client::request::Frame),
     /// Tag `123`. One HTTP request to an agent's frontend.
     AgentsFrontend(agents::frontend::client::request::Frame),
+    /// Tag `124`. MCP exchanges as an agent's own.
+    AgentsConnect(agents::connect::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -353,6 +355,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::StandaloneToolsFrontend(frame) => frame.encode(out),
             ClientRequest::DependencyToolsFrontend(frame) => frame.encode(out),
             ClientRequest::AgentsFrontend(frame) => frame.encode(out),
+            ClientRequest::AgentsConnect(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -680,6 +683,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             123 => agents::frontend::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsFrontend)
                 .ok(),
+            124 => agents::connect::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsConnect)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -790,6 +796,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::StandaloneToolsFrontend(_) => f.write_str("standalone tools frontend"),
             ClientRequest::DependencyToolsFrontend(_) => f.write_str("dependency tools frontend"),
             ClientRequest::AgentsFrontend(_) => f.write_str("agents frontend"),
+            ClientRequest::AgentsConnect(_) => f.write_str("agents connect"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
@@ -903,6 +910,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "standalone_tools/frontend" => Some(121),
         "dependency_tools/frontend" => Some(122),
         "agents/frontend" => Some(123),
+        "agents/connect" => Some(124),
         _ => None,
     }
 }
@@ -1013,6 +1021,7 @@ impl ClientRequest<'_> {
             ClientRequest::StandaloneToolsFrontend(_) => "standalone_tools/frontend",
             ClientRequest::DependencyToolsFrontend(_) => "dependency_tools/frontend",
             ClientRequest::AgentsFrontend(_) => "agents/frontend",
+            ClientRequest::AgentsConnect(_) => "agents/connect",
             ClientRequest::Invalid(_) => "",
         }
     }

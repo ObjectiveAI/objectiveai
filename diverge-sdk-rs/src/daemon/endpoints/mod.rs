@@ -153,8 +153,9 @@
 //! | `121` | [`standalone_tools::frontend`] |
 //! | `122` | [`dependency_tools::frontend`] |
 //! | `123` | [`agents::frontend`] |
+//! | `124` | [`agents::connect`] |
 //!
-//! One hundred and twenty-four, so far. Every one of them carries the optional
+//! One hundred and twenty-five, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request
