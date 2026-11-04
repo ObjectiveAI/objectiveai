@@ -11,6 +11,7 @@ use crate::run::{Emitter, Error, Target};
 
 pub mod daemons;
 pub mod get;
+pub mod discover;
 pub mod list;
 
 /// The requests over providers and the remote daemons reached through
@@ -24,6 +25,9 @@ pub enum Providers {
     Get(get::Arguments),
     /// Listing the providers.
     List(list::Arguments),
+    /// Discovering peers through the connected providers: every
+    /// identity discoverable on one, with the providers it was seen on.
+    Discover(discover::Arguments),
 }
 
 /// The request put, by its subcommand.
@@ -36,5 +40,6 @@ pub async fn run(
         Providers::Daemons(command) => daemons::run(command, target, emitter).await,
         Providers::Get(arguments) => get::run(arguments, target, emitter).await,
         Providers::List(arguments) => list::run(arguments, target, emitter).await,
+        Providers::Discover(arguments) => discover::run(arguments, target, emitter).await,
     }
 }
