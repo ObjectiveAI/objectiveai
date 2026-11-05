@@ -1,8 +1,9 @@
 //! The identities connected to this provider that may be listed.
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 use diverge_sdk::shared::Identity;
+use diverge_sdk::shared::discover::Description;
 use tokio::sync::{Mutex, broadcast};
 
 /// How many nudges a listing may fall behind before it is told it
@@ -10,16 +11,17 @@ use tokio::sync::{Mutex, broadcast};
 const NUDGES_BEHIND: usize = 256;
 
 /// Every identity connected to this provider whose authorization frame
-/// carried the discover flag `1` — what a `discover` listing on any
-/// connection lists, and keeps listing.
+/// carried the discover flag `1` or `2`, and the description it carried
+/// — what a `discover` listing on any connection lists, and keeps
+/// listing.
 ///
 /// One per provider, shared across every connection, as the
 /// [`Acceptors`](super::acceptors::Acceptors) are. The rules:
 ///
 /// 1. **Entered with its connection.** The host enters an identity
 ///    when a connection under it is past its handshake with the flag
-///    `1` — whichever end dialled — and before the connection is
-///    served.
+///    `1` or `2` — whichever end dialled — and before the connection is
+///    served, with the description of the flag `2`.
 /// 2. **Left with it.** The host lets it go when that connection ends.
 ///    An identity holds at most one connection to a provider, so one
 ///    entry is one connection.
@@ -31,14 +33,14 @@ const NUDGES_BEHIND: usize = 256;
 ///    order.
 #[derive(Debug)]
 pub struct Discoverable {
-    held: Mutex<BTreeSet<Identity>>,
+    held: Mutex<BTreeMap<Identity, Option<Description>>>,
     nudges: broadcast::Sender<()>,
 }
 
 impl Discoverable {
     pub fn new() -> Self {
         let (nudges, _) = broadcast::channel(NUDGES_BEHIND);
-        Discoverable { held: Mutex::new(BTreeSet::new()), nudges }
+        Discoverable { held: Mutex::new(BTreeMap::new()), nudges }
     }
 
     /// A nudge for every change from now on — subscribed before a
@@ -48,10 +50,10 @@ impl Discoverable {
         self.nudges.subscribe()
     }
 
-    /// `identity` is connected, and discoverable, until
-    /// [`leave`](Self::leave).
-    pub(crate) async fn enter(&self, identity: &Identity) {
-        self.held.lock().await.insert(identity.clone());
+    /// `identity` is connected, and discoverable with `description`,
+    /// until [`leave`](Self::leave).
+    pub(crate) async fn enter(&self, identity: &Identity, description: Option<Description>) {
+        self.held.lock().await.insert(identity.clone(), description);
         let _ = self.nudges.send(());
     }
 
@@ -61,8 +63,9 @@ impl Discoverable {
         let _ = self.nudges.send(());
     }
 
-    /// Every discoverable identity connected now, in order.
-    pub(crate) async fn list(&self) -> BTreeSet<Identity> {
+    /// Every discoverable identity connected now, in order, each with
+    /// its description.
+    pub(crate) async fn list(&self) -> BTreeMap<Identity, Option<Description>> {
         self.held.lock().await.clone()
     }
 }

@@ -10,6 +10,7 @@ use futures_util::future::{self, Either};
 use tokio::sync::watch;
 
 use diverge_sdk::shared::Identity;
+use diverge_sdk::shared::discover::Discover;
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::handshake::{self, Handshook};
 use crate::protocol::acceptors::Acceptors;
@@ -168,14 +169,16 @@ impl Provider {
     /// A connection past its handshake, under `peer`, whose identity
     /// the handshake took: the connection served, and the identity let
     /// go. `discover` is the peer's discover flag, honored whichever
-    /// end dialled: when it is set, `peer` is listed to every
-    /// `discover` for exactly as long as the connection is served.
-    pub async fn held(&self, connection: Connection, peer: Identity, discover: bool, address: IpAddr) {
-        if discover {
-            self.discoverable.enter(&peer).await;
+    /// end dialled: when it lists the peer, `peer` is listed to every
+    /// `discover`, with its description, for exactly as long as the
+    /// connection is served.
+    pub async fn held(&self, connection: Connection, peer: Identity, discover: Discover, address: IpAddr) {
+        let listed = discover.is_listed();
+        if let Discover::Listed(description) = discover {
+            self.discoverable.enter(&peer, description).await;
         }
         self.connection(connection, Arc::new(peer.clone()), address).await;
-        if discover {
+        if listed {
             self.discoverable.leave(&peer).await;
         }
         self.authenticator.release(&peer).await;

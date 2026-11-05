@@ -1,7 +1,7 @@
 //! Answering a discover listing, from a scope and the discoverable
 //! identities, and keeping it.
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use tokio::sync::broadcast;
@@ -9,6 +9,7 @@ use tokio::sync::broadcast;
 use diverge_sdk::provider::endpoints::discover::client::channel_request;
 use diverge_sdk::provider::endpoints::discover::server::response;
 use diverge_sdk::shared::Identity;
+use diverge_sdk::shared::discover::Description;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::frame::client::ClientFrame;
@@ -17,7 +18,8 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::discoverable::Discoverable;
 
 /// List every identity `discoverable` holds — every connected identity
-/// whose discover flag was `1` — and keep listing, as an image listing
+/// whose discover flag was `1` or `2`, with its description — and keep
+/// listing, as an image listing
 /// keeps its images. The rules:
 ///
 /// 1. **Subscribed first.** The nudges are subscribed before the
@@ -27,7 +29,10 @@ use crate::protocol::discoverable::Discoverable;
 ///    one `Listed`.
 /// 3. **Kept.** On every nudge — and on a lag, which may have skipped
 ///    some — the identities are read again and what differs is told:
-///    each new one as `Added`, then each gone as `Removed`.
+///    each new one as `Added`, then each gone as `Removed`. An identity
+///    held still under another description — its connection ended and
+///    another opened between two reads — is told as `Removed` as it
+///    was, then `Added` as it is.
 /// 4. **The ends.** The caller's stop, the caller's connection ending
 ///    (no channel request will come), or the nudges closing end the
 ///    scope with its finish. A channel request that is not a stop is
@@ -39,8 +44,8 @@ use crate::protocol::discoverable::Discoverable;
 pub async fn handle(scope: ScopeHandle, discoverable: Arc<Discoverable>) {
     let mut nudges = discoverable.subscribe();
     let mut known = discoverable.list().await;
-    for identity in &known {
-        send(&scope, &response::Frame::Added(identity.clone())).await;
+    for (identity, description) in &known {
+        send(&scope, &response::Frame::Added(listed(identity, description))).await;
     }
     send(&scope, &response::Frame::Listed).await;
     loop {
@@ -71,16 +76,25 @@ pub async fn handle(scope: ScopeHandle, discoverable: Arc<Discoverable>) {
 }
 
 /// What differs between `known` and `now`, told — every identity new
-/// as added, then every identity gone as removed — and `now` kept as
-/// what is known.
-async fn tell(scope: &ScopeHandle, known: &mut BTreeSet<Identity>, now: BTreeSet<Identity>) {
-    for identity in now.difference(known) {
-        send(scope, &response::Frame::Added(identity.clone())).await;
+/// or described anew as added, after every identity gone or described
+/// anew as removed — and `now` kept as what is known (rule 3).
+async fn tell(scope: &ScopeHandle, known: &mut BTreeMap<Identity, Option<Description>>, now: BTreeMap<Identity, Option<Description>>) {
+    for (identity, description) in known.iter() {
+        if now.get(identity) != Some(description) {
+            send(scope, &response::Frame::Removed(listed(identity, description))).await;
+        }
     }
-    for identity in known.difference(&now) {
-        send(scope, &response::Frame::Removed(identity.clone())).await;
+    for (identity, description) in &now {
+        if known.get(identity) != Some(description) {
+            send(scope, &response::Frame::Added(listed(identity, description))).await;
+        }
     }
     *known = now;
+}
+
+/// One identity held, as a listing's item.
+fn listed(identity: &Identity, description: &Option<Description>) -> response::Discoverable {
+    response::Discoverable { identity: identity.clone(), description: description.clone() }
 }
 
 /// One response, encoded.
