@@ -3,7 +3,7 @@
 //! `diverge run <family> [<family>…] <request> [BODY]`: the tree of
 //! subcommands is the daemon's own tree of families and requests —
 //! `agents create`, `standalone-tools templates list`,
-//! `providers daemons add`, `events list` — and the tree of files
+//! `daemons add`, `events list` — and the tree of files
 //! under this module is the same tree, one folder per family and one
 //! file per request, each file holding the request's arguments and its
 //! run. What a request alone takes is on its own leaf: the eight that
@@ -59,6 +59,7 @@ pub mod shape;
 
 pub mod accounts;
 pub mod agents;
+pub mod daemons;
 pub mod dependency_tools;
 pub mod events;
 pub mod identities;
@@ -116,6 +117,10 @@ pub enum Command {
     /// The requests over agents, and their templates.
     #[command(subcommand)]
     Agents(agents::Agents),
+    /// The requests over the remote daemons' records: relays and
+    /// connected tools name them.
+    #[command(subcommand)]
+    Daemons(daemons::Daemons),
     /// The requests over dependency tools.
     #[command(subcommand)]
     DependencyTools(dependency_tools::DependencyTools),
@@ -138,7 +143,7 @@ pub enum Command {
     #[command(subcommand)]
     Postgres(postgres::Postgres),
     /// The requests over providers: those dialled, those that dial in,
-    /// and daemons reached through them.
+    /// and the identities discoverable through them.
     #[command(subcommand)]
     Providers(providers::Providers),
     /// The requests over roles.
@@ -185,6 +190,7 @@ async fn dispatch(
     match command {
         Command::Accounts(command) => accounts::run(command, target, emitter).await,
         Command::Agents(command) => agents::run(command, target, emitter).await,
+        Command::Daemons(command) => daemons::run(command, target, emitter).await,
         Command::DependencyTools(command) => dependency_tools::run(command, target, emitter).await,
         Command::Events(command) => events::run(command, target, emitter).await,
         Command::Images(command) => images::run(command, target, emitter).await,

@@ -1,13 +1,12 @@
-//! `diverge run providers daemons get`: getting one remote daemon, as
-//! [`get`](diverge_sdk::daemon::endpoints::providers::daemons::get)
-//! states it.
+//! `diverge run daemons tag`: putting tags on a remote daemon's record, as
+//! [`tag`](diverge_sdk::daemon::endpoints::daemons::tag) states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::providers::daemons::get::{client::request, server::response};
+use diverge_sdk::daemon::endpoints::daemons::tag::{client::request, server::response};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Getting one remote daemon.
+/// Putting tags on a remote daemon's record.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -31,15 +30,10 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>("diverge run providers daemons get", emitter)
-                .await;
+            return request_schema::<request::Frame>("diverge run daemons tag", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>(
-                "diverge run providers daemons get",
-                emitter,
-            )
-            .await;
+            return response_schema::<response::Frame>("diverge run daemons tag", emitter).await;
         }
         None => {}
     }
