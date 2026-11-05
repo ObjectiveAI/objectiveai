@@ -36,6 +36,8 @@ jsonwebtoken = { version = "=11.1.0", default-features = false, features = ["rus
 # The signing key, made once and kept as PEM; `getrandom` for the
 # operating system's randomness the key is drawn from.
 rsa = { version = "=0.9.10", features = ["getrandom"] }
+# Passwords, as argon2id hashes in the PHC string format.
+argon2 = { version = "=0.6.0" }
 # The ID token's times, as openidconnect takes them.
 chrono = { version = "=0.4.39", default-features = false, features = ["clock", "std"] }
 # A key's id, and a user code.

@@ -1,4 +1,4 @@
-//! The opaque secrets: refresh tokens and device codes.
+//! The opaque secrets: refresh tokens.
 
 use rand::RngCore as _;
 use sha2::{Digest as _, Sha256};

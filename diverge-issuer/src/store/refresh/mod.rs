@@ -16,8 +16,8 @@
 //!    refused.
 //! 4. A token of a revoked chain, a token past its days, and a token
 //!    there is no such one of, are refused, and change nothing.
-//! 5. A chain is revoked by the revocation endpoint, by a key rotation
-//!    that signs everyone out,
+//! 5. A chain is revoked by the revocation endpoint, by its identity's
+//!    password changing, by a key rotation that signs everyone out,
 //!    and by rule 3. It is removed with its identity.
 //! 6. A token past its days is removed at the next chain's issue; a
 //!    spent one is kept until then, for rule 3.

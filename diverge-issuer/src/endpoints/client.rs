@@ -9,7 +9,7 @@ use super::OAuthError;
 /// public client, with no secret.
 pub const CLIENT_ID: &str = "diverge";
 
-/// Whether a request at the token, device authorization or revocation
+/// Whether a request at the token or revocation
 /// endpoint is from the issuer's one app. The rules:
 ///
 /// 1. The form's `client_id` is [`CLIENT_ID`], exactly.

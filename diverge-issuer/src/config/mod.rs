@@ -16,8 +16,6 @@
 //! issuer: https://auth.example.com
 //! access_token_seconds: 600
 //! refresh_token_days: 30
-//! device_code_seconds: 600
-//! device_interval_seconds: 5
 //! ```
 //!
 //! No secret is in the document: the signing keys are in the issuer's

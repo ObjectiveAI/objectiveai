@@ -6,7 +6,7 @@
 //!
 //! | `grant_type` | is | answers |
 //! |--------------|----|---------|
-//! | `urn:ietf:params:oauth:grant-type:device_code` | a device code, polled — see [`device_code`] | an access token, a refresh token, and an ID token for `openid`, once a person approves it |
+//! | `password` | a subject and its password, RFC 6749 §4.3 — see [`password`](fn@password) | an access token, a refresh token beginning a new chain, and an ID token for `openid` |
 //! | `refresh_token` | a refresh token, spent for the next — see [`refresh_token`] | an access token, a new refresh token, and an ID token for `openid` |
 //!
 //! A `grant_type` that is none of these is `unsupported_grant_type`.
@@ -15,13 +15,13 @@
 //! through this module and not through the file it lives in.
 
 mod answer;
-mod device_code;
 mod form;
+mod password;
 mod refresh_token;
 mod token;
 
 pub use answer::*;
-pub use device_code::*;
 pub use form::*;
+pub use password::*;
 pub use refresh_token::*;
 pub use token::*;

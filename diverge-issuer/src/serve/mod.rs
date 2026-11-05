@@ -8,9 +8,7 @@
 //! endpoints; `POST /stop`, from loopback only, as the daemon and the
 //! provider take it — see [`stop`]; and `POST /rotate`, from loopback
 //! only, the issuer rotating its signing key itself and signing with
-//! the new one at once — see [`rotate`]; and `POST /pending`,
-//! `/approve` and `/deny`, from loopback only, the operator's word on
-//! the device codes waiting — see [`pending`].
+//! the new one at once — see [`rotate`].
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -18,7 +16,6 @@
 mod error;
 mod issuer;
 mod listen;
-mod operator_route;
 mod run;
 mod rotate_route;
 mod shutdown;
@@ -27,7 +24,6 @@ mod stop_route;
 pub use error::*;
 pub use issuer::*;
 pub use listen::*;
-pub use operator_route::*;
 pub use rotate_route::*;
 pub use run::*;
 pub use shutdown::*;

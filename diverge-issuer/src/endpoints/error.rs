@@ -46,7 +46,7 @@ impl OAuthError {
         }
     }
 
-    /// `invalid_grant`: the device code or the refresh token is not
+    /// `invalid_grant`: the password or the refresh token is not
     /// good.
     pub fn invalid_grant(description: impl Into<String>) -> OAuthError {
         OAuthError::bad("invalid_grant", description)

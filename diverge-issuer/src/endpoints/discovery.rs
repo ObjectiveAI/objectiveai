@@ -16,17 +16,14 @@ use openidconnect::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{AUTHORIZE, DEVICE_AUTHORIZATION, JWKS, REVOKE, TOKEN, USERINFO};
+use super::{AUTHORIZE, JWKS, REVOKE, TOKEN, USERINFO};
 use crate::config::Config;
 use crate::serve::Issuer;
 
 /// What the document says beyond OpenID Connect Discovery's own
-/// fields: the endpoints RFC 8628 and RFC 7009 add, as RFC 8414 names
-/// them.
+/// fields: the endpoint RFC 7009 adds, as RFC 8414 names it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Extra {
-    /// The device authorization endpoint.
-    pub device_authorization_endpoint: String,
     /// The revocation endpoint.
     pub revocation_endpoint: String,
 }
@@ -66,7 +63,6 @@ pub fn document(config: &Config) -> Result<String, String> {
         vec![CoreSubjectIdentifierType::Public],
         vec![CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256],
         Extra {
-            device_authorization_endpoint: url(DEVICE_AUTHORIZATION),
             revocation_endpoint: url(REVOKE),
         },
     )
@@ -74,7 +70,7 @@ pub fn document(config: &Config) -> Result<String, String> {
     .set_userinfo_endpoint(Some(UserInfoUrl::new(url(USERINFO)).map_err(text)?))
     .set_scopes_supported(Some(vec![Scope::new("openid".to_string())]))
     .set_response_modes_supported(Some(vec![CoreResponseMode::Query]))
-    .set_grant_types_supported(Some(vec![CoreGrantType::DeviceCode, CoreGrantType::RefreshToken]))
+    .set_grant_types_supported(Some(vec![CoreGrantType::Password, CoreGrantType::RefreshToken]))
     .set_token_endpoint_auth_methods_supported(Some(vec![CoreClientAuthMethod::None]))
     .set_claims_supported(Some(
         ["sub", "iss", "aud", "exp", "iat", "auth_time", "at_hash"]
