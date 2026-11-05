@@ -1,45 +1,85 @@
 # The relay network, as one picture
 
-An image prompt. The subject is how a relay hops from daemon to daemon,
-each hop passing through exactly one provider. The facts are the
-daemon's (2026-11-05); the style is TRON.
+An image prompt. The subject is how a relay hops from daemon to daemon
+across the network, each hop passing through exactly one provider. The
+facts are the daemon's (2026-11-05); the style is TRON, seen from
+directly above.
 
 ## Style
 
-TRON: a black void over an endless glowing grid floor. Neon light on
-black, with no textures. Daemons are cyan, providers are white, and the
-relay is orange. No text, no labels, no logos.
+Flat, 2D and top-down, like the ENCOM map on a TRON war-room table: a
+glowing neon schematic on pure black, drawn as a circuit board seen
+from orbit.
+- **Light:** everything is made of razor-thin vector lines with heavy
+  bloom. There is no perspective, no shading and no texture, only light
+  on black.
+- **The grid:** a faint cyan grid covers the whole frame. Fine hex
+  patterns and tick marks run along the edges, like a targeting HUD.
+- **Palette:**
+  - cyan for daemons;
+  - white for providers;
+  - a hot orange-red for the relay;
+  - magenta for identities.
+- **Type:** a sharp, wide, geometric sci-fi font in all caps, glowing,
+  with wide letter spacing. No real logos or brands.
 
-## The scene
+## The network
 
-- **Daemons:** four cyan citadels stand far apart across the grid, in a
-  rough zigzag that leads toward the horizon. Each one is a geometric
-  tower of glowing slabs.
-- **Identity discs:** a single magenta ring floats above every daemon,
-  and each ring has its own distinct etched pattern. It is that daemon's
-  identity.
-- **Providers:** white pylons topped with rings of light are scattered
-  between the daemons. Every daemon is tethered by thin, dim white beams
-  to two or three nearby pylons, so each daemon has several providers.
-  Some pylons are shared between neighbouring daemons.
+- **Daemons:** six to eight daemons are spread across the board. Each
+  is a cyan **hexagon**, a bold glowing outline with a smaller hexagon
+  nested inside and a slowly rotating ring of segmented dashes around
+  it.
+- **Identities:** at the center of each daemon sits a magenta **identity
+  glyph**, a small circular sigil like a fingerprint made of
+  concentric arcs, different for every daemon. Each daemon carries a
+  short name tag beside it in glowing caps: `ALPHA`, `BRAVO`, `ORION`,
+  `VEGA`, `NOVA`, `ECHO`.
+- **Providers:** white **diamonds** stand between the daemons, each
+  with a pulsing halo. A few carry tiny tags: `PROVIDER 01`,
+  `PROVIDER 02`, and so on.
+- **Tethers:** every daemon is wired to two, three or four of the
+  nearest providers by thin dim cyan traces with right-angle bends, like
+  circuit-board traces. Many providers are wired to several daemons. The
+  result is a dense, glowing mesh: every daemon has several providers,
+  and the providers are the junctions where daemons meet.
 
-## The hop
+## The relay
 
-- **The cycle:** one bright orange lightcycle crosses the scene, leaving
-  a solid wall of orange light behind it. It starts at the nearest
-  daemon and ends at the farthest.
-- **The path** alternates: daemon → provider → daemon → provider →
-  daemon → provider → daemon. At each daemon, the trail leaves through
-  exactly **one** of that daemon's tethered pylons. The trail rises over
-  that pylon's ring and comes down at the next daemon. The daemon's
-  other tethers stay dim and unused.
-- **Arrival:** where the trail meets each daemon, that daemon's magenta
-  disc flares, as though it has just been recognised.
-- **The rhythm:** the orange wall is the brightest thing in the frame.
-  Its zigzag through alternating cyan and white makes the rhythm of the
-  hops readable at a glance.
+- **The run:** one route blazes across the mesh in hot orange-red, as
+  thick as a lightcycle wall and with an intense glow. It starts at
+  `ALPHA` near the bottom-left and ends at `NOVA` at the top-right.
+- **The path:** it strictly alternates daemon ◆ provider ◆ daemon ◆
+  provider ◆ daemon ◆ provider ◆ daemon, making a sharp zigzag of
+  90-degree turns through the circuit. At every daemon it leaves through
+  exactly **one** of that daemon's providers, and the other traces stay
+  dim.
+- **Packets:** small bright squares of light ride along the orange
+  route, leaving motion streaks.
+- **Each hop:** where the route enters a daemon, the daemon's hexagon
+  flares orange and its identity glyph pulses magenta, a handshake.
+  Tiny glowing labels mark the order along the path: `HOP 1`, `HOP 2`,
+  `HOP 3`.
+- **The route's tag:** small text runs beside the route, like a flight
+  path readout: `RELAY ▸ BRAVO ▸ ORION ▸ NOVA`.
+
+## Text
+
+- **The title** is huge and glowing across the top: **THE RELAY**.
+  Beneath it, a thin line reads: `DAEMON ▸ PROVIDER ▸ DAEMON ▸ PROVIDER ▸ …`
+- **A legend** sits in the bottom-right corner, in a small HUD panel:
+  - ⬡ `DAEMON`
+  - ◆ `PROVIDER`
+  - ◉ `IDENTITY`
+  - an orange line, `ACTIVE ROUTE`
+- **A status readout** sits in the bottom-left corner: `ROUTE LOCKED —
+  4 DAEMONS — 3 PROVIDERS — ONE PER HOP`.
 
 ## Composition
 
-A low, wide camera on the grid floor looks along the path, with the
-first daemon close and the last near the horizon. The image is 21:9.
+- **Top-down and flat:** the view is exactly overhead.
+- **The diagonal:** the orange route cuts a bold diagonal from
+  bottom-left to top-right. The dim mesh fills the rest of the board,
+  so the eye goes straight to the route.
+- **The feel:** high contrast and crisp, a mission-control screen at
+  the moment a route locks in.
+- **Aspect ratio:** 16:9.
