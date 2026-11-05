@@ -11,7 +11,7 @@ use futures_util::StreamExt as _;
 use tokio::task::JoinSet;
 
 use super::dispatch;
-use crate::daemon::Daemon;
+use crate::daemon::{Connected, Daemon};
 use crate::store::AccountId;
 use crate::judge::{Admitted, Expected, Who};
 use crate::providers;
@@ -69,8 +69,31 @@ pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
         Who::Admin(identity) => daemon.live.enter_admin(identity).await,
         Who::Tool(_) => {}
     }
+    // The connection's closer: an account's and an administrator's may
+    // be told to close — see `accounts disconnect` — and a tool's has
+    // none.
+    let connected = match &who {
+        Who::Account(account) => Some(Connected::Account(*account)),
+        Who::Admin(identity) => Some(Connected::Admin(identity.clone())),
+        Who::Tool(_) => None,
+    };
+    let (key, mut closing) = match &connected {
+        Some(connected) => {
+            let (key, closing) = daemon.live.open(connected.clone()).await;
+            (Some(key), closing)
+        }
+        None => (None, tokio::sync::watch::channel(false).1),
+    };
     let mut scopes = JoinSet::new();
-    while let Some(received) = session.next().await {
+    loop {
+        let received = tokio::select! {
+            received = session.next() => received,
+            // Told to close: the session ends as when the socket drops.
+            _ = closing.wait_for(|closing| *closing), if key.is_some() => break,
+        };
+        let Some(received) = received else {
+            break;
+        };
         while scopes.try_join_next().is_some() {}
         let Received::Request(payload, scope) = received else {
             break;
@@ -83,6 +106,9 @@ pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
     }
     drop(session);
     while scopes.join_next().await.is_some() {}
+    if let (Some(connected), Some(key)) = (&connected, key) {
+        daemon.live.close(connected, key).await;
+    }
     match &who {
         Who::Account(account) => {
             if daemon.live.leave(*account).await {

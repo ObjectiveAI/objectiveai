@@ -1,4 +1,4 @@
-//! The seven requests over accounts, served.
+//! The eight requests over accounts, served.
 //!
 //! One handler per request, each the shape [`serve`](super) states.
 //! [`named_roles`] is what a create and an edit share: the roles a
@@ -13,6 +13,7 @@ pub use named_roles::*;
 pub mod admins;
 pub mod create;
 pub mod delete;
+pub mod disconnect;
 pub mod edit;
 pub mod get;
 pub mod list;

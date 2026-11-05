@@ -43,6 +43,12 @@ use crate::volumes::Mirror;
 pub struct Live {
     /// Connections per account, for the accounts with any.
     connected: Mutex<HashMap<AccountId, usize>>,
+    /// Every client connection's closer, by whom it is connected as,
+    /// each by the key its connection was given: what
+    /// [`disconnect`](Self::disconnect) tells.
+    closers: Mutex<HashMap<Connected, HashMap<u64, watch::Sender<bool>>>>,
+    /// The key the next closer is given.
+    next_closer: Mutex<u64>,
     /// The administrators connected now, by identity, and how many
     /// connections each: they have no account to count by.
     admins_connected: Mutex<HashMap<Identity, usize>>,
@@ -164,6 +170,48 @@ impl Live {
     /// Nothing live.
     pub fn new() -> Self {
         Live::default()
+    }
+
+    /// A closer for one client connection as `connected`: its key, and
+    /// the word that it is to close, which [`disconnect`](Self::disconnect)
+    /// turns `true`. The connection forgets it with
+    /// [`close`](Self::close) when it ends.
+    pub async fn open(&self, connected: Connected) -> (u64, watch::Receiver<bool>) {
+        let key = {
+            let mut next = self.next_closer.lock().await;
+            *next += 1;
+            *next
+        };
+        let (closer, closing) = watch::channel(false);
+        self.closers.lock().await.entry(connected).or_default().insert(key, closer);
+        (key, closing)
+    }
+
+    /// The connection of `key`, as `connected`, ended: its closer
+    /// forgotten.
+    pub async fn close(&self, connected: &Connected, key: u64) {
+        let mut closers = self.closers.lock().await;
+        if let Some(keyed) = closers.get_mut(connected) {
+            keyed.remove(&key);
+            if keyed.is_empty() {
+                closers.remove(connected);
+            }
+        }
+    }
+
+    /// Tell every client connection as `connected` to close: how many
+    /// there were. It does not wait for them to end — each ends its own
+    /// session, its scopes and its count — so a connection may close
+    /// itself.
+    pub async fn disconnect(&self, connected: &Connected) -> usize {
+        let closers = self.closers.lock().await;
+        let Some(keyed) = closers.get(connected) else {
+            return 0;
+        };
+        for closer in keyed.values() {
+            closer.send_replace(true);
+        }
+        keyed.len()
     }
 
     /// Count a connection as the account in. The connection counts
@@ -825,4 +873,14 @@ impl Live {
         *next += 1;
         ConnectionId(*next)
     }
+}
+
+/// Whom a client connection is connected as, for its closer: an account,
+/// or an administrator with none.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Connected {
+    /// An account.
+    Account(AccountId),
+    /// An administrator the configuration names, by identity.
+    Admin(Identity),
 }

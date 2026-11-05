@@ -6,7 +6,7 @@ use diverge_sdk::daemon::grant::accounts::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{NamedRoles, named_roles};
-use crate::daemon::{Daemon, Kind};
+use crate::daemon::{Connected, Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::inner;
 use crate::serve::reply;
@@ -28,8 +28,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// not be applied or a result that is not an account's editable
 /// members; `NoRole`; else the account as the result states, whole or
 /// not at all. The identity is not editable — an account is its
-/// identity — and the connection a client holds as the account is not
-/// dropped by an edit.
+/// identity — and every connection a client holds as the account is
+/// closed by an edit, so it connects again as the account now stands.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -67,6 +67,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         accounts::set_roles(&mut tx, account.id, &roles).await?;
     }
     tx.commit().await?;
+    daemon.live.disconnect(&Connected::Account(account.id)).await;
     daemon.live.changed(Kind::Accounts);
     daemon.live.changed(Kind::Roles);
     Ok(Frame::Edited)
