@@ -1,7 +1,7 @@
 // One grant, by the kind it is over.
 
 import { z } from "zod";
-import * as daemons from "../../shared/permission/daemons/index.js";
+import * as daemons from "./daemons/index.js";
 import * as events from "../../shared/permission/events/index.js";
 import * as identities from "./identities/index.js";
 import * as images from "../../shared/permission/images/index.js";

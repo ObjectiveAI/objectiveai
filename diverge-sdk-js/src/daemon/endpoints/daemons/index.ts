@@ -1,0 +1,13 @@
+// Remote daemons: the other daemons this daemon reaches, each record one
+// account of ours on one of them, named — relays and connected tools
+// name records. Several records may name the same remote. A remote is
+// reached through any connected provider whose discover listing holds
+// it, one chosen at random, so it is reachable while it is discoverable.
+
+export * as add from "./add/index.js";
+export * as delete from "./delete/index.js";
+export * as edit from "./edit/index.js";
+export * as get from "./get/index.js";
+export * as list from "./list/index.js";
+export * as tag from "./tag/index.js";
+export * as untag from "./untag/index.js";

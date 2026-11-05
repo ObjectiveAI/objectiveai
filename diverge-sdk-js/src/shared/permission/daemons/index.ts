@@ -1,10 +1,10 @@
-// Over the remote daemons.
+// Over remote daemons' records.
 //
-// The daemons this daemon reaches through its providers are its
-// configuration's, read at its start: no request adds, edits or
-// removes one. A grant over them reads them, connects a tool through
-// one, or relays a request to one: on the wire a bare array of the
-// `Action`s held, `{"daemons":["get","relay"]}`.
+// In the shapes `permission` states: `Make`, the action that records one;
+// `Over`, the actions over the records — reading, changing, deleting,
+// registering a connected tool on one and relaying to one — reaching by
+// tags; and `Permission`, one grant's worth of either, or of tagging.
 
-export * from "./action.js";
+export * from "./make.js";
+export * from "./over.js";
 export * from "./permission.js";
