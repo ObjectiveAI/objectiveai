@@ -1,16 +1,17 @@
 ---
 title: 'discover'
-summary: 'Tag 25: a client asks which connected identities are discoverable; the server sends every such identity as added, says when the listing is whole, keeps sending as discoverable identities connect and disconnect, and finishes when the client stops.'
+summary: 'Tag 25: a client asks which connected identities are discoverable; the server sends every such identity, with its description, as added, says when the listing is whole, keeps sending as discoverable identities connect and disconnect, and finishes when the client stops.'
 order: 25
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
 `25` and nothing more. The server sends every identity connected to
-it whose [discover flag](/authorization/#the-discover-flag) is `1`,
-one response each, then the word that the listing is whole, and keeps
-the scope open: an identity whose connection opens with the flag `1`
-is sent as added, and an identity whose connection ends is sent as
+it whose [discover flag](/authorization/#the-discover-flag) is `1` or
+`2`, one response each with the description its flag `2` carried,
+then the word that the listing is whole, and keeps the scope open: an
+identity whose connection opens with the flag `1` or `2` is sent as
+added, and an identity whose connection ends is sent as
 removed, for as long as the scope lives. The scope ends at the
 client's stop or at the client's connection ending; the response
 finish follows, and no frame follows the finish.
@@ -26,13 +27,14 @@ finish follows, and no frame follows the finish.
 - **The listing.** The listing is zero or more identities. An
   identity is in the listing exactly when a connection authorized
   under it is open to the server and that connection's client sent
-  the discover flag `1`, whether the client was the connector or the
-  connectee. An identity whose connection carried the flag `0` is not
+  the discover flag `1` or `2`, whether the client was the connector
+  or the connectee. Each identity is listed with the description that
+  connection's flag `2` carried, or with none under the flag `1`. An identity whose connection carried the flag `0` is not
   in the listing. An identity with no open connection is not in the
   listing.
 - **The asking client.** The server serves the request for every
   client it serves. The asking client's own identity is in the listing
-  when its own connection carried the flag `1`.
+  when its own connection carried the flag `1` or `2`.
 
 ## The order
 
@@ -41,13 +43,13 @@ finish follows, and no frame follows the finish.
    provides.
 2. **The server sends the listing.** The server sends every identity
    in the listing, one response each, the byte `0` followed by the
-   identity. A server with no identity in the listing sends none.
+   identity and its description. A server with no identity in the listing sends none.
 3. **The server says the listing is whole.** The server sends exactly
    one response whose payload is the byte `2` and nothing else. The
    server sends it exactly once on a scope, after every response of
    step 2 and before any other response.
 4. **The server keeps the listing.** For the life of the scope: when
-   a connection whose client sent the flag `1` completes its
+   a connection whose client sent the flag `1` or `2` completes its
    authorization, the server sends that connection's identity as
    added; when such a connection ends, the server sends its identity
    as removed.
@@ -65,9 +67,10 @@ finish follows, and no frame follows the finish.
   the server at a time. The server sends an identity as added exactly
   once while it is listed, and as removed exactly once, only after it
   was sent as added. An identity whose connection ends and whose
-  identity connects again with the flag `1` is sent as removed and
-  then as added. The server sends no identity as changed: an identity
-  does not change.
+  identity connects again with the flag `1` or `2` is sent as removed
+  and then as added. The server sends no identity as changed: a
+  description is its connection's, and does not change while the
+  identity is listed.
 - **An empty listing.** The byte `2` with no response before it
   states that no identity is in the listing. An empty listing is not
   an error.

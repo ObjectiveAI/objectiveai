@@ -8,7 +8,7 @@ draft: false
 A server sends seven frame types.
 
 - **Type `0` — authorization.** The scope and channel fields are
-  ignored. The payload is the discover flag, followed by a token.
+  ignored. The payload is the discover flag, followed by a description when the flag is `2`, followed by a token.
   Whether a connection carries one,
   the order in which the parties send theirs, and what each party
   does with the other's, are the [Authorization](/authorization/)

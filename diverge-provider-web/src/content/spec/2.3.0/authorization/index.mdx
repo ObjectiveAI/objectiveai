@@ -47,28 +47,39 @@ connection.
 ## The payload
 
 The authorization frame's payload is one byte, the discover flag,
-followed by the token. The scope and channel fields of the frame are
-ignored.
+followed by the description when the flag is `2`, followed by the
+token. The scope and channel fields of the frame are ignored.
 
 ```text
-[discover][token …]
+[0][token …]                                  not discoverable
+[1][token …]                                  discoverable, no description
+[2][length, u16][description …][token …]      discoverable, described
 ```
 
 - **The discover flag.** The first byte of the payload. The byte `0`
   states that the sender is not discoverable. The byte `1` states that
-  the sender is discoverable. [The discover flag](#the-discover-flag)
-  states what the flag binds.
-- **The token.** Every byte of the payload after the flag: a JSON Web
-  Token, as RFC 7519 defines one, encoded as UTF-8. No length field
-  precedes it, because WebSocket already delimits messages.
+  the sender is discoverable and gives no description. The byte `2`
+  states that the sender is discoverable and gives a description.
+  [The discover flag](#the-discover-flag) states what the flag binds.
+- **The description.** After the byte `2` only: the description's
+  length in bytes, a `u16`, big-endian, followed by exactly that many
+  bytes, the description encoded as UTF-8.
+  [The description](#the-description) states what a description is.
+- **The token.** Every byte of the payload after the flag and the
+  description: a JSON Web Token, as RFC 7519 defines one, encoded as
+  UTF-8. No length field precedes it, because WebSocket already
+  delimits messages.
 - **The issuer.** The token's `iss` claim names the issuer of the
   token. The connectee reads it to determine the issuer of its own
   token.
 - **Malformed.** A payload that is empty, a payload whose first byte
-  is neither `0` nor `1`, a payload with no byte after the flag, and a
-  payload whose bytes after the flag are not valid UTF-8 are
-  malformed. A party that receives a malformed payload closes the
-  connection.
+  is none of `0`, `1` and `2`, a payload whose description length or
+  description runs past the end of the payload, a description that is
+  not valid UTF-8 or breaks a rule of
+  [The description](#the-description), a payload with no byte after
+  the flag and the description, and a payload whose token is not
+  valid UTF-8 are malformed. A party that receives a malformed payload
+  closes the connection.
 
 ## The discover flag
 
@@ -77,21 +88,42 @@ identity in its [discover](/endpoints/discover/) listings.
 
 - **The client's flag binds the server.** The server honors the flag
   of the client's authorization frame, whether the client is the
-  connector or the connectee. A client whose flag is `1` is in every
-  `discover` listing the server keeps, on any connection, for as long
-  as the connection that carried the flag remains open: it is sent as
-  added when that connection completes its authorization, and as
-  removed when that connection ends. A
-  client whose flag is `0` is not listed on account of that
-  connection.
+  connector or the connectee. A client whose flag is `1` or `2` is in
+  every `discover` listing the server keeps, on any connection, for as
+  long as the connection that carried the flag remains open, with the
+  description the flag `2` carried: it is sent as added when that
+  connection completes its authorization, and as removed when that
+  connection ends. A client whose flag is `0` is not listed on account
+  of that connection.
 - **The server's flag.** The server sends the byte `0`. The client
   reads the server's flag and ignores it.
-- **For the connection's life.** A flag holds for the connection that
-  carried it. No frame changes it. A client changes its flag only by
-  opening another connection.
-- **Malformed.** A flag that is neither `0` nor `1` is malformed, and
-  the party that receives it closes the connection, as
+- **For the connection's life.** A flag and its description hold for
+  the connection that carried them. No frame changes them. A client
+  changes its flag or its description only by opening another
+  connection.
+- **Malformed.** A flag that is none of `0`, `1` and `2` is malformed,
+  and the party that receives it closes the connection, as
   [The payload](#the-payload) provides.
+
+## The description
+
+A description is what a discoverable client says of itself. The
+server lists it beside the client's identity. Its rules are the
+limit and the plain-text rule of the `description` of a Chrome
+extension's manifest.
+
+- **Plain text.** A description is one line. It holds no control
+  character: no newline and no tab.
+- **Short.** A description holds at least one character and at most
+  `132`, counted as Unicode scalar values.
+- **Trimmed.** A description neither begins nor ends with whitespace.
+- **Equal is the same.** Two descriptions are the same description
+  exactly when their bytes are equal.
+
+The description is defined by `diverge-sdk-rs/src/shared/discover.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/discover.rs
+```
 
 ## Refusal is a close
 
