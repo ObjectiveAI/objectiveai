@@ -12,8 +12,10 @@ pub enum Identities {
     /// redirect taken on a port of this host's loopback. With
     /// `--device`, the device authorization grant: a code approved at
     /// the issuer's verification page, in any browser. With
-    /// `--password-stdin`, the password grant, one round trip — how
-    /// Diverge's own issuer signs in. The identity's lock is held for
+    /// `--password-stdin`, the Authorization Code flow with no browser:
+    /// the password sent as the authorization request's Basic
+    /// credentials and the redirect read — how an agent signs in at
+    /// Diverge's own issuer. The identity's lock is held for
     /// the whole login, and the identity is written once the issuer
     /// grants it — replacing one already there, signed out or not. A
     /// grant as another subject writes nothing.

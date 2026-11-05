@@ -72,7 +72,8 @@ pub struct Arguments {
 ///    in that way on this host.
 /// 5. **By password.** `--password-stdin` reads the password from stdin
 ///    and sends it as the body's `password`: the daemon signs in by the
-///    password grant, how Diverge's own issuer signs in.
+///    Authorization Code flow with no browser, on its own host — how an
+///    agent signs in at Diverge's own issuer.
 /// 4. **To the end.** The answers are read to the daemon's finish: a
 ///    login always ends, approved, denied, as another identity, or at
 ///    the code's expiry. Ending the command ends the connection, which

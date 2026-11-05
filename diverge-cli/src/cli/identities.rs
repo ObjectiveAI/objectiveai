@@ -27,9 +27,10 @@ use crate::arguments::Identities;
 ///    one, else at the verification URI, unless `--no-browser`; any
 ///    browser, on any device, may approve it.
 /// 3. **Login by password.** With `--password-stdin`, the password is
-///    read from stdin — an empty one refused — and sent to the issuer
-///    once, the password grant: no code, no browser. Diverge's own
-///    issuer signs in this way.
+///    read from stdin — an empty one refused — and the Authorization Code
+///    flow run with no browser: the password sent as the authorization
+///    request's Basic credentials, the redirect read, the code
+///    exchanged. How an agent signs in at Diverge's own issuer.
 /// 4. **The outcome**, for every login: the identity, as the subject
 ///    named, written — replacing one already there, signed out or not —
 ///    and printed as `{"issuer","subject"}`; any other ending is the

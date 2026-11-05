@@ -28,9 +28,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 ///    nothing asked of the issuer. A login that cannot begin otherwise —
 ///    the issuer unreached, its document lacking a device endpoint, its
 ///    refusal — is the one `Error`.
-/// 3. **By password**, where the request gives one: the issuer asked
-///    once, and exactly one of `SignedIn`, `Rejected` for a subject and
-///    password it refused, `OtherSubject` or `Error` — no `Pending`.
+/// 3. **By password**, where the request gives one: the Authorization
+///    Code login with no browser, on this host — the password the
+///    authorization request's Basic credentials, the redirect read — and
+///    exactly one of `SignedIn`, `Rejected` for a subject and password
+///    the issuer refused, `OtherSubject` or `Error`; no `Pending`.
 ///    The rules below are the device login's.
 /// 4. **The code.** Begun, exactly one `Pending`: the user code and where
 ///    to enter it, never the device code.
