@@ -7,13 +7,16 @@ use clap::Subcommand;
 /// No daemon is dialled, and no command prints a token.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Identities {
-    /// Sign an identity in: with `--password-stdin`, by its password,
-    /// OAuth's password grant, one round trip — how Diverge's own issuer
-    /// signs in; else by the device authorization grant, the browser
-    /// opened at the issuer's verification page. The identity's lock is
-    /// held for the whole login, and the identity is written once the
-    /// issuer grants it — replacing one already there, signed out or
-    /// not. A grant as another subject writes nothing.
+    /// Sign an identity in. By default, OpenID Connect's Authorization
+    /// Code flow: the browser opened at the issuer's sign-in, and its
+    /// redirect taken on a port of this host's loopback. With
+    /// `--device`, the device authorization grant: a code approved at
+    /// the issuer's verification page, in any browser. With
+    /// `--password-stdin`, the password grant, one round trip — how
+    /// Diverge's own issuer signs in. The identity's lock is held for
+    /// the whole login, and the identity is written once the issuer
+    /// grants it — replacing one already there, signed out or not. A
+    /// grant as another subject writes nothing.
     Login {
         /// The issuer, exactly as its discovery document names it.
         #[arg(long)]
@@ -35,8 +38,17 @@ pub enum Identities {
         resource: Option<String>,
         /// Sign in by the identity's password, read from stdin to its
         /// end, the trailing line end dropped: no code, no browser.
-        #[arg(long)]
+        #[arg(long, conflicts_with = "device")]
         password_stdin: bool,
+        /// Sign in by the device authorization grant: a code printed,
+        /// and approved at the issuer's verification page in any
+        /// browser, this host's or another device's.
+        #[arg(long)]
+        device: bool,
+        /// Open no browser: the line printed names the page, for a
+        /// person to open.
+        #[arg(long)]
+        no_browser: bool,
     },
     /// Every identity on the host, as `{"issuer","subject"}`, one JSON
     /// line each.

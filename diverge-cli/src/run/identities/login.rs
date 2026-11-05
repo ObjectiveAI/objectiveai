@@ -66,7 +66,10 @@ pub struct Arguments {
 ///    verification page — unless `--no-browser`. A browser that will not
 ///    open is no error: the line printed names the page, and any device
 ///    may open it. A password login sends no `pending`, so no browser
-///    opens.
+///    opens. There is no Authorization Code login here: its redirect
+///    comes to a loopback port on the host the browser runs on, which
+///    the daemon's host need not be — `diverge identities login` signs
+///    in that way on this host.
 /// 5. **By password.** `--password-stdin` reads the password from stdin
 ///    and sends it as the body's `password`: the daemon signs in by the
 ///    password grant, how Diverge's own issuer signs in.

@@ -13,8 +13,9 @@
 //! default daemon; with no file it is the built-in default, the daemon
 //! `local` on this host at the daemon's own default port, with no
 //! account. No token is in the document: every identity is under the
-//! root's `identities/`, which the command `identities` signs in —
-//! the browser opened at the issuer — lists and removes, and no
+//! root's `identities/`, which the command `identities` signs in — by
+//! OpenID Connect's Authorization Code flow, the browser opened at the
+//! issuer, or by a device code, or a password — lists and removes, and no
 //! command prints a token.
 //!
 //! [`arguments`] is the command line; [`cli`] runs it. Every request of
