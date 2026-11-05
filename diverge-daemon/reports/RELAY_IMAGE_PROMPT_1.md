@@ -48,11 +48,24 @@ from orbit.
 - **The run:** one route blazes across the mesh in hot orange-red, as
   thick as a lightcycle wall and with an intense glow. It starts at
   `ALPHA` near the bottom-left and ends at `NOVA` at the top-right.
-- **The path:** it strictly alternates daemon ◆ provider ◆ daemon ◆
-  provider ◆ daemon ◆ provider ◆ daemon, making a sharp zigzag of
-  90-degree turns through the circuit. At every daemon it leaves through
-  exactly **one** of that daemon's providers, and the other traces stay
-  dim.
+- **The path:** the route is made of exactly six straight segments.
+  Every segment runs between one hexagon and one diamond, never between
+  two hexagons, so the route **touches a white provider diamond between
+  every pair of daemons**. In order:
+  1. `ALPHA` ⬡ to the diamond `PROVIDER 02` ◆.
+  2. `PROVIDER 02` ◆ to `BRAVO` ⬡.
+  3. `BRAVO` ⬡ to the diamond `PROVIDER 05` ◆.
+  4. `PROVIDER 05` ◆ to `ORION` ⬡.
+  5. `ORION` ⬡ to the diamond `PROVIDER 07` ◆.
+  6. `PROVIDER 07` ◆ to `NOVA` ⬡.
+- **Through the providers:** the route passes visibly **through the
+  center** of each of those three diamonds, entering one side and
+  leaving the other. Each of the three diamonds blazes orange-white
+  where the route passes through it, the brightest points in the image.
+  No orange line ever links two hexagons directly.
+- **One provider per hop:** each daemon on the route is also wired to
+  two or three other diamonds by dim cyan traces. The route takes
+  exactly one of them, and the others stay dim.
 - **Packets:** small bright squares of light ride along the orange
   route, leaving motion streaks.
 - **Each hop:** where the route enters a daemon, the daemon's hexagon
@@ -60,7 +73,7 @@ from orbit.
   Tiny glowing labels mark the order along the path: `HOP 1`, `HOP 2`,
   `HOP 3`.
 - **The route's tag:** small text runs beside the route, like a flight
-  path readout: `RELAY ▸ BRAVO ▸ ORION ▸ NOVA`.
+  path readout: `ALPHA ▸ P02 ▸ BRAVO ▸ P05 ▸ ORION ▸ P07 ▸ NOVA`.
 
 ## Text
 
