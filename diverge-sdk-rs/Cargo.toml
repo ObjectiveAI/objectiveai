@@ -22,7 +22,7 @@ publish = true
 # dependents do (the musl images inside containers have no windowing
 # system). The proxy presents a token, so it brings the identities.
 [features]
-identities = ["dep:zeroize", "dep:percent-encoding", "dep:dashmap", "dep:jsonwebtoken"]
+identities = ["dep:zeroize", "dep:percent-encoding", "dep:dashmap", "dep:jsonwebtoken", "dep:rand", "dep:sha2"]
 tauri-proxy = ["dep:tauri", "identities"]
 
 [dependencies]
@@ -68,7 +68,7 @@ serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
 # `net` and `rt` for the sockets and the tasks of both halves; `sync`
 # for every queue between them, and the in-container client's
 # once-made session; `fs` for `file_lock`'s files.
-tokio = { version = "1.53.1", default-features = false, features = ["fs", "net", "process", "rt", "sync", "time"] }
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt", "sync", "time"] }
 # The outgoing socket: `stream` names it, `connect` is the one place
 # this crate dials — the provider's server into the proxy inside a
 # container, see `provider::server::proxy`.
@@ -87,6 +87,10 @@ base64 = { version = "=0.22.1" }
 # against a key of that set, with no PEM.
 dashmap = { version = "=6.2.1", optional = true }
 jsonwebtoken = { version = "=11.1.0", default-features = false, features = ["rust_crypto"], optional = true }
+# The Authorization Code login's secrets — its state, nonce and PKCE
+# verifier — and the verifier's S256 challenge.
+rand = { version = "=0.9.2", default-features = false, features = ["thread_rng"], optional = true }
+sha2 = { version = "=0.10.9", optional = true }
 # Container ids, minted by the provider's server.
 uuid = { version = "1.18.1", default-features = false, features = ["v4"] }
 

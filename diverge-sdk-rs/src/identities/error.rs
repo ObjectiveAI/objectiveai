@@ -64,6 +64,14 @@ pub enum Error {
     Held(Name),
     /// The person denied the sign-in.
     Denied,
+    /// An Authorization Code login's redirect carried another `state`
+    /// than the one sent: nothing was exchanged.
+    State,
+    /// An Authorization Code login's ID token carried another `nonce`
+    /// than the one sent: nothing was written.
+    Nonce,
+    /// An Authorization Code login's redirect could not be taken: why.
+    Callback(String),
     /// The issuer refused the subject and the password, as
     /// `invalid_grant`: nothing was written.
     Rejected,
@@ -112,6 +120,9 @@ impl fmt::Display for Error {
             Error::Expired => f.write_str("the sign-in expired before it was approved"),
             Error::Held(name) => write!(f, "{name} is held by another login or reader"),
             Error::Denied => f.write_str("the sign-in was denied"),
+            Error::State => f.write_str("the sign-in's redirect carried another state than the one sent; nothing was exchanged"),
+            Error::Nonce => f.write_str("the sign-in's ID token carried another nonce than the one sent; nothing was written"),
+            Error::Callback(why) => write!(f, "the sign-in's redirect could not be taken: {why}"),
             Error::Rejected => f.write_str("the issuer refused the subject and the password"),
             Error::Subject => f.write_str("the login's answer named no subject"),
             Error::OtherSubject { expected, answered } => write!(f, "the login for {expected} was approved as {answered}; nothing was written"),

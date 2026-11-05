@@ -106,6 +106,20 @@
 //!     [`Error::Rejected`]. It is how Diverge's own issuer signs in,
 //!     which has no page and no device code. The password is sent and
 //!     never kept.
+//! 13. **The Authorization Code login.**
+//!     [`login_code`](Identities::login_code) is OpenID Connect Core
+//!     §3.1's sign-in, as a native app makes it: OAuth's Authorization
+//!     Code grant, RFC 6749 §4.1, with PKCE's S256 challenge, RFC 7636,
+//!     and the redirect to a port on `127.0.0.1`, RFC 8252 §7.3. The
+//!     identity's lock is taken as rule 6 takes it and the document read
+//!     as rule 6 reads it, which must name an authorization endpoint and
+//!     offer the `code` response type, and S256 where it names its PKCE
+//!     methods. The browser is sent to the issuer with a fresh `state`,
+//!     `nonce` and verifier, and the subject as `login_hint`; the
+//!     redirect's `state` must be the one sent, the code is exchanged
+//!     once with the verifier, the ID token's `nonce` must be the one
+//!     sent, and the answer is written as rule 6 writes an approval's.
+//!     The browser is answered in plain text.
 //!
 //! [`Token`] is a token handed out: it has no way out but
 //! [`expose`](Token::expose), and its memory is zeroed on drop. The
