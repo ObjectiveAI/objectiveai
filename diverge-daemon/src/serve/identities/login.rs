@@ -28,16 +28,20 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 ///    nothing asked of the issuer. A login that cannot begin otherwise —
 ///    the issuer unreached, its document lacking a device endpoint, its
 ///    refusal — is the one `Error`.
-/// 3. **The code.** Begun, exactly one `Pending`: the user code and where
+/// 3. **By password**, where the request gives one: the issuer asked
+///    once, and exactly one of `SignedIn`, `Rejected` for a subject and
+///    password it refused, `OtherSubject` or `Error` — no `Pending`.
+///    The rules below are the device login's.
+/// 4. **The code.** Begun, exactly one `Pending`: the user code and where
 ///    to enter it, never the device code.
-/// 4. **The outcome.** The issuer polled until the person decides or the
+/// 5. **The outcome.** The issuer polled until the person decides or the
 ///    code expires: `SignedIn` once the identity is written — replacing
 ///    one already there — `Denied`, `Expired`, `OtherSubject` for an
 ///    approval as another identity, which writes nothing, or `Error`.
-/// 5. **A cancel**, or the client's connection ending, ends the poll:
+/// 6. **A cancel**, or the client's connection ending, ends the poll:
 ///    the login dropped, its lock let go, nothing written, and no
 ///    outcome sent.
-/// 6. **Not presented.** Which subject the daemon presents at an issuer
+/// 7. **Not presented.** Which subject the daemon presents at an issuer
 ///    stays its configuration's: a new identity is the host's, and only
 ///    that.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
@@ -57,6 +61,19 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
     // Rule 2.
     let name = Name { issuer: frame.issuer, subject: frame.subject };
     let identities = daemon.authenticator.identities();
+    // Rule 3.
+    if let Some(password) = frame.password.as_deref() {
+        let asked = frame.scope.as_deref().unwrap_or("");
+        let answer = match identities.try_login_password(&name, &frame.client_id, password, asked, frame.resource.as_deref()).await {
+            Ok(name) => Frame::SignedIn(identity(name)),
+            Err(Error::Held(_)) => Frame::Held,
+            Err(Error::Rejected) => Frame::Rejected,
+            Err(Error::OtherSubject { answered, .. }) => Frame::OtherSubject(identity(answered)),
+            Err(error) => Frame::Error(reply::failure(&error)),
+        };
+        reply::reply(scope, &answer).await;
+        return Ok(());
+    }
     let pending = match identities.try_login(&name, &frame.client_id, frame.scope.as_deref().unwrap_or(""), frame.resource.as_deref()).await {
         Ok(pending) => pending,
         Err(Error::Held(_)) => {
