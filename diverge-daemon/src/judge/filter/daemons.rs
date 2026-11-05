@@ -1,12 +1,16 @@
-//! What a daemons filter lets through.
+//! The daemons filter, as a test.
 
-use diverge_sdk::daemon::endpoints::providers::daemons::list::client::request::Filter;
+use diverge_sdk::daemon::endpoints::daemons::Daemon;
+use diverge_sdk::daemon::endpoints::daemons::list::client::request::Filter;
 
-use crate::config::Remote;
-
-/// Whether `remote`, `connected` or not, passes `filter`.
-pub fn test(filter: &Filter, remote: &Remote, connected: bool) -> bool {
-    (filter.names.is_empty() || filter.names.contains(&remote.name))
-        && (filter.providers.is_empty() || remote.links.iter().any(|link| filter.providers.contains(&link.provider)))
-        && filter.connected.is_none_or(|wanted| connected == wanted)
+/// Whether the record, as a list reports it, passes `filter`.
+pub fn test(filter: &Filter, daemon: &Daemon) -> bool {
+    (filter.names.is_empty() || filter.names.contains(&daemon.name))
+        && (filter.issuers.is_empty() || filter.issuers.contains(&daemon.daemon.issuer))
+        && (filter.creators.is_empty() || filter.creators.contains(&daemon.creator))
+        && filter.connected.is_none_or(|wanted| daemon.connected == wanted)
+        && filter.all_tags.iter().all(|tag| daemon.tags.contains(tag))
+        && (filter.any_tags.is_empty() || filter.any_tags.iter().any(|tag| daemon.tags.contains(tag)))
+        && filter.created_from.is_none_or(|from| daemon.created >= from)
+        && filter.created_to.is_none_or(|to| daemon.created <= to)
 }

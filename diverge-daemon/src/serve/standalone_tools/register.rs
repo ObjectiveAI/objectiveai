@@ -2,7 +2,7 @@
 
 use diverge_sdk::daemon::endpoints::standalone_tools::register::client::request;
 use diverge_sdk::daemon::endpoints::standalone_tools::register::server::response::Frame;
-use diverge_sdk::daemon::grant::daemons::Action;
+use diverge_sdk::daemon::grant::daemons::Over;
 use diverge_sdk::daemon::grant::standalone_tools::Make;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use indexmap::IndexMap;
@@ -23,9 +23,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` without the `register` grant, or without the `connect`
-/// grant through the remote daemons; the error for a remote daemon the
-/// configuration does not name; `InUse` for a name another tool has;
+/// `Forbidden` without the `register` grant, or without a `connect`
+/// grant reaching the remote daemon's record; the error for no record of
+/// the name; `InUse` for a name another tool has;
 /// else the tool held — a connected one, with no account and no
 /// mounts, its index the next among tools registered from that
 /// daemon's tool — and nothing connected: the daemon is connected to
@@ -38,10 +38,11 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::standalone_tools::make(&standing, Make::Register) {
         return Ok(Frame::Forbidden);
     }
-    if !daemon.daemons.connect.iter().any(|remote| remote.name == frame.daemon) {
-        return Ok(Frame::Error(reply::failure(&"the daemon named is none the configuration names")));
-    }
-    if !judge::daemons::holds(&standing, Action::Connect) {
+    let Some(record) = store::daemons::by_name(&mut tx, &frame.daemon, false).await? else {
+        return Ok(Frame::Error(reply::failure(&format!("no remote daemon is named `{}`", frame.daemon))));
+    };
+    let reported = record.report(daemon.live.is_daemon_connected(&record.name).await);
+    if !judge::daemons::over(&standing, Over::Connect, &reported) {
         return Ok(Frame::Forbidden);
     }
     let new = tools::New {

@@ -6,7 +6,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, dependency_tools, events, identities, images, info, logs, postgres, providers, relay, roles, standalone_tools, vault, volumes};
+use super::{accounts, agents, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, relay, roles, standalone_tools, vault, volumes};
 use crate::daemon::Daemon;
 use crate::judge::Who;
 
@@ -22,7 +22,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// hundred and thirty has a handler. A payload that is no request at all is
+/// hundred and thirty-five has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -106,6 +106,11 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::IdentitiesList(frame) => identities::list::handle(scope, frame, who, daemon).await,
         ClientRequest::IdentitiesTag(frame) => identities::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::IdentitiesUntag(frame) => identities::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsAdd(frame) => daemons::add::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsEdit(frame) => daemons::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsDelete(frame) => daemons::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsTag(frame) => daemons::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsUntag(frame) => daemons::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::IdentitiesLogin(frame) => identities::login::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsFiletree(frame) => standalone_tools::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsExec(frame) => standalone_tools::exec::handle(scope, frame, who, daemon).await,
@@ -115,8 +120,8 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::PostgresGet(frame) => postgres::get::handle(scope, frame, who, daemon).await,
         ClientRequest::PostgresList(frame) => postgres::list::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsConnect(frame) => standalone_tools::connect::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsGet(frame) => providers::daemons::get::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsList(frame) => providers::daemons::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsGet(frame) => daemons::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsList(frame) => daemons::list::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsList(frame) => dependency_tools::list::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsGet(frame) => dependency_tools::get::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsDelete(frame) => dependency_tools::delete::handle(scope, frame, who, daemon).await,

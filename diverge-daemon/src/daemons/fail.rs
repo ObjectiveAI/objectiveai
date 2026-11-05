@@ -2,24 +2,23 @@
 
 use std::fmt;
 
-/// What [`connect`](super::connect) fails with: nothing to try, or
-/// everything tried refused.
+/// What [`connect`](super::connect) fails with: nothing to try, or the
+/// one tried refused.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Fail {
-    /// No link's provider is connected now, so there is nothing to
-    /// connect through.
+    /// No connected provider's discover listing holds the remote: it is
+    /// not discoverable on any provider this daemon is connected to.
     NoProvider,
-    /// Every link whose provider is connected was tried, and none
-    /// opened a connection: the last refusal, in the provider's or the
-    /// wire's words.
+    /// The provider chosen did not open a connection: its refusal, in the
+    /// provider's or the wire's words.
     Refused(String),
 }
 
 impl fmt::Display for Fail {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Fail::NoProvider => f.write_str("no provider the daemon is linked through is connected"),
-            Fail::Refused(error) => write!(f, "no provider the daemon is linked through opened a connection to it: {error}"),
+            Fail::NoProvider => f.write_str("the daemon is discoverable on no provider this daemon is connected to"),
+            Fail::Refused(error) => write!(f, "the provider did not open a connection to the daemon: {error}"),
         }
     }
 }

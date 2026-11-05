@@ -82,12 +82,11 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
         }
     };
     let (stop, _) = watch::channel(false);
-    let authenticator = Arc::new(DaemonAuthenticator::new(own, config.providers.identities(), config.providers.discoverable(), config.daemons.accepted.clone(), config.admins.clone(), store.clone()));
+    let authenticator = Arc::new(DaemonAuthenticator::new(own, config.providers.identities(), config.providers.discoverable(), config.admins.clone(), store.clone()));
     let daemon = Arc::new(Daemon::new(
         store,
         authenticator,
         config.providers.clone(),
-        config.daemons.clone(),
         logs,
         std::time::Duration::from_secs(config.idle_seconds),
         database,
@@ -99,6 +98,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
         postgres.stop().await;
         return Err(Error::Store(error));
     }
+    tokio::spawn(crate::discovery::idle(Arc::clone(&daemon)));
     providers::dial_all(&daemon).await;
     if let Err(error) = containers::services::boot(&daemon).await {
         postgres.stop().await;

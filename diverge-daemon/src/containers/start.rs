@@ -306,8 +306,12 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
             (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service, Some(stream), secrets)
         }
         Origin::Connected { daemon: name, tool: remote } => {
-            let remote_daemon = daemon.daemons.connect.iter().find(|remote| &remote.name == name).ok_or_else(|| StartError::NoDaemon(name.clone()))?;
-            let peer = daemons::connect(daemon, remote_daemon).await.map_err(StartError::Daemon)?;
+            let record = {
+                let mut conn = daemon.store.acquire().await?;
+                crate::store::daemons::by_name(&mut conn, name, false).await?
+            };
+            let record = record.ok_or_else(|| StartError::NoDaemon(name.clone()))?;
+            let peer = daemons::connect(daemon, &record).await.map_err(StartError::Daemon)?;
             let request = connect_request::Frame {
                 tool: remote.clone(),
                 relay: None,
@@ -323,7 +327,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 name: tool.name.clone(),
                 daemon: name.clone(),
             };
-            (peer.link.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation, false, None, None)
+            (peer.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation, false, None, None)
         }
     };
     let run = Arc::new(ToolRun {

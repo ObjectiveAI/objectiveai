@@ -58,6 +58,7 @@ pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
 pub mod counters;
+pub mod daemons;
 pub mod dependencies;
 pub mod dependency_tools;
 pub mod events;

@@ -7,7 +7,7 @@ use std::time::Duration;
 use tokio::sync::watch;
 
 use super::Live;
-use crate::config::{Daemons, Providers};
+use crate::config::Providers;
 use crate::database::Target;
 use crate::judge::DaemonAuthenticator;
 use crate::store::Store;
@@ -24,8 +24,6 @@ pub struct Daemon {
     pub authenticator: Arc<DaemonAuthenticator>,
     /// The providers it works with, as its configuration says.
     pub providers: Providers,
-    /// The other daemons it works with, as its configuration says.
-    pub daemons: Daemons,
     /// What is nobody's record.
     pub live: Live,
     /// `<dir>`, under which every log is — `agents/`, `tools/` and
@@ -54,17 +52,16 @@ pub struct Daemon {
 
 impl Daemon {
     /// A daemon on an open store, admitting by `authenticator`,
-    /// working with the configuration's `providers` and `daemons`,
+    /// working with the configuration's `providers`,
     /// holding its agents' logs under `logs`, ending a run unused for `idle`, serving the database
     /// `database`, accepting other daemons when `accept_daemons`,
     /// asking every provider's capacity again after `capacity_poll`,
     /// stopped through `stop`, with nothing live yet.
-    pub fn new(store: Store, authenticator: Arc<DaemonAuthenticator>, providers: Providers, daemons: Daemons, logs: PathBuf, idle: Duration, database: Target, accept_daemons: bool, capacity_poll: Duration, stop: watch::Sender<bool>) -> Self {
+    pub fn new(store: Store, authenticator: Arc<DaemonAuthenticator>, providers: Providers, logs: PathBuf, idle: Duration, database: Target, accept_daemons: bool, capacity_poll: Duration, stop: watch::Sender<bool>) -> Self {
         Daemon {
             store,
             authenticator,
             providers,
-            daemons,
             live: Live::new(),
             logs,
             idle,

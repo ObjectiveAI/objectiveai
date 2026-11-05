@@ -1,13 +1,10 @@
-//! The four requests over providers and the remote daemons, served.
+//! The requests over providers, served.
 //!
-//! Both are the configuration's, and nothing here adds, edits or
-//! deletes either: [`get`] and [`list`] report the providers the
+//! The providers are the configuration's, and nothing here adds, edits
+//! or deletes one: [`get`] and [`list`] report the providers the
 //! configuration accepts, each with where the daemon stands with it
-//! now; [`daemons`] reports the remote daemons it reaches through
-//! them. Each the shape [`serve`](super) states, with `connected`
-//! taken from what the daemon holds now.
+//! now; [`discover`] lists the identities discoverable through them.
 
-pub mod daemons;
 pub mod discover;
 pub mod get;
 pub mod list;

@@ -30,16 +30,6 @@
 //!   connect:
 //!     - address: provider.example.com:14979
 //!       issuer: https://auth.example.com
-//! daemons:
-//!   accepted:
-//!     - issuer: https://auth.example.com
-//!       subject: daemon-2
-//!   connect:
-//!     - name: lab
-//!       issuer: https://auth.example.com
-//!       links:
-//!         - provider: { issuer: https://auth.example.com, subject: provider-1 }
-//!           daemon: { issuer: https://auth.example.com, subject: daemon-2 }
 //! postgres:
 //!   kind: local
 //!   max_connections: 1024
@@ -54,7 +44,6 @@
 //! through this module and not through the file it lives in.
 
 mod config;
-mod daemons;
 mod error;
 mod load;
 mod postgres;
@@ -62,7 +51,6 @@ mod providers;
 mod root;
 
 pub use config::*;
-pub use daemons::*;
 pub use error::*;
 pub use load::*;
 pub use postgres::*;

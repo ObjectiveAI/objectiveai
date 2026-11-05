@@ -6,7 +6,7 @@ use diverge_sdk::daemon::DEFAULT_PORT;
 use diverge_sdk::shared::Identity;
 use serde::{Deserialize, Serialize};
 
-use super::{Daemons, Postgres, Providers};
+use super::{Postgres, Providers};
 
 /// The whole of `daemon.yaml`: what the daemon is told.
 ///
@@ -40,9 +40,6 @@ pub struct Config {
     /// The providers the daemon works with: see [`Providers`]. Absent,
     /// none.
     pub providers: Providers,
-    /// The other daemons this daemon reaches through its providers:
-    /// see [`Daemons`]. Absent, none.
-    pub daemons: Daemons,
     /// The database the daemon keeps its records in and serves to its
     /// containers: see [`Postgres`]. Read at start and never changed
     /// while the daemon runs: another database is another start.
@@ -84,7 +81,6 @@ impl Default for Config {
             identities: BTreeMap::new(),
             admins: Vec::new(),
             providers: Providers::default(),
-            daemons: Daemons::default(),
             postgres: Postgres::default(),
             idle_seconds: 10,
             accept_daemons: true,

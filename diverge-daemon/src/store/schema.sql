@@ -261,6 +261,20 @@ CREATE TABLE IF NOT EXISTS diverge.volume_tags (
     PRIMARY KEY (provider, name)
 );
 
+-- The remote daemons this daemon reaches: one record per account of
+-- ours on one of them. Several records may name the same remote.
+CREATE TABLE IF NOT EXISTS diverge.daemons (
+    name             TEXT PRIMARY KEY,
+    description      TEXT NOT NULL DEFAULT '',
+    daemon_issuer    TEXT NOT NULL,
+    daemon_subject   TEXT NOT NULL,
+    identity_issuer  TEXT NOT NULL,
+    identity_subject TEXT NOT NULL,
+    tags             TEXT[] NOT NULL DEFAULT '{}',
+    created          TIMESTAMPTZ NOT NULL,
+    creator          JSONB NOT NULL
+);
+
 -- The tags on the host's identities: an identity is a file under the
 -- root's identities/, never a record, so its tags are kept here by its
 -- issuer and its subject, one row per tagged identity.

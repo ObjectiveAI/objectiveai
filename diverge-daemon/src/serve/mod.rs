@@ -70,6 +70,7 @@ pub use stop_route::*;
 
 pub mod accounts;
 pub mod agents;
+pub mod daemons;
 pub mod dependency_tools;
 pub mod events;
 pub mod identities;

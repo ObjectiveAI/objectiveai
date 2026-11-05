@@ -3,8 +3,7 @@
 use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::ClientRequest;
-use diverge_sdk::daemon::grant::daemons::Action;
-use diverge_sdk::shared::relay::Relay;
+use diverge_sdk::daemon::grant::daemons::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::conduit;
@@ -12,22 +11,23 @@ use crate::daemon::Daemon;
 use crate::daemons;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
+use crate::store;
 
-/// Serve `request` — decoded only for its name and its refusals —
-/// on the remote daemon `relay` names, carrying `bytes`, the request
-/// with `relay` taken out — served there as the account this daemon's
-/// identity is. `Forbidden`, in the request's own words, with no
-/// standing, or with no `relay` grant through the remote daemons; the
-/// request's own `Error` for a remote the configuration does not
-/// name, a store that cannot be read, or a connection that could not
-/// be opened; else the
+/// Serve `request` — decoded only for its name and its refusals — on
+/// the remote daemon of the record named `first`, the relay's first
+/// name, carrying `bytes`, the request with that name taken off its
+/// `relay` — served there as our account the record names, which judges
+/// the rest. `Forbidden`, in the request's own words, with no standing,
+/// or with no `relay` grant reaching the record; the request's own
+/// `Error` for no record of the name, a store that cannot be read, or a
+/// connection that could not be opened; else the
 /// conduit, to the remote's finish — or, the connection ending at any
 /// frame before that, the one [`LOST`] error, then the finish. An
 /// invalid request has no words and is finished with nothing, as it
 /// would have been.
-pub async fn serve(scope: ScopeHandle, request: &ClientRequest<'_>, bytes: Vec<u8>, relay: Relay, who: Who, daemon: &Arc<Daemon>) {
+pub async fn serve(scope: ScopeHandle, request: &ClientRequest<'_>, bytes: Vec<u8>, first: String, who: Who, daemon: &Arc<Daemon>) {
     let scope = Arc::new(scope);
-    let outcome = judge_and_connect(&relay, who, daemon).await;
+    let outcome = judge_and_connect(&first, who, daemon).await;
     let handle = match outcome {
         Ok(handle) => handle,
         Err(Refusal::Forbidden) => {
@@ -61,20 +61,25 @@ enum Refusal {
 
 /// The caller judged and the connection taken or opened: the handle
 /// every frame of the relay rides.
-async fn judge_and_connect(relay: &Relay, who: Who, daemon: &Arc<Daemon>) -> Result<diverge_sdk::wire::client::handle::Handle, Refusal> {
-    {
+async fn judge_and_connect(first: &str, who: Who, daemon: &Arc<Daemon>) -> Result<diverge_sdk::wire::client::handle::Handle, Refusal> {
+    let record = {
         let mut conn = daemon.store.acquire().await.map_err(|error| Refusal::Error(error.to_string()))?;
         let Some(standing) = Standing::of(&mut conn, who).await.map_err(|error| Refusal::Error(error.to_string()))? else {
             return Err(Refusal::Forbidden);
         };
-        if !judge::daemons::holds(&standing, Action::Relay) {
+        if !judge::daemons::holds(&standing, Over::Relay) {
             return Err(Refusal::Forbidden);
         }
-    }
-    let Some(remote) = daemon.daemons.connect.iter().find(|remote| remote.name == relay.daemon) else {
-        return Err(Refusal::Error("the daemon named is none the configuration names".to_string()));
+        let Some(record) = store::daemons::by_name(&mut conn, first, false).await.map_err(|error| Refusal::Error(error.to_string()))? else {
+            return Err(Refusal::Error(format!("no remote daemon is named `{first}`")));
+        };
+        let reported = record.report(daemon.live.is_daemon_connected(&record.name).await);
+        if !judge::daemons::over(&standing, Over::Relay, &reported) {
+            return Err(Refusal::Forbidden);
+        }
+        record
     };
-    let peer = daemons::connect(daemon, remote).await.map_err(|fail| Refusal::Error(fail.to_string()))?;
+    let peer = daemons::connect(daemon, &record).await.map_err(|fail| Refusal::Error(fail.to_string()))?;
     Ok(peer.connected.handle.clone())
 }
 
