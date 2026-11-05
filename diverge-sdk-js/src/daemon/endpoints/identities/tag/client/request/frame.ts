@@ -1,13 +1,21 @@
-// Listing the host's identities' subjects.
+// Putting tags on one of the host's identities.
 
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../shared/relay.js";
+import { Identity } from "../../../../../../shared/identity.js";
 
-/** Ask the daemon for every subject an identity of the host's is signed in as at one issuer. */
+/**
+ * Ask the daemon to put tags on one of the host's identities. A tag held already is held still, and
+ * is not a failure. A tag is a string of the caller's choosing,
+ * compared and not read; what is held is a set of them, which the
+ * list item reports.
+ */
 export const Frame = z.object({
-  /** The issuer, exactly as its tokens' `iss` names it. */
-  issuer: z.string(),
+  /** The identity: its issuer and its subject, as `list` answers them. */
+  identity: Identity,
+  /** The tags to put tags on, one by one. Empty changes nothing and is not a failure. */
+  tags: z.array(z.string()),
   /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });

@@ -1,11 +1,18 @@
-// Listing the host's identities' issuers.
+// Listing the host's identities, each with its tags.
 
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../shared/relay.js";
+import { Filter } from "./filter.js";
 
-/** Ask the daemon for every issuer an identity of the host's is signed in at. */
+/**
+ * Ask the daemon for the identities signed in on its host, narrowed.
+ * Everything is optional, and a request with none of it — `{}` on the
+ * wire — is every identity the grants reach. The members but `relay`
+ * are the filter, flattened in.
+ */
 export const Frame = z.object({
+  ...Filter.shape,
   /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });

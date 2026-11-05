@@ -3,7 +3,7 @@
 import { z } from "zod";
 import * as daemons from "../../shared/permission/daemons/index.js";
 import * as events from "../../shared/permission/events/index.js";
-import * as identities from "../../shared/permission/identities/index.js";
+import * as identities from "./identities/index.js";
 import * as images from "../../shared/permission/images/index.js";
 import * as postgres from "../../shared/permission/postgres/index.js";
 import * as providers from "../../shared/permission/providers/index.js";
