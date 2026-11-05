@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use diverge_sdk::daemon::DEFAULT_PORT;
 use diverge_sdk::shared::Identity;
+use diverge_sdk::shared::discover::Description;
 use serde::{Deserialize, Serialize};
 
 use super::{Postgres, Providers};
@@ -37,6 +38,13 @@ pub struct Config {
     /// Absent, none.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub admins: Vec<Identity>,
+    /// What the daemon says of itself to every provider it is
+    /// discoverable to, which lists it beside the daemon's identity:
+    /// one line of plain text, of at most 132 characters — see
+    /// [`Description`]. It rides the discover flag, so a provider the
+    /// daemon is not discoverable to is not told it. Absent, none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<Description>,
     /// The providers the daemon works with: see [`Providers`]. Absent,
     /// none.
     pub providers: Providers,
@@ -71,7 +79,7 @@ pub struct Config {
 
 /// What a daemon runs on before it has written a line of
 /// configuration: the port one above the provider's, no identity, no
-/// provider and no remote daemon, a Postgres of
+/// description, no provider and no remote daemon, a Postgres of
 /// its own, ten seconds of idleness, other daemons accepted, and
 /// every provider's capacity asked every ten seconds.
 impl Default for Config {
@@ -80,6 +88,7 @@ impl Default for Config {
             port: DEFAULT_PORT,
             identities: BTreeMap::new(),
             admins: Vec::new(),
+            description: None,
             providers: Providers::default(),
             postgres: Postgres::default(),
             idle_seconds: 10,

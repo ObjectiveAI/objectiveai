@@ -4,6 +4,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::Duration;
 
+use diverge_sdk::shared::discover::Discover;
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::handshake::{self, Handshook};
 use tokio::net::TcpStream;
@@ -38,7 +39,8 @@ pub async fn dial(daemon: Arc<Daemon>, connect: Connect) {
         if let Ok((socket, _)) = connect_async(url(&connect.address)).await {
             let peer = peer_ip(&socket);
             let expecting = daemon.authenticator.expecting(Expected::Provider);
-            let made = handshake::connect(Connection::Outgoing(socket), &connect.issuer, connect.discover, &expecting, peer).await;
+            let discover = if connect.discover { daemon.authenticator.listed() } else { Discover::Hidden };
+            let made = handshake::connect(Connection::Outgoing(socket), &connect.issuer, discover, &expecting, peer).await;
             if let Ok(Handshook { connection, peer, .. }) = made {
                 daemon.live.dialled(peer.clone(), connect.address.clone()).await;
                 if let Ok(attached) = attach(connection, peer, &daemon).await {

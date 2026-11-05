@@ -10,8 +10,10 @@ use serde::{Deserialize, Serialize};
 /// # The discover flag
 ///
 /// Every handshake with a provider carries the daemon's discover flag:
-/// whether the provider lists the daemon to its `discover`. It is set
-/// per provider, and `false` unless set. The rules:
+/// whether the provider lists the daemon to its `discover`, and with
+/// it, when the flag is set, the daemon's
+/// [`description`](super::Config::description), if it has one. It is
+/// set per provider, and `false` unless set. The rules:
 ///
 /// 1. **A provider the daemon dials.** The flag is its [`Connect`]'s
 ///    `discover`, since the daemon sends it before it knows which

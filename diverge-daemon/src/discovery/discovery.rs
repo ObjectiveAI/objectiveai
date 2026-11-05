@@ -8,6 +8,7 @@ use diverge_sdk::daemon::endpoints::providers::discover::server::response::Disco
 use diverge_sdk::provider::endpoints::discover::client::{execute, request};
 use diverge_sdk::provider::endpoints::discover::server::response;
 use diverge_sdk::shared::Identity;
+use diverge_sdk::shared::discover::Description;
 use diverge_sdk::wire::client::handle::Handle;
 use futures_util::StreamExt as _;
 use tokio::sync::{Mutex, Notify, watch};
@@ -43,8 +44,9 @@ use crate::daemon::{Daemon, Kind};
 ///    every listing dropped, is the word [`Kind::Discover`].
 /// 6. **Merged.** [`read`](Self::read) is one [`Discovered`] per
 ///    identity held by a whole listing, with every provider whose
-///    listing holds it, the daemon's own identity at each provider left
-///    out: see [`own_at`](crate::judge::DaemonAuthenticator::own_at).
+///    listing holds it and every distinct description those listings
+///    give it, the daemon's own identity at each provider left out: see
+///    [`own_at`](crate::judge::DaemonAuthenticator::own_at).
 /// 7. **Who holds an identity.** [`providers`](Self::providers) is every
 ///    provider whose whole listing holds an identity: what a remote
 ///    daemon is reached through.
@@ -54,6 +56,10 @@ pub struct Discovery {
     /// A word to [`idle`] that the clock or the watchers changed.
     stirred: Notify,
 }
+
+/// One provider's listing as it stands: each identity, and the
+/// description it is listed with.
+type Held = BTreeMap<Identity, Option<Description>>;
 
 /// What is held, under the one lock.
 #[derive(Debug)]
@@ -77,8 +83,8 @@ impl Default for Inner {
 /// One provider's listing, as its task keeps it.
 #[derive(Debug)]
 struct Upstream {
-    /// The identities it holds now.
-    held: Arc<Mutex<BTreeSet<Identity>>>,
+    /// The identities it holds now, each with its description.
+    held: Arc<Mutex<Held>>,
     /// Whether it has said it is whole, or ended.
     whole: watch::Receiver<bool>,
     /// Dropped, the task stops the listing and ends.
@@ -138,7 +144,7 @@ impl Discovery {
 
     /// Every provider whose whole listing holds `identity` (rule 7).
     pub async fn providers(&self, identity: &Identity) -> Vec<Identity> {
-        let whole: Vec<(Identity, Arc<Mutex<BTreeSet<Identity>>>)> = {
+        let whole: Vec<(Identity, Arc<Mutex<Held>>)> = {
             let inner = self.inner.lock().await;
             inner
                 .upstreams
@@ -149,7 +155,7 @@ impl Discovery {
         };
         let mut holding = Vec::new();
         for (provider, held) in whole {
-            if held.lock().await.contains(identity) {
+            if held.lock().await.contains_key(identity) {
                 holding.push(provider);
             }
         }
@@ -172,9 +178,9 @@ impl Discovery {
     }
 
     /// The merge (rule 6), in order of identity, each identity's
-    /// providers in order.
+    /// providers in order, and its descriptions in order, each once.
     pub async fn read(&self, daemon: &Daemon) -> Vec<(Identity, Discovered)> {
-        let whole: Vec<(Identity, Arc<Mutex<BTreeSet<Identity>>>)> = {
+        let whole: Vec<(Identity, Arc<Mutex<Held>>)> = {
             let inner = self.inner.lock().await;
             inner
                 .upstreams
@@ -183,23 +189,26 @@ impl Discovery {
                 .map(|(provider, upstream)| (provider.clone(), Arc::clone(&upstream.held)))
                 .collect()
         };
-        let mut merged: BTreeMap<Identity, BTreeSet<Identity>> = BTreeMap::new();
+        let mut merged: BTreeMap<Identity, (BTreeSet<Identity>, BTreeSet<Description>)> = BTreeMap::new();
         for (provider, held) in whole {
             let own = daemon.authenticator.own_at(&provider.issuer);
-            for identity in held.lock().await.iter() {
+            for (identity, description) in held.lock().await.iter() {
                 if own.as_ref() == Some(identity) {
                     continue;
                 }
-                merged.entry(identity.clone()).or_default().insert(provider.clone());
+                let (providers, descriptions) = merged.entry(identity.clone()).or_default();
+                providers.insert(provider.clone());
+                descriptions.extend(description.iter().cloned());
             }
         }
         merged
             .into_iter()
-            .map(|(identity, providers)| {
+            .map(|(identity, (providers, descriptions))| {
                 let item = Discovered {
                     issuer: identity.issuer.clone(),
                     subject: identity.subject.clone(),
                     providers: providers.into_iter().collect(),
+                    descriptions: descriptions.into_iter().collect(),
                 };
                 (identity, item)
             })
@@ -210,7 +219,7 @@ impl Discovery {
 /// The provider's listing opened on `handle`, its task spawned, and
 /// held under `inner`.
 fn open(inner: &mut Inner, daemon: &Arc<Daemon>, identity: Identity, handle: Handle) {
-    let held = Arc::new(Mutex::new(BTreeSet::new()));
+    let held = Arc::new(Mutex::new(BTreeMap::new()));
     let (whole_tx, whole) = watch::channel(false);
     let (end, ended) = watch::channel(());
     tokio::spawn(keep(Arc::clone(daemon), handle, Arc::clone(&held), whole_tx, ended));
@@ -218,10 +227,11 @@ fn open(inner: &mut Inner, daemon: &Arc<Daemon>, identity: Identity, handle: Han
 }
 
 /// Keep one provider's listing until it ends or is let go: each
-/// identity added or removed, the word said after each; whole at its
+/// identity added, with its description, or removed, the word said
+/// after each; whole at its
 /// `listed`, and at its end however it ends. Let go — its upstream
 /// dropped — the listing is stopped, so the provider's scope ends too.
-async fn keep(daemon: Arc<Daemon>, handle: Handle, held: Arc<Mutex<BTreeSet<Identity>>>, whole: watch::Sender<bool>, mut ended: watch::Receiver<()>) {
+async fn keep(daemon: Arc<Daemon>, handle: Handle, held: Arc<Mutex<Held>>, whole: watch::Sender<bool>, mut ended: watch::Receiver<()>) {
     let (mut listing, stop) = match execute::execute(&handle, &request::Frame).await {
         Ok(opened) => opened,
         Err(_) => {
@@ -234,11 +244,11 @@ async fn keep(daemon: Arc<Daemon>, handle: Handle, held: Arc<Mutex<BTreeSet<Iden
         tokio::select! {
             item = listing.next() => {
                 match item {
-                    Some(Ok(response::Frame::Added(identity))) => {
-                        held.lock().await.insert(identity);
+                    Some(Ok(response::Frame::Added(listed))) => {
+                        held.lock().await.insert(listed.identity, listed.description);
                     }
-                    Some(Ok(response::Frame::Removed(identity))) => {
-                        held.lock().await.remove(&identity);
+                    Some(Ok(response::Frame::Removed(listed))) => {
+                        held.lock().await.remove(&listed.identity);
                     }
                     Some(Ok(response::Frame::Listed)) => {
                         whole.send_replace(true);

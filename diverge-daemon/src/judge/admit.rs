@@ -6,6 +6,7 @@ use std::net::IpAddr;
 
 use diverge_sdk::identities::{Identities, Own};
 use diverge_sdk::shared::Identity;
+use diverge_sdk::shared::discover::{Description, Discover};
 use diverge_sdk::wire::handshake::{Authenticator, Peer};
 use futures_util::future::BoxFuture;
 use tokio::sync::Mutex;
@@ -78,6 +79,7 @@ pub struct DaemonAuthenticator {
     own: Own,
     providers: HashSet<Identity>,
     discoverable: HashSet<Identity>,
+    description: Option<Description>,
     admins: HashSet<Identity>,
     store: Store,
     held_providers: Mutex<HashSet<Identity>>,
@@ -86,12 +88,14 @@ pub struct DaemonAuthenticator {
 
 impl DaemonAuthenticator {
     /// The daemon as `own` presents it, its list `providers`, the
-    /// providers it is `discoverable` to when they dial in, its `admins`,
-    /// admitting the accounts of `store`; nothing held.
+    /// providers it is `discoverable` to when they dial in, the
+    /// `description` it is listed with there, its `admins`, admitting the
+    /// accounts of `store`; nothing held.
     pub fn new(
         own: Own,
         providers: impl IntoIterator<Item = Identity>,
         discoverable: impl IntoIterator<Item = Identity>,
+        description: Option<Description>,
         admins: impl IntoIterator<Item = Identity>,
         store: Store,
     ) -> DaemonAuthenticator {
@@ -99,11 +103,18 @@ impl DaemonAuthenticator {
             own,
             providers: providers.into_iter().collect(),
             discoverable: discoverable.into_iter().collect(),
+            description,
             admins: admins.into_iter().collect(),
             store,
             held_providers: Mutex::new(HashSet::new()),
             held_accounts: Mutex::new(HashSet::new()),
         }
+    }
+
+    /// The discover flag the daemon sends a provider it is discoverable
+    /// to: listed, with its description, if it has one.
+    pub fn listed(&self) -> Discover {
+        Discover::Listed(self.description.clone())
     }
 
     /// The authenticator for one handshake for `expected` — see rule
@@ -237,11 +248,18 @@ impl Authenticator for Judging<'_> {
     }
 
     /// The discover flag the daemon answers with, as the connectee:
-    /// `true` only on a socket it accepted, to a provider whose
-    /// `providers.accepted` entry says `discover`; `false` to every
+    /// [`listed`](DaemonAuthenticator::listed), with its description,
+    /// only on a socket it accepted, to a provider whose
+    /// `providers.accepted` entry says `discover`; hidden to every
     /// client, and to a daemon reaching this one.
-    fn discoverable<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, bool> {
-        Box::pin(async move { self.expected == Expected::Admitted && self.authenticator.discoverable.contains(peer) })
+    fn discoverable<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, Discover> {
+        Box::pin(async move {
+            if self.expected == Expected::Admitted && self.authenticator.discoverable.contains(peer) {
+                self.authenticator.listed()
+            } else {
+                Discover::Hidden
+            }
+        })
     }
 }
 
@@ -291,7 +309,7 @@ impl Authenticator for Toward<'_> {
         Box::pin(async {})
     }
 
-    fn discoverable<'a>(&'a self, _peer: &'a Peer) -> BoxFuture<'a, bool> {
-        Box::pin(async { false })
+    fn discoverable<'a>(&'a self, _peer: &'a Peer) -> BoxFuture<'a, Discover> {
+        Box::pin(async { Discover::Hidden })
     }
 }
