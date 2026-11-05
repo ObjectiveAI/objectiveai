@@ -1,98 +1,84 @@
 # The relay network, as one picture
 
-An image prompt. The subject is how a relay hops from daemon to daemon
-across the network, each hop passing through exactly one provider. The
-facts are the daemon's (2026-11-05); the style is TRON, seen from
-directly above.
+An image prompt. The subject is how a relay hops from daemon to daemon,
+each hop passing through exactly one provider. The facts are the
+daemon's (2026-11-05); the style is TRON, top-down.
+
+The picture is built as a **neon subway map**. A relay is one train
+line, and its stations alternate between two kinds: big cyan hexagons
+for daemons, and big white diamonds for providers. On a subway map a
+line visits every station on it, so that framing puts the providers on
+the route instead of beside it.
 
 ## Style
 
-Flat, 2D and top-down, like the ENCOM map on a TRON war-room table: a
-glowing neon schematic on pure black, drawn as a circuit board seen
-from orbit.
-- **Light:** everything is made of razor-thin vector lines with heavy
-  bloom. There is no perspective, no shading and no texture, only light
-  on black.
-- **The grid:** a faint cyan grid covers the whole frame. Fine hex
-  patterns and tick marks run along the edges, like a targeting HUD.
-- **Palette:**
-  - cyan for daemons;
-  - white for providers;
-  - a hot orange-red for the relay;
-  - magenta for identities.
-- **Type:** a sharp, wide, geometric sci-fi font in all caps, glowing,
-  with wide letter spacing. No real logos or brands.
+A flat, 2D, top-down TRON schematic: glowing neon vector lines on pure
+black, with a faint cyan grid, heavy bloom and HUD tick marks around
+the border. The type is a wide, glowing, geometric sci-fi font in all
+caps. No real logos or brands.
 
-## The network
+## The orange line
 
-- **Daemons:** six to eight daemons are spread across the board. Each
-  is a cyan **hexagon**, a bold glowing outline with a smaller hexagon
-  nested inside and a slowly rotating ring of segmented dashes around
-  it.
-- **Identities:** at the center of each daemon sits a magenta **identity
-  glyph**, a small circular sigil like a fingerprint made of
-  concentric arcs, different for every daemon. Each daemon carries a
-  short name tag beside it in glowing caps: `ALPHA`, `BRAVO`, `ORION`,
-  `VEGA`, `NOVA`, `ECHO`.
-- **Providers:** white **diamonds** stand between the daemons, each
-  with a pulsing halo. A few carry tiny tags: `PROVIDER 01`,
-  `PROVIDER 02`, and so on.
-- **Tethers:** every daemon is wired to two, three or four of the
-  nearest providers by thin dim cyan traces with right-angle bends, like
-  circuit-board traces. Many providers are wired to several daemons. The
-  result is a dense, glowing mesh: every daemon has several providers,
-  and the providers are the junctions where daemons meet.
+- **The line:** one thick, glowing orange-red line, like a subway line
+  or a lightcycle wall. It climbs across the frame as a **staircase**
+  from bottom-left to top-right.
+- **The steps:** the line is made of seven stations, evenly spaced along
+  it like beads on a string. They alternate in type:
 
-## The relay
+  | # | station | shape |
+  |---|---|---|
+  | 1 | `ALPHA` | cyan hexagon |
+  | 2 | `P-02` | white diamond |
+  | 3 | `BRAVO` | cyan hexagon |
+  | 4 | `P-05` | white diamond |
+  | 5 | `ORION` | cyan hexagon |
+  | 6 | `P-07` | white diamond |
+  | 7 | `NOVA` | cyan hexagon |
 
-- **The run:** one route blazes across the mesh in hot orange-red, as
-  thick as a lightcycle wall and with an intense glow. It starts at
-  `ALPHA` near the bottom-left and ends at `NOVA` at the top-right.
-- **The path:** the route is made of exactly six straight segments.
-  Every segment runs between one hexagon and one diamond, never between
-  two hexagons, so the route **touches a white provider diamond between
-  every pair of daemons**. In order:
-  1. `ALPHA` ⬡ to the diamond `PROVIDER 02` ◆.
-  2. `PROVIDER 02` ◆ to `BRAVO` ⬡.
-  3. `BRAVO` ⬡ to the diamond `PROVIDER 05` ◆.
-  4. `PROVIDER 05` ◆ to `ORION` ⬡.
-  5. `ORION` ⬡ to the diamond `PROVIDER 07` ◆.
-  6. `PROVIDER 07` ◆ to `NOVA` ⬡.
-- **Through the providers:** the route passes visibly **through the
-  center** of each of those three diamonds, entering one side and
-  leaving the other. Each of the three diamonds blazes orange-white
-  where the route passes through it, the brightest points in the image.
-  No orange line ever links two hexagons directly.
-- **One provider per hop:** each daemon on the route is also wired to
-  two or three other diamonds by dim cyan traces. The route takes
-  exactly one of them, and the others stay dim.
-- **Packets:** small bright squares of light ride along the orange
-  route, leaving motion streaks.
-- **Each hop:** where the route enters a daemon, the daemon's hexagon
-  flares orange and its identity glyph pulses magenta, a handshake.
-  Tiny glowing labels mark the order along the path: `HOP 1`, `HOP 2`,
-  `HOP 3`.
-- **The route's tag:** small text runs beside the route, like a flight
-  path readout: `ALPHA ▸ P02 ▸ BRAVO ▸ P05 ▸ ORION ▸ P07 ▸ NOVA`.
+- **The pattern:** hexagon, diamond, hexagon, diamond, hexagon, diamond,
+  hexagon. Each diamond sits exactly on the line, halfway between the
+  two hexagons beside it, like a station on a subway line.
+- **Size:** the diamonds are as large as the hexagons, so they read as
+  stations, not as small dots.
+- **The line inside the stations:** the line enters each station on one
+  side and exits on the opposite side. Each diamond and each hexagon is
+  lit up orange inside where the line runs through it.
+- **Packets:** small white squares of light ride along the line.
+
+## The stations
+
+- **Daemons:** each hexagon has a magenta circular sigil at its center,
+  like a fingerprint made of arcs, and a different one for every daemon.
+  That sigil is the daemon's identity. Its name is written beside it in
+  glowing caps.
+- **Providers:** each diamond has a soft white halo and its label,
+  `P-02`, `P-05` or `P-07`, beside it.
+
+## The rest of the map
+
+- **Spare providers:** around the orange line, dimmer extra white
+  diamonds are scattered: other providers. Each hexagon on the line
+  also has two thin, dim cyan **spur lines** branching off it to two of
+  these extra diamonds. They are the daemon's other providers, unlit
+  and unused by this route.
+- **Distant daemons:** at the edges of the map sit more dim cyan
+  hexagons, with their own dim spur lines to diamonds.
+- **Brightness:** the dim spurs show that every daemon has several
+  providers, while the bright orange line uses one of them per step.
 
 ## Text
 
-- **The title** is huge and glowing across the top: **THE RELAY**.
-  Beneath it, a thin line reads: `DAEMON ▸ PROVIDER ▸ DAEMON ▸ PROVIDER ▸ …`
-- **A legend** sits in the bottom-right corner, in a small HUD panel:
-  - ⬡ `DAEMON`
-  - ◆ `PROVIDER`
-  - ◉ `IDENTITY`
-  - an orange line, `ACTIVE ROUTE`
-- **A status readout** sits in the bottom-left corner: `ROUTE LOCKED —
-  4 DAEMONS — 3 PROVIDERS — ONE PER HOP`.
+- **The title**, huge and glowing at the top: **THE RELAY**.
+- **Beneath it**, in thin caps: `DAEMON ▸ PROVIDER ▸ DAEMON ▸ PROVIDER ▸ DAEMON`.
+- **A legend** sits bottom-right in a small HUD panel:
+  - a cyan hexagon, `DAEMON`;
+  - a white diamond, `PROVIDER`;
+  - a magenta sigil, `IDENTITY`;
+  - an orange line, `RELAY`.
+- **A status readout** sits bottom-left: `ROUTE LOCKED — ONE PROVIDER PER HOP`.
 
 ## Composition
 
-- **Top-down and flat:** the view is exactly overhead.
-- **The diagonal:** the orange route cuts a bold diagonal from
-  bottom-left to top-right. The dim mesh fills the rest of the board,
-  so the eye goes straight to the route.
-- **The feel:** high contrast and crisp, a mission-control screen at
-  the moment a route locks in.
-- **Aspect ratio:** 16:9.
+A flat overhead view, 16:9. The orange staircase with its seven
+alternating stations is the bright heart of the image, and the dim
+mesh fills the rest of the board.
