@@ -24,6 +24,7 @@ pub mod agents;
 pub mod agents_templates;
 pub mod dependency_tools;
 pub mod events;
+pub mod identities;
 pub mod daemons;
 pub mod providers;
 pub mod roles;

@@ -62,6 +62,7 @@ pub mod dependencies;
 pub mod dependency_tools;
 pub mod events;
 pub mod hash;
+pub mod identities;
 pub mod image_info;
 pub mod in_use;
 pub mod roles;

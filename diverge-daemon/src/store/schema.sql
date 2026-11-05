@@ -261,6 +261,16 @@ CREATE TABLE IF NOT EXISTS diverge.volume_tags (
     PRIMARY KEY (provider, name)
 );
 
+-- The tags on the host's identities: an identity is a file under the
+-- root's identities/, never a record, so its tags are kept here by its
+-- issuer and its subject, one row per tagged identity.
+CREATE TABLE IF NOT EXISTS diverge.identity_tags (
+    issuer      TEXT NOT NULL,
+    subject     TEXT NOT NULL,
+    tags        TEXT[] NOT NULL DEFAULT '{}',
+    PRIMARY KEY (issuer, subject)
+);
+
 -- What the daemon has learnt of an image's /DIVERGE.md, by digest: a
 -- digest is the image, so an answer found once is the answer for good.
 -- `document` is the document parsed; NULL is that the image ships none.

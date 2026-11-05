@@ -2,7 +2,7 @@
 
 use diverge_sdk::daemon::endpoints::identities::login::client::request;
 use diverge_sdk::daemon::endpoints::identities::login::server::response::{Frame, Pending};
-use diverge_sdk::daemon::grant::identities::Action;
+use diverge_sdk::daemon::grant::identities::{Make, Over};
 use diverge_sdk::identities::{Error, Name};
 use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -22,7 +22,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// The rules:
 ///
-/// 1. **Judged.** One `Forbidden` with no `login` grant.
+/// 1. **Judged.** An identity not on the host needs the making `login`;
+///    one already there, a grant of `login` that reaches it, by its tags
+///    among the rest. Else one `Forbidden`.
 /// 2. **Never waiting.** The identity's lock is taken only if nobody
 ///    holds it: `Held` at once if another login or a reader does, and
 ///    nothing asked of the issuer. A login that cannot begin otherwise —
@@ -56,12 +58,25 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     };
-    if !judge::identities::holds(&standing, Action::Login) {
+    let name = Name { issuer: frame.issuer, subject: frame.subject };
+    let allowed = {
+        let mut conn = daemon.store.acquire().await?;
+        match super::held(&mut conn, daemon).await? {
+            Ok(identities) => match identities.iter().find(|identity| identity.issuer == name.issuer && identity.subject == name.subject) {
+                Some(identity) => judge::identities::over(&standing, Over::Login, identity),
+                None => judge::identities::make(&standing, Make::Login),
+            },
+            Err(error) => {
+                reply::reply(scope, &Frame::Error(reply::failure(&error))).await;
+                return Ok(());
+            }
+        }
+    };
+    if !allowed {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
     // Rule 2.
-    let name = Name { issuer: frame.issuer, subject: frame.subject };
     let identities = daemon.authenticator.identities();
     // Rule 3.
     if let Some(password) = frame.password.as_deref() {
