@@ -6,6 +6,7 @@
 use clap::Args;
 use diverge_sdk::daemon::endpoints::identities::login::{client::execute, client::request, server::response};
 use futures_util::StreamExt as _;
+use tokio::io::AsyncReadExt as _;
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
@@ -42,6 +43,11 @@ pub struct Arguments {
     /// person approves it on another device.
     #[arg(long)]
     pub no_browser: bool,
+    /// Sign in by the identity's password, read from stdin to its end,
+    /// the trailing line end dropped, in place of the body's
+    /// `password`: no code, no browser.
+    #[arg(long)]
+    pub password_stdin: bool,
     /// What is beneath the request: `request-schema`, the JSON Schema
     /// of the body it takes, or `response-schema`, the JSON Schema of
     /// every line it prints — printed in place of putting any request.
@@ -59,9 +65,11 @@ pub struct Arguments {
 ///    page with the code in it where the issuer gives one, else at the
 ///    verification page — unless `--no-browser`. A browser that will not
 ///    open is no error: the line printed names the page, and any device
-///    may open it. Diverge's own issuer has no sign-in page: its
-///    operator approves the code on its host, `diverge issuer approve
-///    <code>`.
+///    may open it. A password login sends no `pending`, so no browser
+///    opens.
+/// 5. **By password.** `--password-stdin` reads the password from stdin
+///    and sends it as the body's `password`: the daemon signs in by the
+///    password grant, how Diverge's own issuer signs in.
 /// 4. **To the end.** The answers are read to the daemon's finish: a
 ///    login always ends, approved, denied, as another identity, or at
 ///    the code's expiry. Ending the command ends the connection, which
@@ -91,6 +99,7 @@ pub async fn run(
         ("client_id", arguments.client_id),
         ("scope", arguments.scope),
         ("resource", arguments.resource),
+        ("password", if arguments.password_stdin { Some(read_password().await?) } else { None }),
     ] {
         if let Some(value) = value {
             request.insert(member.to_string(), serde_json::Value::String(value));
@@ -111,4 +120,17 @@ pub async fn run(
         }
     }
     Ok(())
+}
+
+/// The password on stdin, all of it, the trailing line end dropped. An
+/// empty one is refused.
+async fn read_password() -> Result<String, Error> {
+    let mut text = String::new();
+    tokio::io::stdin().read_to_string(&mut text).await.map_err(Error::Stdin)?;
+    let trimmed = text.trim_end_matches(['\r', '\n']).len();
+    text.truncate(trimmed);
+    if text.is_empty() {
+        return Err(Error::EmptyPassword);
+    }
+    Ok(text)
 }

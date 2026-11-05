@@ -22,8 +22,13 @@ use crate::arguments::Identities;
 ///    the line names the page. The approval, as the subject named, is
 ///    written — replacing an identity already there, signed out or not
 ///    — and printed as `{"issuer","subject"}`; any other ending is the
-///    error. Diverge's own issuer has no sign-in page: its operator
-///    approves the code on its host, `diverge issuer approve <code>`.
+///    error.
+/// 4. **Login by password.** With `--password-stdin`, the password is
+///    read from stdin — an empty one refused — and sent to the issuer
+///    once, the password grant: no code, no browser. The identity, as
+///    the subject named, is written and printed as
+///    `{"issuer","subject"}`; any other ending is the error. Diverge's
+///    own issuer signs in this way.
 /// 2. **List.** Every identity, `{"issuer","subject"}`, one line each.
 /// 3. **Remove.** The identity taken out, printed as `{"removed":…}`.
 ///
@@ -37,8 +42,17 @@ pub async fn run(root: &Path, command: Identities) -> Result<(), Error> {
             client_id,
             scope,
             resource,
+            password_stdin,
         } => {
             let name = Name { issuer, subject };
+            // Rule 4.
+            if password_stdin {
+                let password = super::issuer::read_password().await?;
+                let name = store
+                    .login_password(&name, &client_id, &password, scope.as_deref().unwrap_or(""), resource.as_deref())
+                    .await?;
+                return print(&[json!({ "issuer": name.issuer, "subject": name.subject })]).await;
+            }
             let pending = store
                 .login(
                     &name,

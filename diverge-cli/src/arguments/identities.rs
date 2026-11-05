@@ -7,13 +7,13 @@ use clap::Subcommand;
 /// No daemon is dialled, and no command prints a token.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Identities {
-    /// Sign an identity in by the device authorization grant: the
-    /// identity's lock held for the whole login, the browser opened at
-    /// the issuer's verification page, and the identity written once
-    /// the code is approved — replacing one already there, signed out
-    /// or not. An approval as another subject writes nothing. Diverge's
-    /// own issuer has no sign-in page: its operator approves the code on
-    /// its host, `diverge issuer approve <code>`.
+    /// Sign an identity in: with `--password-stdin`, by its password,
+    /// OAuth's password grant, one round trip — how Diverge's own issuer
+    /// signs in; else by the device authorization grant, the browser
+    /// opened at the issuer's verification page. The identity's lock is
+    /// held for the whole login, and the identity is written once the
+    /// issuer grants it — replacing one already there, signed out or
+    /// not. A grant as another subject writes nothing.
     Login {
         /// The issuer, exactly as its discovery document names it.
         #[arg(long)]
@@ -33,6 +33,10 @@ pub enum Identities {
         /// the issuer's own choice.
         #[arg(long)]
         resource: Option<String>,
+        /// Sign in by the identity's password, read from stdin to its
+        /// end, the trailing line end dropped: no code, no browser.
+        #[arg(long)]
+        password_stdin: bool,
     },
     /// Every identity on the host, as `{"issuer","subject"}`, one JSON
     /// line each.
