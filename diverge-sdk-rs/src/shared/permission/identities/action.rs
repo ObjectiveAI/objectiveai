@@ -15,4 +15,8 @@ pub enum Action {
     /// [`identities::subjects`](crate::daemon::endpoints::identities::subjects)
     /// does.
     Subjects,
+    /// Sign one in on the host, as
+    /// [`identities::login`](crate::daemon::endpoints::identities::login)
+    /// does: the one act that writes.
+    Login,
 }

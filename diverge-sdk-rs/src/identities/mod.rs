@@ -46,7 +46,9 @@
 //! 6. **Login.** [`login`](Identities::login) names the identity it
 //!    signs in, takes its `.lock` before anything else, and holds it
 //!    until the login ends, approved or not — a second login of the
-//!    same identity, and every reader of it, waits its turn. It is
+//!    same identity, and every reader of it, waits its turn;
+//!    [`try_login`](Identities::try_login) waits for no one, and is
+//!    [`Error::Held`] at once while another holds it. It is
 //!    OAuth's device authorization grant, RFC 8628, as a public
 //!    client: the issuer's
 //!    discovery document read, and it must name the issuer exactly as

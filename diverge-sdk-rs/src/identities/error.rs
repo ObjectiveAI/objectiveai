@@ -58,6 +58,9 @@ pub enum Error {
     SignedOut(Name),
     /// The device code expired before a person decided.
     Expired,
+    /// A login that does not wait found the identity's lock held by
+    /// another login or a reader: nothing was asked of the issuer.
+    Held(Name),
     /// The person denied the device code.
     Denied,
     /// The login's answer carried no ID token, or one with no `sub`.
@@ -101,6 +104,7 @@ impl fmt::Display for Error {
             },
             Error::SignedOut(name) => write!(f, "the identity {name} is signed out; it logs in again"),
             Error::Expired => f.write_str("the device code expired before it was approved"),
+            Error::Held(name) => write!(f, "{name} is held by another login or reader"),
             Error::Denied => f.write_str("the device code was denied"),
             Error::Subject => f.write_str("the login's answer named no subject"),
             Error::OtherSubject { expected, answered } => write!(f, "the login for {expected} was approved as {answered}; nothing was written"),

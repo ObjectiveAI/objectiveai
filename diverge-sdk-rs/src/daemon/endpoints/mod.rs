@@ -157,8 +157,9 @@
 //! | `125` | [`providers::discover`] |
 //! | `126` | [`identities::issuers`] |
 //! | `127` | [`identities::subjects`] |
+//! | `128` | [`identities::login`] |
 //!
-//! One hundred and twenty-eight, so far. Every one of them carries the optional
+//! One hundred and twenty-nine, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request

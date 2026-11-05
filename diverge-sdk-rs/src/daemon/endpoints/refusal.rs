@@ -118,6 +118,7 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDiscover(_) => bytes(&providers::discover::server::response::Frame::Forbidden),
             ClientRequest::IdentitiesIssuers(_) => bytes(&identities::issuers::server::response::Frame::Forbidden),
             ClientRequest::IdentitiesSubjects(_) => bytes(&identities::subjects::server::response::Frame::Forbidden),
+            ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
     }
@@ -232,6 +233,7 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDiscover(_) => bytes(&providers::discover::server::response::Frame::Error(error)),
             ClientRequest::IdentitiesIssuers(_) => bytes(&identities::issuers::server::response::Frame::Error(error)),
             ClientRequest::IdentitiesSubjects(_) => bytes(&identities::subjects::server::response::Frame::Error(error)),
+            ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
     }

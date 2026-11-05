@@ -40,6 +40,25 @@ impl Identities {
         let paths = self.paths(name);
         folder_owned(&paths.folder).await?;
         let held = file_lock::wait_exclusive(&paths.lock).await.map_err(Error::Lock)?;
+        self.begin(held, name, client_id, scope, resource).await
+    }
+
+    /// [`login`](Self::login), the lock taken only if nobody holds it:
+    /// [`Error::Held`] at once if another login or a reader of the
+    /// identity holds it, and nothing asked of the issuer.
+    pub async fn try_login(&self, name: &Name, client_id: &str, scope: &str, resource: Option<&str>) -> Result<Pending, Error> {
+        let paths = self.paths(name);
+        folder_owned(&paths.folder).await?;
+        let Some(held) = file_lock::try_exclusive(&paths.lock).await.map_err(Error::Lock)? else {
+            return Err(Error::Held(name.clone()));
+        };
+        self.begin(held, name, client_id, scope, resource).await
+    }
+
+    /// The login, the identity's lock in hand: the discovery document
+    /// read, the device code asked for, and the [`Pending`] holding the
+    /// lock from here on — a failure here lets it go at once.
+    async fn begin(&self, held: file_lock::Held, name: &Name, client_id: &str, scope: &str, resource: Option<&str>) -> Result<Pending, Error> {
         let issuer = name.issuer.as_str();
         let discovery = discover(&self.http, issuer).await?;
         let device = discovery

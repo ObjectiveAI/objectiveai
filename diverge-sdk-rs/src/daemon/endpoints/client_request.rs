@@ -243,6 +243,8 @@ pub enum ClientRequest<'a> {
     IdentitiesIssuers(identities::issuers::client::request::Frame),
     /// Tag `127`. The subjects signed in at one issuer.
     IdentitiesSubjects(identities::subjects::client::request::Frame),
+    /// Tag `128`. An identity signed in on the daemon's host.
+    IdentitiesLogin(identities::login::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -366,6 +368,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersDiscover(frame) => frame.encode(out),
             ClientRequest::IdentitiesIssuers(frame) => frame.encode(out),
             ClientRequest::IdentitiesSubjects(frame) => frame.encode(out),
+            ClientRequest::IdentitiesLogin(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -705,6 +708,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             127 => identities::subjects::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesSubjects)
                 .ok(),
+            128 => identities::login::client::request::Frame::decode(bytes)
+                .map(ClientRequest::IdentitiesLogin)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -819,6 +825,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersDiscover(_) => f.write_str("providers discover"),
             ClientRequest::IdentitiesIssuers(_) => f.write_str("identities issuers"),
             ClientRequest::IdentitiesSubjects(_) => f.write_str("identities subjects"),
+            ClientRequest::IdentitiesLogin(_) => f.write_str("identities login"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
@@ -936,6 +943,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "providers/discover" => Some(125),
         "identities/issuers" => Some(126),
         "identities/subjects" => Some(127),
+        "identities/login" => Some(128),
         _ => None,
     }
 }
@@ -1050,6 +1058,7 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDiscover(_) => "providers/discover",
             ClientRequest::IdentitiesIssuers(_) => "identities/issuers",
             ClientRequest::IdentitiesSubjects(_) => "identities/subjects",
+            ClientRequest::IdentitiesLogin(_) => "identities/login",
             ClientRequest::Invalid(_) => "",
         }
     }
