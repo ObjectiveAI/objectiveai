@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{accounts, agents, dependency_tools, events, identities, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
+use super::{accounts, agents, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -166,9 +166,9 @@ pub enum ClientRequest<'a> {
     /// Tag `81`. Serve a tool to another daemon.
     StandaloneToolsConnect(standalone_tools::connect::client::request::Frame),
     /// Tag `83`. Get one daemon.
-    ProvidersDaemonsGet(providers::daemons::get::client::request::Frame),
+    DaemonsGet(daemons::get::client::request::Frame),
     /// Tag `84`. List the remote daemons, narrowed.
-    ProvidersDaemonsList(providers::daemons::list::client::request::Frame),
+    DaemonsList(daemons::list::client::request::Frame),
     /// Tag `89`. List the caller's dependency templates, narrowed.
     DependencyToolsList(dependency_tools::list::client::request::Frame),
     /// Tag `90`. Get one dependency template.
@@ -247,6 +247,16 @@ pub enum ClientRequest<'a> {
     IdentitiesLogin(identities::login::client::request::Frame),
     /// Tag `129`. Tags taken off one of the host's identities.
     IdentitiesUntag(identities::untag::client::request::Frame),
+    /// Tag `130`. A remote daemon recorded.
+    DaemonsAdd(daemons::add::client::request::Frame),
+    /// Tag `131`. A remote daemon's record changed.
+    DaemonsEdit(daemons::edit::client::request::Frame),
+    /// Tag `132`. A remote daemon's record deleted.
+    DaemonsDelete(daemons::delete::client::request::Frame),
+    /// Tag `133`. Tags put on a remote daemon's record.
+    DaemonsTag(daemons::tag::client::request::Frame),
+    /// Tag `134`. Tags taken off a remote daemon's record.
+    DaemonsUntag(daemons::untag::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -334,8 +344,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::PostgresGet(frame) => frame.encode(out),
             ClientRequest::PostgresList(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsConnect(frame) => frame.encode(out),
-            ClientRequest::ProvidersDaemonsGet(frame) => frame.encode(out),
-            ClientRequest::ProvidersDaemonsList(frame) => frame.encode(out),
+            ClientRequest::DaemonsGet(frame) => frame.encode(out),
+            ClientRequest::DaemonsList(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsAttachAgentTemplate(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsDetachAgentTemplate(frame) => frame.encode(out),
             ClientRequest::DependencyToolsList(frame) => frame.encode(out),
@@ -371,6 +381,11 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::IdentitiesList(frame) => frame.encode(out),
             ClientRequest::IdentitiesTag(frame) => frame.encode(out),
             ClientRequest::IdentitiesUntag(frame) => frame.encode(out),
+            ClientRequest::DaemonsAdd(frame) => frame.encode(out),
+            ClientRequest::DaemonsEdit(frame) => frame.encode(out),
+            ClientRequest::DaemonsDelete(frame) => frame.encode(out),
+            ClientRequest::DaemonsTag(frame) => frame.encode(out),
+            ClientRequest::DaemonsUntag(frame) => frame.encode(out),
             ClientRequest::IdentitiesLogin(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -603,11 +618,11 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             81 => standalone_tools::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::StandaloneToolsConnect)
                 .ok(),
-            83 => providers::daemons::get::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDaemonsGet)
+            83 => daemons::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsGet)
                 .ok(),
-            84 => providers::daemons::list::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDaemonsList)
+            84 => daemons::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsList)
                 .ok(),
             89 => dependency_tools::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DependencyToolsList)
@@ -714,6 +729,21 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             129 => identities::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesUntag)
                 .ok(),
+            130 => daemons::add::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsAdd)
+                .ok(),
+            131 => daemons::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsEdit)
+                .ok(),
+            132 => daemons::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsDelete)
+                .ok(),
+            133 => daemons::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsTag)
+                .ok(),
+            134 => daemons::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsUntag)
+                .ok(),
             128 => identities::login::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesLogin)
                 .ok(),
@@ -795,8 +825,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::PostgresGet(_) => f.write_str("postgres get"),
             ClientRequest::PostgresList(_) => f.write_str("postgres list"),
             ClientRequest::StandaloneToolsConnect(_) => f.write_str("standalone tools connect"),
-            ClientRequest::ProvidersDaemonsGet(_) => f.write_str("providers daemons get"),
-            ClientRequest::ProvidersDaemonsList(_) => f.write_str("providers daemons list"),
+            ClientRequest::DaemonsGet(_) => f.write_str("daemons get"),
+            ClientRequest::DaemonsList(_) => f.write_str("daemons list"),
             ClientRequest::StandaloneToolsAttachAgentTemplate(_) => f.write_str("standalone tools attach agent template"),
             ClientRequest::StandaloneToolsDetachAgentTemplate(_) => f.write_str("standalone tools detach agent template"),
             ClientRequest::DependencyToolsList(_) => f.write_str("dependency tools list"),
@@ -832,6 +862,11 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::IdentitiesList(_) => f.write_str("identities list"),
             ClientRequest::IdentitiesTag(_) => f.write_str("identities tag"),
             ClientRequest::IdentitiesUntag(_) => f.write_str("identities untag"),
+            ClientRequest::DaemonsAdd(_) => f.write_str("daemons add"),
+            ClientRequest::DaemonsEdit(_) => f.write_str("daemons edit"),
+            ClientRequest::DaemonsDelete(_) => f.write_str("daemons delete"),
+            ClientRequest::DaemonsTag(_) => f.write_str("daemons tag"),
+            ClientRequest::DaemonsUntag(_) => f.write_str("daemons untag"),
             ClientRequest::IdentitiesLogin(_) => f.write_str("identities login"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
@@ -841,7 +876,7 @@ impl fmt::Display for ClientRequest<'_> {
 /// The tag of the request `path` names: the request's name as a
 /// client writes it on a command line, the family and the endpoint
 /// joined by `/` — `agents/create`, `standalone_tools/templates/list`,
-/// `providers/daemons/add` — which is the module path of the
+/// `daemons/add` — which is the module path of the
 /// endpoint, slashed. `None` for a name that is no request.
 pub fn tag(path: &str) -> Option<u8> {
     match path {
@@ -914,8 +949,8 @@ pub fn tag(path: &str) -> Option<u8> {
         "postgres/get" => Some(79),
         "postgres/list" => Some(80),
         "standalone_tools/connect" => Some(81),
-        "providers/daemons/get" => Some(83),
-        "providers/daemons/list" => Some(84),
+        "daemons/get" => Some(83),
+        "daemons/list" => Some(84),
         "dependency_tools/list" => Some(89),
         "dependency_tools/get" => Some(90),
         "dependency_tools/delete" => Some(91),
@@ -951,6 +986,11 @@ pub fn tag(path: &str) -> Option<u8> {
         "identities/list" => Some(126),
         "identities/tag" => Some(127),
         "identities/untag" => Some(129),
+        "daemons/add" => Some(130),
+        "daemons/edit" => Some(131),
+        "daemons/delete" => Some(132),
+        "daemons/tag" => Some(133),
+        "daemons/untag" => Some(134),
         "identities/login" => Some(128),
         _ => None,
     }
@@ -1030,8 +1070,8 @@ impl ClientRequest<'_> {
             ClientRequest::PostgresGet(_) => "postgres/get",
             ClientRequest::PostgresList(_) => "postgres/list",
             ClientRequest::StandaloneToolsConnect(_) => "standalone_tools/connect",
-            ClientRequest::ProvidersDaemonsGet(_) => "providers/daemons/get",
-            ClientRequest::ProvidersDaemonsList(_) => "providers/daemons/list",
+            ClientRequest::DaemonsGet(_) => "daemons/get",
+            ClientRequest::DaemonsList(_) => "daemons/list",
             ClientRequest::StandaloneToolsAttachAgentTemplate(_) => "standalone_tools/attach_agent_template",
             ClientRequest::StandaloneToolsDetachAgentTemplate(_) => "standalone_tools/detach_agent_template",
             ClientRequest::DependencyToolsList(_) => "dependency_tools/list",
@@ -1067,6 +1107,11 @@ impl ClientRequest<'_> {
             ClientRequest::IdentitiesList(_) => "identities/list",
             ClientRequest::IdentitiesTag(_) => "identities/tag",
             ClientRequest::IdentitiesUntag(_) => "identities/untag",
+            ClientRequest::DaemonsAdd(_) => "daemons/add",
+            ClientRequest::DaemonsEdit(_) => "daemons/edit",
+            ClientRequest::DaemonsDelete(_) => "daemons/delete",
+            ClientRequest::DaemonsTag(_) => "daemons/tag",
+            ClientRequest::DaemonsUntag(_) => "daemons/untag",
             ClientRequest::IdentitiesLogin(_) => "identities/login",
             ClientRequest::Invalid(_) => "",
         }

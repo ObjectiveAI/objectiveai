@@ -1,6 +1,6 @@
 //! A request refused in its own words, whichever request it is.
 
-use super::{ClientRequest, accounts, agents, dependency_tools, events, identities, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
+use super::{ClientRequest, accounts, agents, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
 use crate::shared::error::Error;
 use crate::wire::encode::{Encode, Writer};
 
@@ -82,8 +82,8 @@ impl ClientRequest<'_> {
             ClientRequest::PostgresGet(_) => bytes(&postgres::get::server::response::Frame::Forbidden),
             ClientRequest::PostgresList(_) => bytes(&postgres::list::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsConnect(_) => bytes(&standalone_tools::connect::server::response::Frame::Forbidden),
-            ClientRequest::ProvidersDaemonsGet(_) => bytes(&providers::daemons::get::server::response::Frame::Forbidden),
-            ClientRequest::ProvidersDaemonsList(_) => bytes(&providers::daemons::list::server::response::Frame::Forbidden),
+            ClientRequest::DaemonsGet(_) => bytes(&daemons::get::server::response::Frame::Forbidden),
+            ClientRequest::DaemonsList(_) => bytes(&daemons::list::server::response::Frame::Forbidden),
             ClientRequest::DependencyToolsList(_) => bytes(&dependency_tools::list::server::response::Frame::Forbidden),
             ClientRequest::DependencyToolsGet(_) => bytes(&dependency_tools::get::server::response::Frame::Forbidden),
             ClientRequest::DependencyToolsDelete(_) => bytes(&dependency_tools::delete::server::response::Frame::Forbidden),
@@ -119,6 +119,11 @@ impl ClientRequest<'_> {
             ClientRequest::IdentitiesList(_) => bytes(&identities::list::server::response::Frame::Forbidden),
             ClientRequest::IdentitiesTag(_) => bytes(&identities::tag::server::response::Frame::Forbidden),
             ClientRequest::IdentitiesUntag(_) => bytes(&identities::untag::server::response::Frame::Forbidden),
+            ClientRequest::DaemonsAdd(_) => bytes(&daemons::add::server::response::Frame::Forbidden),
+            ClientRequest::DaemonsEdit(_) => bytes(&daemons::edit::server::response::Frame::Forbidden),
+            ClientRequest::DaemonsDelete(_) => bytes(&daemons::delete::server::response::Frame::Forbidden),
+            ClientRequest::DaemonsTag(_) => bytes(&daemons::tag::server::response::Frame::Forbidden),
+            ClientRequest::DaemonsUntag(_) => bytes(&daemons::untag::server::response::Frame::Forbidden),
             ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
@@ -198,8 +203,8 @@ impl ClientRequest<'_> {
             ClientRequest::PostgresGet(_) => bytes(&postgres::get::server::response::Frame::Error(error)),
             ClientRequest::PostgresList(_) => bytes(&postgres::list::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsConnect(_) => bytes(&standalone_tools::connect::server::response::Frame::Error(error)),
-            ClientRequest::ProvidersDaemonsGet(_) => bytes(&providers::daemons::get::server::response::Frame::Error(error)),
-            ClientRequest::ProvidersDaemonsList(_) => bytes(&providers::daemons::list::server::response::Frame::Error(error)),
+            ClientRequest::DaemonsGet(_) => bytes(&daemons::get::server::response::Frame::Error(error)),
+            ClientRequest::DaemonsList(_) => bytes(&daemons::list::server::response::Frame::Error(error)),
             ClientRequest::DependencyToolsList(_) => bytes(&dependency_tools::list::server::response::Frame::Error(error)),
             ClientRequest::DependencyToolsGet(_) => bytes(&dependency_tools::get::server::response::Frame::Error(error)),
             ClientRequest::DependencyToolsDelete(_) => bytes(&dependency_tools::delete::server::response::Frame::Error(error)),
@@ -235,6 +240,11 @@ impl ClientRequest<'_> {
             ClientRequest::IdentitiesList(_) => bytes(&identities::list::server::response::Frame::Error(error)),
             ClientRequest::IdentitiesTag(_) => bytes(&identities::tag::server::response::Frame::Error(error)),
             ClientRequest::IdentitiesUntag(_) => bytes(&identities::untag::server::response::Frame::Error(error)),
+            ClientRequest::DaemonsAdd(_) => bytes(&daemons::add::server::response::Frame::Error(error)),
+            ClientRequest::DaemonsEdit(_) => bytes(&daemons::edit::server::response::Frame::Error(error)),
+            ClientRequest::DaemonsDelete(_) => bytes(&daemons::delete::server::response::Frame::Error(error)),
+            ClientRequest::DaemonsTag(_) => bytes(&daemons::tag::server::response::Frame::Error(error)),
+            ClientRequest::DaemonsUntag(_) => bytes(&daemons::untag::server::response::Frame::Error(error)),
             ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }

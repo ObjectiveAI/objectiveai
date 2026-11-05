@@ -3,39 +3,37 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Where a request is served: on another daemon — one of the remote
-/// daemons of this daemon's configuration, see
-/// [`providers::daemons`](crate::daemon::endpoints::providers::daemons),
-/// by name. Every request of the daemon's wire carries this as an
-/// optional member, `relay`; absent, the request is served by the
-/// daemon it was sent to.
+/// Where a request is served: through other daemons, by the names of this
+/// daemon's [records](crate::daemon::endpoints::daemons) of them. Every
+/// request of the daemon's wire carries this as an optional member,
+/// `relay`, an array of names; absent, or empty, the request is served by
+/// the daemon it was sent to. The rules:
 ///
-/// # A true conduit
-///
-/// A daemon that reads a request with `relay` does not serve it. It
-/// checks that the caller may relay — the daemons grant's `relay`
-/// action — takes or opens its connection to that daemon, made as this
-/// daemon's own identity at the remote's issuer, puts the request there
-/// with this member taken out, and carries every frame both ways until
-/// the remote finishes: the responses, the channels either side opens,
-/// their responses and their finishes, byte for byte, reading none of
-/// it. The scope and channel numbers are the daemon's to remap, since
-/// the client's numbering and the daemon-to-daemon numbering are two
-/// relationships; the client sees its own. The remote sees an ordinary
-/// request from this daemon's account there, judged by that account's
-/// standing, and nothing of who sent it here; and since the member is
-/// taken out, a request is never relayed twice.
+/// 1. **The first name is this daemon's.** A daemon that reads a request
+///    with `relay` does not serve it: it takes the first name off, finds
+///    its record of that name, and judges that the caller may relay to it
+///    — the daemons grant's `relay` over that record — and nothing else
+///    of the request.
+/// 2. **The rest is the next daemon's.** It connects to that remote as
+///    the account the record names, and puts the request there with the
+///    first name taken off: the rest as the request's `relay`, or no
+///    `relay` where none is left. The remote judges the next name, and
+///    then the request itself, as that account's.
+/// 3. **A true conduit.** It carries every frame both ways until the
+///    remote finishes — the responses, the channels either side opens,
+///    their responses and their finishes, byte for byte, reading none of
+///    it. The scope and channel numbers are the daemon's to remap, since
+///    the client's numbering and the daemon-to-daemon numbering are two
+///    relationships; the client sees its own.
 ///
 /// # What a refusal looks like
 ///
-/// A relay the daemon will not make — the caller holds no grant to
-/// relay, no remote daemon is the one named, the connection could not
-/// be opened — is answered as the request's own `forbidden` or
-/// `error`, the one answer every endpoint has, so a client reading the
-/// endpoint's own frames reads it.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// A relay the daemon will not make — no record of the first name, the
+/// caller holds no grant to relay to it, the remote could not be reached
+/// — is answered as the request's own `forbidden` or `error`, the one
+/// answer every endpoint has, so a client reading the endpoint's own
+/// frames reads it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
-pub struct Relay {
-    /// The remote daemon, by its name in the configuration.
-    pub daemon: String,
-}
+#[serde(transparent)]
+pub struct Relay(pub Vec<String>);

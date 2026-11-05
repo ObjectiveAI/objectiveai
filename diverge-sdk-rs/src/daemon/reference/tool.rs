@@ -30,8 +30,8 @@ pub enum Tool {
     /// connected tool only, which has no template; the pair names it
     /// once and for all, as the register named it.
     Connected {
-        /// The daemon the tool is on, by the name the configuration
-        /// gives it.
+        /// The daemon the tool is on, by the name of this daemon's record
+        /// of it: see [`daemons`](crate::daemon::endpoints::daemons).
         daemon: String,
         /// The tool, as that daemon names it: any of these, read by
         /// that daemon and compared by this one.

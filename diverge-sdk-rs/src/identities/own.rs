@@ -69,6 +69,28 @@ impl Own {
         Ok(token.expose().to_string())
     }
 
+    /// The ID token of the identity `name`, one of the host's, good for
+    /// longer than [`VALID_FOR`]: what is presented to a remote daemon
+    /// as the account of ours a record of it names, whichever subject
+    /// `own` names at that issuer. The answer's error is a reason for a
+    /// log.
+    pub async fn present_as(&self, name: &Name) -> Result<String, String> {
+        let token = self.identities.id_token(name, VALID_FOR).await.map_err(|error| error.to_string())?;
+        Ok(token.expose().to_string())
+    }
+
+    /// Another end's `token`, verified as rule 3 verifies one, trusting
+    /// `issuer` alone: what a remote daemon's answer is judged by, its
+    /// issuer the record's whether or not `own` names a subject there.
+    pub async fn verify_from(&self, token: &str, issuer: &str) -> Result<Peer, String> {
+        let verified = self
+            .key_sets
+            .verify(token, |trusted| trusted == issuer, None)
+            .await
+            .map_err(|error| error.to_string())?;
+        Ok(Peer { issuer: verified.issuer, subject: verified.subject })
+    }
+
     /// Another end's `token`, verified — see rules 2 and 3. The
     /// answer's error is a reason for a log.
     pub async fn verify(&self, token: &str) -> Result<Peer, String> {

@@ -15,9 +15,9 @@ use crate::shared::listing::Keyed;
 /// 2. **The providers.** Every connected provider whose own `discover`
 ///    listing holds the identity, by the provider's identity, in order —
 ///    by issuer, then by subject — never empty, and never repeating one.
-/// 3. **What it makes.** A `daemons.connect` remote reaching it is
-///    `issuer` as its `issuer`, and one link per provider: `provider`
-///    that provider, `daemon` this identity.
+/// 3. **What it makes.** A [`daemons`](crate::daemon::endpoints::daemons)
+///    record of it names `issuer` and `subject` as its `daemon`: the
+///    remote it reaches, through any one of `providers`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Discovered {

@@ -1,15 +1,17 @@
-//! What a grant over remote daemons allows.
+//! Grants over remote daemons that name none of them.
 //!
-//! The daemons this daemon reaches through its providers are its
-//! configuration's, read at its start: no request adds, edits or
-//! removes one. A grant over them reads them, connects a tool through
-//! one, or relays a request to one.
-//!
-//! Its own files are flattened into it, so everything is named
-//! through this module and not through the file it lives in.
+//! The remote daemons are the daemon's records of them, each one account
+//! of ours on another daemon. What a dependency tool template may ask
+//! over them, in the shapes [`permission`](crate::shared::permission)
+//! states: [`Make`], the action that records one; [`Over`], the actions
+//! over the records — reading, changing, deleting, and registering a
+//! connected tool on one or relaying to one — reaching by tags; and
+//! [`Permission`], one grant's worth of either, or of tagging.
 
-mod action;
+mod make;
+mod over;
 mod permission;
 
-pub use action::*;
+pub use make::*;
+pub use over::*;
 pub use permission::*;

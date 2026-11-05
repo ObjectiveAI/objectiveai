@@ -120,7 +120,7 @@ pub mod standalone_tools;
 pub mod standalone_tools_templates;
 pub mod dependency_tools;
 pub use crate::shared::permission::providers;
-pub use crate::shared::permission::daemons;
+pub mod daemons;
 pub mod accounts;
 pub mod roles;
 pub mod vault;

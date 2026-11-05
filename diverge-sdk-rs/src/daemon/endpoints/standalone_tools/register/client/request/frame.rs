@@ -10,7 +10,7 @@ use crate::daemon::reference;
 /// Ask the daemon to hold, under a name, a tool another daemon holds.
 ///
 /// Three things name the tool — the daemon it is on, by a record of
-/// [`providers::daemons`](crate::daemon::endpoints::providers::daemons),
+/// [`daemons`](crate::daemon::endpoints::daemons),
 /// the account on it this daemon reaches the tool as, by the record's
 /// name for it, and the tool as that daemon names it — and the name
 /// it is held
@@ -50,8 +50,9 @@ use crate::daemon::reference;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The daemon the tool is on, by its name in the configuration:
-    /// see [`providers::daemons`](crate::daemon::endpoints::providers::daemons).
+    /// The daemon the tool is on, by the name of this daemon's record of
+    /// it — and so the account of ours it is reached as: see
+    /// [`daemons`](crate::daemon::endpoints::daemons).
     /// A name no remote daemon has is the register's error. The
     /// caller must hold the daemons grant's `connect`.
     pub daemon: String,

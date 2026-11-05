@@ -2,7 +2,7 @@
 //!
 //! One request, one answer. A client names a daemon it holds an
 //! account on — a record of
-//! [`providers::daemons`](crate::daemon::endpoints::providers::daemons)
+//! [`daemons`](crate::daemon::endpoints::daemons)
 //! — and a tool as that daemon names it, and the name it wants the
 //! tool held under; the daemon answers that the tool exists under the
 //! name, that the name is already in use, or that it failed, and the

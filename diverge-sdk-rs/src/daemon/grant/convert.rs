@@ -1,6 +1,6 @@
 //! A tool's declared grants, as grants of the daemon's.
 
-use super::{Grant, accounts, agents, agents_templates, dependency_tools, identities, roles, standalone_tools, standalone_tools_templates, vault, volumes};
+use super::{Grant, accounts, agents, agents_templates, daemons, dependency_tools, identities, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
 /// A tool's grants, as its container declared them at registration and
@@ -106,7 +106,18 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
             },
         }),
         permission::Grant::Providers(permission) => Grant::Providers(permission),
-        permission::Grant::Daemons(permission) => Grant::Daemons(permission),
+        permission::Grant::Daemons(permission) => Grant::Daemons(match permission {
+            permission::daemons::Permission::Make(makes) => daemons::Permission::Make(makes),
+            permission::daemons::Permission::Over { actions, within } => daemons::Permission::Over {
+                actions,
+                within: within.map(daemons_filter),
+            },
+            permission::daemons::Permission::Tags { actions, within, tags } => daemons::Permission::Tags {
+                actions,
+                within: within.map(daemons_filter),
+                tags,
+            },
+        }),
         permission::Grant::Accounts(permission) => Grant::Accounts(match permission {
             permission::accounts::Permission::Make(makes) => accounts::Permission::Make(makes),
             permission::accounts::Permission::Over { actions, within } => accounts::Permission::Over {
@@ -243,6 +254,14 @@ fn accounts_filter(tags: Tags) -> crate::daemon::endpoints::accounts::list::clie
 
 fn roles_filter(tags: Tags) -> crate::daemon::endpoints::roles::list::client::request::Filter {
     crate::daemon::endpoints::roles::list::client::request::Filter {
+        all_tags: tags.all_tags,
+        any_tags: tags.any_tags,
+        ..Default::default()
+    }
+}
+
+fn daemons_filter(tags: Tags) -> crate::daemon::endpoints::daemons::list::client::request::Filter {
+    crate::daemon::endpoints::daemons::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()

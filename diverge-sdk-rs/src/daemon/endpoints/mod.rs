@@ -112,8 +112,8 @@
 //! | `80` | [`postgres::list`] |
 //! | `81` | [`standalone_tools::connect`] |
 //! | `82` | unused |
-//! | `83` | [`providers::daemons::get`] |
-//! | `84` | [`providers::daemons::list`] |
+//! | `83` | [`daemons::get`] |
+//! | `84` | [`daemons::list`] |
 //! | `85` | unused |
 //! | `86` | unused |
 //! | `87` | unused |
@@ -159,8 +159,13 @@
 //! | `127` | [`identities::tag`] |
 //! | `128` | [`identities::login`] |
 //! | `129` | [`identities::untag`] |
+//! | `130` | [`daemons::add`] |
+//! | `131` | [`daemons::edit`] |
+//! | `132` | [`daemons::delete`] |
+//! | `133` | [`daemons::tag`] |
+//! | `134` | [`daemons::untag`] |
 //!
-//! One hundred and thirty, so far. Every one of them carries the optional
+//! One hundred and thirty-five, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request
@@ -210,6 +215,7 @@ pub use client_request::*;
 
 pub mod accounts;
 pub mod agents;
+pub mod daemons;
 pub mod dependency_tools;
 pub mod events;
 pub mod identities;
