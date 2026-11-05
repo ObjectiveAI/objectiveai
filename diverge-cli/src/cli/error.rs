@@ -3,7 +3,7 @@
 use std::fmt;
 use std::io;
 
-use diverge_issuer::{password, signing};
+use diverge_issuer::signing;
 use diverge_sdk::identities;
 
 use crate::config;
@@ -30,20 +30,19 @@ pub enum Error {
     /// The root's identities refused, could not be opened, or a login
     /// did not come to an identity.
     Identities(identities::Error),
-    /// Stdin could not be read.
-    Stdin(io::Error),
     /// Stdout could not be written.
     Stdout(io::Error),
-    /// The password on stdin was empty.
-    EmptyPassword,
     /// The issuer's database refused, or could not be opened.
     Issuer(diverge_issuer::store::Error),
     /// A signing key could not be made.
     Signing(signing::Error),
-    /// A password could not be hashed.
-    Password(password::Error),
     /// The signing key could not be rotated: why.
     Rotate(String),
+    /// The issuer is not running, and only a running one decides a
+    /// device code.
+    NotRunning,
+    /// The issuer refused or failed the operator's word: why.
+    Operator(String),
 }
 
 impl fmt::Display for Error {
@@ -55,13 +54,12 @@ impl fmt::Display for Error {
             Error::Run(error) => write!(f, "{error}"),
             Error::Lifecycle(error) => write!(f, "{error}"),
             Error::Identities(error) => write!(f, "{error}"),
-            Error::Stdin(error) => write!(f, "stdin could not be read: {error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
-            Error::EmptyPassword => f.write_str("the password on stdin was empty"),
             Error::Issuer(error) => write!(f, "{error}"),
             Error::Signing(error) => write!(f, "{error}"),
-            Error::Password(error) => write!(f, "{error}"),
             Error::Rotate(why) => write!(f, "the signing key was not rotated: {why}"),
+            Error::NotRunning => f.write_str("the issuer is not running: a device code waits only while it runs"),
+            Error::Operator(why) => write!(f, "the issuer did not do it: {why}"),
         }
     }
 }
@@ -81,12 +79,10 @@ impl std::error::Error for Error {
             Error::Run(error) => Some(error),
             Error::Lifecycle(error) => Some(error),
             Error::Identities(error) => Some(error),
-            Error::Stdin(error) | Error::Stdout(error) => Some(error),
-            Error::EmptyPassword => None,
+            Error::Stdout(error) => Some(error),
             Error::Issuer(error) => Some(error),
             Error::Signing(error) => Some(error),
-            Error::Password(error) => Some(error),
-            Error::Rotate(_) => None,
+            Error::Rotate(_) | Error::NotRunning | Error::Operator(_) => None,
         }
     }
 }
@@ -124,12 +120,6 @@ impl From<diverge_issuer::store::Error> for Error {
 impl From<signing::Error> for Error {
     fn from(error: signing::Error) -> Self {
         Error::Signing(error)
-    }
-}
-
-impl From<password::Error> for Error {
-    fn from(error: password::Error) -> Self {
-        Error::Password(error)
     }
 }
 

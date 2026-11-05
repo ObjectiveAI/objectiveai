@@ -11,7 +11,9 @@ pub enum Identities {
     /// identity's lock held for the whole login, the browser opened at
     /// the issuer's verification page, and the identity written once
     /// the code is approved — replacing one already there, signed out
-    /// or not. An approval as another subject writes nothing.
+    /// or not. An approval as another subject writes nothing. Diverge's
+    /// own issuer has no sign-in page: its operator approves the code on
+    /// its host, `diverge issuer approve <code>`.
     Login {
         /// The issuer, exactly as its discovery document names it.
         #[arg(long)]

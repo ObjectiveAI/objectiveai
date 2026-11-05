@@ -35,7 +35,8 @@ pub enum Command {
     #[command(subcommand)]
     Provider(Server),
     /// Start or stop the issuer on the root, work on its
-    /// `issuer.yaml`, its identities and its signing key: see
+    /// `issuer.yaml`, decide the device codes waiting, and work on its
+    /// identities and its signing key: see
     /// [`issuer`](crate::cli::issuer).
     #[command(subcommand)]
     Issuer(Issuer),

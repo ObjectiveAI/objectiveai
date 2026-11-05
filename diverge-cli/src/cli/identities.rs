@@ -22,7 +22,8 @@ use crate::arguments::Identities;
 ///    the line names the page. The approval, as the subject named, is
 ///    written — replacing an identity already there, signed out or not
 ///    — and printed as `{"issuer","subject"}`; any other ending is the
-///    error.
+///    error. Diverge's own issuer has no sign-in page: its operator
+///    approves the code on its host, `diverge issuer approve <code>`.
 /// 2. **List.** Every identity, `{"issuer","subject"}`, one line each.
 /// 3. **Remove.** The identity taken out, printed as `{"removed":…}`.
 ///

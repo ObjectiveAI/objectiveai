@@ -59,7 +59,9 @@ pub struct Arguments {
 ///    page with the code in it where the issuer gives one, else at the
 ///    verification page — unless `--no-browser`. A browser that will not
 ///    open is no error: the line printed names the page, and any device
-///    may open it.
+///    may open it. Diverge's own issuer has no sign-in page: its
+///    operator approves the code on its host, `diverge issuer approve
+///    <code>`.
 /// 4. **To the end.** The answers are read to the daemon's finish: a
 ///    login always ends, approved, denied, as another identity, or at
 ///    the code's expiry. Ending the command ends the connection, which

@@ -32,10 +32,12 @@
 //! binary beside this one, spawned detached and waited for until it
 //! holds the root's lock — and stop it, by one `POST /stop` on its
 //! own port from this host, waited for until the lock is free; see
-//! [`lifecycle`]. The issuer takes no commands of its own: its
-//! identities are worked on and its signing key rotated here, in its
-//! `issuer.sqlite` — `issuer identities add|list|remove|password`,
-//! `issuer rotate [--sign-out]` — see [`cli::issuer`].
+//! [`lifecycle`]. The issuer takes no commands of its own: the device
+//! codes waiting are decided here, by the running issuer's loopback
+//! routes — `issuer pending`, `issuer approve <code>`, `issuer deny
+//! <code>` — and its identities listed and removed and its signing key
+//! rotated here, in its `issuer.sqlite` — `issuer identities
+//! list|remove`, `issuer rotate [--sign-out]` — see [`cli::issuer`].
 
 pub mod arguments;
 pub mod cli;

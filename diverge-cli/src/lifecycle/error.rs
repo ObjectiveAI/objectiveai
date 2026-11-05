@@ -85,10 +85,11 @@ pub enum Error {
     NoAnswer,
     /// The first line of the answer is not an HTTP status line.
     Answer(String),
-    /// The server refused the stop as not from this host.
+    /// The server refused a loopback route — the stop, a rotation, the
+    /// operator's word — as not from this host.
     Refused,
-    /// The server answered with a status that is neither the accept
-    /// nor the refusal.
+    /// The server answered the stop with a status that is neither the
+    /// accept nor the refusal.
     Status(u16),
     /// Stdout could not be written.
     Stdout(io::Error),
@@ -155,7 +156,7 @@ impl fmt::Display for Error {
             Error::Exchange(error) => write!(f, "the request could not be exchanged: {error}"),
             Error::NoAnswer => write!(f, "the server closed the connection without answering"),
             Error::Answer(line) => write!(f, "the server's answer is not HTTP: `{line}`"),
-            Error::Refused => write!(f, "the server refused the stop as not from this host"),
+            Error::Refused => write!(f, "the server refused the request as not from this host"),
             Error::Status(code) => write!(f, "the server answered the stop with status {code}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
         }

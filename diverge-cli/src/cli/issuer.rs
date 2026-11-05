@@ -3,10 +3,9 @@
 use std::path::Path;
 
 use diverge_issuer::store::Store;
-use diverge_issuer::{password, signing};
+use diverge_issuer::signing;
 use diverge_sdk::file_lock;
 use serde_json::json;
-use tokio::io::AsyncReadExt as _;
 
 use super::Error;
 use super::print::print;
@@ -18,14 +17,18 @@ use crate::lifecycle::{self, Program};
 /// the provider's are done — see [`lifecycle`] — `config` as every
 /// program's document is — see [`config`](super::config) — and the
 /// identities worked on and the signing key rotated in
-/// `issuer.sqlite`, printing one JSON line per answer. No line holds a password, a key,
-/// or a hash of either.
+/// `issuer.sqlite`, and the device codes waiting decided by the running
+/// issuer, printing one JSON line per answer. No line holds a key, a
+/// token, or a hash of either.
 pub async fn run(root: &Path, command: Issuer) -> Result<(), Error> {
     match command {
         Issuer::Lifecycle(action) => Ok(lifecycle::run(root, Program::Issuer, action).await?),
         Issuer::Config(action) => super::config::run(root, Which::Issuer, action).await,
         Issuer::Identities(command) => identities(root, command).await,
         Issuer::Rotate { sign_out } => rotate(root, sign_out).await,
+        Issuer::Pending => operator(root, "/pending", "").await,
+        Issuer::Approve { code } => operator(root, "/approve", &decision(&code)).await,
+        Issuer::Deny { code } => operator(root, "/deny", &decision(&code)).await,
     }
 }
 
@@ -34,11 +37,6 @@ async fn identities(root: &Path, command: IssuerIdentities) -> Result<(), Error>
     let store = Store::open(root).await?;
     let identities = store.identities();
     let lines = match command {
-        IssuerIdentities::Add { subject } => {
-            let hash = password::hash(&read_password().await?).await?;
-            identities.add(&subject, &hash).await?;
-            vec![json!({ "added": subject })]
-        }
         IssuerIdentities::List => identities
             .list()
             .await?
@@ -47,10 +45,6 @@ async fn identities(root: &Path, command: IssuerIdentities) -> Result<(), Error>
             .collect(),
         IssuerIdentities::Remove { subject } => {
             vec![json!({ "removed": identities.remove(&subject).await? })]
-        }
-        IssuerIdentities::Password { subject } => {
-            let hash = password::hash(&read_password().await?).await?;
-            vec![json!({ "changed": identities.password(&subject, &hash).await? })]
         }
     };
     print(&lines).await
@@ -107,18 +101,53 @@ async fn rotate(root: &Path, sign_out: bool) -> Result<(), Error> {
     .await
 }
 
-/// The password on stdin, all of it, the trailing line end dropped.
-/// An empty one is refused.
-async fn read_password() -> Result<String, Error> {
-    let mut text = String::new();
-    tokio::io::stdin()
-        .read_to_string(&mut text)
+/// The operator's word to the running issuer, on its loopback `path`,
+/// printing its answer. The rules:
+///
+/// 1. **The issuer runs**, or nothing is done: a root lock,
+///    `issuer.lock`, that is free is [`Error::NotRunning`], since a
+///    device code only waits while the issuer runs to answer its polls.
+/// 2. **Its answer printed.** A `200` is the issuer's JSON: for
+///    `/pending` an array, printed one line per code; else one line.
+/// 3. **Refused.** A `403` is the route refused as not from this host;
+///    a `404` is no pending code being that one; any other code is
+///    [`Error::Operator`], with the issuer's words.
+async fn operator(root: &Path, path: &str, form: &str) -> Result<(), Error> {
+    let lock = root.join(diverge_issuer::LOCK_FILE);
+    let free = file_lock::try_exclusive(&lock)
         .await
-        .map_err(Error::Stdin)?;
-    let trimmed = text.trim_end_matches(['\r', '\n']).len();
-    text.truncate(trimmed);
-    if text.is_empty() {
-        return Err(Error::EmptyPassword);
+        .map_err(|error| Error::Operator(error.to_string()))?;
+    // Rule 1.
+    if free.is_some() {
+        return Err(Error::NotRunning);
     }
-    Ok(text)
+    let port = lifecycle::port(root, Program::Issuer).await?;
+    let (code, body) = lifecycle::http::post(port, path, form).await?;
+    let answer = || -> Result<serde_json::Value, Error> {
+        serde_json::from_str(&body).map_err(|error| Error::Operator(format!("the issuer's answer is not JSON: {error}")))
+    };
+    match code {
+        // Rule 2.
+        200 => match answer()? {
+            serde_json::Value::Array(lines) => print(&lines).await,
+            line => print(&[line]).await,
+        },
+        // Rule 3.
+        403 => Err(lifecycle::Error::Refused.into()),
+        _ => Err(Error::Operator(format!("the issuer answered {code}: {body}"))),
+    }
+}
+
+/// The form `/approve` and `/deny` take: the user code, every byte but
+/// an ASCII letter, digit or `-` percent-encoded.
+fn decision(code: &str) -> String {
+    let mut form = String::from("user_code=");
+    for byte in code.bytes() {
+        if byte.is_ascii_alphanumeric() || byte == b'-' {
+            form.push(char::from(byte));
+        } else {
+            form.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    form
 }
