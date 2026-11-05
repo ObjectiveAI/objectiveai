@@ -1,14 +1,13 @@
-//! `diverge run identities issuers`: listing the issuers the daemon's
-//! host's identities are signed in at, as
-//! [`issuers`](diverge_sdk::daemon::endpoints::identities::issuers)
-//! states it.
+//! `diverge run identities untag`: taking tags off one of the daemon's
+//! host's identities, as
+//! [`untag`](diverge_sdk::daemon::endpoints::identities::untag) states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::identities::issuers::{client::request, server::response};
+use diverge_sdk::daemon::endpoints::identities::untag::{client::request, server::response};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Listing the issuers.
+/// Taking tags off an identity, named by its issuer and its subject.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -32,10 +31,10 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>("diverge run identities issuers", emitter).await;
+            return request_schema::<request::Frame>("diverge run identities untag", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>("diverge run identities issuers", emitter).await;
+            return response_schema::<response::Frame>("diverge run identities untag", emitter).await;
         }
         None => {}
     }
