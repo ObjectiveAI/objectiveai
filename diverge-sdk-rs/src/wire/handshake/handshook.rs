@@ -1,6 +1,7 @@
 //! A connection past its handshake.
 
 use super::Peer;
+use crate::shared::discover::Discover;
 use crate::wire::connection::Connection;
 
 /// The connection, handed back once its handshake is done, and the
@@ -11,7 +12,8 @@ pub struct Handshook {
     /// The other end, verified.
     pub peer: Peer,
     /// The other end's discover flag: whether it may be listed by a
-    /// provider's [`discover`](crate::provider::endpoints::discover).
-    /// Only a provider honors it.
-    pub discover: bool,
+    /// provider's [`discover`](crate::provider::endpoints::discover),
+    /// and the description it is listed with. Only a provider honors
+    /// it.
+    pub discover: Discover,
 }

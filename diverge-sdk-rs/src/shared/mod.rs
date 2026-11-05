@@ -34,6 +34,9 @@
 //! provider is made of: how it authenticates, and what the acceptor is
 //! told of it.
 //!
+//! [`discover`] is what a party's authorization frame says of listing
+//! it to a provider's `discover`, and the description it is listed with.
+//!
 //! [`canonical`] is the one form a value is hashed in — compact JSON
 //! with every object key sorted at every depth — which every id that
 //! is a hash is computed over.
@@ -53,6 +56,7 @@
 pub mod canonical;
 pub mod containers;
 pub mod daemons;
+pub mod discover;
 pub mod error;
 pub mod filetree;
 pub mod listing;

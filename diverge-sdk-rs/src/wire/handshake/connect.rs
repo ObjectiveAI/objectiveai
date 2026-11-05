@@ -4,14 +4,17 @@ use std::net::IpAddr;
 
 use super::frame::{receive, send};
 use super::{Authenticator, Error, Handshook};
+use crate::shared::discover::Discover;
 use crate::wire::connection::Connection;
 
 /// The handshake, from the end that dialled — see the [rules](super):
 ///
 /// 1. This end's token from `issuer`, from `authenticator`, is sent as
-///    the connection's first frame, under the discover flag `discover`
-///    — the caller's, since nothing is known of the connectee yet.
-/// 2. The connectee's first frame is read: its token, and its flag.
+///    the connection's first frame, under the discover flag and
+///    description `discover` — the caller's, since nothing is known of
+///    the connectee yet.
+/// 2. The connectee's first frame is read: its token, and its flag and
+///    description.
 /// 3. That token is verified by `authenticator`, `address` being the
 ///    connectee's, and its issuer must be `issuer`.
 ///
@@ -23,7 +26,7 @@ use crate::wire::connection::Connection;
 pub async fn connect(
     mut connection: Connection,
     issuer: &str,
-    discover: bool,
+    discover: Discover,
     authenticator: &dyn Authenticator,
     address: IpAddr,
 ) -> Result<Handshook, Error> {

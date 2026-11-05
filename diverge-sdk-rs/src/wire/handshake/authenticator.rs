@@ -5,6 +5,7 @@ use std::net::IpAddr;
 use futures_util::future::BoxFuture;
 
 use super::Peer;
+use crate::shared::discover::Discover;
 
 /// An end's own side of the handshake: its token to present, and its
 /// judgment of the other end's.
@@ -40,14 +41,15 @@ pub trait Authenticator: Send + Sync {
         Box::pin(async {})
     }
 
-    /// The discover flag this end sends `peer` when it is the
-    /// connectee: asked after [`verify`](Self::verify) accepted `peer`,
-    /// and before this end's token is sent. The connector's flag is
-    /// its caller's, given to [`connect`](super::connect), since it is
-    /// sent before anything is known of the connectee. By default,
-    /// `false`.
-    fn discoverable<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, bool> {
+    /// The discover flag, and the description with it, this end sends
+    /// `peer` when it is the connectee: asked after
+    /// [`verify`](Self::verify) accepted `peer`, and before this end's
+    /// token is sent. The connector's is its caller's, given to
+    /// [`connect`](super::connect), since it is sent before anything is
+    /// known of the connectee. By default,
+    /// [`Hidden`](Discover::Hidden).
+    fn discoverable<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, Discover> {
         let _ = peer;
-        Box::pin(async { false })
+        Box::pin(async { Discover::Hidden })
     }
 }

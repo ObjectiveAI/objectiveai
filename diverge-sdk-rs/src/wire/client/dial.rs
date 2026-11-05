@@ -8,6 +8,7 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
 use super::handle::Handle;
+use crate::shared::discover::Discover;
 use crate::wire::connection::Connection;
 use crate::wire::handshake::{Authenticator, Handshook, Peer, connect};
 
@@ -32,7 +33,7 @@ pub async fn dial(
     let (socket, _) = connect_async(url(address)).await.map_err(|error| DialError::Dial(error.to_string()))?;
     let at = peer_ip(&socket);
     let Handshook { connection, peer, .. } =
-        connect(Connection::Outgoing(socket), issuer, false, authenticator, at).await.map_err(|error| DialError::Handshake(error.to_string()))?;
+        connect(Connection::Outgoing(socket), issuer, Discover::Hidden, authenticator, at).await.map_err(|error| DialError::Handshake(error.to_string()))?;
     let (handle, router) = Handle::open(connection);
     let run = async move {
         let _ = router.run().await;

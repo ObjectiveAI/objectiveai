@@ -8,11 +8,13 @@ use crate::wire::connection::Connection;
 
 /// The handshake, from the end that accepted — see the [rules](super):
 ///
-/// 1. The connector's first frame is read: its token, and its flag.
+/// 1. The connector's first frame is read: its token, and its flag and
+///    description.
 /// 2. That token is verified by `authenticator`, `address` being the
 ///    connector's, which names the connector's issuer.
 /// 3. This end's token from that same issuer, from `authenticator`, is
-///    sent as this end's first frame, under the discover flag
+///    sent as this end's first frame, under the discover flag and
+///    description
 ///    `authenticator` gives for that connector — see
 ///    [`discoverable`](Authenticator::discoverable).
 ///

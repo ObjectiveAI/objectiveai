@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::shared::Identity;
+use crate::shared::discover::Description;
 use crate::shared::listing::Keyed;
 
 /// One identity discoverable through the daemon's providers, and every
@@ -15,7 +16,11 @@ use crate::shared::listing::Keyed;
 /// 2. **The providers.** Every connected provider whose own `discover`
 ///    listing holds the identity, by the provider's identity, in order —
 ///    by issuer, then by subject — never empty, and never repeating one.
-/// 3. **What it makes.** A [`daemons`](crate::daemon::endpoints::daemons)
+/// 3. **The descriptions.** Every description the identity is listed
+///    with on those providers, each once: descriptions that are equal
+///    are one entry, however many providers list it. In order, and
+///    empty when no provider lists it with one.
+/// 4. **What it makes.** A [`daemons`](crate::daemon::endpoints::daemons)
 ///    record of it names `issuer` and `subject` as its `daemon`: the
 ///    remote it reaches, through any one of `providers`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -27,6 +32,8 @@ pub struct Discovered {
     pub subject: String,
     /// Every connected provider it is discoverable on, in order.
     pub providers: Vec<Identity>,
+    /// Every distinct description it is listed with, in order.
+    pub descriptions: Vec<Description>,
 }
 
 impl Discovered {
