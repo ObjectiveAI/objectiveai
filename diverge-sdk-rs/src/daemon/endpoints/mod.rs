@@ -155,11 +155,12 @@
 //! | `123` | [`agents::frontend`] |
 //! | `124` | [`agents::connect`] |
 //! | `125` | [`providers::discover`] |
-//! | `126` | [`identities::issuers`] |
-//! | `127` | [`identities::subjects`] |
+//! | `126` | [`identities::list`] |
+//! | `127` | [`identities::tag`] |
 //! | `128` | [`identities::login`] |
+//! | `129` | [`identities::untag`] |
 //!
-//! One hundred and twenty-nine, so far. Every one of them carries the optional
+//! One hundred and thirty, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request

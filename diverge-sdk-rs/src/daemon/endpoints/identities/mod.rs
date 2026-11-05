@@ -1,9 +1,9 @@
 //! The host's identities: the credentials signed in under the root's
 //! `identities/`, each one subject at one issuer, listed.
 //!
-//! [`issuers`] lists the issuers an identity is signed in at;
-//! [`subjects`] lists the subjects signed in at one of them; [`login`]
-//! signs one in, the one write. The rules:
+//! [`list`] lists them, each with its tags; [`tag`] and [`untag`]
+//! change an identity's tags, which the daemon keeps, since an identity
+//! is a file and no record; [`login`] signs one in. The rules:
 //!
 //! 1. **The host's files.** What is listed is the identities on the
 //!    daemon's host, as `diverge identities login` signs them in: every
@@ -18,6 +18,7 @@
 //! question is in each endpoint's `client` — and the daemon answers, so
 //! the answer is in its `server`.
 
-pub mod issuers;
+pub mod list;
 pub mod login;
-pub mod subjects;
+pub mod tag;
+pub mod untag;

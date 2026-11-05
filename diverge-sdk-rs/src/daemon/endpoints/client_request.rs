@@ -239,12 +239,14 @@ pub enum ClientRequest<'a> {
     /// Tag `125`. Every identity discoverable through the connected
     /// providers, kept.
     ProvidersDiscover(providers::discover::client::request::Frame),
-    /// Tag `126`. The issuers the host's identities are signed in at.
-    IdentitiesIssuers(identities::issuers::client::request::Frame),
-    /// Tag `127`. The subjects signed in at one issuer.
-    IdentitiesSubjects(identities::subjects::client::request::Frame),
+    /// Tag `126`. The host's identities, each with its tags.
+    IdentitiesList(identities::list::client::request::Frame),
+    /// Tag `127`. Tags put on one of the host's identities.
+    IdentitiesTag(identities::tag::client::request::Frame),
     /// Tag `128`. An identity signed in on the daemon's host.
     IdentitiesLogin(identities::login::client::request::Frame),
+    /// Tag `129`. Tags taken off one of the host's identities.
+    IdentitiesUntag(identities::untag::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -366,8 +368,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsFrontend(frame) => frame.encode(out),
             ClientRequest::AgentsConnect(frame) => frame.encode(out),
             ClientRequest::ProvidersDiscover(frame) => frame.encode(out),
-            ClientRequest::IdentitiesIssuers(frame) => frame.encode(out),
-            ClientRequest::IdentitiesSubjects(frame) => frame.encode(out),
+            ClientRequest::IdentitiesList(frame) => frame.encode(out),
+            ClientRequest::IdentitiesTag(frame) => frame.encode(out),
+            ClientRequest::IdentitiesUntag(frame) => frame.encode(out),
             ClientRequest::IdentitiesLogin(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -702,11 +705,14 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             125 => providers::discover::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersDiscover)
                 .ok(),
-            126 => identities::issuers::client::request::Frame::decode(bytes)
-                .map(ClientRequest::IdentitiesIssuers)
+            126 => identities::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::IdentitiesList)
                 .ok(),
-            127 => identities::subjects::client::request::Frame::decode(bytes)
-                .map(ClientRequest::IdentitiesSubjects)
+            127 => identities::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::IdentitiesTag)
+                .ok(),
+            129 => identities::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::IdentitiesUntag)
                 .ok(),
             128 => identities::login::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesLogin)
@@ -823,8 +829,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsFrontend(_) => f.write_str("agents frontend"),
             ClientRequest::AgentsConnect(_) => f.write_str("agents connect"),
             ClientRequest::ProvidersDiscover(_) => f.write_str("providers discover"),
-            ClientRequest::IdentitiesIssuers(_) => f.write_str("identities issuers"),
-            ClientRequest::IdentitiesSubjects(_) => f.write_str("identities subjects"),
+            ClientRequest::IdentitiesList(_) => f.write_str("identities list"),
+            ClientRequest::IdentitiesTag(_) => f.write_str("identities tag"),
+            ClientRequest::IdentitiesUntag(_) => f.write_str("identities untag"),
             ClientRequest::IdentitiesLogin(_) => f.write_str("identities login"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
@@ -941,8 +948,9 @@ pub fn tag(path: &str) -> Option<u8> {
         "agents/frontend" => Some(123),
         "agents/connect" => Some(124),
         "providers/discover" => Some(125),
-        "identities/issuers" => Some(126),
-        "identities/subjects" => Some(127),
+        "identities/list" => Some(126),
+        "identities/tag" => Some(127),
+        "identities/untag" => Some(129),
         "identities/login" => Some(128),
         _ => None,
     }
@@ -1056,8 +1064,9 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsFrontend(_) => "agents/frontend",
             ClientRequest::AgentsConnect(_) => "agents/connect",
             ClientRequest::ProvidersDiscover(_) => "providers/discover",
-            ClientRequest::IdentitiesIssuers(_) => "identities/issuers",
-            ClientRequest::IdentitiesSubjects(_) => "identities/subjects",
+            ClientRequest::IdentitiesList(_) => "identities/list",
+            ClientRequest::IdentitiesTag(_) => "identities/tag",
+            ClientRequest::IdentitiesUntag(_) => "identities/untag",
             ClientRequest::IdentitiesLogin(_) => "identities/login",
             ClientRequest::Invalid(_) => "",
         }

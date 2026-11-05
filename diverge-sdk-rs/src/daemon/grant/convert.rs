@@ -1,6 +1,6 @@
 //! A tool's declared grants, as grants of the daemon's.
 
-use super::{Grant, accounts, agents, agents_templates, dependency_tools, roles, standalone_tools, standalone_tools_templates, vault, volumes};
+use super::{Grant, accounts, agents, agents_templates, dependency_tools, identities, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
 /// A tool's grants, as its container declared them at registration and
@@ -158,7 +158,18 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
         permission::Grant::Postgres(permission) => Grant::Postgres(permission),
         permission::Grant::Events(permission) => Grant::Events(permission),
         permission::Grant::Images(permission) => Grant::Images(permission),
-        permission::Grant::Identities(permission) => Grant::Identities(permission),
+        permission::Grant::Identities(permission) => Grant::Identities(match permission {
+            permission::identities::Permission::Make(makes) => identities::Permission::Make(makes),
+            permission::identities::Permission::Over { actions, within } => identities::Permission::Over {
+                actions,
+                within: within.map(identities_filter),
+            },
+            permission::identities::Permission::Tags { actions, within, tags } => identities::Permission::Tags {
+                actions,
+                within: within.map(identities_filter),
+                tags,
+            },
+        }),
     })
 }
 
@@ -232,6 +243,14 @@ fn accounts_filter(tags: Tags) -> crate::daemon::endpoints::accounts::list::clie
 
 fn roles_filter(tags: Tags) -> crate::daemon::endpoints::roles::list::client::request::Filter {
     crate::daemon::endpoints::roles::list::client::request::Filter {
+        all_tags: tags.all_tags,
+        any_tags: tags.any_tags,
+        ..Default::default()
+    }
+}
+
+fn identities_filter(tags: Tags) -> crate::daemon::endpoints::identities::list::client::request::Filter {
+    crate::daemon::endpoints::identities::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()

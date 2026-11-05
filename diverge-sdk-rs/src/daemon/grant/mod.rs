@@ -97,13 +97,13 @@
 //! defined once in [`shared::permission`](crate::shared::permission)
 //! and re-exported here: the grants a dependency tool template carries
 //! are made of the same actions, reaching by tags alone, and a grant
-//! here reaches by the kind's own filter. Every kind but the database
-//! and the events carries tags — agents, templates, tools, dependency
-//! templates, providers, credentials, daemons, accounts, roles,
-//! volumes and the vault's keys alike
-//! — so every kind but the database and the events has the tagging
-//! shape; every kind but the database, the events and dependency
-//! templates, which a registration makes, has the making shape. A grant that names nothing becomes one of
+//! here reaches by the kind's own filter. The kinds that carry tags —
+//! agents, templates, tools, dependency tools, accounts, roles, volumes,
+//! the vault's keys and the host's identities — have the tagging shape,
+//! and all of them but dependency tools, which a registration makes,
+//! the making shape. The providers, the remote daemons, the database,
+//! the events and the images carry none, and their grants are bare
+//! lists of actions. A grant that names nothing becomes one of
 //! these by [`From`]: the same actions, reaching by a filter of the
 //! tags alone, which is how a dependency tool's requests are judged.
 
@@ -128,4 +128,4 @@ pub mod volumes;
 pub use crate::shared::permission::postgres;
 pub use crate::shared::permission::events;
 pub use crate::shared::permission::images;
-pub use crate::shared::permission::identities;
+pub mod identities;

@@ -116,8 +116,9 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsFrontend(_) => bytes(&agents::frontend::server::response::Frame::Forbidden),
             ClientRequest::AgentsConnect(_) => bytes(&agents::connect::server::response::Frame::Forbidden),
             ClientRequest::ProvidersDiscover(_) => bytes(&providers::discover::server::response::Frame::Forbidden),
-            ClientRequest::IdentitiesIssuers(_) => bytes(&identities::issuers::server::response::Frame::Forbidden),
-            ClientRequest::IdentitiesSubjects(_) => bytes(&identities::subjects::server::response::Frame::Forbidden),
+            ClientRequest::IdentitiesList(_) => bytes(&identities::list::server::response::Frame::Forbidden),
+            ClientRequest::IdentitiesTag(_) => bytes(&identities::tag::server::response::Frame::Forbidden),
+            ClientRequest::IdentitiesUntag(_) => bytes(&identities::untag::server::response::Frame::Forbidden),
             ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
@@ -231,8 +232,9 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsFrontend(_) => bytes(&agents::frontend::server::response::Frame::Error(error)),
             ClientRequest::AgentsConnect(_) => bytes(&agents::connect::server::response::Frame::Error(error)),
             ClientRequest::ProvidersDiscover(_) => bytes(&providers::discover::server::response::Frame::Error(error)),
-            ClientRequest::IdentitiesIssuers(_) => bytes(&identities::issuers::server::response::Frame::Error(error)),
-            ClientRequest::IdentitiesSubjects(_) => bytes(&identities::subjects::server::response::Frame::Error(error)),
+            ClientRequest::IdentitiesList(_) => bytes(&identities::list::server::response::Frame::Error(error)),
+            ClientRequest::IdentitiesTag(_) => bytes(&identities::tag::server::response::Frame::Error(error)),
+            ClientRequest::IdentitiesUntag(_) => bytes(&identities::untag::server::response::Frame::Error(error)),
             ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
