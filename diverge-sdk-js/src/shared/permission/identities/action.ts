@@ -4,10 +4,11 @@ import { z } from "zod";
 
 /**
  * An act over the host's identities.
- * Snake case on the wire: `"issuers"`, `"subjects"`.
+ * Snake case on the wire: `"issuers"`, `"subjects"`, `"login"`.
  *
  * - `issuers`: List the issuers an identity is signed in at, as `identities.issuers` does.
  * - `subjects`: List the subjects signed in at one issuer, as `identities.subjects` does.
+ * - `login`: Sign one in on the host, as `identities.login` does: the one act that writes.
  */
-export const Action = z.enum(["issuers", "subjects"]);
+export const Action = z.enum(["issuers", "subjects", "login"]);
 export type Action = z.infer<typeof Action>;
