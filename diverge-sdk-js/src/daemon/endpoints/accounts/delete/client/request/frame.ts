@@ -6,10 +6,8 @@ import { Relay } from "../../../../../../shared/relay.js";
 import { Reference } from "../../../../../../daemon/endpoints/accounts/reference.js";
 
 /**
- * Ask the daemon to delete an account. An account a container runs
- * under, or a client is connected as, is not deleted, and the daemon
- * says so with a variant of its own: delete the containers, or wait
- * for the client to go, and ask again.
+ * Ask the daemon to delete an account. Every connection a client has as
+ * it is closed.
  */
 export const Frame = z.object({
   /** The account. */
