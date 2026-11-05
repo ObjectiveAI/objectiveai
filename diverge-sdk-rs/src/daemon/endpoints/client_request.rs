@@ -257,6 +257,8 @@ pub enum ClientRequest<'a> {
     DaemonsTag(daemons::tag::client::request::Frame),
     /// Tag `134`. Tags taken off a remote daemon's record.
     DaemonsUntag(daemons::untag::client::request::Frame),
+    /// Tag `135`. Every connection a client has as an account closed.
+    AccountsDisconnect(accounts::disconnect::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -386,6 +388,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::DaemonsDelete(frame) => frame.encode(out),
             ClientRequest::DaemonsTag(frame) => frame.encode(out),
             ClientRequest::DaemonsUntag(frame) => frame.encode(out),
+            ClientRequest::AccountsDisconnect(frame) => frame.encode(out),
             ClientRequest::IdentitiesLogin(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -744,6 +747,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             134 => daemons::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DaemonsUntag)
                 .ok(),
+            135 => accounts::disconnect::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AccountsDisconnect)
+                .ok(),
             128 => identities::login::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesLogin)
                 .ok(),
@@ -867,6 +873,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::DaemonsDelete(_) => f.write_str("daemons delete"),
             ClientRequest::DaemonsTag(_) => f.write_str("daemons tag"),
             ClientRequest::DaemonsUntag(_) => f.write_str("daemons untag"),
+            ClientRequest::AccountsDisconnect(_) => f.write_str("accounts disconnect"),
             ClientRequest::IdentitiesLogin(_) => f.write_str("identities login"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
@@ -991,6 +998,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "daemons/delete" => Some(132),
         "daemons/tag" => Some(133),
         "daemons/untag" => Some(134),
+        "accounts/disconnect" => Some(135),
         "identities/login" => Some(128),
         _ => None,
     }
@@ -1112,6 +1120,7 @@ impl ClientRequest<'_> {
             ClientRequest::DaemonsDelete(_) => "daemons/delete",
             ClientRequest::DaemonsTag(_) => "daemons/tag",
             ClientRequest::DaemonsUntag(_) => "daemons/untag",
+            ClientRequest::AccountsDisconnect(_) => "accounts/disconnect",
             ClientRequest::IdentitiesLogin(_) => "identities/login",
             ClientRequest::Invalid(_) => "",
         }

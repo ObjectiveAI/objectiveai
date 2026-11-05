@@ -8,22 +8,19 @@ use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
 /// A delete's answer: the account is gone, no account is the one named,
-/// the account is in use, forbidden, or a failure.
+/// forbidden, or a failure.
 ///
 /// A delete is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Deleted`](Self::Deleted), `1`
-/// for [`NotFound`](Self::NotFound), `2` for [`InUse`](Self::InUse),
-/// `3` for [`Forbidden`](Self::Forbidden), `4` for
-/// [`Error`](Self::Error) — and only the error carries anything after
-/// it.
+/// for [`NotFound`](Self::NotFound), `2` for
+/// [`Forbidden`](Self::Forbidden), `3` for [`Error`](Self::Error) — and
+/// only the error carries anything after it.
 ///
 /// # Answers, and one failure
 ///
-/// [`NotFound`](Self::NotFound) and [`InUse`](Self::InUse) are ANSWERS:
-/// the daemon looked, and either no account is the one named, or one is
-/// and a client is connected as it now,
-/// and in either case nothing changed and nothing is retried. An
+/// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and no
+/// account is the one named; nothing changed and nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not delete it, for whatever reason it knows.
 ///
@@ -47,17 +44,15 @@ use crate::shared::error::Error;
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The account is gone. Tag `0`.
+    /// The account is gone, and every connection a client had as it
+    /// closed. Tag `0`.
     Deleted,
     /// No account is the one named; nothing changed. Tag `1`.
     NotFound,
-    /// A client is connected as the account now, and it was left as it
-    /// is; nothing changed. Tag `2`.
-    InUse,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `3`.
+    /// it; nothing changed. Tag `2`.
     Forbidden,
-    /// A failure. Tag `4`.
+    /// A failure. Tag `3`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -71,14 +66,11 @@ const DELETED: u8 = 0;
 /// Tag for [`Frame::NotFound`].
 const NOT_FOUND: u8 = 1;
 
-/// Tag for [`Frame::InUse`].
-const IN_USE: u8 = 2;
-
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 3;
+const FORBIDDEN: u8 = 2;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 3;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -95,10 +87,6 @@ impl Encode for Frame {
             }
             Frame::NotFound => {
                 out.extend_from_slice(&[NOT_FOUND]);
-                Ok(())
-            }
-            Frame::InUse => {
-                out.extend_from_slice(&[IN_USE]);
                 Ok(())
             }
             Frame::Forbidden => {
@@ -123,7 +111,6 @@ impl Decode<'_> for Frame {
         match *tag {
             DELETED => Ok(Frame::Deleted),
             NOT_FOUND => Ok(Frame::NotFound),
-            IN_USE => Ok(Frame::InUse),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -136,7 +123,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

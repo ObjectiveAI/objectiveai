@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// The actions over accounts that exist, which a grant reaches as far
 /// as its `within` says. Snake case on the wire: `"get"`, `"list"`,
-/// `"delete"`, `"edit"`, `"logs"`.
+/// `"delete"`, `"edit"`, `"logs"`, `"disconnect"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -27,4 +27,8 @@ pub enum Over {
     /// Read one's command log, as
     /// [`logs`](crate::daemon::endpoints::logs) does.
     Logs,
+    /// Close every connection a client has as one, as
+    /// [`accounts::disconnect`](crate::daemon::endpoints::accounts::disconnect)
+    /// does.
+    Disconnect,
 }

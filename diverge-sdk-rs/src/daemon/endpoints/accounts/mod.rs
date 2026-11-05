@@ -23,7 +23,9 @@
 //! An account is named by its identity, a [`Reference`]: one account
 //! per identity. [`create`] makes one, holding roles from the first;
 //! [`get`] answers one as a list would; [`list`] lists them, narrowed;
-//! [`delete`] removes one no client is connected as; [`edit`] changes its description or its roles;
+//! [`delete`] removes one; [`edit`] changes its description or its roles;
+//! [`disconnect`] closes every connection a client has as one — and a
+//! delete and an edit close them too;
 //! [`tag`] and [`untag`] change its tags. No account holds a key, and
 //! no answer carries one: an identity's tokens are its issuer's.
 
@@ -33,6 +35,7 @@ pub use reference::*;
 
 pub mod create;
 pub mod delete;
+pub mod disconnect;
 pub mod edit;
 pub mod get;
 pub mod list;

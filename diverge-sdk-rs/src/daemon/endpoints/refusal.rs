@@ -124,6 +124,7 @@ impl ClientRequest<'_> {
             ClientRequest::DaemonsDelete(_) => bytes(&daemons::delete::server::response::Frame::Forbidden),
             ClientRequest::DaemonsTag(_) => bytes(&daemons::tag::server::response::Frame::Forbidden),
             ClientRequest::DaemonsUntag(_) => bytes(&daemons::untag::server::response::Frame::Forbidden),
+            ClientRequest::AccountsDisconnect(_) => bytes(&accounts::disconnect::server::response::Frame::Forbidden),
             ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
@@ -245,6 +246,7 @@ impl ClientRequest<'_> {
             ClientRequest::DaemonsDelete(_) => bytes(&daemons::delete::server::response::Frame::Error(error)),
             ClientRequest::DaemonsTag(_) => bytes(&daemons::tag::server::response::Frame::Error(error)),
             ClientRequest::DaemonsUntag(_) => bytes(&daemons::untag::server::response::Frame::Error(error)),
+            ClientRequest::AccountsDisconnect(_) => bytes(&accounts::disconnect::server::response::Frame::Error(error)),
             ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }
