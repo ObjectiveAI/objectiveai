@@ -37,7 +37,16 @@
 //!    where none is — write the file, let the lock go, and answer the
 //!    new token. A new token good for no longer than `valid_for` is
 //!    [`Error::TooShort`]: no caller is handed a token that fails the
-//!    bound it set.
+//!    bound it set. A refresh that answers no ID token leaves the
+//!    identity with none — [`Error::NoIdToken`] — rather than one past
+//!    its time.
+//!
+//!    A handshake presents the **ID token**, never the access token:
+//!    OpenID Connect makes the ID token a signed JWT naming its issuer,
+//!    its subject and its expiry, which anyone checks against the
+//!    issuer's keys, while an access token's form is its issuer's
+//!    choice and may be opaque. The access token is kept for the
+//!    issuer's own APIs, and no handshake reads it.
 //! 5. **Signed out.** A refresh the issuer refuses as `invalid_grant`
 //!    — the token rotated away, revoked, or expired — is
 //!    [`Error::SignedOut`]. The file is kept, as user state is; a new
@@ -73,9 +82,10 @@
 //!    it asked for none; a `resource` is asked again at every refresh,
 //!    so the token stays for it.
 //!
-//! 9. **Verifying another end's token** is [`KeySets::verify`], against
-//!    the token's issuer's keys, fetched once and cached until they
-//!    expire — see [`verify`] for its own rules.
+//! 9. **Verifying another end's ID token** is [`KeySets::verify`],
+//!    against the token's issuer's keys, fetched once and cached until
+//!    they expire — an access token refused by its `typ`, the audience
+//!    never asked — see [`verify`] for its own rules.
 //!
 //! 10. **A program's own side.** [`Own`] is a program's identities —
 //!     one subject per issuer — and its verifying cache: what a

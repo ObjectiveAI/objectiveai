@@ -56,12 +56,13 @@ pub enum Error {
     /// The identity's refresh token is no longer good: it signs in
     /// again.
     SignedOut(Name),
-    /// The device code expired before a person decided.
+    /// The sign-in — a device code, an authorization — expired before
+    /// a person decided.
     Expired,
     /// A login that does not wait found the identity's lock held by
     /// another login or a reader: nothing was asked of the issuer.
     Held(Name),
-    /// The person denied the device code.
+    /// The person denied the sign-in.
     Denied,
     /// The issuer refused the subject and the password, as
     /// `invalid_grant`: nothing was written.
@@ -78,9 +79,11 @@ pub enum Error {
     },
     /// The login's answer carried no refresh token.
     NoRefreshToken,
-    /// The identity holds no ID token.
+    /// The identity holds no ID token: its issuer's last refresh
+    /// answered none.
     NoIdToken,
-    /// An access token came with no `expires_in` and no `exp`.
+    /// An access token came with no `expires_in` and no `exp`, or an
+    /// ID token with no `exp`.
     NoExpiry,
     /// A token the issuer just issued is good for no longer than the
     /// time asked: the seconds it is good for.
@@ -106,15 +109,15 @@ impl fmt::Display for Error {
                 None => write!(f, "the issuer refused, `{code}`"),
             },
             Error::SignedOut(name) => write!(f, "the identity {name} is signed out; it logs in again"),
-            Error::Expired => f.write_str("the device code expired before it was approved"),
+            Error::Expired => f.write_str("the sign-in expired before it was approved"),
             Error::Held(name) => write!(f, "{name} is held by another login or reader"),
-            Error::Denied => f.write_str("the device code was denied"),
+            Error::Denied => f.write_str("the sign-in was denied"),
             Error::Rejected => f.write_str("the issuer refused the subject and the password"),
             Error::Subject => f.write_str("the login's answer named no subject"),
             Error::OtherSubject { expected, answered } => write!(f, "the login for {expected} was approved as {answered}; nothing was written"),
             Error::NoRefreshToken => f.write_str("the login's answer carried no refresh token"),
-            Error::NoIdToken => f.write_str("the identity holds no ID token"),
-            Error::NoExpiry => f.write_str("the access token came with no expiry"),
+            Error::NoIdToken => f.write_str("the identity holds no ID token, which its issuer's refresh did not answer: sign in again"),
+            Error::NoExpiry => f.write_str("a token came with no expiry"),
             Error::TooShort { expires_in } => {
                 write!(f, "the issuer's new token is good for {expires_in} seconds, no longer than was asked")
             }

@@ -32,7 +32,10 @@ struct Checked {
 }
 
 impl KeySets {
-    /// `token`, judged — see the [rules](super): its issuer accepted by
+    /// `token`, an OpenID Connect ID token, judged — see the
+    /// [rules](super): never an access token — a header `typ` of
+    /// `at+jwt`, which RFC 9068 requires of a JWT access token, is
+    /// [`VerifyError::AccessToken`] — its issuer accepted by
     /// `trusted`, its signature that issuer's, it unexpired, and its
     /// `aud` holding `audience` where one is given. The answer is who
     /// it names.
@@ -47,6 +50,9 @@ impl KeySets {
             return Err(VerifyError::Untrusted(issuer));
         }
         let header = jsonwebtoken::decode_header(token).map_err(|_| VerifyError::Malformed)?;
+        if header.typ.as_deref().is_some_and(|typ| typ.eq_ignore_ascii_case("at+jwt") || typ.eq_ignore_ascii_case("application/at+jwt")) {
+            return Err(VerifyError::AccessToken);
+        }
         if !ASYMMETRIC.contains(&header.alg) {
             return Err(VerifyError::Algorithm(format!("{:?}", header.alg)));
         }

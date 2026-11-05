@@ -11,7 +11,7 @@ use crate::wire::handshake::{Authenticator, Peer};
 /// The handshake's side of a program that dials as one identity and
 /// judges nobody — see the [rules](super), rule 11:
 ///
-/// 1. **Presenting.** At the identity's issuer, its access token, good
+/// 1. **Presenting.** At the identity's issuer, its ID token, good
 ///    for at least [`VALID_FOR`], refreshed as rule 4 says. At any
 ///    other issuer, nothing: the handshake fails.
 /// 2. **Taking the answer at its word.** The other end's token is read
@@ -38,7 +38,7 @@ impl Authenticator for Presenter {
             if issuer != self.name.issuer {
                 return Err(format!("this end presents {} and holds no identity at `{issuer}`", self.name));
             }
-            let token = self.identities.access_token(&self.name, VALID_FOR).await.map_err(|error| error.to_string())?;
+            let token = self.identities.id_token(&self.name, VALID_FOR).await.map_err(|error| error.to_string())?;
             Ok(token.expose().to_string())
         })
     }

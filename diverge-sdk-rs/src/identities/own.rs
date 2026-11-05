@@ -21,17 +21,20 @@ pub const VALID_FOR: Duration = Duration::from_secs(60);
 /// [`verify`](Self::verify) is the part of its judgment every program
 /// shares, to which each adds whom it admits. The rules:
 ///
-/// 1. **Presenting.** The token presented for an issuer is the access
-///    token of the identity `own` names there, good for longer than
+/// 1. **Presenting.** The token presented for an issuer is the OpenID
+///    Connect ID token of the identity `own` names there — the one
+///    token OpenID Connect makes a signed JWT naming its issuer and its
+///    subject, which an access token need not be — good for longer than
 ///    [`VALID_FOR`] — refreshed first where it is not. An issuer `own`
 ///    names no subject at is refused.
 /// 2. **Trusting.** An issuer is trusted exactly when `own` names a
 ///    subject there. The connectee answers from the connector's issuer,
 ///    so an issuer this program holds no identity at could never
 ///    complete a handshake, and no key set is fetched for one.
-/// 3. **Verifying.** Another end's token is verified by the
-///    [`KeySets`] under rule 2, with no audience asked for; its
-///    `(issuer, subject)` is the [`Peer`] answered.
+/// 3. **Verifying.** Another end's ID token is verified by the
+///    [`KeySets`] under rule 2 — an access token refused — with no
+///    audience asked for; its `(issuer, subject)` is the [`Peer`]
+///    answered.
 #[derive(Debug, Clone)]
 pub struct Own {
     identities: Identities,
@@ -62,7 +65,7 @@ impl Own {
     pub async fn present(&self, issuer: &str) -> Result<String, String> {
         let subject = self.subject(issuer).ok_or_else(|| format!("this program holds no identity at `{issuer}`"))?;
         let name = Name { issuer: issuer.to_string(), subject: subject.to_string() };
-        let token = self.identities.access_token(&name, VALID_FOR).await.map_err(|error| error.to_string())?;
+        let token = self.identities.id_token(&name, VALID_FOR).await.map_err(|error| error.to_string())?;
         Ok(token.expose().to_string())
     }
 

@@ -59,7 +59,8 @@ impl Record {
     /// The record `answer` makes for a new sign-in: the issuer's
     /// answer to a login's token request. The subject is the ID
     /// token's `sub`; an answer with no refresh token is
-    /// [`Error::NoRefreshToken`].
+    /// [`Error::NoRefreshToken`], and one whose ID token has no `exp` —
+    /// which OpenID Connect requires of one — is [`Error::NoExpiry`].
     pub(super) fn signed_in(issuer: &str, client_id: &str, token_endpoint: &str, scope: &str, resource: Option<&str>, answer: Tokens) -> Result<Record, Error> {
         let subject = answer.id_token.as_deref().and_then(claims).and_then(|claims| claims.sub).ok_or(Error::Subject)?;
         let refresh_token = answer.refresh_token.clone().ok_or(Error::NoRefreshToken)?;
@@ -77,13 +78,20 @@ impl Record {
             id_expires: None,
         };
         record.take(answer)?;
+        if record.id_expires.is_none() {
+            return Err(Error::NoExpiry);
+        }
         Ok(record)
     }
 
     /// The tokens of `answer` taken in: the access token, and its
     /// expiry from `expires_in`, else from its own `exp`, else
     /// [`Error::NoExpiry`]; the refresh token where the answer rotated
-    /// it; the ID token and the scope where the answer has them.
+    /// it; the scope where the answer has one; and the ID token where the
+    /// answer has one — and, where it has none, the ID token held let
+    /// go: OpenID Connect lets a refresh answer none, and an ID token
+    /// past its time is never presented, so the identity then holds
+    /// none, which [`Error::NoIdToken`] says.
     pub(super) fn take(&mut self, answer: Tokens) -> Result<(), Error> {
         let expires = match answer.expires_in {
             Some(seconds) => now().saturating_add(i64::try_from(seconds).unwrap_or(i64::MAX)),
@@ -94,9 +102,15 @@ impl Record {
         if let Some(refresh_token) = answer.refresh_token {
             self.refresh_token = refresh_token;
         }
-        if let Some(id_token) = answer.id_token {
-            self.id_expires = claims(&id_token).and_then(|claims| claims.exp);
-            self.id_token = Some(id_token);
+        match answer.id_token {
+            Some(id_token) => {
+                self.id_expires = claims(&id_token).and_then(|claims| claims.exp);
+                self.id_token = Some(id_token);
+            }
+            None => {
+                self.id_token = None;
+                self.id_expires = None;
+            }
         }
         if let Some(scope) = answer.scope {
             self.scope = scope;

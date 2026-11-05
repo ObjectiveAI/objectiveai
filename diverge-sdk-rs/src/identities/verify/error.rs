@@ -22,6 +22,9 @@ pub enum VerifyError {
     Fetch(String),
     /// The signature or a claim did not check.
     Invalid(jsonwebtoken::errors::Error),
+    /// The token is an access token, by its `typ`, where an ID token is
+    /// asked for.
+    AccessToken,
 }
 
 impl fmt::Display for VerifyError {
@@ -33,6 +36,7 @@ impl fmt::Display for VerifyError {
             VerifyError::UnknownKey { issuer, kid } => write!(f, "`{issuer}` has no key `{kid}`"),
             VerifyError::Fetch(why) => write!(f, "the issuer's keys could not be fetched: {why}"),
             VerifyError::Invalid(error) => write!(f, "the token does not check: {error}"),
+            VerifyError::AccessToken => f.write_str("the token is an access token, not an ID token"),
         }
     }
 }

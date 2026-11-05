@@ -39,7 +39,10 @@
 //!    the issuer exactly and a `jwks_uri`; then that key set. A fetch
 //!    that fails is [`VerifyError::Fetch`], and the entry is left as
 //!    it was — an expired one is never used.
-//! 7. **The check.** The signature is checked with the `kid`'s key.
+//! 7. **The check.** The token is an OpenID Connect ID token: one whose
+//!    header `typ` is `at+jwt` — RFC 9068's mark of a JWT access token
+//!    — is [`VerifyError::AccessToken`], and no key is fetched for it.
+//!    The signature is checked with the `kid`'s key.
 //!    `iss` must be the issuer the keys are, `exp` must not have
 //!    passed, give or take a minute, and `aud` must hold the
 //!    `audience` asked, where one is. `exp`, `iss` and `sub` are
