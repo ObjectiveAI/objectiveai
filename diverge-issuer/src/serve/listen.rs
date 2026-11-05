@@ -8,7 +8,7 @@ use axum::routing::{get, post};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
-use super::{Error, Issuer, rotate_route, stop_route};
+use super::{Error, Issuer, operator_route, rotate_route, stop_route};
 use crate::endpoints;
 
 /// Listen on `port`, on every interface, until `stop` says so. A
@@ -23,12 +23,15 @@ pub async fn listen(issuer: Arc<Issuer>, port: u16, mut stop: watch::Receiver<bo
         .route(endpoints::JWKS, get(endpoints::jwks))
         .route(endpoints::AUTHORIZE, get(endpoints::authorize).post(endpoints::authorize))
         .route(endpoints::DEVICE_AUTHORIZATION, post(endpoints::device_authorization))
-        .route(endpoints::DEVICE, get(endpoints::device_page).post(endpoints::device_decide))
+        .route(endpoints::DEVICE, get(endpoints::device_page))
         .route(endpoints::TOKEN, post(endpoints::token))
         .route(endpoints::REVOKE, post(endpoints::revoke))
         .route(endpoints::USERINFO, get(endpoints::userinfo).post(endpoints::userinfo))
         .route("/stop", post(stop_route::stop))
         .route("/rotate", post(rotate_route::rotate))
+        .route("/pending", post(operator_route::pending))
+        .route("/approve", post(operator_route::approve))
+        .route("/deny", post(operator_route::deny))
         .with_state(issuer);
     axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(async move {

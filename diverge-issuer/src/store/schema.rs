@@ -4,9 +4,8 @@
 ///
 /// - Every time is whole seconds since the Unix epoch, as
 ///   [`now`](crate::now) reads it.
-/// - Every secret is a hash: a password as an argon2id PHC string, and
-///   a device code or a refresh token as the lowercase hex SHA-256 of
-///   the value. The signing keys are the one thing kept whole: a key's
+/// - Every secret is a hash: a device code or a refresh token as the
+///   lowercase hex SHA-256 of the value. There is no password. The signing keys are the one thing kept whole: a key's
 ///   PEM, which the issuer signs with. A user code is the one value kept as it
 ///   is, since a person types it.
 /// - A scope is the space-separated list OAuth sends.
@@ -16,9 +15,8 @@
 ///   [`CLIENT_ID`](crate::endpoints::CLIENT_ID).
 pub(super) const SCHEMA: &str = "
 create table if not exists identities (
-    subject       text primary key,
-    password_hash text not null,
-    made          integer not null
+    subject text primary key,
+    made    integer not null
 );
 create table if not exists keys (
     kid     text primary key,
@@ -34,6 +32,7 @@ create table if not exists device_codes (
     interval  integer not null,
     last_poll integer,
     state     text not null check (state in ('pending', 'approved', 'denied')),
+    login_hint text not null,
     subject   text references identities (subject) on delete cascade,
     auth_time integer,
     check ((state = 'approved') = (subject is not null)),

@@ -10,7 +10,6 @@
 //! | module | is |
 //! |--------|----|
 //! | [`config`] | `issuer.yaml`, and the root it is found in |
-//! | [`password`] | passwords, as argon2id hashes |
 //! | [`signing`] | the RSA keys every token is signed with, kept in `issuer.sqlite`, and their rotation |
 //! | [`tokens`] | the access token, the ID token, and the opaque secrets |
 //! | [`endpoints`] | the routes, one file each |
@@ -20,17 +19,20 @@
 //! The issuer serves one app, [`CLIENT_ID`](endpoints::CLIENT_ID): a
 //! public client every Diverge program signs in as, by the device
 //! authorization grant, kept signed in by rotating refresh tokens.
-//! There is no client registry, no browser redirect, and no client
-//! secret. The binary serves and does nothing else: the identities are
-//! added, the keys rotated and the issuer started and stopped by the
-//! Diverge CLI, which writes `issuer.sqlite` through this crate.
+//! There is no client registry, no browser redirect, no client secret,
+//! and no sign-in: there are no names and no passwords. A login names
+//! the subject it asks for, as `login_hint`, and the issuer's operator,
+//! on its host, approves or denies the code — the issuer is for local
+//! use, and whoever runs it decides who exists. The binary serves and
+//! does nothing else: the codes are decided, the identities listed and
+//! removed, the keys rotated and the issuer started and stopped by the
+//! Diverge CLI.
 //!
 //! The issuer holds `<root>/issuer.lock` for its life, as the daemon
 //! and the provider hold theirs.
 
 pub mod config;
 pub mod endpoints;
-pub mod password;
 pub mod serve;
 pub mod signing;
 pub mod store;

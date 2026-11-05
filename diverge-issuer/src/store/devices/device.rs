@@ -16,25 +16,33 @@ pub struct New {
     pub expires: i64,
     /// The seconds the app waits between polls.
     pub interval: i64,
+    /// The subject the login asks for, as its `login_hint` named it:
+    /// what an approval issues tokens to.
+    pub login_hint: String,
 }
 
 /// A device code a person has approved, as the poll that spends it
 /// answers it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Approved {
-    /// The identity that signed in.
+    /// The identity approved.
     pub subject: String,
     /// The scope granted.
     pub scope: String,
     /// The audience the access token is for.
     pub audience: String,
-    /// When the identity signed in.
+    /// When the operator approved it.
     pub auth_time: i64,
 }
 
-/// A pending device code, as the device page shows it.
+/// A pending device code, as the operator is shown it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Pending {
-    /// The scope it asks for.
-    pub scope: String,
+pub struct Waiting {
+    /// The user code, as a person types it: eight characters, no
+    /// separator.
+    pub user_code: String,
+    /// The subject it asks for.
+    pub subject: String,
+    /// When it stops being good.
+    pub expires: i64,
 }

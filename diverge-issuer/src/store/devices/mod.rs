@@ -1,15 +1,16 @@
 //! The device codes issued and not yet spent, RFC 8628's.
 //!
 //! A device code is issued to the issuer's one app at the device
-//! authorization endpoint, with a user code a person types on the device page. Its
-//! life, as rules:
+//! authorization endpoint, with a user code, for the subject the login
+//! names as its `login_hint`. There is no sign-in: the issuer's operator,
+//! on its host, decides. Its life, as rules:
 //!
-//! 1. It is `pending` from its issue until a person signs in on the
-//!    device page with its user code and approves it — `approved`,
-//!    naming the identity — or denies it there, which needs no
-//!    sign-in — `denied`. Only a pending
-//!    code that has not expired is decided — see
-//!    [`decide`](Devices::decide).
+//! 1. It is `pending` from its issue until the operator approves it —
+//!    `approved`, naming the subject it asked for, which comes to be an
+//!    identity then if it was not one — or denies it — `denied`. Only a
+//!    pending code that has not expired is decided — see
+//!    [`approve`](Devices::approve) and [`deny`](Devices::deny); the
+//!    ones waiting are [`waiting`](Devices::waiting).
 //! 2. The app polls the token endpoint with the device code — see
 //!    [`poll`](Devices::poll). A poll of a code that has expired
 //!    removes it and is [`Poll::Expired`]. A poll of a pending code
@@ -29,8 +30,8 @@ mod add;
 mod decide;
 mod device;
 mod devices;
-mod pending;
 mod poll;
+mod waiting;
 
 pub use device::*;
 pub use devices::*;

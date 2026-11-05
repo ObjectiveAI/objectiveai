@@ -14,8 +14,8 @@ impl Devices<'_> {
             .execute(&mut *transaction)
             .await?;
         let added = sqlx::query(
-            "insert into device_codes (hash, user_code, scope, audience, expires, interval, state)
-                values (?, ?, ?, ?, ?, ?, 'pending')",
+            "insert into device_codes (hash, user_code, scope, audience, expires, interval, state, login_hint)
+                values (?, ?, ?, ?, ?, ?, 'pending', ?)",
         )
         .bind(&device.hash)
         .bind(&device.user_code)
@@ -23,6 +23,7 @@ impl Devices<'_> {
         .bind(&device.audience)
         .bind(device.expires)
         .bind(device.interval)
+        .bind(&device.login_hint)
         .execute(&mut *transaction)
         .await;
         match added {
