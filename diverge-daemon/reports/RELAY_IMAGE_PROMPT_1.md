@@ -36,22 +36,26 @@ drawn in TRON neon on pure black.
 
 ## The relay
 
-One thick, blazing **orange** line crosses the country from west to
-east, like a lightcycle wall seen from above. It runs along the mesh
-like a subway line through its stations, visiting seven stations in
-this order, and they alternate daemon, provider, daemon, provider:
+One thick, blazing **orange** line crosses the country, like a
+lightcycle wall seen from above. It starts in Austin, sweeps west to
+Sacramento, then turns and crosses the whole country east to New York.
+It runs along the mesh like a subway line through its stations,
+visiting nine stations in this order, and they alternate daemon,
+provider, daemon, provider:
 
 | # | station | where | shape |
 |---|---|---|---|
-| 1 | daemon | San Francisco | cyan hexagon |
-| 2 | provider | over Nevada | white diamond |
-| 3 | daemon | Denver | cyan hexagon |
-| 4 | provider | over Missouri | white diamond |
-| 5 | daemon | Chicago | cyan hexagon |
-| 6 | provider | over Pennsylvania | white diamond |
-| 7 | daemon | New York | cyan hexagon |
+| 1 | daemon | Austin | cyan hexagon |
+| 2 | provider | over Arizona | white diamond |
+| 3 | daemon | Sacramento | cyan hexagon |
+| 4 | provider | over Utah | white diamond |
+| 5 | daemon | Denver | cyan hexagon |
+| 6 | provider | over Missouri | white diamond |
+| 7 | daemon | Chicago | cyan hexagon |
+| 8 | provider | over Pennsylvania | white diamond |
+| 9 | daemon | New York | cyan hexagon |
 
-- **The diamonds on the line:** each of the three provider diamonds
+- **The diamonds on the line:** each of the four provider diamonds
   sits on the orange line, roughly halfway between the two daemons
   beside it, like a station on a subway line. They are as large as the
   daemon hexagons.
@@ -59,7 +63,7 @@ this order, and they alternate daemon, provider, daemon, provider:
   leaves on the other. Each station it passes through glows orange
   inside.
 - **Packets:** small white squares of light streak along the line from
-  west to east.
+  Austin toward New York.
 - **Unused links:** each daemon on the route keeps its other dim cyan
   links to other diamonds. They show its other providers, unused by
   this route.
@@ -70,19 +74,19 @@ this order, and they alternate daemon, provider, daemon, provider:
 
 - **The title** is huge and glowing across the top: **THE RELAY**.
 - **Beneath it**, thin capitals read: `DAEMON ▸ PROVIDER ▸ DAEMON ▸ PROVIDER ▸ …`
-- **A readout** beside the route reads: `SFO ▸ P ▸ DEN ▸ P ▸ CHI ▸ P ▸ NYC`.
+- **A readout** beside the route reads: `AUS ▸ P ▸ SAC ▸ P ▸ DEN ▸ P ▸ CHI ▸ P ▸ NYC`.
 - **A legend** sits in the bottom-right corner, in a small HUD panel:
   - a cyan hexagon, `DAEMON`;
   - a white diamond, `PROVIDER`;
   - a magenta sigil, `IDENTITY`;
   - an orange line, `RELAY`.
 - **A status readout** sits in the bottom-left corner: `ROUTE LOCKED —
-  3 HOPS — ONE PROVIDER PER HOP`.
+  4 HOPS — ONE PROVIDER PER HOP`.
 
 ## Composition
 
 - **Overhead:** a flat view from directly above, with the whole
   continental US filling a 16:9 frame.
-- **Brightness:** the orange coast-to-coast route, with its seven
-  alternating stations, is the brightest thing in the image. The dim
+- **Brightness:** the orange route, with its nine alternating
+  stations, is the brightest thing in the image. The dim
   cyan mesh of daemons and providers covers the rest of the country.
