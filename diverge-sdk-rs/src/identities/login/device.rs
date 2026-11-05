@@ -15,6 +15,19 @@ use crate::identities::{Error, Identities, Name};
 /// names none.
 const INTERVAL: u64 = 5;
 
+/// `scope` with `openid` and `offline_access` added where it lacks
+/// them: the ID token names the subject, and `offline_access` is how
+/// most issuers are asked for a refresh token.
+pub(super) fn scoped(scope: &str) -> String {
+    let mut values: Vec<&str> = scope.split_ascii_whitespace().collect();
+    for needed in ["openid", "offline_access"] {
+        if !values.contains(&needed) {
+            values.push(needed);
+        }
+    }
+    values.join(" ")
+}
+
 /// The device authorization endpoint's answer, RFC 8628 §3.2.
 #[derive(Debug, Clone, Deserialize)]
 struct DeviceCode {
@@ -65,17 +78,8 @@ impl Identities {
             .device_authorization_endpoint
             .clone()
             .ok_or_else(|| Error::Discovery(format!("the document at `{}` names no device authorization endpoint", at(issuer))))?;
-        let mut values: Vec<&str> = scope.split_ascii_whitespace().collect();
-        for needed in ["openid", "offline_access"] {
-            if !values.contains(&needed) {
-                values.push(needed);
-            }
-        }
-        let scope = values.join(" ");
-        // The subject the login names, as OpenID Connect's
-        // `login_hint`: an issuer that signs no one in — Diverge's own —
-        // issues tokens to exactly it, and any other may ignore it.
-        let mut form = vec![("client_id", client_id), ("scope", scope.as_str()), ("login_hint", name.subject.as_str())];
+        let scope = scoped(scope);
+        let mut form = vec![("client_id", client_id), ("scope", scope.as_str())];
         if let Some(resource) = resource {
             form.push(("resource", resource));
         }

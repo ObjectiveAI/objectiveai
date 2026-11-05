@@ -63,6 +63,9 @@ pub enum Error {
     Held(Name),
     /// The person denied the device code.
     Denied,
+    /// The issuer refused the subject and the password, as
+    /// `invalid_grant`: nothing was written.
+    Rejected,
     /// The login's answer carried no ID token, or one with no `sub`.
     Subject,
     /// The login was approved as another identity than the one it
@@ -106,6 +109,7 @@ impl fmt::Display for Error {
             Error::Expired => f.write_str("the device code expired before it was approved"),
             Error::Held(name) => write!(f, "{name} is held by another login or reader"),
             Error::Denied => f.write_str("the device code was denied"),
+            Error::Rejected => f.write_str("the issuer refused the subject and the password"),
             Error::Subject => f.write_str("the login's answer named no subject"),
             Error::OtherSubject { expected, answered } => write!(f, "the login for {expected} was approved as {answered}; nothing was written"),
             Error::NoRefreshToken => f.write_str("the login's answer carried no refresh token"),

@@ -53,12 +53,9 @@
 //!    client: the issuer's
 //!    discovery document read, and it must name the issuer exactly as
 //!    given, which must be `https`, or `http` on a loopback host; a
-//!    device code asked for, the subject named sent as OpenID
-//!    Connect's `login_hint`; and [`Pending::wait`] polling the token
+//!    device code asked for; and [`Pending::wait`] polling the token
 //!    endpoint at the interval, five seconds slower at each
-//!    `slow_down`, until a person approves the code — on the issuer's
-//!    page, or, at Diverge's own issuer, which has none, by its
-//!    operator on its host — the identity
+//!    `slow_down`, until a person approves the code — the identity
 //!    written, replacing one already there, signed out or not, when the
 //!    approval is for the identity named, and
 //!    [`Error::OtherSubject`] when it is for another — or denies it
@@ -88,6 +85,17 @@
 //!     and the other end's token taken at its word: what a program that
 //!     dials as one identity and judges nobody — a command line —
 //!     makes its handshake with.
+//! 12. **Login by password.**
+//!     [`login_password`](Identities::login_password) — and
+//!     [`try_login_password`](Identities::try_login_password), which
+//!     waits for no one — is OAuth's password grant, RFC 6749 §4.3:
+//!     the identity's lock taken as rule 6 takes it, the discovery
+//!     document read as rule 6 reads it, the subject and its password
+//!     sent to the token endpoint once, and the answer written as rule
+//!     6 writes an approval's. A refusal as `invalid_grant` is
+//!     [`Error::Rejected`]. It is how Diverge's own issuer signs in,
+//!     which has no page and no device code. The password is sent and
+//!     never kept.
 //!
 //! [`Token`] is a token handed out: it has no way out but
 //! [`expose`](Token::expose), and its memory is zeroed on drop. The

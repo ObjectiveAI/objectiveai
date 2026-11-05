@@ -11,15 +11,18 @@ use crate::wire::encode::{Encode, Writer};
 /// A login's answers: the code a person approves, then how the login
 /// ended; or why it did not begin.
 ///
-/// A login begun is exactly one [`Pending`](Self::Pending), then
+/// A device login begun is exactly one [`Pending`](Self::Pending), then
 /// exactly one of [`SignedIn`](Self::SignedIn),
 /// [`Denied`](Self::Denied), [`Expired`](Self::Expired),
 /// [`OtherSubject`](Self::OtherSubject) or [`Error`](Self::Error), then
-/// the finish. A login refused is exactly one of [`Held`](Self::Held),
-/// [`Forbidden`](Self::Forbidden) or [`Error`](Self::Error), then the
-/// finish. A payload leads with one byte saying which — `0` to `7`, in
-/// the order of the variants — and the rest is that variant's own JSON,
-/// or nothing for a bare one. No answer carries a token.
+/// the finish. A password login is exactly one of `SignedIn`,
+/// [`Rejected`](Self::Rejected), `OtherSubject` or `Error`, with no
+/// `Pending`, then the finish. A login refused is exactly one of
+/// [`Held`](Self::Held), [`Forbidden`](Self::Forbidden) or
+/// [`Error`](Self::Error), then the finish. A payload leads with one
+/// byte saying which — `0` to `8`, in the order of the variants — and
+/// the rest is that variant's own JSON, or nothing for a bare one. No
+/// answer carries a token or a password.
 ///
 /// # A finish with nothing after `Pending`
 ///
@@ -70,6 +73,9 @@ pub enum Frame {
     /// See [`shared::error::Error`](crate::shared::error::Error)
     /// for why it says so little.
     Error(Error),
+    /// The issuer refused the subject and the password; nothing was
+    /// written. Tag `8`.
+    Rejected,
 }
 
 /// What a person needs to approve a login, as the issuer's device
@@ -97,6 +103,7 @@ const EXPIRED: u8 = 4;
 const OTHER_SUBJECT: u8 = 5;
 const FORBIDDEN: u8 = 6;
 const ERROR: u8 = 7;
+const REJECTED: u8 = 8;
 
 /// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
@@ -139,6 +146,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
             }
+            Frame::Rejected => {
+                out.extend_from_slice(&[REJECTED]);
+                Ok(())
+            }
         }
     }
 }
@@ -159,6 +170,7 @@ impl Decode<'_> for Frame {
             OTHER_SUBJECT => serde_json::from_slice(rest).map(Frame::OtherSubject).map_err(FrameError::Body),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
+            REJECTED => Ok(Frame::Rejected),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -169,7 +181,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's eight.
+    /// A tag that is none of this frame's nine.
     UnknownTag(u8),
     /// A variant's own JSON did not parse.
     Body(serde_json::Error),
