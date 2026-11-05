@@ -53,9 +53,12 @@
 //!    client: the issuer's
 //!    discovery document read, and it must name the issuer exactly as
 //!    given, which must be `https`, or `http` on a loopback host; a
-//!    device code asked for; and [`Pending::wait`] polling the token
+//!    device code asked for, the subject named sent as OpenID
+//!    Connect's `login_hint`; and [`Pending::wait`] polling the token
 //!    endpoint at the interval, five seconds slower at each
-//!    `slow_down`, until a person approves the code — the identity
+//!    `slow_down`, until a person approves the code — on the issuer's
+//!    page, or, at Diverge's own issuer, which has none, by its
+//!    operator on its host — the identity
 //!    written, replacing one already there, signed out or not, when the
 //!    approval is for the identity named, and
 //!    [`Error::OtherSubject`] when it is for another — or denies it

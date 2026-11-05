@@ -72,7 +72,10 @@ impl Identities {
             }
         }
         let scope = values.join(" ");
-        let mut form = vec![("client_id", client_id), ("scope", scope.as_str())];
+        // The subject the login names, as OpenID Connect's
+        // `login_hint`: an issuer that signs no one in — Diverge's own —
+        // issues tokens to exactly it, and any other may ignore it.
+        let mut form = vec![("client_id", client_id), ("scope", scope.as_str()), ("login_hint", name.subject.as_str())];
         if let Some(resource) = resource {
             form.push(("resource", resource));
         }
