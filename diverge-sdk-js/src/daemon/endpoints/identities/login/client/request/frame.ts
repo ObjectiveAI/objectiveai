@@ -5,9 +5,10 @@ import { json, tagged } from "../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../shared/relay.js";
 
 /**
- * Ask the daemon to sign an identity in on its host, by the device
- * authorization grant, as `diverge identities login` signs one in on
- * the host it runs on.
+ * Ask the daemon to sign an identity in on its host, as `diverge
+ * identities login` signs one in on the host it runs on: by its
+ * password where one is given, OAuth's password grant, else by the
+ * device authorization grant.
  */
 export const Frame = z.object({
   /** The issuer, exactly as its discovery document names it. */
@@ -20,6 +21,8 @@ export const Frame = z.object({
   scope: z.string().optional(),
   /** What the access token is for, RFC 8707's `resource`. Absent, the issuer's own choice. */
   resource: z.string().optional(),
+  /** The identity's password: the login is the password grant, one round trip, with no code. Absent, the device authorization grant. The daemon's command log keeps it redacted. */
+  password: z.string().optional(),
   /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
