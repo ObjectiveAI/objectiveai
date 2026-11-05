@@ -98,14 +98,14 @@
 //! 12. **Login by password.**
 //!     [`login_password`](Identities::login_password) — and
 //!     [`try_login_password`](Identities::try_login_password), which
-//!     waits for no one — is OAuth's password grant, RFC 6749 §4.3:
-//!     the identity's lock taken as rule 6 takes it, the discovery
-//!     document read as rule 6 reads it, the subject and its password
-//!     sent to the token endpoint once, and the answer written as rule
-//!     6 writes an approval's. A refusal as `invalid_grant` is
-//!     [`Error::Rejected`]. It is how Diverge's own issuer signs in,
-//!     which has no page and no device code. The password is sent and
-//!     never kept.
+//!     waits for no one — is rule 13's Authorization Code login with
+//!     no browser: the authorization request sent by this end itself,
+//!     the subject and its password as its Basic credentials, RFC 7617,
+//!     and the issuer's `302` read rather than followed, its code then
+//!     exchanged as any redirect's is. A `401` is [`Error::Rejected`].
+//!     It is how an agent signs in where the authorization endpoint
+//!     takes Basic credentials, as Diverge's own issuer does, which has
+//!     no page. The password is sent and never kept.
 //! 13. **The Authorization Code login.**
 //!     [`login_code`](Identities::login_code) is OpenID Connect Core
 //!     §3.1's sign-in, as a native app makes it: OAuth's Authorization

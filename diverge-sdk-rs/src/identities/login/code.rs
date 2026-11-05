@@ -2,7 +2,7 @@
 //! with PKCE and a loopback redirect.
 
 use base64::Engine as _;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use rand::RngCore as _;
 use sha2::{Digest as _, Sha256};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
@@ -62,6 +62,25 @@ impl Identities {
         let paths = self.paths(name);
         folder_owned(&paths.folder).await?;
         let held = file_lock::wait_exclusive(&paths.lock).await.map_err(Error::Lock)?;
+        self.authorize(held, name, client_id, scope, resource).await
+    }
+
+    /// [`login_code`](Self::login_code), the lock taken only if nobody
+    /// holds it: [`Error::Held`] at once if another login or a reader of
+    /// the identity holds it, and nothing asked of the issuer.
+    pub async fn try_login_code(&self, name: &Name, client_id: &str, scope: &str, resource: Option<&str>) -> Result<Authorizing, Error> {
+        let paths = self.paths(name);
+        folder_owned(&paths.folder).await?;
+        let Some(held) = file_lock::try_exclusive(&paths.lock).await.map_err(Error::Lock)? else {
+            return Err(Error::Held(name.clone()));
+        };
+        self.authorize(held, name, client_id, scope, resource).await
+    }
+
+    /// The login begun, the identity's lock in hand: the document read,
+    /// the loopback port bound, the secrets drawn and the authorization
+    /// URI made — a failure here lets the lock go at once.
+    async fn authorize(&self, held: file_lock::Held, name: &Name, client_id: &str, scope: &str, resource: Option<&str>) -> Result<Authorizing, Error> {
         let issuer = name.issuer.as_str();
         let discovery = discover(&self.http, issuer).await?;
         let lacks = || Error::Discovery(format!("the document at `{}` does not offer the authorization code flow", at(issuer)));
@@ -119,6 +138,48 @@ impl Identities {
 }
 
 impl Authorizing {
+    /// End the login with no browser: the authorization request sent by
+    /// this end itself, the subject and `password` as its Basic
+    /// credentials, RFC 7617 — how an agent signs in where the issuer's
+    /// authorization endpoint takes them, as Diverge's own does. The
+    /// rules:
+    ///
+    /// 1. **The redirect read, not followed.** A `302` whose `Location`
+    ///    is the redirect URI has its query taken as a browser's redirect
+    ///    would be — see [`wait`](Self::wait), rules 3 to 5.
+    /// 2. **Refused.** A `401` is [`Error::Rejected`]: the issuer refused
+    ///    the subject and the password.
+    /// 3. **Any other answer** is [`Error::Callback`], with its status
+    ///    and its body.
+    pub async fn with_password(self, password: &str) -> Result<Name, Error> {
+        let credentials = Zeroizing::new(STANDARD.encode(format!("{}:{password}", self.name.subject)));
+        let response = self
+            .identities
+            .http
+            .get(&self.authorization_uri)
+            .header(reqwest::header::AUTHORIZATION, format!("Basic {}", credentials.as_str()))
+            .send()
+            .await
+            .map_err(Error::Http)?;
+        let status = response.status();
+        // Rule 2.
+        if status == reqwest::StatusCode::UNAUTHORIZED {
+            return Err(Error::Rejected);
+        }
+        // Rule 1.
+        if status.is_redirection()
+            && let Some(location) = response.headers().get(reqwest::header::LOCATION).and_then(|value| value.to_str().ok())
+            && let Some(rest) = location.strip_prefix(self.redirect_uri.as_str())
+            && (rest.is_empty() || rest.starts_with('?'))
+        {
+            let query = rest.strip_prefix('?').unwrap_or_default().to_string();
+            return self.redirected(&query).await;
+        }
+        // Rule 3.
+        let body = response.text().await.unwrap_or_default();
+        Err(Error::Callback(format!("the authorization endpoint answered {status}: {body}")))
+    }
+
     /// Wait for the issuer's redirect, exchange its code, and write the
     /// identity. The rules:
     ///

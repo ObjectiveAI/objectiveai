@@ -1,7 +1,9 @@
 //! Signing an identity in on the daemon's host. A client names the
 //! identity and the public client to sign in as. With the identity's
-//! password, the daemon asks the issuer once, OAuth's password grant,
-//! RFC 6749 §4.3, and answers the outcome. Without one, it begins the
+//! password, the daemon signs in by OpenID Connect's Authorization Code
+//! flow with no browser — the password the authorization request's Basic
+//! credentials, the redirect read on the daemon's own host — and answers
+//! the outcome. Without one, it begins the
 //! device authorization grant, RFC 8628, and answers what a person needs
 //! to approve it — the user code, and where to enter it — then, once
 //! the person decides or the code expires, the outcome. Then the scope
