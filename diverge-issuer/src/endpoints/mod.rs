@@ -4,7 +4,7 @@
 //! |-------|----------|----|
 //! | `GET /.well-known/openid-configuration` | OpenID Connect Discovery | the provider's metadata — see [`discovery`] |
 //! | `GET /jwks` | RFC 7517 | the key set — see [`jwks`] |
-//! | `GET`, `POST /authorize` | OpenID Connect Discovery | named, and refused: the one app signs in by password — see [`authorize`] |
+//! | `GET`, `POST /authorize` | OpenID Connect Core §3.1.2 | the authorization endpoint, signed in by Basic credentials, a code sent to a loopback redirect — see [`authorize`](fn@authorize) |
 //! | `POST /token` | RFC 6749 | the tokens, by two grants — see [`token`](mod@token) |
 //! | `POST /revoke` | RFC 7009 | a refresh token's chain revoked — see [`revoke`] |
 //! | `GET`, `POST /userinfo` | OpenID Connect Core | the bearer token's subject — see [`userinfo`] |

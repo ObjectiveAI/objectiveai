@@ -21,11 +21,14 @@ use crate::config::Config;
 use crate::serve::Issuer;
 
 /// What the document says beyond OpenID Connect Discovery's own
-/// fields: the endpoint RFC 7009 adds, as RFC 8414 names it.
+/// fields: the endpoint RFC 7009 adds and the PKCE methods RFC 7636
+/// does, as RFC 8414 names them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Extra {
     /// The revocation endpoint.
     pub revocation_endpoint: String,
+    /// The PKCE challenge methods: `S256` alone.
+    pub code_challenge_methods_supported: Vec<String>,
 }
 
 impl AdditionalProviderMetadata for Extra {}
@@ -59,18 +62,19 @@ pub fn document(config: &Config) -> Result<String, String> {
         IssuerUrl::new(config.issuer()).map_err(text)?,
         AuthUrl::new(url(AUTHORIZE)).map_err(text)?,
         JsonWebKeySetUrl::new(url(JWKS)).map_err(text)?,
-        vec![ResponseTypes::new(vec![CoreResponseType::None])],
+        vec![ResponseTypes::new(vec![CoreResponseType::Code])],
         vec![CoreSubjectIdentifierType::Public],
         vec![CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256],
         Extra {
             revocation_endpoint: url(REVOKE),
+            code_challenge_methods_supported: vec!["S256".to_string()],
         },
     )
     .set_token_endpoint(Some(TokenUrl::new(url(TOKEN)).map_err(text)?))
     .set_userinfo_endpoint(Some(UserInfoUrl::new(url(USERINFO)).map_err(text)?))
     .set_scopes_supported(Some(vec![Scope::new("openid".to_string())]))
     .set_response_modes_supported(Some(vec![CoreResponseMode::Query]))
-    .set_grant_types_supported(Some(vec![CoreGrantType::Password, CoreGrantType::RefreshToken]))
+    .set_grant_types_supported(Some(vec![CoreGrantType::AuthorizationCode, CoreGrantType::RefreshToken]))
     .set_token_endpoint_auth_methods_supported(Some(vec![CoreClientAuthMethod::None]))
     .set_claims_supported(Some(
         ["sub", "iss", "aud", "exp", "iat", "auth_time", "at_hash"]

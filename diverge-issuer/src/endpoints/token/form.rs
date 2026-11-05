@@ -12,10 +12,12 @@ pub struct TokenForm {
     pub client_id: Option<String>,
     /// A client secret, which the one app never has: refused.
     pub client_secret: Option<String>,
-    /// The subject signing in, the password grant's `username`.
-    pub username: Option<String>,
-    /// Its password.
-    pub password: Option<String>,
+    /// The authorization code.
+    pub code: Option<String>,
+    /// The redirect URI the code was sent to.
+    pub redirect_uri: Option<String>,
+    /// The PKCE verifier, RFC 7636.
+    pub code_verifier: Option<String>,
     /// The refresh token.
     pub refresh_token: Option<String>,
     /// The scope asked for.

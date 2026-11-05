@@ -47,6 +47,7 @@ pub async fn refresh_token(issuer: &Issuer, form: &TokenForm) -> Result<Response
         scope: if asked.is_empty() { chain.scope } else { asked },
         audience: chain.audience,
         auth_time: Some(chain.auth_time),
+        nonce: None,
     };
     answer(issuer, grantee, Next::Rotated(next)).await
 }

@@ -21,6 +21,9 @@ pub struct Grantee {
     /// When the identity signed in; `None` when no identity did, and
     /// then no ID token is issued.
     pub auth_time: Option<i64>,
+    /// The authorization request's `nonce`, for the ID token; `None` for
+    /// a refresh, whose ID token carries none.
+    pub nonce: Option<String>,
 }
 
 /// The refresh token an answer carries.
@@ -65,6 +68,7 @@ pub async fn answer(issuer: &Issuer, grantee: Grantee, next: Next) -> Result<Res
                 client_id: CLIENT_ID,
                 auth_time,
                 access_token: &access.token,
+                nonce: grantee.nonce.as_deref(),
             };
             Some(tokens::id(&issuer.config, &keys.signing, signed).map_err(OAuthError::server)?)
         }

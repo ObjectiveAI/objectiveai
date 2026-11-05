@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use openidconnect::core::{CoreIdToken, CoreIdTokenClaims, CoreJwsSigningAlgorithm};
-use openidconnect::{AccessToken, Audience, EmptyAdditionalClaims, IssuerUrl, StandardClaims, SubjectIdentifier};
+use openidconnect::{AccessToken, Audience, EmptyAdditionalClaims, IssuerUrl, Nonce, StandardClaims, SubjectIdentifier};
 
 use super::Error;
 use crate::config::Config;
@@ -20,12 +20,14 @@ pub struct Signed<'a> {
     pub auth_time: i64,
     /// The access token issued beside it, whose hash is `at_hash`.
     pub access_token: &'a str,
+    /// The authorization request's `nonce`, where it had one.
+    pub nonce: Option<&'a str>,
 }
 
 /// Sign an ID token, as OpenID Connect Core §2 states one: `iss`,
 /// `sub`, `aud` the client, `exp` as an access token's, `iat` now,
-/// `auth_time`, and `at_hash`, the access token's. There is no
-/// `nonce`: no authorization request ever sends one.
+/// `auth_time`, `at_hash`, the access token's, and the authorization
+/// request's `nonce` where it had one — never on a refresh.
 pub fn id(config: &Config, signing: &Signing, signed: Signed<'_>) -> Result<String, Error> {
     let now = Utc::now();
     let lifetime = chrono::Duration::seconds(i64::try_from(config.access_token_seconds).unwrap_or(i64::MAX));
@@ -39,7 +41,8 @@ pub fn id(config: &Config, signing: &Signing, signed: Signed<'_>) -> Result<Stri
         StandardClaims::new(SubjectIdentifier::new(signed.sub.to_string())),
         EmptyAdditionalClaims {},
     )
-    .set_auth_time(Some(auth_time));
+    .set_auth_time(Some(auth_time))
+    .set_nonce(signed.nonce.map(|nonce| Nonce::new(nonce.to_string())));
     let access_token = AccessToken::new(signed.access_token.to_string());
     let token = CoreIdToken::new(
         claims,

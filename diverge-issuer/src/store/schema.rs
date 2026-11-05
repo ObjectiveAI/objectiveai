@@ -5,12 +5,13 @@
 /// - Every time is whole seconds since the Unix epoch, as
 ///   [`now`](crate::now) reads it.
 /// - Every secret is a hash: a password as an argon2id PHC string, and
-///   a refresh token as the lowercase hex SHA-256 of the value. The
+///   an authorization code or a refresh token as the lowercase hex
+///   SHA-256 of the value. The
 ///   signing keys are the one thing kept whole: a key's PEM, which the
 ///   issuer signs with.
 /// - A scope is the space-separated list OAuth sends.
-/// - Removing an identity removes, by cascade, every refresh token
-///   issued to it.
+/// - Removing an identity removes, by cascade, every authorization code
+///   and every refresh token issued to it.
 /// - There is no client column: the issuer has one app,
 ///   [`CLIENT_ID`](crate::endpoints::CLIENT_ID).
 pub(super) const SCHEMA: &str = "
@@ -23,6 +24,17 @@ create table if not exists keys (
     kid     text primary key,
     pem     text not null,
     made    integer not null
+);
+create table if not exists authorization_codes (
+    hash         text primary key,
+    subject      text not null references identities (subject) on delete cascade,
+    redirect_uri text not null,
+    challenge    text not null,
+    nonce        text,
+    scope        text not null,
+    audience     text not null,
+    auth_time    integer not null,
+    expires      integer not null
 );
 create table if not exists refresh_chains (
     id        integer primary key,
