@@ -1,84 +1,88 @@
 # The relay network, as one picture
 
-An image prompt. The subject is how a relay hops from daemon to daemon,
-each hop passing through exactly one provider. The facts are the
-daemon's (2026-11-05); the style is TRON, top-down.
-
-The picture is built as a **neon subway map**. A relay is one train
-line, and its stations alternate between two kinds: big cyan hexagons
-for daemons, and big white diamonds for providers. On a subway map a
-line visits every station on it, so that framing puts the providers on
-the route instead of beside it.
+An image prompt. The subject is a relay crossing the United States,
+hopping from daemon to daemon and passing through exactly one provider
+on every hop. The facts are the daemon's (2026-11-05); the style is
+TRON, seen from directly above, as a network-command map.
 
 ## Style
 
-A flat, 2D, top-down TRON schematic: glowing neon vector lines on pure
-black, with a faint cyan grid, heavy bloom and HUD tick marks around
-the border. The type is a wide, glowing, geometric sci-fi font in all
-caps. No real logos or brands.
+A flat, top-down map of the **continental United States** at night,
+drawn in TRON neon on pure black.
+- **The map:** the country's outline and its state borders are thin,
+  glowing cyan vector lines, and the land is filled with a faint cyan
+  hex grid. The oceans are black, with faint horizontal scan lines.
+- **The feel:** a national network operations center, a war-room
+  display tracking traffic across the country. HUD tick marks,
+  coordinates and a thin targeting frame run around the border.
+- **Light:** heavy bloom on every line.
+- **Type:** wide, glowing, geometric sci-fi capitals. No real logos or
+  brands.
 
-## The orange line
+## The network
 
-- **The line:** one thick, glowing orange-red line, like a subway line
-  or a lightcycle wall. It climbs across the frame as a **staircase**
-  from bottom-left to top-right.
-- **The steps:** the line is made of seven stations, evenly spaced along
-  it like beads on a string. They alternate in type:
+- **Daemons:** about ten daemons are placed on major cities. Each is a
+  cyan **hexagon** with a magenta circular sigil at its center, like a
+  fingerprint made of arcs. The sigil is the daemon's identity, and
+  every one is different. Beside each daemon its city is written in
+  small glowing capitals.
+- **Providers:** white **diamonds** with soft halos are scattered across
+  the country between the daemons, about fifteen of them.
+- **Attachments:** each daemon is attached by thin, dim cyan lines to
+  two, three or four nearby provider diamonds. Many diamonds are
+  attached to two or three daemons. Daemons attach only to providers,
+  so the whole map is a mesh of hexagon–diamond–hexagon links: the
+  providers are the junctions that join the daemons.
 
-  | # | station | shape |
-  |---|---|---|
-  | 1 | `ALPHA` | cyan hexagon |
-  | 2 | `P-02` | white diamond |
-  | 3 | `BRAVO` | cyan hexagon |
-  | 4 | `P-05` | white diamond |
-  | 5 | `ORION` | cyan hexagon |
-  | 6 | `P-07` | white diamond |
-  | 7 | `NOVA` | cyan hexagon |
+## The relay
 
-- **The pattern:** hexagon, diamond, hexagon, diamond, hexagon, diamond,
-  hexagon. Each diamond sits exactly on the line, halfway between the
-  two hexagons beside it, like a station on a subway line.
-- **Size:** the diamonds are as large as the hexagons, so they read as
-  stations, not as small dots.
-- **The line inside the stations:** the line enters each station on one
-  side and exits on the opposite side. Each diamond and each hexagon is
-  lit up orange inside where the line runs through it.
-- **Packets:** small white squares of light ride along the line.
+One thick, blazing **orange** line crosses the country from west to
+east, like a lightcycle wall seen from above. It runs along the mesh
+like a subway line through its stations, visiting seven stations in
+this order, and they alternate daemon, provider, daemon, provider:
 
-## The stations
+| # | station | where | shape |
+|---|---|---|---|
+| 1 | daemon | San Francisco | cyan hexagon |
+| 2 | provider | over Nevada | white diamond |
+| 3 | daemon | Denver | cyan hexagon |
+| 4 | provider | over Missouri | white diamond |
+| 5 | daemon | Chicago | cyan hexagon |
+| 6 | provider | over Pennsylvania | white diamond |
+| 7 | daemon | New York | cyan hexagon |
 
-- **Daemons:** each hexagon has a magenta circular sigil at its center,
-  like a fingerprint made of arcs, and a different one for every daemon.
-  That sigil is the daemon's identity. Its name is written beside it in
-  glowing caps.
-- **Providers:** each diamond has a soft white halo and its label,
-  `P-02`, `P-05` or `P-07`, beside it.
-
-## The rest of the map
-
-- **Spare providers:** around the orange line, dimmer extra white
-  diamonds are scattered: other providers. Each hexagon on the line
-  also has two thin, dim cyan **spur lines** branching off it to two of
-  these extra diamonds. They are the daemon's other providers, unlit
-  and unused by this route.
-- **Distant daemons:** at the edges of the map sit more dim cyan
-  hexagons, with their own dim spur lines to diamonds.
-- **Brightness:** the dim spurs show that every daemon has several
-  providers, while the bright orange line uses one of them per step.
+- **The diamonds on the line:** each of the three provider diamonds
+  sits on the orange line, roughly halfway between the two daemons
+  beside it, like a station on a subway line. They are as large as the
+  daemon hexagons.
+- **Lit stations:** the line enters every station on one side and
+  leaves on the other. Each station it passes through glows orange
+  inside.
+- **Packets:** small white squares of light streak along the line from
+  west to east.
+- **Unused links:** each daemon on the route keeps its other dim cyan
+  links to other diamonds. They show its other providers, unused by
+  this route.
+- **Arcs:** the line bends gently between stations, like a flight path
+  on an airline map.
 
 ## Text
 
-- **The title**, huge and glowing at the top: **THE RELAY**.
-- **Beneath it**, in thin caps: `DAEMON ▸ PROVIDER ▸ DAEMON ▸ PROVIDER ▸ DAEMON`.
-- **A legend** sits bottom-right in a small HUD panel:
+- **The title** is huge and glowing across the top: **THE RELAY**.
+- **Beneath it**, thin capitals read: `DAEMON ▸ PROVIDER ▸ DAEMON ▸ PROVIDER ▸ …`
+- **A readout** beside the route reads: `SFO ▸ P ▸ DEN ▸ P ▸ CHI ▸ P ▸ NYC`.
+- **A legend** sits in the bottom-right corner, in a small HUD panel:
   - a cyan hexagon, `DAEMON`;
   - a white diamond, `PROVIDER`;
   - a magenta sigil, `IDENTITY`;
   - an orange line, `RELAY`.
-- **A status readout** sits bottom-left: `ROUTE LOCKED — ONE PROVIDER PER HOP`.
+- **A status readout** sits in the bottom-left corner: `ROUTE LOCKED —
+  3 HOPS — ONE PROVIDER PER HOP`.
 
 ## Composition
 
-A flat overhead view, 16:9. The orange staircase with its seven
-alternating stations is the bright heart of the image, and the dim
-mesh fills the rest of the board.
+- **Overhead:** a flat view from directly above, with the whole
+  continental US filling a 16:9 frame.
+- **Brightness:** the orange coast-to-coast route, with its seven
+  alternating stations, is the brightest thing in the image. The dim
+  cyan mesh of daemons and providers covers the rest of the country.
