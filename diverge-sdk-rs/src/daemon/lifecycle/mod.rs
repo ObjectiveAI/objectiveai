@@ -13,7 +13,11 @@
 //!    run begins working — an agent's loop runs, or an MCP exchange
 //!    is in flight for it; a tool has an ask in flight — and
 //!    `inactive` when it ceases. They alternate, `active` first,
-//!    each kept only on a change.
+//!    each kept only on a change. Work that ends without a clean
+//!    completion — an exchange cut short because a scope or a
+//!    connection under it went — is no ceasing: the run stays `active`
+//!    until it is proven alive, or until its `undeployed` says it was
+//!    interrupted.
 //! 3. **Undeployed last.** [`Undeployed`] is kept when the run's
 //!    container is down, however it went down, and names the provider
 //!    its `deployed` named. A run that was working is first closed:
