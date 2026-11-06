@@ -44,6 +44,7 @@ use crate::shared::containers::daemon;
 /// | `19` | [`TerminalResize`](Self::TerminalResize) |
 /// | `20` | [`TerminalClose`](Self::TerminalClose) |
 /// | `21` | [`Frontend`](Self::Frontend) |
+/// | `22` | [`McpCloseSession`](Self::McpCloseSession) |
 ///
 /// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
@@ -210,6 +211,25 @@ pub enum Frame {
     /// by its write id as a write's content is (see
     /// [`frontend`](crate::shared::containers::frontend)).
     Frontend(frontend::request::Request),
+    /// The caller's MCP session, closed. Tag `22`.
+    ///
+    /// Not one of the five: the caller's side says it is done with the
+    /// session it names. The rules:
+    ///
+    /// 1. The session closed is the one the [`Sessioned`] caller names,
+    ///    by its [`key`](crate::shared::mcp::session::key); the request
+    ///    carries nothing else.
+    /// 2. The provider relays it to the container's proxy as it came,
+    ///    and the proxy's answer back, as it does the five.
+    /// 3. It is answered once — by a
+    ///    [`close_session::response::Frame`](crate::shared::mcp::close_session::response::Frame),
+    ///    `Closed` or the error — and then the finish; a session that is
+    ///    not open is `Closed` all the same.
+    /// 4. It is not the container's activity: it activates nothing and
+    ///    feeds no secret.
+    ///
+    /// See [`mcp::close_session`](crate::shared::mcp::close_session).
+    McpCloseSession(Sessioned<mcp::close_session::request::Request>),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -277,6 +297,9 @@ const TERMINAL_CLOSE: u8 = 20;
 
 /// Tag for [`Frame::Frontend`].
 const FRONTEND: u8 = 21;
+
+/// Tag for [`Frame::McpCloseSession`].
+const MCP_CLOSE_SESSION: u8 = 22;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -373,6 +396,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[FRONTEND]);
                 serde_json::to_writer(out, request)
             }
+            Frame::McpCloseSession(request) => {
+                out.extend_from_slice(&[MCP_CLOSE_SESSION]);
+                request.encode(out)
+            }
         }
     }
 }
@@ -448,6 +475,9 @@ impl Decode<'_> for Frame {
             FRONTEND => serde_json::from_slice(rest)
                 .map(Frame::Frontend)
                 .map_err(FrameError::Frontend),
+            MCP_CLOSE_SESSION => Sessioned::<mcp::close_session::request::Request>::decode(rest)
+                .map(Frame::McpCloseSession)
+                .map_err(FrameError::McpParams),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -470,9 +500,10 @@ pub enum FrameError {
     Postgres(postgres::request::PostgresError),
     /// The daemon connection's id was not four bytes.
     Daemon(daemon::request::DaemonError),
-    /// One of the five MCP exchanges' params did not parse.
+    /// One of the five MCP exchanges' params, or a close's session,
+    /// did not parse.
     ///
-    /// One variant for five tags, because they fail the same way and
+    /// One variant for six tags, because they fail the same way and
     /// the tag already said which was meant. Naming each would be five
     /// cases every reader matches and none of them distinguishes
     /// anything a caller could act on.

@@ -1,10 +1,13 @@
-//! The five things an agent asks of an MCP server.
+//! The five things an agent asks of an MCP server, and the one its
+//! side says when it is done with one.
 //!
 //! [`list_tools`], [`list_resources`], [`call_tool`] and
 //! [`read_resource`] are one exchange each: a request opens a channel
 //! and one frame answers it. [`notifications`] is the fifth and the
 //! odd one — nothing is asked, and frames arrive for as long as the
-//! channel lives.
+//! channel lives. [`close_session`] is the sixth, and is not MCP's: it
+//! travels only toward a tool container, and ends the caller's
+//! session there — see [`session`].
 //!
 //! # Why five, and why these five
 //!
@@ -85,6 +88,7 @@ pub use meta::*;
 
 pub mod attestation;
 pub mod call_tool;
+pub mod close_session;
 pub mod list_resources;
 pub mod list_tools;
 pub mod notifications;

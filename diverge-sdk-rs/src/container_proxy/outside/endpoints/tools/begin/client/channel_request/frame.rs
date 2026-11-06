@@ -29,13 +29,14 @@ use crate::shared::mcp::session::Sessioned;
 /// | `6` | [`McpReadResource`](Self::McpReadResource) |
 /// | `7` | [`McpNotifications`](Self::McpNotifications) |
 /// | `8` | [`Secrets`](Self::Secrets) |
+/// | `9` | [`McpCloseSession`](Self::McpCloseSession) |
 ///
 /// The first two are the same in both begin scopes, so a reader of
 /// one is a reader of both; what follows is this family's own
 /// exchange, and then the feed, which both scopes have again under a
-/// tag of their own. All of them reach INTO the container: the last
-/// hop of what a caller opened on the provider, or of what the caller
-/// fed.
+/// tag of their own, and then the close of a caller's MCP session. All
+/// of them reach INTO the container: the last hop of what a caller
+/// opened on the provider, or of what the caller fed.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The server's half of a database connection. Tag `0`.
@@ -95,6 +96,24 @@ pub enum Frame {
     /// opens the gate the proxy holds every exchange behind. See
     /// [`secrets`](crate::shared::containers::secrets).
     Secrets(Values),
+    /// The session named, closed. Tag `9`.
+    ///
+    /// The last hop of the caller's close. The rules:
+    ///
+    /// 1. The proxy removes the session under the caller's
+    ///    [`key`](crate::shared::mcp::session::key) and closes it: its
+    ///    client cancelled, nothing dialled on it again, an exchange
+    ///    already holding the client finishing on it, and a
+    ///    notifications channel on it ending with its channel.
+    /// 2. It answers once — by a
+    ///    [`close_session::response::Frame`](crate::shared::mcp::close_session::response::Frame)
+    ///    — and then the finish: `Closed` once the session is removed,
+    ///    and `Closed` for a key with no session open.
+    /// 3. It is not the container's activity: it waits behind no gate
+    ///    and marks the container neither active nor inactive.
+    /// 4. The caller's next exchange on the same key, if one comes,
+    ///    makes a new session, as a first exchange does.
+    McpCloseSession(Sessioned<mcp::close_session::request::Request>),
 }
 
 /// Tag for [`Frame::Postgres`].
@@ -123,6 +142,9 @@ const MCP_NOTIFICATIONS: u8 = 7;
 
 /// Tag for [`Frame::Secrets`].
 const SECRETS: u8 = 8;
+
+/// Tag for [`Frame::McpCloseSession`].
+const MCP_CLOSE_SESSION: u8 = 9;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever ask has one.
@@ -168,6 +190,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[SECRETS]);
                 serde_json::to_writer(out, values)
             }
+            Frame::McpCloseSession(request) => {
+                out.extend_from_slice(&[MCP_CLOSE_SESSION]);
+                request.encode(out)
+            }
         }
     }
 }
@@ -208,6 +234,9 @@ impl Decode<'_> for Frame {
             SECRETS => serde_json::from_slice(rest)
                 .map(Frame::Secrets)
                 .map_err(FrameError::Secrets),
+            MCP_CLOSE_SESSION => Sessioned::<mcp::close_session::request::Request>::decode(rest)
+                .map(Frame::McpCloseSession)
+                .map_err(FrameError::McpParams),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -224,9 +253,10 @@ pub enum FrameError {
     Postgres(postgres::request::PostgresError),
     /// The daemon connection's id was not four bytes.
     Daemon(daemon::request::DaemonError),
-    /// One of the five MCP exchanges' params did not parse.
+    /// One of the five MCP exchanges' params, or a close's session,
+    /// did not parse.
     ///
-    /// One variant for five tags, because they fail the same way and
+    /// One variant for six tags, because they fail the same way and
     /// the tag already said which was meant.
     McpParams(serde_json::Error),
     /// The secrets' values did not parse as JSON. The message is the

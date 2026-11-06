@@ -6,9 +6,11 @@
 //! DIVERGE.md, read by the proxy itself. The five `mcp_*`
 //! are what the container's own MCP server answered — the family's own,
 //! each an alias of the shape [`shared::mcp`](crate::shared::mcp)
-//! defines.
+//! defines — and [`mcp_close_session`] what the proxy answers when a
+//! caller's session is closed.
 
 pub mod mcp_call_tool;
+pub mod mcp_close_session;
 pub mod mcp_list_resources;
 pub mod mcp_list_tools;
 pub mod mcp_notifications;

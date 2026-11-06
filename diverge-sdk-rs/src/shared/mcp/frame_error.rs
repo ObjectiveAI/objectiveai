@@ -3,7 +3,7 @@
 use std::error;
 use std::fmt;
 
-/// What went wrong reading one of the five answers.
+/// What went wrong reading one of the five answers, or a close's.
 ///
 /// # One type for five frames
 ///

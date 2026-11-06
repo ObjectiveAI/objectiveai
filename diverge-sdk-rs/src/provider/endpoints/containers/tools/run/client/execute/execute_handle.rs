@@ -14,7 +14,7 @@ use super::super::channel_request;
 use super::{Exec, ExecStream, Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::client::answered::{
-    FuseMount, Info, McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Secrets,
+    FuseMount, Info, McpCallTool, McpCloseSession, McpListResources, McpListTools, McpNotifications, McpReadResource, Secrets,
 };
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError};
 use crate::provider::endpoints::containers::tools::run::server;
@@ -277,6 +277,18 @@ impl ExecuteHandle {
         let payload = payload(&channel_request::Frame::McpNotifications(request))
         .map_err(OpenError::Request)?;
         self.0.open::<McpNotifications>(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Close `session`'s MCP session in the container, relayed through
+    /// the provider to the proxy: resolves once the proxy has removed
+    /// it, or found none open, which is closed all the same. The
+    /// caller's side asks it when the session is over on its side; the
+    /// proxy's error is [`Refused`](UnaryError::Refused).
+    pub async fn close_session(&self, session: &Caller) -> Result<(), UnaryError<McpCloseSession>> {
+        let request = Sessioned { session: session.clone(), request: mcp::close_session::request::Request };
+        let payload = payload(&channel_request::Frame::McpCloseSession(request))
+            .map_err(UnaryError::Request)?;
+        self.0.unary::<McpCloseSession>(&payload).await
     }
 
     /// Feed the program its secrets' `values`, every name it

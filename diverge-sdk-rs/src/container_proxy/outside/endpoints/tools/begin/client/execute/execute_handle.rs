@@ -4,7 +4,7 @@ use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::client::answered::{Daemon, Info,
-    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Secrets,
+    McpCallTool, McpCloseSession, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Secrets,
 };
 use crate::provider::endpoints::containers::client::{Answered, ChannelStream, OpenError, UnaryError, unary};
 use crate::shared::containers::info::Document;
@@ -18,7 +18,7 @@ use crate::shared::mcp::session::Sessioned;
 ///
 /// Every channel the server may open on it is a method here — the
 /// image's DIVERGE.md, the five MCP exchanges into the container's
-/// server, the secrets' feed, the server's half of a database
+/// server, the close of a caller's MCP session, the secrets' feed, the server's half of a database
 /// connection — and so is answering a channel the proxy opened, by
 /// the proxy's own channel number. Clones share the scope, which is
 /// how a connector's exchanges ride the runner's begin.
@@ -107,6 +107,15 @@ impl ExecuteHandle {
             .await
             .map_err(OpenError::Send)?;
         Ok(ChannelStream::new(channel.response_receiver))
+    }
+
+    /// Close `session`'s MCP session: resolves once the proxy has
+    /// removed it, or found none open, which is closed all the same.
+    /// The proxy's error is [`Refused`](UnaryError::Refused).
+    pub async fn close_session(&self, session: &Caller) -> Result<(), UnaryError<McpCloseSession>> {
+        let request = Sessioned { session: session.clone(), request: mcp::close_session::request::Request };
+        let payload = payload(&channel_request::Frame::McpCloseSession(request)).map_err(UnaryError::Request)?;
+        unary::<McpCloseSession>(&self.handle, self.scope, &payload).await
     }
 
     /// Feed the program its secrets' `values`, every name it

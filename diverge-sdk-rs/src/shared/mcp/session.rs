@@ -14,7 +14,7 @@
 //! 1. A [`Sessioned`] request is one JSON object:
 //!    `{"session": <the caller>, "params": <the request's own JSON>}`,
 //!    `params` absent when the request has no bytes of its own — the
-//!    notifications request.
+//!    notifications request and the close.
 //! 2. Two callers are one session when their [`key`]s are one: an
 //!    agent by its template and its index, a client by its issuer, its
 //!    subject and its scope — one connect scope, one session. The image
@@ -23,11 +23,15 @@
 //! 3. Only the exchanges toward a tool container carry a session. An
 //!    agent container's own asks, which reach the daemon and not a
 //!    tool, carry the bare request as before.
+//! 4. A session ends when its caller's side closes it
+//!    ([`close_session`]): when the one connect scope a client's
+//!    session was minted for ends, and when the agent a session
+//!    belongs to is deleted. The proxy holds the session no longer.
 
 use serde::Deserialize;
 
 use super::attestation::Caller;
-use super::{call_tool, list_resources, list_tools, notifications, read_resource};
+use super::{call_tool, close_session, list_resources, list_tools, notifications, read_resource};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -89,6 +93,18 @@ impl Carried for notifications::request::Request {
 
     fn from_params(_bytes: &[u8]) -> Result<Self, serde_json::Error> {
         Ok(notifications::request::Request)
+    }
+}
+
+/// The close, which has no bytes either: the session is the whole of
+/// it.
+impl Carried for close_session::request::Request {
+    fn params(&self) -> Result<Vec<u8>, serde_json::Error> {
+        Ok(Vec::new())
+    }
+
+    fn from_params(_bytes: &[u8]) -> Result<Self, serde_json::Error> {
+        Ok(close_session::request::Request)
     }
 }
 
