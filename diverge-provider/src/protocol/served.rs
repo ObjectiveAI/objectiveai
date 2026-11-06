@@ -44,7 +44,11 @@ pub trait Served: Send + Sync {
 
     /// At most `length` bytes of the file from `offset` — fewer at
     /// the end, none at or past it — or `None` for nothing at the
-    /// path.
+    /// path. Never more than [`CHUNK_SIZE`](diverge_sdk::CHUNK_SIZE)
+    /// whatever `length` asks: the length is the asker's, and what is
+    /// allocated for it is bounded here. No kernel's FUSE read asks for
+    /// more than its `max_read`, at most 1 MiB, so a real read is never
+    /// shortened.
     fn read(&self, path: &str, offset: u64, length: u32) -> impl Future<Output = Result<Option<Bytes>, String>> + Send;
 
     /// The piece landed in place at `offset`; the file made if absent
