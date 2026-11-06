@@ -78,6 +78,7 @@ pub mod deploy;
 pub mod events;
 pub mod fuse;
 pub mod images;
+pub mod lifecycle;
 pub mod mcp;
 pub mod message;
 pub mod permissions;

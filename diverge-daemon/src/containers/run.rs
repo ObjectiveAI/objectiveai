@@ -5,11 +5,12 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::ExecuteHandle as ConnectHandle;
+use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::{End as ConnectEnd, ExecuteHandle as ConnectHandle};
 use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
+use diverge_sdk::provider::endpoints::containers::client::{UnaryError, WaitError};
 use diverge_sdk::shared::containers::fuse::Kind;
 use diverge_sdk::shared::containers::fuse_mount;
 use diverge_sdk::shared::mcp::attest;
@@ -24,6 +25,7 @@ use tokio::sync::{Mutex, watch};
 use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
+use super::lifecycle::{End, RunLog};
 use super::mcp::{Context, Served};
 use super::secrets::Secrets;
 use super::{ConnectionId, Frames, Inflight, Key, ToolKey, Use};
@@ -87,12 +89,35 @@ pub struct AgentRun {
     /// Taken for the length of one edit of the record while it runs:
     /// two editors adding mounts are served one after the other.
     pub edits: Mutex<()>,
+    /// The run's number, fresh from the daemon: what its log's
+    /// lifecycle is kept under — see [`lifecycle`](super::lifecycle).
+    pub epoch: u64,
+    /// Its log, live, taken when it started: every lifecycle item of
+    /// the run is kept through this one.
+    pub log: Arc<RunLog>,
+    /// How the run is ending, once whoever ends it first has said: what
+    /// its `undeployed` carries. See [`End`].
+    pub ending: Mutex<Option<End>>,
 }
 
 impl AgentRun {
     /// The container was used: the idle clock starts over.
     pub fn touch(&self) {
         self.touched.send_replace(Instant::now());
+    }
+
+    /// Say how the run is ending, unless someone has already: the first
+    /// word stands.
+    pub async fn end_as(&self, end: End) {
+        let mut ending = self.ending.lock().await;
+        if ending.is_none() {
+            *ending = Some(end);
+        }
+    }
+
+    /// How the run is ending, as said; an end nobody told is expected.
+    pub async fn end(&self) -> End {
+        self.ending.lock().await.unwrap_or(End::Expected)
     }
 
     /// One file use begins on the run (see `files`): it holds the run
@@ -158,18 +183,18 @@ impl ToolHandle {
 
     /// One call, by the name the tool itself knows, on `session`'s
     /// MCP session.
-    pub async fn call_tool(&self, session: &attestation::Caller, params: CallToolRequestParams) -> Result<CallToolResult, String> {
+    pub async fn call_tool(&self, session: &attestation::Caller, params: CallToolRequestParams) -> Result<CallToolResult, AskError> {
         match self {
-            ToolHandle::Run(handle) => handle.call_tool(session, params).await.map_err(|error| error.to_string()),
-            ToolHandle::Connected(handle) => handle.call_tool(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.call_tool(session, params).await.map_err(AskError::of),
+            ToolHandle::Connected(handle) => handle.call_tool(params).await.map_err(AskError::of),
         }
     }
 
     /// One resource read, on `session`'s MCP session.
-    pub async fn read_resource(&self, session: &attestation::Caller, params: ReadResourceRequestParams) -> Result<ReadResourceResult, String> {
+    pub async fn read_resource(&self, session: &attestation::Caller, params: ReadResourceRequestParams) -> Result<ReadResourceResult, AskError> {
         match self {
-            ToolHandle::Run(handle) => handle.read_resource(session, params).await.map_err(|error| error.to_string()),
-            ToolHandle::Connected(handle) => handle.read_resource(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.read_resource(session, params).await.map_err(AskError::of),
+            ToolHandle::Connected(handle) => handle.read_resource(params).await.map_err(AskError::of),
         }
     }
 
@@ -338,15 +363,95 @@ impl ToolHandle {
         };
     }
 
-    /// Wait for its end, however it comes.
-    pub async fn wait(&self) {
+    /// Wait for its end, however it comes: how it ended, as an
+    /// unexpected end would be told — the provider finishing it, the
+    /// connection going, or its stream failing, and why.
+    pub async fn wait(&self) -> Ended {
         match self {
-            ToolHandle::Run(handle) => {
-                let _ = handle.ended().await;
+            ToolHandle::Run(handle) => match handle.ended().await {
+                Ok(()) => Ended::Finished,
+                Err(WaitError::Closed) => Ended::Closed,
+                Err(error) => Ended::Failed(error.to_string()),
+            },
+            ToolHandle::Connected(handle) => match handle.wait().await {
+                ConnectEnd::Finished => Ended::Finished,
+                ConnectEnd::Closed => Ended::Closed,
+            },
+        }
+    }
+}
+
+/// How a run's scope ended, as the daemon heard it: what an end nobody
+/// asked for is told as — see [`Ended::reason`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ended {
+    /// The scope finished: the provider, or the far daemon, ended it.
+    Finished,
+    /// The connection the scope rode ended first.
+    Closed,
+    /// The scope's stream failed, in these words.
+    Failed(String),
+}
+
+impl Ended {
+    /// The reason an end nobody asked for carries: the connection
+    /// gone is the provider lost, a finish the run exited, a failure
+    /// failed.
+    pub fn reason(&self) -> diverge_sdk::daemon::lifecycle::Reason {
+        use diverge_sdk::daemon::lifecycle::Reason;
+        match self {
+            Ended::Finished => Reason::Exited,
+            Ended::Closed => Reason::ProviderLost,
+            Ended::Failed(_) => Reason::Failed,
+        }
+    }
+}
+
+/// Why an ask into a tool got no answer of the tool's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AskError {
+    /// The run's scope, or the connection under it, ended before the
+    /// tool answered: the ask was interrupted, and the run's
+    /// `undeployed` says why.
+    Interrupted,
+    /// Anything else, in the daemon's words.
+    Other(String),
+}
+
+impl AskError {
+    /// A unary exchange's failure, told apart: the channel closing or
+    /// finishing with no answer is the run going down under it.
+    fn of<A: diverge_sdk::provider::endpoints::containers::client::Answered>(error: UnaryError<A>) -> AskError
+    where
+        UnaryError<A>: std::fmt::Display,
+    {
+        match error {
+            UnaryError::Closed | UnaryError::Unanswered => AskError::Interrupted,
+            error => AskError::Other(error.to_string()),
+        }
+    }
+
+    /// The MCP error a caller is answered with: an interrupted ask
+    /// says so under `data`, with the run's reason when it is known.
+    pub fn to_error_data(&self, reason: Option<diverge_sdk::daemon::lifecycle::Reason>) -> rmcp::model::ErrorData {
+        match self {
+            AskError::Interrupted => {
+                let mut data = serde_json::json!({ "interrupted": true });
+                if let Some(reason) = reason {
+                    data["reason"] = serde_json::to_value(reason).unwrap_or(serde_json::Value::Null);
+                }
+                rmcp::model::ErrorData::internal_error("the tool's run ended before it answered", Some(data))
             }
-            ToolHandle::Connected(handle) => {
-                handle.wait().await;
-            }
+            AskError::Other(error) => rmcp::model::ErrorData::internal_error(error.clone(), None),
+        }
+    }
+}
+
+impl std::fmt::Display for AskError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AskError::Interrupted => f.write_str("the tool's run ended before it answered"),
+            AskError::Other(error) => f.write_str(error),
         }
     }
 }
@@ -422,12 +527,35 @@ pub struct ToolRun {
     /// Its secrets, as for an agent's run; a connected tool's `None`,
     /// since the daemon that runs it feeds its container.
     pub secrets: Mutex<Option<Secrets>>,
+    /// The run's number, fresh from the daemon: what its log's
+    /// lifecycle is kept under — see [`lifecycle`](super::lifecycle).
+    pub epoch: u64,
+    /// Its log, live, taken when it started: every lifecycle item of
+    /// the run is kept through this one.
+    pub log: Arc<RunLog>,
+    /// How the run is ending, once whoever ends it first has said: what
+    /// its `undeployed` carries. See [`End`].
+    pub ending: Mutex<Option<End>>,
 }
 
 impl ToolRun {
     /// The container was used.
     pub fn touch(&self) {
         self.touched.send_replace(Instant::now());
+    }
+
+    /// Say how the run is ending, unless someone has already: the first
+    /// word stands.
+    pub async fn end_as(&self, end: End) {
+        let mut ending = self.ending.lock().await;
+        if ending.is_none() {
+            *ending = Some(end);
+        }
+    }
+
+    /// How the run is ending, as said; an end nobody told is expected.
+    pub async fn end(&self) -> End {
+        self.ending.lock().await.unwrap_or(End::Expected)
     }
 
     /// One file use begins on the run (see `files`): it holds the run

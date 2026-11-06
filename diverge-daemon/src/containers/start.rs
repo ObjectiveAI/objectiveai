@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use chrono::Utc;
 use diverge_sdk::shared::mcp::attestation;
-use diverge_sdk::daemon::agent_log::{self as log, Item, Provider};
+use diverge_sdk::daemon::agent_log::{self as log, Item};
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::{execute as tools_connect, request as connect_request};
 use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::{execute as agents_run, request as agents_request};
@@ -16,6 +16,7 @@ use tokio::sync::{Mutex, watch};
 use super::answerers::Answerer;
 use super::capable::Needs;
 use super::fuse::Mounts;
+use super::lifecycle::{self, End};
 use super::mcp::Served;
 use super::{AgentRun, Inflight, activity, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_tool, serve_name, services, stop};
 use crate::daemon::{Daemon, Kind};
@@ -38,6 +39,8 @@ use crate::store::{agents, agents_templates, tools as tool_records, tools_templa
 /// keeps an `Error` item in the log, the mounts opened are let go,
 /// and what a registration took is given back.
 pub async fn agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun>, StartError> {
+    let starting = daemon.live.starting(Key::Agent(agent.id)).await;
+    let _starting = starting.lock().await;
     if let Some(run) = daemon.live.agent_run(agent.id).await {
         return Ok(run);
     }
@@ -45,22 +48,14 @@ pub async fn agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun>,
         Ok(run) => Ok(run),
         Err(error) => {
             let log = daemon.live.log(agent.id).await;
-            let _held = log.lock.lock().await;
-            if let Ok(wrapper) = crate::logs::append(
-                &daemon.logs,
-                agent.id,
-                Item::Error(log::Error {
-                    r#type: Default::default(),
-                    error: diverge_sdk::shared::error::Error(serde_json::json!({
-                        "kind": "start",
-                        "error": error.to_string(),
-                    })),
-                }),
-            )
-            .await
-            {
-                log.latest.send_replace(wrapper.logs_index);
-            }
+            let item = Item::Error(log::Error {
+                r#type: Default::default(),
+                error: diverge_sdk::shared::error::Error(serde_json::json!({
+                    "kind": "start",
+                    "error": error.to_string(),
+                })),
+            });
+            let _ = lifecycle::note(daemon.logs.clone(), agent.id, log, item).await;
             daemon.live.changed(Kind::Agents);
             Err(error)
         }
@@ -153,7 +148,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
                     }
                     deployed
                 };
-                stop::stop_dependencies(daemon, deployed).await;
+                stop::stop_dependencies(daemon, deployed, End::Expected).await;
                 secrets::abandon(daemon, &answerer).await;
                 last = format!("{error:?}");
                 continue;
@@ -184,16 +179,11 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             secrets: Mutex::new(answerer.secrets.lock().await.take()),
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
+            epoch: daemon.live.epoch().await,
+            log: daemon.live.log(agent.id).await,
+            ending: Mutex::new(None),
         });
-        pump::append(
-            daemon,
-            &run,
-            Item::Active(log::Active {
-                r#type: Default::default(),
-                provider: Provider { identity: identity.clone() },
-            }),
-        )
-        .await?;
+        lifecycle::deployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, identity.clone()).await;
         {
             let mut conn = daemon.store.acquire().await?;
             agents::set_deployed(&mut conn, agent.id, &identity, Utc::now()).await?;
@@ -228,6 +218,8 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
 /// nothing is served to it. Whether the tool is a service is its
 /// template's mode, read here for the run.
 pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, StartError> {
+    let starting = daemon.live.starting(Key::Tool(ToolKey::Record(tool.id))).await;
+    let _starting = starting.lock().await;
     if let Some(run) = daemon.live.tool_run(ToolKey::Record(tool.id)).await {
         return Ok(run);
     }
@@ -351,7 +343,11 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         dependency: None,
         sessions: Mutex::new(HashSet::new()),
         secrets: Mutex::new(secrets),
+        epoch: daemon.live.epoch().await,
+        log: daemon.live.tool_log(ToolKey::Record(tool.id)).await,
+        ending: Mutex::new(None),
     });
+    lifecycle::deployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, identity.clone()).await;
     {
         let mut conn = daemon.store.acquire().await?;
         tool_records::set_deployed(&mut conn, tool.id, &identity, Utc::now()).await?;
@@ -367,8 +363,9 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
             let daemon = Arc::clone(daemon);
             let run = Arc::clone(&run);
             tokio::spawn(async move {
-                run.handle.wait().await;
-                stop::ended_tool(&daemon, run).await;
+                let ended = run.handle.wait().await;
+                run.end_as(End::Unexpected(ended.reason())).await;
+                stop::end_tool(daemon, run);
             })
         }
     };

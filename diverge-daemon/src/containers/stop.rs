@@ -3,55 +3,63 @@
 use std::sync::Arc;
 
 use chrono::Utc;
-use diverge_sdk::daemon::agent_log::{self as log, Item, Provider};
+use diverge_sdk::daemon::lifecycle::Reason;
 use futures_util::future;
 
-use super::{AgentRun, Key, ToolHandle, ToolKey, ToolRun, pump, secrets, services};
+use super::lifecycle::{self, End};
+use super::{AgentRun, Key, ToolHandle, ToolKey, ToolRun, secrets, services, tool_log};
 use crate::daemon::{Daemon, Kind};
 use crate::store::{AgentId, agents, tools as tool_records};
 
-/// Stop the agent's run, if one is up: the container is told to stop,
-/// and the pump hears the end.
+/// Stop the agent's run, if one is up, as asked: the container is told
+/// to stop, and the pump hears the end.
 pub async fn stop_agent(daemon: &Daemon, id: AgentId) {
     if let Some(run) = daemon.live.agent_run(id).await {
+        run.end_as(End::Expected).await;
         let _ = run.handle.stop().await;
     }
 }
 
+/// [`ended_agent`] in a task of its own. The end of a run is never
+/// taken in one of the run's own tasks — the pump, a waiter — since
+/// the end aborts every one of them: so the pump, hearing the end,
+/// hands it here and returns.
+pub fn end_agent(daemon: Arc<Daemon>, run: Arc<AgentRun>) {
+    tokio::spawn(async move { ended_agent(&daemon, run).await });
+}
+
+/// [`ended_tool`] in a task of its own, as [`end_agent`].
+pub fn end_tool(daemon: Arc<Daemon>, run: Arc<ToolRun>) {
+    tokio::spawn(async move { ended_tool(&daemon, run).await });
+}
+
 /// The agent's run has ended, however it did: forgotten as live, its
-/// tasks ended, the vault slots it held released with their values
-/// unchanged, its transient dependencies stopped — all at once,
-/// every container told at the same time; its attached tools left to
-/// their own use and their idle clocks, its services to their
-/// attachments — its mounts let go, the log told it ceased on its
-/// provider, and the provider's capacity asked again, since the run's
-/// reservation is freed. Done once: a second call for one run does
-/// nothing.
+/// tasks ended — never the task this runs in: see [`end_agent`] — the
+/// log told it went down, with the reason the run's [`End`] gives and
+/// whether it was working, before anything else; the vault slots it
+/// held released with their values unchanged, its transient
+/// dependencies stopped as the agent ended — all at once, every
+/// container told at the same time; its attached tools left to their
+/// own use and their idle clocks, its services to their attachments
+/// — its mounts let go, and the provider's capacity asked again,
+/// since the run's reservation is freed. Done once: a second call for
+/// one run does nothing.
 pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     if daemon.live.remove_agent(run.id).await.is_none() {
         return;
     }
-    run.loop_active.send_replace(false);
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
     }
+    let end = run.end().await;
+    lifecycle::undeployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, end.reason()).await;
+    run.loop_active.send_replace(false);
     if let Some(mut held) = run.secrets.lock().await.take() {
         let _ = secrets::release(daemon, &mut held, &run.sender).await;
     }
     let dependencies = run.served.lock().await.transients();
-    stop_dependencies(daemon, dependencies).await;
+    stop_dependencies(daemon, dependencies, end).await;
     run.mounts.stop().await;
-    let _ = pump::append(
-        daemon,
-        &run,
-        Item::Inactive(log::Inactive {
-            r#type: Default::default(),
-            provider: Provider {
-                identity: run.provider.clone(),
-            },
-        }),
-    )
-    .await;
     if let Ok(mut conn) = daemon.store.acquire().await {
         let _ = agents::set_deployed(&mut conn, run.id, &run.provider, Utc::now()).await;
     }
@@ -59,10 +67,12 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     daemon.live.nudge_capacity(&run.provider);
 }
 
-/// Every transient dependency tool stopped at once: each told to stop,
+/// Every transient dependency tool stopped at once, ending as `end`
+/// says — its agent's end, or a deploy's undoing: each told to stop,
 /// each waited for, each taken down.
-pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>) {
+pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>, end: End) {
     future::join_all(dependencies.iter().map(|run| async move {
+        run.end_as(end).await;
         run.handle.stop().await;
         run.handle.wait().await;
     }))
@@ -72,8 +82,11 @@ pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>)
     }
 }
 
-/// The tool's run has ended: forgotten as live, its tasks ended, the
-/// vault slots it held released with their values unchanged, the
+/// The tool's run has ended: forgotten as live, its tasks ended —
+/// never the task this runs in: see [`end_tool`] — the log told it
+/// went down, with the reason the run's [`End`] gives, the open asks
+/// answered interrupted first, and the tool marked not working when it
+/// was; the vault slots it held released with their values unchanged, the
 /// word that it ended said — which finishes every connect scope on it
 /// — its mounts let go; a record's told where and when it last ran; a
 /// transient dependency tool's taken out of its agent's served set,
@@ -87,6 +100,10 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     }
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
+    }
+    let end = run.end().await;
+    if lifecycle::undeployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, end.reason()).await {
+        tool_log::working(daemon, run.id, false).await;
     }
     if let Some(mut held) = run.secrets.lock().await.take() {
         let _ = secrets::release(daemon, &mut held, &run.sender).await;
@@ -129,10 +146,12 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
 pub async fn stop_all(daemon: &Daemon) {
     services::stop_all(daemon).await;
     for run in daemon.live.agent_runs().await {
+        run.end_as(End::Unexpected(Reason::DaemonStopped)).await;
         let _ = run.handle.stop().await;
         ended_agent(daemon, run).await;
     }
     for run in daemon.live.tool_runs().await {
+        run.end_as(End::Unexpected(Reason::DaemonStopped)).await;
         run.handle.stop().await;
         ended_tool(daemon, run).await;
     }

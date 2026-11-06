@@ -13,7 +13,20 @@ use super::{Book, ENTRY, Entry, Error};
 /// the directory on the first append. The caller holds the log's live
 /// lock across this, so that two appends land one after the other and
 /// the index entry counts are right.
+///
+/// The append runs in a task of its own and is waited for: a caller
+/// cancelled midway leaves the line and its index entry both written,
+/// never one without the other.
 pub async fn append<B: Book>(root: &Path, book: B, item: <B::Entry as Entry>::Item) -> Result<B::Entry, Error> {
+    let root = root.to_path_buf();
+    match tokio::spawn(async move { written(&root, book, item).await }).await {
+        Ok(written) => written,
+        Err(error) => Err(Error::Task(error.to_string())),
+    }
+}
+
+/// The append itself.
+async fn written<B: Book>(root: &Path, book: B, item: <B::Entry as Entry>::Item) -> Result<B::Entry, Error> {
     let dir = book.dir(root);
     tokio::fs::create_dir_all(&dir).await.map_err(|source| Error::io(&dir, source))?;
     let log_path = dir.join("log");

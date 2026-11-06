@@ -7,6 +7,7 @@ use std::time::Duration;
 use tokio::sync::watch;
 
 use super::{Outcome, State, start};
+use crate::containers::lifecycle::End;
 use crate::containers::{ToolKey, ToolRun, stop};
 use crate::daemon::Daemon;
 use crate::store::{DependencyToolId, ToolId, dependency_tools, tools};
@@ -44,7 +45,8 @@ pub async fn supervise(daemon: Arc<Daemon>, key: ToolKey, state: Arc<State>, out
             Started::Gone => return,
             Started::Run(run) => {
                 outcomes.send_replace(Some(Outcome::Up));
-                run.handle.wait().await;
+                let ended = run.handle.wait().await;
+                run.end_as(End::Unexpected(ended.reason())).await;
                 stop::ended_tool(&daemon, run).await;
             }
             Started::Failed(reason) => {

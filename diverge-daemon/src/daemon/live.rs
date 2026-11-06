@@ -20,6 +20,7 @@ use diverge_sdk::provider::endpoints::images::oci::client::execute;
 use super::{Capacity, Changes, Kind, Peers, Standing};
 use crate::containers::services::State;
 use crate::commands::Commander;
+use crate::containers::lifecycle::RunLog;
 use crate::containers::{AgentRun, ConnectionId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
 use crate::judge::AgentState;
@@ -72,10 +73,21 @@ pub struct Live {
     addresses: Mutex<HashMap<Identity, String>>,
     /// Every agent's log that has been appended to or watched since
     /// the start, by agent.
-    logs: Mutex<HashMap<AgentId, Arc<Log>>>,
+    logs: Mutex<HashMap<AgentId, Arc<RunLog>>>,
     /// Every tool's log that has been appended to or watched since the
     /// start, by tool.
-    tool_logs: Mutex<HashMap<ToolKey, Arc<ToolLog>>>,
+    tool_logs: Mutex<HashMap<ToolKey, Arc<RunLog>>>,
+    /// The agents and tools deleted since the start, whose logs are
+    /// forgotten: a writer of one gets a log that keeps nothing, and
+    /// none is made again. Ids are never reused.
+    forgotten: Mutex<HashSet<Key>>,
+    /// The number the next run is given: what its log's lifecycle is
+    /// kept under.
+    next_epoch: Mutex<u64>,
+    /// One lock per agent and tool, taken for the length of a start:
+    /// two starts of one are served one after the other, so a run is
+    /// deployed once.
+    starting: Mutex<HashMap<Key, Arc<Mutex<()>>>>,
     /// Every account's and administrator's command log appended to or
     /// watched since the start; a tool's commands are in its tool log.
     command_logs: Mutex<HashMap<Commander, Arc<Log>>>,
@@ -146,21 +158,6 @@ impl std::fmt::Debug for Live {
 pub struct Log {
     /// Taken for the length of one append.
     pub lock: Mutex<()>,
-    /// The `logs_index` of the latest item appended since the start;
-    /// `0` before any. What a reader waits on.
-    pub latest: watch::Sender<u64>,
-}
-
-/// One tool's log as it is live: the lock an append is made under,
-/// holding how many of the tool's asks are in flight — what its
-/// `active` and `inactive` items mark — and the latest index as a
-/// watch, as [`Log`]'s. The sender gone — the tool deleted — ends
-/// every watch.
-#[derive(Debug)]
-pub struct ToolLog {
-    /// Taken for the length of one append, or of an ask's two: the
-    /// asks logged and not yet answered.
-    pub lock: Mutex<u64>,
     /// The `logs_index` of the latest item appended since the start;
     /// `0` before any. What a reader waits on.
     pub latest: watch::Sender<u64>,
@@ -551,39 +548,58 @@ impl Live {
     }
 
     /// The agent's log, live: the one every append and every watch of
-    /// that log goes through.
-    pub async fn log(&self, id: AgentId) -> Arc<Log> {
+    /// that log goes through. A deleted agent's is a log that keeps
+    /// nothing, made fresh and never kept.
+    pub async fn log(&self, id: AgentId) -> Arc<RunLog> {
+        if self.forgotten.lock().await.contains(&Key::Agent(id)) {
+            return Arc::new(RunLog::forgotten());
+        }
         let mut logs = self.logs.lock().await;
-        Arc::clone(logs.entry(id).or_insert_with(|| {
-            Arc::new(Log {
-                lock: Mutex::new(()),
-                latest: watch::channel(0).0,
-            })
-        }))
+        Arc::clone(logs.entry(id).or_insert_with(|| Arc::new(RunLog::new())))
     }
 
-    /// The agent is deleted: forget its log, which ends every watch on
-    /// it once the last append has let go.
+    /// The agent is deleted: its log forgotten — nothing kept on it
+    /// again, by any writer that still holds it — and let go, which
+    /// ends every watch on it once the last append has let go.
     pub async fn end_log(&self, id: AgentId) {
-        self.logs.lock().await.remove(&id);
+        self.forgotten.lock().await.insert(Key::Agent(id));
+        let log = self.logs.lock().await.remove(&id);
+        if let Some(log) = log {
+            crate::containers::lifecycle::forget(log).await;
+        }
     }
 
     /// The tool's log, live: the one every append and every watch of
-    /// that log goes through.
-    pub async fn tool_log(&self, key: ToolKey) -> Arc<ToolLog> {
+    /// that log goes through. A deleted tool's is a log that keeps
+    /// nothing, made fresh and never kept.
+    pub async fn tool_log(&self, key: ToolKey) -> Arc<RunLog> {
+        if self.forgotten.lock().await.contains(&Key::Tool(key)) {
+            return Arc::new(RunLog::forgotten());
+        }
         let mut logs = self.tool_logs.lock().await;
-        Arc::clone(logs.entry(key).or_insert_with(|| {
-            Arc::new(ToolLog {
-                lock: Mutex::new(0),
-                latest: watch::channel(0).0,
-            })
-        }))
+        Arc::clone(logs.entry(key).or_insert_with(|| Arc::new(RunLog::new())))
     }
 
-    /// The tool is deleted: forget its log, which ends every watch on
-    /// it once the last append has let go.
+    /// The tool is deleted: its log forgotten and let go, as
+    /// [`end_log`](Self::end_log) does an agent's.
     pub async fn end_tool_log(&self, key: ToolKey) {
-        self.tool_logs.lock().await.remove(&key);
+        self.forgotten.lock().await.insert(Key::Tool(key));
+        let log = self.tool_logs.lock().await.remove(&key);
+        if let Some(log) = log {
+            crate::containers::lifecycle::forget(log).await;
+        }
+    }
+
+    /// A fresh number for a run.
+    pub async fn epoch(&self) -> u64 {
+        let mut next = self.next_epoch.lock().await;
+        *next += 1;
+        *next
+    }
+
+    /// The lock a start of `key` is made under: see `starting`.
+    pub async fn starting(&self, key: Key) -> Arc<Mutex<()>> {
+        Arc::clone(self.starting.lock().await.entry(key).or_default())
     }
 
     /// A requester's command log, live: the one every append and every

@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use super::lifecycle::End;
 use super::{AgentRun, ToolRun};
 use crate::daemon::Daemon;
 
@@ -45,6 +46,7 @@ pub async fn idle(daemon: Arc<Daemon>, run: Arc<AgentRun>) {
         tokio::select! {
             () = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {
                 if !*active.borrow() && *inflight.borrow() == 0 && *files.borrow() == 0 && *touched.borrow() == last {
+                    run.end_as(End::Expected).await;
                     let _ = run.handle.stop().await;
                     return;
                 }
@@ -116,6 +118,7 @@ pub async fn idle_tool(daemon: Arc<Daemon>, run: Arc<ToolRun>) {
         tokio::select! {
             () = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {
                 if !*held.borrow() && *inflight.borrow() == 0 && *files.borrow() == 0 && *touched.borrow() == last {
+                    run.end_as(End::Expected).await;
                     run.handle.stop().await;
                     return;
                 }

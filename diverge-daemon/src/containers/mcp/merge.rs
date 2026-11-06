@@ -25,7 +25,8 @@ use tokio::sync::{Mutex, mpsc};
 use tokio::task::AbortHandle;
 
 use super::{Entry, Served, exposed, split};
-use crate::containers::{Key, ToolKey, ToolRun, activate_tool, events, tool_log, tools};
+use crate::containers::lifecycle::{Answer, Ask, End};
+use crate::containers::{AskError, Key, ToolKey, ToolRun, activate_tool, events, tool_log, tools};
 use crate::daemon::Daemon;
 use crate::store::DependencyToolId;
 use crate::store::tools::Tool;
@@ -205,9 +206,13 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
 /// more from that instant, and this call is answered still. On the
 /// graph once it reaches the run: one event from the container
 /// to the tool, however the tool answers. On the tool's log, an
-/// agent's call is kept once its tool is found, and its answer — the
+/// agent's call is kept once its tool's run is found — never before,
+/// so its `active` follows the run's `deployed` — and its answer — the
 /// result, or why there was none — once there is one, as
-/// [`tool_log`] states; a tool container's own call keeps nothing.
+/// [`tool_log`] states; a call the run went down under is answered
+/// there by the run's `undeployed`. The ask, from its keeping to its
+/// answer's, runs in a task of its own, so a caller gone midway
+/// leaves no ask open. A tool container's own call keeps nothing.
 pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
     let Some((prefix, name)) = split(&params.name) else {
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
@@ -215,40 +220,53 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     let Some(key) = context.served.lock().await.owner(prefix) else {
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
     };
-    let Some(caller) = &context.caller else {
+    let Some(caller) = context.caller.clone() else {
         return Err(no_caller());
     };
+    let run = running(context, key).await.map_err(|error| ErrorData::internal_error(error, None))?;
     let name = name.to_string();
     let call = log::Call { caller: caller.clone(), name: name.clone(), arguments: params.arguments.clone() };
-    let ask = tool_log::begin(&context.daemon, key, Item::Call(call)).await;
     params.name = name.into();
-    let answered = routed_call(context, caller, key, params).await;
-    tool_log::end(&context.daemon, key, ask, |call| match &answered {
-        Ok(result) => Item::CallResult(log::CallResult { call, result: result.clone() }),
-        Err(error) => Item::CallError(log::CallError { call, error: tool_log::error_data(error) }),
-    })
-    .await;
-    answered
+    let daemon = Arc::clone(&context.daemon);
+    let sender = context.sender.clone();
+    tokio::spawn(async move { asked_call(daemon, sender, caller, run, call, params).await })
+        .await
+        .unwrap_or_else(|error| Err(ErrorData::internal_error(error.to_string(), None)))
 }
 
-/// The call, routed: the tool's run found, the call attested, the run
-/// activated, the event recorded, and the tool asked on the caller's
-/// session.
-async fn routed_call(context: &Context, caller: &attestation::Caller, key: ToolKey, mut params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
-    let run = running(context, key).await.map_err(|error| ErrorData::internal_error(error, None))?;
+/// The call, kept, routed and answered on `run`'s log.
+async fn asked_call(
+    daemon: Arc<Daemon>,
+    sender: Creator,
+    caller: attestation::Caller,
+    run: Arc<ToolRun>,
+    call: log::Call,
+    params: CallToolRequestParams,
+) -> Result<CallToolResult, ErrorData> {
+    let ask = tool_log::begin(&daemon, &run, Item::Call(call), Ask::Call).await;
+    let answered = routed_call(&daemon, &sender, &caller, &run, params).await;
+    tool_log::end(&daemon, &run, ask, |call| match &answered {
+        Ok(result) => Answer::Kept(Item::CallResult(log::CallResult { call, result: result.clone() })),
+        Err(AskError::Interrupted) => Answer::Interrupted,
+        Err(error) => Answer::Kept(Item::CallError(log::CallError { call, error: tool_log::words(&error.to_string()) })),
+    })
+    .await;
+    match answered {
+        Ok(result) => Ok(result),
+        Err(error) => Err(error.to_error_data(run.ending.lock().await.and_then(End::reason))),
+    }
+}
+
+/// The call, routed: the call attested, the run activated, the event
+/// recorded, and the tool asked on the caller's session.
+async fn routed_call(daemon: &Arc<Daemon>, sender: &Creator, caller: &attestation::Caller, run: &Arc<ToolRun>, mut params: CallToolRequestParams) -> Result<CallToolResult, AskError> {
     attest_request(&mut params, caller);
-    tool_log::session(&context.daemon, &run, caller).await;
+    tool_log::session(daemon, run, caller).await;
     run.touch();
     let _flying = run.inflight.enter();
-    activate_tool(&context.daemon, &run)
-        .await
-        .map_err(|error| ErrorData::internal_error(error.0.to_string(), None))?;
-    events::record(&context.daemon, &context.sender, &run.sender).await;
-    let mut result = run
-        .handle
-        .call_tool(caller, params)
-        .await
-        .map_err(|error| ErrorData::internal_error(error, None))?;
+    activate_tool(daemon, run).await.map_err(|error| AskError::Other(error.0.to_string()))?;
+    events::record(daemon, sender, &run.sender).await;
+    let mut result = run.handle.call_tool(caller, params).await?;
     run.attest(result.meta.get_or_insert_default());
     Ok(result)
 }
@@ -257,47 +275,68 @@ async fn routed_call(context: &Context, caller: &attestation::Caller, key: ToolK
 /// as one event from the container to that tool, and to no
 /// tool that did not. On each running tool's log, an agent's read is
 /// kept as it is asked, and its answer — the result, or why that tool
-/// had none — as it comes, as [`tool_log`] states; a tool container's
+/// had none — as it comes, as [`tool_log`] states; a read the run went
+/// down under is answered there by the run's `undeployed`. Each ask
+/// runs in a task of its own, as a call's does. A tool container's
 /// own read keeps nothing.
 pub async fn read_resource(context: &Context, mut params: ReadResourceRequestParams) -> Result<ReadResourceResult, ErrorData> {
-    let Some(caller) = &context.caller else {
+    let Some(caller) = context.caller.clone() else {
         return Err(no_caller());
     };
-    attest_request(&mut params, caller);
+    attest_request(&mut params, &caller);
     let keys = context.served.lock().await.keys();
     let mut last = None;
     for key in keys {
         let Ok(run) = running(context, key).await else {
             continue;
         };
-        tool_log::session(&context.daemon, &run, caller).await;
-        let read = log::Read { caller: caller.clone(), uri: params.uri.clone() };
-        let ask = tool_log::begin(&context.daemon, key, Item::Read(read)).await;
-        let _flying = run.inflight.enter();
-        if let Err(error) = activate_tool(&context.daemon, &run).await {
-            let error = error.0.to_string();
-            tool_log::end(&context.daemon, key, ask, |read| Item::ReadError(log::ReadError { read, error: tool_log::words(&error) })).await;
-            last = Some(error);
-            continue;
-        }
-        match run.handle.read_resource(caller, params.clone()).await {
-            Ok(mut result) => {
-                run.touch();
-                run.attest(result.meta.get_or_insert_default());
-                events::record(&context.daemon, &context.sender, &run.sender).await;
-                tool_log::end(&context.daemon, key, ask, |read| Item::ReadResult(log::ReadResult { read, result: result.clone() })).await;
-                return Ok(result);
-            }
-            Err(error) => {
-                tool_log::end(&context.daemon, key, ask, |read| Item::ReadError(log::ReadError { read, error: tool_log::words(&error) })).await;
-                last = Some(error);
-            }
+        let daemon = Arc::clone(&context.daemon);
+        let sender = context.sender.clone();
+        let asker = caller.clone();
+        let asked = params.clone();
+        let read = tokio::spawn(async move { asked_read(daemon, sender, asker, run, asked).await })
+            .await
+            .unwrap_or_else(|error| Err(error.to_string()));
+        match read {
+            Ok(result) => return Ok(result),
+            Err(error) => last = Some(error),
         }
     }
     Err(ErrorData::invalid_params(
         last.unwrap_or_else(|| format!("no served tool holds {}", params.uri)),
         None,
     ))
+}
+
+/// One read of one tool, kept, asked and answered on `run`'s log.
+async fn asked_read(daemon: Arc<Daemon>, sender: Creator, caller: attestation::Caller, run: Arc<ToolRun>, params: ReadResourceRequestParams) -> Result<ReadResourceResult, String> {
+    tool_log::session(&daemon, &run, &caller).await;
+    let read = log::Read { caller: caller.clone(), uri: params.uri.clone() };
+    let ask = tool_log::begin(&daemon, &run, Item::Read(read), Ask::Read).await;
+    let _flying = run.inflight.enter();
+    if let Err(error) = activate_tool(&daemon, &run).await {
+        let error = error.0.to_string();
+        tool_log::end(&daemon, &run, ask, |read| Answer::Kept(Item::ReadError(log::ReadError { read, error: tool_log::words(&error) }))).await;
+        return Err(error);
+    }
+    match run.handle.read_resource(&caller, params).await {
+        Ok(mut result) => {
+            run.touch();
+            run.attest(result.meta.get_or_insert_default());
+            events::record(&daemon, &sender, &run.sender).await;
+            tool_log::end(&daemon, &run, ask, |read| Answer::Kept(Item::ReadResult(log::ReadResult { read, result: result.clone() }))).await;
+            Ok(result)
+        }
+        Err(AskError::Interrupted) => {
+            tool_log::end(&daemon, &run, ask, |_| Answer::Interrupted).await;
+            Err(AskError::Interrupted.to_string())
+        }
+        Err(error) => {
+            let error = error.to_string();
+            tool_log::end(&daemon, &run, ask, |read| Answer::Kept(Item::ReadError(log::ReadError { read, error: tool_log::words(&error) }))).await;
+            Err(error)
+        }
+    }
 }
 
 /// Every served tool's notifications, forwarded for as long as the

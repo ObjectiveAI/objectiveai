@@ -6,10 +6,12 @@ use std::sync::Arc;
 use diverge_sdk::daemon::agent_log::{self as log, Item};
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::{Event, ExecuteStream};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use diverge_sdk::provider::endpoints::containers::client::WaitError;
 use futures_util::StreamExt as _;
 
+use super::lifecycle::{self, End};
 use super::mcp;
-use super::{AgentRun, activate, stop};
+use super::{AgentRun, Ended, activate, stop};
 use crate::daemon::Daemon;
 use crate::logs;
 use crate::store::AgentId;
@@ -25,9 +27,15 @@ use crate::store::AgentId;
 /// written back and the run activated again while a message is
 /// pending, as [`inactive_agent`](super::inactive_agent) states, a
 /// failure kept as an `Error` item naming secrets and never a value —
-/// and the stream's end or error the run over.
+/// and the stream's end or error the run over, told as the end it was
+/// unless whoever ended the run said first: the connection gone the
+/// provider lost, kept as no error; a finish the run exited; any other
+/// failure kept as an `Error` item and the run failed. The end is
+/// handed to a task of its own — see
+/// [`end_agent`](stop::end_agent).
 pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteStream) {
     let context = run.context(&daemon);
+    let mut ended = Ended::Finished;
     while let Some(event) = stream.next().await {
         match event {
             Ok(Event::Chunk(mut chunk)) => {
@@ -61,6 +69,10 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                     .await;
                 }
             }
+            Err(WaitError::Closed) => {
+                ended = Ended::Closed;
+                break;
+            }
             Err(error) => {
                 let _ = append(
                     &daemon,
@@ -74,25 +86,27 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                     }),
                 )
                 .await;
+                ended = Ended::Failed(error.to_string());
                 break;
             }
         }
     }
-    stop::ended_agent(&daemon, run).await;
+    run.end_as(End::Unexpected(ended.reason())).await;
+    stop::end_agent(daemon, run);
 }
 
-/// One item onto the agent's log, under its live lock, and the
-/// watchers told.
+/// One item onto the run's log — the one it took at its start — under
+/// its live lock, and the watchers told.
 pub async fn append(daemon: &Daemon, run: &AgentRun, item: Item) -> Result<(), logs::Error> {
-    append_for(daemon, run.id, item).await
+    let _ = lifecycle::note(daemon.logs.clone(), run.id, Arc::clone(&run.log), item).await;
+    Ok(())
 }
 
-/// One item onto the log of the agent with the id, running or not.
+/// One item onto the log of the agent with the id, running or not; a
+/// deleted agent's keeps nothing.
 pub async fn append_for(daemon: &Daemon, id: AgentId, item: Item) -> Result<(), logs::Error> {
     let log = daemon.live.log(id).await;
-    let _held = log.lock.lock().await;
-    let wrapper = logs::append(&daemon.logs, id, item).await?;
-    log.latest.send_replace(wrapper.logs_index);
+    let _ = lifecycle::note(daemon.logs.clone(), id, log, item).await;
     Ok(())
 }
 

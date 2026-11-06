@@ -17,6 +17,7 @@ use tokio::sync::{Mutex, watch};
 
 use crate::containers::answerers::Answerer;
 use crate::containers::fuse::Mounts;
+use crate::containers::lifecycle::End;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
 use crate::containers::services;
@@ -101,7 +102,7 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
         }
     }
     if let Some((template_id, reason)) = failed {
-        stop::stop_dependencies(daemon, runs).await;
+        stop::stop_dependencies(daemon, runs, End::Expected).await;
         return Err(error(&template_id, &reason));
     }
     let mut kept = Vec::new();
@@ -113,7 +114,7 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
         services::keep(daemon, key).await;
         services::held(daemon, key).await;
         if let Err(reason) = up(daemon, key).await {
-            stop::stop_dependencies(daemon, runs).await;
+            stop::stop_dependencies(daemon, runs, End::Expected).await;
             return Err(error(&tool.template, &reason));
         }
         kept.push(tool.id);
@@ -208,7 +209,7 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
     };
     let key = ToolKey::Dependency(tool.id);
     if let Some(stale) = daemon.live.tool_run(key).await {
-        stop::stop_dependencies(daemon, vec![stale]).await;
+        stop::stop_dependencies(daemon, vec![stale], End::Expected).await;
     }
     let needs = Needs {
         volume_modes: Vec::new(),
@@ -290,7 +291,11 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             dependency: Some(tool.clone()),
             sessions: Mutex::new(HashSet::new()),
             secrets: Mutex::new(run_answerer.secrets.lock().await.take()),
+            epoch: daemon.live.epoch().await,
+            log: daemon.live.tool_log(key).await,
+            ending: Mutex::new(None),
         });
+        crate::containers::lifecycle::deployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, run.provider.clone()).await;
         if let Ok(mut conn) = daemon.store.acquire().await {
             let _ = crate::store::dependency_tools::set_deployed(&mut conn, tool.id, chrono::Utc::now()).await;
         }

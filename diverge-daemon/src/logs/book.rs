@@ -15,15 +15,18 @@ use crate::store::{AccountId, AgentId};
 
 /// One entry of a log, as the wire sends it: an item with its place
 /// and its time.
-pub trait Entry: Serialize + DeserializeOwned {
+pub trait Entry: Serialize + DeserializeOwned + Send + 'static {
     /// What the entry holds.
-    type Item;
+    type Item: Send + 'static;
 
     /// The entry numbered `logs_index`, kept at `created`.
     fn wrap(logs_index: u64, created: DateTime<Utc>, item: Self::Item) -> Self;
 
     /// When it was kept.
     fn created(&self) -> DateTime<Utc>;
+
+    /// Its number in the log.
+    fn logs_index(&self) -> u64;
 }
 
 impl Entry for agent_log::ItemWrapper {
@@ -35,6 +38,10 @@ impl Entry for agent_log::ItemWrapper {
 
     fn created(&self) -> DateTime<Utc> {
         self.created
+    }
+
+    fn logs_index(&self) -> u64 {
+        self.logs_index
     }
 }
 
@@ -48,6 +55,10 @@ impl Entry for command_log::ItemWrapper {
     fn created(&self) -> DateTime<Utc> {
         self.created
     }
+
+    fn logs_index(&self) -> u64 {
+        self.logs_index
+    }
 }
 
 impl Entry for tool_log::ItemWrapper {
@@ -60,11 +71,15 @@ impl Entry for tool_log::ItemWrapper {
     fn created(&self) -> DateTime<Utc> {
         self.created
     }
+
+    fn logs_index(&self) -> u64 {
+        self.logs_index
+    }
 }
 
 /// Whose log: where it lies under the daemon's `<dir>`, and what its
 /// entries are.
-pub trait Book: Copy {
+pub trait Book: Copy + Send + 'static {
     /// What one entry is.
     type Entry: Entry;
 
