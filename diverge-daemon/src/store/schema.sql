@@ -289,6 +289,11 @@ CREATE TABLE IF NOT EXISTS diverge.daemons (
     daemon_subject   TEXT NOT NULL,
     identity_issuer  TEXT NOT NULL,
     identity_subject TEXT NOT NULL,
+    -- The route filters: the providers, the IPs and the addresses a
+    -- route to the remote must be among; NULL, no filter.
+    providers        JSONB,
+    ips              JSONB,
+    addresses        JSONB,
     tags             TEXT[] NOT NULL DEFAULT '{}',
     created          TIMESTAMPTZ NOT NULL,
     creator          JSONB NOT NULL

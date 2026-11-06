@@ -49,6 +49,15 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if let Some(identity) = frame.identity {
         record.identity = identity;
     }
+    if let Some(providers) = frame.providers {
+        record.routes.providers = providers;
+    }
+    if let Some(ips) = frame.ips {
+        record.routes.ips = ips;
+    }
+    if let Some(addresses) = frame.addresses {
+        record.routes.addresses = addresses;
+    }
     if record.identity.issuer != record.daemon.issuer {
         return Ok(Frame::Error(reply::failure(&"our identity must be at the remote's issuer: the handshake between the two speaks one")));
     }

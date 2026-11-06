@@ -52,7 +52,7 @@ pub enum Expected {
 ///    issuer's keys, trusting exactly the issuers `identities` names.
 /// 3. **The list.** The daemon has exactly one: its providers' records
 ///    — see [`ProviderBook`]. A provider that dials in must have an
-///    enabled, incoming record whose addresses contain the socket's
+///    enabled, incoming record whose ips contain the socket's
 ///    source; a provider that answers a dial must be exactly the one
 ///    the dial's enabled, outgoing record names — see
 ///    [`dialling`](Self::dialling). A daemon this daemon reaches is

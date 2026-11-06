@@ -17,13 +17,16 @@ use crate::store::daemons::Record;
 ///    account of ours on a remote keeps its own.
 /// 2. **Found by discovery.** Discovery is touched — held, its listings
 ///    opened where they are not and waited on until whole — and the
-///    providers whose listing holds the record's remote are its
-///    candidates: none is [`Fail::NoProvider`], since a remote is
-///    reached only while it is discoverable on a connected provider.
+///    routes to the record's remote that its
+///    [`Routes`](diverge_sdk::daemon::endpoints::daemons::Routes) let
+///    through are its candidates: none is [`Fail::NoProvider`], since a
+///    remote is reached only while it is discoverable on a connected
+///    provider by a route its record allows, and no route the filters
+///    refuse is ever a fallback.
 /// 3. **One at random.** One candidate is chosen at random — what a
 ///    measure of bandwidth or latency is to replace, see issue #315 —
-///    and its `daemons::connect` asked for the remote; its refusal is
-///    [`Fail::Refused`].
+///    and its provider's `daemons::connect` asked for the remote; its
+///    refusal is [`Fail::Refused`].
 /// 4. **As our account.** The handshake presents the record's identity
 ///    and admits only the record's remote — see
 ///    [`toward`](crate::judge::DaemonAuthenticator::toward).
@@ -38,9 +41,9 @@ pub async fn connect(daemon: &Arc<Daemon>, record: &Record) -> Result<Arc<Peer>,
     }
     // Rule 2.
     daemon.live.discovery.touch(daemon).await;
-    let candidates = daemon.live.discovery.providers(&record.daemon).await;
+    let candidates: Vec<_> = daemon.live.discovery.routes(&record.daemon).await.into_iter().filter(|via| record.routes.admits(via)).collect();
     // Rule 3.
-    let Some(provider) = candidates.choose(&mut rand::rng()).cloned() else {
+    let Some(provider) = candidates.choose(&mut rand::rng()).map(|via| via.provider.clone()) else {
         return Err(Fail::NoProvider);
     };
     let Some(handle) = daemon.live.provider(&provider).await else {

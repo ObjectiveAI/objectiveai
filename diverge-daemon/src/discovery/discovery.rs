@@ -4,9 +4,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 use std::time::Instant;
 
-use diverge_sdk::daemon::endpoints::providers::discover::server::response::Discovered;
+use diverge_sdk::daemon::endpoints::providers::discover::server::response::{Discovered, Via};
 use diverge_sdk::provider::endpoints::discover::client::{execute, request};
 use diverge_sdk::provider::endpoints::discover::server::response;
+use diverge_sdk::provider::endpoints::discover::server::response::Discoverable;
 use diverge_sdk::shared::Identity;
 use diverge_sdk::shared::discover::Description;
 use diverge_sdk::wire::client::handle::Handle;
@@ -43,13 +44,15 @@ use crate::daemon::{Daemon, Kind};
 /// 5. **Told.** Every change a listing tells, its end among them, and
 ///    every listing dropped, is the word [`Kind::Discover`].
 /// 6. **Merged.** [`read`](Self::read) is one [`Discovered`] per
-///    identity held by a whole listing, with every provider whose
-///    listing holds it and every distinct description those listings
-///    give it, the daemon's own identity at each provider left out: see
+///    identity held by a whole listing, with a route for every provider
+///    whose listing holds it — the provider, the IP of the identity's
+///    connection to it, and the address it dialled the identity at when
+///    it did — and every distinct description those listings give it,
+///    the daemon's own identity at each provider left out: see
 ///    [`own_at`](crate::judge::DaemonAuthenticator::own_at).
-/// 7. **Who holds an identity.** [`providers`](Self::providers) is every
-///    provider whose whole listing holds an identity: what a remote
-///    daemon is reached through.
+/// 7. **The routes to an identity.** [`routes`](Self::routes) is a route
+///    for every provider whose whole listing holds an identity: what a
+///    remote daemon is reached through, as its record's filters let it.
 #[derive(Debug, Default)]
 pub struct Discovery {
     inner: Mutex<Inner>,
@@ -57,9 +60,10 @@ pub struct Discovery {
     stirred: Notify,
 }
 
-/// One provider's listing as it stands: each identity, and the
-/// description it is listed with.
-type Held = BTreeMap<Identity, Option<Description>>;
+/// One provider's listing as it stands: each identity, as its item
+/// lists it — its description, its IP, and the address the provider
+/// dialled it at when it did.
+type Held = BTreeMap<Identity, Discoverable>;
 
 /// What is held, under the one lock.
 #[derive(Debug)]
@@ -142,8 +146,9 @@ impl Discovery {
         self.stirred.notify_one();
     }
 
-    /// Every provider whose whole listing holds `identity` (rule 7).
-    pub async fn providers(&self, identity: &Identity) -> Vec<Identity> {
+    /// Every route to `identity`: each provider whose whole listing holds
+    /// it, with where (rule 7).
+    pub async fn routes(&self, identity: &Identity) -> Vec<Via> {
         let whole: Vec<(Identity, Arc<Mutex<Held>>)> = {
             let inner = self.inner.lock().await;
             inner
@@ -153,13 +158,13 @@ impl Discovery {
                 .map(|(provider, upstream)| (provider.clone(), Arc::clone(&upstream.held)))
                 .collect()
         };
-        let mut holding = Vec::new();
+        let mut routes = Vec::new();
         for (provider, held) in whole {
-            if held.lock().await.contains_key(identity) {
-                holding.push(provider);
+            if let Some(listed) = held.lock().await.get(identity) {
+                routes.push(via(&provider, listed));
             }
         }
-        holding
+        routes
     }
 
     /// A provider connected (rule 3): its listing opened when discovery
@@ -189,16 +194,16 @@ impl Discovery {
                 .map(|(provider, upstream)| (provider.clone(), Arc::clone(&upstream.held)))
                 .collect()
         };
-        let mut merged: BTreeMap<Identity, (BTreeSet<Identity>, BTreeSet<Description>)> = BTreeMap::new();
+        let mut merged: BTreeMap<Identity, (BTreeSet<Via>, BTreeSet<Description>)> = BTreeMap::new();
         for (provider, held) in whole {
             let own = daemon.authenticator.own_at(&provider.issuer);
-            for (identity, description) in held.lock().await.iter() {
+            for (identity, listed) in held.lock().await.iter() {
                 if own.as_ref() == Some(identity) {
                     continue;
                 }
                 let (providers, descriptions) = merged.entry(identity.clone()).or_default();
-                providers.insert(provider.clone());
-                descriptions.extend(description.iter().cloned());
+                providers.insert(via(&provider, listed));
+                descriptions.extend(listed.description.iter().cloned());
             }
         }
         merged
@@ -245,7 +250,7 @@ async fn keep(daemon: Arc<Daemon>, handle: Handle, held: Arc<Mutex<Held>>, whole
             item = listing.next() => {
                 match item {
                     Some(Ok(response::Frame::Added(listed))) => {
-                        held.lock().await.insert(listed.identity, listed.description);
+                        held.lock().await.insert(listed.identity.clone(), listed);
                     }
                     Some(Ok(response::Frame::Removed(listed))) => {
                         held.lock().await.remove(&listed.identity);
@@ -298,4 +303,9 @@ pub async fn idle(daemon: Arc<Daemon>) {
             () = discovery.stirred.notified() => {}
         }
     }
+}
+
+/// The route to an identity `provider`'s listing holds as `listed`.
+fn via(provider: &Identity, listed: &Discoverable) -> Via {
+    Via { provider: provider.clone(), ip: listed.ip, address: listed.address.clone() }
 }

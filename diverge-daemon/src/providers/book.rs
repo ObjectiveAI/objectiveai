@@ -63,7 +63,7 @@ impl ProviderBook {
     }
 
     /// Whether a provider dialling in as `identity` from `ip` is
-    /// admitted — rule 2: an enabled, incoming record whose addresses
+    /// admitted — rule 2: an enabled, incoming record whose ips
     /// contain the source, or name none.
     pub fn admits(&self, identity: &Identity, ip: IpAddr) -> bool {
         self.records.load().iter().any(|record| &record.identity == identity && record.enabled && record.direction.admits(ip))

@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::daemons::Daemon;
+use diverge_sdk::daemon::endpoints::daemons::{Daemon, Routes};
 use diverge_sdk::shared::Identity;
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
@@ -20,6 +20,8 @@ pub struct Record {
     pub daemon: Identity,
     /// Our account there: the identity this daemon presents.
     pub identity: Identity,
+    /// The routes it may be reached by.
+    pub routes: Routes,
     /// Its tags, sorted.
     pub tags: Vec<String>,
     /// When it was added.
@@ -36,6 +38,7 @@ impl Record {
             description: self.description.clone(),
             daemon: self.daemon.clone(),
             identity: self.identity.clone(),
+            routes: self.routes.clone(),
             tags: self.tags.clone(),
             created: self.created,
             creator: self.creator.clone(),
@@ -45,16 +48,25 @@ impl Record {
 }
 
 /// The columns a record is read from.
-const COLUMNS: &str = "name, description, daemon_issuer, daemon_subject, identity_issuer, identity_subject, tags, created, creator";
+const COLUMNS: &str = "name, description, daemon_issuer, daemon_subject, identity_issuer, identity_subject, providers, ips, addresses, tags, created, creator";
 
 /// A record out of its row.
 fn record(row: &sqlx::postgres::PgRow) -> Result<Record, Error> {
     let Json(creator): Json<Creator> = row.try_get("creator")?;
+    let providers: Option<Json<_>> = row.try_get("providers")?;
+    let ips: Option<Json<_>> = row.try_get("ips")?;
+    let addresses: Option<Json<_>> = row.try_get("addresses")?;
+    let routes = Routes {
+        providers: providers.map(|Json(providers)| providers),
+        ips: ips.map(|Json(ips)| ips),
+        addresses: addresses.map(|Json(addresses)| addresses),
+    };
     Ok(Record {
         name: row.try_get("name")?,
         description: row.try_get("description")?,
         daemon: Identity { issuer: row.try_get("daemon_issuer")?, subject: row.try_get("daemon_subject")? },
         identity: Identity { issuer: row.try_get("identity_issuer")?, subject: row.try_get("identity_subject")? },
+        routes,
         tags: row.try_get("tags")?,
         created: row.try_get("created")?,
         creator,
@@ -65,8 +77,8 @@ fn record(row: &sqlx::postgres::PgRow) -> Result<Record, Error> {
 /// already.
 pub async fn create(conn: &mut PgConnection, record: &Record) -> Result<bool, Error> {
     let added = sqlx::query(
-        "INSERT INTO diverge.daemons (name, description, daemon_issuer, daemon_subject, identity_issuer, identity_subject, tags, created, creator) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (name) DO NOTHING",
+        "INSERT INTO diverge.daemons (name, description, daemon_issuer, daemon_subject, identity_issuer, identity_subject, providers, ips, addresses, tags, created, creator) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ON CONFLICT (name) DO NOTHING",
     )
     .bind(&record.name)
     .bind(&record.description)
@@ -74,6 +86,9 @@ pub async fn create(conn: &mut PgConnection, record: &Record) -> Result<bool, Er
     .bind(&record.daemon.subject)
     .bind(&record.identity.issuer)
     .bind(&record.identity.subject)
+    .bind(record.routes.providers.as_ref().map(Json))
+    .bind(record.routes.ips.as_ref().map(Json))
+    .bind(record.routes.addresses.as_ref().map(Json))
     .bind(&record.tags)
     .bind(record.created)
     .bind(Json(&record.creator))
@@ -100,11 +115,12 @@ pub async fn all(conn: &mut PgConnection) -> Result<Vec<Record>, Error> {
     rows.iter().map(record).collect()
 }
 
-/// Write `record`'s description, remote and identity over the kept one
-/// of its name.
+/// Write `record`'s description, remote, identity and route filters over
+/// the kept one of its name.
 pub async fn edit(conn: &mut PgConnection, record: &Record) -> Result<(), Error> {
     sqlx::query(
-        "UPDATE diverge.daemons SET description = $2, daemon_issuer = $3, daemon_subject = $4, identity_issuer = $5, identity_subject = $6 WHERE name = $1",
+        "UPDATE diverge.daemons SET description = $2, daemon_issuer = $3, daemon_subject = $4, identity_issuer = $5, identity_subject = $6, \
+         providers = $7, ips = $8, addresses = $9 WHERE name = $1",
     )
     .bind(&record.name)
     .bind(&record.description)
@@ -112,6 +128,9 @@ pub async fn edit(conn: &mut PgConnection, record: &Record) -> Result<(), Error>
     .bind(&record.daemon.subject)
     .bind(&record.identity.issuer)
     .bind(&record.identity.subject)
+    .bind(record.routes.providers.as_ref().map(Json))
+    .bind(record.routes.ips.as_ref().map(Json))
+    .bind(record.routes.addresses.as_ref().map(Json))
     .execute(&mut *conn)
     .await?;
     Ok(())

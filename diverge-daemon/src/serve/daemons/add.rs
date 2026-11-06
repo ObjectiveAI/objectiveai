@@ -40,6 +40,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         description: frame.description.unwrap_or_default(),
         daemon: frame.daemon,
         identity: frame.identity,
+        routes: frame.routes,
         tags: store::tags::with(&[], &frame.tags),
         created: chrono::Utc::now(),
         creator: standing.creator.clone(),
