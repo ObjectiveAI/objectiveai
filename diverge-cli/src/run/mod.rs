@@ -142,8 +142,9 @@ pub enum Command {
     /// The requests over the database.
     #[command(subcommand)]
     Postgres(postgres::Postgres),
-    /// The requests over providers: those dialled, those that dial in,
-    /// and the identities discoverable through them.
+    /// The requests over providers: their records — added, edited,
+    /// deleted, enabled, disabled, tagged — and the identities
+    /// discoverable through them.
     #[command(subcommand)]
     Providers(providers::Providers),
     /// The requests over roles.
