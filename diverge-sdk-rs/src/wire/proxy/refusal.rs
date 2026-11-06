@@ -33,12 +33,13 @@ impl fmt::Display for Refusal {
 
 impl std::error::Error for Refusal {}
 
-/// The handle's error in the page's two kinds: a scope not open is
-/// `scope`; the connection or the router gone is `connection`.
+/// The handle's error in the page's two kinds: a scope not open, or an
+/// answer its reader abandoned, is `scope`; the connection or the router
+/// gone is `connection`.
 impl From<SendError> for Refusal {
     fn from(error: SendError) -> Self {
         match error {
-            SendError::Scope => Refusal::Scope(error.to_string()),
+            SendError::Scope | SendError::Abandoned => Refusal::Scope(error.to_string()),
             SendError::Connection(_) | SendError::Router => Refusal::Connection(error.to_string()),
         }
     }

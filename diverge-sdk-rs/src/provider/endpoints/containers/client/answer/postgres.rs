@@ -64,7 +64,15 @@ pub(crate) async fn postgres<P: PostgresDialer>(
         }
     });
     let sent = async {
-        while let Some(piece) = from_database.next().await {
+        loop {
+            let piece = tokio::select! {
+                next = from_database.next() => next,
+                // The provider reads no more: the conduit is over.
+                () = handle.answer_gone(scope, channel) => return Err(Stop),
+            };
+            let Some(piece) = piece else {
+                break;
+            };
             respond_pieces(handle, scope, channel, &piece, |body| {
                 encoded(&postgres::response::Frame(body))
             })

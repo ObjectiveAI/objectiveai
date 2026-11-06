@@ -167,6 +167,10 @@ pub struct ScopeHandle {
     /// Who is told the scope's [`Verdict`], once, if anyone is: taken
     /// out before it is called.
     verdict: Mutex<Option<Hook>>,
+    /// Whether [`send_response_finish`](Self::send_response_finish) has
+    /// run: a handle dropped without it finishes its scope from the
+    /// drop.
+    finished: Mutex<bool>,
 }
 
 /// By hand, since the hook is a closure: everything but it, and
@@ -215,6 +219,7 @@ impl ScopeHandle {
             sink,
             buffer: Mutex::new(Vec::new()),
             verdict: Mutex::new(None),
+            finished: Mutex::new(false),
         }
     }
 
@@ -260,7 +265,19 @@ impl ScopeHandle {
     /// serving a filetree channel races this against the tree it is
     /// relaying, and one of the two loses every time round.
     pub async fn recv_channel_request(&self) -> Option<Bytes> {
-        self.channel_request_receiver.lock().await.recv().await
+        let request = self.channel_request_receiver.lock().await.recv().await;
+        self.take_handed().await;
+        request
+    }
+
+    /// Take in every room the session has handed over: what keeps the
+    /// queue they arrive on from growing between answers.
+    async fn take_handed(&self) {
+        let mut answers = self.answers.lock().await;
+        let (windows, handed) = &mut *answers;
+        while let Ok((number, window)) = handed.try_recv() {
+            windows.insert(number, window);
+        }
     }
 
     /// Answer, on the scope's own stream.
@@ -349,6 +366,17 @@ impl ScopeHandle {
             hook(Verdict::Nothing);
         }
         self.channel_request_receiver.lock().await.close();
+        *self.finished.lock().await = true;
+        // Every room on the client's channels goes with the scope, and
+        // the session is told now rather than at the drop: a handle
+        // kept after its finish holds nothing of it.
+        {
+            let mut answers = self.answers.lock().await;
+            let (windows, handed) = &mut *answers;
+            while handed.try_recv().is_ok() {}
+            windows.clear();
+        }
+        let _ = self.notice_sender.send(Notice::Closed(self.scope, None));
         self.send_frame(ServerFrame::ResponseFinish { scope: self.scope })
             .await;
     }
@@ -586,6 +614,12 @@ impl Drop for ScopeHandle {
         }
         self.channel_request_receiver.get_mut().close();
         let _ = self.notice_sender.send(Notice::Closed(self.scope, None));
+        // A handle dropped unfinished — its task aborted, or panicked —
+        // still ends its scope for the client, which would otherwise keep
+        // it, and wait on it, for the connection's life.
+        if !*self.finished.get_mut() {
+            super::session::post(&self.sink, ServerFrame::ResponseFinish { scope: self.scope });
+        }
     }
 }
 

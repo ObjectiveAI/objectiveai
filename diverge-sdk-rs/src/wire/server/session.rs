@@ -251,13 +251,13 @@ impl Session {
                         entry.end(Ended::Scope);
                     }
                 }
-                Notice::Closed(scope, Some(channel)) => {
-                    if let Some(entry) = self.scopes.get_mut(&scope)
-                        && entry.channels.get(&channel).is_some_and(Filer::is_closed)
-                    {
-                        entry.channels.remove(&channel);
-                    }
-                }
+                // A channel of this end's whose reader walked away keeps
+                // its entry: the client's finish, which an abandoned answer
+                // still sends, takes it out and gives its number back to
+                // the minter. Removing it here would leave that finish
+                // finding nothing, and the number taken for the scope's
+                // life.
+                Notice::Closed(_, Some(_)) => {}
                 Notice::Answered(scope, channel) => {
                     if let Some(entry) = self.scopes.get_mut(&scope) {
                         entry.answers.remove(&channel);
@@ -276,6 +276,13 @@ impl Session {
             // handle before the request is filed, so whoever answers
             // finds it.
             ClientFrame::ChannelRequest { scope, channel, .. } => match self.scopes.get_mut(&scope) {
+                // The scope's handler takes no more channel requests: no
+                // one will answer this one, so it is finished at once,
+                // and neither end keeps it.
+                Some(entry) if entry.requests.is_closed() => {
+                    post(&self.sink, ServerFrame::ChannelResponseFinish { scope, channel });
+                    Ok(())
+                }
                 Some(entry) => {
                     let window = Window::new();
                     entry.answers.insert(channel, window.clone());
@@ -383,6 +390,22 @@ impl Stream for Session {
             }
         }
     }
+}
+
+/// One frame sent beside whatever is reading: a finish no handle is
+/// left to send. Encoded now, written by a task of its own, since the
+/// caller may be a destructor or the read loop, neither of which may
+/// wait on the write half. Nothing is sent outside a runtime.
+pub(super) fn post(sink: &Arc<Mutex<SplitSink<Connection, Bytes>>>, frame: ServerFrame<'_>) {
+    let mut buffer = Vec::new();
+    frame.encode(&mut Writer::new(&mut buffer)).unwrap_or_else(|error| match error {});
+    let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+        return;
+    };
+    let sink = Arc::clone(sink);
+    runtime.spawn(async move {
+        let _ = sink.lock().await.send(Bytes::from(buffer)).await;
+    });
 }
 
 /// Send every credit this end's readers owe, until none can owe any

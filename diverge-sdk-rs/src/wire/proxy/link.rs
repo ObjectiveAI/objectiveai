@@ -156,7 +156,10 @@ impl Link {
                 let refusal = Refusal::from(error);
                 if let Refusal::Connection(message) = &refusal {
                     let mut inner = self.0.inner.lock().await;
-                    if matches!(inner.state, State::Up { .. }) {
+                    if let State::Up { router, .. } = &inner.state {
+                        // The connection is done: its router goes with
+                        // it, as on a reset, rather than outliving it.
+                        router.abort();
                         inner.state = State::Down(message.clone());
                         self.0.changed.notify_one();
                     }

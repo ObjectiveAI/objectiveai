@@ -206,9 +206,9 @@ impl Handle {
         let window = self.0.lock().await.answer(scope, channel)?;
         match window.take().await {
             Ok(Go::Send) => {}
-            // The server reads no more of this answer: sending it is
-            // nothing.
-            Ok(Go::Skip) => return Ok(()),
+            // The server reads no more of this answer: the answer stops
+            // here, and its finish is still owed.
+            Ok(Go::Skip) => return Err(SendError::Abandoned),
             Err(ended) => return Err(SendError::ended(ended)),
         }
         self.0
@@ -216,6 +216,18 @@ impl Handle {
             .await
             .send_channel_response(scope, channel, payload)
             .await
+    }
+
+    /// Resolves once the server reads no more of the answer on its
+    /// channel `channel` in `scope` — it abandoned it, the scope ended,
+    /// or the connection did — or at once for a channel this end does
+    /// not hold. What a long answer races its next piece against, so it
+    /// stops, and finishes, when nobody is reading it.
+    pub async fn answer_gone(&self, scope: u32, channel: u32) {
+        let window = self.0.lock().await.answer(scope, channel);
+        if let Ok(window) = window {
+            window.gone().await;
+        }
     }
 
     /// End an answer on a channel the server opened.
@@ -418,10 +430,11 @@ impl HandleInner {
     /// thing — which on a half-open connection is not soon.
     ///
     /// The number is minted and the registration is made before the
-    /// write, so a failure here leaks both. That is deliberate and
-    /// costs nothing: the order cannot be reversed without a request
-    /// whose answers have nowhere to land, and a connection this has
-    /// just failed on has no more numbers to run out of.
+    /// write, since the order cannot be reversed without a request
+    /// whose answers have nowhere to land. A failed write takes both
+    /// back: the number is freed here, and the router is told to forget
+    /// the registration — a transport that refused one message may go on
+    /// carrying others.
     ///
     /// There is no failed encode. A frame is a header and a payload
     /// this crate never looks at, so encoding one is
@@ -444,7 +457,11 @@ impl HandleInner {
                 asked,
             })
             .map_err(|_| SendError::Router)?;
-        self.send_frame(ClientFrame::Request { scope, payload }).await?;
+        if let Err(error) = self.send_frame(ClientFrame::Request { scope, payload }).await {
+            self.scopes.remove(&scope);
+            let _ = self.registration_sender.send(Registration::Forget { scope, channel: None });
+            return Err(error);
+        }
         Ok(Scope {
             scope,
             response_receiver,
@@ -481,12 +498,20 @@ impl HandleInner {
                 response_filer,
             })
             .map_err(|_| SendError::Router)?;
-        self.send_frame(ClientFrame::ChannelRequest {
-            scope,
-            channel,
-            payload,
-        })
-        .await?;
+        let sent = self
+            .send_frame(ClientFrame::ChannelRequest {
+                scope,
+                channel,
+                payload,
+            })
+            .await;
+        if let Err(error) = sent {
+            if let Some(open) = self.scopes.get_mut(&scope) {
+                open.channels.remove(&channel);
+            }
+            let _ = self.registration_sender.send(Registration::Forget { scope, channel: Some(channel) });
+            return Err(error);
+        }
         Ok(Channel { channel, response_receiver })
     }
 
@@ -743,6 +768,10 @@ pub enum SendError {
     /// still writing an answer into a scope that ended should stop
     /// writing it, and can carry on doing everything else.
     Scope,
+    /// The server reads no more of this answer: it abandoned the
+    /// channel. Nothing was sent; the answer stops, and its finish is
+    /// still owed, so that both ends let the channel go.
+    Abandoned,
 }
 
 impl SendError {
@@ -766,6 +795,7 @@ impl fmt::Display for SendError {
                 f.write_str("the reading half is gone, so nothing was sent")
             }
             SendError::Scope => f.write_str("that scope is not open"),
+            SendError::Abandoned => f.write_str("the server reads no more of this answer"),
         }
     }
 }
@@ -774,7 +804,7 @@ impl std::error::Error for SendError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             SendError::Connection(error) => Some(error),
-            SendError::Router | SendError::Scope => None,
+            SendError::Router | SendError::Scope | SendError::Abandoned => None,
         }
     }
 }

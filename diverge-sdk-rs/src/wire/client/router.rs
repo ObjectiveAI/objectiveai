@@ -58,10 +58,25 @@ use crate::wire::frame::server::ServerFrame;
 ///
 /// # When entries leave
 ///
-/// A finish takes one out, which is the only removal there is, and a
-/// closure goes out to whoever is keeping a matching record. A consumer
-/// that walked away without a finish told the server so, and a frame
-/// still on its way to it is dropped.
+/// The rules:
+///
+/// 1. **A finish takes one out**, and a closure goes out to whoever is
+///    keeping a matching record. A consumer that walked away without a
+///    finish told the server so, and a frame still on its way to it is
+///    dropped.
+/// 2. **Registrations are taken on every frame**, before it is looked
+///    up — an answered channel's window among them — so nothing waits
+///    in the registration queue for a lookup that happens to miss.
+/// 3. **A channel this end cannot take is finished at once.** A server's
+///    channel request for a scope whose request reader is gone has no
+///    one to answer it: no window is made, and the pump sends its
+///    finish, so neither end keeps it.
+/// 4. **A request that never went out is forgotten.** Its registration
+///    is taken back by a [`Registration::Forget`].
+/// 5. **The router ends with its handles.** Once no
+///    [`Handle`](super::handle::Handle) is left, nothing can send a
+///    credit or a request on this connection again, and the router
+///    returns, letting the socket and every entry go.
 #[derive(Debug)]
 pub struct Router {
     /// The read half of the connection.
@@ -86,9 +101,13 @@ pub struct Router {
     /// Where the window of each channel the server opens goes, so the
     /// handle answering it can wait on it: `(scope, channel, window)`.
     windows_sender: UnboundedSender<(u32, u32, Window)>,
-    /// The credits this end's readers owe, and the handle that sends
-    /// them; taken by [`run`](Self::run).
-    outbox: Option<(UnboundedReceiver<Credit>, WeakHandle)>,
+    /// The credits this end's readers owe, the server's channels this
+    /// end will not answer, and the handle that sends both; taken by
+    /// [`run`](Self::run).
+    outbox: Option<(UnboundedReceiver<Credit>, UnboundedReceiver<(u32, u32)>, WeakHandle)>,
+    /// Where a server's channel this end will not answer is put, for
+    /// the pump to finish (rule 3).
+    unanswered: UnboundedSender<(u32, u32)>,
 }
 
 /// One open scope.
@@ -128,7 +147,16 @@ impl Router {
         outbox: UnboundedReceiver<Credit>,
         handle: WeakHandle,
     ) -> Self {
-        Router { stream, scopes: HashMap::new(), registration_receiver, closed_sender, windows_sender, outbox: Some((outbox, handle)) }
+        let (unanswered, unanswered_receiver) = tokio::sync::mpsc::unbounded_channel();
+        Router {
+            stream,
+            scopes: HashMap::new(),
+            registration_receiver,
+            closed_sender,
+            windows_sender,
+            outbox: Some((outbox, unanswered_receiver, handle)),
+            unanswered,
+        }
     }
 
     /// Read frames until the connection ends, sending the credits this
@@ -151,13 +179,19 @@ impl Router {
     /// short to read, a type this layer does not define, a scope with no
     /// entry, a channel with no entry, a reader that has gone.
     pub async fn run(mut self) -> Result<(), InvalidAuthorize> {
-        let (outbox, handle) = self.outbox.take().expect("a router runs once");
+        let (outbox, unanswered, handle) = self.outbox.take().expect("a router runs once");
+        let closed = self.closed_sender.clone();
         let read = pin!(self.read());
-        let pump = pin!(pump(outbox, handle));
-        match future::select(read, pump).await {
+        // The pump ends when it can send no more; the router goes on
+        // reading until its handles are gone (rule 5).
+        let pump = pin!(async move {
+            pump(outbox, unanswered, handle).await;
+            std::future::pending::<()>().await;
+        });
+        let gone = pin!(closed.closed());
+        match future::select(read, future::select(pump, gone)).await {
             Either::Left((ended, _)) => ended,
-            // The pump ends when the handle is gone; reading goes on.
-            Either::Right(((), read)) => read.await,
+            Either::Right(_) => Ok(()),
         }
     }
 
@@ -176,6 +210,8 @@ impl Router {
             // Decoded for its header alone; what is forwarded is
             // `bytes`, whole and untouched.
             let Ok(frame) = ServerFrame::decode(&bytes) else { continue };
+            // Rule 2.
+            self.drain();
             let filed = match frame {
                 ServerFrame::Auth { .. } => return Err(InvalidAuthorize),
                 ServerFrame::Response { scope, .. } => match self.scope(scope) {
@@ -196,20 +232,20 @@ impl Router {
                 // The scope's queue, not a channel's: the number is the
                 // SERVER's. Its window is made here and announced before
                 // the request is filed, so whoever answers finds it.
-                ServerFrame::ChannelRequest { scope, channel, .. } => {
-                    if !self.scopes.contains_key(&scope) {
-                        self.drain();
+                ServerFrame::ChannelRequest { scope, channel, .. } => match self.scopes.get_mut(&scope) {
+                    // Rule 3.
+                    Some(entry) if entry.requests.is_closed() => {
+                        let _ = self.unanswered.send((scope, channel));
+                        Ok(())
                     }
-                    match self.scopes.get_mut(&scope) {
-                        Some(entry) => {
-                            let window = Window::new();
-                            entry.answers.insert(channel, window.clone());
-                            let _ = self.windows_sender.send((scope, channel, window));
-                            credit::file(&entry.requests, bytes)
-                        }
-                        None => Ok(()),
+                    Some(entry) => {
+                        let window = Window::new();
+                        entry.answers.insert(channel, window.clone());
+                        let _ = self.windows_sender.send((scope, channel, window));
+                        credit::file(&entry.requests, bytes)
                     }
-                }
+                    None => Ok(()),
+                },
                 ServerFrame::ChannelResponse { scope, channel, .. } => match self.channel(scope, channel) {
                     Some(filer) => credit::file(filer, bytes),
                     None => Ok(()),
@@ -246,22 +282,15 @@ impl Router {
         Ok(())
     }
 
-    /// Find a scope, draining registrations first if it is not there —
-    /// a registration and the frames it is for travel by different
-    /// routes, and the frames can win.
+    /// Find a scope. Registrations were taken before the frame was
+    /// looked at (rule 2): a registration and the frames it is for
+    /// travel by different routes, and the frames can win.
     fn scope(&mut self, scope: u32) -> Option<&mut Entry> {
-        if !self.scopes.contains_key(&scope) {
-            self.drain();
-        }
         self.scopes.get_mut(&scope)
     }
 
     /// Find a channel this client opened, on the same terms.
     fn channel(&mut self, scope: u32, channel: u32) -> Option<&Filer> {
-        let found = self.scopes.get(&scope).is_some_and(|entry| entry.channels.contains_key(&channel));
-        if !found {
-            self.drain();
-        }
         self.scopes.get(&scope)?.channels.get(&channel)
     }
 
@@ -306,18 +335,37 @@ impl Router {
                         entry.answers.remove(&channel);
                     }
                 }
+                // Rule 4.
+                Registration::Forget { scope, channel: None } => {
+                    self.scopes.remove(&scope);
+                }
+                Registration::Forget { scope, channel: Some(channel) } => {
+                    if let Some(entry) = self.scopes.get_mut(&scope) {
+                        entry.channels.remove(&channel);
+                    }
+                }
             }
         }
     }
 }
 
-/// Send every credit this end's readers owe, until none can owe any
-/// more or the handle is gone.
-async fn pump(mut outbox: UnboundedReceiver<Credit>, handle: WeakHandle) {
-    while let Some(credit) = outbox.recv().await {
-        let Some(handle) = handle.upgrade() else { return };
-        if handle.send_credit(credit).await.is_err() {
-            return;
+/// Send every credit this end's readers owe, and the finish of every
+/// server's channel this end will not answer (rule 3), until none can
+/// be owed any more or the handle is gone.
+async fn pump(mut outbox: UnboundedReceiver<Credit>, mut unanswered: UnboundedReceiver<(u32, u32)>, handle: WeakHandle) {
+    loop {
+        tokio::select! {
+            credit = outbox.recv() => {
+                let Some(credit) = credit else { return };
+                let Some(handle) = handle.upgrade() else { return };
+                if handle.send_credit(credit).await.is_err() {
+                    return;
+                }
+            }
+            Some((scope, channel)) = unanswered.recv() => {
+                let Some(handle) = handle.upgrade() else { return };
+                let _ = handle.send_channel_response_finish(scope, channel).await;
+            }
         }
     }
 }

@@ -57,4 +57,12 @@ pub enum Registration {
         /// The channel, in the SERVER's numbering.
         channel: u32,
     },
+    /// A scope, or a channel of this end's in it, whose request never
+    /// went out: nothing will come for it, so its entry goes.
+    Forget {
+        /// The scope.
+        scope: u32,
+        /// The channel inside it, or `None` for the scope itself.
+        channel: Option<u32>,
+    },
 }

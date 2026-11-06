@@ -74,8 +74,10 @@ pub(crate) async fn read_resource<M: McpServer>(
     finish(handle, scope, channel).await
 }
 
-/// One frame per notification for as long as the servers speak; an
-/// error is the last frame; then the finish.
+/// One frame per notification for as long as the servers speak and the
+/// provider reads them; an error is the last frame; then the finish. A
+/// provider that abandons the channel ends it, however quiet the
+/// servers are.
 pub(crate) async fn notifications<M: McpServer>(
     handle: &Handle,
     scope: u32,
@@ -84,7 +86,14 @@ pub(crate) async fn notifications<M: McpServer>(
 ) -> Result<(), Stop> {
     let notifications = server.notifications().await;
     let mut notifications = std::pin::pin!(notifications);
-    while let Some(notification) = notifications.next().await {
+    loop {
+        let notification = tokio::select! {
+            next = notifications.next() => next,
+            () = handle.answer_gone(scope, channel) => return Err(Stop),
+        };
+        let Some(notification) = notification else {
+            break;
+        };
         match notification {
             Ok(notification) => {
                 let frame = mcp::notifications::response::Frame::Notification(notification);

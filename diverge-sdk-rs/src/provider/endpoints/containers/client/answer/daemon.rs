@@ -52,7 +52,15 @@ pub(crate) async fn daemon<D: Daemon>(
         }
     });
     let sent = async {
-        while let Some(frame) = from_daemon.next().await {
+        loop {
+            let frame = tokio::select! {
+                next = from_daemon.next() => next,
+                // The provider reads no more: the conduit is over.
+                () = handle.answer_gone(scope, channel) => return Err(Stop),
+            };
+            let Some(frame) = frame else {
+                break;
+            };
             let Some(bytes) = encoded(&frame.as_frame()) else {
                 break;
             };

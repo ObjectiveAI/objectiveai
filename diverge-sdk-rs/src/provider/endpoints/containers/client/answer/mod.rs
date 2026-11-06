@@ -5,7 +5,9 @@
 //! [`answer`] the dispatch over [`Ask`]. Nothing here reports a
 //! failure: an answer that cannot be sent is an answer that ended, and
 //! the provider reads the channel's end for what it is. Nothing
-//! retries.
+//! retries. An answer that stopped before its finish — the provider
+//! abandoned it, or a frame would not encode — is still finished here,
+//! once, so neither end keeps the channel.
 
 mod daemon;
 mod fuse;
@@ -41,7 +43,7 @@ pub(crate) async fn answer<O, T, P, D, M, F>(
     M: McpServer + 'static,
     F: FuseServer + 'static,
 {
-    let _ = match ask {
+    let answered = match ask {
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciHas(digest) => oci::has(&handle, scope, channel, digest, answerers.oci).await,
@@ -84,4 +86,7 @@ pub(crate) async fn answer<O, T, P, D, M, F>(
             fuse::setattr(&handle, scope, channel, id, path, attrs, answerers.fuse).await
         }
     };
+    if answered.is_err() {
+        let _ = send::finish(&handle, scope, channel).await;
+    }
 }

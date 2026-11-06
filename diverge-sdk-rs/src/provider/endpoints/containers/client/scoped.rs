@@ -140,16 +140,18 @@ impl Scoped {
     {
         let content = content.map(|piece| piece.map_err(|error| Error(serde_json::Value::String(error.to_string()))));
         let write_id = self.writes.register(Box::pin(content)).await;
+        let mut kept = Kept::new(Arc::clone(&self.writes), write_id);
         let opened = match encode(write_id) {
             Ok(payload) => self.open::<A>(&payload).await.map_err(OpenError::Send),
             Err(error) => Err(OpenError::Request(error)),
         };
         match opened {
-            Ok(stream) => Ok((stream, write_id)),
-            Err(error) => {
-                self.writes.take(write_id).await;
-                Err(error)
+            Ok(stream) => {
+                // The body is the caller's to forget from here on.
+                kept.keep();
+                Ok((stream, write_id))
             }
+            Err(error) => Err(error),
         }
     }
 
@@ -179,18 +181,15 @@ impl Scoped {
     {
         let content = content.map(|piece| piece.map_err(|error| Error(serde_json::Value::String(error.to_string()))));
         let write_id = self.writes.register(Box::pin(content)).await;
+        // Taken back however this ends — answered, failed, or dropped
+        // mid-await — since an answered write has had its body taken
+        // already and nothing else will ask for it.
+        let _kept = Kept::new(Arc::clone(&self.writes), write_id);
         let payload = match encode(write_id) {
             Ok(payload) => payload,
-            Err(error) => {
-                self.writes.take(write_id).await;
-                return Err(UnaryError::Request(error));
-            }
+            Err(error) => return Err(UnaryError::Request(error)),
         };
-        let result = self.unary::<A>(&payload).await;
-        if result.is_err() {
-            self.writes.take(write_id).await;
-        }
-        result
+        self.unary::<A>(&payload).await
     }
 
     /// One frame off the main stream, decoded.
@@ -338,5 +337,44 @@ impl<R: std::error::Error + 'static> std::error::Error for WaitError<R> {
             WaitError::Response(error) => Some(error),
             WaitError::Closed | WaitError::Misrouted | WaitError::Undecodable(_) | WaitError::Provider(_) => None,
         }
+    }
+}
+
+/// A body registered under a write id, taken back out of the pending
+/// writes when this is dropped — the future that registered it
+/// finished, failed, or was cancelled mid-await — unless
+/// [`keep`](Self::keep) handed it on to a caller who forgets it
+/// itself. The take runs on a task of its own, since a drop cannot
+/// wait on the lock; outside a runtime nothing is taken.
+struct Kept {
+    writes: Arc<Writes>,
+    write_id: u32,
+    kept: bool,
+}
+
+impl Kept {
+    fn new(writes: Arc<Writes>, write_id: u32) -> Self {
+        Kept { writes, write_id, kept: false }
+    }
+
+    /// The body stays pending: its caller takes it back.
+    fn keep(&mut self) {
+        self.kept = true;
+    }
+}
+
+impl Drop for Kept {
+    fn drop(&mut self) {
+        if self.kept {
+            return;
+        }
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        let writes = Arc::clone(&self.writes);
+        let write_id = self.write_id;
+        runtime.spawn(async move {
+            writes.take(write_id).await;
+        });
     }
 }
