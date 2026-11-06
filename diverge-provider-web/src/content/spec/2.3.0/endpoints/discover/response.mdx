@@ -1,14 +1,14 @@
 ---
 title: 'Response'
-summary: 'Responses of the byte 0 or 1 followed by one identity and its description in the postcard wire format, added or removed; the byte 2, once, when the listing is whole; and the response finish.'
+summary: 'Responses of the byte 0 or 1 followed by one identity, its description, its IP and its address in the postcard wire format, added or removed; the byte 2, once, when the listing is whole; and the response finish.'
 order: 2
 draft: false
 ---
 
 ```text
-[0][identity, description, postcard …]   per identity added
-[1][identity, description, postcard …]   per identity removed, after it was added
-[2]                                      once, when the listing is whole
+[0][identity, description, ip, address, postcard …]   per identity added
+[1][identity, description, ip, address, postcard …]   per identity removed, after it was added
+[2]                                                   once, when the listing is whole
 ```
 
 - **The sequence.** Zero or more responses of the byte `0` followed
@@ -21,8 +21,9 @@ draft: false
   byte `1` before the byte `2`.
 - **The item.** A payload whose first byte is `0` or `1` carries one
   item after that byte, running to the end of the payload. The item is
-  `identity` followed by `description`, encoded as the postcard
-  reading of [Notation](/endpoints/#notation) provides.
+  `identity`, followed by `description`, followed by `ip`, followed by
+  `address`, encoded as the postcard reading of
+  [Notation](/endpoints/#notation) provides.
 - **`identity`.** The pair of `issuer` and `subject`: `issuer` as a
   varint byte length followed by that many bytes of UTF-8, followed by
   `subject` as a varint byte length followed by that many bytes of
@@ -33,6 +34,19 @@ draft: false
   flag `1`. The byte `1` followed by a varint byte length and that
   many bytes of UTF-8 states the description it carried under the
   flag `2`.
+- **`ip`.** The IP of the other end of the identity's connection to
+  the server: the IP the client dialled the server from, when the
+  client is the connector, and the IP the server dialled the client
+  at, when the server is the connector. The byte `0` followed by
+  exactly 4 bytes states an IPv4 address, in network order. The byte
+  `1` followed by exactly 16 bytes states an IPv6 address, in network
+  order.
+- **`address`.** The dial target the server dialled the client at,
+  as the server's configuration states it: a `host:port` or a URL.
+  The byte `0` states that the server did not dial the client, the
+  client being the connector. The byte `1` followed by a varint byte
+  length and that many bytes of UTF-8 states the dial target. An
+  address is never an IP.
 - **`issuer`.** The `iss` claim of the token under which the
   identity's connection was authorized, as
   [Authorization](/authorization/) provides.
@@ -43,8 +57,8 @@ draft: false
   the byte `2`; for an identity listed after, when its connection has
   completed its authorization.
 - **Removed.** A response of the byte `1` states that the identity is
-  no longer in the listing, and carries the identity and the
-  description as the server sent them as added. The server sends it only for an identity it has
+  no longer in the listing, and carries the item exactly as the server
+  sent it as added. The server sends it only for an identity it has
   sent as added on this scope and not since as removed, and exactly
   once for it.
 - **Whole.** A payload that is the byte `2` and nothing else states
@@ -60,7 +74,8 @@ draft: false
   server had sent anything. The server does not say which.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is none of `0` to `2`, and a payload whose bytes after `0` or `1` do
-  not decode as one item, its description among them, are malformed.
+  not decode as one item, its description, its IP and its address
+  among them, are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/discover/server/response/frame.rs`:
 

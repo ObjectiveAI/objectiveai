@@ -1,6 +1,6 @@
 ---
 title: 'discover'
-summary: 'Tag 25: a client asks which connected identities are discoverable; the server sends every such identity, with its description, as added, says when the listing is whole, keeps sending as discoverable identities connect and disconnect, and finishes when the client stops.'
+summary: 'Tag 25: a client asks which connected identities are discoverable; the server sends every such identity, with its description, its IP and its address, as added, says when the listing is whole, keeps sending as discoverable identities connect and disconnect, and finishes when the client stops.'
 order: 25
 draft: false
 ---
@@ -8,8 +8,9 @@ draft: false
 A client opens the scope with a request whose payload is the tag byte
 `25` and nothing more. The server sends every identity connected to
 it whose [discover flag](/authorization/#the-discover-flag) is `1` or
-`2`, one response each with the description its flag `2` carried,
-then the word that the listing is whole, and keeps the scope open: an
+`2`, one response each with the description its flag `2` carried and
+the IP and the address of its connection, then the word that the
+listing is whole, and keeps the scope open: an
 identity whose connection opens with the flag `1` or `2` is sent as
 added, and an identity whose connection ends is sent as
 removed, for as long as the scope lives. The scope ends at the
@@ -29,7 +30,10 @@ finish follows, and no frame follows the finish.
   under it is open to the server and that connection's client sent
   the discover flag `1` or `2`, whether the client was the connector
   or the connectee. Each identity is listed with the description that
-  connection's flag `2` carried, or with none under the flag `1`. An identity whose connection carried the flag `0` is not
+  connection's flag `2` carried, or with none under the flag `1`; with
+  the IP of the connection's other end; and, when the server is the
+  connection's connector, with the dial target the server dialled the
+  client at. An identity whose connection carried the flag `0` is not
   in the listing. An identity with no open connection is not in the
   listing.
 - **The asking client.** The server serves the request for every
@@ -43,7 +47,7 @@ finish follows, and no frame follows the finish.
    provides.
 2. **The server sends the listing.** The server sends every identity
    in the listing, one response each, the byte `0` followed by the
-   identity and its description. A server with no identity in the listing sends none.
+   identity, its description, its IP and its address. A server with no identity in the listing sends none.
 3. **The server says the listing is whole.** The server sends exactly
    one response whose payload is the byte `2` and nothing else. The
    server sends it exactly once on a scope, after every response of
@@ -69,8 +73,8 @@ finish follows, and no frame follows the finish.
   was sent as added. An identity whose connection ends and whose
   identity connects again with the flag `1` or `2` is sent as removed
   and then as added. The server sends no identity as changed: a
-  description is its connection's, and does not change while the
-  identity is listed.
+  description, an IP and an address are the connection's, and do not
+  change while the identity is listed.
 - **An empty listing.** The byte `2` with no response before it
   states that no identity is in the listing. An empty listing is not
   an error.
