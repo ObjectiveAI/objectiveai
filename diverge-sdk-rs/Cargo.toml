@@ -34,6 +34,8 @@ bytes = { version = "1.11.1", default-features = false }
 # The time a daemon log item was kept: RFC 3339 on the wire, and the
 # type sqlx reads a Postgres `timestamptz` into.
 chrono = { version = "0.4.39", default-features = false, features = ["std", "serde"] }
+# A provider's incoming addresses: IPs and CIDR blocks, with serde.
+ipnet = { version = "2.12.0", features = ["serde"] }
 # `Stream`, and the sinks and streams a split socket is.
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
 # A command's items and other bodies still being written, as a stream.

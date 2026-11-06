@@ -20,4 +20,7 @@ pub struct Filter {
     /// different version — `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connected: Option<bool>,
+    /// Whether its record is enabled: `true`, `false`; absent, either.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
 }

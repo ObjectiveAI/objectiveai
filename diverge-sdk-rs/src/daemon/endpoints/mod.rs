@@ -9,7 +9,7 @@
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
 //! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
 //! | [`dependency_tools`] | list the dependency tools agents' programs declare, one per template and owner, narrowed, each with the agents that depend on it and its run; get one; delete every tool of a template none of which runs; tag one and untag one; watch a running one's container whole; download files out of one, upload files into one, transfer files out of one |
-//! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a credential of providers that dial in, get one, list them, take one out, replace one; add a daemon to connect to, get one, list them, forget one, replace its mode or its links, tag one and untag one |
+//! | [`providers`] | add a provider's record, get one, list them, edit one, delete a disabled one, enable one, disable one, tag one and untag one; discover the identities their listings hold |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`vault`] | insert a value into a key — making the key, appending the value or replacing a slot's; get one key with every value and who holds each; list them by name, narrowed, never by value; delete one no agent or tool binds, or one free value of it; tag one and untag one |
@@ -165,8 +165,15 @@
 //! | `133` | [`daemons::tag`] |
 //! | `134` | [`daemons::untag`] |
 //! | `135` | [`accounts::disconnect`] |
+//! | `136` | [`providers::add`] |
+//! | `137` | [`providers::edit`] |
+//! | `138` | [`providers::delete`] |
+//! | `139` | [`providers::enable`] |
+//! | `140` | [`providers::disable`] |
+//! | `141` | [`providers::tag`] |
+//! | `142` | [`providers::untag`] |
 //!
-//! One hundred and thirty-six, so far. Every one of them carries the optional
+//! One hundred and forty-three, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request

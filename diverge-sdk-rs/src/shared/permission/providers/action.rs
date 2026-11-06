@@ -15,4 +15,18 @@ pub enum Action {
     /// [`providers::discover`](crate::daemon::endpoints::providers::discover)
     /// does.
     Discover,
+    /// Add one.
+    Add,
+    /// Edit one.
+    Edit,
+    /// Delete one.
+    Delete,
+    /// Enable one.
+    Enable,
+    /// Disable one: its runs taken down.
+    Disable,
+    /// Put tags on one.
+    Tag,
+    /// Take tags off one.
+    Untag,
 }

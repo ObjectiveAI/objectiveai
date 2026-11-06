@@ -259,6 +259,20 @@ pub enum ClientRequest<'a> {
     DaemonsUntag(daemons::untag::client::request::Frame),
     /// Tag `135`. Every connection a client has as an account closed.
     AccountsDisconnect(accounts::disconnect::client::request::Frame),
+    /// Tag `136`. A provider's record kept, and an outgoing one dialled.
+    ProvidersAdd(providers::add::client::request::Frame),
+    /// Tag `137`. A provider's record changed.
+    ProvidersEdit(providers::edit::client::request::Frame),
+    /// Tag `138`. A disabled provider's record forgotten.
+    ProvidersDelete(providers::delete::client::request::Frame),
+    /// Tag `139`. A provider worked with again.
+    ProvidersEnable(providers::enable::client::request::Frame),
+    /// Tag `140`. A provider no longer worked with, its runs taken down.
+    ProvidersDisable(providers::disable::client::request::Frame),
+    /// Tag `141`. Tags put on a provider's record.
+    ProvidersTag(providers::tag::client::request::Frame),
+    /// Tag `142`. Tags taken off a provider's record.
+    ProvidersUntag(providers::untag::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -389,6 +403,13 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::DaemonsTag(frame) => frame.encode(out),
             ClientRequest::DaemonsUntag(frame) => frame.encode(out),
             ClientRequest::AccountsDisconnect(frame) => frame.encode(out),
+            ClientRequest::ProvidersAdd(frame) => frame.encode(out),
+            ClientRequest::ProvidersEdit(frame) => frame.encode(out),
+            ClientRequest::ProvidersDelete(frame) => frame.encode(out),
+            ClientRequest::ProvidersEnable(frame) => frame.encode(out),
+            ClientRequest::ProvidersDisable(frame) => frame.encode(out),
+            ClientRequest::ProvidersTag(frame) => frame.encode(out),
+            ClientRequest::ProvidersUntag(frame) => frame.encode(out),
             ClientRequest::IdentitiesLogin(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -750,6 +771,27 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             135 => accounts::disconnect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AccountsDisconnect)
                 .ok(),
+            136 => providers::add::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersAdd)
+                .ok(),
+            137 => providers::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersEdit)
+                .ok(),
+            138 => providers::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDelete)
+                .ok(),
+            139 => providers::enable::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersEnable)
+                .ok(),
+            140 => providers::disable::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDisable)
+                .ok(),
+            141 => providers::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersTag)
+                .ok(),
+            142 => providers::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersUntag)
+                .ok(),
             128 => identities::login::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesLogin)
                 .ok(),
@@ -874,6 +916,13 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::DaemonsTag(_) => f.write_str("daemons tag"),
             ClientRequest::DaemonsUntag(_) => f.write_str("daemons untag"),
             ClientRequest::AccountsDisconnect(_) => f.write_str("accounts disconnect"),
+            ClientRequest::ProvidersAdd(_) => f.write_str("providers add"),
+            ClientRequest::ProvidersEdit(_) => f.write_str("providers edit"),
+            ClientRequest::ProvidersDelete(_) => f.write_str("providers delete"),
+            ClientRequest::ProvidersEnable(_) => f.write_str("providers enable"),
+            ClientRequest::ProvidersDisable(_) => f.write_str("providers disable"),
+            ClientRequest::ProvidersTag(_) => f.write_str("providers tag"),
+            ClientRequest::ProvidersUntag(_) => f.write_str("providers untag"),
             ClientRequest::IdentitiesLogin(_) => f.write_str("identities login"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
@@ -999,6 +1048,13 @@ pub fn tag(path: &str) -> Option<u8> {
         "daemons/tag" => Some(133),
         "daemons/untag" => Some(134),
         "accounts/disconnect" => Some(135),
+        "providers/add" => Some(136),
+        "providers/edit" => Some(137),
+        "providers/delete" => Some(138),
+        "providers/enable" => Some(139),
+        "providers/disable" => Some(140),
+        "providers/tag" => Some(141),
+        "providers/untag" => Some(142),
         "identities/login" => Some(128),
         _ => None,
     }
@@ -1121,6 +1177,13 @@ impl ClientRequest<'_> {
             ClientRequest::DaemonsTag(_) => "daemons/tag",
             ClientRequest::DaemonsUntag(_) => "daemons/untag",
             ClientRequest::AccountsDisconnect(_) => "accounts/disconnect",
+            ClientRequest::ProvidersAdd(_) => "providers/add",
+            ClientRequest::ProvidersEdit(_) => "providers/edit",
+            ClientRequest::ProvidersDelete(_) => "providers/delete",
+            ClientRequest::ProvidersEnable(_) => "providers/enable",
+            ClientRequest::ProvidersDisable(_) => "providers/disable",
+            ClientRequest::ProvidersTag(_) => "providers/tag",
+            ClientRequest::ProvidersUntag(_) => "providers/untag",
             ClientRequest::IdentitiesLogin(_) => "identities/login",
             ClientRequest::Invalid(_) => "",
         }
