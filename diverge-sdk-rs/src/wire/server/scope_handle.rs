@@ -467,9 +467,19 @@ impl ScopeHandle {
     /// do. Compare
     /// [`Session`](super::session::Session), which hands a number back
     /// to this handle when the client finishes a channel THIS end
-    /// opened.
+    /// opened. Its room is let go: every room the session handed over
+    /// is taken in first, as [`answer`](Self::answer) takes them, so a
+    /// channel finished with no response before it leaves nothing
+    /// behind in the queue the rooms arrive on.
     pub async fn send_channel_response_finish(&self, channel: u32) {
-        self.answers.lock().await.0.remove(&channel);
+        {
+            let mut answers = self.answers.lock().await;
+            let (windows, handed) = &mut *answers;
+            while let Ok((number, window)) = handed.try_recv() {
+                windows.insert(number, window);
+            }
+            windows.remove(&channel);
+        }
         let _ = self.notice_sender.send(Notice::Answered(self.scope, channel));
         self.send_frame(ServerFrame::ChannelResponseFinish {
             scope: self.scope,
