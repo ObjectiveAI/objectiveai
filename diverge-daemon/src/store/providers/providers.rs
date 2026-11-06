@@ -83,6 +83,18 @@ pub async fn by_identity(conn: &mut PgConnection, identity: &Identity, lock: boo
     row.as_ref().map(record).transpose()
 }
 
+/// Whether `identity` has a record, its row held shared for the
+/// transaction: a pin checked so is never stranded, since a delete
+/// waits for the row and then finds the pin.
+pub async fn share(conn: &mut PgConnection, identity: &Identity) -> Result<bool, Error> {
+    let row = sqlx::query("SELECT 1 FROM diverge.providers WHERE issuer = $1 AND subject = $2 FOR SHARE")
+        .bind(&identity.issuer)
+        .bind(&identity.subject)
+        .fetch_optional(&mut *conn)
+        .await?;
+    Ok(row.is_some())
+}
+
 /// Every record, oldest first: the order the daemon tries providers in
 /// when nothing pins a run.
 pub async fn all(conn: &mut PgConnection) -> Result<Vec<Record>, Error> {

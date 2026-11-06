@@ -2,25 +2,41 @@
 
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use diverge_sdk::daemon::agent_log::Identity;
+use sqlx::PgConnection;
 
 use super::Checked;
 use crate::daemon::Daemon;
+use crate::store;
 
-/// Every provider the create names — the pin, and the provider of
-/// each cross-provider mount — one with a record: `Error`
-/// naming the first that is not, else nothing.
-pub fn providers(daemon: &Daemon, pinned: Option<&Provider>, file_mounts: &[FuseMount], directory_mounts: &[FuseMount]) -> Checked<()> {
+/// Every provider the create or the edit names — the pin, and the
+/// provider of each cross-provider mount — one with a record: `Error`
+/// naming the first that is not, else nothing. The rules:
+///
+/// 1. **Checked in the caller's transaction.** Each provider named is
+///    read from the store, its row held shared until the caller
+///    commits — see [`share`](store::providers::share).
+/// 2. **No stranded pin.** A delete of a provider holds its row for
+///    update, so it waits for every create and edit naming it to
+///    commit, and then finds their pins and answers `in_use`; a create
+///    or an edit that comes after a delete finds no record.
+/// 3. **Each once.** A provider named twice is read once.
+pub async fn providers(conn: &mut PgConnection, pinned: Option<&Provider>, file_mounts: &[FuseMount], directory_mounts: &[FuseMount]) -> Result<Checked<()>, store::Error> {
     let named = pinned
         .map(|provider| &provider.identity)
         .into_iter()
         .chain(file_mounts.iter().map(|mount| &mount.provider))
         .chain(directory_mounts.iter().map(|mount| &mount.provider));
+    let mut seen: Vec<&Identity> = Vec::new();
     for identity in named {
-        if !on_record(daemon, identity) {
-            return Checked::Error(format!("no provider is known as {identity}"));
+        if seen.contains(&identity) {
+            continue;
+        }
+        seen.push(identity);
+        if !store::providers::share(conn, identity).await? {
+            return Ok(Checked::Error(format!("no provider is known as {identity}")));
         }
     }
-    Checked::Ok(())
+    Ok(Checked::Ok(()))
 }
 
 /// Whether the daemon knows a provider by the identity: one it keeps a

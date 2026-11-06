@@ -45,7 +45,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Secrets::Missing(what) => return Ok(Frame::Error(reply::secrets(&what))),
         Secrets::Forbidden => return Ok(Frame::Forbidden),
     }
-    match inner::providers(daemon, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts) {
+    match inner::providers(&mut tx, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts).await? {
         Checked::Ok(()) => {}
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
