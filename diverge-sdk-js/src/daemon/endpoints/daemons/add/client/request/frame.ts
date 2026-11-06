@@ -4,9 +4,11 @@ import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
 import { Identity } from "../../../../../../shared/identity.js";
 import { Relay } from "../../../../../../shared/relay.js";
+import { Routes } from "../../../routes.js";
 
 /** Ask the daemon to record a remote daemon and the account of ours it is reached as. Our identity's issuer must be the remote's. */
 export const Frame = z.object({
+  ...Routes.shape,
   /** The name, unique among the records: how relays and connected tools name it. */
   name: z.string(),
   /** What it is, in the caller's words. Absent, none. */

@@ -11,6 +11,7 @@
 // what a `daemons` record names a remote by.
 
 export * from "./direction.js";
+export * from "./ip.js";
 export * from "./status.js";
 export * as add from "./add/index.js";
 export * as delete from "./delete/index.js";

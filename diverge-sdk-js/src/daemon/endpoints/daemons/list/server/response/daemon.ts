@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { Creator } from "../../../../../creator/creator.js";
+import { Routes } from "../../../routes.js";
 import { Identity } from "../../../../../../shared/identity.js";
 import type { Keyed } from "../../../../../../shared/listing/keyed.js";
 
@@ -11,9 +12,10 @@ import type { Keyed } from "../../../../../../shared/listing/keyed.js";
  * the remote, by the identity it answers as, and several records may
  * name the same remote; `identity` is ours, presented to it, at the
  * remote's issuer. It is reached through any connected provider whose
- * discover listing holds `daemon`.
+ * discover listing holds `daemon` by a route its `Routes` let through.
  */
 export const Daemon = z.object({
+  ...Routes.shape,
   /** The name, unique among the records. */
   name: z.string(),
   /** What it is, in the caller's words; empty where none was given. */
