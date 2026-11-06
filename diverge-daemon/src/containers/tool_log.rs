@@ -22,7 +22,8 @@
 //! sends on each caller's MCP session, started at that session's first
 //! use, so each notification is kept once, naming whom it reached. A
 //! session's reader lives no longer than the session: see
-//! [`end_session`] and [`forget_agent`].
+//! [`end_session`] and [`forget_agent`]; and a session that ends is
+//! closed in its tool as well: see [`close_session`].
 
 use std::sync::Arc;
 
@@ -136,23 +137,55 @@ pub async fn session(daemon: &Arc<Daemon>, run: &Arc<ToolRun>, caller: &Caller) 
 }
 
 /// `caller`'s session on the run is over — the one connect scope it
-/// was minted for has ended: its key forgotten and its reader ended.
-/// The one place a session leaves a run's `sessions`, beside the run's
-/// end and [`forget_agent`].
-pub async fn end_session(run: &ToolRun, caller: &Caller) {
-    if let Some(reader) = run.sessions.lock().await.remove(&session::key(caller)) {
-        reader.abort();
+/// was minted for has ended: its key forgotten and its reader ended,
+/// and whether the key was there handed back. The one place a session
+/// leaves a run's `sessions`, beside the run's end and
+/// [`forget_agent`].
+pub async fn end_session(run: &ToolRun, caller: &Caller) -> bool {
+    let reader = run.sessions.lock().await.remove(&session::key(caller));
+    match reader {
+        Some(reader) => {
+            reader.abort();
+            true
+        }
+        None => false,
     }
 }
 
+/// `caller`'s session closed in the tool, on a task of its own. The
+/// rules:
+///
+/// 1. The close is sent through the run's handle
+///    ([`ToolHandle::close_session`]): to a created tool's container
+///    proxy, and to nothing for a connected tool, whose session the
+///    far daemon closes.
+/// 2. Nothing waits for it: the task ends with the answer, or with the
+///    run's scope, which ends the channel under it, so a proxy that
+///    never answers holds no teardown and no task past the run.
+/// 3. Its failure is let go: a session the close did not reach ends
+///    with the container, and nothing of the daemon's depends on it.
+pub fn close_session(run: &Arc<ToolRun>, caller: &Caller) {
+    if let ToolHandle::Connected(_) = run.handle {
+        return;
+    }
+    let run = Arc::clone(run);
+    let caller = caller.clone();
+    tokio::spawn(async move {
+        let _ = run.handle.close_session(&caller).await;
+    });
+}
+
 /// The agent is deleted: its session on every tool running now
-/// forgotten, and each reader ended. The session's key names the
+/// forgotten, each reader ended, and each session the agent used
+/// closed in its tool ([`close_session`]). The session's key names the
 /// agent's key alone, so the image it is built with here is none.
 pub async fn forget_agent(daemon: &Daemon, agent: key::Agent) {
     let caller = Caller::Agent(attestation::Agent { image: Image { digest: String::new(), references: Vec::new() }, key: agent });
     let runs = daemon.live.tool_runs().await;
     for run in runs {
-        end_session(&run, &caller).await;
+        if end_session(&run, &caller).await {
+            close_session(&run, &caller);
+        }
     }
 }
 

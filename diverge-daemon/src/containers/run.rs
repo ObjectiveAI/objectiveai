@@ -252,6 +252,24 @@ impl ToolHandle {
         }
     }
 
+    /// `session`'s MCP session, closed in the tool: the provider's
+    /// relay of the proxy's `Closed`, waited for. The rules:
+    ///
+    /// 1. A created tool's session is closed in its container's proxy,
+    ///    which answers `Closed` for a session not open as well.
+    /// 2. A connected tool's session is the far daemon's, which closes
+    ///    it when this daemon's connect scope ends: nothing is sent,
+    ///    and the answer is `Ok`.
+    /// 3. The run's scope ending before the answer is
+    ///    [`Interrupted`](AskError::Interrupted): the session ended
+    ///    with the container.
+    pub async fn close_session(&self, session: &attestation::Caller) -> Result<(), AskError> {
+        match self {
+            ToolHandle::Run(handle) => handle.close_session(session).await.map_err(AskError::of),
+            ToolHandle::Connected(_) => Ok(()),
+        }
+    }
+
     /// One more file or directory the daemon serves, mounted into the
     /// running container at `container_path` under `id`: the
     /// provider's one answer, waited for. A connected tool's container

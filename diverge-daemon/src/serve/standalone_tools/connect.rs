@@ -183,11 +183,15 @@ impl Drop for Scoped {
 }
 
 /// The connect scope's end in the tool, the one place it is: its MCP
-/// session forgotten on the run — its key out of the run's sessions,
-/// its notifications reader ended — and its hold on the run let go.
-/// The ask that closes the session in the tool's MCP server belongs
-/// here, before the key is forgotten.
+/// session closed in the tool, on a task of its own that the teardown
+/// does not wait for
+/// ([`close_session`](tool_log::close_session)); its session forgotten
+/// on the run — its key out of the run's sessions, its notifications
+/// reader ended — and its hold on the run let go. The close is sent
+/// whether or not the key was there, since a close of a session not
+/// open is answered `Closed` all the same.
 async fn closed(run: Arc<ToolRun>, caller: Arc<Caller>, hold: containers::Hold) {
+    tool_log::close_session(&run, &caller);
     tool_log::end_session(&run, &caller).await;
     hold.disconnect().await;
 }
