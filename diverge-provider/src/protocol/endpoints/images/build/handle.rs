@@ -14,6 +14,7 @@ use crate::protocol::changes::Changes;
 use crate::protocol::context::Context;
 use crate::protocol::image_manager::ImageManager;
 use crate::protocol::progress::Progress;
+use crate::protocol::release::Release;
 use crate::protocol::volume::Volume as _;
 use crate::protocol::volume_manager::VolumeManager;
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
@@ -46,8 +47,13 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///    [`Built`](Progress::Built), told to every listing open by name,
 ///    [`InsufficientCapacity`](Progress::InsufficientCapacity) and the
 ///    stream's error, flattened, sent and the stream left. A stream
-///    that ends with none of them is [`refusal::unfinished`].
-/// 3. The hold given back, and the finish.
+///    that ends with none of them is [`refusal::unfinished`]. A caller
+///    that reads no more of the scope leaves the stream too, with
+///    nothing sent: the stream is dropped, which the build hears as
+///    nobody listening, and its tool is killed.
+/// 3. The hold given back, and the finish. The giving back is a
+///    [`Release`], so a build that panics or is cancelled gives the
+///    hold back at the drop.
 ///
 /// A response that will not encode is the one failure with nowhere to
 /// go, and is not sent. The request arrives decoded, as every
@@ -74,7 +80,12 @@ pub async fn handle<M, V>(
     let held = match &request.context {
         None => None,
         Some(context) => match hold(volume_manager, client_identity, context, capabilities).await {
-            Ok(volume) => Some(volume),
+            Ok(volume) => {
+                let volume = Arc::new(volume);
+                Some(Release::new(async move {
+                    volume.unmount(Holder::Run).await;
+                }))
+            }
             Err(frame) => {
                 send(&scope, &frame).await;
                 scope.send_response_finish().await;
@@ -90,9 +101,19 @@ pub async fn handle<M, V>(
     let build = manager
         .build(client_identity, &request.name, &request.containerfile, context.as_ref())
         .await;
-    let mut build = std::pin::pin!(build);
+    let mut build = Box::pin(build);
     let mut ended = false;
-    while let Some(item) = build.next().await {
+    loop {
+        let item = tokio::select! {
+            item = build.next() => item,
+            () = scope.responses_gone() => {
+                ended = true;
+                break;
+            }
+        };
+        let Some(item) = item else {
+            break;
+        };
         let frame = match item {
             Ok(Progress::Output(line)) => response::Frame::Output(line),
             Ok(Progress::Built(built)) => {
@@ -114,11 +135,12 @@ pub async fn handle<M, V>(
             break;
         }
     }
+    drop(build);
     if !ended {
         send(&scope, &response::Frame::Error(refusal::unfinished())).await;
     }
-    if let Some(volume) = held {
-        volume.unmount(Holder::Run).await;
+    if let Some(held) = held {
+        held.now().await;
     }
     scope.send_response_finish().await;
 }

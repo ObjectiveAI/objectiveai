@@ -34,9 +34,10 @@ use crate::protocol::discoverable::Discoverable;
 ///    its connection ended and another opened between two reads — is
 ///    told as `Removed` as it was, then `Added` as it is.
 /// 4. **The ends.** The caller's stop, the caller's connection ending
-///    (no channel request will come), or the nudges closing end the
-///    scope with its finish. A channel request that is not a stop is
-///    finished, and the listing goes on.
+///    (no channel request will come), the caller reading no more of the
+///    listing, or the nudges closing end the scope with its finish. A
+///    channel request that is not a stop is finished, and the listing
+///    goes on.
 ///
 /// Every connected peer may ask, and the asking identity is listed when
 /// it is itself discoverable. Nothing fails: a provider always knows
@@ -70,6 +71,9 @@ pub async fn handle(scope: ScopeHandle, discoverable: Arc<Discoverable>) {
                     Err(_) => scope.send_channel_response_finish(channel).await,
                 }
             }
+            // The caller reads no more of the listing: abandoned, and
+            // over as at the stop.
+            () = scope.responses_gone() => break,
         }
     }
     scope.send_response_finish().await;

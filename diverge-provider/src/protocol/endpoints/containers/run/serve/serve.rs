@@ -1,9 +1,6 @@
 //! The loop over what the caller opens.
 
-use std::pin::pin;
 use std::sync::Arc;
-
-use futures_util::future::{self, Either};
 
 use super::super::family::{Opened, Runs};
 use super::super::run::Run;
@@ -18,7 +15,8 @@ pub(crate) enum End {
     Stopped,
     /// The container is gone.
     Over,
-    /// The caller went away: the connection ended.
+    /// The caller went away: the connection ended, or the caller reads
+    /// no more of the scope's responses.
     Gone,
 }
 
@@ -33,18 +31,22 @@ pub(crate) enum End {
 /// goes on. A stop ends the loop at once; channels still being served
 /// are the handler's to end.
 ///
-/// Raced against [`Run::over`], because both are silent for
-/// arbitrarily long, and
+/// Raced against [`Run::over`] and against the caller abandoning the
+/// scope's responses, because all three are silent for arbitrarily
+/// long, and
 /// [`recv_channel_request`](diverge_sdk::wire::server::scope_handle::ScopeHandle::recv_channel_request)
-/// is cancel-safe, so the side that loses the race loses nothing.
+/// is cancel-safe, so the side that loses the race loses nothing. A
+/// scope whose responses nobody reads is a run nobody is watching:
+/// it ends as [`End::Gone`], and the handler tears the run down.
 pub(crate) async fn serve<F: Runs>(run: &Arc<Run>) -> End {
     loop {
-        let request = pin!(run.scope.recv_channel_request());
-        let over = pin!(run.over.notified());
-        let bytes = match future::select(request, over).await {
-            Either::Left((Some(bytes), _)) => bytes,
-            Either::Left((None, _)) => return End::Gone,
-            Either::Right(_) => return End::Over,
+        let bytes = tokio::select! {
+            received = run.scope.recv_channel_request() => match received {
+                Some(bytes) => bytes,
+                None => return End::Gone,
+            },
+            () = run.over.notified() => return End::Over,
+            () = run.scope.responses_gone() => return End::Gone,
         };
         let Ok(ClientFrame::ChannelRequest { channel, payload, .. }) = ClientFrame::decode(&bytes) else {
             continue;

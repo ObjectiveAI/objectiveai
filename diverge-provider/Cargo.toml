@@ -83,6 +83,11 @@ fstool = { version = "=0.4.33", default-features = false, features = ["ext"] }
 # ReadDirectoryChangesW on Windows behind one API, which is the whole
 # of the platform difference this crate has to carry.
 notify = "8.2.0"
+# Transport keepalive on every socket the provider accepts or dials,
+# so that a peer gone without a close is a socket the kernel resets
+# rather than one held open for the provider's life; the version the
+# workspace already locks.
+socket2 = "0.6.3"
 # A container's name in podman and a loop mount's directory, each
 # minted fresh per deploy; `v4` alone, since nothing here needs a
 # UUID parsed or timed.

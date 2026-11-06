@@ -161,6 +161,13 @@ impl ContainerDeployer {
         self.shared.images.running(id).await
     }
 
+    /// The image with `id` was removed from the cache by something
+    /// other than its trim — a delete, a build undone: nothing of it
+    /// is recorded any more.
+    pub async fn forget_image(&self, id: &str) {
+        self.shared.images.forget(id).await;
+    }
+
     /// The port podman reaches the provider's registry at: the
     /// registry's own on Linux, where podman pulls on this host; the
     /// tunnel's elsewhere, inside the machine, where podman pulls.

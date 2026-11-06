@@ -7,6 +7,7 @@ use diverge_sdk::provider::endpoints::daemons::accept::server::response::{self, 
 use crate::protocol::endpoints::containers::run::encoded::encoded;
 use diverge_sdk::provider::endpoints::daemons::accept::client::channel_request;
 use crate::protocol::acceptors::Acceptors;
+use crate::protocol::release::Release;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::frame::client::ClientFrame;
@@ -25,9 +26,12 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///    waiting on that id, which relays the connector's frames onto
 ///    it from then on; an id nobody waits for is finished with
 ///    nothing — or the stop, which ends the scope. A channel request
-///    that does not decode is finished with nothing.
+///    that does not decode is finished with nothing. The daemon
+///    reading no more of the scope ends it as the stop does.
 /// 4. The slot given back, which ends every connection relayed on
-///    the scope, and the finish.
+///    the scope, and the finish. The giving back is a [`Release`], so
+///    a scope that panics or is cancelled gives the slot back at the
+///    drop.
 ///
 /// The provider's half of each connection is opened by the connect
 /// handler, on this scope, and read there; nothing here reads it.
@@ -38,6 +42,11 @@ pub async fn handle(scope: ScopeHandle, client_identity: &Identity, acceptors: A
         scope.send_response_finish().await;
         return;
     };
+    let slot = Release::new({
+        let acceptors = Arc::clone(&acceptors);
+        let identity = client_identity.clone();
+        async move { acceptors.release(&identity).await }
+    });
     send(
         &scope,
         response::Frame::Accepting(Accepting {
@@ -45,7 +54,14 @@ pub async fn handle(scope: ScopeHandle, client_identity: &Identity, acceptors: A
         }),
     )
     .await;
-    while let Some(bytes) = scope.recv_channel_request().await {
+    loop {
+        let bytes = tokio::select! {
+            received = scope.recv_channel_request() => match received {
+                Some(bytes) => bytes,
+                None => break,
+            },
+            () = scope.responses_gone() => break,
+        };
         let Ok(ClientFrame::ChannelRequest { channel, payload, .. }) = ClientFrame::decode(&bytes) else {
             continue;
         };
@@ -59,7 +75,7 @@ pub async fn handle(scope: ScopeHandle, client_identity: &Identity, acceptors: A
             Err(_) => scope.send_channel_response_finish(channel).await,
         }
     }
-    acceptors.release(client_identity).await;
+    slot.now().await;
     scope.send_response_finish().await;
 }
 

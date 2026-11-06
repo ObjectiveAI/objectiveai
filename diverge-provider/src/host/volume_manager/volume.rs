@@ -23,7 +23,7 @@ use tokio::fs;
 use tokio::io::AsyncReadExt as _;
 use tokio::sync::{Mutex, mpsc};
 
-use super::{Error, ModeFile, Reservation, Scratch, Served, Walked, image, mode, walk};
+use super::{Error, ModeFile, Owner, Reservation, Scratch, Served, Walked, image, mode, walk};
 use crate::host::tools::{mount, resize};
 
 /// Where a volume is, which is also what kind it is.
@@ -88,6 +88,11 @@ pub struct Volume {
 struct Inner {
     name: String,
     place: Place,
+    /// The identity a stored volume is entered under, looked at again
+    /// whenever a handle of the volume is let go of — see
+    /// [`settle`](super::settle). `None` for a fixed volume, which is
+    /// made fresh for every call and entered nowhere.
+    owner: Option<Owner>,
     /// The volume's [`Mode`]: what its mode file holds, or the
     /// configuration declares for a fixed volume. Changed only under
     /// the exclusive hold, so no container and no FUSE serve is bound while
@@ -115,12 +120,24 @@ struct Attached {
     count: u32,
 }
 
+impl Drop for Volume {
+    /// A handle let go of: the identity it is entered under looked at
+    /// again once the handle is gone, which lets the entry go when
+    /// nothing holds it any more.
+    fn drop(&mut self) {
+        if let Some(owner) = &self.inner.owner {
+            owner.look_again();
+        }
+    }
+}
+
 impl Volume {
-    pub fn new(name: &str, place: Place, mode: Mode) -> Self {
+    pub fn new(name: &str, place: Place, mode: Mode, owner: Option<Owner>) -> Self {
         Volume {
             inner: Arc::new(Inner {
                 name: name.to_string(),
                 place,
+                owner,
                 mode: Mutex::new(mode),
                 holders: Mutex::new(Holders::Free),
                 walked: Mutex::new(None),
@@ -132,6 +149,12 @@ impl Volume {
     /// The name a listing gives it.
     pub fn name(&self) -> &str {
         &self.inner.name
+    }
+
+    /// Whether this handle is the only one: nothing else has the
+    /// volume, so nothing holds, attaches or locks it.
+    pub(super) fn alone(&self) -> bool {
+        Arc::strong_count(&self.inner) == 1
     }
 
     /// Where it is.

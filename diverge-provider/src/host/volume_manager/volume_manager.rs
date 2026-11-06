@@ -15,7 +15,7 @@ use tokio::fs;
 
 use diverge_sdk::provider::endpoints::volumes::Mode;
 
-use super::{Error, Identity, ModeFile, Place, Reservation, Scratch, Volume, image, mode, name};
+use super::{Error, Identities, Identity, ModeFile, Place, Reservation, Scratch, Volume, image, mode, name, settle};
 use crate::config::volumes::{Fixed, HookInput, HookOutput, Volumes};
 use crate::host::hook;
 
@@ -25,11 +25,12 @@ use crate::host::hook;
 ///
 /// Starts knowing no identity and reads nothing: an identity enters
 /// the map the first time it is named, and its stored volumes are
-/// read from the stores then, once, and held for the manager's life.
-/// Each identity is its own entry with its own lock, so two
-/// identities never wait on each other. The fixed volumes are the
-/// configuration's and are answered on each call, through their hook
-/// where they have one.
+/// read from the stores then, once, and held for as long as anything
+/// holds the identity or one of its volumes — see [`settle`] — and
+/// read again when it is named after. Each identity is its own entry
+/// with its own lock, so two identities never wait on each other. The
+/// fixed volumes are the configuration's and are answered on each
+/// call, through their hook where they have one.
 #[derive(Debug)]
 pub struct VolumeManager {
     /// The stores, and the room left in each: shared with every
@@ -48,8 +49,33 @@ pub struct VolumeManager {
     /// a fixed volume's creation time where its filesystem records
     /// none.
     started: u64,
-    /// Every identity that has asked, by identity.
-    identities: DashMap<shared::Identity, Arc<Identity>>,
+    /// Every identity that has asked and is still held, by identity.
+    identities: Arc<Identities>,
+}
+
+/// One identity, as the manager hands it to itself: the entry let go
+/// of — see [`settle`] — when this is, if nothing else holds it.
+struct Named<'a> {
+    identity: Option<Arc<Identity>>,
+    identities: &'a Identities,
+}
+
+impl std::ops::Deref for Named<'_> {
+    type Target = Identity;
+
+    fn deref(&self) -> &Identity {
+        self.identity.as_deref().unwrap_or_else(|| unreachable!("the identity is taken only by the drop"))
+    }
+}
+
+impl Drop for Named<'_> {
+    fn drop(&mut self) {
+        if let Some(identity) = self.identity.take() {
+            let client_identity = identity.client_identity().clone();
+            drop(identity);
+            settle(self.identities, &client_identity);
+        }
+    }
 }
 
 impl VolumeManager {
@@ -66,23 +92,28 @@ impl VolumeManager {
                 .duration_since(UNIX_EPOCH)
                 .map(|elapsed| elapsed.as_secs())
                 .unwrap_or(0),
-            identities: DashMap::new(),
+            identities: Arc::new(DashMap::new()),
         }
     }
 
     /// The identity's stored volumes, read from the stores the first
-    /// time the identity is named and held from then on. Every caller
-    /// that names the identity while its first load runs waits for
-    /// that load rather than starting another.
-    pub async fn identity(&self, client_identity: &shared::Identity) -> Arc<Identity> {
+    /// time the identity is named and held from then on, for as long
+    /// as anything holds it. Every caller that names the identity
+    /// while its first load runs waits for that load rather than
+    /// starting another.
+    async fn identity(&self, client_identity: &shared::Identity) -> Named<'_> {
         let identity = Arc::clone(
             &self
                 .identities
                 .entry(client_identity.clone())
-                .or_insert_with(|| Arc::new(Identity::new(client_identity))),
+                .or_insert_with(|| Arc::new(Identity::new(client_identity, Arc::downgrade(&self.identities)))),
         );
-        identity.load(&self.reservation, &self.scratch).await;
-        identity
+        let named = Named {
+            identity: Some(identity),
+            identities: &self.identities,
+        };
+        named.load(&self.reservation, &self.scratch).await;
+        named
     }
 
     /// The fixed volume under `name`, if the configuration has one.
@@ -119,6 +150,7 @@ impl VolumeManager {
                 started: self.started,
             },
             fixed.mode,
+            None,
         )
     }
 
@@ -243,6 +275,7 @@ impl volume_manager::VolumeManager for VolumeManager {
                 scratch: Arc::clone(&self.scratch),
             },
             mode,
+            Some(identity.owner()),
         ));
         Ok(Creation::Created)
     }

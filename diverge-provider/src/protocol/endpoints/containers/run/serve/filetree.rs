@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use futures_util::future::{self, Either};
+use futures_util::future;
 use futures_util::{Stream, StreamExt as _};
 use tokio::sync::{Notify, OnceCell};
 
@@ -23,11 +23,14 @@ use diverge_sdk::shared::filetree::response::{Frame, Node};
 /// planted into it, then every change as it comes. A watch that
 /// could not be opened, or that died, ends the whole channel with its
 /// error — a tree with a hole in it would be a tree that lied — and
-/// the proxy's finish ends it without one. The proxy scope is
-/// registered with the run, which stops it when the run shuts down;
-/// the volume watches end with the run's tasks.
+/// the proxy's finish ends it without one; a caller that reads no
+/// more of the channel ends it too, with the finish. The proxy scope
+/// is registered with the run, which stops it when the run shuts
+/// down, and is stopped here when the channel ends first — a watch
+/// that would not open included; the volume watches end with the
+/// channel, or with the run's tasks.
 pub(crate) async fn filetree<F: Family>(run: Arc<Run>, channel: u32) {
-    let ignore = run.ignore.lock().await.clone();
+    let ignore = run.ignored().await;
     let opened = future::join(
         tree::execute(&run.proxy, ignore),
         future::join_all(run.watched.iter().map(|watched| watched.watcher.watch())),
@@ -45,6 +48,7 @@ pub(crate) async fn filetree<F: Family>(run: Arc<Run>, channel: u32) {
                 match watch {
                     Ok(watch) => opened.push(watch),
                     Err(error) => {
+                        let _ = proxy.1.stop().await;
                         run.respond(channel, F::filetree_error(&error)).await;
                         run.finish(channel).await;
                         return;
@@ -93,7 +97,7 @@ pub(crate) async fn filetree<F: Family>(run: Arc<Run>, channel: u32) {
     }
 
     while !ending.over() {
-        match next(&mut frames, &ending.stop).await {
+        match next::<F, _>(&mut frames, &ending).await {
             Some(Some(Ok(frame))) => run.respond(channel, F::filetree(frame)).await,
             // As above: the container stopped.
             Some(Some(Err(tree::ExecuteStreamError::Closed))) | Some(None) => ending.end::<F>().await,
@@ -101,14 +105,19 @@ pub(crate) async fn filetree<F: Family>(run: Arc<Run>, channel: u32) {
             None => {}
         }
     }
-    run.trees.lock().await.remove(&handle.scope());
+    // Taken out before it is stopped, so the run's shutdown and this
+    // never both stop it; a scope the proxy already ended takes the
+    // stop as nothing.
+    if run.trees.lock().await.remove(&handle.scope()).is_some() {
+        let _ = handle.stop().await;
+    }
 }
 
 /// One volume watch relayed after its snapshot, every frame re-rooted
 /// at the mount, until the channel is over.
 async fn relay_watch<F: Family>(ending: Arc<Ending>, container_path: Vec<String>, mut watch: Watch) {
     while !ending.over() {
-        match next(&mut watch, &ending.stop).await {
+        match next::<F, _>(&mut watch, &ending).await {
             Some(Some(Ok(frame))) => {
                 ending
                     .run
@@ -122,14 +131,27 @@ async fn relay_watch<F: Family>(ending: Arc<Ending>, container_path: Vec<String>
     }
 }
 
-/// The next item of `stream`, or `None` when `stop` was notified
-/// first.
-async fn next<S: Stream + Unpin>(stream: &mut S, stop: &Notify) -> Option<Option<S::Item>> {
-    let item = std::pin::pin!(stream.next());
-    let stopped = std::pin::pin!(stop.notified());
-    match future::select(item, stopped).await {
-        Either::Left((item, _)) => Some(item),
-        Either::Right(((), _)) => None,
+/// The next item of `stream`, or `None` when the channel is over
+/// first — ended by another relay, or by the caller reading no more
+/// of it, which ends it here with the finish.
+///
+/// The stop is waited on from before the channel is looked at: a
+/// [`Notified`](tokio::sync::futures::Notified) hears every
+/// `notify_waiters` from the moment it is made, so an ending that
+/// lands between the look and the wait is still heard, and never
+/// leaves a relay waiting on a stream that has nothing more to say.
+async fn next<F: Family, S: Stream + Unpin>(stream: &mut S, ending: &Ending) -> Option<Option<S::Item>> {
+    let stopped = ending.stop.notified();
+    if ending.over() {
+        return None;
+    }
+    tokio::select! {
+        item = stream.next() => Some(item),
+        () = stopped => None,
+        () = ending.run.scope.answer_gone(ending.channel) => {
+            ending.end::<F>().await;
+            None
+        }
     }
 }
 

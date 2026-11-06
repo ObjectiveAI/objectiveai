@@ -28,9 +28,13 @@ use diverge_sdk::provider::endpoints::images::oci::server::response;
 /// at most one frame then the finish; a blob with its pieces, each
 /// split at [`CHUNK_SIZE`], then the finish — the empty finish being
 /// a digest the store does not hold for the caller. A channel request
-/// that will not decode is finished with nothing. The caller's
-/// disconnect, or the caller gone, ends the loop; every answer still
-/// in flight is finished, and then the scope.
+/// that will not decode is finished with nothing. An answer done is
+/// reaped as it ends, so the set holds only the answers in flight
+/// however long the scope is held. The caller's disconnect, the caller
+/// gone, or the caller reading no more of the scope ends the loop;
+/// every answer still in flight is finished, and then the scope — save
+/// that a caller reading no more of the scope is not waited on, and
+/// what is still in flight for it is ended.
 ///
 /// # `client_identity` is an argument
 ///
@@ -53,7 +57,15 @@ where
     let scope = Arc::new(scope);
     let identity: Arc<Identity> = Arc::new(client_identity.clone());
     let mut tasks = JoinSet::new();
-    while let Some(bytes) = scope.recv_channel_request().await {
+    loop {
+        let bytes = tokio::select! {
+            received = scope.recv_channel_request() => match received {
+                Some(bytes) => bytes,
+                None => break,
+            },
+            () = scope.responses_gone() => break,
+            Some(_) = tasks.join_next(), if !tasks.is_empty() => continue,
+        };
         let Ok(ClientFrame::ChannelRequest { channel, payload, .. }) = ClientFrame::decode(&bytes) else {
             continue;
         };
@@ -71,8 +83,20 @@ where
             Err(_) => scope.send_channel_response_finish(channel).await,
         }
     }
-    while tasks.join_next().await.is_some() {}
+    let gone = tokio::select! {
+        () = drain(&mut tasks) => false,
+        () = scope.responses_gone() => true,
+    };
+    if gone {
+        tasks.abort_all();
+        drain(&mut tasks).await;
+    }
     scope.send_response_finish().await;
+}
+
+/// Every task of `tasks` waited for, to the last.
+async fn drain(tasks: &mut JoinSet<()>) {
+    while tasks.join_next().await.is_some() {}
 }
 
 /// One frame — held under a name, or not — then the finish.

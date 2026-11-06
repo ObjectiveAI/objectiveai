@@ -43,7 +43,8 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///    behind is the manager asked again the same way. A manager that
 ///    will not answer then is the `Error`, last.
 /// 4. The finish, when the caller's [`Stop`](channel_request::Frame::Stop)
-///    arrives, the caller is gone, or the error was sent.
+///    arrives, the caller is gone or reads no more of the listing, or
+///    the error was sent.
 ///
 /// A response that will not encode is the one failure with nowhere to
 /// go, and is not sent; the listing goes on without it.
@@ -108,6 +109,9 @@ pub async fn handle<M>(
                     Err(_) => scope.send_channel_response_finish(channel).await,
                 }
             }
+            // The caller reads no more of the listing: abandoned, and
+            // over as at the stop.
+            () = scope.responses_gone() => break,
         }
     }
     scope.send_response_finish().await;

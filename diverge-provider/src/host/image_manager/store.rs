@@ -9,7 +9,7 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use tokio::fs;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 
 use super::Error;
 use crate::host::container_deployer::name_ok;
@@ -52,8 +52,39 @@ pub struct Store {
     capacity: u64,
     /// One lock per identity, held across a build or a delete of a
     /// name, so two builds of one name do not race each other and a
-    /// prune sees no blob still on its way into a record.
+    /// prune sees no blob still on its way into a record. An entry is
+    /// there only while some [`Namespace`] holds it.
     namespaces: DashMap<String, Arc<Mutex<()>>>,
+}
+
+/// One identity's lock, as [`Store::namespace`] hands it out: locked
+/// by [`lock`](Self::lock), and its entry in the store let go of when
+/// this is, if no other holds it — checked under the entry's own lock
+/// in the map, so no other is handed out between the look and the
+/// removal. So the store keeps a lock for each identity with a build
+/// or a delete under way, and none for any other.
+pub struct Namespace<'a> {
+    namespaces: &'a DashMap<String, Arc<Mutex<()>>>,
+    key: String,
+    lock: Arc<Mutex<()>>,
+}
+
+impl Namespace<'_> {
+    /// Wait for the identity's lock, and hold it for as long as the
+    /// guard lives.
+    pub async fn lock(&self) -> MutexGuard<'_, ()> {
+        self.lock.lock().await
+    }
+}
+
+impl Drop for Namespace<'_> {
+    fn drop(&mut self) {
+        // This handle's share given up first — swapped for a lock
+        // nobody else has — so the count read below is everyone
+        // else's.
+        drop(std::mem::replace(&mut self.lock, Arc::new(Mutex::new(()))));
+        self.namespaces.remove_if(&self.key, |_, lock| Arc::strong_count(lock) == 1);
+    }
 }
 
 impl Store {
@@ -109,14 +140,15 @@ impl Store {
     }
 
     /// The identity's lock, for a build or a delete of one of its
-    /// names.
-    pub fn namespace(&self, client_identity: &Identity) -> Arc<Mutex<()>> {
-        Arc::clone(
-            &self
-                .namespaces
-                .entry(client_identity.to_string())
-                .or_insert_with(|| Arc::new(Mutex::new(()))),
-        )
+    /// names; see [`Namespace`].
+    pub fn namespace(&self, client_identity: &Identity) -> Namespace<'_> {
+        let key = client_identity.to_string();
+        let lock = Arc::clone(&self.namespaces.entry(key.clone()).or_insert_with(|| Arc::new(Mutex::new(()))));
+        Namespace {
+            namespaces: &self.namespaces,
+            key,
+            lock,
+        }
     }
 
     /// Where the identity's records are, `<pool>/images/`.

@@ -10,7 +10,10 @@ use super::check;
 /// caller's `fuse_mount` channel — with each FUSE mount's id. A mount
 /// asked for while the container runs is claimed here BEFORE the
 /// proxy is asked, so that two asked for at once cannot both be
-/// made, and released when the proxy does not make it.
+/// made, and released when the proxy does not make it. Every FUSE
+/// mount, the request's or one made since, is released too when its
+/// relay ends — its scope on the proxy over — so the ledger holds
+/// the mounts that are, and an id is free again once its mount is gone.
 ///
 /// The rules of a claim, in order:
 ///
@@ -76,8 +79,14 @@ impl Ledger {
         Ok(())
     }
 
-    /// Let go of the claim under `id`: the proxy did not make it.
+    /// Let go of the mount under `id`: the proxy did not make it, or
+    /// it was made and is gone — its relay ended.
     pub(crate) fn release(&mut self, id: &str) {
         self.fuse.retain(|entry| entry.id != id);
+    }
+
+    /// Every FUSE mount's path, held or claimed.
+    pub(crate) fn fuse_paths(&self) -> Vec<Vec<String>> {
+        self.fuse.iter().map(|entry| entry.path.clone()).collect()
     }
 }

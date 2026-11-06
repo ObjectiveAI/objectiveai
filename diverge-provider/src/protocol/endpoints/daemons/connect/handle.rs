@@ -4,7 +4,6 @@ use diverge_sdk::shared::Identity;
 use std::net::IpAddr;
 use std::sync::Arc;
 
-use futures_util::future::{self, Either};
 use tokio::sync::oneshot;
 
 use diverge_sdk::provider::endpoints::daemons::connect::client::request;
@@ -12,6 +11,7 @@ use diverge_sdk::provider::endpoints::daemons::connect::server::{channel_request
 use crate::protocol::endpoints::containers::run::encoded::encoded;
 use diverge_sdk::provider::endpoints::daemons::accept::server::channel_request as announce;
 use crate::protocol::acceptors::{Accepting, Acceptors};
+use crate::protocol::release::Release;
 use diverge_sdk::shared::daemons::Connection;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::wire::server::answer::{Answer, answer};
@@ -34,7 +34,12 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///    the acceptor's half, a channel it opens quoting the id, is the
 ///    connection taken; the provider's half finished before that is
 ///    the acceptor declining, `{"kind":"denied"}`, then the finish;
-///    the accept scope ending first is `{"kind":"missing"}`.
+///    the accept scope ending first is `{"kind":"missing"}`; the
+///    connector reading no more of this scope ends the wait the same
+///    way. The id waits among the acceptor's connections from the
+///    mint to the end of the wait, and no longer, whichever way the
+///    wait ends — a [`Release`] forgets it, run in place or at the
+///    drop.
 /// 3. Exactly one response, `Connected`, and the one channel opened
 ///    on the scope, where the connector's frames go.
 /// 4. The relay, both ways: every channel response the connector
@@ -43,8 +48,14 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///    on the provider's half is a response on this scope, byte for
 ///    byte, behind the tag. The connector finishing its channel, or
 ///    going, finishes the acceptor's half; the acceptor finishing the
-///    provider's half, or its accept scope ending, ends the scope.
+///    provider's half, its accept scope ending, or the connector
+///    reading no more of this scope, ends the scope.
 /// 5. The finish.
+///
+/// The provider's half, given up anywhere above, is dropped: the drop
+/// tells the acceptor its answer is abandoned, and the acceptor's
+/// finish of it, which an abandoned answer still sends, is what gives
+/// its number back on the accept scope.
 ///
 /// # The request arrives decoded
 ///
@@ -57,19 +68,26 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
         return;
     };
     let (connection_id, half) = accepting.open().await;
+    let waiting = Release::new({
+        let accepting = Arc::clone(&accepting);
+        async move { accepting.forget(connection_id).await }
+    });
     let announced = announce::Frame(Connection {
         connection_id,
         identity: client_identity.clone(),
         address,
     });
     let Some(payload) = encoded(&announced) else {
-        accepting.forget(connection_id).await;
+        waiting.now().await;
         refuse(&scope, missing()).await;
         return;
     };
     let mut theirs = accepting.scope.send_channel_request(&payload).await;
-    let Some(daemon_half) = taken(&accepting, half, &mut theirs).await else {
-        accepting.forget(connection_id).await;
+    let daemon_half = taken(&scope, &accepting, half, &mut theirs).await;
+    // Delivered or not, the id waits no more: a half delivered took it
+    // out already, and this is then nothing.
+    waiting.now().await;
+    let Some(daemon_half) = daemon_half else {
         refuse(&scope, denied()).await;
         return;
     };
@@ -95,16 +113,17 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
     };
     let mut ended = accepting.ended();
     loop {
-        let next = std::pin::pin!(theirs.response_receiver.recv());
-        let over = std::pin::pin!(ended.changed());
-        match future::select(next, over).await {
-            Either::Left((Some(bytes), _)) => match answer(&bytes) {
-                Some(Answer::Frame(payload)) => send(&scope, response::Frame::Frame(&payload)).await,
-                Some(Answer::Finish) => break,
-                None => {}
+        tokio::select! {
+            received = theirs.response_receiver.recv() => match received {
+                Some(bytes) => match answer(&bytes) {
+                    Some(Answer::Frame(payload)) => send(&scope, response::Frame::Frame(&payload)).await,
+                    Some(Answer::Finish) => break,
+                    None => {}
+                },
+                None => break,
             },
-            Either::Left((None, _)) => break,
-            Either::Right(_) => break,
+            _ = ended.changed() => break,
+            () = scope.responses_gone() => break,
         }
     }
     to_acceptor.abort();
@@ -114,28 +133,29 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
 
 /// Wait for the acceptor to take the connection: its half's channel
 /// number, or `None` when the provider's half was finished first, the
-/// acceptor's connection went, or its accept scope ended.
-async fn taken(accepting: &Accepting, half: oneshot::Receiver<u32>, theirs: &mut Channel) -> Option<u32> {
+/// acceptor's connection went, its accept scope ended, or the
+/// connector on `scope` reads no more of it.
+async fn taken(scope: &ScopeHandle, accepting: &Accepting, half: oneshot::Receiver<u32>, theirs: &mut Channel) -> Option<u32> {
     let mut ended = accepting.ended();
     let mut half = std::pin::pin!(half);
     loop {
         if *ended.borrow_and_update() {
             return None;
         }
-        let answered = std::pin::pin!(theirs.response_receiver.recv());
-        let over = std::pin::pin!(ended.changed());
-        match future::select(half.as_mut(), future::select(answered, over)).await {
-            Either::Left((Ok(channel), _)) => return Some(channel),
-            Either::Left((Err(_), _)) => return None,
-            Either::Right((Either::Left((Some(bytes), _)), _)) => match answer(&bytes) {
+        tokio::select! {
+            channel = half.as_mut() => return channel.ok(),
+            answered = theirs.response_receiver.recv() => match answered {
                 // The acceptor's session says nothing before it is
-                // asked, so a frame here is read past; its finish
-                // is the decline.
-                Some(Answer::Finish) => return None,
-                _ => continue,
+                // asked, so a frame here is read past; its finish is
+                // the decline.
+                Some(bytes) => match answer(&bytes) {
+                    Some(Answer::Finish) => return None,
+                    _ => continue,
+                },
+                None => return None,
             },
-            Either::Right((Either::Left((None, _)), _)) => return None,
-            Either::Right((Either::Right(_), _)) => return None,
+            _ = ended.changed() => return None,
+            () = scope.responses_gone() => return None,
         }
     }
 }

@@ -110,8 +110,9 @@ impl image_manager::ImageManager for ImageManager {
         }
         store.remove(client_identity, name).await?;
         store.prune(client_identity).await?;
-        if copy.is_some() {
+        if let Some(id) = &copy {
             let _ = podman::podman(["rmi", &reference]).await;
+            self.deployer.forget_image(id).await;
         }
         Ok(Some(Deletion::Deleted))
     }

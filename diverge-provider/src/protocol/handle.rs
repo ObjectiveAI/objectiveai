@@ -143,7 +143,7 @@ where
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::containers::agents::handle(
-                        scope, frame, &identity, &*deployer, &*registry, &*manager, &capabilities, directory,
+                        scope, frame, &identity, &*deployer, registry, &*manager, &capabilities, directory,
                     )
                     .await;
                 });
@@ -157,7 +157,7 @@ where
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::containers::tools::handle(
-                        scope, frame, &identity, &*deployer, &*registry, &*manager, &capabilities, directory,
+                        scope, frame, &identity, &*deployer, registry, &*manager, &capabilities, directory,
                     )
                     .await;
                 });

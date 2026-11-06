@@ -2,6 +2,7 @@
 
 use diverge_sdk::shared::Identity;
 use std::pin::pin;
+use std::sync::Arc;
 
 use futures_util::StreamExt as _;
 
@@ -11,6 +12,7 @@ use diverge_sdk::provider::endpoints::volumes::read::client::request;
 use diverge_sdk::provider::endpoints::volumes::{names, refusal};
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use crate::protocol::hold::Held;
+use crate::protocol::release::Release;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume::Volume as _;
 use crate::protocol::volume_manager::VolumeManager;
@@ -29,7 +31,9 @@ use diverge_sdk::shared::error::Error;
 /// [`Mounted`](response::Frame::Mounted),
 /// [`FuseServed`](response::Frame::FuseServed) or
 /// [`Held`](response::Frame::Held) — and the hold never waits. The
-/// hold is given back after the finish, whatever the read answered.
+/// hold is given back after the finish, whatever the read answered,
+/// by a [`Release`], so a read that panics or is cancelled gives it
+/// back at the drop.
 /// A provider whose capabilities keep no volumes answers
 /// [`Unsupported`](response::Frame::Unsupported) first.
 ///
@@ -70,7 +74,7 @@ pub async fn handle<M>(
         scope.send_response_finish().await;
         return;
     }
-    let (volume, stream) = match open(manager, client_identity, &request).await {
+    let (unlock, stream) = match open(manager, client_identity, &request).await {
         Ok(opened) => opened,
         Err(frame) => {
             send(&scope, &frame).await;
@@ -91,7 +95,7 @@ pub async fn handle<M>(
         }
     }
     scope.send_response_finish().await;
-    volume.unlock().await;
+    unlock.now().await;
 }
 
 /// One response, encoded and sent; one that will not encode is not
@@ -104,14 +108,14 @@ async fn send(scope: &ScopeHandle, frame: &response::Frame<'_>) {
 }
 
 /// The path checked, the volume found, locked, and its file opened
-/// for reading; or the one refusal the endpoint answers with,
-/// whichever step it came from — with the hold given back where it
-/// was taken.
+/// for reading, with the [`Release`] that unlocks it; or the one
+/// refusal the endpoint answers with, whichever step it came from —
+/// with the hold given back where it was taken.
 async fn open<M>(
     manager: &M,
     client_identity: &Identity,
     request: &request::Frame,
-) -> Result<(M::Volume, <M::Volume as crate::protocol::volume::Volume>::Read), response::Frame<'static>>
+) -> Result<(Release, <M::Volume as crate::protocol::volume::Volume>::Read), response::Frame<'static>>
 where
     M: VolumeManager,
     M::Error: Into<Error>,
@@ -134,10 +138,17 @@ where
             Held::Locked => response::Frame::Held,
         });
     }
-    match volume.read(&request.path).await {
-        Ok(stream) => Ok((volume, stream)),
-        Err(error) => {
+    let volume = Arc::new(volume);
+    let unlock = Release::new({
+        let volume = Arc::clone(&volume);
+        async move {
             volume.unlock().await;
+        }
+    });
+    match volume.read(&request.path).await {
+        Ok(stream) => Ok((unlock, stream)),
+        Err(error) => {
+            unlock.now().await;
             Err(response::Frame::Error(error.into()))
         }
     }

@@ -12,10 +12,10 @@ use super::held::{Held, Refused};
 use super::ledger::Ledger;
 use super::run::{Run, send};
 use super::{relay, serve, setup};
-use crate::protocol::container::Container as _;
 use crate::protocol::container_deployer::ContainerDeployer;
 use crate::protocol::directory::Directory;
 use crate::protocol::image_registry::ImageRegistry;
+use crate::protocol::release::Release;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume_manager::VolumeManager;
 use diverge_sdk::shared::containers::request::Container;
@@ -59,15 +59,20 @@ use diverge_sdk::shared::error::Error;
 ///    runs, checked against every mount it holds — see
 ///    [`Ledger`] — and answered once the proxy has.
 /// 5. The teardown, the same for every ending: the directory entry
-///    removed, the container stopped, the repository released, the
-///    volumes given back, every task ended, and the finish.
+///    removed, the container stopped and its proxy's router ended, the
+///    volumes given back, every task ended, and the finish. The
+///    repository is not among them: it was released as the deploy
+///    answered. Every step of it is a release that also runs at the
+///    drop — see [`Release`](crate::protocol::release::Release) and
+///    [`Held`] — so a run that panics or is cancelled before here still
+///    gives everything back.
 pub(crate) async fn run<R, D, G, V>(
     scope: ScopeHandle,
     client_identity: &Identity,
     request: &Container,
     arguments: Value,
     deployer: &D,
-    registry: &G,
+    registry: Arc<G>,
     manager: &V,
     capabilities: &Capabilities,
     directory: Arc<Directory>,
@@ -75,7 +80,7 @@ pub(crate) async fn run<R, D, G, V>(
     R: Runs,
     D: ContainerDeployer,
     D::Error: Into<Error>,
-    G: ImageRegistry,
+    G: ImageRegistry + 'static,
     G::Error: Into<Error>,
     V: VolumeManager,
     V::Error: Into<Error>,
@@ -124,7 +129,7 @@ pub(crate) async fn run<R, D, G, V>(
     };
 
     let identity: Arc<Identity> = Arc::new(client_identity.clone());
-    let prepared = match setup::prepare::<R, D, G, V::Volume>(&scope, &identity, request, arguments, deployer, registry, &held, &directory)
+    let prepared = match setup::prepare::<R, D, G, V::Volume>(&scope, &identity, request, arguments, deployer, &registry, &held, &directory)
         .await
     {
         Ok(prepared) => prepared,
@@ -156,10 +161,16 @@ pub(crate) async fn run<R, D, G, V>(
         Arc::clone(&directory),
         prepared.proxy,
         begin,
-        prepared.ignore,
         prepared.watched,
         Ledger::new(request),
     ));
+    // Every task of the run holds the run, so a run that never reaches
+    // its teardown would be held by its own tasks for good: the
+    // shutdown is a release too.
+    let shutdown = Release::new({
+        let run = Arc::clone(&run);
+        async move { run.shutdown().await }
+    });
     run.spawn(relay::relay::<R>(Arc::clone(&run), asks)).await;
     for mount in prepared.mounts {
         run.spawn(relay::fuse::<R>(Arc::clone(&run), mount)).await;
@@ -172,10 +183,9 @@ pub(crate) async fn run<R, D, G, V>(
     }
     let _end = serve::serve::<R>(&run).await;
 
-    directory.remove(&id).await;
-    prepared.container.stop().await;
-    registry.release(&prepared.repository).await;
+    prepared.removal.now().await;
+    prepared.stop.now().await;
     held.give_back().await;
-    run.shutdown().await;
+    shutdown.now().await;
     scope.send_response_finish().await;
 }

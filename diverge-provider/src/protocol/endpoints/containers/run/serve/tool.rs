@@ -30,7 +30,10 @@ pub(crate) enum Exchange {
 /// Serve one, to the end: the proxy's answer on the caller's channel
 /// — the result, or the MCP error, as the container's server gave it
 /// — then the finish; or the finish alone where the proxy could not
-/// serve it.
+/// serve it. Notifications are relayed until the proxy ends them or
+/// the caller reads no more of the channel, which drops the proxy's
+/// stream — telling the proxy the session's notifications are
+/// abandoned — and finishes the channel.
 pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
     let Some(begin) = run.begin.tools() else {
         // An agent container has no MCP server of its own; nothing
@@ -73,18 +76,22 @@ pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
         }
         Exchange::Notifications(request) => {
             if let Ok(mut notifications) = begin.notifications(request.session).await {
-                while let Some(item) = notifications.next().await {
+                loop {
+                    let item = tokio::select! {
+                        item = notifications.next() => item,
+                        () = run.scope.answer_gone(channel) => break,
+                    };
                     match item {
-                        Ok(notification) => {
+                        Some(Ok(notification)) => {
                             run.respond(channel, encoded(&mcp::notifications::response::Frame::Notification(notification)))
                                 .await;
                         }
-                        Err(ChannelStreamError::Refused(error)) => {
+                        Some(Err(ChannelStreamError::Refused(error))) => {
                             run.respond(channel, encoded(&mcp::notifications::response::Frame::Error(error)))
                                 .await;
                             break;
                         }
-                        Err(_) => break,
+                        Some(Err(_)) | None => break,
                     }
                 }
             }

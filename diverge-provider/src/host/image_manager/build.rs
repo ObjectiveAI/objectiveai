@@ -163,10 +163,19 @@ impl Job {
             context,
         ]);
         let (mut lines, pending) = tools::stream("podman", command).map_err(Error::Podman)?;
-        while let Some(line) = lines.next().await {
+        loop {
+            // Nobody listens — the reader dropped the build, or never
+            // will read again — the build is dropped, and its tool is
+            // killed with it: heard as the reader goes, and not only
+            // at the next line, since a tool can be silent for long.
+            let line = tokio::select! {
+                line = lines.next() => line,
+                () = sender.closed() => return Ok(()),
+            };
+            let Some(line) = line else {
+                break;
+            };
             if sender.send(Ok(Progress::Output(line))).await.is_err() {
-                // Nobody listens: the build is dropped, and its tool
-                // is killed with it.
                 return Ok(());
             }
         }
@@ -235,7 +244,11 @@ impl Job {
     /// build exists, since no record names its blobs. A refusal is
     /// not reported, since the build's own end is what is reported.
     async fn undo(&self, reference: &str) {
+        let copy = podman::image_id(reference).await.ok();
         let _ = podman::podman(["rmi", "--force", reference]).await;
+        if let Some(id) = &copy {
+            self.deployer.forget_image(id).await;
+        }
         let _ = self.store.prune(&self.client_identity).await;
     }
 }

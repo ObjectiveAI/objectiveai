@@ -16,6 +16,7 @@ use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::provider::endpoints::volumes::refusal;
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use crate::protocol::hold::{self, Allow, Holder};
+use crate::protocol::release::Release;
 use diverge_sdk::provider::endpoints::volumes::fuse_serve::client::{channel_request, request};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
@@ -51,18 +52,23 @@ const CHANGES_BEHIND: usize = 256;
 /// [`FuseServed`](response::Frame::FuseServed) or
 /// [`Held`](response::Frame::Held), as the rule says. A provider
 /// whose capabilities keep no volumes answers `Unsupported` first.
-/// The hold is given back after the finish.
+/// The hold is given back after the finish, by a [`Release`], so a
+/// FUSE serve that panics or is cancelled gives it back at the drop.
 ///
 /// # Every ask is its own task
 ///
 /// Each channel the caller opens is decoded and answered on a task of
 /// its own through the volume's [`Served`], so asks in flight at once
 /// are answered in whatever order the volume answers them; a channel
-/// request that will not decode is finished with nothing. The stop
-/// ends the loop; the tasks still running are awaited, the scope is
-/// finished, and the volume unmounted — in that order, so the finish
-/// follows the last answer. A caller that leaves without a stop ends
-/// the loop the same way.
+/// request that will not decode is finished with nothing. A task done
+/// is reaped as it ends, so the sets hold only the channels still in
+/// flight however long the serve runs. The stop ends the loop; the
+/// filetree channels are ended, the asks still running are awaited,
+/// the scope is finished, and the volume unmounted — in that order, so
+/// the finish follows the last answer. A caller that leaves without a
+/// stop, or that reads no more of the scope, ends the loop the same
+/// way, and a caller that reads no more of the scope is not waited on
+/// for the asks either: they are ended with the trees.
 ///
 /// # The tree is kept here
 ///
@@ -73,9 +79,11 @@ const CHANGES_BEHIND: usize = 256;
 /// `ok`. The changes travel on a broadcast every filetree channel
 /// subscribes to; a channel that falls behind by more changes than
 /// the broadcast keeps is sent a fresh snapshot, as a source that lost
-/// track of the tree does. The
-/// broadcast is dropped at the stop, which is what ends every
-/// filetree channel with the scope.
+/// track of the tree does. A caller that reads no more of a filetree
+/// channel ends it, with the finish. At the stop the broadcast is
+/// dropped and every filetree task still running is ended — one
+/// blocked on a caller that reads nothing would otherwise hold the
+/// finish forever — and the scope's finish ends their channels.
 ///
 /// # The request arrives decoded
 ///
@@ -113,6 +121,7 @@ pub async fn handle<M>(
             beside: allowed.mount_and_fuse_serve,
         })
     };
+    let volume = Arc::new(volume);
     match volume.mount(Holder::FuseServe, admit).await {
         Ok(_) => {}
         Err(hold::Refused::Declined(mode)) if mode != meant => {
@@ -130,10 +139,16 @@ pub async fn handle<M>(
         Err(hold::Refused::Held(hold::Held::FuseServed)) => return answer(scope, response::Frame::FuseServed).await,
         Err(hold::Refused::Held(hold::Held::Locked)) => return answer(scope, response::Frame::Held).await,
     }
+    let mounted = Release::new({
+        let volume = Arc::clone(&volume);
+        async move {
+            volume.unmount(Holder::FuseServe).await;
+        }
+    });
     let served = match volume.serve(request.overlay_disk).await {
         Ok(served) => Arc::new(served),
         Err(error) => {
-            volume.unmount(Holder::FuseServe).await;
+            mounted.now().await;
             return refuse(scope, error.into()).await;
         }
     };
@@ -141,17 +156,27 @@ pub async fn handle<M>(
 
     let scope = Arc::new(scope);
     let (changes, _) = broadcast::channel(CHANGES_BEHIND);
-    let mut tasks = JoinSet::new();
-    while let Some(bytes) = scope.recv_channel_request().await {
+    let mut asks = JoinSet::new();
+    let mut trees = JoinSet::new();
+    loop {
+        let bytes = tokio::select! {
+            received = scope.recv_channel_request() => match received {
+                Some(bytes) => bytes,
+                None => break,
+            },
+            () = scope.responses_gone() => break,
+            Some(_) = asks.join_next(), if !asks.is_empty() => continue,
+            Some(_) = trees.join_next(), if !trees.is_empty() => continue,
+        };
         let Ok(ClientFrame::ChannelRequest { channel, payload, .. }) = ClientFrame::decode(&bytes) else {
             continue;
         };
         match channel_request::Frame::decode(payload) {
             Ok(channel_request::Frame::Ask(ask)) => {
-                tasks.spawn(one(Arc::clone(&scope), Arc::clone(&served), channel, Ask::from(ask), changes.clone()));
+                asks.spawn(one(Arc::clone(&scope), Arc::clone(&served), channel, Ask::from(ask), changes.clone()));
             }
             Ok(channel_request::Frame::Filetree) => {
-                tasks.spawn(watch(Arc::clone(&scope), Arc::clone(&served), channel, changes.subscribe()));
+                trees.spawn(watch(Arc::clone(&scope), Arc::clone(&served), channel, changes.subscribe()));
             }
             Ok(channel_request::Frame::Stop) => break,
             Err(_) => {
@@ -161,9 +186,23 @@ pub async fn handle<M>(
         }
     }
     drop(changes);
-    while tasks.join_next().await.is_some() {}
+    trees.abort_all();
+    while trees.join_next().await.is_some() {}
+    let gone = tokio::select! {
+        () = drain(&mut asks) => false,
+        () = scope.responses_gone() => true,
+    };
+    if gone {
+        asks.abort_all();
+        drain(&mut asks).await;
+    }
     scope.send_response_finish().await;
-    volume.unmount(Holder::FuseServe).await;
+    mounted.now().await;
+}
+
+/// Every task of `tasks` waited for, to the last.
+async fn drain(tasks: &mut JoinSet<()>) {
+    while tasks.join_next().await.is_some() {}
 }
 
 /// The one response a refused FUSE serve gets, then the finish.
@@ -314,12 +353,17 @@ async fn report<V: Served>(served: &V, changes: &broadcast::Sender<Tree>, path: 
 }
 
 /// One filetree channel: the snapshot, then every change until the
-/// scope ends, then the finish. A channel that fell behind is sent a
-/// fresh snapshot in place of the changes it missed.
+/// scope ends or the caller reads no more of the channel, then the
+/// finish. A channel that fell behind is sent a fresh snapshot in
+/// place of the changes it missed.
 async fn watch<V: Served>(scope: Arc<ScopeHandle>, served: Arc<V>, channel: u32, mut changes: broadcast::Receiver<Tree>) {
     send_tree(&scope, channel, &Tree::Snapshot { children: walk(&*served, "").await }).await;
     loop {
-        match changes.recv().await {
+        let change = tokio::select! {
+            change = changes.recv() => change,
+            () = scope.answer_gone(channel) => break,
+        };
+        match change {
             Ok(frame) => send_tree(&scope, channel, &frame).await,
             Err(broadcast::error::RecvError::Lagged(_)) => {
                 send_tree(&scope, channel, &Tree::Snapshot { children: walk(&*served, "").await }).await;

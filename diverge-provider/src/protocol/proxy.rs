@@ -3,6 +3,7 @@
 
 use std::fmt;
 
+use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite;
 
 use diverge_sdk::wire::client::handle::Handle;
@@ -21,7 +22,16 @@ use diverge_sdk::wire::connection::Connection;
 /// the socket lives, and the write half is the [`Handle`] returned,
 /// which every executor under
 /// [`container_proxy_endpoints`](diverge_sdk::container_proxy::outside)
-/// takes to open its scope.
+/// takes to open its scope. The socket has transport keepalive on —
+/// see [`keepalive`](super::keepalive) — so a container that vanished
+/// without a close is a socket that ends.
+///
+/// # The router's task is the caller's
+///
+/// Returned beside the handle, for the run that dialled to abort once
+/// its container is stopped: the router also ends when the socket does
+/// and when every handle is dropped, but the run owns the task it made
+/// rather than trusting either to come.
 ///
 /// # No auth frame
 ///
@@ -36,18 +46,18 @@ use diverge_sdk::wire::connection::Connection;
 /// its own client. The proxy is the SDK's own wire, and the
 /// address is the deployer's answer, so there is nothing for the
 /// provider to compose — which is what makes the dial the crate's.
-pub async fn dial(address: &str) -> Result<Handle, DialError> {
-    let (socket, _) = tokio_tungstenite::connect_async(address)
+pub async fn dial(address: &str) -> Result<(Handle, JoinHandle<()>), DialError> {
+    let socket = super::keepalive::connect(address)
         .await
         .map_err(DialError::Connect)?;
     let (handle, router) = Handle::open(Connection::Outgoing(socket));
-    tokio::spawn(async move {
+    let router = tokio::spawn(async move {
         // An auth frame from the proxy ends the router, which ends
         // every scope on the connection; the socket is dropped with
         // it, and there is nobody to report to.
         let _ = router.run().await;
     });
-    Ok(handle)
+    Ok((handle, router))
 }
 
 /// A proxy that could not be dialled.
