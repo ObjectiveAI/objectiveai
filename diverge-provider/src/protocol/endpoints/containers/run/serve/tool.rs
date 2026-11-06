@@ -1,6 +1,6 @@
-//! The tools family's own exchanges: the five MCP exchanges, channels
-//! on the begin scope, each with the session it names passed on to the
-//! proxy as it came.
+//! The tools family's own exchanges: the five MCP exchanges and the
+//! close of a caller's MCP session, channels on the begin scope, each
+//! with the session it names passed on to the proxy as it came.
 
 use std::sync::Arc;
 
@@ -25,6 +25,8 @@ pub(crate) enum Exchange {
     ReadResource(Sessioned<mcp::read_resource::request::Request>),
     /// Everything it says on its own account, on one caller's session.
     Notifications(Sessioned<mcp::notifications::request::Request>),
+    /// One caller's session, closed.
+    CloseSession(Sessioned<mcp::close_session::request::Request>),
 }
 
 /// Serve one, to the end: the proxy's answer on the caller's channel
@@ -33,7 +35,9 @@ pub(crate) enum Exchange {
 /// serve it. Notifications are relayed until the proxy ends them or
 /// the caller reads no more of the channel, which drops the proxy's
 /// stream — telling the proxy the session's notifications are
-/// abandoned — and finishes the channel.
+/// abandoned — and finishes the channel. A close is relayed as the
+/// four unary exchanges are: the proxy's `Closed` or its error, then
+/// the finish.
 pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
     let Some(begin) = run.begin.tools() else {
         // An agent container has no MCP server of its own; nothing
@@ -70,6 +74,14 @@ pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
             let answer = match begin.read_resource(request).await {
                 Ok(result) => encoded(&mcp::read_resource::response::Frame::Result(result)),
                 Err(UnaryError::Refused(error)) => encoded(&mcp::read_resource::response::Frame::Error(error)),
+                Err(_) => None,
+            };
+            run.respond(channel, answer).await;
+        }
+        Exchange::CloseSession(request) => {
+            let answer = match begin.close_session(&request.session).await {
+                Ok(()) => encoded(&mcp::close_session::response::Frame::Closed),
+                Err(UnaryError::Refused(error)) => encoded(&mcp::close_session::response::Frame::Error(error)),
                 Err(_) => None,
             };
             run.respond(channel, answer).await;

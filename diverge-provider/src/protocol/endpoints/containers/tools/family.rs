@@ -76,6 +76,7 @@ impl Family for Tools {
             channel_request::Frame::McpCallTool(request) => Opened::Exchange(tool::Exchange::CallTool(request)),
             channel_request::Frame::McpReadResource(request) => Opened::Exchange(tool::Exchange::ReadResource(request)),
             channel_request::Frame::McpNotifications(request) => Opened::Exchange(tool::Exchange::Notifications(request)),
+            channel_request::Frame::McpCloseSession(request) => Opened::Exchange(tool::Exchange::CloseSession(request)),
         }
     }
 
