@@ -35,7 +35,11 @@ type Open = { key: string; blocks: HTMLElement };
  *    showing its JSON. An error is a red message of its own, and
  *    closes the open message.
  * 6. `active` and `inactive` draw nothing and close nothing: they only
- *    light and dim the sheet's live dot.
+ *    light and dim the sheet's live dot. `deployed` draws nothing; an
+ *    `undeployed` with a reason — the run ended unexpectedly — is a red
+ *    message of its own showing why and whether it was interrupted,
+ *    and any other draws nothing. An ask the run went down under is
+ *    filled red as interrupted.
  * 7. Every item comes whole and is drawn as it comes.
  * 8. A command — a request the tool, or the account whose log this
  *    is, put to the daemon — is a card titled by its path, over its
@@ -87,6 +91,12 @@ export class ToolFold {
       case "read_error":
         this.fill(item, item.read, [jsonBlock(item.error)], true);
         break;
+      case "call_interrupted":
+        this.fill(item, item.call, [jsonBlock({ interrupted: true })], true);
+        break;
+      case "read_interrupted":
+        this.fill(item, item.read, [jsonBlock({ interrupted: true })], true);
+        break;
       case "notification": {
         // Rules 1 and 5.
         const block = document.createElement("div");
@@ -112,6 +122,13 @@ export class ToolFold {
       case "inactive":
         // Rule 6.
         this.active(item.type === "active");
+        break;
+      case "deployed":
+        break;
+      case "undeployed":
+        // Rule 6.
+        this.active(false);
+        if (item.reason !== undefined) this.alone(item, "error", "stopped", jsonBlock({ reason: item.reason, interrupted: item.interrupted }), true);
         break;
     }
   }

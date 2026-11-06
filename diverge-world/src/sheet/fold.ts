@@ -51,8 +51,12 @@ type Open = { role: string; blocks: HTMLElement };
  *    (`sender`), never "user". Within it, text and media follow rule
  *    2's text rules, and the texts of two different messages are
  *    kept a blank line apart.
- * 5. A run's start and end close the open message and draw nothing;
- *    they only light and dim the sheet's live dot. An error is a red message of its own showing its JSON; a
+ * 5. A run's `deployed` and `undeployed` close the open message; an
+ *    `undeployed` with a reason — the run ended unexpectedly — is a red
+ *    message of its own showing why and whether it was interrupted,
+ *    and any other draws nothing. `active` and `inactive` draw nothing
+ *    and close nothing: they only light and dim the sheet's live dot.
+ *    An error is a red message of its own showing its JSON; a
  *    notification a message of its own. Usage draws nothing.
  * 6. A chunk made inside a tool call is drawn as if it were not.
  * 7. Growing blocks are drawn again at most once an animation frame,
@@ -114,10 +118,24 @@ export class Fold {
         this.close();
         break;
       }
+      case "deployed":
+        // Rule 5.
+        this.close();
+        break;
+      case "undeployed":
+        // Rule 5.
+        this.close();
+        this.active(false);
+        if (item.reason !== undefined) {
+          this.ensure("error", "stopped", "error", item.created);
+          this.place(jsonBlock({ reason: item.reason, interrupted: item.interrupted }));
+          this.open?.blocks.parentElement?.classList.add("failed");
+          this.close();
+        }
+        break;
       case "active":
       case "inactive":
         // Rule 5.
-        this.close();
         this.active(item.type === "active");
         break;
       case "error":
