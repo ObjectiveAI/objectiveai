@@ -190,7 +190,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                             }
                             mcp::list_tools::response::Frame::Result(result)
                         }
-                        Err(error) => mcp::list_tools::response::Frame::Error(ErrorData::internal_error(error, None)),
+                        Err(error) => mcp::list_tools::response::Frame::Error(ErrorData::internal_error(error.to_string(), None)),
                     }
                 }
             };
@@ -209,7 +209,7 @@ async fn answer(daemon: Arc<Daemon>, scope: Arc<ScopeHandle>, run: Arc<ToolRun>,
                             }
                             mcp::list_resources::response::Frame::Result(result)
                         }
-                        Err(error) => mcp::list_resources::response::Frame::Error(ErrorData::internal_error(error, None)),
+                        Err(error) => mcp::list_resources::response::Frame::Error(ErrorData::internal_error(error.to_string(), None)),
                     }
                 }
             };

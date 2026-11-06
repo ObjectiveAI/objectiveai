@@ -166,18 +166,18 @@ impl ToolHandle {
     /// The tool's MCP tools, on `session`'s MCP session. A connected
     /// tool's session is the far daemon's to name, by this daemon's
     /// identity: see [`session`](diverge_sdk::shared::mcp::session).
-    pub async fn list_tools(&self, session: &attestation::Caller, params: Option<PaginatedRequestParams>) -> Result<ListToolsResult, String> {
+    pub async fn list_tools(&self, session: &attestation::Caller, params: Option<PaginatedRequestParams>) -> Result<ListToolsResult, AskError> {
         match self {
-            ToolHandle::Run(handle) => handle.list_tools(session, params).await.map_err(|error| error.to_string()),
-            ToolHandle::Connected(handle) => handle.list_tools(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.list_tools(session, params).await.map_err(AskError::of),
+            ToolHandle::Connected(handle) => handle.list_tools(params).await.map_err(AskError::of),
         }
     }
 
     /// The tool's MCP resources, on `session`'s MCP session.
-    pub async fn list_resources(&self, session: &attestation::Caller, params: Option<PaginatedRequestParams>) -> Result<ListResourcesResult, String> {
+    pub async fn list_resources(&self, session: &attestation::Caller, params: Option<PaginatedRequestParams>) -> Result<ListResourcesResult, AskError> {
         match self {
-            ToolHandle::Run(handle) => handle.list_resources(session, params).await.map_err(|error| error.to_string()),
-            ToolHandle::Connected(handle) => handle.list_resources(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.list_resources(session, params).await.map_err(AskError::of),
+            ToolHandle::Connected(handle) => handle.list_resources(params).await.map_err(AskError::of),
         }
     }
 

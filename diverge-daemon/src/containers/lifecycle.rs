@@ -19,6 +19,14 @@
 //!    deployed under the caller's epoch, and only when it changes what
 //!    the log holds. A run that is not the one deployed writes nothing:
 //!    no `active` before `deployed`, and none from an old run.
+//! 2a. **A cut is no ceasing.** [`cut`] marks the deployed run cut: an
+//!    exchange for it ended because a scope or a connection under it
+//!    went, which is no clean completion. While it is cut, [`active`]
+//!    keeps no `inactive`, and the log holds the run active: if the run
+//!    is going down, its `undeployed` keeps the `inactive` itself, with
+//!    `interrupted` true. [`uncut`] clears the mark once the run is
+//!    proven alive, and keeps `inactive` then only when the run, asked
+//!    under the lock, is idle.
 //! 3. **Asks open and close the work.** [`begin`] keeps an ask only
 //!    while the log stands deployed under the caller's epoch, after
 //!    `active` when none was open, and holds it open; it is not kept
@@ -77,6 +85,9 @@ pub enum Lifecycle {
         /// Whether the log holds it working: after an `active`, before
         /// the `inactive` that answers it.
         active: bool,
+        /// Whether an exchange for it was cut short and the run is not
+        /// yet proven alive since: rule 2a.
+        cut: bool,
         /// The asks kept and not yet answered, by `logs_index`; a tool's
         /// only.
         open: BTreeMap<u64, Ask>,
@@ -267,7 +278,7 @@ pub async fn deployed<B: RunBook>(root: PathBuf, book: B, log: Arc<RunLog>, epoc
         }
         let deployed = items::Deployed { provider: Provider { identity: provider.clone() } };
         write(&root, book, &log.latest, B::deployed(deployed)).await;
-        *state = Lifecycle::Deployed { epoch, provider, active: false, open: BTreeMap::new() };
+        *state = Lifecycle::Deployed { epoch, provider, active: false, cut: false, open: BTreeMap::new() };
     })
     .await;
 }
@@ -276,15 +287,52 @@ pub async fn deployed<B: RunBook>(root: PathBuf, book: B, log: Arc<RunLog>, epoc
 pub async fn active<B: RunBook>(root: PathBuf, book: B, log: Arc<RunLog>, epoch: u64, working: bool) -> bool {
     whole(async move {
         let mut state = log.lock.lock().await;
-        let Lifecycle::Deployed { epoch: deployed, active, .. } = &mut *state else {
+        let Lifecycle::Deployed { epoch: deployed, active, cut, .. } = &mut *state else {
             return false;
         };
-        if *deployed != epoch || *active == working {
+        if *deployed != epoch || *active == working || (*cut && !working) {
             return false;
         }
         *active = working;
         let item = if working { B::active() } else { B::inactive() };
         write(&root, book, &log.latest, item).await;
+        true
+    })
+    .await
+    .unwrap_or(false)
+}
+
+/// Rule 2a: the run of `epoch` cut — an exchange for it ended because a
+/// scope or a connection under it went.
+pub async fn cut(log: Arc<RunLog>, epoch: u64) {
+    whole(async move {
+        if let Lifecycle::Deployed { epoch: deployed, cut, .. } = &mut *log.lock.lock().await
+            && *deployed == epoch
+        {
+            *cut = true;
+        }
+    })
+    .await;
+}
+
+/// Rule 2a: the run of `epoch` proven alive since its cut: the mark
+/// cleared, and `inactive` kept when `working`, asked under the lock,
+/// says it is idle. Whether the log moved.
+pub async fn uncut<B: RunBook>(root: PathBuf, book: B, log: Arc<RunLog>, epoch: u64, working: impl FnOnce() -> bool + Send + 'static) -> bool {
+    whole(async move {
+        let mut state = log.lock.lock().await;
+        let Lifecycle::Deployed { epoch: deployed, active, cut, .. } = &mut *state else {
+            return false;
+        };
+        if *deployed != epoch || !*cut {
+            return false;
+        }
+        *cut = false;
+        if !*active || working() {
+            return false;
+        }
+        *active = false;
+        write(&root, book, &log.latest, B::inactive()).await;
         true
     })
     .await
