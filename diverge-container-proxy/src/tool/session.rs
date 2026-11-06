@@ -18,12 +18,19 @@ use super::{refused, url};
 const NOTIFICATIONS_CAPACITY: usize = 256;
 
 /// One caller's session: its client, dialled when first needed and
-/// re-dialled when its transport has died, and what the server sends
-/// on it.
+/// re-dialled when its transport has died, until the session is
+/// closed; and what the server sends on it.
 pub struct Session {
     caller: Caller,
-    running: Mutex<Option<Arc<RunningService<RoleClient, Handler>>>>,
+    running: Mutex<Running>,
     notifications: broadcast::Sender<ServerNotification>,
+}
+
+/// The client a session holds, and whether the session is closed —
+/// one lock, so a dial and a close never cross.
+struct Running {
+    client: Option<Arc<RunningService<RoleClient, Handler>>>,
+    closed: bool,
 }
 
 impl Session {
@@ -32,7 +39,10 @@ impl Session {
         let (notifications, _) = broadcast::channel(NOTIFICATIONS_CAPACITY);
         Session {
             caller,
-            running: Mutex::new(None),
+            running: Mutex::new(Running {
+                client: None,
+                closed: false,
+            }),
             notifications,
         }
     }
@@ -40,10 +50,14 @@ impl Session {
     /// The live client: the one held, or a fresh dial — initialized
     /// with the caller under `_meta`, and ready — when none is held or
     /// the held one's transport is gone. A dial that fails is the
-    /// exchange's error, and nothing is held.
+    /// exchange's error, and nothing is held. A closed session dials
+    /// nothing: every exchange on it is refused.
     pub async fn client(&self) -> Result<Arc<RunningService<RoleClient, Handler>>, ErrorData> {
         let mut running = self.running.lock().await;
-        if let Some(client) = running.as_ref()
+        if running.closed {
+            return Err(refused("the session was closed".to_string()));
+        }
+        if let Some(client) = running.client.as_ref()
             && !client.is_transport_closed()
         {
             return Ok(Arc::clone(client));
@@ -57,8 +71,28 @@ impl Session {
             .await
             .map_err(|error| refused(error.to_string()))?;
         let client = Arc::new(client);
-        *running = Some(Arc::clone(&client));
+        running.client = Some(Arc::clone(&client));
         Ok(client)
+    }
+
+    /// Close the session: the client held, if any, is cancelled — its
+    /// service ended and its transport with it, whoever still holds
+    /// it — and dropped, and nothing is dialled on the session again.
+    /// Idempotent.
+    pub async fn close(&self) {
+        let mut running = self.running.lock().await;
+        running.closed = true;
+        if let Some(client) = running.client.take() {
+            client.cancellation_token().cancel();
+        }
+    }
+
+    /// Whether nothing of the session's is live: no client held, or
+    /// one whose transport is gone. `None` when the session is in use
+    /// — its lock held — and so not idle in any sense.
+    pub fn idle(&self) -> Option<bool> {
+        let running = self.running.try_lock().ok()?;
+        Some(running.client.as_ref().is_none_or(|client| client.is_transport_closed()))
     }
 
     /// Everything the server says on this session from now on.

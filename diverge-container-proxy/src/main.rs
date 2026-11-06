@@ -96,6 +96,11 @@ async fn run() {
             let proxy = Arc::clone(&proxy);
             move || Ok(inside::mcp::Handler::new(Arc::clone(&proxy)))
         },
+        // rmcp's own table of the agent's sessions, bounded by its
+        // defaults: a session that never initializes ends at the
+        // `init_timeout`, one idle past the `keep_alive` ends, and the
+        // service removes a session from the table when it ends —
+        // so the table holds the live sessions, never every one seen.
         Arc::new(LocalSessionManager::default()),
         Default::default(),
     );

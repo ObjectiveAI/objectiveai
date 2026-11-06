@@ -21,9 +21,9 @@ const ROOT: &str = "/";
 /// The tree is [`tree::stream`]'s, rooted at `/` and leaving out what
 /// the request names: the snapshot, then every change, each sent as
 /// the scope's response. Any channel the server opens on the scope is
-/// the stop, which has no answer: the scope is finished, and the
-/// stream drops with this task, which unregisters everything the
-/// watch held.
+/// the stop, which has no answer, and so is the server reading no more
+/// of the scope's responses: the scope is finished, and the stream
+/// drops with this task, which unregisters everything the watch held.
 ///
 /// What is an error, per the wire: the watcher could not be made,
 /// the root could not be watched at all, or a blocking task died —
@@ -49,6 +49,9 @@ pub async fn tree(scope: ScopeHandle, frame: request::Frame) {
                 let _ = stop;
                 break;
             }
+            // Nobody reads the tree any more: abandoned, or the
+            // connection gone. Watching on would be work for nobody.
+            () = scope.responses_gone() => break,
         }
     }
     scope.send_response_finish().await;

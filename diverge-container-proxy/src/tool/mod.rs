@@ -21,9 +21,11 @@
 //!    message who is on the other end.
 //! 2. A notifications channel hears what the server sends on its own
 //!    session, and nothing sent on another.
-//! 3. A session lives as long as the proxy; its client is re-dialled,
-//!    with the same `initialize`, when its transport dies. Nothing
-//!    else of the server's is kept.
+//! 3. A session lives until it is closed, or until nothing holds it
+//!    and its client is gone ([`Sessions`]' rules); its client is
+//!    re-dialled, with the same `initialize`, when its transport dies,
+//!    and a closed session is dialled no more. Nothing else of the
+//!    server's is kept.
 //!
 //! The four exchanges that reach the server — list-tools,
 //! list-resources, call-tool, read-resource — are the container's

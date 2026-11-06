@@ -36,8 +36,12 @@ use crate::reply::reply;
 ///    [`Served`] with that ask's own frame, then the finish; a
 ///    filetree is the subtree as [`tree::stream`] streams it — the
 ///    snapshot, then every change under it, the serve's own and the
-///    program's alike — until the scope ends, then the finish. A
-///    channel request that will not decode is finished with nothing.
+///    program's alike — until the scope ends or the server reads no
+///    more of that channel, then the finish. A channel request that
+///    will not decode is finished with nothing. Every task that has
+///    ended is reaped before the next channel is taken, so the set
+///    holds the tasks in flight and no more, however long the serve
+///    lives.
 /// 4. The stop ends the loop, and so does the server's connection
 ///    ending: every filetree task is told the scope is over, every
 ///    task is awaited — so the finish follows the last answer — and
@@ -73,6 +77,9 @@ pub async fn served(scope: ScopeHandle, frame: request::Frame) {
     let (over, _) = watch::channel(false);
     let mut tasks = JoinSet::new();
     while let Some(bytes) = scope.recv_channel_request().await {
+        // Finished ones, so the set does not grow for the life of the
+        // serve.
+        while tasks.try_join_next().is_some() {}
         let Ok(ClientFrame::ChannelRequest { channel, payload, .. }) = ClientFrame::decode(&bytes) else {
             continue;
         };
@@ -148,7 +155,8 @@ fn ack(result: Result<(), Refused>) -> Option<Vec<u8>> {
 }
 
 /// One filetree channel: the subtree's stream, frame by frame, until
-/// the scope is over or the stream fails, then the finish.
+/// the scope is over, the stream fails or the server reads no more of
+/// the channel, then the finish.
 async fn stream(scope: Arc<ScopeHandle>, root: Arc<std::path::PathBuf>, channel: u32, mut over: watch::Receiver<bool>) {
     let ignore = Arc::new(tree::Ignore::new(Vec::new()));
     let mut frames = tree::stream(root.as_ref().clone(), ignore);
@@ -177,6 +185,7 @@ async fn stream(scope: Arc<ScopeHandle>, root: Arc<std::path::PathBuf>, channel:
                     break;
                 }
             }
+            () = scope.answer_gone(channel) => break,
         }
     }
     scope.send_channel_response_finish(channel).await;
