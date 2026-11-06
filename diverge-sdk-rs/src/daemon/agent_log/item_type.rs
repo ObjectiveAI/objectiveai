@@ -8,8 +8,8 @@ use super::Item;
 
 /// One kind of log item, as the `type` member of an
 /// [`ItemWrapper`] names it: one variant per chunk the agent's run
-/// can stream, one for the errors, and two for the agent starting and
-/// ceasing to run on a provider. What a request's
+/// can stream, one for the errors, and four for the run's life — see
+/// [`lifecycle`](crate::daemon::lifecycle). What a request's
 /// `type` picks by.
 ///
 /// | on the wire | item |
@@ -29,13 +29,17 @@ use super::Item;
 /// | `usage` | [`UsageChunk`] |
 /// | `notification` | [`NotificationChunk`] |
 /// | `error` | [`Error`] |
+/// | `deployed` | [`Deployed`] |
 /// | `active` | [`Active`] |
 /// | `inactive` | [`Inactive`] |
+/// | `undeployed` | [`Undeployed`] |
 ///
 /// [`ItemWrapper`]: crate::daemon::agent_log::ItemWrapper
 /// [`Error`]: crate::daemon::agent_log::Error
+/// [`Deployed`]: crate::daemon::agent_log::Deployed
 /// [`Active`]: crate::daemon::agent_log::Active
 /// [`Inactive`]: crate::daemon::agent_log::Inactive
+/// [`Undeployed`]: crate::daemon::agent_log::Undeployed
 /// [`UserTextContentChunk`]: crate::provider::endpoints::containers::agents::run::server::response::UserTextContentChunk
 /// [`UserImageContentChunk`]: crate::provider::endpoints::containers::agents::run::server::response::UserImageContentChunk
 /// [`UserAudioContentChunk`]: crate::provider::endpoints::containers::agents::run::server::response::UserAudioContentChunk
@@ -98,12 +102,18 @@ pub enum ItemType {
     /// An error a run answered with.
     #[serde(rename = "error")]
     Error,
-    /// The agent began running on a provider.
+    /// The agent's container came up on a provider.
+    #[serde(rename = "deployed")]
+    Deployed,
+    /// The agent began working.
     #[serde(rename = "active")]
     Active,
-    /// The agent ceased running on a provider.
+    /// The agent ceased working.
     #[serde(rename = "inactive")]
     Inactive,
+    /// The agent's container went down.
+    #[serde(rename = "undeployed")]
+    Undeployed,
 }
 
 impl ItemType {
@@ -113,8 +123,10 @@ impl ItemType {
             Item::User(user) => ItemType::of_chunk(&user.chunk),
             Item::Chunk(chunk) => ItemType::of_chunk(chunk),
             Item::Error(_) => ItemType::Error,
+            Item::Deployed(_) => ItemType::Deployed,
             Item::Active(_) => ItemType::Active,
             Item::Inactive(_) => ItemType::Inactive,
+            Item::Undeployed(_) => ItemType::Undeployed,
         }
     }
 
@@ -156,8 +168,10 @@ impl ItemType {
             ItemType::Usage => "usage",
             ItemType::Notification => "notification",
             ItemType::Error => "error",
+            ItemType::Deployed => "deployed",
             ItemType::Active => "active",
             ItemType::Inactive => "inactive",
+            ItemType::Undeployed => "undeployed",
         }
     }
 }

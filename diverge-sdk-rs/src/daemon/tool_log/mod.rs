@@ -4,8 +4,11 @@
 //! by an agent's container, or by a client over a
 //! [`connect`](crate::daemon::endpoints::standalone_tools::connect) —
 //! and keeps each as it routes it: the ask, with who asked, then its
-//! answer, which names the ask by its index. It keeps when the tool
-//! began to have an ask in flight and when it ceased to, every
+//! answer, which names the ask by its index. It keeps the run's life
+//! as [`lifecycle`](crate::daemon::lifecycle) states it, in the same
+//! items an agent's log does — the tool's container up, the tool
+//! beginning to have an ask in flight and ceasing to, the container
+//! down and why — every
 //! notification the tool sent, and the errors the daemon met keeping
 //! the tool. The log is the daemon's own word, never the tool's, and
 //! outlives every run; it is removed with the tool.
@@ -24,6 +27,7 @@
 
 mod call;
 mod call_error;
+mod call_interrupted;
 mod call_result;
 mod error;
 mod item;
@@ -32,10 +36,12 @@ mod item_wrapper;
 mod notification;
 mod read;
 mod read_error;
+mod read_interrupted;
 mod read_result;
 
 pub use call::*;
 pub use call_error::*;
+pub use call_interrupted::*;
 pub use call_result::*;
 pub use error::*;
 pub use item::*;
@@ -44,4 +50,5 @@ pub use item_wrapper::*;
 pub use notification::*;
 pub use read::*;
 pub use read_error::*;
+pub use read_interrupted::*;
 pub use read_result::*;

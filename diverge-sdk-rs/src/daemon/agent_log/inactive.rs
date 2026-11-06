@@ -1,26 +1,21 @@
-//! The agent ceasing to run on a provider, as the log keeps it.
+//! The agent ceasing to work, as the log keeps it.
 
 use serde::{Deserialize, Serialize};
 
-use super::Provider;
-
-/// The agent became inactive: it no longer runs on the provider
-/// named. `type` is the string `inactive`, and the provider's members
-/// lie beside it.
+/// The agent ceased working: no loop runs in it and no exchange is in
+/// flight for it. `type` is the string `inactive`, and nothing lies
+/// beside it.
 ///
-/// Kept when the agent ceases to run on a provider, on any ending —
-/// the run's own finish, the daemon's stop, the provider's loss. The
-/// provider is the one the last [`Active`](super::Active) named, so
-/// the two bracket every chunk produced there; nothing between an
-/// `inactive` and the next `active` was said by the agent.
+/// Kept only after an [`Active`](super::Active) of the same run, and
+/// never after the run's [`Undeployed`](super::Undeployed): a run
+/// taken down while working keeps this first, then `undeployed` — see
+/// [`lifecycle`](crate::daemon::lifecycle). The agent's idle clock
+/// runs from here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Inactive {
     /// Always `inactive`.
     pub r#type: InactiveType,
-    /// The provider the agent ran on.
-    #[serde(flatten)]
-    pub provider: Provider,
 }
 
 /// [`Inactive`]'s discriminator.

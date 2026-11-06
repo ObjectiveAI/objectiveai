@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 /// [`agent_log`](crate::daemon::agent_log), a
 /// [`tool_log`](crate::daemon::tool_log) or a
 /// [`command_log`](crate::daemon::command_log) item has. A name both books
-/// have — `active`, `inactive`, `error`, `notification` — picks that
+/// have — `deployed`, `active`, `inactive`, `undeployed`, `error`,
+/// `notification` — picks that
 /// kind in whichever book is read; a name the book read does not have
 /// matches nothing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -43,22 +44,30 @@ pub enum ItemType {
     Notification,
     /// `error`.
     Error,
+    /// `deployed`.
+    Deployed,
     /// `active`.
     Active,
     /// `inactive`.
     Inactive,
+    /// `undeployed`.
+    Undeployed,
     /// `call`.
     Call,
     /// `call_result`.
     CallResult,
     /// `call_error`.
     CallError,
+    /// `call_interrupted`.
+    CallInterrupted,
     /// `read`.
     Read,
     /// `read_result`.
     ReadResult,
     /// `read_error`.
     ReadError,
+    /// `read_interrupted`.
+    ReadInterrupted,
     /// `command`.
     Command,
 }
@@ -82,14 +91,18 @@ impl ItemType {
             ItemType::Usage => "usage",
             ItemType::Notification => "notification",
             ItemType::Error => "error",
+            ItemType::Deployed => "deployed",
             ItemType::Active => "active",
             ItemType::Inactive => "inactive",
+            ItemType::Undeployed => "undeployed",
             ItemType::Call => "call",
             ItemType::CallResult => "call_result",
             ItemType::CallError => "call_error",
+            ItemType::CallInterrupted => "call_interrupted",
             ItemType::Read => "read",
             ItemType::ReadResult => "read_result",
             ItemType::ReadError => "read_error",
+            ItemType::ReadInterrupted => "read_interrupted",
             ItemType::Command => "command",
         }
     }

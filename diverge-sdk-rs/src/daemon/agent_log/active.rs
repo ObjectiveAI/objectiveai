@@ -1,25 +1,21 @@
-//! The agent starting to run on a provider, as the log keeps it.
+//! The agent beginning to work, as the log keeps it.
 
 use serde::{Deserialize, Serialize};
 
-use super::Provider;
-
-/// The agent became active: its container came up on the provider
-/// named, and the agent is running there. `type` is the string
-/// `active`, and the provider's members lie beside it.
+/// The agent began working: a loop runs in it, or an MCP exchange is
+/// in flight for it — its container's own, a dependency's, or one run
+/// as it through `agents connect`. `type` is the string `active`, and
+/// nothing lies beside it.
 ///
-/// Kept when the daemon has the agent running on a provider. Every
-/// chunk that follows, until the [`Inactive`](super::Inactive) that
-/// matches, was produced there. A run that never came up keeps an
-/// [`Error`](super::Error) and no `active`.
+/// Kept only between the run's [`Deployed`](super::Deployed) and its
+/// [`Undeployed`](super::Undeployed), and only on a change — see
+/// [`lifecycle`](crate::daemon::lifecycle). Every chunk the agent
+/// said falls inside a run's `deployed` … `undeployed`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Active {
     /// Always `active`.
     pub r#type: ActiveType,
-    /// The provider the agent is running on.
-    #[serde(flatten)]
-    pub provider: Provider,
 }
 
 /// [`Active`]'s discriminator.

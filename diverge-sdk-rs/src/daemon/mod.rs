@@ -53,6 +53,7 @@ pub mod download;
 pub mod endpoints;
 pub mod grant;
 pub mod key;
+pub mod lifecycle;
 pub mod patch;
 pub mod reference;
 pub mod template;
