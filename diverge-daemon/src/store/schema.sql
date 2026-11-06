@@ -261,6 +261,25 @@ CREATE TABLE IF NOT EXISTS diverge.volume_tags (
     PRIMARY KEY (provider, name)
 );
 
+-- The providers the daemon works with: one record per provider
+-- identity, with the direction its connection is made in — the
+-- provider's dialling in from the addresses it may, or the address the
+-- daemon dials — whether the daemon is discoverable to it, and whether
+-- it is enabled.
+CREATE TABLE IF NOT EXISTS diverge.providers (
+    issuer      TEXT NOT NULL,
+    subject     TEXT NOT NULL,
+    direction   JSONB NOT NULL,
+    discover    BOOLEAN NOT NULL DEFAULT FALSE,
+    enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+    description TEXT NOT NULL DEFAULT '',
+    tags        TEXT[] NOT NULL DEFAULT '{}',
+    created     TIMESTAMPTZ NOT NULL,
+    creator     JSONB NOT NULL,
+    PRIMARY KEY (issuer, subject),
+    CONSTRAINT providers_direction CHECK (direction->>'direction' IN ('incoming', 'outgoing'))
+);
+
 -- The remote daemons this daemon reaches: one record per account of
 -- ours on one of them. Several records may name the same remote.
 CREATE TABLE IF NOT EXISTS diverge.daemons (

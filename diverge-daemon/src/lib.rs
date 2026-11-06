@@ -41,10 +41,12 @@
 //! and the rest relayed unread, by [`database`]. Every connection
 //! opens with the [`handshake`](diverge_sdk::wire::handshake): each
 //! end presents a token from one issuer, and the daemon presents the
-//! subject its `identities` names there. The providers are the
-//! configuration's — the identities it accepts, the addresses it
-//! dials — and a provider is served the same whichever end dialled; a
-//! dialled one is dialled again for the daemon's life; on either
+//! subject its `identities` names there. The providers are records in
+//! the daemon's database, each by its identity, incoming or outgoing,
+//! enabled or not, changed through the daemon's own `providers`
+//! endpoints — and a provider is served the same whichever end
+//! dialled; an outgoing one is dialled again while its record says so;
+//! on either
 //! connection the daemon is the caller of the provider protocol,
 //! [`providers`]. A client is an account: an `(issuer, subject)` the
 //! daemon holds, and none by default. Another daemon of the

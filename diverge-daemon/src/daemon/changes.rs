@@ -15,8 +15,8 @@ pub enum Kind {
     Accounts,
     /// Roles: the records.
     Roles,
-    /// Providers: which of the configuration's are connected, and
-    /// where the daemon stands with each.
+    /// Providers: their records, which are connected, and where the
+    /// daemon stands with each.
     Providers,
     /// Remote daemons: which of the configuration's this daemon holds
     /// a connection to.

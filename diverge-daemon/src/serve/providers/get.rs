@@ -4,7 +4,6 @@ use diverge_sdk::daemon::endpoints::providers::get::client::request;
 use diverge_sdk::daemon::endpoints::providers::get::server::response::Frame;
 use diverge_sdk::daemon::endpoints::providers::list::server::response::Provider;
 use diverge_sdk::daemon::grant::providers::Action;
-use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::Daemon;
@@ -22,9 +21,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` with no `get` grant; `NotFound` for an identity the
-/// configuration does not accept; else the provider as a list reports
-/// it.
+/// `Forbidden` with no `get` grant; `NotFound` for an identity no
+/// record has; else the provider as a list reports it.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -33,21 +31,27 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::providers::holds(&standing, Action::Get) {
         return Ok(Frame::Forbidden);
     }
-    if !daemon.providers.accepts(&frame.identity) {
+    let Some(record) = daemon.providers.record(&frame.identity) else {
         return Ok(Frame::NotFound);
-    }
-    Ok(Frame::Found(report(daemon, &frame.identity).await))
+    };
+    Ok(Frame::Found(report(daemon, &record).await))
 }
 
-/// The provider of `identity` as a get and a list report it: the
-/// address a dial last reached it at, where the daemon stands with it
-/// now, and its latest capacity, while it is connected.
-pub async fn report(daemon: &Daemon, identity: &Identity) -> Provider {
-    let status = daemon.live.provider_status(identity).await;
-    let capacity = if status.connected() { daemon.live.capacity(identity).map(|frame| (*frame).clone()) } else { None };
+/// The provider of `record` as a get and a list report it: the record,
+/// where the daemon stands with it now, and its latest capacity, while
+/// it is connected.
+pub async fn report(daemon: &Daemon, record: &store::providers::Record) -> Provider {
+    let status = daemon.live.provider_status(&record.identity).await;
+    let capacity = if status.connected() { daemon.live.capacity(&record.identity).map(|frame| (*frame).clone()) } else { None };
     Provider {
-        identity: identity.clone(),
-        address: daemon.live.address(identity).await,
+        identity: record.identity.clone(),
+        direction: record.direction.clone(),
+        discover: record.discover,
+        enabled: record.enabled,
+        description: record.description.clone(),
+        tags: record.tags.clone(),
+        created: record.created,
+        creator: record.creator.clone(),
         status,
         capacity,
     }

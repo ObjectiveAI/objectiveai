@@ -23,13 +23,6 @@
 //! admins:
 //!   - issuer: https://auth.example.com
 //!     subject: alice
-//! providers:
-//!   accepted:
-//!     - issuer: https://auth.example.com
-//!       subject: provider-1
-//!   connect:
-//!     - address: provider.example.com:14979
-//!       issuer: https://auth.example.com
 //! postgres:
 //!   kind: local
 //!   max_connections: 1024
@@ -47,12 +40,10 @@ mod config;
 mod error;
 mod load;
 mod postgres;
-mod providers;
 mod root;
 
 pub use config::*;
 pub use error::*;
 pub use load::*;
 pub use postgres::*;
-pub use providers::*;
 pub use root::*;

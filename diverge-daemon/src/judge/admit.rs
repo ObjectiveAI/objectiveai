@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 use std::net::IpAddr;
+use std::sync::Arc;
 
 use diverge_sdk::identities::{Identities, Own};
 use diverge_sdk::shared::Identity;
@@ -12,6 +13,7 @@ use futures_util::future::BoxFuture;
 use tokio::sync::Mutex;
 
 use super::Who;
+use crate::providers::ProviderBook;
 use crate::store::{self, Store, accounts};
 
 /// What a verified identity is to this daemon on a socket it accepted.
@@ -27,10 +29,12 @@ pub enum Admitted {
 /// other end must be on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Expected {
-    /// A socket the daemon accepted: a provider on `providers.accepted`,
-    /// an administrator on `admins`, or an account.
+    /// A socket the daemon accepted: a provider with an enabled,
+    /// incoming record admitting the source address, an administrator
+    /// on `admins`, or an account.
     Admitted,
-    /// A provider the daemon dialled: one on `providers.accepted`.
+    /// A provider the daemon dialled: the one its enabled, outgoing
+    /// record names.
     Provider,
     /// A daemon that reached this one through a provider: an account
     /// of this daemon's, and on no list.
@@ -46,9 +50,12 @@ pub enum Expected {
 ///    dialler chooses the issuer, and nothing else.
 /// 2. **Verifying.** The other end's token is verified against its
 ///    issuer's keys, trusting exactly the issuers `identities` names.
-/// 3. **The list.** The daemon has exactly one: `providers.accepted`,
-///    for every provider, whichever end dialled. A provider that answers
-///    a dial, or dials in, must be on it. A daemon this daemon reaches is
+/// 3. **The list.** The daemon has exactly one: its providers' records
+///    — see [`ProviderBook`]. A provider that dials in must have an
+///    enabled, incoming record whose addresses contain the socket's
+///    source; a provider that answers a dial must be exactly the one
+///    the dial's enabled, outgoing record names — see
+///    [`dialling`](Self::dialling). A daemon this daemon reaches is
 ///    judged by its record instead — see [`toward`](Self::toward) — and
 ///    one that reaches this daemon is on no list: it must be an account
 ///    of this daemon's. A socket the daemon accepted may also be an
@@ -77,8 +84,7 @@ pub enum Expected {
 #[derive(Debug)]
 pub struct DaemonAuthenticator {
     own: Own,
-    providers: HashSet<Identity>,
-    discoverable: HashSet<Identity>,
+    providers: Arc<ProviderBook>,
     description: Option<Description>,
     admins: HashSet<Identity>,
     store: Store,
@@ -87,22 +93,14 @@ pub struct DaemonAuthenticator {
 }
 
 impl DaemonAuthenticator {
-    /// The daemon as `own` presents it, its list `providers`, the
-    /// providers it is `discoverable` to when they dial in, the
-    /// `description` it is listed with there, its `admins`, admitting the
-    /// accounts of `store`; nothing held.
-    pub fn new(
-        own: Own,
-        providers: impl IntoIterator<Item = Identity>,
-        discoverable: impl IntoIterator<Item = Identity>,
-        description: Option<Description>,
-        admins: impl IntoIterator<Item = Identity>,
-        store: Store,
-    ) -> DaemonAuthenticator {
+    /// The daemon as `own` presents it, its providers' records
+    /// `providers`, the `description` it is listed with by the providers
+    /// it is discoverable to, its `admins`, admitting the accounts of
+    /// `store`; nothing held.
+    pub fn new(own: Own, providers: Arc<ProviderBook>, description: Option<Description>, admins: impl IntoIterator<Item = Identity>, store: Store) -> DaemonAuthenticator {
         DaemonAuthenticator {
             own,
-            providers: providers.into_iter().collect(),
-            discoverable: discoverable.into_iter().collect(),
+            providers,
             description,
             admins: admins.into_iter().collect(),
             store,
@@ -120,7 +118,13 @@ impl DaemonAuthenticator {
     /// The authenticator for one handshake for `expected` — see rule
     /// 3.
     pub fn expecting(&self, expected: Expected) -> Judging<'_> {
-        Judging { authenticator: self, expected }
+        Judging { authenticator: self, expected, dialled: None }
+    }
+
+    /// The authenticator for one dial of the provider `identity`: the
+    /// answer must be it, and its record enabled and outgoing — rule 3.
+    pub fn dialling<'a>(&'a self, identity: &'a Identity) -> Judging<'a> {
+        Judging { authenticator: self, expected: Expected::Provider, dialled: Some(identity) }
     }
 
     /// The authenticator for reaching the remote daemon `remote` as our
@@ -144,7 +148,7 @@ impl DaemonAuthenticator {
     /// its handshake: a provider on the list, else an administrator on
     /// `admins`, else the account it is, else `None`.
     pub async fn admit(&self, identity: &Identity) -> Result<Option<Admitted>, store::Error> {
-        if self.providers.contains(identity) {
+        if self.providers.accepts(identity) {
             return Ok(Some(Admitted::Provider(identity.clone())));
         }
         if self.admins.contains(identity) {
@@ -178,32 +182,54 @@ impl DaemonAuthenticator {
     /// ended: the identity is let go — rule 4. A client socket's
     /// account was never held, and is nothing to let go.
     pub async fn release(&self, expected: Expected, identity: &Identity) {
-        if let Some(held) = self.list(expected, identity) {
-            held.lock().await.remove(identity);
+        match expected {
+            // A provider's record may be gone by now: its hold goes
+            // whether or not.
+            Expected::Admitted | Expected::Provider => {
+                self.held_providers.lock().await.remove(identity);
+            }
+            Expected::Relayed => {
+                self.held_accounts.lock().await.remove(identity);
+            }
         }
     }
 
     /// The lock `identity` is held under for a connection for
     /// `expected`, if it is held at all: on an accepted socket, or a
-    /// dialled provider, the providers', for one on the list; for a daemon
-    /// reaching this one, the accounts'.
+    /// dialled provider, the providers', for one with a record; for a
+    /// daemon reaching this one, the accounts'.
     fn list(&self, expected: Expected, identity: &Identity) -> Option<&Mutex<HashSet<Identity>>> {
         match expected {
-            Expected::Admitted | Expected::Provider if self.providers.contains(identity) => Some(&self.held_providers),
+            Expected::Admitted | Expected::Provider if self.providers.accepts(identity) => Some(&self.held_providers),
             Expected::Relayed => Some(&self.held_accounts),
             Expected::Admitted | Expected::Provider => None,
         }
     }
 
-    /// Rules 3 and 4 for `peer`: `Ok` with it taken, when it is on the
-    /// list and free, or an account a daemon reaches this one as and
-    /// free, or an account on an accepted socket; else why not.
-    async fn take(&self, expected: Expected, peer: &Peer) -> Result<(), String> {
-        if expected == Expected::Relayed {
-            match self.account(peer).await {
+    /// Rules 3 and 4 for `peer`, connected from `address`: `Ok` with it
+    /// taken, when it is a provider its record admits in this direction
+    /// and free — the one `dialled` names, for a dial — or an account a
+    /// daemon reaches this one as and free, or an account on an
+    /// accepted socket; else why not.
+    async fn take(&self, expected: Expected, peer: &Peer, address: IpAddr, dialled: Option<&Identity>) -> Result<(), String> {
+        match expected {
+            Expected::Relayed => match self.account(peer).await {
                 Ok(Some(_)) => {}
                 Ok(None) => return Err(format!("{peer} is not an account")),
                 Err(error) => return Err(error.to_string()),
+            },
+            Expected::Provider => {
+                if dialled.is_some_and(|dialled| dialled != peer) {
+                    return Err(format!("{peer} answered a dial of another provider"));
+                }
+                if self.providers.dials(peer).is_none() {
+                    return Err(format!("{peer} is no enabled, outgoing provider"));
+                }
+            }
+            Expected::Admitted => {
+                if self.providers.accepts(peer) && !self.providers.admits(peer, address) {
+                    return Err(format!("{peer} may not dial in from {address}"));
+                }
             }
         }
         if let Some(held) = self.list(expected, peer) {
@@ -213,10 +239,10 @@ impl DaemonAuthenticator {
             Expected::Admitted if self.admins.contains(peer) => Ok(()),
             Expected::Admitted => match self.account(peer).await {
                 Ok(Some(_)) => Ok(()),
-                Ok(None) => Err(format!("{peer} is neither an accepted provider, an administrator nor an account")),
+                Ok(None) => Err(format!("{peer} is neither a provider, an administrator nor an account")),
                 Err(error) => Err(error.to_string()),
             },
-            Expected::Provider => Err(format!("{peer} is not on providers.accepted")),
+            Expected::Provider => Err(format!("{peer} is no provider of this daemon's")),
             Expected::Relayed => Ok(()),
         }
     }
@@ -228,6 +254,8 @@ impl DaemonAuthenticator {
 pub struct Judging<'a> {
     authenticator: &'a DaemonAuthenticator,
     expected: Expected,
+    /// The provider a dial expects to answer, for a dial.
+    dialled: Option<&'a Identity>,
 }
 
 impl Authenticator for Judging<'_> {
@@ -235,10 +263,10 @@ impl Authenticator for Judging<'_> {
         Box::pin(self.authenticator.own.present(issuer))
     }
 
-    fn verify<'a>(&'a self, token: &'a str, _address: IpAddr) -> BoxFuture<'a, Result<Peer, String>> {
+    fn verify<'a>(&'a self, token: &'a str, address: IpAddr) -> BoxFuture<'a, Result<Peer, String>> {
         Box::pin(async move {
             let peer = self.authenticator.own.verify(token).await?;
-            self.authenticator.take(self.expected, &peer).await?;
+            self.authenticator.take(self.expected, &peer, address, self.dialled).await?;
             Ok(peer)
         })
     }
@@ -249,12 +277,12 @@ impl Authenticator for Judging<'_> {
 
     /// The discover flag the daemon answers with, as the connectee:
     /// [`listed`](DaemonAuthenticator::listed), with its description,
-    /// only on a socket it accepted, to a provider whose
-    /// `providers.accepted` entry says `discover`; hidden to every
-    /// client, and to a daemon reaching this one.
+    /// only on a socket it accepted, to a provider whose record says
+    /// `discover`; hidden to every client, and to a daemon reaching this
+    /// one.
     fn discoverable<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, Discover> {
         Box::pin(async move {
-            if self.expected == Expected::Admitted && self.authenticator.discoverable.contains(peer) {
+            if self.expected == Expected::Admitted && self.authenticator.providers.discover(peer) {
                 self.authenticator.listed()
             } else {
                 Discover::Hidden

@@ -40,7 +40,7 @@ const KEY_SETS: std::time::Duration = std::time::Duration::from_secs(15 * 60);
 /// every vault slot a run of an earlier daemon held is freed, since
 /// no run survives a restart; the port is listened on until the
 /// signal or the route sends the stop, every provider the
-/// configuration's `providers.connect` names dialled meanwhile; the listener drains; every container run
+/// daemon's enabled, outgoing records name dialled meanwhile; the listener drains; every container run
 /// is stopped; the dials are ended, and their connections with them;
 /// the database that was started is stopped; and the lock is let go,
 /// last. The signal is armed only once the port is listened on, and
@@ -82,11 +82,18 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
         }
     };
     let (stop, _) = watch::channel(false);
-    let authenticator = Arc::new(DaemonAuthenticator::new(own, config.providers.identities(), config.providers.discoverable(), config.description.clone(), config.admins.clone(), store.clone()));
+    let book = match providers::ProviderBook::load(&store).await {
+        Ok(book) => Arc::new(book),
+        Err(error) => {
+            postgres.stop().await;
+            return Err(Error::Store(error));
+        }
+    };
+    let authenticator = Arc::new(DaemonAuthenticator::new(own, Arc::clone(&book), config.description.clone(), config.admins.clone(), store.clone()));
     let daemon = Arc::new(Daemon::new(
         store,
         authenticator,
-        config.providers.clone(),
+        book,
         logs,
         std::time::Duration::from_secs(config.idle_seconds),
         database,

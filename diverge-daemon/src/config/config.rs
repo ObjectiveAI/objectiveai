@@ -7,7 +7,7 @@ use diverge_sdk::shared::Identity;
 use diverge_sdk::shared::discover::Description;
 use serde::{Deserialize, Serialize};
 
-use super::{Postgres, Providers};
+use super::Postgres;
 
 /// The whole of `daemon.yaml`: what the daemon is told.
 ///
@@ -45,9 +45,6 @@ pub struct Config {
     /// daemon is not discoverable to is not told it. Absent, none.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<Description>,
-    /// The providers the daemon works with: see [`Providers`]. Absent,
-    /// none.
-    pub providers: Providers,
     /// The database the daemon keeps its records in and serves to its
     /// containers: see [`Postgres`]. Read at start and never changed
     /// while the daemon runs: another database is another start.
@@ -89,7 +86,6 @@ impl Default for Config {
             identities: BTreeMap::new(),
             admins: Vec::new(),
             description: None,
-            providers: Providers::default(),
             postgres: Postgres::default(),
             idle_seconds: 10,
             accept_daemons: true,

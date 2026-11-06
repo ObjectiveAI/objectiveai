@@ -14,7 +14,7 @@ use crate::volumes::{self, Listed};
 pub enum Located {
     /// The volume, as a list reports it.
     Volume(Listed),
-    /// The provider is none the configuration accepts, or lists no
+    /// The provider is none the daemon has a record of, or lists no
     /// such volume.
     None,
     /// The provider is on record but could not be asked: not

@@ -1,16 +1,18 @@
 //! The connections to providers, in both directions, with the daemon
 //! as the caller on each.
 //!
-//! A provider is the configuration's: an identity its
-//! `providers.accepted` lists. There is no incoming and no outgoing —
-//! a provider is served the same whichever end dialled. One the
-//! configuration's `providers.connect` names is dialled: [`dial`] is
-//! one task for the daemon's life, connecting to its address, making
-//! the [`handshake`](diverge_sdk::wire::handshake) as the connector
-//! from the entry's issuer, and dialling again five seconds after the
-//! connection ends or the dial fails — as the provider's own dial
-//! does; [`dial_all`] starts one per entry at start. One that dials
-//! the daemon is admitted at the handshake by its identity, in
+//! A provider is a record: its identity, the direction its connection
+//! is made in, whether it is enabled — read by every connection from
+//! the [`ProviderBook`]. Once connected, a provider is served the same
+//! whichever end dialled. An enabled, outgoing one is dialled: [`dial`]
+//! is one task while its record says so, connecting to its address,
+//! making the [`handshake`](diverge_sdk::wire::handshake) as the
+//! connector from the provider's own issuer, and dialling again five
+//! seconds after the connection ends or the dial fails — as the
+//! provider's own dial does; [`dial_all`] starts one per such record
+//! at start, and [`reconcile`] is how a change to a record takes
+//! effect. An enabled, incoming one that dials the daemon is admitted
+//! at the handshake by its identity and its source address, in
 //! [`serve::connection`](crate::serve::connection). On either,
 //! [`attach`] is the one shape: the socket split into the SDK's
 //! client router and handle, the provider asked its info once — so
@@ -39,6 +41,7 @@
 mod accept;
 mod acceptor;
 mod attach;
+mod book;
 mod capacity;
 mod dial;
 mod error;
@@ -47,6 +50,7 @@ mod url;
 pub use accept::*;
 pub use acceptor::*;
 pub use attach::*;
+pub use book::*;
 pub use capacity::*;
 pub use dial::*;
 pub use error::*;

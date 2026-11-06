@@ -22,7 +22,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// hundred and thirty-six has a handler. A payload that is no request at all is
+/// hundred and forty-three has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -104,6 +104,13 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::AgentsFrontend(frame) => agents::frontend::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsConnect(frame) => agents::connect::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersDiscover(frame) => providers::discover::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersAdd(frame) => providers::add::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersEdit(frame) => providers::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDelete(frame) => providers::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersEnable(frame) => providers::enable::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDisable(frame) => providers::disable::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersTag(frame) => providers::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersUntag(frame) => providers::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::IdentitiesList(frame) => identities::list::handle(scope, frame, who, daemon).await,
         ClientRequest::IdentitiesTag(frame) => identities::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::IdentitiesUntag(frame) => identities::untag::handle(scope, frame, who, daemon).await,

@@ -66,6 +66,7 @@ pub mod hash;
 pub mod identities;
 pub mod image_info;
 pub mod in_use;
+pub mod providers;
 pub mod roles;
 pub mod tags;
 pub mod tools;

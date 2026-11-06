@@ -76,7 +76,7 @@ impl std::fmt::Display for NoProvider {
 /// the one its record pins it to, which must be connected now, whose
 /// capabilities must hold out what the run `needs`, and which must be
 /// able to source the run's image, and no other; or, pinned to none,
-/// every provider the configuration accepts that is connected now and passes the
+/// every provider with a record that is connected now and passes the
 /// same judgements, the one with the most room for the run first —
 /// see below — and a start that fails on one goes on to the next.
 ///

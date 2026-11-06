@@ -62,12 +62,12 @@ impl Source for Listed<'_> {
 
     fn read(&self) -> impl Future<Output = Result<Vec<(Identity, Provider)>, store::Error>> + Send {
         async move {
-            let accepted = self.daemon.providers.identities();
-            let mut listed = Vec::with_capacity(accepted.len());
-            for identity in &accepted {
-                let provider = report(self.daemon, identity).await;
-                if filter::providers::test(self.filter, identity, provider.status.connected()) {
-                    listed.push((identity.clone(), provider));
+            let records = self.daemon.providers.all();
+            let mut listed = Vec::with_capacity(records.len());
+            for record in records.iter() {
+                let provider = report(self.daemon, record).await;
+                if filter::providers::test(self.filter, &record.identity, provider.status.connected(), record.enabled) {
+                    listed.push((record.identity.clone(), provider));
                 }
             }
             Ok(listed)

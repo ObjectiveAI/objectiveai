@@ -10,6 +10,7 @@ use diverge_sdk::wire::client::handle::Handle;
 use diverge_sdk::wire::client::router::InvalidAuthorize;
 use diverge_sdk::wire::connection::Connection;
 use futures_util::future::{self, Either};
+use tokio::sync::watch;
 
 use super::Error;
 use crate::daemon::Daemon;
@@ -40,6 +41,9 @@ pub struct Attached {
     identity: Identity,
     /// The router, reading the socket until it ends.
     reading: Pin<Box<dyn Future<Output = Result<(), InvalidAuthorize>> + Send>>,
+    /// The daemon's word that the connection is to be closed: taken at
+    /// the attach, so a close from then on is heard.
+    closed: watch::Receiver<bool>,
 }
 
 /// Hold `connection`, already past its handshake, as the connection
@@ -64,6 +68,7 @@ pub struct Attached {
 /// served.
 pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Daemon>) -> Result<Attached, Error> {
     daemon.live.reserve_provider(identity.clone()).await;
+    let closed = daemon.live.open_provider(identity.clone()).await;
     let (handle, router) = Handle::open(connection);
     let mut reading: Pin<Box<dyn Future<Output = Result<(), InvalidAuthorize>> + Send>> = Box::pin(router.run());
     let answered = {
@@ -77,6 +82,7 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
     let answer = match answered {
         Ok(answer) => answer,
         Err(error) => {
+            daemon.live.forget_provider(&identity).await;
             daemon.live.disconnect_provider(&identity).await;
             daemon.authenticator.release(Expected::Provider, &identity).await;
             return Err(Error::Info(error));
@@ -99,15 +105,21 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
         daemon: Arc::clone(daemon),
         identity,
         reading,
+        closed,
     })
 }
 
 impl Attached {
-    /// Drive the connection to its end — the socket ending — and give
-    /// the slot back, and the identity the handshake holds.
+    /// Drive the connection to its end — the socket ending, or the
+    /// daemon closing it, which drops the socket — and give the slot
+    /// back, and the identity the handshake holds.
     pub async fn serve(self) {
-        let Attached { daemon, identity, reading } = self;
-        let _ = reading.await;
+        let Attached { daemon, identity, reading, mut closed } = self;
+        let closing = pin!(async move {
+            let _ = closed.wait_for(|closed| *closed).await;
+        });
+        let _ = future::select(reading, closing).await;
+        daemon.live.forget_provider(&identity).await;
         daemon.live.disconnect_provider(&identity).await;
         daemon.authenticator.release(Expected::Provider, &identity).await;
     }

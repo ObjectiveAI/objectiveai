@@ -63,14 +63,18 @@ pub struct Live {
     /// caller's handle on each: what every request to a provider
     /// rides. See [`Peers`].
     providers: Mutex<Peers>,
-    /// The dial task of every provider the daemon dials, by address,
-    /// to be ended when the daemon stops.
-    dials: Mutex<HashMap<String, AbortHandle>>,
-    /// The address each provider was last reached at by a dial, by
-    /// the identity it answered the handshake as: what a list reports
-    /// as its address, since an entry the daemon dials names an
-    /// address and an issuer, never the identity that answers there.
-    addresses: Mutex<HashMap<Identity, String>>,
+    /// The current dial of every provider the daemon dials, by its
+    /// identity: the number of the one dial task that keeps dialling
+    /// it. A task whose number is no longer here ends at its next turn.
+    dials: Mutex<HashMap<Identity, u64>>,
+    /// The number the next dial task is given.
+    next_dial: Mutex<u64>,
+    /// Every dial task started, to be ended when the daemon stops.
+    dial_tasks: Mutex<Vec<AbortHandle>>,
+    /// The closer of every provider connection held now, by the
+    /// provider's identity: what [`close_provider`](Self::close_provider)
+    /// tells.
+    provider_closers: Mutex<HashMap<Identity, watch::Sender<bool>>>,
     /// Every agent's log that has been appended to or watched since
     /// the start, by agent.
     logs: Mutex<HashMap<AgentId, Arc<RunLog>>>,
@@ -516,34 +520,68 @@ impl Live {
     }
 
 
-    /// Keep the dial task for the address, ending any earlier one for
-    /// the same address first, so one address is dialled by one task.
-    pub async fn start_dial(&self, address: String, dial: AbortHandle) {
-        if let Some(earlier) = self.dials.lock().await.insert(address, dial) {
-            earlier.abort();
-        }
+    /// A dial of `identity` begins: its number, now the provider's
+    /// current dial, so that any earlier task for it ends at its next
+    /// turn and one provider is dialled by one task.
+    pub async fn begin_dial(&self, identity: Identity) -> u64 {
+        let number = {
+            let mut next = self.next_dial.lock().await;
+            *next += 1;
+            *next
+        };
+        self.dials.lock().await.insert(identity, number);
+        number
     }
 
-    /// A dial to `address` was answered by the provider `identity`:
-    /// remembered as its address, for the daemon's life.
-    pub async fn dialled(&self, identity: Identity, address: String) {
-        let changed = self.addresses.lock().await.insert(identity, address.clone()).is_none_or(|earlier| earlier != address);
-        if changed {
-            self.changes.changed(Kind::Providers);
-        }
+    /// The dial task `task` started, for the daemon's stop to end.
+    pub async fn dial_task(&self, task: AbortHandle) {
+        let mut tasks = self.dial_tasks.lock().await;
+        tasks.retain(|task| !task.is_finished());
+        tasks.push(task);
     }
 
-    /// The address the provider was last reached at by a dial, if a
-    /// dial has reached it.
-    pub async fn address(&self, identity: &Identity) -> Option<String> {
-        self.addresses.lock().await.get(identity).cloned()
+    /// Whether dial `number` is still `identity`'s current one.
+    pub async fn current_dial(&self, identity: &Identity, number: u64) -> bool {
+        self.dials.lock().await.get(identity) == Some(&number)
+    }
+
+    /// Whether `identity` has a current dial.
+    pub async fn dialling(&self, identity: &Identity) -> bool {
+        self.dials.lock().await.contains_key(identity)
+    }
+
+    /// `identity` is dialled no more: its task ends at its next turn.
+    pub async fn end_dial(&self, identity: &Identity) {
+        self.dials.lock().await.remove(identity);
     }
 
     /// End every dial task: the daemon is stopping, and nothing reads
     /// the registry after.
     pub async fn stop_dials(&self) {
-        for (_, dial) in self.dials.lock().await.drain() {
+        self.dials.lock().await.clear();
+        for dial in self.dial_tasks.lock().await.drain(..) {
             dial.abort();
+        }
+    }
+
+    /// A closer for the connection to the provider `identity`: what its
+    /// serving waits on beside the socket.
+    pub async fn open_provider(&self, identity: Identity) -> watch::Receiver<bool> {
+        let (closer, closed) = watch::channel(false);
+        self.provider_closers.lock().await.insert(identity, closer);
+        closed
+    }
+
+    /// The connection to `identity` is over: its closer forgotten.
+    pub async fn forget_provider(&self, identity: &Identity) {
+        self.provider_closers.lock().await.remove(identity);
+    }
+
+    /// Close the connection to the provider `identity`, whichever end
+    /// dialled, if one is held; it ends as the socket ending does.
+    pub async fn close_provider(&self, identity: &Identity) {
+        if let Some(closer) = self.provider_closers.lock().await.get(identity) {
+            closer.send_replace(true);
         }
     }
 
