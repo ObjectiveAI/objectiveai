@@ -15,5 +15,7 @@ export const Filter = z.object({
   identities: z.array(Identity).optional(),
   /** Whether the daemon's status with it is `connected`: `true`, or not, `false`; absent, either. */
   connected: z.boolean().optional(),
+  /** Whether its record is enabled: `true`, `false`; absent, either. */
+  enabled: z.boolean().optional(),
 });
 export type Filter = z.infer<typeof Filter>;

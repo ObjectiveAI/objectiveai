@@ -5,7 +5,7 @@ import { json, tagged } from "../../../../../../wire/encode.js";
 import { Identity } from "../../../../../../shared/identity.js";
 import { Relay } from "../../../../../../shared/relay.js";
 
-/** Ask the daemon for one provider its configuration accepts, by identity. */
+/** Ask the daemon for one provider it keeps a record of, by identity. */
 export const Frame = z.object({
   /** The provider's identity. */
   identity: Identity,
