@@ -29,7 +29,7 @@ pub async fn dial(provider: Arc<Provider>, client: Client) {
             let address = peer_ip(&socket);
             let made = handshake::connect(Connection::Outgoing(socket), &client.issuer, Discover::Hidden, provider.authenticator.as_ref(), address).await;
             if let Ok(Handshook { connection, peer, discover }) = made {
-                provider.held(connection, peer, discover, address).await;
+                provider.held(connection, peer, discover, address, Some(client.address.clone())).await;
             }
         }
         // Five seconds: long enough that a peer that is down is not

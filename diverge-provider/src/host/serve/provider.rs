@@ -163,19 +163,20 @@ impl Provider {
         let Ok(Handshook { connection, peer, discover }) = handshake::accept(connection, self.authenticator.as_ref(), address).await else {
             return;
         };
-        self.held(connection, peer, discover, address).await;
+        self.held(connection, peer, discover, address, None).await;
     }
 
     /// A connection past its handshake, under `peer`, whose identity
     /// the handshake took: the connection served, and the identity let
     /// go. `discover` is the peer's discover flag, honored whichever
     /// end dialled: when it lists the peer, `peer` is listed to every
-    /// `discover`, with its description, for exactly as long as the
-    /// connection is served.
-    pub async fn held(&self, connection: Connection, peer: Identity, discover: Discover, address: IpAddr) {
+    /// `discover`, with its description, the socket's other end's
+    /// `address`, and the address `dialled` when this provider dialled
+    /// it, for exactly as long as the connection is served.
+    pub async fn held(&self, connection: Connection, peer: Identity, discover: Discover, address: IpAddr, dialled: Option<String>) {
         let listed = discover.is_listed();
         if let Discover::Listed(description) = discover {
-            self.discoverable.enter(&peer, description).await;
+            self.discoverable.enter(&peer, description, address, dialled).await;
         }
         self.connection(connection, Arc::new(peer.clone()), address).await;
         if listed {
