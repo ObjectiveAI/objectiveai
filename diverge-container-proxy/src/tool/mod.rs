@@ -26,6 +26,9 @@
 //!    re-dialled, with the same `initialize`, when its transport dies,
 //!    and a closed session is dialled no more. Nothing else of the
 //!    server's is kept.
+//! 4. A session is closed by its caller's side, on a channel of its
+//!    own ([`close_session()`]): removed under its caller's key and
+//!    answered `Closed`, a key with no session `Closed` as well.
 //!
 //! The four exchanges that reach the server — list-tools,
 //! list-resources, call-tool, read-resource — are the container's
@@ -34,11 +37,13 @@
 //! collected from the program, and between an `Inactive` and the
 //! next feed on the server's secrets channel an exchange waits
 //! behind [`Activity`]'s gate — when the program takes any secret.
-//! Notifications are not activity: a nudge, not an exchange.
+//! Notifications are not activity: a nudge, not an exchange; nor is a
+//! close, which reaches no server.
 
 mod activity;
 mod call_tool;
 mod client;
+mod close_session;
 mod feed;
 mod list_resources;
 mod list_tools;
@@ -50,6 +55,7 @@ mod sessions;
 pub use activity::*;
 pub use call_tool::*;
 pub use client::*;
+pub use close_session::*;
 pub use feed::*;
 pub use list_resources::*;
 pub use list_tools::*;

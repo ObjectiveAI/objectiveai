@@ -50,9 +50,6 @@ impl Sessions {
 
     /// Remove the session under `key` and close it (rule 2). A key
     /// with no session is nothing.
-    // The ask that closes a session is not on the wire yet; this is
-    // what it calls.
-    #[allow(dead_code)]
     pub async fn close(&self, key: &str) {
         let session = self.map.lock().await.remove(key);
         if let Some(session) = session {

@@ -34,7 +34,8 @@ use crate::{info, inside, program, tool};
 /// ask, the program asked nothing; one exchange with the tool's
 /// server each — its answer as the tool's server gave it, the exchange
 /// entered and left as the container's activity — the notifications
-/// for as long as the channel lives, a feed of the secrets answered
+/// for as long as the channel lives, a session's close answered once
+/// the session is removed, a feed of the secrets answered
 /// once the program has applied them, the server's half of a
 /// database connection until the driver hangs up. A channel this end
 /// cannot read is finished with nothing. The loop is raced against
@@ -118,6 +119,9 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
             }
             Ok(channel_request::Frame::McpNotifications(request)) => {
                 tasks.spawn(async move { tool::notifications(&proxy, &scope, channel, request).await });
+            }
+            Ok(channel_request::Frame::McpCloseSession(request)) => {
+                tasks.spawn(async move { tool::close_session(&proxy, &scope, channel, request).await });
             }
             Ok(channel_request::Frame::Secrets(values)) => {
                 tasks.spawn(tool::feed(proxy, scope, channel, values));
