@@ -37,27 +37,68 @@ use crate::store::{agents, agents_templates, tools as tool_records, tools_templa
 /// states and moved into the run, and its id taken, the log told
 /// it began, the pump and the idle clock running. A start that fails
 /// keeps an `Error` item in the log, the mounts opened are let go,
-/// and what a registration took is given back.
+/// and what a registration took is given back; one that fails after
+/// its run was made is undone as [`undo_agent`](stop::undo_agent)
+/// states. The start runs in a task of its own, waited for: a caller
+/// cancelled midway — an exchange aborted with its scope — neither
+/// tears it nor orphans what it opened.
 pub async fn agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun>, StartError> {
-    let starting = daemon.live.starting(Key::Agent(agent.id)).await;
-    let _starting = starting.lock().await;
-    if let Some(run) = daemon.live.agent_run(agent.id).await {
-        return Ok(run);
+    let (daemon, agent) = (Arc::clone(daemon), agent.clone());
+    let started = tokio::spawn(async move {
+        let _starting = Starting::hold(&daemon, Key::Agent(agent.id)).await;
+        if let Some(run) = daemon.live.agent_run(agent.id).await {
+            return Ok(run);
+        }
+        match start_agent(&daemon, &agent).await {
+            Ok(run) => Ok(run),
+            Err(error) => {
+                let log = daemon.live.log(&daemon.store, agent.id).await;
+                let item = Item::Error(log::Error {
+                    r#type: Default::default(),
+                    error: diverge_sdk::shared::error::Error(serde_json::json!({
+                        "kind": "start",
+                        "error": error.to_string(),
+                    })),
+                });
+                let _ = lifecycle::note(daemon.logs.clone(), agent.id, log, item).await;
+                daemon.live.changed(Kind::Agents);
+                Err(error)
+            }
+        }
+    });
+    started.await.unwrap_or_else(|error| Err(StartError::Unfinished(error.to_string())))
+}
+
+/// The start lock of one agent or tool, held for the length of its
+/// start (see [`starting`](crate::daemon::Live::starting)): let go
+/// however the start ends — returned, failed, panicked — and the
+/// lock's entry then forgotten once nobody else holds it. A drop
+/// cannot wait on the live map's lock, so that is a task of its own.
+struct Starting {
+    /// The daemon whose map the entry is in.
+    daemon: Arc<Daemon>,
+    /// Whose start it is.
+    key: Key,
+    /// The lock, held; taken at the drop, so the entry is unshared
+    /// before it is looked at.
+    held: Option<tokio::sync::OwnedMutexGuard<()>>,
+}
+
+impl Starting {
+    /// The start lock of `key`, waited for and held.
+    async fn hold(daemon: &Arc<Daemon>, key: Key) -> Starting {
+        let lock = daemon.live.starting(key).await;
+        let held = lock.lock_owned().await;
+        Starting { daemon: Arc::clone(daemon), key, held: Some(held) }
     }
-    match start_agent(daemon, agent).await {
-        Ok(run) => Ok(run),
-        Err(error) => {
-            let log = daemon.live.log(agent.id).await;
-            let item = Item::Error(log::Error {
-                r#type: Default::default(),
-                error: diverge_sdk::shared::error::Error(serde_json::json!({
-                    "kind": "start",
-                    "error": error.to_string(),
-                })),
-            });
-            let _ = lifecycle::note(daemon.logs.clone(), agent.id, log, item).await;
-            daemon.live.changed(Kind::Agents);
-            Err(error)
+}
+
+impl Drop for Starting {
+    fn drop(&mut self) {
+        drop(self.held.take());
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            let (daemon, key) = (Arc::clone(&self.daemon), self.key);
+            runtime.spawn(async move { daemon.live.started(key).await });
         }
     }
 }
@@ -174,27 +215,44 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             mounts,
             volumes: crate::volumes::of_agent(agent),
             served,
-            messages: Mutex::new(HashMap::new()),
+            messages: Arc::new(Mutex::new(HashMap::new())),
             pending: Arc::new(Inflight::new()),
             secrets: Mutex::new(answerer.secrets.lock().await.take()),
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
             epoch: daemon.live.epoch().await,
-            log: daemon.live.log(agent.id).await,
+            log: daemon.live.log(&daemon.store, agent.id).await,
             ending: Mutex::new(None),
         });
         lifecycle::deployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, identity.clone()).await;
-        {
+        // From here a failure is the run's undoing: its container, its
+        // secrets, its dependencies, its mounts and its `deployed`.
+        let recorded: Result<(), crate::store::Error> = async {
             let mut conn = daemon.store.acquire().await?;
             agents::set_deployed(&mut conn, agent.id, &identity, Utc::now()).await?;
+            Ok(())
+        }
+        .await;
+        if let Err(error) = recorded {
+            stop::undo_agent(daemon, run, false).await;
+            return Err(error.into());
         }
         daemon.live.insert_agent(Arc::clone(&run)).await;
         daemon.live.changed(Kind::Agents);
         daemon.live.nudge_capacity(&run.provider);
-        let pumping = tokio::spawn(pump::pump(Arc::clone(daemon), Arc::clone(&run), stream));
-        let clock = tokio::spawn(idle::idle(Arc::clone(daemon), Arc::clone(&run)));
-        let watching = tokio::spawn(activity::activity(Arc::clone(daemon), Arc::clone(&run)));
-        run.tasks.lock().await.extend([pumping.abort_handle(), clock.abort_handle(), watching.abort_handle()]);
+        // The tasks are spawned and kept under their lock, taken first,
+        // and only while the run is still the live one: an end that
+        // comes meanwhile drains them after, and one that came already
+        // drained none of these.
+        {
+            let mut tasks = run.tasks.lock().await;
+            if daemon.live.is_agent_run(&run).await {
+                let pumping = tokio::spawn(pump::pump(Arc::clone(daemon), Arc::clone(&run), stream));
+                let clock = tokio::spawn(idle::idle(Arc::clone(daemon), Arc::clone(&run)));
+                let watching = tokio::spawn(activity::activity(Arc::clone(daemon), Arc::clone(&run)));
+                tasks.extend([pumping.abort_handle(), clock.abort_handle(), watching.abort_handle()]);
+            }
+        }
         return Ok(run);
     }
     mounts.stop().await;
@@ -216,15 +274,25 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
 /// clock ends either `idle_seconds` after the last use, nothing in
 /// flight and no connect open. A tool declares no dependencies, so
 /// nothing is served to it. Whether the tool is a service is its
-/// template's mode, read here for the run.
+/// template's mode, read here for the run. A start that fails after
+/// its run was made is undone as [`undo_tool`](stop::undo_tool)
+/// states; the start runs in a task of its own, waited for, as an
+/// agent's does.
 pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, StartError> {
-    let starting = daemon.live.starting(Key::Tool(ToolKey::Record(tool.id))).await;
-    let _starting = starting.lock().await;
-    if let Some(run) = daemon.live.tool_run(ToolKey::Record(tool.id)).await {
-        return Ok(run);
-    }
+    let (daemon, tool) = (Arc::clone(daemon), tool.clone());
+    let started = tokio::spawn(async move {
+        let _starting = Starting::hold(&daemon, Key::Tool(ToolKey::Record(tool.id))).await;
+        if let Some(run) = daemon.live.tool_run(ToolKey::Record(tool.id)).await {
+            return Ok(run);
+        }
+        start_tool(&daemon, &tool).await
+    });
+    started.await.unwrap_or_else(|error| Err(StartError::Unfinished(error.to_string())))
+}
+
+async fn start_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, StartError> {
     let touched = watch::channel(Instant::now()).0;
-    let (identity, container, handle, mounts, attestation, service, stream, secrets) = match &tool.origin {
+    let (identity, container, handle, mounts, attestation, service, stream, secrets, permissions) = match &tool.origin {
         Origin::Created { template, provider: pinned } => {
             let record = {
                 let mut conn = daemon.store.acquire().await?;
@@ -274,8 +342,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     Ok((id, handle, stream)) => {
                         let secrets = answerer.secrets.lock().await.take();
                         let permissions = answerer.permissions.lock().await.clone();
-                        permissions::record(daemon, ToolRef::Standalone(tool.id), &permissions).await?;
-                        opened = Some((identity, id.id, handle, stream, secrets));
+                        opened = Some((identity, id.id, handle, stream, secrets, permissions));
                         break;
                     }
                     Err(error) => {
@@ -284,7 +351,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                     }
                 }
             }
-            let Some((identity, id, handle, stream, secrets)) = opened else {
+            let Some((identity, id, handle, stream, secrets, permissions)) = opened else {
                 mounts.stop().await;
                 return Err(StartError::Run(last));
             };
@@ -295,7 +362,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 name: tool.name.clone(),
             };
             let service = record.template.r#type.mode == Mode::Service;
-            (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service, Some(stream), secrets)
+            (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service, Some(stream), secrets, Some(permissions))
         }
         Origin::Connected { daemon: name, tool: remote } => {
             let record = {
@@ -319,7 +386,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 name: tool.name.clone(),
                 daemon: name.clone(),
             };
-            (peer.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation, false, None, None)
+            (peer.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation, false, None, None, None)
         }
     };
     let run = Arc::new(ToolRun {
@@ -341,39 +408,65 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         tasks: Mutex::new(Vec::new()),
         edits: Mutex::new(()),
         dependency: None,
-        sessions: Mutex::new(HashSet::new()),
+        sessions: Mutex::new(HashMap::new()),
         secrets: Mutex::new(secrets),
         epoch: daemon.live.epoch().await,
-        log: daemon.live.tool_log(ToolKey::Record(tool.id)).await,
+        log: daemon.live.tool_log(&daemon.store, ToolKey::Record(tool.id)).await,
         ending: Mutex::new(None),
     });
+    // From here a failure is the run's undoing: its container, its
+    // secrets, its mounts and its `deployed`. What a created tool's
+    // program declared it may ask of the daemon is kept on its row.
+    let recorded: Result<(), crate::store::Error> = async {
+        if let Some(permissions) = &permissions {
+            permissions::record(daemon, ToolRef::Standalone(tool.id), permissions).await?;
+        }
+        Ok(())
+    }
+    .await;
+    if let Err(error) = recorded {
+        stop::undo_tool(daemon, run, false).await;
+        return Err(error.into());
+    }
     lifecycle::deployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, identity.clone()).await;
-    {
+    let recorded: Result<(), crate::store::Error> = async {
         let mut conn = daemon.store.acquire().await?;
         tool_records::set_deployed(&mut conn, tool.id, &identity, Utc::now()).await?;
+        Ok(())
+    }
+    .await;
+    if let Err(error) = recorded {
+        stop::undo_tool(daemon, run, false).await;
+        return Err(error.into());
     }
     daemon.live.insert_tool(Arc::clone(&run)).await;
     daemon.live.changed(Kind::StandaloneTools);
     if let ToolHandle::Run(_) = run.handle {
         daemon.live.nudge_capacity(&run.provider);
     }
-    let watcher = match stream {
-        Some(stream) => tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream)),
-        None => {
-            let daemon = Arc::clone(daemon);
-            let run = Arc::clone(&run);
-            tokio::spawn(async move {
-                let ended = run.handle.wait().await;
-                run.end_as(End::Unexpected(ended.reason())).await;
-                stop::end_tool(daemon, run);
-            })
+    // Spawned and kept under the tasks' lock, while the run is still
+    // the live one, as an agent's are.
+    {
+        let mut tasks = run.tasks.lock().await;
+        if daemon.live.is_tool_run(&run).await {
+            let watcher = match stream {
+                Some(stream) => tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream)),
+                None => {
+                    let daemon = Arc::clone(daemon);
+                    let run = Arc::clone(&run);
+                    tokio::spawn(async move {
+                        let ended = run.handle.wait().await;
+                        run.end_as(End::Unexpected(ended.reason())).await;
+                        stop::end_tool(daemon, run);
+                    })
+                }
+            };
+            tasks.push(watcher.abort_handle());
+            if !run.service {
+                tasks.push(tokio::spawn(idle::idle_tool(Arc::clone(daemon), Arc::clone(&run))).abort_handle());
+            }
         }
-    };
-    let mut tasks = vec![watcher.abort_handle()];
-    if !run.service {
-        tasks.push(tokio::spawn(idle::idle_tool(Arc::clone(daemon), Arc::clone(&run))).abort_handle());
     }
-    run.tasks.lock().await.extend(tasks);
     Ok(run)
 }
 

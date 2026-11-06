@@ -7,7 +7,7 @@ use diverge_sdk::daemon::transfer::Destination;
 
 use super::{Fail, Sink, Source};
 use crate::containers::files;
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, VolumeHold};
 use crate::volumes::{self, Found};
 
 /// Copy what is at `path` in `source` to `destination`: the
@@ -16,21 +16,23 @@ use crate::volumes::{self, Found};
 pub async fn copy(daemon: &Arc<Daemon>, source: Source, path: &[String], destination: Destination) -> Result<(), Fail> {
     let sink = Sink::resolve(daemon, destination).await?;
     let mut taken: Vec<reference::Volume> = Vec::new();
+    let mut holds: Vec<VolumeHold> = Vec::new();
     for volume in source.volume().into_iter().chain(sink.volume()) {
         if taken.contains(volume) {
             continue;
         }
-        if !daemon.live.take_volume(volume).await {
-            for held in &taken {
-                daemon.live.release_volume(held).await;
+        let Some(hold) = daemon.live.take_volume(volume).await else {
+            for hold in holds {
+                hold.release().await;
             }
             return Err(Fail::Held);
-        }
+        };
         taken.push(volume.clone());
+        holds.push(hold);
     }
     let outcome = land(daemon, &source, path, &sink).await;
-    for held in &taken {
-        daemon.live.release_volume(held).await;
+    for hold in holds {
+        hold.release().await;
     }
     outcome
 }

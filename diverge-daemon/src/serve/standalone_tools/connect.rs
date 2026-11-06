@@ -106,7 +106,7 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
             return Ok(());
         }
     };
-    containers::connect(&run, connection).await;
+    let scoped = Scoped { run: Arc::clone(&run), caller: Arc::clone(&caller), hold: Some(containers::connect(daemon, &run, connection).await) };
     reply::reply(
         scope,
         &Frame::Connected {
@@ -134,12 +134,62 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
                     Err(_) => scope.send_channel_response_finish(channel).await,
                 }
             }
+            // Every answered exchange reaped as it ends, so the set
+            // holds only those in flight.
+            Some(_) = tasks.join_next(), if !tasks.is_empty() => {}
             () = over(&mut ended) => break,
         }
     }
+    // Every exchange ended, and waited for, before the session goes:
+    // none is left to use it again after.
     tasks.abort_all();
-    containers::disconnect(daemon, &run, connection).await;
+    while tasks.join_next().await.is_some() {}
+    scoped.close().await;
     Ok(())
+}
+
+/// What one connect scope holds in the tool from its `Connected` on:
+/// its hold on the run, and its MCP session — the one its fresh caller
+/// names. Let go once, as the scope ends: [`close`](Scoped::close) on
+/// the way out, or the drop however else it ends.
+struct Scoped {
+    /// The run.
+    run: Arc<ToolRun>,
+    /// The scope's caller: its session's name.
+    caller: Arc<Caller>,
+    /// The hold on the run, until it is let go.
+    hold: Option<containers::Hold>,
+}
+
+impl Scoped {
+    /// The scope is over: [`closed`] in a task of its own, waited for,
+    /// so a caller cancelled meanwhile tears nothing.
+    async fn close(mut self) {
+        if let Some(hold) = self.hold.take() {
+            let _ = tokio::spawn(closed(Arc::clone(&self.run), Arc::clone(&self.caller), hold)).await;
+        }
+    }
+}
+
+impl Drop for Scoped {
+    fn drop(&mut self) {
+        let Some(hold) = self.hold.take() else {
+            return;
+        };
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            runtime.spawn(closed(Arc::clone(&self.run), Arc::clone(&self.caller), hold));
+        }
+    }
+}
+
+/// The connect scope's end in the tool, the one place it is: its MCP
+/// session forgotten on the run — its key out of the run's sessions,
+/// its notifications reader ended — and its hold on the run let go.
+/// The ask that closes the session in the tool's MCP server belongs
+/// here, before the key is forgotten.
+async fn closed(run: Arc<ToolRun>, caller: Arc<Caller>, hold: containers::Hold) {
+    tool_log::end_session(&run, &caller).await;
+    hold.disconnect().await;
 }
 
 /// Resolves when the run has ended, or its word is gone.

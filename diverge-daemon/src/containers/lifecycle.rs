@@ -35,6 +35,13 @@
 //!    it, and keeps `inactive` after the answer that leaves none open.
 //!    An answer that is the run going down — [`Answer::Interrupted`] —
 //!    keeps nothing and leaves the ask open, for rule 4 to close.
+//! 3a. **Unless the run lives on.** An ask answered
+//!    [`Answer::Interrupted`] is marked interrupted. Once the run is
+//!    proven alive after all — a later ask of it answered and kept by
+//!    [`end`], or its cut cleared by [`uncut`] — every ask so marked is
+//!    answered as interrupted, in the order they were asked, and
+//!    closed, before anything else is kept: a run that survives holds
+//!    no ask open for good.
 //! 4. **Undeployed closes everything, once.** [`undeployed`] keeps,
 //!    only while the log stands deployed under the caller's epoch and
 //!    in this order: each ask still open answered as interrupted, in
@@ -55,7 +62,7 @@
 //! [`End`] is how a run is ending, said once by whoever ends it, and
 //! [`End::reason`] is what its `undeployed` carries.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -91,6 +98,9 @@ pub enum Lifecycle {
         /// The asks kept and not yet answered, by `logs_index`; a tool's
         /// only.
         open: BTreeMap<u64, Ask>,
+        /// The open asks answered [`Answer::Interrupted`], by
+        /// `logs_index`: rule 3a.
+        interrupted: BTreeSet<u64>,
     },
     /// The record is deleted: nothing is kept again.
     Forgotten,
@@ -278,7 +288,7 @@ pub async fn deployed<B: RunBook>(root: PathBuf, book: B, log: Arc<RunLog>, epoc
         }
         let deployed = items::Deployed { provider: Provider { identity: provider.clone() } };
         write(&root, book, &log.latest, B::deployed(deployed)).await;
-        *state = Lifecycle::Deployed { epoch, provider, active: false, cut: false, open: BTreeMap::new() };
+        *state = Lifecycle::Deployed { epoch, provider, active: false, cut: false, open: BTreeMap::new(), interrupted: BTreeSet::new() };
     })
     .await;
 }
@@ -315,20 +325,34 @@ pub async fn cut(log: Arc<RunLog>, epoch: u64) {
     .await;
 }
 
-/// Rule 2a: the run of `epoch` proven alive since its cut: the mark
-/// cleared, and `inactive` kept when `working`, asked under the lock,
-/// says it is idle. Whether the log moved.
+/// Rule 3a, under the held lock: every open ask marked interrupted
+/// answered as interrupted, in the order asked, and closed.
+async fn settle<B: RunBook>(root: &PathBuf, book: B, latest: &watch::Sender<u64>, open: &mut BTreeMap<u64, Ask>, interrupted: &mut BTreeSet<u64>) {
+    for index in std::mem::take(interrupted) {
+        if let Some(ask) = open.remove(&index)
+            && let Some(item) = B::interrupted(index, ask)
+        {
+            write(root, book, latest, item).await;
+        }
+    }
+}
+
+/// Rules 2a and 3a: the run of `epoch` proven alive since its cut: the
+/// mark cleared, every interrupted ask closed, and `inactive` kept when
+/// no ask is open and `working`, asked under the lock, says it is idle.
+/// Whether the log moved.
 pub async fn uncut<B: RunBook>(root: PathBuf, book: B, log: Arc<RunLog>, epoch: u64, working: impl FnOnce() -> bool + Send + 'static) -> bool {
     whole(async move {
         let mut state = log.lock.lock().await;
-        let Lifecycle::Deployed { epoch: deployed, active, cut, .. } = &mut *state else {
+        let Lifecycle::Deployed { epoch: deployed, active, cut, open, interrupted, .. } = &mut *state else {
             return false;
         };
         if *deployed != epoch || !*cut {
             return false;
         }
         *cut = false;
-        if !*active || working() {
+        settle(&root, book, &log.latest, open, interrupted).await;
+        if !*active || !open.is_empty() || working() {
             return false;
         }
         *active = false;
@@ -363,7 +387,9 @@ pub async fn begin<B: RunBook>(root: PathBuf, book: B, log: Arc<RunLog>, epoch: 
     .flatten()
 }
 
-/// Rule 3: the ask at `index` answered for the run of `epoch`.
+/// Rules 3 and 3a: the ask at `index` answered for the run of `epoch`
+/// — or, interrupted, marked so and left open. An answer kept proves
+/// the run alive: every ask marked interrupted is closed first.
 /// Whether its answer left the run inactive.
 pub async fn end<B: RunBook>(
     root: PathBuf,
@@ -373,17 +399,21 @@ pub async fn end<B: RunBook>(
     index: u64,
     answer: Answer<<B::Entry as Entry>::Item>,
 ) -> bool {
-    let Answer::Kept(answer) = answer else {
-        return false;
-    };
     whole(async move {
         let mut state = log.lock.lock().await;
-        let Lifecycle::Deployed { epoch: deployed, active, open, .. } = &mut *state else {
+        let Lifecycle::Deployed { epoch: deployed, active, open, interrupted, .. } = &mut *state else {
             return false;
         };
-        if *deployed != epoch || open.remove(&index).is_none() {
+        if *deployed != epoch || !open.contains_key(&index) {
             return false;
         }
+        let Answer::Kept(answer) = answer else {
+            interrupted.insert(index);
+            return false;
+        };
+        open.remove(&index);
+        interrupted.remove(&index);
+        settle(&root, book, &log.latest, open, interrupted).await;
         write(&root, book, &log.latest, answer).await;
         if open.is_empty() && *active {
             *active = false;

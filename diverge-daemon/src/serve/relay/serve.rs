@@ -40,7 +40,9 @@ pub async fn serve(scope: ScopeHandle, request: &ClientRequest<'_>, bytes: Vec<u
         }
     };
     match conduit::run(Arc::clone(&scope), &handle, &bytes).await {
-        Ok(conduit::End::Finished) => {}
+        // The client gone first is answered with nothing: nobody reads
+        // its scope, whose drop finishes it.
+        Ok(conduit::End::Finished) | Ok(conduit::End::Left) => {}
         Ok(conduit::End::Lost) | Err(_) => answer(&scope, request.error(reply::failure(&LOST))).await,
     }
 }

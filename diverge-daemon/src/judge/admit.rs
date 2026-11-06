@@ -10,7 +10,7 @@ use diverge_sdk::shared::Identity;
 use diverge_sdk::shared::discover::{Description, Discover};
 use diverge_sdk::wire::handshake::{Authenticator, Peer};
 use futures_util::future::BoxFuture;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, watch};
 
 use super::Who;
 use crate::providers::ProviderBook;
@@ -118,13 +118,23 @@ impl DaemonAuthenticator {
     /// The authenticator for one handshake for `expected` — see rule
     /// 3.
     pub fn expecting(&self, expected: Expected) -> Judging<'_> {
-        Judging { authenticator: self, expected, dialled: None }
+        Judging { authenticator: self, expected, dialled: None, took: None }
+    }
+
+    /// The authenticator for one handshake on a socket the daemon
+    /// accepted, as [`expecting`](Self::expecting) `Admitted`, which
+    /// turns `took` `true` when it holds the identity as a provider's:
+    /// whose hold the connection then has to give back, by a
+    /// [`Hold`].
+    pub fn admitting<'a>(&'a self, took: &'a watch::Sender<bool>) -> Judging<'a> {
+        Judging { authenticator: self, expected: Expected::Admitted, dialled: None, took: Some(took) }
     }
 
     /// The authenticator for one dial of the provider `identity`: the
     /// answer must be it, and its record enabled and outgoing — rule 3.
+    /// A dial that answers holds the identity always.
     pub fn dialling<'a>(&'a self, identity: &'a Identity) -> Judging<'a> {
-        Judging { authenticator: self, expected: Expected::Provider, dialled: Some(identity) }
+        Judging { authenticator: self, expected: Expected::Provider, dialled: Some(identity), took: None }
     }
 
     /// The authenticator for reaching the remote daemon `remote` as our
@@ -210,8 +220,9 @@ impl DaemonAuthenticator {
     /// taken, when it is a provider its record admits in this direction
     /// and free — the one `dialled` names, for a dial — or an account a
     /// daemon reaches this one as and free, or an account on an
-    /// accepted socket; else why not.
-    async fn take(&self, expected: Expected, peer: &Peer, address: IpAddr, dialled: Option<&Identity>) -> Result<(), String> {
+    /// accepted socket; else why not. `Ok(true)` when it was taken on a
+    /// list, held until it is [`release`](Self::release)d.
+    async fn take(&self, expected: Expected, peer: &Peer, address: IpAddr, dialled: Option<&Identity>) -> Result<bool, String> {
         match expected {
             Expected::Relayed => match self.account(peer).await {
                 Ok(Some(_)) => {}
@@ -233,17 +244,59 @@ impl DaemonAuthenticator {
             }
         }
         if let Some(held) = self.list(expected, peer) {
-            return if held.lock().await.insert(peer.clone()) { Ok(()) } else { Err(format!("{peer} is held by another connection")) };
+            return if held.lock().await.insert(peer.clone()) { Ok(true) } else { Err(format!("{peer} is held by another connection")) };
         }
         match expected {
-            Expected::Admitted if self.admins.contains(peer) => Ok(()),
+            Expected::Admitted if self.admins.contains(peer) => Ok(false),
             Expected::Admitted => match self.account(peer).await {
-                Ok(Some(_)) => Ok(()),
+                Ok(Some(_)) => Ok(false),
                 Ok(None) => Err(format!("{peer} is neither a provider, an administrator nor an account")),
                 Err(error) => Err(error.to_string()),
             },
             Expected::Provider => Err(format!("{peer} is no provider of this daemon's")),
-            Expected::Relayed => Ok(()),
+            Expected::Relayed => Ok(false),
+        }
+    }
+}
+
+/// A connection's hold on a provider's identity, from its handshake to
+/// its end: given back once — [`release`](Hold::release) on the way
+/// out, or the drop however else the connection ends: an error, a
+/// panic, its task aborted. A drop cannot wait on the list's lock, so
+/// the giving back is a task of its own.
+pub struct Hold {
+    /// Whose list it is held on.
+    authenticator: Arc<DaemonAuthenticator>,
+    /// The connection's kind: which list.
+    expected: Expected,
+    /// The identity held, until it is given back.
+    identity: Option<Identity>,
+}
+
+impl Hold {
+    /// The hold the handshake for `expected` took on `identity`, to be
+    /// given back once.
+    pub fn new(authenticator: &Arc<DaemonAuthenticator>, expected: Expected, identity: Identity) -> Hold {
+        Hold { authenticator: Arc::clone(authenticator), expected, identity: Some(identity) }
+    }
+
+    /// The connection is over: the identity given back now, waited for.
+    pub async fn release(mut self) {
+        if let Some(identity) = &self.identity {
+            self.authenticator.release(self.expected, identity).await;
+        }
+        self.identity = None;
+    }
+}
+
+impl Drop for Hold {
+    fn drop(&mut self) {
+        let Some(identity) = self.identity.take() else {
+            return;
+        };
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            let (authenticator, expected) = (Arc::clone(&self.authenticator), self.expected);
+            runtime.spawn(async move { authenticator.release(expected, &identity).await });
         }
     }
 }
@@ -256,6 +309,9 @@ pub struct Judging<'a> {
     expected: Expected,
     /// The provider a dial expects to answer, for a dial.
     dialled: Option<&'a Identity>,
+    /// Turned `true` when an accepted socket's identity is held on a
+    /// list: see [`admitting`](DaemonAuthenticator::admitting).
+    took: Option<&'a watch::Sender<bool>>,
 }
 
 impl Authenticator for Judging<'_> {
@@ -266,7 +322,10 @@ impl Authenticator for Judging<'_> {
     fn verify<'a>(&'a self, token: &'a str, address: IpAddr) -> BoxFuture<'a, Result<Peer, String>> {
         Box::pin(async move {
             let peer = self.authenticator.own.verify(token).await?;
-            self.authenticator.take(self.expected, &peer, address, self.dialled).await?;
+            let held = self.authenticator.take(self.expected, &peer, address, self.dialled).await?;
+            if held && let Some(took) = self.took {
+                took.send_replace(true);
+            }
             Ok(peer)
         })
     }

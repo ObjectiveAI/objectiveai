@@ -20,13 +20,17 @@
 //!
 //! [`session()`] is rule 3's notifications: one reader of what the tool
 //! sends on each caller's MCP session, started at that session's first
-//! use, so each notification is kept once, naming whom it reached.
+//! use, so each notification is kept once, naming whom it reached. A
+//! session's reader lives no longer than the session: see
+//! [`end_session`] and [`forget_agent`].
 
 use std::sync::Arc;
 
 use diverge_sdk::daemon::tool_log;
 use futures_util::StreamExt as _;
-use diverge_sdk::shared::mcp::attestation::Caller;
+use diverge_sdk::daemon::key;
+use diverge_sdk::shared::containers::request::Image;
+use diverge_sdk::shared::mcp::attestation::{self, Caller};
 use diverge_sdk::shared::mcp::session;
 use rmcp::model::ErrorData;
 
@@ -77,7 +81,7 @@ pub async fn working(daemon: &Daemon, key: ToolKey, busy: bool) {
 
 /// Rules 3 and 4: keep `item` — a notification, an error, a command.
 pub async fn note(daemon: &Daemon, key: ToolKey, item: tool_log::Item) {
-    let log = daemon.live.tool_log(key).await;
+    let log = daemon.live.tool_log(&daemon.store, key).await;
     let _ = lifecycle::note(daemon.logs.clone(), key, log, item).await;
 }
 
@@ -101,14 +105,18 @@ pub fn words(error: &str) -> diverge_sdk::shared::error::Error {
 
 /// Rule 3: the first time `caller`'s session is used on the run, keep
 /// every notification the tool sends on it, naming `caller`, until its
-/// stream ends — the reader among the run's tasks, so the run's end
-/// ends it. A connected tool's sessions are the far daemon's, which
-/// keeps what it sends; nothing is read here.
+/// stream ends — the reader kept in the run's `sessions` under the
+/// session's key, so the session's end ([`end_session`]), its agent's
+/// deletion ([`forget_agent`]) and the run's end each end it. A
+/// connected tool's sessions are the far daemon's, which keeps what it
+/// sends; nothing is read here.
 pub async fn session(daemon: &Arc<Daemon>, run: &Arc<ToolRun>, caller: &Caller) {
     if let ToolHandle::Connected(_) = run.handle {
         return;
     }
-    if !run.sessions.lock().await.insert(session::key(caller)) {
+    let mut sessions = run.sessions.lock().await;
+    let key = session::key(caller);
+    if sessions.contains_key(&key) {
         return;
     }
     let daemon = Arc::clone(daemon);
@@ -124,5 +132,34 @@ pub async fn session(daemon: &Arc<Daemon>, run: &Arc<ToolRun>, caller: &Caller) 
             note(&daemon, tapped.id, item).await;
         }
     });
-    run.tasks.lock().await.push(task.abort_handle());
+    sessions.insert(key, task.abort_handle());
+}
+
+/// `caller`'s session on the run is over — the one connect scope it
+/// was minted for has ended: its key forgotten and its reader ended.
+/// The one place a session leaves a run's `sessions`, beside the run's
+/// end and [`forget_agent`].
+pub async fn end_session(run: &ToolRun, caller: &Caller) {
+    if let Some(reader) = run.sessions.lock().await.remove(&session::key(caller)) {
+        reader.abort();
+    }
+}
+
+/// The agent is deleted: its session on every tool running now
+/// forgotten, and each reader ended. The session's key names the
+/// agent's key alone, so the image it is built with here is none.
+pub async fn forget_agent(daemon: &Daemon, agent: key::Agent) {
+    let caller = Caller::Agent(attestation::Agent { image: Image { digest: String::new(), references: Vec::new() }, key: agent });
+    let runs = daemon.live.tool_runs().await;
+    for run in runs {
+        end_session(&run, &caller).await;
+    }
+}
+
+/// The run is over: every session's reader ended, and the sessions
+/// forgotten.
+pub async fn end_sessions(run: &ToolRun) {
+    for (_, reader) in run.sessions.lock().await.drain() {
+        reader.abort();
+    }
 }

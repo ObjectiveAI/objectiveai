@@ -51,23 +51,30 @@ pub async fn record(scope: &ScopeHandle, request: &ClientRequest<'_>, payload: &
         .await;
 }
 
-/// The command into its book, under the book's live lock. A log that
-/// cannot be written fails nothing it records.
+/// The command into its book, under the book's live lock, which is let
+/// go after, as rule 2 of [`command_log`](crate::daemon::Live::command_log)
+/// states. A log that cannot be written fails nothing it records.
 async fn keep(daemon: &Daemon, commander: Commander, command: Command) {
     match commander {
         Commander::Account(id) => {
-            let log = daemon.live.command_log(commander).await;
-            let _held = log.lock.lock().await;
-            if let Ok(wrapper) = logs::append(&daemon.logs, id, command_log::Item::Command(command)).await {
-                log.latest.send_replace(wrapper.logs_index);
+            {
+                let log = daemon.live.command_log(commander).await;
+                let _held = log.lock.lock().await;
+                if let Ok(wrapper) = logs::append(&daemon.logs, id, command_log::Item::Command(command)).await {
+                    log.latest.send_replace(wrapper.logs_index);
+                }
             }
+            daemon.live.release_command_log(commander).await;
         }
         Commander::Admin(key) => {
-            let log = daemon.live.command_log(commander).await;
-            let _held = log.lock.lock().await;
-            if let Ok(wrapper) = logs::append(&daemon.logs, key, command_log::Item::Command(command)).await {
-                log.latest.send_replace(wrapper.logs_index);
+            {
+                let log = daemon.live.command_log(commander).await;
+                let _held = log.lock.lock().await;
+                if let Ok(wrapper) = logs::append(&daemon.logs, key, command_log::Item::Command(command)).await {
+                    log.latest.send_replace(wrapper.logs_index);
+                }
             }
+            daemon.live.release_command_log(commander).await;
         }
         Commander::Tool(key) => tool_logs::note(daemon, key, tool_log::Item::Command(command)).await,
     }

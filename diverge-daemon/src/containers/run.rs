@@ -72,9 +72,10 @@ pub struct AgentRun {
     pub volumes: Vec<reference::Volume>,
     /// The tools it is served: attached ones and its dependencies.
     pub served: Arc<Mutex<Served>>,
-    /// The messages enqueued and not yet landed, by key, with who
-    /// sent each.
-    pub messages: Mutex<HashMap<String, Creator>>,
+    /// The messages enqueued and not yet swept, by key, with who sent
+    /// each: what a user part is logged as. See [`Message`] for when
+    /// one leaves.
+    pub messages: Arc<Mutex<HashMap<String, Message>>>,
     /// The messages enqueued and not yet fated: entered before the run
     /// is activated for each, left at its fate. What an inactive asks
     /// before it activates the run again.
@@ -100,7 +101,51 @@ pub struct AgentRun {
     pub ending: Mutex<Option<End>>,
 }
 
+/// One message enqueued on an agent's run, as its `messages` keep it.
+/// The rules, so the map holds only what can still be named:
+///
+/// 1. **Kept from the enqueue.** An entry is made when the message is
+///    enqueued, before it goes out.
+/// 2. **An undelivered one leaves at its fate.** A fate other than
+///    delivered — cancelled, an error — removes the entry; so does the
+///    fate's future dropped before it was known, by its guard.
+/// 3. **A delivered one leaves two inactives on.** A delivered entry is
+///    marked so; every user part of a message arrives inside the loop
+///    that took it, before that loop's `inactive`, but the pump may
+///    still be reading the loop before when the mark lands. So the
+///    pump, at every `inactive`, removes each delivered entry it marked
+///    at an earlier one, and marks the delivered rest: an entry leaves
+///    at the latest one loop after the loop that took it.
+#[derive(Debug, Clone)]
+pub struct Message {
+    /// Who sent it.
+    pub sender: Creator,
+    /// Whether the loop took it: rule 3.
+    pub delivered: bool,
+    /// Whether an `inactive` has passed since it was delivered: rule 3.
+    pub swept: bool,
+}
+
+impl Message {
+    /// A message just enqueued: rule 1.
+    pub fn new(sender: Creator) -> Self {
+        Message { sender, delivered: false, swept: false }
+    }
+}
+
 impl AgentRun {
+    /// Rule 3 of [`Message`], at an `inactive`: every delivered entry
+    /// marked at an earlier one removed, and the delivered rest marked.
+    pub async fn sweep_messages(&self) {
+        let mut messages = self.messages.lock().await;
+        messages.retain(|_, message| !(message.delivered && message.swept));
+        for message in messages.values_mut() {
+            if message.delivered {
+                message.swept = true;
+            }
+        }
+    }
+
     /// The container was used: the idle clock starts over.
     pub fn touch(&self) {
         self.touched.send_replace(Instant::now());
@@ -520,10 +565,12 @@ pub struct ToolRun {
     /// it was when this run started.
     pub dependency: Option<DependencyTool>,
     /// The callers' MCP sessions the tool has been asked on, by
-    /// [`key`](diverge_sdk::shared::mcp::session::key): each one's
-    /// notifications kept on the tool's log from its first use, as
-    /// [`tool_log::session`](crate::containers::tool_log::session) states.
-    pub sessions: Mutex<HashSet<String>>,
+    /// [`key`](diverge_sdk::shared::mcp::session::key), each with the
+    /// reader that keeps its notifications on the tool's log from its
+    /// first use, as [`tool_log::session`](crate::containers::tool_log::session)
+    /// states; a session leaves with its connect scope, its agent, or
+    /// the run.
+    pub sessions: Mutex<HashMap<String, AbortHandle>>,
     /// Its secrets, as for an agent's run; a connected tool's `None`,
     /// since the daemon that runs it feeds its container.
     pub secrets: Mutex<Option<Secrets>>,

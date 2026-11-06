@@ -42,12 +42,35 @@ pub fn end_tool(daemon: Arc<Daemon>, run: Arc<ToolRun>) {
 /// container told at the same time; its attached tools left to their
 /// own use and their idle clocks, its services to their attachments
 /// — its mounts let go, and the provider's capacity asked again,
-/// since the run's reservation is freed. Done once: a second call for
-/// one run does nothing.
+/// since the run's reservation is freed. Done once, and only for the
+/// run live under the agent: a second call for one run, or a late one
+/// for a run a newer one replaced, does nothing.
 pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
-    if daemon.live.remove_agent(run.id).await.is_none() {
+    if !daemon.live.remove_agent_if(&run).await {
         return;
     }
+    down_agent(daemon, run).await;
+}
+
+/// A start that failed once its agent's run was made — its container
+/// open, its secrets moved in, perhaps its `deployed` kept — undone as
+/// any run's end takes it down: the container told to stop, and the
+/// run taken down as [`ended_agent`] takes one, `live` saying whether
+/// it was entered as live yet. The one undo every such failure goes
+/// through.
+pub async fn undo_agent(daemon: &Daemon, run: Arc<AgentRun>, live: bool) {
+    run.end_as(End::Expected).await;
+    let _ = run.handle.stop().await;
+    if live {
+        ended_agent(daemon, run).await;
+    } else {
+        down_agent(daemon, run).await;
+    }
+}
+
+/// What [`ended_agent`] does once the run is no longer live, or never
+/// was.
+async fn down_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
     }
@@ -94,13 +117,37 @@ pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>,
 /// forgotten, since its row is next run from a new agent run; a
 /// service's scope and its place in every served set kept for the
 /// next run, which its supervisor starts while any agent is attached.
+/// Every session's notifications reader is ended, and the tool marked
+/// working no more, whatever its log said. Done once, and only for the
+/// run live under its key, as [`ended_agent`].
 pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
-    if daemon.live.remove_tool(run.id).await.is_none() {
+    if !daemon.live.remove_tool_if(&run).await {
         return;
     }
+    down_tool(daemon, run).await;
+}
+
+/// A start that failed once its tool's run was made, undone as
+/// [`undo_agent`] undoes an agent's: the container told to stop, and
+/// the run taken down as [`ended_tool`] takes one.
+pub async fn undo_tool(daemon: &Daemon, run: Arc<ToolRun>, live: bool) {
+    run.end_as(End::Expected).await;
+    run.handle.stop().await;
+    if live {
+        ended_tool(daemon, run).await;
+    } else {
+        down_tool(daemon, run).await;
+    }
+}
+
+/// What [`ended_tool`] does once the run is no longer live, or never
+/// was.
+async fn down_tool(daemon: &Daemon, run: Arc<ToolRun>) {
+    daemon.live.set_busy(run.id, false).await;
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
     }
+    tool_log::end_sessions(&run).await;
     let end = run.end().await;
     if lifecycle::undeployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, end.reason()).await {
         tool_log::working(daemon, run.id, false).await;
@@ -124,7 +171,7 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
         (ToolKey::Dependency(_), Some(tool)) if !tool.is_service() => {
             if let Some(agent) = tool.owner_agent {
                 if let Some(agent) = daemon.live.agent_run(agent).await {
-                    agent.served.lock().await.remove(run.id);
+                    agent.served.lock().await.remove_transient(&run);
                 }
             }
             daemon.live.forget_scope(Key::Tool(run.id)).await;

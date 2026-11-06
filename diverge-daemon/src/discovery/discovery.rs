@@ -95,13 +95,37 @@ struct Upstream {
     _end: watch::Sender<()>,
 }
 
+/// One watcher of the daemon's discovery, from
+/// [`enter`](Discovery::enter): dropped, it [`leave`](Discovery::leave)s.
+/// A drop cannot wait on the lock, so the leave is a task of its own.
+pub struct Watching {
+    /// The daemon whose discovery it watches.
+    daemon: Arc<Daemon>,
+}
+
+impl Drop for Watching {
+    fn drop(&mut self) {
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            let daemon = Arc::clone(&self.daemon);
+            runtime.spawn(async move { daemon.live.discovery.leave().await });
+        }
+    }
+}
+
 impl Discovery {
     /// One watcher more (rules 1 and 4): discovery held, its listings
     /// opened where they are not, and every listing open waited on until
-    /// it is whole. Every `enter` is matched by exactly one
-    /// [`leave`](Self::leave).
-    pub async fn enter(&self, daemon: &Arc<Daemon>) {
-        self.hold(daemon, true).await;
+    /// it is whole. The watcher is the [`Watching`] handed back, counted
+    /// from before the wait: dropped however the watch ends — returned,
+    /// failed, panicked, its task aborted, even within the wait — it is
+    /// matched by exactly one [`leave`](Self::leave).
+    pub async fn enter(&self, daemon: &Arc<Daemon>) -> Watching {
+        let waiting = self.held(daemon, true).await;
+        // Counted with no wait since: nothing between the count and the
+        // guard can be cancelled.
+        let watching = Watching { daemon: Arc::clone(daemon) };
+        self.wait(waiting).await;
+        watching
     }
 
     /// Discovery used to reach a remote daemon (rules 1, 2 and 4): held,
@@ -113,22 +137,33 @@ impl Discovery {
 
     /// Rules 1, 2 and 4, for a watcher entering or a touch.
     async fn hold(&self, daemon: &Arc<Daemon>, watcher: bool) {
-        let waiting: Vec<watch::Receiver<bool>> = {
-            let mut inner = self.inner.lock().await;
-            if watcher {
-                inner.watchers += 1;
-            }
-            inner.touched = Instant::now();
-            if !inner.held {
-                inner.held = true;
-                for identity in daemon.live.connected_providers().await {
-                    if let Some(handle) = daemon.live.provider(&identity).await {
-                        open(&mut inner, daemon, identity, handle);
-                    }
+        let waiting = self.held(daemon, watcher).await;
+        self.wait(waiting).await;
+    }
+
+    /// Rules 1 and 4's holding: discovery held, its listings opened
+    /// where they are not, and a watcher counted last of all, with no
+    /// wait after it; the word of every listing open, to wait on.
+    async fn held(&self, daemon: &Arc<Daemon>, watcher: bool) -> Vec<watch::Receiver<bool>> {
+        let mut inner = self.inner.lock().await;
+        inner.touched = Instant::now();
+        if !inner.held {
+            inner.held = true;
+            for identity in daemon.live.connected_providers().await {
+                if let Some(handle) = daemon.live.provider(&identity).await {
+                    open(&mut inner, daemon, identity, handle);
                 }
             }
-            inner.upstreams.values().map(|upstream| upstream.whole.clone()).collect()
-        };
+        }
+        if watcher {
+            inner.watchers += 1;
+        }
+        inner.upstreams.values().map(|upstream| upstream.whole.clone()).collect()
+    }
+
+    /// The supervisor stirred, and every listing in `waiting` waited on
+    /// until it is whole.
+    async fn wait(&self, waiting: Vec<watch::Receiver<bool>>) {
         self.stirred.notify_one();
         for mut whole in waiting {
             let _ = whole.wait_for(|whole| *whole).await;

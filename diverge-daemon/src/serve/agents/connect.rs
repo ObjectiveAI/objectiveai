@@ -71,18 +71,31 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
     reply::reply(scope, &Frame::Connected).await;
     // Rule 3.
     let mut tasks = JoinSet::new();
-    while let Some(bytes) = scope.recv_channel_request().await {
-        let Ok(ClientFrame::ChannelRequest { channel, payload, .. }) = ClientFrame::decode(&bytes) else {
-            continue;
-        };
-        match channel_request::Frame::decode(payload) {
-            Ok(channel_request::Frame::Disconnect) => break,
-            Ok(ask) => {
-                tasks.spawn(answer(Arc::clone(daemon), Arc::clone(scope), agent.id, channel, ask));
+    loop {
+        tokio::select! {
+            request = scope.recv_channel_request() => {
+                let Some(bytes) = request else {
+                    break;
+                };
+                let Ok(ClientFrame::ChannelRequest { channel, payload, .. }) = ClientFrame::decode(&bytes) else {
+                    continue;
+                };
+                match channel_request::Frame::decode(payload) {
+                    Ok(channel_request::Frame::Disconnect) => break,
+                    Ok(ask) => {
+                        tasks.spawn(answer(Arc::clone(daemon), Arc::clone(scope), agent.id, channel, ask));
+                    }
+                    Err(_) => scope.send_channel_response_finish(channel).await,
+                }
             }
-            Err(_) => scope.send_channel_response_finish(channel).await,
+            // Every answered exchange reaped as it ends, so the set
+            // holds only those in flight.
+            Some(_) = tasks.join_next(), if !tasks.is_empty() => {}
         }
     }
+    // The scope mints no session of its own: its exchanges are the
+    // agent's, on the agent's own session in each tool, which goes
+    // with the agent's deletion (`tool_log::forget_agent`), not here.
     tasks.abort_all();
     Ok(())
 }

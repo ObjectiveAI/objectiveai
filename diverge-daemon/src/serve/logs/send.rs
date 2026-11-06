@@ -112,13 +112,17 @@ async fn read_through<B: Book, F: Encode>(
     Ok(span.to.is_some_and(|bound| count >= bound))
 }
 
-/// Whether the client cancelled: the one channel it may open, read
-/// and never answered. The inbox closing is not a cancel — the finish
-/// is the handler's.
+/// Whether the watch is over for the client: it cancelled — the one
+/// channel it may open, read and never answered — or its inbox closed,
+/// the client's connection gone and nobody left to send to, as
+/// [`cancelled`](crate::serve::files::cancelled) ends a watch. A watch
+/// waiting past a closed inbox would outlive its client until the
+/// record is deleted, and hold its connection's end with it. The
+/// finish is the handler's either way.
 async fn cancel(scope: &ScopeHandle, is_cancel: fn(&[u8]) -> bool) -> bool {
     loop {
         let Some(bytes) = scope.recv_channel_request().await else {
-            return std::future::pending().await;
+            return true;
         };
         if let Ok(ClientFrame::ChannelRequest { payload, .. }) = ClientFrame::decode(&bytes)
             && is_cancel(payload)

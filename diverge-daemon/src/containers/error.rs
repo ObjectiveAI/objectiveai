@@ -40,6 +40,9 @@ pub enum StartError {
     Run(String),
     /// The log could not be written.
     Logs(logs::Error),
+    /// The start's own task ended without finishing it: it panicked,
+    /// or the runtime is shutting down.
+    Unfinished(String),
 }
 
 impl fmt::Display for StartError {
@@ -56,6 +59,7 @@ impl fmt::Display for StartError {
             StartError::Unsupported(what) => write!(f, "a provider's capabilities exclude it: {what}"),
             StartError::Run(error) => write!(f, "the provider did not run the container: {error}"),
             StartError::Logs(error) => write!(f, "the log: {error}"),
+            StartError::Unfinished(error) => write!(f, "the start did not finish: {error}"),
         }
     }
 }

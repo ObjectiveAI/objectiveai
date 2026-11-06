@@ -385,7 +385,9 @@ async fn cut_short(context: &Context) {
 /// kept in step at every change of the set and every start of a
 /// served tool's run — so a tool attached while the stream is open
 /// has its notifications forwarded too, a tool list changed among
-/// them, and a tool detached has them forwarded no more.
+/// them, and a tool detached has them forwarded no more. The stream
+/// dropped ends every task behind it — the forwarder of the set's word,
+/// the supervisor and each relay — at once, not at their next item.
 pub async fn notifications(context: &Context) -> Notifications {
     let (sender, receiver) = mpsc::unbounded_channel::<Result<ServerNotification, ErrorData>>();
     let (mut changes, mut generation) = {
@@ -394,10 +396,19 @@ pub async fn notifications(context: &Context) -> Notifications {
     };
     {
         let sender = sender.clone();
+        // Ended with its consumer: the stream dropped closes `sender`.
         tokio::spawn(async move {
-            while let Ok(notification) = changes.recv().await {
-                if sender.send(Ok(notification)).is_err() {
-                    break;
+            loop {
+                tokio::select! {
+                    () = sender.closed() => break,
+                    notification = changes.recv() => {
+                        let Ok(notification) = notification else {
+                            break;
+                        };
+                        if sender.send(Ok(notification)).is_err() {
+                            break;
+                        }
+                    }
                 }
             }
         });
@@ -414,9 +425,6 @@ pub async fn notifications(context: &Context) -> Notifications {
     tokio::spawn(async move {
         let mut relays: HashMap<ToolKey, AbortHandle> = HashMap::new();
         loop {
-            if sender.is_closed() {
-                break;
-            }
             let keys = served.lock().await.keys();
             relays.retain(|key, relay| {
                 let kept = keys.contains(key) && !relay.is_finished();
@@ -438,7 +446,14 @@ pub async fn notifications(context: &Context) -> Notifications {
                 };
                 let sender = sender.clone();
                 let relay = tokio::spawn(async move {
-                    while let Some(item) = stream.next().await {
+                    loop {
+                        let item = tokio::select! {
+                            () = sender.closed() => break,
+                            item = stream.next() => item,
+                        };
+                        let Some(item) = item else {
+                            break;
+                        };
                         let forwarded = match item {
                             Ok(mut notification) => {
                                 run.attest(notification.get_meta_mut());
@@ -453,8 +468,16 @@ pub async fn notifications(context: &Context) -> Notifications {
                 });
                 relays.insert(key, relay.abort_handle());
             }
-            if generation.changed().await.is_err() {
-                break;
+            // The consumer gone ends the supervisor, whatever the set
+            // does: `Served` owns the generation's sender, and never
+            // drops it while the run lives.
+            tokio::select! {
+                () = sender.closed() => break,
+                changed = generation.changed() => {
+                    if changed.is_err() {
+                        break;
+                    }
+                }
             }
         }
         for relay in relays.into_values() {

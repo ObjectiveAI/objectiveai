@@ -14,7 +14,7 @@ use tokio::sync::watch;
 
 use super::Error;
 use crate::daemon::Daemon;
-use crate::judge::Expected;
+use crate::judge::Hold;
 
 /// The version a provider must answer to be used: this crate's own,
 /// read from the manifest at compile time. The daemon and the
@@ -44,6 +44,8 @@ pub struct Attached {
     /// The daemon's word that the connection is to be closed: taken at
     /// the attach, so a close from then on is heard.
     closed: watch::Receiver<bool>,
+    /// The handshake's hold on the identity, given back at the end.
+    hold: Hold,
 }
 
 /// Hold `connection`, already past its handshake, as the connection
@@ -66,7 +68,7 @@ pub struct Attached {
 /// the socket stays open, and nothing opened on it, ever. Either way
 /// what comes back is the rest of the connection's life, to be
 /// served.
-pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Daemon>) -> Result<Attached, Error> {
+pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Daemon>, hold: Hold) -> Result<Attached, Error> {
     daemon.live.reserve_provider(identity.clone()).await;
     let closed = daemon.live.open_provider(identity.clone()).await;
     let (handle, router) = Handle::open(connection);
@@ -84,7 +86,7 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
         Err(error) => {
             daemon.live.forget_provider(&identity).await;
             daemon.live.disconnect_provider(&identity).await;
-            daemon.authenticator.release(Expected::Provider, &identity).await;
+            hold.release().await;
             return Err(Error::Info(error));
         }
     };
@@ -96,7 +98,10 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
         }
         daemon.live.discovery.connected(daemon, identity.clone(), handle.clone()).await;
         if info.capabilities.volumes() {
-            tokio::spawn(crate::volumes::watch(Arc::clone(daemon), identity.clone(), handle));
+            // The mirror kept here, before the connection is served:
+            // its end, which forgets the mirror, comes after.
+            let mirror = daemon.live.mirror_provider(identity.clone()).await;
+            tokio::spawn(crate::volumes::watch(Arc::clone(daemon), mirror, handle));
         }
     } else {
         daemon.live.different_version_provider(&identity, handle, answer).await;
@@ -106,6 +111,7 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
         identity,
         reading,
         closed,
+        hold,
     })
 }
 
@@ -114,13 +120,13 @@ impl Attached {
     /// daemon closing it, which drops the socket — and give the slot
     /// back, and the identity the handshake holds.
     pub async fn serve(self) {
-        let Attached { daemon, identity, reading, mut closed } = self;
+        let Attached { daemon, identity, reading, mut closed, hold } = self;
         let closing = pin!(async move {
             let _ = closed.wait_for(|closed| *closed).await;
         });
         let _ = future::select(reading, closing).await;
         daemon.live.forget_provider(&identity).await;
         daemon.live.disconnect_provider(&identity).await;
-        daemon.authenticator.release(Expected::Provider, &identity).await;
+        hold.release().await;
     }
 }

@@ -119,6 +119,16 @@ impl Served {
         entry
     }
 
+    /// The transient dependency tool's run `run` leaves, when it is
+    /// the one served under its key: a late end of an older run never
+    /// takes out the newer one served in its place. Whether it left.
+    pub fn remove_transient(&mut self, run: &Arc<ToolRun>) -> bool {
+        match self.entries.get(&run.id) {
+            Some(Entry::Transient(served)) if Arc::ptr_eq(served, run) => self.remove(run.id).is_some(),
+            _ => false,
+        }
+    }
+
     /// The entry for the tool, if served.
     pub fn entry(&self, key: ToolKey) -> Option<&Entry> {
         self.entries.get(&key)

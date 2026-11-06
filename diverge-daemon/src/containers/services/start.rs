@@ -1,6 +1,6 @@
 //! One run of a service's container.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -15,7 +15,7 @@ use crate::containers::answerers::Answerer;
 use crate::containers::fuse::Mounts;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
-use crate::containers::{Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, permissions, provider, pump_tool, secrets};
+use crate::containers::{Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, permissions, provider, pump_tool, secrets, undo_tool};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::ToolRef;
 use crate::store::agents;
@@ -37,8 +37,17 @@ use crate::store::dependency_tools::{DependencyTool, attachments};
 /// is not started; a service that declares secrets with no agent
 /// attached is not started either, and the supervisor tries again; a
 /// provider that refuses after the registration gives back what it
-/// took.
+/// took, and a failure once the run is made undoes it as
+/// [`undo_tool`](crate::containers::undo_tool) states. The start runs
+/// in a task of its own, waited for: a caller cancelled midway neither
+/// tears it nor orphans what it opened.
 pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<ToolRun>, StartError> {
+    let (daemon, tool) = (Arc::clone(daemon), tool.clone());
+    let started = tokio::spawn(async move { start_service(&daemon, &tool).await });
+    started.await.unwrap_or_else(|error| Err(StartError::Unfinished(error.to_string())))
+}
+
+async fn start_service(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<ToolRun>, StartError> {
     let key = ToolKey::Dependency(tool.id);
     if let Some(run) = daemon.live.tool_run(key).await {
         return Ok(run);
@@ -118,7 +127,6 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
             }
         };
         let permissions = answerer.permissions.lock().await.clone();
-        permissions::record(daemon, ToolRef::Dependency(tool.id), &permissions).await?;
         let run = Arc::new(ToolRun {
             id: key,
             attestation: attestation.clone(),
@@ -138,12 +146,17 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
             dependency: Some(tool.clone()),
-            sessions: Mutex::new(HashSet::new()),
+            sessions: Mutex::new(HashMap::new()),
             secrets: Mutex::new(answerer.secrets.lock().await.take()),
             epoch: daemon.live.epoch().await,
-            log: daemon.live.tool_log(key).await,
+            log: daemon.live.tool_log(&daemon.store, key).await,
             ending: Mutex::new(None),
         });
+        // From here a failure is the run's undoing.
+        if let Err(error) = permissions::record(daemon, ToolRef::Dependency(tool.id), &permissions).await {
+            undo_tool(daemon, run, false).await;
+            return Err(error.into());
+        }
         crate::containers::lifecycle::deployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, run.provider.clone()).await;
         if let Ok(mut conn) = daemon.store.acquire().await {
             let _ = crate::store::dependency_tools::set_deployed(&mut conn, tool.id, chrono::Utc::now()).await;
@@ -151,8 +164,14 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         daemon.live.insert_tool(Arc::clone(&run)).await;
         daemon.live.changed(Kind::DependencyTools);
         daemon.live.nudge_capacity(&run.provider);
-        let pumping = tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream));
-        run.tasks.lock().await.push(pumping.abort_handle());
+        // Spawned and kept under the tasks' lock, while the run is still
+        // the live one: an end meanwhile drains it after.
+        {
+            let mut tasks = run.tasks.lock().await;
+            if daemon.live.is_tool_run(&run).await {
+                tasks.push(tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream)).abort_handle());
+            }
+        }
         return Ok(run);
     }
     Err(StartError::Run(last))

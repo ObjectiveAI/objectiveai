@@ -50,11 +50,10 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    // Rules 2 and 3.
-    daemon.live.discovery.enter(daemon).await;
-    let listed = stream::listing(scope, daemon, &[Kind::Discover], frame.count, &Merged { daemon }, Frame::from).await;
-    daemon.live.discovery.leave().await;
-    listed
+    // Rules 2 and 3: the watcher left as its guard drops, however the
+    // scope ends.
+    let _watching = daemon.live.discovery.enter(daemon).await;
+    stream::listing(scope, daemon, &[Kind::Discover], frame.count, &Merged { daemon }, Frame::from).await
 }
 
 /// The merge as it is now.

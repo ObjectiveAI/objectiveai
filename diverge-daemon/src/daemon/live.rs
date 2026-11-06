@@ -25,7 +25,7 @@ use crate::containers::{AgentRun, ConnectionId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
 use crate::judge::AgentState;
 use crate::database::Scope;
-use crate::store::{AccountId, AgentId};
+use crate::store::{self, AccountId, AgentId, Store};
 use crate::discovery::Discovery;
 use crate::volumes::Mirror;
 
@@ -57,7 +57,8 @@ pub struct Live {
     /// since the daemon started: they have no row to keep it in.
     admins_last_connected: Mutex<HashMap<Identity, DateTime<Utc>>>,
     /// The tools working now — a call or a read in flight — as their
-    /// logs mark them `active`.
+    /// logs mark them `active`; a tool leaves when it ceases, when its
+    /// run ends, and when it is deleted.
     busy_tools: Mutex<HashSet<ToolKey>>,
     /// The providers connected now, one slot per identity, and the
     /// caller's handle on each: what every request to a provider
@@ -69,31 +70,31 @@ pub struct Live {
     dials: Mutex<HashMap<Identity, u64>>,
     /// The number the next dial task is given.
     next_dial: Mutex<u64>,
-    /// Every dial task started, to be ended when the daemon stops.
-    dial_tasks: Mutex<Vec<AbortHandle>>,
+    /// The current dial task of every provider dialled, by its
+    /// identity, to be ended when the daemon stops: replaced by the
+    /// next dial's, and gone with the dial's end or the task's.
+    dial_tasks: Mutex<HashMap<Identity, AbortHandle>>,
     /// The closer of every provider connection held now, by the
     /// provider's identity: what [`close_provider`](Self::close_provider)
     /// tells.
     provider_closers: Mutex<HashMap<Identity, watch::Sender<bool>>>,
     /// Every agent's log that has been appended to or watched since
-    /// the start, by agent.
+    /// the start, by agent, while the agent is on record: see [`kept`].
     logs: Mutex<HashMap<AgentId, Arc<RunLog>>>,
     /// Every tool's log that has been appended to or watched since the
-    /// start, by tool.
+    /// start, by tool, while the tool is on record.
     tool_logs: Mutex<HashMap<ToolKey, Arc<RunLog>>>,
-    /// The agents and tools deleted since the start, whose logs are
-    /// forgotten: a writer of one gets a log that keeps nothing, and
-    /// none is made again. Ids are never reused.
-    forgotten: Mutex<HashSet<Key>>,
     /// The number the next run is given: what its log's lifecycle is
     /// kept under.
     next_epoch: Mutex<u64>,
-    /// One lock per agent and tool, taken for the length of a start:
-    /// two starts of one are served one after the other, so a run is
-    /// deployed once.
+    /// One lock per agent and tool a start is made or waited on for
+    /// now, taken for the length of a start: two starts of one are
+    /// served one after the other, so a run is deployed once. An entry
+    /// leaves once nobody holds its lock: see [`started`](Self::started).
     starting: Mutex<HashMap<Key, Arc<Mutex<()>>>>,
-    /// Every account's and administrator's command log appended to or
-    /// watched since the start; a tool's commands are in its tool log.
+    /// Every account's and configured administrator's command log being
+    /// appended to or watched now; a tool's commands are in its tool
+    /// log. See [`command_log`](Self::command_log).
     command_logs: Mutex<HashMap<Commander, Arc<Log>>>,
     /// The agents running now.
     agents: Mutex<HashMap<AgentId, Arc<AgentRun>>>,
@@ -117,7 +118,7 @@ pub struct Live {
     next_connection: Mutex<u64>,
     /// The volumes a download, an upload or a transfer of the daemon's
     /// is on now, each held by one operation at a time.
-    operations: Mutex<HashSet<reference::Volume>>,
+    operations: Arc<Mutex<HashSet<reference::Volume>>>,
     /// The word that a kind changed, for the lists kept open.
     changes: Changes,
     /// Each connected provider's volumes, as its listing streams them.
@@ -129,13 +130,19 @@ pub struct Live {
     /// configuration gives each, each through one provider: what a
     /// connected tool's exchanges and a relayed request ride.
     daemons: Mutex<HashMap<String, Arc<Peer>>>,
+    /// One lock per remote daemon's record a connect is made or waited
+    /// on for now, taken for the length of the connect: two connects of
+    /// one record are made one after the other, so a record holds one
+    /// connection. An entry leaves once nobody holds its lock: see
+    /// [`connected_to`](Self::connected_to).
+    connecting: Mutex<HashMap<String, Arc<Mutex<()>>>>,
     /// The next number for a connect scope another daemon opens.
     next_connect: Mutex<u64>,
     /// Which providers are known to hold which image, by digest: what
     /// a provider's has ask is answered from, and where a manifest or
     /// a blob is pulled from. Positives only, learned from checks; a
     /// provider's entries go with its connection, or with a pull from
-    /// it that failed.
+    /// it that failed, and a digest with its last holder.
     holders: Mutex<HashMap<String, Vec<Identity>>>,
     /// The pull scope held open on each provider pulled from: opened
     /// at the first pull, kept for the connection's life.
@@ -165,6 +172,19 @@ pub struct Log {
     /// The `logs_index` of the latest item appended since the start;
     /// `0` before any. What a reader waits on.
     pub latest: watch::Sender<u64>,
+}
+
+impl Log {
+    /// A log with nothing appended since the start.
+    pub fn new() -> Self {
+        Log { lock: Mutex::new(()), latest: watch::channel(0).0 }
+    }
+}
+
+impl Default for Log {
+    fn default() -> Self {
+        Log::new()
+    }
 }
 
 impl Live {
@@ -383,9 +403,10 @@ impl Live {
         if self.discovery.disconnected(identity).await {
             self.changes.changed(Kind::Discover);
         }
-        for holders in self.holders.lock().await.values_mut() {
+        self.holders.lock().await.retain(|_, holders| {
             holders.retain(|holder| holder != identity);
-        }
+            !holders.is_empty()
+        });
         self.pulls.lock().await.remove(identity);
     }
 
@@ -419,10 +440,15 @@ impl Live {
     }
 
     /// The provider does not hold the image after all, or could not
-    /// be pulled from: forgotten for this digest.
+    /// be pulled from: forgotten for this digest, and the digest with
+    /// it when it was the last holder known.
     pub async fn drop_holder(&self, digest: &str, identity: &Identity) {
-        if let Some(known) = self.holders.lock().await.get_mut(digest) {
+        let mut holders = self.holders.lock().await;
+        if let Some(known) = holders.get_mut(digest) {
             known.retain(|holder| holder != identity);
+            if known.is_empty() {
+                holders.remove(digest);
+            }
         }
     }
 
@@ -433,10 +459,19 @@ impl Live {
 
     /// Keep `scope` as the provider's pull scope, unless one is kept
     /// already: the one kept, either way, so a second opener uses the
-    /// first's and lets its own go.
-    pub async fn keep_pull_scope(&self, identity: Identity, scope: Arc<execute::ExecuteHandle>) -> Arc<execute::ExecuteHandle> {
+    /// first's and lets its own go. `connection` is the capacity cell
+    /// of the connection the scope was opened on — one per connection
+    /// — and nothing is kept, `None`, when that connection is no longer
+    /// the provider's: a scope opened on a connection since gone would
+    /// otherwise outlive it, its disconnect having already forgotten
+    /// the pulls. Asked under the pulls' lock, which the disconnect
+    /// takes only after it has let the cell go.
+    pub async fn keep_pull_scope(&self, identity: Identity, scope: Arc<execute::ExecuteHandle>, connection: &Arc<Capacity>) -> Option<Arc<execute::ExecuteHandle>> {
         let mut pulls = self.pulls.lock().await;
-        Arc::clone(pulls.entry(identity).or_insert(scope))
+        if !self.capacity_cell(&identity).is_some_and(|cell| Arc::ptr_eq(&cell, connection)) {
+            return None;
+        }
+        Some(Arc::clone(pulls.entry(identity).or_insert(scope)))
     }
 
     /// The provider's pull scope let go: a pull from it failed, and
@@ -522,22 +557,39 @@ impl Live {
 
     /// A dial of `identity` begins: its number, now the provider's
     /// current dial, so that any earlier task for it ends at its next
-    /// turn and one provider is dialled by one task.
+    /// turn and one provider is dialled by one task. The earlier task's
+    /// handle is let go with it: it ends itself, never torn mid-serve.
     pub async fn begin_dial(&self, identity: Identity) -> u64 {
         let number = {
             let mut next = self.next_dial.lock().await;
             *next += 1;
             *next
         };
-        self.dials.lock().await.insert(identity, number);
+        let mut dials = self.dials.lock().await;
+        self.dial_tasks.lock().await.remove(&identity);
+        dials.insert(identity, number);
         number
     }
 
-    /// The dial task `task` started, for the daemon's stop to end.
-    pub async fn dial_task(&self, task: AbortHandle) {
-        let mut tasks = self.dial_tasks.lock().await;
-        tasks.retain(|task| !task.is_finished());
-        tasks.push(task);
+    /// The task of dial `number` started, for the daemon's stop to end:
+    /// kept while that dial is `identity`'s current one, and let go at
+    /// once when it is not — a newer dial began, or this one ended
+    /// already.
+    pub async fn dial_task(&self, identity: Identity, number: u64, task: AbortHandle) {
+        let dials = self.dials.lock().await;
+        if dials.get(&identity) == Some(&number) {
+            self.dial_tasks.lock().await.insert(identity, task);
+        }
+    }
+
+    /// The task of dial `number` is ending: the dial, and its task's
+    /// handle, forgotten when it is still `identity`'s current one.
+    pub async fn dial_ended(&self, identity: &Identity, number: u64) {
+        let mut dials = self.dials.lock().await;
+        if dials.get(identity) == Some(&number) {
+            dials.remove(identity);
+            self.dial_tasks.lock().await.remove(identity);
+        }
     }
 
     /// Whether dial `number` is still `identity`'s current one.
@@ -550,16 +602,20 @@ impl Live {
         self.dials.lock().await.contains_key(identity)
     }
 
-    /// `identity` is dialled no more: its task ends at its next turn.
+    /// `identity` is dialled no more: its task ends at its next turn,
+    /// and its handle is let go.
     pub async fn end_dial(&self, identity: &Identity) {
-        self.dials.lock().await.remove(identity);
+        let mut dials = self.dials.lock().await;
+        dials.remove(identity);
+        self.dial_tasks.lock().await.remove(identity);
     }
 
     /// End every dial task: the daemon is stopping, and nothing reads
     /// the registry after.
     pub async fn stop_dials(&self) {
-        self.dials.lock().await.clear();
-        for dial in self.dial_tasks.lock().await.drain(..) {
+        let mut dials = self.dials.lock().await;
+        dials.clear();
+        for (_, dial) in self.dial_tasks.lock().await.drain() {
             dial.abort();
         }
     }
@@ -586,46 +642,41 @@ impl Live {
     }
 
     /// The agent's log, live: the one every append and every watch of
-    /// that log goes through. A deleted agent's is a log that keeps
-    /// nothing, made fresh and never kept.
-    pub async fn log(&self, id: AgentId) -> Arc<RunLog> {
-        if self.forgotten.lock().await.contains(&Key::Agent(id)) {
-            return Arc::new(RunLog::forgotten());
-        }
-        let mut logs = self.logs.lock().await;
-        Arc::clone(logs.entry(id).or_insert_with(|| Arc::new(RunLog::new())))
+    /// that log goes through, kept as [`kept`] states. A deleted
+    /// agent's is a log that keeps nothing, made fresh and never kept.
+    pub async fn log(&self, store: &Store, id: AgentId) -> Arc<RunLog> {
+        kept(&self.logs, store, id, Key::Agent(id)).await
     }
 
     /// The agent is deleted: its log forgotten — nothing kept on it
     /// again, by any writer that still holds it — and let go, which
-    /// ends every watch on it once the last append has let go.
+    /// ends every watch on it once the last append has let go; its
+    /// start lock let go once nobody holds it.
     pub async fn end_log(&self, id: AgentId) {
-        self.forgotten.lock().await.insert(Key::Agent(id));
         let log = self.logs.lock().await.remove(&id);
         if let Some(log) = log {
             crate::containers::lifecycle::forget(log).await;
         }
+        self.started(Key::Agent(id)).await;
     }
 
     /// The tool's log, live: the one every append and every watch of
-    /// that log goes through. A deleted tool's is a log that keeps
-    /// nothing, made fresh and never kept.
-    pub async fn tool_log(&self, key: ToolKey) -> Arc<RunLog> {
-        if self.forgotten.lock().await.contains(&Key::Tool(key)) {
-            return Arc::new(RunLog::forgotten());
-        }
-        let mut logs = self.tool_logs.lock().await;
-        Arc::clone(logs.entry(key).or_insert_with(|| Arc::new(RunLog::new())))
+    /// that log goes through, kept as [`kept`] states. A deleted tool's
+    /// is a log that keeps nothing, made fresh and never kept.
+    pub async fn tool_log(&self, store: &Store, key: ToolKey) -> Arc<RunLog> {
+        kept(&self.tool_logs, store, key, Key::Tool(key)).await
     }
 
     /// The tool is deleted: its log forgotten and let go, as
-    /// [`end_log`](Self::end_log) does an agent's.
+    /// [`end_log`](Self::end_log) does an agent's, and the tool marked
+    /// working no more.
     pub async fn end_tool_log(&self, key: ToolKey) {
-        self.forgotten.lock().await.insert(Key::Tool(key));
         let log = self.tool_logs.lock().await.remove(&key);
         if let Some(log) = log {
             crate::containers::lifecycle::forget(log).await;
         }
+        self.busy_tools.lock().await.remove(&key);
+        self.started(Key::Tool(key)).await;
     }
 
     /// A fresh number for a run.
@@ -635,25 +686,55 @@ impl Live {
         *next
     }
 
-    /// The lock a start of `key` is made under: see `starting`.
+    /// The lock a start of `key` is made under: see `starting`. The
+    /// caller lets it go, then calls [`started`](Self::started).
     pub async fn starting(&self, key: Key) -> Arc<Mutex<()>> {
         Arc::clone(self.starting.lock().await.entry(key).or_default())
     }
 
-    /// A requester's command log, live: the one every append and every
-    /// watch of that log goes through.
-    pub async fn command_log(&self, commander: Commander) -> Arc<Log> {
-        let mut logs = self.command_logs.lock().await;
-        Arc::clone(logs.entry(commander).or_insert_with(|| {
-            Arc::new(Log {
-                lock: Mutex::new(()),
-                latest: watch::channel(0).0,
-            })
-        }))
+    /// A start of `key` let its lock go: the entry forgotten when nobody
+    /// holds it any more. Every clone is made under the map's lock, so
+    /// one found unshared here stays unshared.
+    pub async fn started(&self, key: Key) {
+        let mut starting = self.starting.lock().await;
+        if starting.get(&key).is_some_and(|lock| Arc::strong_count(lock) == 1) {
+            starting.remove(&key);
+        }
     }
 
-    /// The account is deleted: forget its command log, which ends every
-    /// watch on it once the last append has let go.
+    /// A requester's command log, live: the one every append and every
+    /// watch of that log goes through. The rules, so the map holds only
+    /// what is in use:
+    ///
+    /// 1. **Made for its first user.** An entry is made by the first
+    ///    append or watch that asks while there is none; every caller
+    ///    is an account the store has, or an administrator the
+    ///    configuration names — a watch of any other identity's takes
+    ///    a [`Log`] of its own, never kept.
+    /// 2. **Gone with its last.** Every user calls
+    ///    [`release_command_log`](Self::release_command_log) once it
+    ///    has let go of the log and of its watch, and the entry leaves
+    ///    when nothing holds or watches it. Its latest index is then
+    ///    the latest since the entry was made, which is all a watch
+    ///    reads: what is appended after it subscribed.
+    /// 3. **Gone with its account,** at once: the sender's end ends
+    ///    every watch on it once the last append has let go.
+    pub async fn command_log(&self, commander: Commander) -> Arc<Log> {
+        let mut logs = self.command_logs.lock().await;
+        Arc::clone(logs.entry(commander).or_insert_with(|| Arc::new(Log::new())))
+    }
+
+    /// Rule 2 of [`command_log`](Self::command_log): the requester's
+    /// command log forgotten when nothing holds or watches it now.
+    pub async fn release_command_log(&self, commander: Commander) {
+        let mut logs = self.command_logs.lock().await;
+        if logs.get(&commander).is_some_and(|log| Arc::strong_count(log) == 1 && log.latest.receiver_count() == 0) {
+            logs.remove(&commander);
+        }
+    }
+
+    /// Rule 3 of [`command_log`](Self::command_log): the account is
+    /// deleted, and its command log forgotten.
     pub async fn end_command_log(&self, commander: Commander) {
         self.command_logs.lock().await.remove(&commander);
     }
@@ -668,9 +749,20 @@ impl Live {
         self.agents.lock().await.insert(run.id, run);
     }
 
-    /// The agent's run is over: what was live for it, once.
-    pub async fn remove_agent(&self, id: AgentId) -> Option<Arc<AgentRun>> {
-        self.agents.lock().await.remove(&id)
+    /// The agent's run `run` is over: forgotten as live, once, and only
+    /// while it is the run live under its id — a late end of an older
+    /// run never evicts a newer one. Whether it was.
+    pub async fn remove_agent_if(&self, run: &Arc<AgentRun>) -> bool {
+        let mut agents = self.agents.lock().await;
+        match agents.get(&run.id) {
+            Some(live) if Arc::ptr_eq(live, run) => agents.remove(&run.id).is_some(),
+            _ => false,
+        }
+    }
+
+    /// Whether `run` is the agent's run live now.
+    pub async fn is_agent_run(&self, run: &Arc<AgentRun>) -> bool {
+        self.agents.lock().await.get(&run.id).is_some_and(|live| Arc::ptr_eq(live, run))
     }
 
     /// Every agent running now.
@@ -731,9 +823,20 @@ impl Live {
         self.tools.lock().await.insert(run.id, run);
     }
 
-    /// The tool's run is over: what was live for it, once.
-    pub async fn remove_tool(&self, key: ToolKey) -> Option<Arc<ToolRun>> {
-        self.tools.lock().await.remove(&key)
+    /// The tool's run `run` is over: forgotten as live, once, and only
+    /// while it is the run live under its key, as
+    /// [`remove_agent_if`](Self::remove_agent_if). Whether it was.
+    pub async fn remove_tool_if(&self, run: &Arc<ToolRun>) -> bool {
+        let mut tools = self.tools.lock().await;
+        match tools.get(&run.id) {
+            Some(live) if Arc::ptr_eq(live, run) => tools.remove(&run.id).is_some(),
+            _ => false,
+        }
+    }
+
+    /// Whether `run` is the tool's run live now.
+    pub async fn is_tool_run(&self, run: &Arc<ToolRun>) -> bool {
+        self.tools.lock().await.get(&run.id).is_some_and(|live| Arc::ptr_eq(live, run))
     }
 
     /// Every tool running now, records and dependency tools.
@@ -859,19 +962,18 @@ impl Live {
         self.volume_operating(volume).await || self.volume_in_run(volume).await
     }
 
-    /// Take the volume for one operation: `false` when it is held,
-    /// and nothing taken. What is taken is given back with
-    /// [`release_volume`](Self::release_volume), on every path.
-    pub async fn take_volume(&self, volume: &reference::Volume) -> bool {
+    /// Take the volume for one operation: `None` when it is held, and
+    /// nothing taken. What is taken is the [`VolumeHold`], given back
+    /// when it is dropped, on every path — a return, an error, a
+    /// panic, the operation's task aborted.
+    pub async fn take_volume(&self, volume: &reference::Volume) -> Option<VolumeHold> {
         if self.volume_in_run(volume).await {
-            return false;
+            return None;
         }
-        self.operations.lock().await.insert(volume.clone())
-    }
-
-    /// The operation is over.
-    pub async fn release_volume(&self, volume: &reference::Volume) {
-        self.operations.lock().await.remove(volume);
+        if !self.operations.lock().await.insert(volume.clone()) {
+            return None;
+        }
+        Some(VolumeHold { operations: Arc::clone(&self.operations), volume: Some(volume.clone()) })
     }
 
     /// The connection to the remote daemon of the name, if one is
@@ -881,15 +983,24 @@ impl Live {
     }
 
     /// A connection to a remote daemon is open: held under its name,
-    /// replacing one that ended.
+    /// replacing one that ended, which is closed as
+    /// [`remove_peer`](Self::remove_peer) closes one.
     pub async fn insert_daemon(&self, peer: Arc<Peer>) {
-        self.daemons.lock().await.insert(peer.daemon.clone(), peer);
+        let replaced = self.daemons.lock().await.insert(peer.daemon.clone(), Arc::clone(&peer));
+        if let Some(replaced) = replaced
+            && !Arc::ptr_eq(&replaced, &peer)
+        {
+            replaced.closer.send_replace(true);
+        }
         self.changes.changed(Kind::Daemons);
     }
 
-    /// The peer's connection ended: forgotten, unless a newer one has
-    /// taken its place.
+    /// The peer is forgotten — its connection ended, its record edited
+    /// or deleted: its closer told, so its watcher lets the connection
+    /// go, and it is no longer held, unless a newer one has taken its
+    /// place.
     pub async fn remove_peer(&self, peer: &Arc<Peer>) {
+        peer.closer.send_replace(true);
         let removed = {
             let mut daemons = self.daemons.lock().await;
             match daemons.get(&peer.daemon) {
@@ -920,6 +1031,23 @@ impl Live {
             .collect()
     }
 
+    /// The lock a connect to the remote daemon of the record `name` is
+    /// made under: see `connecting`. The caller lets it go, then calls
+    /// [`connected_to`](Self::connected_to).
+    pub async fn connecting(&self, name: &str) -> Arc<Mutex<()>> {
+        Arc::clone(self.connecting.lock().await.entry(name.to_string()).or_default())
+    }
+
+    /// A connect to the record `name` let its lock go: the entry
+    /// forgotten when nobody holds it any more, as
+    /// [`started`](Self::started) forgets a start's.
+    pub async fn connected_to(&self, name: &str) {
+        let mut connecting = self.connecting.lock().await;
+        if connecting.get(name).is_some_and(|lock| Arc::strong_count(lock) == 1) {
+            connecting.remove(name);
+        }
+    }
+
     /// A number for a connect scope another daemon is opening, never
     /// given twice this daemon life.
     pub async fn mint_connection(&self) -> ConnectionId {
@@ -927,6 +1055,100 @@ impl Live {
         *next += 1;
         ConnectionId(*next)
     }
+}
+
+/// One operation's hold on a volume, from
+/// [`take_volume`](Live::take_volume): the volume given back when it is
+/// dropped. A drop cannot wait on the lock, so the giving back is a task
+/// of its own.
+#[derive(Debug)]
+pub struct VolumeHold {
+    /// The volumes held by operations: the live set's.
+    operations: Arc<Mutex<HashSet<reference::Volume>>>,
+    /// The volume held, until the drop gives it back.
+    volume: Option<reference::Volume>,
+}
+
+impl VolumeHold {
+    /// The operation is over: the volume given back now, waited for, so
+    /// the next operation on it finds it free. A hold dropped instead
+    /// gives it back a moment later.
+    pub async fn release(mut self) {
+        // The lock first: a release cancelled while it waits leaves the
+        // volume to the drop.
+        let mut operations = self.operations.lock().await;
+        if let Some(volume) = self.volume.take() {
+            operations.remove(&volume);
+        }
+    }
+}
+
+impl Drop for VolumeHold {
+    fn drop(&mut self) {
+        let Some(volume) = self.volume.take() else {
+            return;
+        };
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            let operations = Arc::clone(&self.operations);
+            runtime.spawn(async move {
+                operations.lock().await.remove(&volume);
+            });
+        }
+    }
+}
+
+/// A run's log out of `logs`, by `key` — `record` naming it as a
+/// record. The rules, so a log is kept only while its record is:
+///
+/// 1. **A kept log is the one.** One in the map is handed back as it is.
+/// 2. **A new one is kept first, then its record looked for.** None in
+///    the map, a fresh one is kept, and only then is the store asked
+///    whether the record is there. A record on record — or a store
+///    that will not say — keeps it.
+/// 3. **A record gone forgets it.** No record, and the log kept by
+///    rule 2 is taken back out, if it is still the one kept, and
+///    forgotten, so a writer that took it meanwhile keeps nothing on
+///    it; the caller gets a log that keeps nothing, made fresh and
+///    never kept. A deletion commits before its `end_log`, so either
+///    that `end_log` finds the log rule 2 kept, or the store asked
+///    after it is kept finds no record: none outlives its record.
+async fn kept<K: std::hash::Hash + Eq + Copy>(logs: &Mutex<HashMap<K, Arc<RunLog>>>, store: &Store, key: K, record: Key) -> Arc<RunLog> {
+    // Rules 1 and 2.
+    let log = {
+        let mut logs = logs.lock().await;
+        if let Some(log) = logs.get(&key) {
+            return Arc::clone(log);
+        }
+        let log = Arc::new(RunLog::new());
+        logs.insert(key, Arc::clone(&log));
+        log
+    };
+    if on_record(store, record).await {
+        return log;
+    }
+    // Rule 3.
+    {
+        let mut logs = logs.lock().await;
+        if logs.get(&key).is_some_and(|kept| Arc::ptr_eq(kept, &log)) {
+            logs.remove(&key);
+        }
+    }
+    crate::containers::lifecycle::forget(log).await;
+    Arc::new(RunLog::forgotten())
+}
+
+/// Whether the record `key` names is on record; `true` when the store
+/// will not say, so a store that fails forgets nothing.
+async fn on_record(store: &Store, key: Key) -> bool {
+    let Ok(mut conn) = store.acquire().await else {
+        return true;
+    };
+    let found = match key {
+        Key::Agent(id) => store::agents::by_id(&mut conn, id, false).await.map(|row| row.is_some()),
+        Key::Tool(ToolKey::Record(id)) => store::tools::by_id(&mut conn, id, false).await.map(|row| row.is_some()),
+        Key::Tool(ToolKey::Dependency(id)) => store::dependency_tools::by_id(&mut conn, id, false).await.map(|row| row.is_some()),
+    };
+    found.unwrap_or(true)
 }
 
 /// Whom a client connection is connected as, for its closer: an account,

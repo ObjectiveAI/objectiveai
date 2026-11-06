@@ -54,11 +54,11 @@ async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon:
         return Ok(Frame::Forbidden);
     }
     scope.allowed().await;
-    if !daemon.live.take_volume(volume).await {
+    let Some(hold) = daemon.live.take_volume(volume).await else {
         return Ok(Frame::Held);
-    }
+    };
     let outcome = files::upload(scope, daemon, Into::Volume(volume), path, what).await;
-    daemon.live.release_volume(volume).await;
+    hold.release().await;
     Ok(match outcome {
         Ok(()) => Frame::Uploaded,
         Err(error) => Frame::Error(reply::failure(&error)),

@@ -13,7 +13,7 @@ use tokio::task::JoinSet;
 use super::dispatch;
 use crate::daemon::{Connected, Daemon};
 use crate::store::AccountId;
-use crate::judge::{Admitted, Expected, Who};
+use crate::judge::{Admitted, Expected, Hold, Who};
 use crate::providers;
 
 /// Serve `connection` from `address` until it ends.
@@ -31,18 +31,35 @@ use crate::providers;
 /// the daemon is the caller — and where a second connection under an
 /// identity a connection holds is dropped the same way; a client
 /// admitted is served here, as a client is.
+///
+/// The identity the handshake held as a provider's is the connection's
+/// [`Hold`] from the handshake on, handed to the attach, which gives it
+/// back at the connection's end; on every other path — a client after
+/// all, nothing, an error, the task aborted — it is given back here. A
+/// provider the handshake did not hold is not attached.
 pub async fn connection(connection: Connection, address: IpAddr, daemon: Arc<Daemon>) {
-    let Ok(Handshook { connection, peer, .. }) = handshake::accept(connection, &daemon.authenticator.expecting(Expected::Admitted), address).await else {
+    let took = tokio::sync::watch::channel(false).0;
+    let Ok(Handshook { connection, peer, .. }) = handshake::accept(connection, &daemon.authenticator.admitting(&took), address).await else {
         return;
     };
-    match daemon.authenticator.admit(&peer).await {
-        Ok(Some(Admitted::Client(who))) => client(connection, who, daemon).await,
-        Ok(Some(Admitted::Provider(identity))) => {
-            if let Ok(attached) = providers::attach(connection, identity, &daemon).await {
+    let hold = (*took.borrow()).then(|| Hold::new(&daemon.authenticator, Expected::Admitted, peer.clone()));
+    match (daemon.authenticator.admit(&peer).await, hold) {
+        (Ok(Some(Admitted::Provider(identity))), Some(hold)) => {
+            if let Ok(attached) = providers::attach(connection, identity, &daemon, hold).await {
                 attached.serve().await;
             }
         }
-        Ok(None) | Err(_) => {}
+        (Ok(Some(Admitted::Client(who))), hold) => {
+            if let Some(hold) = hold {
+                hold.release().await;
+            }
+            client(connection, who, daemon).await;
+        }
+        (_, hold) => {
+            if let Some(hold) = hold {
+                hold.release().await;
+            }
+        }
     }
 }
 

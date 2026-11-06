@@ -1,13 +1,16 @@
 //! A message to an agent: the one way into it.
 
+use std::collections::HashMap;
 use std::future::Future;
+use std::sync::Arc;
 
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::shared::error::Error;
 use rmcp::model::ContentBlock;
+use tokio::sync::Mutex;
 
-use super::{AgentRun, activate, events};
+use super::{AgentRun, Message, activate, events};
 use crate::daemon::Daemon;
 
 /// What became of a message.
@@ -45,9 +48,10 @@ pub async fn enqueue(daemon: &Daemon, run: &AgentRun, content: Vec<ContentBlock>
 pub async fn enqueue_keyed<'a>(daemon: &'a Daemon, run: &'a AgentRun, content: Vec<ContentBlock>, sender: Creator) -> (String, impl Future<Output = Fate> + 'a) {
     let key = uuid::Uuid::new_v4().to_string();
     events::record(daemon, &sender, &run.sender).await;
-    run.messages.lock().await.insert(key.clone(), sender);
+    run.messages.lock().await.insert(key.clone(), Message::new(sender));
     run.touch();
     let pending = run.pending.enter();
+    let mut kept = Kept { messages: Arc::clone(&run.messages), key: Some(key.clone()) };
     let named = key.clone();
     let fate = async move {
         let _pending = pending;
@@ -63,12 +67,47 @@ pub async fn enqueue_keyed<'a>(daemon: &'a Daemon, run: &'a AgentRun, content: V
             },
             Err(error) => Fate::Error(error),
         };
-        if !matches!(fate, Fate::Delivered) {
-            run.messages.lock().await.remove(&named);
+        // Rules 2 and 3 of `Message`: an undelivered entry leaves now,
+        // a delivered one is the pump's to sweep.
+        let key = kept.key.take();
+        if let Some(key) = key {
+            let mut messages = run.messages.lock().await;
+            if matches!(fate, Fate::Delivered) {
+                if let Some(message) = messages.get_mut(&key) {
+                    message.delivered = true;
+                }
+            } else {
+                messages.remove(&key);
+            }
         }
         fate
     };
     (key, fate)
+}
+
+/// The entry of a message whose fate is not yet known: dropped still
+/// holding its key — the fate's future dropped before it was known —
+/// it removes the entry, as rule 2 of [`Message`] states. A drop cannot
+/// wait on the lock, so the removal is a task of its own.
+struct Kept {
+    /// The run's messages.
+    messages: Arc<Mutex<HashMap<String, Message>>>,
+    /// The message's key, until its fate takes it.
+    key: Option<String>,
+}
+
+impl Drop for Kept {
+    fn drop(&mut self) {
+        let Some(key) = self.key.take() else {
+            return;
+        };
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            let messages = Arc::clone(&self.messages);
+            runtime.spawn(async move {
+                messages.lock().await.remove(&key);
+            });
+        }
+    }
 }
 
 /// Take the message under the key back, if the loop has not taken

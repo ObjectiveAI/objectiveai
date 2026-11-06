@@ -13,7 +13,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use super::{Failure, Span, send};
 use crate::commands::{AdminKey, Commander};
 use crate::containers::ToolKey;
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Log};
 use crate::judge::{self, Standing, Who};
 use crate::serve::{agents, dependency_tools, reply, standalone_tools};
 use crate::store;
@@ -71,7 +71,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
             // Subscribe before the first read; the handle itself is let
             // go, so the agent's deletion — the sender gone — ends the
             // watch.
-            let latest = daemon.live.log(agent.id).await.latest.subscribe();
+            let latest = daemon.live.log(&daemon.store, agent.id).await.latest.subscribe();
             let keep = |item: &agent_log::ItemWrapper| crate::logs::matches(r#type, from, to, agent_log::ItemType::of(&item.item).name(), item.created);
             send(scope, daemon, agent.id, latest, &span, keep, |item| Frame::Item(Entry::Agent(item)), Frame::Watch, is_cancel).await?;
         }
@@ -91,7 +91,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
             drop(conn);
             scope.allowed().await;
             let key = ToolKey::Record(tool.id);
-            let latest = daemon.live.tool_log(key).await.latest.subscribe();
+            let latest = daemon.live.tool_log(&daemon.store, key).await.latest.subscribe();
             let keep = |item: &tool_log::ItemWrapper| crate::logs::matches(r#type, from, to, tool_log::ItemType::of(&item.item).name(), item.created);
             send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::StandaloneTool(item)), Frame::Watch, is_cancel).await?;
         }
@@ -115,7 +115,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
             drop(conn);
             scope.allowed().await;
             let key = ToolKey::Dependency(tool.id);
-            let latest = daemon.live.tool_log(key).await.latest.subscribe();
+            let latest = daemon.live.tool_log(&daemon.store, key).await.latest.subscribe();
             let keep = |item: &tool_log::ItemWrapper| crate::logs::matches(r#type, from, to, tool_log::ItemType::of(&item.item).name(), item.created);
             send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::DependencyTool(item)), Frame::Watch, is_cancel).await?;
         }
@@ -135,9 +135,14 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
                 return Ok(());
             }
             scope.allowed().await;
-            let latest = daemon.live.command_log(Commander::Account(account.id)).await.latest.subscribe();
+            // The handle let go at once, so the account's deletion ends
+            // the watch; the entry let go once the watch is over.
+            let commander = Commander::Account(account.id);
+            let latest = daemon.live.command_log(commander).await.latest.subscribe();
             let keep = |item: &command_log::ItemWrapper| crate::logs::matches(r#type, from, to, command_log::ItemType::of(&item.item).name(), item.created);
-            send(scope, daemon, account.id, latest, &span, keep, |item| Frame::Item(Entry::Account(item)), Frame::Watch, is_cancel).await?;
+            let sent = send(scope, daemon, account.id, latest, &span, keep, |item| Frame::Item(Entry::Account(item)), Frame::Watch, is_cancel).await;
+            daemon.live.release_command_log(commander).await;
+            sent?;
         }
         Subject::Admin(identity) => {
             // Rule 4: an administrator's log is read by administrators
@@ -156,9 +161,21 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
                 }
             };
             scope.allowed().await;
-            let latest = daemon.live.command_log(Commander::Admin(key)).await.latest.subscribe();
+            // Rule 1 of `command_log`: only a configured administrator's
+            // log is kept live; any other identity's watch holds a log of
+            // its own, which nothing appends to, for its length.
+            let commander = Commander::Admin(key);
+            let own = (!daemon.authenticator.is_admin(identity)).then(Log::new);
+            let latest = match &own {
+                Some(own) => own.latest.subscribe(),
+                None => daemon.live.command_log(commander).await.latest.subscribe(),
+            };
             let keep = |item: &command_log::ItemWrapper| crate::logs::matches(r#type, from, to, command_log::ItemType::of(&item.item).name(), item.created);
-            send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::Admin(item)), Frame::Watch, is_cancel).await?;
+            let sent = send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::Admin(item)), Frame::Watch, is_cancel).await;
+            if own.is_none() {
+                daemon.live.release_command_log(commander).await;
+            }
+            sent?;
         }
     }
     Ok(())

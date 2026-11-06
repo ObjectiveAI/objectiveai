@@ -15,6 +15,7 @@ use diverge_sdk::shared::Identity;
 use super::{attach, url};
 use crate::containers::lifecycle::End;
 use crate::daemon::Daemon;
+use crate::judge::{Expected, Hold};
 
 /// How long after a connection ends, or a dial fails, the next dial
 /// is made: long enough that a provider that is down is not
@@ -34,23 +35,33 @@ const PAUSE: Duration = Duration::from_secs(5);
 /// connection ends, or the daemon closes it. A handshake that fails is
 /// a round not attached, the socket dropped. Then the pause, and again.
 /// A round that finds the dial no longer current, or the record no
-/// longer enabled and outgoing, ends the task; the daemon's stop ends
-/// it too, by the abort handle [`Live`](crate::daemon::Live) keeps.
+/// longer enabled and outgoing, ends the task, which forgets the dial
+/// when it is still the current one; the daemon's stop ends it too, by
+/// the abort handle [`Live`](crate::daemon::Live) keeps.
 pub async fn dial(daemon: Arc<Daemon>, identity: Identity, number: u64) {
+    rounds(&daemon, &identity, number).await;
+    daemon.live.dial_ended(&identity, number).await;
+}
+
+/// The rounds of [`dial`], until one finds it should end.
+async fn rounds(daemon: &Arc<Daemon>, identity: &Identity, number: u64) {
     loop {
-        if !daemon.live.current_dial(&identity, number).await {
+        if !daemon.live.current_dial(identity, number).await {
             return;
         }
-        let Some(address) = daemon.providers.dials(&identity) else {
+        let Some(address) = daemon.providers.dials(identity) else {
             return;
         };
         if let Ok((socket, _)) = connect_async(url(&address)).await {
             let peer = peer_ip(&socket);
-            let expecting = daemon.authenticator.dialling(&identity);
-            let discover = if daemon.providers.discover(&identity) { daemon.authenticator.listed() } else { Discover::Hidden };
+            let expecting = daemon.authenticator.dialling(identity);
+            let discover = if daemon.providers.discover(identity) { daemon.authenticator.listed() } else { Discover::Hidden };
             let made = handshake::connect(Connection::Outgoing(socket), &identity.issuer, discover, &expecting, peer).await;
             if let Ok(Handshook { connection, peer, .. }) = made {
-                if let Ok(attached) = attach(connection, peer, &daemon).await {
+                // A dial that answers holds the identity: the hold goes
+                // with the connection, however it ends.
+                let hold = Hold::new(&daemon.authenticator, Expected::Provider, peer.clone());
+                if let Ok(attached) = attach(connection, peer, daemon, hold).await {
                     attached.serve().await;
                 }
             }
@@ -63,8 +74,8 @@ pub async fn dial(daemon: Arc<Daemon>, identity: Identity, number: u64) {
 /// task for it ends at its next turn.
 pub async fn start_dial(daemon: &Arc<Daemon>, identity: Identity) {
     let number = daemon.live.begin_dial(identity.clone()).await;
-    let task = tokio::spawn(dial(Arc::clone(daemon), identity, number));
-    daemon.live.dial_task(task.abort_handle()).await;
+    let task = tokio::spawn(dial(Arc::clone(daemon), identity.clone(), number));
+    daemon.live.dial_task(identity, number, task.abort_handle()).await;
 }
 
 /// Start a dial for every enabled, outgoing record: what the daemon

@@ -92,7 +92,8 @@ async fn holders(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Vec<Id
 /// used and this one disconnected. `None` for a provider that is not
 /// connected now, whose capabilities keep no client image store —
 /// one that would answer the pull unsupported, and is not asked — or
-/// whose scope could not be opened.
+/// whose scope could not be opened, or whose connection ended while it
+/// was opened.
 async fn scope(daemon: &Arc<Daemon>, holder: &Identity) -> Option<Arc<execute::ExecuteHandle>> {
     if let Some(scope) = daemon.live.pull_scope(holder).await {
         return Some(scope);
@@ -100,13 +101,16 @@ async fn scope(daemon: &Arc<Daemon>, holder: &Identity) -> Option<Arc<execute::E
     if !daemon.live.capabilities(holder).await.is_some_and(|info| info.capabilities.images_store) {
         return None;
     }
+    // The connection's own cell, taken before its handle: a connection
+    // gone meanwhile keeps nothing (see `keep_pull_scope`).
+    let connection = daemon.live.capacity_cell(holder)?;
     let handle = daemon.live.provider(holder).await?;
     let opened = Arc::new(execute::execute(&handle, &request::Frame).await.ok()?);
-    let kept = daemon.live.keep_pull_scope(holder.clone(), Arc::clone(&opened)).await;
-    if !Arc::ptr_eq(&kept, &opened) {
+    let kept = daemon.live.keep_pull_scope(holder.clone(), Arc::clone(&opened), &connection).await;
+    if !kept.as_ref().is_some_and(|kept| Arc::ptr_eq(kept, &opened)) {
         let _ = opened.disconnect().await;
     }
-    Some(kept)
+    kept
 }
 
 /// A pull from the provider failed: its scope let go and the holder

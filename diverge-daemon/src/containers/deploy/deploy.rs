@@ -1,7 +1,7 @@
 //! Deploying every dependency, at once: each on record under its
 //! owner, the transient tools started, the services kept.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -11,6 +11,7 @@ use diverge_sdk::daemon::key;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
 use diverge_sdk::shared::containers::dependencies;
 use diverge_sdk::shared::containers::dependencies::{Scope, Template};
+use diverge_sdk::shared::Identity;
 use diverge_sdk::shared::error::Error;
 use futures_util::future;
 use tokio::sync::{Mutex, watch};
@@ -49,7 +50,9 @@ use crate::store::{self, AgentId, DependencyToolId, hash};
 /// that will not run one — every candidate tried — or a service whose
 /// start fails, is the
 /// error, naming the dependency by its id where there is one, and
-/// every transient tool started is stopped.
+/// every transient tool started is stopped. The transient tools are
+/// started, and served, in a task of their own, waited for (see
+/// [`start_all`]): a registration cancelled midway orphans none.
 pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -> Result<(), Error> {
     let (Key::Agent(agent), Some(attestation::Caller::Agent(caller))) = (answerer.key, &answerer.caller) else {
         return Err(error("", "a tool container declares no dependencies"));
@@ -86,10 +89,88 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
     let (tools, left) = record(daemon, agent, agent_key, &creator, &declared)
         .await
         .map_err(|reason| error("", &reason))?;
-    let id = id.as_str();
-    let agent_row = &row;
-    let started = future::join_all(tools.iter().filter(|tool| !tool.is_service()).map(|tool| async move {
-        let outcome = start(answerer, agent_row, agent_key, id, tool).await;
+    let owner = Owner {
+        daemon: Arc::clone(daemon),
+        provider: answerer.provider.clone(),
+        inflight: Arc::clone(&answerer.inflight),
+        files: Arc::clone(&answerer.files),
+        served: Arc::clone(&answerer.served),
+        agent: row.clone(),
+        key: agent_key.clone(),
+        container: id,
+    };
+    let transients: Vec<DependencyTool> = tools.iter().filter(|tool| !tool.is_service()).cloned().collect();
+    let runs = match tokio::spawn(start_all(owner, transients)).await {
+        Ok(Ok(runs)) => runs,
+        Ok(Err((template_id, reason))) => return Err(error(&template_id, &reason)),
+        Err(failure) => return Err(error("", &failure.to_string())),
+    };
+    let mut kept = Vec::new();
+    for tool in &tools {
+        if !tool.is_service() {
+            continue;
+        }
+        let key = ToolKey::Dependency(tool.id);
+        services::keep(daemon, key).await;
+        services::held(daemon, key).await;
+        if let Err(reason) = up(daemon, key).await {
+            {
+                let mut served = answerer.served.lock().await;
+                for run in &runs {
+                    served.remove_transient(run);
+                }
+            }
+            stop::stop_dependencies(daemon, runs, End::Expected).await;
+            return Err(error(&tool.template, &reason));
+        }
+        kept.push(tool.id);
+    }
+    for id in left {
+        services::held(daemon, ToolKey::Dependency(id)).await;
+    }
+    *answerer.services.lock().await = Some(kept);
+    let mut served = answerer.served.lock().await;
+    for tool in &tools {
+        if tool.is_service() {
+            served.insert_service(tool.id, &tool.template, &short(&tool.template));
+        }
+    }
+    daemon.live.changed(Kind::DependencyTools);
+    daemon.live.changed(Kind::StandaloneTools);
+    Ok(())
+}
+
+/// What a dependency's start takes of the agent — its answerer's and
+/// its record's — owned, so the starts run in a task of their own.
+struct Owner {
+    /// The daemon.
+    daemon: Arc<Daemon>,
+    /// The provider the agent's container runs on: where its paths are
+    /// served from.
+    provider: Identity,
+    /// The agent's exchanges in flight: a dependency's hold the agent up.
+    inflight: Arc<Inflight>,
+    /// The agent's file uses: a dependency's hold the agent up.
+    files: Arc<Inflight>,
+    /// The agent's served set, the transient tools served into it.
+    served: Arc<Mutex<Served>>,
+    /// The agent's record: its secrets' binding.
+    agent: Agent,
+    /// The agent's key.
+    key: key::Agent,
+    /// The agent's container's id.
+    container: String,
+}
+
+/// Every transient tool started at once, then every one served to the
+/// agent under its template's id, all in the one task: the first that
+/// could not start is the error — its template's id and the reason —
+/// and every one started is stopped. Served before the deploy goes on,
+/// a run is the agent's from here: the agent's start stops it with an
+/// attempt that fails, and the agent's end with the run.
+async fn start_all(owner: Owner, transients: Vec<DependencyTool>) -> Result<Vec<Arc<ToolRun>>, (String, String)> {
+    let started = future::join_all(transients.iter().map(|tool| async {
+        let outcome = start(&owner, tool).await;
         (tool.template.clone(), outcome)
     }))
     .await;
@@ -101,43 +182,17 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
             Err(reason) => failed = failed.or(Some((template_id, reason))),
         }
     }
-    if let Some((template_id, reason)) = failed {
-        stop::stop_dependencies(daemon, runs, End::Expected).await;
-        return Err(error(&template_id, &reason));
+    if let Some(failed) = failed {
+        stop::stop_dependencies(&owner.daemon, runs, End::Expected).await;
+        return Err(failed);
     }
-    let mut kept = Vec::new();
-    for tool in &tools {
-        if !tool.is_service() {
-            continue;
-        }
-        let key = ToolKey::Dependency(tool.id);
-        services::keep(daemon, key).await;
-        services::held(daemon, key).await;
-        if let Err(reason) = up(daemon, key).await {
-            stop::stop_dependencies(daemon, runs, End::Expected).await;
-            return Err(error(&tool.template, &reason));
-        }
-        kept.push(tool.id);
-    }
-    for id in left {
-        services::held(daemon, ToolKey::Dependency(id)).await;
-    }
-    *answerer.services.lock().await = Some(kept);
-    let mut served = answerer.served.lock().await;
-    for run in runs {
+    let mut served = owner.served.lock().await;
+    for run in &runs {
         if let Some(tool) = &run.dependency {
-            let serve_name = short(&tool.template);
-            served.insert_transient(run, &serve_name);
+            served.insert_transient(Arc::clone(run), &short(&tool.template));
         }
     }
-    for tool in &tools {
-        if tool.is_service() {
-            served.insert_service(tool.id, &tool.template, &short(&tool.template));
-        }
-    }
-    daemon.live.changed(Kind::DependencyTools);
-    daemon.live.changed(Kind::StandaloneTools);
-    Ok(())
+    Ok(runs)
 }
 
 /// Every declared template on record — its body, and its tool under
@@ -197,9 +252,11 @@ async fn record(
 /// under the row, from an agent run that ended without it, stopped
 /// first, since a row has one run. The reason it could not be, in a
 /// sentence; a provider that refuses after the registration gives
-/// back what it took.
-async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent_container: &str, tool: &DependencyTool) -> Result<Arc<ToolRun>, String> {
-    let daemon = &answerer.daemon;
+/// back what it took, and a failure once the run is made undoes it as
+/// [`undo_tool`](stop::undo_tool) states.
+async fn start(owner: &Owner, tool: &DependencyTool) -> Result<Arc<ToolRun>, String> {
+    let daemon = &owner.daemon;
+    let agent_key = &owner.key;
     let dependencies::Mode::Transient {
         fuse_file_mounts,
         fuse_directory_mounts,
@@ -218,9 +275,9 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
         disk: tool.declared.disk,
     };
     let candidates = provider::candidates(daemon, None, &needs).await.map_err(|error| error.to_string())?;
-    let binding = secrets::bind(&tool.declared.secrets, &agent.secrets)?;
+    let binding = secrets::bind(&tool.declared.secrets, &owner.agent.secrets)?;
     let mounts = Arc::new(
-        Mounts::build_dependency(daemon, &answerer.provider, agent_container, fuse_file_mounts, fuse_directory_mounts)
+        Mounts::build_dependency(daemon, &owner.provider, &owner.container, fuse_file_mounts, fuse_directory_mounts)
             .await
             .map_err(|error| error.to_string())?,
     );
@@ -249,8 +306,8 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             mounts: Arc::clone(&mounts),
             served: Arc::new(Mutex::new(Served::new())),
             touched: touched.clone(),
-            inflight: Arc::clone(&answerer.inflight),
-            files: Arc::clone(&answerer.files),
+            inflight: Arc::clone(&owner.inflight),
+            files: Arc::clone(&owner.files),
             services: Mutex::new(None),
             declared: tool.declared.secrets.clone(),
             binding: binding.clone(),
@@ -266,9 +323,6 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             }
         };
         let permissions = run_answerer.permissions.lock().await.clone();
-        permissions::record(daemon, ToolRef::Dependency(tool.id), &permissions)
-            .await
-            .map_err(|error| error.to_string())?;
         let run = Arc::new(ToolRun {
             id: key,
             attestation: attestation.clone(),
@@ -281,7 +335,7 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             held: watch::channel(false).0,
             inflight: Arc::new(Inflight::new()),
             // The agent's: a use on the dependency holds the agent up.
-            files: Arc::clone(&answerer.files),
+            files: Arc::clone(&owner.files),
             touched: touched.clone(),
             mounts: Arc::clone(&mounts),
             volumes: Vec::new(),
@@ -289,12 +343,17 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
             dependency: Some(tool.clone()),
-            sessions: Mutex::new(HashSet::new()),
+            sessions: Mutex::new(HashMap::new()),
             secrets: Mutex::new(run_answerer.secrets.lock().await.take()),
             epoch: daemon.live.epoch().await,
-            log: daemon.live.tool_log(key).await,
+            log: daemon.live.tool_log(&daemon.store, key).await,
             ending: Mutex::new(None),
         });
+        // From here a failure is the run's undoing.
+        if let Err(failure) = permissions::record(daemon, ToolRef::Dependency(tool.id), &permissions).await {
+            stop::undo_tool(daemon, run, false).await;
+            return Err(failure.to_string());
+        }
         crate::containers::lifecycle::deployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, run.provider.clone()).await;
         if let Ok(mut conn) = daemon.store.acquire().await {
             let _ = crate::store::dependency_tools::set_deployed(&mut conn, tool.id, chrono::Utc::now()).await;
@@ -302,8 +361,14 @@ async fn start(answerer: &Answerer, agent: &Agent, agent_key: &key::Agent, agent
         daemon.live.insert_tool(Arc::clone(&run)).await;
         daemon.live.changed(Kind::DependencyTools);
         daemon.live.nudge_capacity(&run.provider);
-        let pumping = tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream));
-        run.tasks.lock().await.push(pumping.abort_handle());
+        // Spawned and kept under the tasks' lock, while the run is still
+        // the live one: an end meanwhile drains it after.
+        {
+            let mut tasks = run.tasks.lock().await;
+            if daemon.live.is_tool_run(&run).await {
+                tasks.push(tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream)).abort_handle());
+            }
+        }
         return Ok(run);
     }
     mounts.stop().await;

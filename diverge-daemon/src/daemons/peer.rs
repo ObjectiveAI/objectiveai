@@ -2,6 +2,7 @@
 
 use diverge_sdk::provider::endpoints::daemons::connect::client::execute::Connected;
 use diverge_sdk::shared::Identity;
+use tokio::sync::watch;
 
 /// A connection to another daemon, held while it lasts: the name of the
 /// record it was opened for, the provider it went through, and the
@@ -15,6 +16,12 @@ pub struct Peer {
     pub provider: Identity,
     /// The connection.
     pub connected: Connected,
+    /// Turned `true` when the daemon forgets the peer — its record
+    /// edited or deleted, or a newer connection in its place: what its
+    /// watcher waits on beside the connection's end, so the daemon's own
+    /// hold on the connection goes with it, and the connection closes
+    /// once nothing else uses it.
+    pub closer: watch::Sender<bool>,
 }
 
 impl std::fmt::Debug for Peer {

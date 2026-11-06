@@ -33,7 +33,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// their database scopes and their every table, each service among
 /// them retired, every other dependency tool and every tool on record
 /// it was attached to told,
-/// its name free, every watch on its log ended and the log removed.
+/// its name free, its MCP session in every tool running forgotten,
+/// every watch on its log ended and the log removed.
 /// Its own database scope stays: nothing drops an agent's own.
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, Failure> {
     let mut tx = daemon.store.begin().await?;
@@ -75,6 +76,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     for key in gone {
         containers::tool_log::forget(daemon, key).await;
     }
+    containers::tool_log::forget_agent(daemon, agent.key()).await;
     daemon.live.end_log(agent.id).await;
     logs::remove(&daemon.logs, agent.id).await?;
     daemon.live.changed(Kind::Agents);
