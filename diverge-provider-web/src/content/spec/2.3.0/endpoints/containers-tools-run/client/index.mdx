@@ -12,7 +12,8 @@ belongs to. The proxy holds one MCP session to the container's server
 per caller, opened by an `initialize` that carries the caller under
 `_meta`; it sends each exchange on its caller's session, and a
 notifications channel carries what the server sends on its own session
-alone.
+alone. The mcp-close-session channel names a caller, and the proxy
+removes and closes that caller's MCP session.
 
 | Tag | Channel |
 |-----|---------|
@@ -38,6 +39,7 @@ alone.
 | `19` | [terminal-resize](/endpoints/containers-tools-run/client/terminal-resize/) |
 | `20` | [terminal-close](/endpoints/containers-tools-run/client/terminal-close/) |
 | `21` | [frontend](/endpoints/containers-tools-run/client/frontend/) |
+| `22` | [mcp-close-session](/endpoints/containers-tools-run/client/mcp-close-session/) |
 
 The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/run/client/channel_request/frame.rs`:
 
