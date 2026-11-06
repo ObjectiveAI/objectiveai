@@ -5,7 +5,8 @@ import { z } from "zod";
 /**
  * One kind of item, by the name its `type` carries: every name an
  * agent's log item or a tool's log item has. A name both books have —
- * `active`, `inactive`, `error`, `notification` — picks that kind in
+ * `deployed`, `active`, `inactive`, `undeployed`, `error`,
+ * `notification` — picks that kind in
  * whichever book is read; a name the book read does not have matches
  * nothing.
  */
@@ -25,14 +26,18 @@ export const ItemType = z.enum([
   "usage",
   "notification",
   "error",
+  "deployed",
   "active",
   "inactive",
+  "undeployed",
   "call",
   "call_result",
   "call_error",
+  "call_interrupted",
   "read",
   "read_result",
   "read_error",
+  "read_interrupted",
   "command",
 ]);
 export type ItemType = z.infer<typeof ItemType>;

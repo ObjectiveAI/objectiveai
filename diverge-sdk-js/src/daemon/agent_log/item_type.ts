@@ -4,8 +4,8 @@ import { z } from "zod";
 
 /**
  * One kind of item, as a log request narrows to it: the fourteen
- * chunk kinds by their `type`, the error, and the two marks of a
- * run — `active` when a container came up, `inactive` when it went.
+ * chunk kinds by their `type`, the error, and the four steps of a
+ * run's life — `deployed`, `active`, `inactive`, `undeployed`.
  */
 export const ItemType = z.enum([
   "user_text_content",
@@ -23,7 +23,9 @@ export const ItemType = z.enum([
   "usage",
   "notification",
   "error",
+  "deployed",
   "active",
   "inactive",
+  "undeployed",
 ]);
 export type ItemType = z.infer<typeof ItemType>;
