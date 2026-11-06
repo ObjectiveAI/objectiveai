@@ -6,10 +6,15 @@ use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use crate::shared::Identity;
+use crate::daemon::endpoints::providers::Ip;
+use crate::shared::nullable;
 use crate::shared::relay::Relay;
 
 /// Ask the daemon to change a record, by its name: every member given
-/// replaces what the record holds, every member absent leaves it.
+/// replaces what the record holds, every member absent leaves it. Each
+/// of the three route filters — see
+/// [`Routes`](crate::daemon::endpoints::daemons::Routes) — is absent to
+/// leave it, `null` to clear it, or a list to replace it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
@@ -25,6 +30,21 @@ pub struct Frame {
     /// remote's, as the record ends up.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identity: Option<Identity>,
+    /// The providers filter: absent leaves it, `null` clears it, a list
+    /// replaces it.
+    #[serde(default, deserialize_with = "nullable::deserialize", skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<Vec<Identity>>")]
+    pub providers: Option<Option<Vec<Identity>>>,
+    /// The IPs filter: absent leaves it, `null` clears it, a list
+    /// replaces it.
+    #[serde(default, deserialize_with = "nullable::deserialize", skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<Vec<Ip>>")]
+    pub ips: Option<Option<Vec<Ip>>>,
+    /// The addresses filter: absent leaves it, `null` clears it, a list
+    /// replaces it.
+    #[serde(default, deserialize_with = "nullable::deserialize", skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<Vec<String>>")]
+    pub addresses: Option<Option<Vec<String>>>,
     /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,

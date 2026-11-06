@@ -4,7 +4,7 @@
 //! the daemon works with is its records', kept in its database: one per
 //! provider [`Identity`](crate::shared::Identity), each with the
 //! [`Direction`] its connection is made in — the provider dials the
-//! daemon, from the addresses it may, or the daemon dials it — whether
+//! daemon, from the IPs it may, or the daemon dials it — whether
 //! the daemon is discoverable to it, and whether it is enabled. The
 //! rules:
 //!
@@ -49,9 +49,11 @@
 //! record names a remote by.
 
 mod direction;
+mod ip;
 mod status;
 
 pub use direction::*;
+pub use ip::*;
 pub use status::*;
 
 pub mod add;

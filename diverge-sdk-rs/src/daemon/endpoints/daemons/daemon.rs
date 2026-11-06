@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use super::Routes;
 use crate::daemon::creator::Creator;
 use crate::shared::Identity;
 use crate::shared::listing::Keyed;
@@ -19,8 +20,8 @@ use crate::shared::listing::Keyed;
 ///    one of the host's; its issuer is the remote's, the one issuer the
 ///    handshake between the two speaks.
 /// 4. **Reached** through any connected provider whose discover listing
-///    holds `daemon`: the remote is reachable exactly while it is
-///    discoverable on one of them.
+///    holds `daemon` by a route its [`Routes`] let through: the remote is
+///    reachable exactly while it is discoverable so on one of them.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Daemon {
@@ -32,6 +33,10 @@ pub struct Daemon {
     pub daemon: Identity,
     /// The identity this daemon presents to it: our account there.
     pub identity: Identity,
+    /// The routes it may be reached by: see [`Routes`]. Its members lie
+    /// beside the record's own.
+    #[serde(flatten)]
+    pub routes: Routes,
     /// The tags on it, sorted.
     pub tags: Vec<String>,
     /// When it was added.

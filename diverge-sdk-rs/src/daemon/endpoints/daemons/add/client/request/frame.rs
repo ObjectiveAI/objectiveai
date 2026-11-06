@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use crate::shared::Identity;
+use crate::daemon::endpoints::daemons::Routes;
 use crate::shared::relay::Relay;
 
 /// Ask the daemon to record a remote daemon and the account of ours it is
@@ -25,6 +26,10 @@ pub struct Frame {
     /// The identity this daemon presents to it, one of the host's: its
     /// issuer must be the remote's.
     pub identity: Identity,
+    /// The routes it may be reached by: see [`Routes`]. Its members lie
+    /// beside the request's own; each absent, no filter.
+    #[serde(flatten)]
+    pub routes: Routes,
     /// The tags to put on it. Absent, none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,

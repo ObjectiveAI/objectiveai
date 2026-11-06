@@ -12,17 +12,24 @@
 //!    each is another account of ours there, and the name says which.
 //! 2. **Reached through discovery.** The daemon reaches a remote through
 //!    a connected provider whose discover listing holds the remote's
-//!    identity, one chosen at random where several do, and holds those
-//!    listings open while it is reaching remotes, as
+//!    identity — one route, a
+//!    [`Via`](crate::daemon::endpoints::providers::discover::server::response::Via)
+//!    — and holds those listings open while it is reaching remotes, as
 //!    [`providers::discover`](crate::daemon::endpoints::providers::discover)
 //!    holds them while watched. A remote that is discoverable on no
 //!    connected provider is not reached.
+//! 2a. **Through the routes its record lets through.** Of those routes,
+//!    only the ones the record's [`Routes`] let through are candidates,
+//!    one chosen at random where several are; none is the remote not
+//!    reached, with no fallback to a route the filters refuse.
 //! 3. **One connection per record**, kept while it is used and reused by
 //!    every relay and every connected tool naming the record.
 
 mod daemon;
+mod routes;
 
 pub use daemon::*;
+pub use routes::*;
 
 pub mod add;
 pub mod delete;
