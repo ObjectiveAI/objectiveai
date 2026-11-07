@@ -115,7 +115,8 @@ impl std::fmt::Display for NoProvider {
 /// # What is refused, and why
 ///
 /// A pinned provider is judged the same way, since it is asked
-/// nothing it cannot do: failing its capabilities is
+/// nothing it cannot do: failing its capabilities — among them one
+/// that runs no containers, see [`capable::check`] — is
 /// [`NoProvider::Unsupported`]; listing no registry, and the ask
 /// finding no store with the image, [`NoProvider::NoSource`].
 /// Unpinned, nothing connected is [`NoProvider::None`]; nothing left
@@ -208,8 +209,9 @@ enum Judged {
     Unlisted(String),
 }
 
-/// One provider judged, capabilities first and the registry second,
-/// from its cached info; a provider whose info the daemon has not
+/// One provider judged, capabilities first — whether it runs
+/// containers at all, then its volume modes, see [`capable::check`]
+/// — and the registry second, from its cached info; a provider whose info the daemon has not
 /// cached — not connected, read between two looks — is judged fit
 /// and refused by the run instead.
 async fn judge(daemon: &Daemon, identity: &Identity, needs: &Needs) -> Judged {
