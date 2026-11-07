@@ -23,9 +23,10 @@ use crate::shared::error::Error;
 /// [`VolumeMountUnsupported`](Self::VolumeMountUnsupported), `5` for
 /// [`VolumeMode`](Self::VolumeMode), `6` for
 /// [`Error`](Self::Error), `7` for [`Chunk`](Self::Chunk), `8` for
-/// [`Active`](Self::Active), `9` for [`Inactive`](Self::Inactive) —
-/// and the rest is that variant's own JSON, or nothing: the one
-/// bare word carries nothing after the byte.
+/// [`Active`](Self::Active), `9` for [`Inactive`](Self::Inactive), `10` for
+/// [`Unsupported`](Self::Unsupported) — and the rest is that
+/// variant's own JSON, or nothing: the two bare words carry nothing
+/// after the byte.
 ///
 /// # The id, then the conversation
 ///
@@ -40,6 +41,7 @@ use crate::shared::error::Error;
 /// | a volume mount unsupported, then a finish | it never started: the provider does not mount a volume of that volume's mode |
 /// | a volume mode, then a finish | it never started: that volume is not in the mode its mount names |
 /// | FUSE mounts unsupported, then a finish | it never started: the request names a FUSE mount, and the provider mounts none |
+/// | unsupported, then a finish | it never started: the provider runs no containers |
 /// | an error, then a finish | it never came up, or it is gone |
 /// | a finish, with no error | the run is over — a stop, or the container's own end |
 ///
@@ -206,6 +208,14 @@ pub enum Frame {
     /// quiet until the next message starts the next loop. Never
     /// without an [`Active`](Self::Active) before it.
     Inactive(Values),
+    /// The run was refused: the provider runs no containers — see
+    /// `containers` of
+    /// [`Capabilities`](crate::provider::endpoints::info::server::response::Capabilities).
+    /// Tag `10`, and nothing after it.
+    ///
+    /// The first and only response of its scope; the finish follows.
+    /// Nothing was fetched and nothing was deployed.
+    Unsupported,
 }
 
 /// Tag for [`Frame::Id`].
@@ -241,8 +251,11 @@ pub const ACTIVE: u8 = 8;
 /// values' JSON without reading it can frame it.
 pub const INACTIVE: u8 = 9;
 
+/// Tag for [`Frame::Unsupported`].
+const UNSUPPORTED: u8 = 10;
+
 impl Encode for Frame {
-    /// One failure per variant that carries JSON; the one bare word
+    /// One failure per variant that carries JSON; the two bare words
     /// cannot fail.
     type Error = FrameEncodeError;
 
@@ -292,6 +305,10 @@ impl Encode for Frame {
             Frame::Inactive(values) => {
                 out.extend_from_slice(&[INACTIVE]);
                 serde_json::to_writer(out, values).map_err(FrameEncodeError::Inactive)
+            }
+            Frame::Unsupported => {
+                out.extend_from_slice(&[UNSUPPORTED]);
+                Ok(())
             }
         }
     }
@@ -407,6 +424,7 @@ impl Decode<'_> for Frame {
             INACTIVE => serde_json::from_slice(rest)
                 .map(Frame::Inactive)
                 .map_err(FrameError::Inactive),
+            UNSUPPORTED => Ok(Frame::Unsupported),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -417,7 +435,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's ten.
+    /// A tag that is none of this frame's eleven.
     ///
     /// What a provider newer than its caller produces, which is the
     /// case the tag exists to make survivable: a reader that does not

@@ -136,6 +136,7 @@ where
         server::response::Frame::VolumeMode(refused) => {
             return Err(ExecuteError::VolumeMode(refused));
         }
+        server::response::Frame::Unsupported => return Err(ExecuteError::Unsupported),
         server::response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
         // The agent speaks only after the id, and no loop runs before
         // it; any of the three first is a provider out of order,
@@ -194,9 +195,8 @@ fn write_error(error: &Error) -> Option<Vec<u8>> {
 /// last seven are the provider saying so itself, and they are the
 /// only ones that mean the exchange worked: a volume the request
 /// named is held, mounted, FUSE served, of a mode the provider does
-/// not mount, or not in the mode its mount names; the request names a
-/// FUSE mount the provider will not make; or the provider could not
-/// run the container.
+/// not mount, or not in the mode its mount names; the provider runs
+/// no containers; or the provider could not run the container.
 #[derive(Debug)]
 pub enum ExecuteError {
     /// The request never went out.
@@ -238,6 +238,10 @@ pub enum ExecuteError {
     /// nothing was deployed; edit the volume or the mount, and ask
     /// again.
     VolumeMode(VolumeMode),
+    /// The provider refused the run: it runs no containers — its
+    /// `containers` capability is `false`. Nothing was fetched and
+    /// nothing was deployed; ask another provider.
+    Unsupported,
     /// The provider could not run the container, and said so.
     Provider(Error),
 }
@@ -279,6 +283,7 @@ impl fmt::Display for ExecuteError {
                 "the volume `{}` is in mode `{:?}`, not the mode the mount names",
                 refused.name, refused.mode
             ),
+            ExecuteError::Unsupported => f.write_str("the provider runs no containers"),
             ExecuteError::Provider(_) => f.write_str("the provider could not run the container"),
         }
     }
@@ -302,6 +307,7 @@ impl std::error::Error for ExecuteError {
             | ExecuteError::VolumeFuseServed(_)
             | ExecuteError::VolumeMountUnsupported(_)
             | ExecuteError::VolumeMode(_)
+            | ExecuteError::Unsupported
             | ExecuteError::Provider(_) => None,
         }
     }

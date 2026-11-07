@@ -10,9 +10,10 @@ use crate::provider::endpoints::volumes::Mode;
 ///
 /// Every provider serves every endpoint's wire — it reads every
 /// request and answers it — but not every provider does everything a
-/// request may ask: one has no image store, one pulls from no
-/// registry, one has no FUSE on its host, one keeps volumes of some
-/// modes only, and keeps them more narrowly than the mode allows.
+/// request may ask: one runs no containers, one has no image store,
+/// one pulls from no registry, one has no FUSE on its host, one keeps
+/// volumes of some modes only, and keeps them more narrowly than the
+/// mode allows.
 /// Each such part is one member here, and a request past it is not
 /// a failure but a refusal the endpoint has a variant of its own for,
 /// named below member by member. A caller that read these composes
@@ -48,6 +49,15 @@ use crate::provider::endpoints::volumes::Mode;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Capabilities {
+    /// The provider runs containers: it answers
+    /// [`containers::agents::run`](crate::provider::endpoints::containers::agents::run)
+    /// and
+    /// [`containers::tools::run`](crate::provider::endpoints::containers::tools::run).
+    /// Absent — `false` — each answers `Unsupported`, the first and
+    /// only response of its scope, and nothing is fetched and nothing
+    /// is deployed.
+    #[serde(default)]
+    pub containers: bool,
     /// The provider keeps an image store for its callers: it answers
     /// [`images::list`](crate::provider::endpoints::images::list),
     /// [`stat`](crate::provider::endpoints::images::stat),
