@@ -535,6 +535,16 @@ impl ScopeHandle {
         self.responses.gone().await;
     }
 
+    /// Whether the client took every response sent on the scope: `true`
+    /// once the scope's response stream has room again — the last
+    /// response taken off the client's queue — and `false` once the
+    /// client reads no more of it, or the scope or connection ended.
+    /// See [`Window::ready`]. What a scope that answers only once its
+    /// response is received waits on.
+    pub async fn response_taken(&self) -> bool {
+        self.responses.ready().await
+    }
+
     /// Resolves once the client reads no more of this end's answer on
     /// its channel `channel`, or the answer is over: as
     /// [`responses_gone`](Self::responses_gone), one level down. A

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use super::clients::Client;
 use super::containers::Containers;
 use super::images::Images;
+use super::messages::Messages;
 use super::volumes::Volumes;
 
 /// The whole of `provider.yaml`: what the provider is told.
@@ -67,12 +68,18 @@ pub struct Config {
     /// of a check is never available.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub images: Option<Images>,
+    /// The rate the provider relays direct messages at, between the
+    /// identities connected to it. Absent means it relays none: a
+    /// listen and a send are each answered unsupported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messages: Option<Messages>,
 }
 
 /// What a provider runs on before it has written a line of
 /// configuration: the proxy's port, no identity, nobody accepted,
 /// nobody dialled,
-/// the [`Containers`] defaults, no volume, no client image store.
+/// the [`Containers`] defaults, no volume, no client image store, no
+/// messages.
 impl Default for Config {
     fn default() -> Self {
         Config {
@@ -83,6 +90,7 @@ impl Default for Config {
             containers: Containers::default(),
             volumes: None,
             images: None,
+            messages: None,
         }
     }
 }

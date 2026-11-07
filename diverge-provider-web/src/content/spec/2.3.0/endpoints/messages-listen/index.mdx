@@ -1,0 +1,66 @@
+---
+title: 'messages::listen'
+summary: 'Tag 26: a client asks for every message sent to its identity; the server sends each message, one at a time, as the client takes the one before it, and finishes when the client cancels.'
+order: 26
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`26` and nothing more. The server opens a mailbox under the identity
+of the connection, and sends every message that a
+[messages::send](/endpoints/messages-send/) names that identity in, one
+response each, for as long as the scope lives. The scope ends at the
+client's cancel or at the client's connection ending; the response
+finish follows, and no frame follows the finish. A connection holds at
+most one messages::listen scope open at a time, as
+[One open at a time](/endpoints/#one-open-at-a-time) provides, and an
+identity holds at most one on the server as a whole.
+
+- **The request.** The request carries no parameter; the tag is the
+  whole of it. [Request](/endpoints/messages-listen/request/) states
+  its form.
+- **The response.** [Response](/endpoints/messages-listen/response/)
+  states the responses and the sequence of the main stream.
+- **The channels.** The client opens the one channel of
+  [Client Channels](/endpoints/messages-listen/client/), the cancel.
+  The server opens no channel on a listen scope.
+- **The capability.** A server that holds out no
+  [`messages`](/capabilities/#messages) object answers the request as
+  that section states.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Endpoints](/endpoints/) provides. A request read while a listen
+   scope is open on the same connection is answered by exactly one
+   response, the byte `2`, and the response finish.
+2. **The server opens the mailbox.** The mailbox is held under the
+   identity of the connection, as the
+   [authorization](/authorization/) established it. A listen scope open
+   under that identity already, on any connection, is answered by
+   exactly one response, the byte `2`, and the response finish.
+3. **The server sends each message.** The server sends the oldest
+   message queued in the mailbox as one response of the byte `0`. The
+   server sends the next message only after the client has taken the
+   response before it, which the return of the scope's room states, as
+   [Credits](/frames/credits/) provides. The server answers the message's
+   sender delivered when the client has taken the response.
+4. **The server ends the scope.** When it receives the client's
+   [cancel](/endpoints/messages-listen/client/cancel/), when the client
+   reads no more of the scope, or when the client's connection ends,
+   the server closes the mailbox, answers the sender of every message
+   still queued in it not listening, and sends the response finish. A
+   response the server has sent and the client has not taken is
+   answered to its sender as delivered when the client takes it before
+   the scope ends, and as not listening otherwise.
+
+## The rules that hold throughout
+
+- **No timeout.** The server times nothing out.
+- **One message ahead.** At most one response of the byte `0` is sent
+  and not yet taken at any time.
+- **Order.** The server sends the messages in the order in which it
+  queued them.
+- **No store.** The server keeps no message for an identity whose
+  mailbox is not open.

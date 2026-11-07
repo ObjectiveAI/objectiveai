@@ -1,4 +1,4 @@
-//! The four scopes a connection holds at most one of each.
+//! The six scopes a connection holds at most one of each.
 
 use std::borrow::Borrow;
 use std::ops::Deref;
@@ -8,7 +8,7 @@ use tokio::sync::{Mutex, OwnedMutexGuard};
 
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-/// One connection's four slots — one per whole-connection scope, see
+/// One connection's six slots — one per scope held once, see
 /// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time)
 /// — made in [`handle`](super::handle::handle) and never shared with
 /// another connection. The rules:
@@ -41,9 +41,13 @@ pub struct Singles {
     pub discover: Slot,
     /// [`daemons::accept`](diverge_sdk::provider::endpoints::daemons::accept).
     pub daemons_accept: Slot,
+    /// [`messages::listen`](diverge_sdk::provider::endpoints::messages::listen).
+    pub messages_listen: Slot,
+    /// [`messages::send`](diverge_sdk::provider::endpoints::messages::send).
+    pub messages_send: Slot,
 }
 
-/// One of the four, on one connection: free, or claimed by exactly one
+/// One of the six, on one connection: free, or claimed by exactly one
 /// [`Single`].
 #[derive(Debug, Default)]
 pub struct Slot(Arc<Mutex<()>>);

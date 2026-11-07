@@ -1,0 +1,57 @@
+---
+title: 'Response'
+summary: 'The server sends at most one response: the byte 0 when the receiver has taken the message, the byte 1 when the receiver is not listening, the byte 2 and the seconds left when the sender is over its rate, the byte 3 when the server relays no message, or the byte 4 when a send is open already; the response finish follows it, and a cancel in time is the finish alone.'
+order: 2
+draft: false
+---
+
+The server sends at most one response on the scope, and the response
+finish follows it. No frame bearing the scope follows the finish.
+
+```text
+[0]                         once: the receiver took the message
+[1]                         once: the receiver is not listening
+[2][retry_after, varint]    once, alone: the sender is over its rate
+[3]                         once, alone: the server relays no message
+[4]                         once, alone: a send is open already
+```
+
+- **The sequence.** Exactly one response of the byte `0`, `1`, `2`,
+  `3` or `4`, and the response finish. Or: the response finish alone,
+  when the client cancelled while the message was queued, or the
+  request was not served.
+- **Delivered.** A payload that is the byte `0` and nothing else
+  states that the receiver's client has taken the message off its
+  queue: the receiver's listen scope's room has returned, as
+  [Credits](/frames/credits/) provides.
+- **Not listening.** A payload that is the byte `1` and nothing else
+  states that no mailbox was open under the receiver when the server
+  queued the send, or that the mailbox closed before the receiver's
+  client took the message.
+- **Rate limited.** A payload whose first byte is `2` carries, after
+  that byte, `retry_after`: a `u32` as an unsigned LEB128 varint, the
+  number of seconds until the sender's window ends, rounded up, as
+  [messages::send](/endpoints/messages-send/#the-window) provides. The
+  server queued nothing.
+- **Unsupported.** A payload that is the byte `3` and nothing else
+  states that the server holds out no
+  [`messages`](/capabilities/#messages) object and relays no message.
+- **Already open.** A payload that is the byte `4` and nothing else
+  states that a send scope is open on the connection already, as
+  [One open at a time](/endpoints/#one-open-at-a-time) provides.
+- **First and alone.** The bytes `2`, `3` and `4` are sent before
+  anything is queued. Bytes after the byte `0`, `1`, `3` or `4` are
+  not read.
+- **No error.** No response of this endpoint states a failure.
+- **A finish with nothing before it.** The client cancelled while the
+  message was queued, and the receiver never received it; or the
+  request was not served, as [Endpoints](/endpoints/) provides. The
+  server does not say which.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is none of `0` to `4`, and a payload whose bytes after `2` are not
+  one varint are malformed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/messages/send/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/messages/send/server/response/frame.rs
+```

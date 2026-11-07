@@ -1,6 +1,6 @@
 //! What this provider holds out, read off its configuration.
 
-use diverge_sdk::provider::endpoints::info::server::response::{Capabilities, VolumeCapabilities};
+use diverge_sdk::provider::endpoints::info::server::response::{Capabilities, MessagesCapabilities, VolumeCapabilities};
 
 use crate::config::Config;
 
@@ -20,6 +20,9 @@ use crate::config::Config;
 ///   container, since a serve opens the image in userspace and the
 ///   image bears one writer; an ephemeral or a read-only one by any
 ///   number of either at once.
+/// - `messages`: the `messages` section's rate, as it is written; the
+///   section absent, no object, and every listen and send answered
+///   `Unsupported`.
 pub fn capabilities(config: &Config) -> Capabilities {
     Capabilities {
         containers: config.containers.enabled,
@@ -40,6 +43,7 @@ pub fn capabilities(config: &Config) -> Capabilities {
         },
         volumes_ephemeral: ANY,
         volumes_read_only: ANY,
+        messages: config.messages.map(|messages| MessagesCapabilities { messages: messages.messages, seconds: messages.seconds }),
     }
 }
 

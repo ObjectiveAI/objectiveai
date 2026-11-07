@@ -27,6 +27,9 @@
 //!    window under it, and a send waiting on one returns ([`Ended`]).
 //! 8. Opening a scope is not paced: a server pulls requests by polling
 //!    its session.
+//! 9. A sender may wait for its room to come back without spending it
+//!    ([`Window::ready`]): room back is every frame it sent on the
+//!    stream taken by the reader's consumer (rule 4) — the receipt.
 //!
 //! Which bounds memory, everywhere: what can sit in a queue is one frame
 //! and one finish per stream, and a frame is at most
@@ -152,6 +155,19 @@ impl Window {
             if changes.changed().await.is_err() {
                 return Err(Ended::Connection);
             }
+        }
+    }
+
+    /// Wait for room without spending it (rule 9): `true` once the
+    /// stream has room — every frame sent on it taken — and `false`
+    /// once its reader is gone (rule 5) or the stream ended (rule 7),
+    /// which outrank room as they do in [`take`](Self::take).
+    /// Cancel-safe: nothing is spent either way.
+    pub async fn ready(&self) -> bool {
+        let mut changes = self.0.subscribe();
+        match changes.wait_for(|state| state.room > 0 || state.abandoned || state.ended.is_some()).await {
+            Ok(state) => !state.abandoned && state.ended.is_none(),
+            Err(_) => false,
         }
     }
 

@@ -1,0 +1,79 @@
+//! What a client's channel request frame carries for a listen.
+
+use std::fmt;
+
+use crate::wire::decode::Decode;
+use crate::wire::encode::{Encode, Writer};
+
+/// What a caller asks a provider for while a listen is open: the one
+/// thing, that it is done.
+///
+/// | tag | asks for |
+/// |-----|----------|
+/// | `0` | [`Cancel`](Self::Cancel) |
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Frame {
+    /// End the listen. Tag `0`.
+    ///
+    /// Carries nothing — the variant is bare — and nothing comes back
+    /// on this channel. What comes back is the end of the SCOPE, a
+    /// [`ResponseFinish`](crate::wire::frame::server::ServerFrame::ResponseFinish),
+    /// which already means nothing bearing this scope follows on any
+    /// channel. Messages the provider had sent already precede the
+    /// finish, since a cancel is a request and not a recall; a message
+    /// still queued for the caller is answered to its sender as not
+    /// listening. A cancel of a listen that has already finished, or is
+    /// finishing, changes nothing; a second cancel changes nothing
+    /// either.
+    Cancel,
+}
+
+/// Tag for [`Frame::Cancel`].
+const CANCEL: u8 = 0;
+
+impl Encode for Frame {
+    /// Nothing can fail: the frame is one byte.
+    type Error = std::convert::Infallible;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        match self {
+            Frame::Cancel => {
+                out.extend_from_slice(&[CANCEL]);
+                Ok(())
+            }
+        }
+    }
+}
+
+impl Decode<'_> for Frame {
+    /// Two ways to fail: nothing, or a tag that is not the one.
+    type Error = FrameError;
+
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let (tag, _) = bytes.split_first().ok_or(FrameError::Empty)?;
+        match *tag {
+            CANCEL => Ok(Frame::Cancel),
+            tag => Err(FrameError::UnknownTag(tag)),
+        }
+    }
+}
+
+/// A listen channel request that could not be read.
+#[derive(Debug)]
+pub enum FrameError {
+    /// No bytes at all, so not even a tag.
+    Empty,
+    /// A tag that is not this frame's one.
+    UnknownTag(u8),
+}
+
+impl fmt::Display for FrameError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FrameError::Empty => f.write_str("listen channel request frame is empty"),
+            FrameError::UnknownTag(tag) => write!(f, "unknown listen channel request tag {tag}"),
+        }
+    }
+}
+
+impl std::error::Error for FrameError {}

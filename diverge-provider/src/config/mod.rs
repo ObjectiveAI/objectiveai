@@ -84,6 +84,7 @@ mod root;
 pub mod clients;
 pub mod containers;
 pub mod images;
+pub mod messages;
 pub mod volumes;
 
 pub use config::*;

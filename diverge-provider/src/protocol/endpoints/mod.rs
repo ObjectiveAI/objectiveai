@@ -10,4 +10,5 @@ pub mod daemons;
 pub mod discover;
 pub mod images;
 pub mod info;
+pub mod messages;
 pub mod volumes;

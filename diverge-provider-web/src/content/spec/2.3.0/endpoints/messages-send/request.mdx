@@ -1,0 +1,35 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 27, the receiver’s identity in the postcard wire format, and the body, running to the end of the payload.'
+order: 1
+draft: false
+---
+
+The payload of the request is the tag byte, the receiver's identity,
+and the body:
+
+```text
+[27][to, postcard …][body …]
+```
+
+- **`to`.** The identity of the receiver: `issuer` as a varint byte length followed by that many bytes of
+  UTF-8, followed by `subject` as a varint byte length followed by
+  that many bytes of UTF-8, as the postcard reading of
+  [Notation](/endpoints/#notation) provides. The
+  server compares both members with those of every identity whose
+  mailbox is open and does not otherwise read them.
+- **The body.** The bytes after the identity, running to the end of
+  the payload, are the body of the message. No length precedes the
+  body, because the payload ends where the body ends. The body may be
+  empty. The server does not read the body, and sends it to the
+  receiver byte for byte. This revision prescribes nothing about its
+  content.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is not `27`, and a payload whose bytes after the tag do not begin
+  with one identity are malformed. [Endpoints](/endpoints/) states how
+  a server answers a request it cannot read.
+
+The request is defined by `diverge-sdk-rs/src/provider/endpoints/messages/send/client/request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/messages/send/client/request/frame.rs
+```

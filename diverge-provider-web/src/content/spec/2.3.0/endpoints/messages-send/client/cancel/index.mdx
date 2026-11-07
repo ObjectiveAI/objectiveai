@@ -1,0 +1,26 @@
+---
+title: 'Cancel'
+summary: 'Tag 0: the client takes the message back; while the message is queued, the server removes it and sends the response finish with no response before it; after, the cancel changes nothing.'
+order: 0
+draft: false
+---
+
+The client takes the message back by opening this channel. The server
+sends no frame on the channel; the scope's answer states which came
+first.
+
+- **The request.** The payload is the tag byte `0` and nothing more.
+  [Request](/endpoints/messages-send/client/cancel/request/) states its
+  form.
+- **The response.** The server sends nothing on the channel.
+  [Response](/endpoints/messages-send/client/cancel/response/) states
+  the sequence.
+- **In time.** When the server receives the channel request while the
+  message is queued in the receiver's mailbox, it removes the message,
+  sends no response on the scope, and sends the response finish. The
+  receiver never receives the message.
+- **Too late.** When the server receives the channel request after it
+  has sent the message to the receiver, the cancel changes nothing:
+  the server sends the response it would have sent, and the response
+  finish.
+- **Once.** A second cancel changes nothing.

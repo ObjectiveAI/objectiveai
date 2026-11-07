@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::VolumeCapabilities;
+use super::{MessagesCapabilities, VolumeCapabilities};
 use crate::provider::endpoints::volumes::Mode;
 
 /// Which of the specification's optional parts this provider serves.
@@ -21,12 +21,13 @@ use crate::provider::endpoints::volumes::Mode;
 ///
 /// # Flat, and tolerant
 ///
-/// One object, every member at the top, each a boolean, a list or an
-/// object of booleans; no member nests a capability inside another
-/// but the three volume modes, whose object says what may be done
-/// with a volume of the mode. A member absent is the capability
+/// One object, every member at the top, each a boolean, a list, an
+/// object of booleans, or an object of numbers; no member nests a
+/// capability inside another but the three volume modes, whose object
+/// says what may be done with a volume of the mode, and `messages`,
+/// whose object is its rate. A member absent is the capability
 /// absent — `false`, the empty list, the object of every member
-/// `false` — so a provider states only what it does. A member a
+/// `false`, no object — so a provider states only what it does. A member a
 /// reader does not know is ignored: see [`Frame`](super::Frame).
 ///
 /// # No mode is no volumes
@@ -103,6 +104,15 @@ pub struct Capabilities {
     /// for [`volumes_persistent`](Self::volumes_persistent).
     #[serde(default)]
     pub volumes_read_only: VolumeCapabilities,
+    /// The provider relays messages between the identities connected
+    /// to it: it answers
+    /// [`messages::listen`](crate::provider::endpoints::messages::listen)
+    /// and [`messages::send`](crate::provider::endpoints::messages::send),
+    /// at no more than this rate. Absent, it relays none, and each of
+    /// the two answers `Unsupported`, the first and only response of
+    /// its scope. See [`MessagesCapabilities`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messages: Option<MessagesCapabilities>,
 }
 
 impl Capabilities {

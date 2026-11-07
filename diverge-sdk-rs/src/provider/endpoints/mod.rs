@@ -11,6 +11,7 @@
 //! | [`volumes`] | list what a provider offers, and keep the listing; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
 //! | [`daemons`] | accept connections from other daemons; connect to another daemon |
 //! | [`discover`] | ask which connected identities are discoverable |
+//! | [`messages`] | listen for the messages sent to the caller, and keep listening; send one message to one identity |
 //! | [`info`] | ask what a provider is: its version, and what it does |
 //! | [`capacity`] | ask how much the caller may still use: room for a volume, room in the image store, memory and disk a run could reserve |
 //!
@@ -49,8 +50,10 @@
 //! | `23` | [`daemons::accept`] |
 //! | `24` | [`daemons::connect`] |
 //! | `25` | [`discover`] |
+//! | `26` | [`messages::listen`] |
+//! | `27` | [`messages::send`] |
 //!
-//! Twenty-six, grouped by endpoint and ordered within it. The four
+//! Twenty-eight, grouped by endpoint and ordered within it. The four
 //! container scopes lead: the agents' run, the tools' run, the serve
 //! that answers a running container's files live, and the info that
 //! reads an image's DIVERGE.md without running it. The eleven volume
@@ -67,6 +70,9 @@
 //! after: a daemon accepting connections from other daemons, and a
 //! daemon connecting to one. And [`discover`], added after them, which
 //! asks which of the provider's connected identities may be listed.
+//! And the two of [`messages`], added after it: a listen for the
+//! messages sent to the caller, and a send of one message to one
+//! identity.
 //!
 //! Nothing derives meaning from adjacency, which [`info`] is the
 //! proof of — it is the one a client asks FIRST and it sits near the
@@ -102,25 +108,28 @@
 //!
 //! # One open at a time
 //!
-//! Four scopes are whole-connection views — [`volumes::list`],
-//! [`images::list`], [`discover`] and [`daemons::accept`] — and a
-//! connection holds at most one of each. The rules:
+//! Six scopes are held at most one of each per connection: the
+//! whole-connection views [`volumes::list`], [`images::list`],
+//! [`discover`] and [`daemons::accept`], and the two of [`messages`],
+//! [`messages::listen`] and [`messages::send`]. The rules:
 //!
 //! 1. **One at a time.** On one connection, at most one scope of each
-//!    of the four is open at a time.
+//!    of the six is open at a time.
 //! 2. **Refused, not queued.** A request opening a second while the
 //!    first is open is answered with exactly one response, the
 //!    endpoint's `AlreadyOpen`, and the finish follows it. Nothing else
-//!    is done for it: nothing is listed, and nothing is accepted.
+//!    is done for it: nothing is listed, nothing is accepted, and
+//!    nothing is sent.
 //! 3. **Open until its finish.** A scope counts as open from the
 //!    server reading its request until the server sends its finish.
 //! 4. **Free before the finish.** The server lets the scope go before
 //!    it sends the finish, so a client that reads the finish and opens
 //!    another at once is never refused.
-//! 5. **Per endpoint, per connection.** The four are independent of
+//! 5. **Per endpoint, per connection.** The six are independent of
 //!    one another, and of every other connection. [`daemons::accept`]
-//!    is also one per identity: an accept under an identity that
-//!    accepts on another connection is `AlreadyOpen` as well.
+//!    and [`messages::listen`] are also one per identity: an accept or
+//!    a listen under an identity that holds one on another connection
+//!    is `AlreadyOpen` as well.
 
 mod client_request;
 
@@ -132,4 +141,5 @@ pub mod daemons;
 pub mod discover;
 pub mod images;
 pub mod info;
+pub mod messages;
 pub mod volumes;

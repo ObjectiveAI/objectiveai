@@ -29,7 +29,7 @@
 //! [`info`](diverge_sdk::provider::endpoints::info) and
 //! [`capacity`](diverge_sdk::provider::endpoints::capacity) answer and
 //! finish, which is the whole of what those endpoints do; the two listings stay open
-//! until the caller stops, and a build until the build ends. The two
+//! until the caller cancels, and a build until the build ends. The two
 //! [`containers`](diverge_sdk::provider::endpoints::containers) runs serve for as
 //! long as their containers run: each brings its container up,
 //! answers its id, and then carries the container's asks out and the
@@ -209,6 +209,7 @@ pub mod image_manager;
 pub mod image_registry;
 pub mod image_source;
 pub mod keepalive;
+pub mod mailboxes;
 pub mod mount;
 pub mod oci_store;
 pub mod progress;

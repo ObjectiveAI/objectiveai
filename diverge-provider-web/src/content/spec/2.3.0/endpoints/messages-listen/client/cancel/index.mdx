@@ -1,0 +1,28 @@
+---
+title: 'Cancel'
+summary: 'Tag 0: the client ends the scope; the server sends nothing on the channel, closes the mailbox, and sends the response finish of the scope.'
+order: 0
+draft: false
+---
+
+The client ends the scope by opening this channel. The server sends
+no frame on the channel; the response finish of the scope is its
+answer.
+
+- **The request.** The payload is the tag byte `0` and nothing more.
+  [Request](/endpoints/messages-listen/client/cancel/request/) states
+  its form.
+- **The response.** The server sends nothing on the channel.
+  [Response](/endpoints/messages-listen/client/cancel/response/) states
+  the sequence.
+- **The effect.** When the server receives the channel request, it
+  sends no further message, closes the mailbox as
+  [messages::listen](/endpoints/messages-listen/) provides, and sends
+  the response finish of the scope. The server reads a cancel before
+  it sends the next message queued. The server reads no further
+  channel request on the scope.
+- **Not a recall.** A response the server sent before it received the
+  channel request precedes the response finish.
+- **The one end the client has.** A listen does not end because no
+  message is queued. A client ends the scope with this, or by ending
+  its connection.

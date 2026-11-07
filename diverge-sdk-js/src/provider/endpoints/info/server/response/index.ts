@@ -3,4 +3,5 @@
 
 export * from "./frame.js";
 export * from "./capabilities.js";
+export * from "./messages_capabilities.js";
 export * from "./volume_capabilities.js";

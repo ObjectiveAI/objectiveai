@@ -16,6 +16,7 @@ use diverge_sdk::wire::handshake::{self, Handshook};
 use crate::protocol::acceptors::Acceptors;
 use crate::protocol::directory::Directory;
 use crate::protocol::discoverable::Discoverable;
+use crate::protocol::mailboxes::Mailboxes;
 use crate::protocol::changes::Changes;
 use crate::protocol::handle::handle;
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
@@ -69,6 +70,9 @@ pub struct Provider {
     /// The connected identities whose discover flag was `1`, one set
     /// for the provider.
     discoverable: Arc<Discoverable>,
+    /// The identities listening for messages, what waits for each, and
+    /// every sender's window, one for the provider.
+    mailboxes: Arc<Mailboxes>,
     /// Every change to any caller's volumes, for the listings open.
     volume_changes: Arc<Changes>,
     /// Every change to any caller's images, for the listings open.
@@ -145,6 +149,7 @@ impl Provider {
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
             discoverable: Arc::new(Discoverable::new()),
+            mailboxes: Arc::new(Mailboxes::new(capabilities.messages)),
             volume_changes: Arc::new(Changes::new()),
             image_changes: Arc::new(Changes::new()),
             capabilities,
@@ -182,6 +187,7 @@ impl Provider {
         if listed {
             self.discoverable.leave(&peer).await;
         }
+        self.mailboxes.left(&peer).await;
         self.authenticator.release(&peer).await;
     }
 
@@ -225,6 +231,7 @@ impl Provider {
             Arc::clone(&self.image_changes),
             Arc::clone(&self.acceptors),
             Arc::clone(&self.discoverable),
+            Arc::clone(&self.mailboxes),
             Arc::clone(&self.capabilities),
         ));
         let stopping = pin!(async move {

@@ -1,0 +1,62 @@
+---
+title: 'Response'
+summary: 'Responses of the byte 0 followed by the sender’s identity in the postcard wire format and the body, one per message; the byte 1, alone and first, when the server relays no message; or the byte 2, alone and first, when a listen is open already; and the response finish.'
+order: 2
+draft: false
+---
+
+```text
+[0][from, postcard …][body …]   per message
+[1]                             once, alone: the server relays no message
+[2]                             once, alone: a listen is open already
+```
+
+- **The sequence.** Zero or more responses of the byte `0`, each
+  followed by one message, as messages are sent to the client's
+  identity. The response finish follows the last of them, when the
+  client cancels, reads no more of the scope, or its connection ends.
+  Or: exactly one response of the byte `1` and nothing else, and the
+  response finish. Or: exactly one response of the byte `2` and
+  nothing else, and the response finish.
+- **One ahead.** The server sends a response of the byte `0` only
+  when the client has taken every response before it on the scope.
+- **The message.** A payload whose first byte is `0` carries, after
+  that byte, the identity of the connection that sent the message,
+  `issuer` as a varint byte length followed by that many bytes of
+  UTF-8, followed by `subject` as a varint byte length followed by
+  that many bytes of UTF-8, as the postcard reading of
+  [Notation](/endpoints/#notation) provides, followed by the body, running to the end of the
+  payload. No length precedes the body, because the payload ends where
+  the body ends. The body is the body the
+  [messages::send](/endpoints/messages-send/request/) request carried,
+  byte for byte. This revision prescribes nothing about its content.
+- **`from`.** The identity of the sending connection, as its
+  [authorization](/authorization/) established it: `issuer` is the
+  `iss` claim of its token and `subject` the `sub` claim.
+- **Unsupported.** A payload that is the byte `1` and nothing else
+  states that the server holds out no
+  [`messages`](/capabilities/#messages) object and relays no message.
+  It is the only response of the scope; bytes after it are not read.
+- **Already open.** A payload that is the byte `2` and nothing else
+  states that a listen scope is open already: on the connection, as
+  [One open at a time](/endpoints/#one-open-at-a-time) provides, or
+  under the identity on another connection, as
+  [messages::listen](/endpoints/messages-listen/) provides. It is the
+  only response of the scope; bytes after it are not read.
+- **No error.** No response of this endpoint states a failure.
+- **A finish with nothing before it.** The request was not served, as
+  [Endpoints](/endpoints/) provides, or the client cancelled before
+  the server had sent anything. The server does not say which.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is none of `0` to `2`, and a payload whose bytes after `0` do not
+  begin with one identity are malformed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/messages/listen/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/messages/listen/server/response/frame.rs
+```
+
+and the message by `diverge-sdk-rs/src/provider/endpoints/messages/listen/server/response/message.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/messages/listen/server/response/message.rs
+```

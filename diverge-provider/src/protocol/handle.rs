@@ -12,6 +12,7 @@ use super::capacity_reporter::CapacityReporter;
 use super::container_deployer::ContainerDeployer;
 use super::directory::Directory;
 use super::discoverable::Discoverable;
+use super::mailboxes::Mailboxes;
 use super::singles::Singles;
 use super::changes::Changes;
 use super::image_checker::ImageChecker;
@@ -61,11 +62,13 @@ use diverge_sdk::shared::error::Error;
 /// [`Acceptors`], one per provider likewise, through which a daemon
 /// connecting on this connection finds one accepting on any other; and
 /// the [`Discoverable`], one per provider likewise, which a `discover`
-/// on this connection lists.
+/// on this connection lists; and the [`Mailboxes`], one per provider
+/// likewise, through which a send on this connection reaches a listen
+/// on any other.
 ///
 /// # One open at a time
 ///
-/// Four scopes are held at most one of each per connection — see
+/// Six scopes are held at most one of each per connection — see
 /// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time)
 /// — and this is where they are claimed: the connection's own
 /// [`Singles`], made here and never shared, claimed in the arm that
@@ -98,6 +101,7 @@ pub async fn handle<D, V, I, M, O, R, C>(
     image_changes: Arc<Changes>,
     acceptors: Arc<Acceptors>,
     discoverable: Arc<Discoverable>,
+    mailboxes: Arc<Mailboxes>,
     capabilities: Arc<Capabilities>,
 ) -> Result<(), HandleError>
 where
@@ -430,6 +434,40 @@ where
                 let discoverable = Arc::clone(&discoverable);
                 scopes.spawn(async move {
                     endpoints::discover::handle(scope, discoverable).await;
+                });
+            }
+            ClientRequest::MessagesListen(_) => {
+                let scope = match singles.messages_listen.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::messages::listen::refuse(scope));
+                        continue;
+                    }
+                };
+                let identity = Arc::clone(&client_identity);
+                let mailboxes = Arc::clone(&mailboxes);
+                let capabilities = Arc::clone(&capabilities);
+                scopes.spawn(async move {
+                    endpoints::messages::listen::handle(scope, &identity, mailboxes, &capabilities).await;
+                });
+            }
+            ClientRequest::MessagesSend(frame) => {
+                let scope = match singles.messages_send.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::messages::send::refuse(scope));
+                        continue;
+                    }
+                };
+                // The body kept as a slice of the payload it arrived
+                // in, so the message waits without a copy.
+                let body = payload.slice_ref(frame.body);
+                let to = frame.to;
+                let identity = Arc::clone(&client_identity);
+                let mailboxes = Arc::clone(&mailboxes);
+                let capabilities = Arc::clone(&capabilities);
+                scopes.spawn(async move {
+                    endpoints::messages::send::handle(scope, &identity, to, body, mailboxes, &capabilities).await;
                 });
             }
             ClientRequest::Invalid(_) => scope.send_response_finish().await,
