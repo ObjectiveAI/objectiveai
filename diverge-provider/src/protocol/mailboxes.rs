@@ -11,6 +11,8 @@ use tokio::sync::{Mutex, Notify, oneshot};
 use diverge_sdk::provider::endpoints::info::server::response::MessagesCapabilities;
 use diverge_sdk::shared::Identity;
 
+use super::discoverable::Discoverable;
+
 /// Every identity with a `messages::listen` open on this provider, the
 /// messages queued for each, and the window of every identity that
 /// sent. One per provider, shared across every connection's
@@ -32,6 +34,10 @@ use diverge_sdk::shared::Identity;
 ///    begins at the first send it counts and lasts the provider's
 ///    `seconds`, and holds at most `messages` sends; a send after it
 ///    begins another. [`admit`](Self::admit) counts.
+/// 6. **Listening is discovery's.** A mailbox opened marks its identity
+///    listening in the [`Discoverable`], and one closed marks it not,
+///    each under the mailboxes' lock, so discovery says listening
+///    exactly while a mailbox is open.
 /// 5. **Stale windows go.** An expired window is replaced at its
 ///    identity's next send. An identity that disconnects has its window
 ///    removed at its end — never before, so a sender does not begin
@@ -40,6 +46,8 @@ use diverge_sdk::shared::Identity;
 pub struct Mailboxes {
     /// The rate: `None` on a provider that relays no messages.
     rate: Option<MessagesCapabilities>,
+    /// Discovery, told who listens (rule 6).
+    discoverable: Arc<Discoverable>,
     /// The open mailboxes, by their listening identity.
     boxes: Mutex<HashMap<Identity, Arc<Mailbox>>>,
     /// Every sending identity's window (rules 4 and 5).
@@ -107,10 +115,11 @@ struct Window {
 }
 
 impl Mailboxes {
-    /// Empty, relaying at `rate`.
-    pub fn new(rate: Option<MessagesCapabilities>) -> Self {
+    /// Empty, relaying at `rate`, telling `discoverable` who listens.
+    pub fn new(rate: Option<MessagesCapabilities>, discoverable: Arc<Discoverable>) -> Self {
         Mailboxes {
             rate,
+            discoverable,
             boxes: Mutex::new(HashMap::new()),
             windows: Arc::new(Mutex::new(HashMap::new())),
             next: Mutex::new(0),
@@ -126,14 +135,22 @@ impl Mailboxes {
         }
         let mailbox = Arc::new(Mailbox { queue: Mutex::new(Queue::default()), arrived: Notify::new() });
         boxes.insert(identity.clone(), Arc::clone(&mailbox));
+        // Rule 6, under the lock.
+        self.discoverable.listening(identity, true).await;
         Some(mailbox)
     }
 
     /// Close `identity`'s mailbox (rule 3): nothing finds it any more,
     /// and every message still queued is answered not listening.
     pub async fn close(&self, identity: &Identity) {
-        let Some(mailbox) = self.boxes.lock().await.remove(identity) else {
-            return;
+        let mailbox = {
+            let mut boxes = self.boxes.lock().await;
+            let Some(mailbox) = boxes.remove(identity) else {
+                return;
+            };
+            // Rule 6, under the lock.
+            self.discoverable.listening(identity, false).await;
+            mailbox
         };
         let mut queue = mailbox.queue.lock().await;
         queue.closed = true;

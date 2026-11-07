@@ -58,6 +58,7 @@ impl Stream for ExecuteStream {
         };
         match response::Frame::decode(payload) {
             Ok(response::Frame::Message(message)) => Poll::Ready(Some(Ok(message))),
+            Ok(response::Frame::NotDiscoverable) => self.end(ExecuteStreamError::NotDiscoverable),
             Ok(response::Frame::Unsupported) => self.end(ExecuteStreamError::Unsupported),
             Ok(response::Frame::AlreadyOpen) => self.end(ExecuteStreamError::AlreadyOpen),
             Err(error) => self.end(ExecuteStreamError::Response(error)),
@@ -76,6 +77,10 @@ pub enum ExecuteStreamError {
     Misrouted,
     /// A response that is not this scope's.
     Response(response::FrameDecodeError),
+    /// The caller's connection is not in discovery, and nothing is
+    /// listened for: only a discoverable identity listens. The
+    /// protocol's defined refusal, not a failure.
+    NotDiscoverable,
     /// The provider relays no messages, and nothing is listened for.
     /// The protocol's defined refusal, not a failure.
     Unsupported,
@@ -92,6 +97,7 @@ impl fmt::Display for ExecuteStreamError {
             ExecuteStreamError::Frame(error) => write!(f, "frame did not decode: {error}"),
             ExecuteStreamError::Misrouted => f.write_str("a frame that cannot be on a main stream arrived"),
             ExecuteStreamError::Response(error) => write!(f, "{error}"),
+            ExecuteStreamError::NotDiscoverable => f.write_str("this connection is not in the provider's discovery"),
             ExecuteStreamError::Unsupported => f.write_str("the provider relays no messages"),
             ExecuteStreamError::AlreadyOpen => f.write_str("a listen is open under this identity already"),
         }
@@ -105,6 +111,7 @@ impl std::error::Error for ExecuteStreamError {
             ExecuteStreamError::Response(error) => Some(error),
             ExecuteStreamError::Closed
             | ExecuteStreamError::Misrouted
+            | ExecuteStreamError::NotDiscoverable
             | ExecuteStreamError::Unsupported
             | ExecuteStreamError::AlreadyOpen => None,
         }

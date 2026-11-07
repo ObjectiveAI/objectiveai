@@ -12,7 +12,8 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// A listen is a stream kept open. A payload leads with one byte
 /// saying which — `0` for [`Message`](Self::Message), `1` for
-/// [`Unsupported`](Self::Unsupported), `2` for
+/// [`NotDiscoverable`](Self::NotDiscoverable), `2` for
+/// [`Unsupported`](Self::Unsupported), `3` for
 /// [`AlreadyOpen`](Self::AlreadyOpen) — and the rest is that variant's
 /// own bytes. The rules:
 ///
@@ -27,6 +28,9 @@ use crate::wire::encode::{Encode, Writer};
 ///    the caller's connection ending, and nothing else.
 /// 4. **The refusals.** A provider that relays no messages sends
 ///    `Unsupported` first and alone, and the finish follows it. A
+///    connection that is not in discovery — its discover flag `0` — is
+///    sent `NotDiscoverable` first and alone, and the finish follows
+///    it: only a discoverable identity listens. A
 ///    connection with a listen open already, or an identity with a
 ///    listen open on another connection, is sent `AlreadyOpen` first
 ///    and alone, and the finish follows it — see
@@ -49,14 +53,20 @@ pub enum Frame {
     /// There is no length before the body, because the payload already
     /// ends where the body does.
     Message(Message),
+    /// The caller's connection is not in discovery: its discover flag
+    /// was `0`, see [`discover`](crate::provider::endpoints::discover).
+    /// Tag `1`.
+    ///
+    /// Carries nothing. Sent first and alone (rule 4).
+    NotDiscoverable,
     /// The provider relays no messages: no `messages` object is among
     /// its capabilities, see [`info`](crate::provider::endpoints::info).
-    /// Tag `1`.
+    /// Tag `2`.
     ///
     /// Carries nothing. Sent first and alone (rule 4).
     Unsupported,
     /// Refused: a listen is open on this connection already, or under
-    /// the caller's identity on another. Tag `2`.
+    /// the caller's identity on another. Tag `3`.
     ///
     /// Carries nothing. Sent first and alone (rule 4).
     AlreadyOpen,
@@ -65,11 +75,14 @@ pub enum Frame {
 /// Tag for [`Frame::Message`].
 const MESSAGE: u8 = 0;
 
+/// Tag for [`Frame::NotDiscoverable`].
+const NOT_DISCOVERABLE: u8 = 1;
+
 /// Tag for [`Frame::Unsupported`].
-const UNSUPPORTED: u8 = 1;
+const UNSUPPORTED: u8 = 2;
 
 /// Tag for [`Frame::AlreadyOpen`].
-const ALREADY_OPEN: u8 = 2;
+const ALREADY_OPEN: u8 = 3;
 
 impl Frame {
     /// Write a message's payload from its parts, as
@@ -93,6 +106,10 @@ impl Encode for Frame {
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), FrameEncodeError> {
         match self {
             Frame::Message(message) => Frame::encode_message(&message.from, &message.body, out),
+            Frame::NotDiscoverable => {
+                out.extend_from_slice(&[NOT_DISCOVERABLE]);
+                Ok(())
+            }
             Frame::Unsupported => {
                 out.extend_from_slice(&[UNSUPPORTED]);
                 Ok(())
@@ -116,6 +133,7 @@ impl Decode<'_> for Frame {
                 let (from, body) = postcard::take_from_bytes(rest).map_err(FrameDecodeError::Identity)?;
                 Ok(Frame::Message(Message { from, body: Bytes::copy_from_slice(body) }))
             }
+            NOT_DISCOVERABLE => Ok(Frame::NotDiscoverable),
             UNSUPPORTED => Ok(Frame::Unsupported),
             ALREADY_OPEN => Ok(Frame::AlreadyOpen),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
@@ -151,7 +169,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The sender's identity did not parse.
     Identity(postcard::Error),

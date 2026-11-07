@@ -30,10 +30,13 @@ use crate::protocol::singles::Single;
 ///    one `Listed`.
 /// 3. **Kept.** On every nudge — and on a lag, which may have skipped
 ///    some — the identities are read again and what differs is told:
-///    each new one as `Added`, then each gone as `Removed`. An identity
+///    each gone as `Removed`, then each new one as `Added`. An identity
 ///    held still as another item — another description, IP or address:
 ///    its connection ended and another opened between two reads — is
 ///    told as `Removed` as it was, then `Added` as it is.
+/// 3a. **Listening, by the key.** An identity held still as the same
+///    item but for `listening` is told `Listening` or `NotListening`,
+///    the identity alone, after the removals and before the additions.
 /// 4. **The ends.** The caller's cancel, the caller's connection ending
 ///    (no channel request will come), the caller reading no more of the
 ///    listing, or the nudges closing end the scope with its finish. A
@@ -95,13 +98,26 @@ pub async fn refuse(scope: ScopeHandle) {
 /// or listed anew as added, after every identity gone or listed anew as
 /// removed — and `now` kept as what is known (rule 3).
 async fn tell(scope: &ScopeHandle, known: &mut BTreeMap<Identity, response::Discoverable>, now: BTreeMap<Identity, response::Discoverable>) {
+    // The same connection's item, but for `listening` (rule 3a).
+    let same = |was: &response::Discoverable, is: &response::Discoverable| {
+        was.description == is.description && was.ip == is.ip && was.address == is.address
+    };
     for (identity, listed) in known.iter() {
-        if now.get(identity) != Some(listed) {
+        if !now.get(identity).is_some_and(|is| same(listed, is)) {
             send(scope, &response::Frame::Removed(listed.clone())).await;
         }
     }
+    for (identity, listed) in known.iter() {
+        if let Some(is) = now.get(identity)
+            && same(listed, is)
+            && listed.listening != is.listening
+        {
+            let frame = if is.listening { response::Frame::Listening(identity.clone()) } else { response::Frame::NotListening(identity.clone()) };
+            send(scope, &frame).await;
+        }
+    }
     for (identity, listed) in &now {
-        if known.get(identity) != Some(listed) {
+        if !known.get(identity).is_some_and(|was| same(was, listed)) {
             send(scope, &response::Frame::Added(listed.clone())).await;
         }
     }

@@ -15,7 +15,8 @@ use crate::wire::encode::{Encode, Writer};
 /// which — `0` for [`Delivered`](Self::Delivered), `1` for
 /// [`NotListening`](Self::NotListening), `2` for
 /// [`RateLimited`](Self::RateLimited), `3` for
-/// [`Unsupported`](Self::Unsupported), `4` for
+/// [`NotDiscoverable`](Self::NotDiscoverable), `4` for
+/// [`Unsupported`](Self::Unsupported), `5` for
 /// [`AlreadyOpen`](Self::AlreadyOpen) — and only `RateLimited` carries
 /// anything after it. The rules:
 ///
@@ -34,12 +35,15 @@ use crate::wire::encode::{Encode, Writer};
 ///    `RateLimited`, and nothing is queued. What counts toward the
 ///    window: every send answered `Delivered` or `NotListening`, and
 ///    every send cancelled in time. What does not: `RateLimited`,
-///    `Unsupported` and `AlreadyOpen`. A window begins at the first
+///    `NotDiscoverable`, `Unsupported` and `AlreadyOpen`. A window begins at the first
 ///    send it counts, and lasts the provider's `seconds`.
-/// 5. **The refusals.** `NotListening`, `RateLimited`, `Unsupported`
-///    and `AlreadyOpen` are each sent before anything is queued, when
-///    their condition holds at the opening. `Unsupported` is a provider
-///    that relays no messages; `AlreadyOpen` is a connection with a
+/// 5. **The refusals.** `NotListening`, `RateLimited`,
+///    `NotDiscoverable`, `Unsupported` and `AlreadyOpen` are each sent
+///    before anything is queued, when their condition holds at the
+///    opening. `NotDiscoverable` is a caller whose connection is not in
+///    discovery — its discover flag `0` — since only a discoverable
+///    identity sends; `Unsupported` is a provider that relays no
+///    messages; `AlreadyOpen` is a connection with a
 ///    send open already — see
 ///    [the endpoints](crate::provider::endpoints#one-open-at-a-time).
 /// 6. **No error.** A provider always knows who is listening, so no
@@ -66,11 +70,15 @@ pub enum Frame {
         /// The seconds until the window ends, rounded up.
         retry_after: u32,
     },
+    /// The caller's connection is not in discovery: its discover flag
+    /// was `0`, see [`discover`](crate::provider::endpoints::discover).
+    /// Tag `3`.
+    NotDiscoverable,
     /// The provider relays no messages: no `messages` object is among
     /// its capabilities, see [`info`](crate::provider::endpoints::info).
-    /// Tag `3`.
+    /// Tag `4`.
     Unsupported,
-    /// Refused: this connection has a send open already. Tag `4`.
+    /// Refused: this connection has a send open already. Tag `5`.
     AlreadyOpen,
 }
 
@@ -83,11 +91,14 @@ const NOT_LISTENING: u8 = 1;
 /// Tag for [`Frame::RateLimited`].
 const RATE_LIMITED: u8 = 2;
 
+/// Tag for [`Frame::NotDiscoverable`].
+const NOT_DISCOVERABLE: u8 = 3;
+
 /// Tag for [`Frame::Unsupported`].
-const UNSUPPORTED: u8 = 3;
+const UNSUPPORTED: u8 = 4;
 
 /// Tag for [`Frame::AlreadyOpen`].
-const ALREADY_OPEN: u8 = 4;
+const ALREADY_OPEN: u8 = 5;
 
 /// The tag, and `RateLimited`'s varint after it.
 impl Encode for Frame {
@@ -107,6 +118,7 @@ impl Encode for Frame {
                     out.extend_from_slice(written);
                 }
             }
+            Frame::NotDiscoverable => out.extend_from_slice(&[NOT_DISCOVERABLE]),
             Frame::Unsupported => out.extend_from_slice(&[UNSUPPORTED]),
             Frame::AlreadyOpen => out.extend_from_slice(&[ALREADY_OPEN]),
         }
@@ -124,6 +136,7 @@ impl Decode<'_> for Frame {
             DELIVERED => Ok(Frame::Delivered),
             NOT_LISTENING => Ok(Frame::NotListening),
             RATE_LIMITED => postcard::from_bytes(rest).map(|retry_after| Frame::RateLimited { retry_after }).map_err(FrameError::RetryAfter),
+            NOT_DISCOVERABLE => Ok(Frame::NotDiscoverable),
             UNSUPPORTED => Ok(Frame::Unsupported),
             ALREADY_OPEN => Ok(Frame::AlreadyOpen),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -136,7 +149,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// `RateLimited`'s seconds did not parse.
     RetryAfter(postcard::Error),

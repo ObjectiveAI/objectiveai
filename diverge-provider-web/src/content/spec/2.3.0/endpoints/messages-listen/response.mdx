@@ -1,23 +1,23 @@
 ---
 title: 'Response'
-summary: 'Responses of the byte 0 followed by the sender’s identity in the postcard wire format and the body, one per message; the byte 1, alone and first, when the server relays no message; or the byte 2, alone and first, when a listen is open already; and the response finish.'
+summary: 'Responses of the byte 0 followed by the sender’s identity in the postcard wire format and the body, one per message; the byte 1, alone and first, when the connection is not in discovery; the byte 2, alone and first, when the server relays no message; or the byte 3, alone and first, when a listen is open already; and the response finish.'
 order: 2
 draft: false
 ---
 
 ```text
 [0][from, postcard …][body …]   per message
-[1]                             once, alone: the server relays no message
-[2]                             once, alone: a listen is open already
+[1]                             once, alone: the connection is not in discovery
+[2]                             once, alone: the server relays no message
+[3]                             once, alone: a listen is open already
 ```
 
 - **The sequence.** Zero or more responses of the byte `0`, each
   followed by one message, as messages are sent to the client's
   identity. The response finish follows the last of them, when the
   client cancels, reads no more of the scope, or its connection ends.
-  Or: exactly one response of the byte `1` and nothing else, and the
-  response finish. Or: exactly one response of the byte `2` and
-  nothing else, and the response finish.
+  Or: exactly one response of the byte `1`, `2` or `3` and nothing
+  else, and the response finish.
 - **One ahead.** The server sends a response of the byte `0` only
   when the client has taken every response before it on the scope.
 - **The message.** A payload whose first byte is `0` carries, after
@@ -33,11 +33,17 @@ draft: false
 - **`from`.** The identity of the sending connection, as its
   [authorization](/authorization/) established it: `issuer` is the
   `iss` claim of its token and `subject` the `sub` claim.
-- **Unsupported.** A payload that is the byte `1` and nothing else
+- **Not discoverable.** A payload that is the byte `1` and nothing
+  else states that the connection is not in discovery: its
+  [discover flag](/authorization/#the-discover-flag) was `0`, as
+  [discover](/endpoints/discover/) provides. Only an identity in
+  discovery listens. It is the only response of the scope; bytes after
+  it are not read.
+- **Unsupported.** A payload that is the byte `2` and nothing else
   states that the server holds out no
   [`messages`](/capabilities/#messages) object and relays no message.
   It is the only response of the scope; bytes after it are not read.
-- **Already open.** A payload that is the byte `2` and nothing else
+- **Already open.** A payload that is the byte `3` and nothing else
   states that a listen scope is open already: on the connection, as
   [One open at a time](/endpoints/#one-open-at-a-time) provides, or
   under the identity on another connection, as
@@ -48,7 +54,7 @@ draft: false
   [Endpoints](/endpoints/) provides, or the client cancelled before
   the server had sent anything. The server does not say which.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0` to `2`, and a payload whose bytes after `0` do not
+  is none of `0` to `3`, and a payload whose bytes after `0` do not
   begin with one identity are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/messages/listen/server/response/frame.rs`:

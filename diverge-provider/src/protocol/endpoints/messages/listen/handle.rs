@@ -11,6 +11,7 @@ use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
+use crate::protocol::discoverable::Discoverable;
 use crate::protocol::mailboxes::{Mailboxes, Outcome};
 use crate::protocol::release::Release;
 use crate::protocol::singles::Single;
@@ -19,7 +20,9 @@ use crate::protocol::singles::Single;
 /// to it, one at a time, until the caller cancels. In order:
 ///
 /// 0. [`Unsupported`](response::Frame::Unsupported), then the finish,
-///    on a provider that relays no messages.
+///    on a provider that relays no messages; then
+///    [`NotDiscoverable`](response::Frame::NotDiscoverable), then the
+///    finish, for a caller whose connection is not in discovery.
 /// 1. The mailbox, opened under the connection's identity — or not,
 ///    one being open under it on another connection, which is
 ///    [`AlreadyOpen`](response::Frame::AlreadyOpen), then the finish.
@@ -42,9 +45,14 @@ use crate::protocol::singles::Single;
 ///    closing is a [`Release`], so a scope that panics or is cancelled
 ///    closes it at the drop; the claim is held with the scope, and goes
 ///    before its finish either way — see [`Single`].
-pub async fn handle(scope: Single<ScopeHandle>, client_identity: &Identity, mailboxes: Arc<Mailboxes>, capabilities: &Capabilities) {
+pub async fn handle(scope: Single<ScopeHandle>, client_identity: &Identity, mailboxes: Arc<Mailboxes>, discoverable: Arc<Discoverable>, capabilities: &Capabilities) {
     if capabilities.messages.is_none() {
         send(&scope, &response::Frame::Unsupported).await;
+        scope.send_response_finish().await;
+        return;
+    }
+    if !discoverable.is_listed(client_identity).await {
+        send(&scope, &response::Frame::NotDiscoverable).await;
         scope.send_response_finish().await;
         return;
     }

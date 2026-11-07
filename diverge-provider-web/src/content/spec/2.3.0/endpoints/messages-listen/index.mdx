@@ -34,12 +34,19 @@ identity holds at most one on the server as a whole.
    decode is answered by a response finish that no response precedes,
    as [Endpoints](/endpoints/) provides. A request read while a listen
    scope is open on the same connection is answered by exactly one
-   response, the byte `2`, and the response finish.
+   response, the byte `3`, and the response finish. A server that holds
+   out no `messages` object answers exactly one response, the byte `2`,
+   and the response finish. A connection that is not in discovery is
+   answered by exactly one response, the byte `1`, and the response
+   finish.
 2. **The server opens the mailbox.** The mailbox is held under the
    identity of the connection, as the
    [authorization](/authorization/) established it. A listen scope open
    under that identity already, on any connection, is answered by
-   exactly one response, the byte `2`, and the response finish.
+   exactly one response, the byte `3`, and the response finish. From
+   the opening of the mailbox to its closing, every discover listing
+   states the identity as listening, as
+   [discover](/endpoints/discover/response/) provides.
 3. **The server sends each message.** The server sends the oldest
    message queued in the mailbox as one response of the byte `0`. The
    server sends the next message only after the client has taken the

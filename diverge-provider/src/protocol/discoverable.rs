@@ -35,6 +35,11 @@ const NUDGES_BEHIND: usize = 256;
 ///    little: a listing lists again and tells what differs.
 /// 4. **Listed in order.** By issuer, then by subject — the set's own
 ///    order.
+/// 5. **Listening.** An entry is entered not listening; the
+///    [`Mailboxes`](super::mailboxes::Mailboxes) mark it listening as a
+///    `messages::listen` opens under its identity, and not as it closes,
+///    and each mark that changes it nudges. A mark for an identity not
+///    held is nothing.
 #[derive(Debug)]
 pub struct Discoverable {
     held: Mutex<BTreeMap<Identity, response::Discoverable>>,
@@ -58,7 +63,7 @@ impl Discoverable {
     /// this provider dialled it — and discoverable with `description`,
     /// until [`leave`](Self::leave).
     pub(crate) async fn enter(&self, identity: &Identity, description: Option<Description>, ip: IpAddr, address: Option<String>) {
-        let listed = response::Discoverable { identity: identity.clone(), description, ip, address };
+        let listed = response::Discoverable { identity: identity.clone(), description, ip, address, listening: false };
         self.held.lock().await.insert(identity.clone(), listed);
         let _ = self.nudges.send(());
     }
@@ -67,6 +72,26 @@ impl Discoverable {
     pub(crate) async fn leave(&self, identity: &Identity) {
         self.held.lock().await.remove(identity);
         let _ = self.nudges.send(());
+    }
+
+    /// Mark `identity` listening, or not (rule 5).
+    pub(crate) async fn listening(&self, identity: &Identity, listening: bool) {
+        let changed = match self.held.lock().await.get_mut(identity) {
+            Some(listed) if listed.listening != listening => {
+                listed.listening = listening;
+                true
+            }
+            _ => false,
+        };
+        if changed {
+            let _ = self.nudges.send(());
+        }
+    }
+
+    /// Whether `identity` is in discovery now: connected with the flag
+    /// `1` or `2`.
+    pub(crate) async fn is_listed(&self, identity: &Identity) -> bool {
+        self.held.lock().await.contains_key(identity)
     }
 
     /// Every discoverable identity connected now, in order, each as a

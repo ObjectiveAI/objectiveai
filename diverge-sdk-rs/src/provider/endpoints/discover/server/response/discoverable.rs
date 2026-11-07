@@ -13,9 +13,9 @@ use crate::shared::listing::Keyed;
 /// or `2`, the description its authorization frame carried — none
 /// under the flag `1` — and where its connection is. The rules:
 ///
-/// 1. **The connection's.** Every member is the connection's, so none
-///    changes while the identity is listed: an identity that connects
-///    again is listed again.
+/// 1. **The connection's.** Every member but `listening` is the
+///    connection's, so none changes while the identity is listed: an
+///    identity that connects again is listed again.
 /// 2. **The IP.** `ip` is the other end of the connection's socket:
 ///    the IP a peer that dialled the provider dialled from, or the IP
 ///    the provider reached a peer it dialled at.
@@ -24,6 +24,11 @@ use crate::shared::listing::Keyed;
 ///    own configuration writes it, for a peer the provider dialled;
 ///    absent for a peer that dialled the provider. It is a dial target,
 ///    never an IP.
+/// 4. **Listening.** `listening` is whether the identity has a
+///    [`messages::listen`](crate::provider::endpoints::messages::listen)
+///    open as the item is sent. It is the one member that changes while
+///    the identity is listed, and a listing tells its change by the
+///    identity alone — see [`Frame`](super::Frame).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Discoverable {
     /// The identity, `(iss, sub)`.
@@ -34,6 +39,8 @@ pub struct Discoverable {
     pub ip: IpAddr,
     /// Where the provider dialled it, when it did: rule 3.
     pub address: Option<String>,
+    /// Whether it listens for messages: rule 4.
+    pub listening: bool,
 }
 
 /// Keyed by the identity: an identity holds at most one connection to

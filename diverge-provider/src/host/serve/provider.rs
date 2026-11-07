@@ -138,6 +138,7 @@ impl Provider {
         let oci = Arc::new(OciStore::new(store.clone()));
         let capacity = Arc::new(CapacityReporter::new(Arc::clone(&volumes), store.clone(), Arc::clone(&deployer)));
         let images = Arc::new(ImageManager::new(store, Arc::clone(&volumes), Arc::clone(&deployer)));
+        let discoverable = Arc::new(Discoverable::new());
         Ok(Provider {
             authenticator,
             deployer,
@@ -148,8 +149,8 @@ impl Provider {
             registry,
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
-            discoverable: Arc::new(Discoverable::new()),
-            mailboxes: Arc::new(Mailboxes::new(capabilities.messages)),
+            mailboxes: Arc::new(Mailboxes::new(capabilities.messages, Arc::clone(&discoverable))),
+            discoverable,
             volume_changes: Arc::new(Changes::new()),
             image_changes: Arc::new(Changes::new()),
             capabilities,

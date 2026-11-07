@@ -3,20 +3,24 @@
 use std::fmt;
 
 use super::Discoverable;
+use crate::shared::Identity;
 use crate::shared::listing::Change;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// A discoverable connected identity and its description, as it comes
-/// to be listed or goes; the word that the listing is whole; or the
+/// to be listed or goes; the word that the listing is whole; the word
+/// that one listed came to listen for messages, or stopped; or the
 /// refusal of a second listing on one connection.
 ///
 /// A listing is a stream kept open. A payload leads with one byte
 /// saying which — `0` for [`Added`](Self::Added), `1` for
 /// [`Removed`](Self::Removed), `2` for [`Listed`](Self::Listed), `3`
-/// for [`AlreadyOpen`](Self::AlreadyOpen) — and the rest is that
-/// variant's own bytes: the [`Discoverable`] as postcard, or nothing.
-/// The rules:
+/// for [`Listening`](Self::Listening), `4` for
+/// [`NotListening`](Self::NotListening), `5` for
+/// [`AlreadyOpen`](Self::AlreadyOpen) — and the rest is that variant's
+/// own bytes: the [`Discoverable`] as postcard, the [`Identity`] as
+/// postcard, or nothing. The rules:
 ///
 /// 1. **The snapshot.** First every identity connected to the provider
 ///    whose discover flag was `1` or `2`, each as `Added` with the
@@ -33,6 +37,14 @@ use crate::wire::encode::{Encode, Writer};
 ///    disconnects and connects again is sent `Removed`, then `Added`.
 ///    Nothing is told as changed: a description is its connection's,
 ///    and does not change while it is listed.
+/// 8. **Listening, by the key alone.** An identity listed already whose
+///    [`messages::listen`](crate::provider::endpoints::messages::listen)
+///    opens is sent `Listening`, and one whose listen closes is sent
+///    `NotListening`, each carrying the identity and nothing else — the
+///    listing's key, never the whole item. Each is sent only when it
+///    changes what was last told of the identity, and only after the
+///    identity was added. `Removed` carries the item with its
+///    `listening` as the events left it.
 /// 5. **No end of its own.** The finish follows the caller's cancel or
 ///    the caller's connection ending, and nothing else: a provider with
 ///    nothing discoverable sends `Listed` at once, and is watched.
@@ -64,8 +76,14 @@ pub enum Frame {
     /// Carries nothing — the variant is bare. A caller that wants the
     /// listing once stops here; one that watches reads on.
     Listed,
-    /// Refused: this connection has a discover listing open already.
+    /// An identity listed already came to listen for messages (rule 8).
     /// Tag `3`.
+    Listening(Identity),
+    /// An identity listed already stopped listening for messages
+    /// (rule 8). Tag `4`.
+    NotListening(Identity),
+    /// Refused: this connection has a discover listing open already.
+    /// Tag `5`.
     ///
     /// Carries nothing. Sent first and alone, and the finish follows
     /// it: nothing was listed (rule 7).
@@ -81,8 +99,14 @@ const REMOVED: u8 = 1;
 /// Tag for [`Frame::Listed`].
 const LISTED: u8 = 2;
 
+/// Tag for [`Frame::Listening`].
+const LISTENING: u8 = 3;
+
+/// Tag for [`Frame::NotListening`].
+const NOT_LISTENING: u8 = 4;
+
 /// Tag for [`Frame::AlreadyOpen`].
-const ALREADY_OPEN: u8 = 3;
+const ALREADY_OPEN: u8 = 5;
 
 /// The tag, then the [`Discoverable`] as postcard, as a listing's item
 /// is.
@@ -104,6 +128,14 @@ impl Encode for Frame {
                 out.extend_from_slice(&[LISTED]);
                 Ok(())
             }
+            Frame::Listening(identity) => {
+                out.extend_from_slice(&[LISTENING]);
+                postcard::to_io(identity, &mut *out).map(|_| ()).map_err(FrameEncodeError::Identity)
+            }
+            Frame::NotListening(identity) => {
+                out.extend_from_slice(&[NOT_LISTENING]);
+                postcard::to_io(identity, &mut *out).map(|_| ()).map_err(FrameEncodeError::Identity)
+            }
             Frame::AlreadyOpen => {
                 out.extend_from_slice(&[ALREADY_OPEN]);
                 Ok(())
@@ -122,6 +154,8 @@ impl Decode<'_> for Frame {
             ADDED => postcard::from_bytes(rest).map(Frame::Added).map_err(FrameDecodeError::Identity),
             REMOVED => postcard::from_bytes(rest).map(Frame::Removed).map_err(FrameDecodeError::Identity),
             LISTED => Ok(Frame::Listed),
+            LISTENING => postcard::from_bytes(rest).map(Frame::Listening).map_err(FrameDecodeError::Identity),
+            NOT_LISTENING => postcard::from_bytes(rest).map(Frame::NotListening).map_err(FrameDecodeError::Identity),
             ALREADY_OPEN => Ok(Frame::AlreadyOpen),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
         }
@@ -131,8 +165,9 @@ impl Decode<'_> for Frame {
 impl Frame {
     /// What this frame tells a listing — a [`Change`], for
     /// [`Listing::push`](crate::shared::listing::Listing::push) — or
-    /// the frame itself where it tells a listing nothing: already open,
-    /// the one answer that ends the scope. None is `Changed`.
+    /// the frame itself where it tells a listing nothing a listing keeps
+    /// by the item: a listening change, read by the key, or already
+    /// open, the one answer that ends the scope. None is `Changed`.
     pub fn change(self) -> Result<Change<Discoverable>, Frame> {
         match self {
             Frame::Added(discoverable) => Ok(Change::Added(discoverable)),
@@ -171,7 +206,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The identity did not parse.
     Identity(postcard::Error),

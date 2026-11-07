@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends at most one response: the byte 0 when the receiver has taken the message, the byte 1 when the receiver is not listening, the byte 2 and the seconds left when the sender is over its rate, the byte 3 when the server relays no message, or the byte 4 when a send is open already; the response finish follows it, and a cancel in time is the finish alone.'
+summary: 'The server sends at most one response: the byte 0 when the receiver has taken the message, the byte 1 when the receiver is not listening, the byte 2 and the seconds left when the sender is over its rate, the byte 3 when the sender is not in discovery, the byte 4 when the server relays no message, or the byte 5 when a send is open already; the response finish follows it, and a cancel in time is the finish alone.'
 order: 2
 draft: false
 ---
@@ -12,12 +12,13 @@ finish follows it. No frame bearing the scope follows the finish.
 [0]                         once: the receiver took the message
 [1]                         once: the receiver is not listening
 [2][retry_after, varint]    once, alone: the sender is over its rate
-[3]                         once, alone: the server relays no message
-[4]                         once, alone: a send is open already
+[3]                         once, alone: the sender is not in discovery
+[4]                         once, alone: the server relays no message
+[5]                         once, alone: a send is open already
 ```
 
 - **The sequence.** Exactly one response of the byte `0`, `1`, `2`,
-  `3` or `4`, and the response finish. Or: the response finish alone,
+  `3`, `4` or `5`, and the response finish. Or: the response finish alone,
   when the client cancelled while the message was queued, or the
   request was not served.
 - **Delivered.** A payload that is the byte `0` and nothing else
@@ -33,22 +34,27 @@ finish follows it. No frame bearing the scope follows the finish.
   number of seconds until the sender's window ends, rounded up, as
   [messages::send](/endpoints/messages-send/#the-window) provides. The
   server queued nothing.
-- **Unsupported.** A payload that is the byte `3` and nothing else
+- **Not discoverable.** A payload that is the byte `3` and nothing
+  else states that the sending connection is not in discovery: its
+  [discover flag](/authorization/#the-discover-flag) was `0`, as
+  [discover](/endpoints/discover/) provides. Only an identity in
+  discovery sends. The server queued nothing.
+- **Unsupported.** A payload that is the byte `4` and nothing else
   states that the server holds out no
   [`messages`](/capabilities/#messages) object and relays no message.
-- **Already open.** A payload that is the byte `4` and nothing else
+- **Already open.** A payload that is the byte `5` and nothing else
   states that a send scope is open on the connection already, as
   [One open at a time](/endpoints/#one-open-at-a-time) provides.
-- **First and alone.** The bytes `2`, `3` and `4` are sent before
-  anything is queued. Bytes after the byte `0`, `1`, `3` or `4` are
-  not read.
+- **First and alone.** The bytes `2`, `3`, `4` and `5` are sent
+  before anything is queued. Bytes after the byte `0`, `1`, `3`, `4`
+  or `5` are not read.
 - **No error.** No response of this endpoint states a failure.
 - **A finish with nothing before it.** The client cancelled while the
   message was queued, and the receiver never received it; or the
   request was not served, as [Endpoints](/endpoints/) provides. The
   server does not say which.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0` to `4`, and a payload whose bytes after `2` are not
+  is none of `0` to `5`, and a payload whose bytes after `2` are not
   one varint are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/messages/send/server/response/frame.rs`:

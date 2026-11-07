@@ -446,9 +446,10 @@ where
                 };
                 let identity = Arc::clone(&client_identity);
                 let mailboxes = Arc::clone(&mailboxes);
+                let discoverable = Arc::clone(&discoverable);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::messages::listen::handle(scope, &identity, mailboxes, &capabilities).await;
+                    endpoints::messages::listen::handle(scope, &identity, mailboxes, discoverable, &capabilities).await;
                 });
             }
             ClientRequest::MessagesSend(frame) => {
@@ -465,9 +466,10 @@ where
                 let to = frame.to;
                 let identity = Arc::clone(&client_identity);
                 let mailboxes = Arc::clone(&mailboxes);
+                let discoverable = Arc::clone(&discoverable);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::messages::send::handle(scope, &identity, to, body, mailboxes, &capabilities).await;
+                    endpoints::messages::send::handle(scope, &identity, to, body, mailboxes, discoverable, &capabilities).await;
                 });
             }
             ClientRequest::Invalid(_) => scope.send_response_finish().await,

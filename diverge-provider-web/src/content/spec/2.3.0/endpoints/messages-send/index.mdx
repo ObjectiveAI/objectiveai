@@ -33,7 +33,11 @@ provides.
    decode is answered by a response finish that no response precedes,
    as [Endpoints](/endpoints/) provides. A request read while a send
    scope is open on the same connection is answered by exactly one
-   response, the byte `4`, and the response finish.
+   response, the byte `5`, and the response finish. A server that holds
+   out no `messages` object answers exactly one response, the byte `4`,
+   and the response finish. A sending connection that is not in
+   discovery is answered by exactly one response, the byte `3`, and the
+   response finish; the server counts nothing.
 2. **The server counts the send.** The server counts the send against
    the window of the identity of the connection, as
    [The window](#the-window) states. A send over the window is answered
@@ -66,7 +70,7 @@ The `messages` object the server holds out states the rate: at most
   every receiver together.
 - **What counts.** A send answered by the byte `0` or the byte `1`,
   and a send cancelled while queued, count toward the window. A send
-  answered by the byte `2`, `3` or `4` does not count.
+  answered by the byte `2`, `3`, `4` or `5` does not count.
 - **The beginning.** A window begins at the first send it counts and
   ends `seconds` seconds after. A send counted after a window has
   ended begins the next window.
