@@ -62,6 +62,10 @@ impl Mirror {
                 self.failed(super::describe(&error));
                 true
             }
+            Frame::AlreadyOpen => {
+                self.failed("this connection has a volume listing open already".to_string());
+                true
+            }
         }
     }
 

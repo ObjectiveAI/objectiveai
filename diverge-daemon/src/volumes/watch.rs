@@ -16,7 +16,12 @@ use crate::daemon::{Daemon, Kind};
 /// that volumes changed said after each that changed something. A
 /// listing that could not open, or that ends in the provider's error,
 /// marks the mirror failed; the stream ending — the connection gone —
-/// ends this, and the mirror goes with the connection's slot.
+/// ends this, and the mirror goes with the connection's slot. The
+/// listing is opened once per connection and never again, so the
+/// provider's one-at-a-time refusal — see
+/// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time)
+/// — is never met; were it met, it marks the mirror failed as an error
+/// does, and nothing is retried.
 pub async fn watch(daemon: Arc<Daemon>, mirror: Arc<Mirror>, handle: Handle) {
     let (mut listing, _stop) = match execute::execute(&handle, &request::Frame).await {
         Ok(opened) => opened,

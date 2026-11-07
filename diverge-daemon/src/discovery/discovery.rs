@@ -53,6 +53,14 @@ use crate::daemon::{Daemon, Kind};
 /// 7. **The routes to an identity.** [`routes`](Self::routes) is a route
 ///    for every provider whose whole listing holds an identity: what a
 ///    remote daemon is reached through, as its record's filters let it.
+/// 8. **One open at a time.** A provider refuses a second discover
+///    scope on one connection while one is open — see
+///    [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time)
+///    — so a listing is opened on a provider only once the one before it
+///    there has finished: each listing holds its provider's lane from
+///    before its request until its finish is read, and a listing let go
+///    reads to its finish before the lane is free. A listing refused all
+///    the same ends as a failure does (rule 4).
 #[derive(Debug, Default)]
 pub struct Discovery {
     inner: Mutex<Inner>,
@@ -76,11 +84,16 @@ struct Inner {
     touched: Instant,
     /// One listing per provider, by the provider's identity.
     upstreams: HashMap<Identity, Upstream>,
+    /// Each connected provider's lane (rule 8): held by the listing
+    /// open on it, or still finishing, so the next waits for it. Kept
+    /// while discovery is let go, and dropped when the provider
+    /// disconnects: a connection after is another connection.
+    lanes: HashMap<Identity, Arc<Mutex<()>>>,
 }
 
 impl Default for Inner {
     fn default() -> Self {
-        Inner { watchers: 0, held: false, touched: Instant::now(), upstreams: HashMap::new() }
+        Inner { watchers: 0, held: false, touched: Instant::now(), upstreams: HashMap::new(), lanes: HashMap::new() }
     }
 }
 
@@ -211,10 +224,13 @@ impl Discovery {
         }
     }
 
-    /// A provider disconnected (rules 3 and 5): its listing and what it
-    /// told dropped. Whether there was one to drop, for the word.
+    /// A provider disconnected (rules 3, 5 and 8): its listing, what it
+    /// told and its lane dropped. Whether there was a listing to drop,
+    /// for the word.
     pub async fn disconnected(&self, identity: &Identity) -> bool {
-        self.inner.lock().await.upstreams.remove(identity).is_some()
+        let mut inner = self.inner.lock().await;
+        inner.lanes.remove(identity);
+        inner.upstreams.remove(identity).is_some()
     }
 
     /// The merge (rule 6), in order of identity, each identity's
@@ -257,12 +273,13 @@ impl Discovery {
 }
 
 /// The provider's listing opened on `handle`, its task spawned, and
-/// held under `inner`.
+/// held under `inner`, behind the provider's lane (rule 8).
 fn open(inner: &mut Inner, daemon: &Arc<Daemon>, identity: Identity, handle: Handle) {
     let held = Arc::new(Mutex::new(BTreeMap::new()));
     let (whole_tx, whole) = watch::channel(false);
     let (end, ended) = watch::channel(());
-    tokio::spawn(keep(Arc::clone(daemon), handle, Arc::clone(&held), whole_tx, ended));
+    let lane = Arc::clone(inner.lanes.entry(identity.clone()).or_default());
+    tokio::spawn(keep(Arc::clone(daemon), handle, lane, Arc::clone(&held), whole_tx, ended));
     inner.upstreams.insert(identity, Upstream { held, whole, _end: end });
 }
 
@@ -270,8 +287,15 @@ fn open(inner: &mut Inner, daemon: &Arc<Daemon>, identity: Identity, handle: Han
 /// identity added, with its description, or removed, the word said
 /// after each; whole at its
 /// `listed`, and at its end however it ends. Let go — its upstream
-/// dropped — the listing is stopped, so the provider's scope ends too.
-async fn keep(daemon: Arc<Daemon>, handle: Handle, held: Arc<Mutex<Held>>, whole: watch::Sender<bool>, mut ended: watch::Receiver<()>) {
+/// dropped — the listing is stopped, so the provider's scope ends too,
+/// and read to its finish. The provider's lane is held from before the
+/// request until then (rule 8): let go before it was taken, nothing is
+/// opened at all.
+async fn keep(daemon: Arc<Daemon>, handle: Handle, lane: Arc<Mutex<()>>, held: Arc<Mutex<Held>>, whole: watch::Sender<bool>, mut ended: watch::Receiver<()>) {
+    let _lane = tokio::select! {
+        lane = lane.lock_owned() => lane,
+        _ = ended.changed() => return,
+    };
     let (mut listing, stop) = match execute::execute(&handle, &request::Frame).await {
         Ok(opened) => opened,
         Err(_) => {
@@ -293,7 +317,8 @@ async fn keep(daemon: Arc<Daemon>, handle: Handle, held: Arc<Mutex<Held>>, whole
                     Some(Ok(response::Frame::Listed)) => {
                         whole.send_replace(true);
                     }
-                    Some(Err(_)) | None => {
+                    // Refused (rule 8), failed, or finished: the end.
+                    Some(Ok(response::Frame::AlreadyOpen)) | Some(Err(_)) | None => {
                         whole.send_replace(true);
                         daemon.live.changed(Kind::Discover);
                         return;
@@ -302,7 +327,11 @@ async fn keep(daemon: Arc<Daemon>, handle: Handle, held: Arc<Mutex<Held>>, whole
                 daemon.live.changed(Kind::Discover);
             }
             _ = ended.changed() => {
+                // Stopped, and read to the finish (or the connection's
+                // end) before the lane is let go: the provider frees
+                // its slot before it sends the finish.
                 stop.stop().await;
+                while let Some(Ok(_)) = listing.next().await {}
                 return;
             }
         }

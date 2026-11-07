@@ -14,7 +14,11 @@ use crate::daemon::Daemon;
 /// provider announces taken by the [`DaemonAcceptor`]. A provider that
 /// refuses the accept, or does not know it, is one through which no
 /// daemon reaches this one. Ended by the provider's connection ending,
-/// which ends the scope.
+/// which ends the scope. The accept is opened once per connection and
+/// never again, so the provider's one-at-a-time refusal — see
+/// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time)
+/// — is met only when this daemon's identity accepts there on another
+/// connection, and is a refusal like any other: nothing is retried.
 pub async fn accept(daemon: Arc<Daemon>, handle: Handle) {
     let acceptor = Arc::new(DaemonAcceptor { daemon });
     let Ok(mut accepting) = execute::execute(&handle, acceptor).await else {
