@@ -11,7 +11,9 @@ on it, one response each, then the word that the listing is whole,
 and keeps the scope open: an image built is sent as added, an image
 deleted as removed, for as long as the scope lives. The scope ends at
 the client's stop, at the client's connection ending, or at an error;
-the response finish follows, and no frame follows the finish.
+the response finish follows, and no frame follows the finish. A
+connection holds at most one images::list scope open at a time, as
+[One open at a time](/endpoints/#one-open-at-a-time) provides.
 
 - **The request.** The request carries no parameter; the tag is the
   whole of it. [Request](/endpoints/images-list/request/) states its

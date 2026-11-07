@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'Responses of the byte 0 or 1 followed by one identity, its description, its IP and its address in the postcard wire format, added or removed; the byte 2, once, when the listing is whole; and the response finish.'
+summary: 'Responses of the byte 0 or 1 followed by one identity, its description, its IP and its address in the postcard wire format, added or removed; the byte 2, once, when the listing is whole; or the byte 3, alone and first, when the connection has a discover listing open already; and the response finish.'
 order: 2
 draft: false
 ---
@@ -9,6 +9,7 @@ draft: false
 [0][identity, description, ip, address, postcard …]   per identity added
 [1][identity, description, ip, address, postcard …]   per identity removed, after it was added
 [2]                                                   once, when the listing is whole
+[3]                                                   once, alone: a listing is open on the connection already
 ```
 
 - **The sequence.** Zero or more responses of the byte `0` followed
@@ -17,8 +18,9 @@ draft: false
   zero or more responses of the byte `0` or `1`, each followed by one
   identity, as discoverable identities connect and disconnect. The
   response finish follows the last of them, when the client stops or
-  the client's connection ends. The server sends no response of the
-  byte `1` before the byte `2`.
+  the client's connection ends. Or: exactly one response of the byte
+  `3` and nothing else, and the response finish. The server sends no
+  response of the byte `1` before the byte `2`.
 - **The item.** A payload whose first byte is `0` or `1` carries one
   item after that byte, running to the end of the payload. The item is
   `identity`, followed by `description`, followed by `ip`, followed by
@@ -67,13 +69,19 @@ draft: false
   byte and [stops](/endpoints/discover/client/stop/). A payload whose
   first byte is `2` is read by that byte alone; bytes after it are not
   read.
+- **Already open.** A payload that is the byte `3` and nothing else
+  states that a discover scope is open on the connection already, as
+  [One open at a time](/endpoints/#one-open-at-a-time) provides. It
+  is the only response of the scope, sent before anything is listed;
+  bytes after it are not read. It is the only response of this
+  endpoint that refuses.
 - **Order.** The order of the identities is not prescribed. A client
   reads nothing into the position of an identity.
 - **A finish with nothing before it.** The request was not served, as
   [Endpoints](/endpoints/) provides, or the client stopped before the
   server had sent anything. The server does not say which.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0` to `2`, and a payload whose bytes after `0` or `1` do
+  is none of `0` to `3`, and a payload whose bytes after `0` or `1` do
   not decode as one item, its description, its IP and its address
   among them, are malformed.
 

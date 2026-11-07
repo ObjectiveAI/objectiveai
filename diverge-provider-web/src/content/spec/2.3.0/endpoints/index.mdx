@@ -60,6 +60,36 @@ input the server serves, and imposes no requirement on the client.
   of this layer on an endpoint a capability governs holds subject to
   that layer.
 
+## One open at a time
+
+Four endpoints are held at most once each per connection:
+[volumes::list](/endpoints/volumes-list/),
+[images::list](/endpoints/images-list/),
+[discover](/endpoints/discover/) and
+[daemons::accept](/endpoints/daemons-accept/).
+
+- **One at a time.** On one connection, at most one scope of each of
+  the four endpoints is open at a time.
+- **Open until its finish.** A scope of one of the four is open from
+  the moment the server reads its request until the server sends its
+  response finish.
+- **Refused, not queued.** The server answers a request for one of
+  the four endpoints, on a connection on which a scope of that
+  endpoint is open, with exactly one response, the endpoint's
+  already-open response, which its response page defines. The
+  response finish follows it, and no other frame bearing the scope
+  precedes or follows it. The server lists nothing and accepts nothing
+  for the refused request, and the open scope is unaffected.
+- **Free before the finish.** The server ceases to hold a scope of
+  one of the four open before it sends that scope's response finish.
+  A request for the same endpoint that the server reads after it has
+  sent that finish is not refused under this section.
+- **Per endpoint, per connection.** The four endpoints are
+  independent of one another. A scope open on one connection has no
+  bearing on a request read on another connection, except as
+  [daemons::accept](/endpoints/daemons-accept/) provides for an
+  identity.
+
 ## Notation
 
 The JSON payloads of this layer are defined by type declarations,

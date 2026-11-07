@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'Responses of the byte 0 or 1 followed by one image in the postcard wire format, added or removed; the byte 2, once, when the listing is whole; the byte 3, alone and first, when the server keeps no client image; or the byte 4 followed by an error as one JSON value, last; and the response finish.'
+summary: 'Responses of the byte 0 or 1 followed by one image in the postcard wire format, added or removed; the byte 2, once, when the listing is whole; the byte 3, alone and first, when the server keeps no client image; or the byte 4 followed by an error as one JSON value, last; or the byte 5, alone and first, when the connection has an image listing open already; and the response finish.'
 order: 2
 draft: false
 ---
@@ -11,6 +11,7 @@ draft: false
 [2]                      once, when the listing is whole
 [3]                      once, alone: the server keeps no client image
 [4][error JSON …]        at most once, last
+[5]                      once, alone: a listing is open on the connection already
 ```
 
 - **The sequence.** Zero or more responses of the byte `0` followed
@@ -22,7 +23,8 @@ draft: false
   ends. Or: the responses sent so far, exactly one response of the
   byte `4` followed by an error, and the response finish. Or: exactly
   one response of the byte `3` and nothing else, and the response
-  finish. No response follows the error. The server sends no
+  finish. Or: exactly one response of the byte `5` and nothing else,
+  and the response finish. No response follows the error. The server sends no
   response of the byte `1` before the byte `2`.
 - **The image.** A payload whose first byte is `0` or `1` carries one
   image after that byte, running to the end of the payload. The image
@@ -75,13 +77,18 @@ draft: false
   no client image, as [Capabilities](/capabilities/) provides. It is
   the only response of the scope, sent before anything is looked up;
   bytes after it are not read.
+- **Already open.** A payload that is the byte `5` and nothing else
+  states that an images::list scope is open on the connection already,
+  as [One open at a time](/endpoints/#one-open-at-a-time) provides. It
+  is the only response of the scope, sent before anything is looked
+  up; bytes after it are not read.
 - **The error.** A payload whose first byte is `4` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0` to `4`, a payload whose bytes after `0` or `1` do
+  is none of `0` to `5`, a payload whose bytes after `0` or `1` do
   not decode as one image, and a payload whose bytes after `4` are
   not one JSON value are malformed.
 

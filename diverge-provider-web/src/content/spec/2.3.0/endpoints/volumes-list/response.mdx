@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'Responses of the byte 0, 1 or 2 followed by one volume in the postcard wire format, added, changed or removed; the byte 3, once, when the listing is whole; the byte 4, alone and first, when the server keeps no volume; or the byte 5 followed by an error as one JSON value, last; and the response finish.'
+summary: 'Responses of the byte 0, 1 or 2 followed by one volume in the postcard wire format, added, changed or removed; the byte 3, once, when the listing is whole; the byte 4, alone and first, when the server keeps no volume; or the byte 5 followed by an error as one JSON value, last; or the byte 6, alone and first, when the connection has a volume listing open already; and the response finish.'
 order: 2
 draft: false
 ---
@@ -12,6 +12,7 @@ draft: false
 [3]                       once, when the listing is whole
 [4]                       once, alone: the server keeps no volume
 [5][error JSON …]         at most once, last
+[6]                       once, alone: a listing is open on the connection already
 ```
 
 - **The sequence.** Zero or more responses of the byte `0` followed
@@ -23,8 +24,9 @@ draft: false
   or the client's connection ends. Or: the responses sent so far,
   exactly one response of the byte `5` followed by an error, and the
   response finish. Or: exactly one response of the byte `4` and
-  nothing else, and the response finish. No response follows the
-  error. The server sends no response of the byte `1` or `2` before
+  nothing else, and the response finish. Or: exactly one response of
+  the byte `6` and nothing else, and the response finish. No response
+  follows the error. The server sends no response of the byte `1` or `2` before
   the byte `3`.
 - **The volume.** A payload whose first byte is `0`, `1` or `2`
   carries one volume after that byte, running to the end of the
@@ -96,12 +98,17 @@ draft: false
   and keeps no volume, as [Capabilities](/capabilities/#the-volume-modes)
   provides. It is the only response of the scope, sent before
   anything is looked up; bytes after it are not read.
+- **Already open.** A payload that is the byte `6` and nothing else
+  states that a volumes::list scope is open on the connection already,
+  as [One open at a time](/endpoints/#one-open-at-a-time) provides. It
+  is the only response of the scope, sent before anything is looked
+  up; bytes after it are not read.
 - **The error.** A payload whose first byte is `5` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value. This revision prescribes nothing about its
   content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0` to `5`, a payload whose bytes after `0`, `1` or `2`
+  is none of `0` to `6`, a payload whose bytes after `0`, `1` or `2`
   do not decode as one volume, and a payload whose bytes after `5`
   are not one JSON value are malformed.
 

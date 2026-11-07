@@ -8,8 +8,9 @@ draft: false
 A client, the acceptor, opens the scope with a request whose payload
 is the tag byte `23` and nothing more. The server sends exactly one
 response: the identity of the connection, under which the acceptor
-takes daemon connections from then on, or an error when another
-scope accepts under that identity already. For as long as the scope
+takes daemon connections from then on, or the already-open response
+when another scope accepts on that connection or under that identity
+already. For as long as the scope
 lives, the server announces each daemon connection a connector opens
 by [daemons::connect](/endpoints/daemons-connect/) naming that
 identity, as a pair of channels: the server's half, a
@@ -34,13 +35,16 @@ acceptor or the connector.
 
 1. **The server reads the request.** A request whose payload does not
    decode is answered by a response finish that no response precedes,
-   as [Endpoints](/endpoints/) provides.
+   as [Endpoints](/endpoints/) provides. A request read while an
+   accept scope is open on the same connection is answered by exactly
+   one response, the byte `2`, and the finish, as
+   [One open at a time](/endpoints/#one-open-at-a-time) provides.
 2. **The server takes the identity.** The identity of the connection
    on which the scope was opened, as the
    [authorization](/authorization/) established it, is the identity
    the acceptor is known by to connectors. An accept scope open under
    that identity already, on any connection, is answered by exactly
-   one response, the error `{"kind":"held"}`, and the finish. The
+   one response, the byte `2`, and the finish. The
    server holds the identity for the scope from the moment it
    answers the identity until the scope ends.
 3. **The server answers the identity.** The server sends exactly one
@@ -75,8 +79,8 @@ acceptor or the connector.
    [stop](/endpoints/daemons-accept/client/stop/), or when the
    acceptor's connection ends, the server finishes every half of
    every connection open on the scope, finishes every connect scope
-   relayed to it, releases the identity, and sends the response
-   finish.
+   relayed to it, releases the identity, ceases to hold the scope
+   open on the connection, and sends the response finish.
 
 ## The rules that hold throughout
 
@@ -86,3 +90,6 @@ acceptor or the connector.
   and never twice.
 - **One acceptor per identity.** At most one accept scope is open
   under one identity at a time, on the server as a whole.
+- **One accept per connection.** At most one accept scope is open on
+  one connection at a time, as
+  [One open at a time](/endpoints/#one-open-at-a-time) provides.
