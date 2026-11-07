@@ -8,16 +8,18 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// An accept's answer: the daemon's identity, and then nothing for as
-/// long as the scope lives — or a failure.
+/// long as the scope lives — or a refusal, or a failure.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Accepting`](Self::Accepting), `1` for [`Error`](Self::Error) —
-/// and the rest is that variant's own JSON.
+/// [`Accepting`](Self::Accepting), `1` for [`Error`](Self::Error), `2`
+/// for [`AlreadyOpen`](Self::AlreadyOpen) — and the rest is that
+/// variant's own JSON, or nothing for `AlreadyOpen`.
 ///
 /// | the scope | means |
 /// |-----------|-------|
 /// | an identity, then nothing, and stays open | the daemon accepts; every connection arrives as a channel |
-/// | an error, then a finish | it does not: the identity accepts here already |
+/// | already open, then a finish | it does not: this connection, or another under the identity, accepts here already |
+/// | an error, then a finish | it does not: the provider could not serve it |
 /// | a finish, with no error | the accept is over — the stop, or the connection |
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
@@ -25,11 +27,17 @@ pub enum Frame {
     Accepting(Accepting),
     /// A failure. Tag `1`.
     ///
-    /// The one variant that ends the scope rather than adding to it:
-    /// `{"kind":"held"}` for an identity that accepts here already.
-    /// See [`shared::error::Error`](crate::shared::error::Error) for
-    /// why it says so little.
+    /// Ends the scope rather than adding to it. See
+    /// [`shared::error::Error`](crate::shared::error::Error) for why it
+    /// says so little.
     Error(Error),
+    /// Refused: this connection has an accept open already, or another
+    /// connection under the same identity has. Tag `2`.
+    ///
+    /// Carries nothing. Sent first and alone, and the finish follows
+    /// it: nothing is accepted. See the
+    /// [endpoints](crate::provider::endpoints#one-open-at-a-time).
+    AlreadyOpen,
 }
 
 /// Tag for [`Frame::Accepting`].
@@ -37,6 +45,9 @@ const ACCEPTING: u8 = 0;
 
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 1;
+
+/// Tag for [`Frame::AlreadyOpen`].
+const ALREADY_OPEN: u8 = 2;
 
 impl Encode for Frame {
     /// The ordinary JSON failure.
@@ -54,6 +65,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
             }
+            Frame::AlreadyOpen => {
+                out.extend_from_slice(&[ALREADY_OPEN]);
+                Ok(())
+            }
         }
     }
 }
@@ -68,6 +83,7 @@ impl Decode<'_> for Frame {
         match *tag {
             ACCEPTING => serde_json::from_slice(rest).map(Frame::Accepting).map_err(FrameError::Accepting),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
+            ALREADY_OPEN => Ok(Frame::AlreadyOpen),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -78,7 +94,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The identity did not parse.
     Accepting(serde_json::Error),

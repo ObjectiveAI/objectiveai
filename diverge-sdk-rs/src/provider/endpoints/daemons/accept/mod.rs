@@ -3,8 +3,8 @@
 //! A daemon opens the scope with the tag and nothing else. The
 //! provider answers exactly one response: the identity the daemon's
 //! connection is authorized under — what connectors name it by, and
-//! what it names this provider by to them — or an error, when it
-//! accepts here already. Then the scope stays open, and every
+//! what it names this provider by to them — or `AlreadyOpen`, when it
+//! accepts here already, and the finish. Then the scope stays open, and every
 //! `daemons::connect` naming the identity arrives on it as one
 //! channel the provider opens, the provider's half of that
 //! connection, carrying who the connector is; the daemon declines by

@@ -23,8 +23,9 @@ use crate::wire::frame;
 /// through `acceptor`.
 ///
 /// The request goes out, the main stream's first frame decides — the
-/// identity the provider knows this daemon by, or the provider's
-/// error, or a finish with nothing before it — and then a task reads
+/// identity the provider knows this daemon by, the refusal of an
+/// accept already open, the provider's error, or a finish with nothing
+/// before it — and then a task reads
 /// every channel the provider opens on the scope, each a connection
 /// announced, and answers it: the acceptor is asked, and on a yes
 /// this end opens its own half and pumps both directions — the
@@ -48,6 +49,7 @@ pub async fn execute<A: Acceptor + 'static>(handle: &Handle, acceptor: Arc<A>) -
     let identity = match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Accepting(accepting) => accepting.identity,
         response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
+        response::Frame::AlreadyOpen => return Err(ExecuteError::AlreadyOpen),
     };
     tokio::spawn(announcements(scope.request_receiver, handle.clone(), scope.scope, acceptor));
     Ok(Accepting::new(identity, handle.clone(), scope.scope, scope.response_receiver))
@@ -131,8 +133,12 @@ pub enum ExecuteError {
     Misrouted,
     /// The response frame did not parse.
     Response(response::FrameError),
-    /// The provider refused: the identity accepts here already.
+    /// The provider ended the accept with an error, in its own words.
     Provider(Error),
+    /// The provider refused: this connection, or another under the same
+    /// identity, accepts here already. The protocol's defined refusal,
+    /// not a failure.
+    AlreadyOpen,
 }
 
 impl fmt::Display for ExecuteError {
@@ -144,7 +150,8 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Unanswered => f.write_str("the accept finished without an answer"),
             ExecuteError::Misrouted => f.write_str("a frame arrived that does not belong on the main stream"),
             ExecuteError::Response(error) => write!(f, "daemons accept answer did not parse: {error}"),
-            ExecuteError::Provider(_) => f.write_str("the provider refused the accept"),
+            ExecuteError::Provider(_) => f.write_str("the provider ended the accept with an error"),
+            ExecuteError::AlreadyOpen => f.write_str("an accept is open here already"),
         }
     }
 }
@@ -155,7 +162,11 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Send(error) => Some(error),
             ExecuteError::Frame(error) => Some(error),
             ExecuteError::Response(error) => Some(error),
-            ExecuteError::Closed | ExecuteError::Unanswered | ExecuteError::Misrouted | ExecuteError::Provider(_) => None,
+            ExecuteError::Closed
+            | ExecuteError::Unanswered
+            | ExecuteError::Misrouted
+            | ExecuteError::Provider(_)
+            | ExecuteError::AlreadyOpen => None,
         }
     }
 }

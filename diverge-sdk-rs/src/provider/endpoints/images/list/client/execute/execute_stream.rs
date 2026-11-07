@@ -65,6 +65,7 @@ impl Stream for ExecuteStream {
         match response::Frame::decode(payload) {
             Ok(response::Frame::Unsupported) => self.end(ExecuteStreamError::Unsupported),
             Ok(response::Frame::Error(error)) => self.end(ExecuteStreamError::Refused(error)),
+            Ok(response::Frame::AlreadyOpen) => self.end(ExecuteStreamError::AlreadyOpen),
             Ok(frame) => Poll::Ready(Some(Ok(frame))),
             Err(error) => self.end(ExecuteStreamError::Response(error)),
         }
@@ -85,6 +86,10 @@ pub enum ExecuteStreamError {
     /// The provider has no image store, and nothing is listed. The
     /// protocol's defined refusal, not a failure.
     Unsupported,
+    /// This connection has an image listing open already, and nothing
+    /// is listed: one connection holds at most one at a time. The
+    /// protocol's defined refusal, not a failure.
+    AlreadyOpen,
     /// The provider ended the listing with an error, in its own words.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -101,6 +106,7 @@ impl fmt::Display for ExecuteStreamError {
             ExecuteStreamError::Misrouted => f.write_str("a frame that cannot be on a main stream arrived"),
             ExecuteStreamError::Response(error) => write!(f, "{error}"),
             ExecuteStreamError::Unsupported => f.write_str("the provider has no image store"),
+            ExecuteStreamError::AlreadyOpen => f.write_str("this connection has an image listing open already"),
             ExecuteStreamError::Refused(_) => f.write_str("the provider ended the image listing with an error"),
         }
     }
@@ -114,6 +120,7 @@ impl std::error::Error for ExecuteStreamError {
             ExecuteStreamError::Closed
             | ExecuteStreamError::Misrouted
             | ExecuteStreamError::Unsupported
+            | ExecuteStreamError::AlreadyOpen
             | ExecuteStreamError::Refused(_) => None,
         }
     }

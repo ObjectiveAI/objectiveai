@@ -22,10 +22,12 @@ use crate::shared::listing::Change;
 /// nothing else: a caller with no image is listed as `Listed` at
 /// once, and watched. A payload leads with one byte saying which —
 /// `0` for `Added`, `1` for `Removed`, `2` for `Listed`, `3` for
-/// `Unsupported`, `4` for `Error` — and the rest is that variant's
-/// own bytes; `Listed` and `Unsupported` carry nothing. A provider
-/// with no image store sends `Unsupported` first and alone, and the
-/// finish follows it.
+/// `Unsupported`, `4` for `Error`, `5` for `AlreadyOpen` — and the
+/// rest is that variant's own bytes; `Listed`, `Unsupported` and
+/// `AlreadyOpen` carry nothing. A provider with no image store sends
+/// `Unsupported` first and alone, and the finish follows it; a
+/// connection with a listing open already is sent
+/// [`AlreadyOpen`](Self::AlreadyOpen) the same way.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -63,6 +65,15 @@ pub enum Frame {
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
     Error(Error),
+    /// Refused: this connection has an image listing open already. Tag
+    /// `5`.
+    ///
+    /// Carries nothing. Sent first and alone, and the finish follows
+    /// it: nothing was listed. One connection holds at most one
+    /// listing at a time — see the
+    /// [endpoints](crate::provider::endpoints#one-open-at-a-time) —
+    /// and the caller reads the one it has.
+    AlreadyOpen,
 }
 
 /// Tag for [`Frame::Added`].
@@ -79,6 +90,9 @@ const UNSUPPORTED: u8 = 3;
 
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 4;
+
+/// Tag for [`Frame::AlreadyOpen`].
+const ALREADY_OPEN: u8 = 5;
 
 /// Two formats, and the tag chooses between them: an image is
 /// postcard, as a volume is in its listing, and the error is JSON,
@@ -112,6 +126,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out).map_err(FrameEncodeError::Error)
             }
+            Frame::AlreadyOpen => {
+                out.extend_from_slice(&[ALREADY_OPEN]);
+                Ok(())
+            }
         }
     }
 }
@@ -129,6 +147,7 @@ impl Decode<'_> for Frame {
             LISTED => Ok(Frame::Listed),
             UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameDecodeError::Error),
+            ALREADY_OPEN => Ok(Frame::AlreadyOpen),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
         }
     }
@@ -138,7 +157,8 @@ impl Frame {
     /// What this frame tells a listing — a [`Change`], for
     /// [`Listing::push`](crate::shared::listing::Listing::push) — or
     /// the frame itself where it tells a listing nothing:
-    /// unsupported, or a failure, the answers that end the scope. No
+    /// unsupported, already open, or a failure, the answers that end
+    /// the scope. No
     /// frame is `Changed`: an image whose digest differs is `Removed`
     /// and then `Added`.
     pub fn change(self) -> Result<Change<Image>, Frame> {
@@ -183,7 +203,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The image did not parse.
     Image(postcard::Error),

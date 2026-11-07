@@ -18,7 +18,8 @@ use crate::wire::frame;
 ///
 /// It ends — `None` — at the provider's finish. A failure of the
 /// machinery underneath is the stream's last item, and `None` follows
-/// it. There is no refusal: a discover listing has no error.
+/// it; so is the one refusal, [`AlreadyOpen`](ExecuteStreamError::AlreadyOpen).
+/// A discover listing has no error.
 #[must_use = "a scope that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct ExecuteStream {
@@ -59,14 +60,15 @@ impl Stream for ExecuteStream {
             _ => return self.end(ExecuteStreamError::Misrouted),
         };
         match response::Frame::decode(payload) {
+            Ok(response::Frame::AlreadyOpen) => self.end(ExecuteStreamError::AlreadyOpen),
             Ok(frame) => Poll::Ready(Some(Ok(frame))),
             Err(error) => self.end(ExecuteStreamError::Response(error)),
         }
     }
 }
 
-/// A discover listing that broke. Each is the machinery underneath,
-/// not the provider refusing.
+/// A discover listing that broke — the machinery underneath — or that
+/// the provider refused.
 #[derive(Debug)]
 pub enum ExecuteStreamError {
     /// The connection ended with the listing open.
@@ -77,6 +79,10 @@ pub enum ExecuteStreamError {
     Misrouted,
     /// A response did not decode as a discover response.
     Response(response::FrameDecodeError),
+    /// This connection has a discover listing open already, and nothing
+    /// is listed: one connection holds at most one at a time. The
+    /// protocol's defined refusal, not a failure.
+    AlreadyOpen,
 }
 
 impl fmt::Display for ExecuteStreamError {
@@ -86,6 +92,7 @@ impl fmt::Display for ExecuteStreamError {
             ExecuteStreamError::Frame(error) => write!(f, "frame did not decode: {error}"),
             ExecuteStreamError::Misrouted => f.write_str("a frame that cannot be on a main stream arrived"),
             ExecuteStreamError::Response(error) => write!(f, "{error}"),
+            ExecuteStreamError::AlreadyOpen => f.write_str("this connection has a discover listing open already"),
         }
     }
 }
@@ -95,7 +102,7 @@ impl std::error::Error for ExecuteStreamError {
         match self {
             ExecuteStreamError::Frame(error) => Some(error),
             ExecuteStreamError::Response(error) => Some(error),
-            ExecuteStreamError::Closed | ExecuteStreamError::Misrouted => None,
+            ExecuteStreamError::Closed | ExecuteStreamError::Misrouted | ExecuteStreamError::AlreadyOpen => None,
         }
     }
 }

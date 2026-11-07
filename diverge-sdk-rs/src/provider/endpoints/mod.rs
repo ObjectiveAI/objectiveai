@@ -99,6 +99,28 @@
 //! once in [`shared::containers`](crate::shared::containers). A
 //! [`containers::fuse_serve`] reaches into either family's container the
 //! same way, and carries the volume FUSE serve's own asks.
+//!
+//! # One open at a time
+//!
+//! Four scopes are whole-connection views — [`volumes::list`],
+//! [`images::list`], [`discover`] and [`daemons::accept`] — and a
+//! connection holds at most one of each. The rules:
+//!
+//! 1. **One at a time.** On one connection, at most one scope of each
+//!    of the four is open at a time.
+//! 2. **Refused, not queued.** A request opening a second while the
+//!    first is open is answered with exactly one response, the
+//!    endpoint's `AlreadyOpen`, and the finish follows it. Nothing else
+//!    is done for it: nothing is listed, and nothing is accepted.
+//! 3. **Open until its finish.** A scope counts as open from the
+//!    server reading its request until the server sends its finish.
+//! 4. **Free before the finish.** The server lets the scope go before
+//!    it sends the finish, so a client that reads the finish and opens
+//!    another at once is never refused.
+//! 5. **Per endpoint, per connection.** The four are independent of
+//!    one another, and of every other connection. [`daemons::accept`]
+//!    is also one per identity: an accept under an identity that
+//!    accepts on another connection is `AlreadyOpen` as well.
 
 mod client_request;
 

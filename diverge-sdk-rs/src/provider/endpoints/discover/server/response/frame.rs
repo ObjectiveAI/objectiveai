@@ -8,13 +8,15 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// A discoverable connected identity and its description, as it comes
-/// to be listed or goes; or the word that the listing is whole.
+/// to be listed or goes; the word that the listing is whole; or the
+/// refusal of a second listing on one connection.
 ///
 /// A listing is a stream kept open. A payload leads with one byte
 /// saying which — `0` for [`Added`](Self::Added), `1` for
-/// [`Removed`](Self::Removed), `2` for [`Listed`](Self::Listed) — and
-/// the rest is that variant's own bytes: the [`Discoverable`] as
-/// postcard, or nothing. The rules:
+/// [`Removed`](Self::Removed), `2` for [`Listed`](Self::Listed), `3`
+/// for [`AlreadyOpen`](Self::AlreadyOpen) — and the rest is that
+/// variant's own bytes: the [`Discoverable`] as postcard, or nothing.
+/// The rules:
 ///
 /// 1. **The snapshot.** First every identity connected to the provider
 ///    whose discover flag was `1` or `2`, each as `Added` with the
@@ -35,7 +37,12 @@ use crate::wire::encode::{Encode, Writer};
 ///    the caller's connection ending, and nothing else: a provider with
 ///    nothing discoverable sends `Listed` at once, and is watched.
 /// 6. **No error.** A provider always knows what is connected to it,
-///    and every provider serves this listing, so no response refuses.
+///    and every provider serves this listing, so no response fails.
+/// 7. **One at a time.** A connection with a discover listing open
+///    already is sent `AlreadyOpen` first and alone, and the finish
+///    follows it — see the
+///    [endpoints](crate::provider::endpoints#one-open-at-a-time). It
+///    is the one response that refuses.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -57,6 +64,12 @@ pub enum Frame {
     /// Carries nothing — the variant is bare. A caller that wants the
     /// listing once stops here; one that watches reads on.
     Listed,
+    /// Refused: this connection has a discover listing open already.
+    /// Tag `3`.
+    ///
+    /// Carries nothing. Sent first and alone, and the finish follows
+    /// it: nothing was listed (rule 7).
+    AlreadyOpen,
 }
 
 /// Tag for [`Frame::Added`].
@@ -67,6 +80,9 @@ const REMOVED: u8 = 1;
 
 /// Tag for [`Frame::Listed`].
 const LISTED: u8 = 2;
+
+/// Tag for [`Frame::AlreadyOpen`].
+const ALREADY_OPEN: u8 = 3;
 
 /// The tag, then the [`Discoverable`] as postcard, as a listing's item
 /// is.
@@ -88,6 +104,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[LISTED]);
                 Ok(())
             }
+            Frame::AlreadyOpen => {
+                out.extend_from_slice(&[ALREADY_OPEN]);
+                Ok(())
+            }
         }
     }
 }
@@ -102,6 +122,7 @@ impl Decode<'_> for Frame {
             ADDED => postcard::from_bytes(rest).map(Frame::Added).map_err(FrameDecodeError::Identity),
             REMOVED => postcard::from_bytes(rest).map(Frame::Removed).map_err(FrameDecodeError::Identity),
             LISTED => Ok(Frame::Listed),
+            ALREADY_OPEN => Ok(Frame::AlreadyOpen),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
         }
     }
@@ -109,14 +130,15 @@ impl Decode<'_> for Frame {
 
 impl Frame {
     /// What this frame tells a listing — a [`Change`], for
-    /// [`Listing::push`](crate::shared::listing::Listing::push). Every
-    /// frame is one, since no response ends the scope; none is
-    /// `Changed`.
-    pub fn change(self) -> Change<Discoverable> {
+    /// [`Listing::push`](crate::shared::listing::Listing::push) — or
+    /// the frame itself where it tells a listing nothing: already open,
+    /// the one answer that ends the scope. None is `Changed`.
+    pub fn change(self) -> Result<Change<Discoverable>, Frame> {
         match self {
-            Frame::Added(discoverable) => Change::Added(discoverable),
-            Frame::Removed(discoverable) => Change::Removed(discoverable),
-            Frame::Listed => Change::Listed,
+            Frame::Added(discoverable) => Ok(Change::Added(discoverable)),
+            Frame::Removed(discoverable) => Ok(Change::Removed(discoverable)),
+            Frame::Listed => Ok(Change::Listed),
+            other => Err(other),
         }
     }
 }
@@ -149,7 +171,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The identity did not parse.
     Identity(postcard::Error),
