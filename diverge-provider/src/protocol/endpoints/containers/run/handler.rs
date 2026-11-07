@@ -28,7 +28,12 @@ use diverge_sdk::shared::error::Error;
 ///
 /// In order:
 ///
-/// 0. The request's mounts are checked — see [`check`] — or the run
+/// 0. A provider that runs no containers — its `containers`
+///    capability `false`, see [`Capabilities`] — refuses the run
+///    with the family's `Unsupported`, and the scope finishes on it:
+///    before the mounts are checked, before anything is held, fetched
+///    or deployed.
+/// 1. The request's mounts are checked — see [`check`] — or the run
 ///    is refused with the error, before anything is held. Then every volume the
 ///    request names is found and held, shared — see [`Held`] — or
 ///    the run is refused: with the name of a volume held, mounted,
@@ -37,7 +42,7 @@ use diverge_sdk::shared::error::Error;
 ///    for a name that is not the caller's. Before anything is fetched
 ///    or deployed. The holds are the `Held`'s and are given back at
 ///    every ending below.
-/// 1. The container is brought up — see
+/// 2. The container is brought up — see
 ///    [`setup::prepare`](super::setup::prepare): registry,
 ///    deploy, the proxy dialled, the family's begin, the id minted
 ///    and the container entered in the directory — with its proxy
@@ -45,20 +50,20 @@ use diverge_sdk::shared::error::Error;
 ///    registered with the caller, the id told, its first secrets fed
 ///    back to it, beside every mount. A failure is the run's error,
 ///    and the scope finishes on it.
-/// 2. The id is sent. From here the container is running for the
+/// 3. The id is sent. From here the container is running for the
 ///    caller.
-/// 3. The relays are spawned: the proxy's asks on the begin scope,
+/// 4. The relays are spawned: the proxy's asks on the begin scope,
 ///    each mount's asks, and — on an agent container — the agent's
 ///    chunks onto the main stream, the loop's `Active` and
 ///    `Inactive` among them; on a tool container, its `Active` and
 ///    `Inactive` onto the main stream, the begin's end heard with
 ///    them.
-/// 4. The caller's channels are served until the run ends: a stop,
+/// 5. The caller's channels are served until the run ends: a stop,
 ///    the container leaving, or the caller going away. Among them a
 ///    `fuse_mount`, one more FUSE mount made while the container
 ///    runs, checked against every mount it holds — see
 ///    [`Ledger`] — and answered once the proxy has.
-/// 5. The teardown, the same for every ending: the directory entry
+/// 6. The teardown, the same for every ending: the directory entry
 ///    removed, the container stopped and its proxy's router ended, the
 ///    volumes given back, every task ended, and the finish. The
 ///    repository is not among them: it was released as the deploy
@@ -86,6 +91,12 @@ pub(crate) async fn run<R, D, G, V>(
     V::Error: Into<Error>,
 {
     let scope = Arc::new(scope);
+
+    if !capabilities.containers {
+        send(&scope, R::unsupported()).await;
+        scope.send_response_finish().await;
+        return;
+    }
 
     if let Err(error) = check(request) {
         send(&scope, R::error(&error)).await;

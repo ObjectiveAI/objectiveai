@@ -205,6 +205,10 @@ impl Runs for Agents {
     fn volume_mode(refused: &VolumeMode) -> Option<Vec<u8>> {
         encoded(&response::Frame::VolumeMode(refused.clone()))
     }
+
+    fn unsupported() -> Option<Vec<u8>> {
+        encoded(&response::Frame::Unsupported)
+    }
 }
 
 /// The proxy's ask as this family's frame; a database connection is

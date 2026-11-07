@@ -6,6 +6,9 @@ use crate::config::Config;
 
 /// The host's capabilities, each a fact of the host:
 ///
+/// - `containers`: `containers.enabled`, the configuration's word on
+///   whether the host runs containers at all; `false` is every agents
+///   run and tools run answered `Unsupported`.
 /// - `images_store`: the `images` section names a client image store,
 ///   which is the only way the host has one.
 /// - `images_registries`: every host of `containers.podman.registries`,
@@ -19,6 +22,7 @@ use crate::config::Config;
 ///   number of either at once.
 pub fn capabilities(config: &Config) -> Capabilities {
     Capabilities {
+        containers: config.containers.enabled,
         images_store: config.images.is_some(),
         images_registries: config
             .containers

@@ -131,6 +131,9 @@ pub(crate) trait Runs: Family {
     fn volume_mount_unsupported(refused: &VolumeMountUnsupported) -> Option<Vec<u8>>;
     /// The run refused for a volume in another mode, on channel `0`.
     fn volume_mode(refused: &VolumeMode) -> Option<Vec<u8>>;
+    /// The run refused because the provider runs no containers, on
+    /// channel `0`.
+    fn unsupported() -> Option<Vec<u8>>;
 }
 
 /// What a caller opened, classified.
