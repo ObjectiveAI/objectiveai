@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::providers::add::client::request;
 use diverge_sdk::daemon::endpoints::providers::add::server::response::Frame;
-use diverge_sdk::daemon::grant::providers::Action;
+use diverge_sdk::daemon::grant::providers::Make;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::providers;
 
@@ -31,7 +31,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     let Some(standing) = Standing::of(&mut conn, who).await? else {
         return Ok(Frame::Forbidden);
     };
-    if !judge::providers::holds(&standing, Action::Add) {
+    if !judge::providers::make(&standing, Make::Add) {
         return Ok(Frame::Forbidden);
     }
     let record = store::providers::Record {

@@ -4,7 +4,7 @@ use std::future::Future;
 
 use diverge_sdk::daemon::endpoints::providers::list::client::request::{self, Filter};
 use diverge_sdk::daemon::endpoints::providers::list::server::response::{Frame, Provider};
-use diverge_sdk::daemon::grant::providers::Action;
+use diverge_sdk::daemon::grant::providers::Over;
 use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
@@ -24,7 +24,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// One `Forbidden` with no `list` grant; else every provider the
-/// configuration accepts that the request's filter lets through, in
+/// configuration accepts that the request's filter lets through and a
+/// grant of `list` reaches, in
 /// the configuration's order, the first `count` of them, one frame
 /// each, then the word that the listing is whole — and from then on
 /// each provider changed as the connections change, until the client
@@ -38,20 +39,22 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     };
-    if !judge::providers::holds(&standing, Action::List) {
+    if !judge::providers::holds(&standing, Over::List) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
     let source = Listed {
         daemon,
+        standing: &standing,
         filter: &frame.filter,
     };
     stream::listing(scope, daemon, &[Kind::Providers], frame.count, &source, Frame::from).await
 }
 
-/// The providers as the filter lets them through now.
+/// The providers as the filter and the grants let them through now.
 struct Listed<'a> {
     daemon: &'a Daemon,
+    standing: &'a Standing,
     filter: &'a Filter,
 }
 
@@ -64,7 +67,7 @@ impl Source for Listed<'_> {
         async move {
             let records = self.daemon.providers.all();
             let mut listed = Vec::with_capacity(records.len());
-            for record in records.iter() {
+            for record in records.iter().filter(|record| judge::providers::over(self.standing, Over::List, record)) {
                 let provider = report(self.daemon, record).await;
                 if filter::providers::test(self.filter, &record.identity, provider.status.connected(), record.enabled) {
                     listed.push((record.identity.clone(), provider));

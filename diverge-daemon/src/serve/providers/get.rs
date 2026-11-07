@@ -3,7 +3,7 @@
 use diverge_sdk::daemon::endpoints::providers::get::client::request;
 use diverge_sdk::daemon::endpoints::providers::get::server::response::Frame;
 use diverge_sdk::daemon::endpoints::providers::list::server::response::Provider;
-use diverge_sdk::daemon::grant::providers::Action;
+use diverge_sdk::daemon::grant::providers::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::Daemon;
@@ -21,19 +21,23 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` with no `get` grant; `NotFound` for an identity no
-/// record has; else the provider as a list reports it.
+/// `Forbidden` with no `get` grant at all; `NotFound` for an identity no
+/// record has; `Forbidden` for a record the grants do not reach; else
+/// the provider as a list reports it.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
         return Ok(Frame::Forbidden);
     };
-    if !judge::providers::holds(&standing, Action::Get) {
+    if !judge::providers::holds(&standing, Over::Get) {
         return Ok(Frame::Forbidden);
     }
     let Some(record) = daemon.providers.record(&frame.identity) else {
         return Ok(Frame::NotFound);
     };
+    if !judge::providers::over(&standing, Over::Get, &record) {
+        return Ok(Frame::Forbidden);
+    }
     Ok(Frame::Found(report(daemon, &record).await))
 }
 

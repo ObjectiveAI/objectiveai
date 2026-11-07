@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::providers::delete::client::request;
 use diverge_sdk::daemon::endpoints::providers::delete::server::response::Frame;
-use diverge_sdk::daemon::grant::providers::Action;
+use diverge_sdk::daemon::grant::providers::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::providers;
 
@@ -23,7 +23,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` with no `delete` grant; `NotFound`; `Enabled` while the
+/// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
+/// for a record the grants do not reach; `Enabled` while the
 /// record is enabled, since a delete stops no work; `InUse` while an
 /// agent or a tool is pinned to the provider or mounts its volumes;
 /// else the record and its volumes' tags gone, the book read again, and
@@ -34,12 +35,15 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     let Some(standing) = Standing::of(&mut tx, who).await? else {
         return Ok(Frame::Forbidden);
     };
-    if !judge::providers::holds(&standing, Action::Delete) {
+    if !judge::providers::holds(&standing, Over::Delete) {
         return Ok(Frame::Forbidden);
     }
     let Some(record) = store::providers::by_identity(&mut tx, &frame.identity, true).await? else {
         return Ok(Frame::NotFound);
     };
+    if !judge::providers::over(&standing, Over::Delete, &record) {
+        return Ok(Frame::Forbidden);
+    }
     if record.enabled {
         return Ok(Frame::Enabled);
     }

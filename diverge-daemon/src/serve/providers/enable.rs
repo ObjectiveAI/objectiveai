@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::providers::enable::client::request;
 use diverge_sdk::daemon::endpoints::providers::enable::server::response::Frame;
-use diverge_sdk::daemon::grant::providers::Action;
+use diverge_sdk::daemon::grant::providers::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::providers;
 
@@ -23,7 +23,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` with no `enable` grant; `NotFound`; else the record
+/// `Forbidden` with no `enable` grant at all; `NotFound`; `Forbidden`
+/// for a record the grants do not reach; else the record
 /// enabled, the book read again, and the
 /// change taking effect — dialled again when outgoing, admitted again when incoming; the lists told.
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
@@ -31,12 +32,15 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     let Some(standing) = Standing::of(&mut tx, who).await? else {
         return Ok(Frame::Forbidden);
     };
-    if !judge::providers::holds(&standing, Action::Enable) {
+    if !judge::providers::holds(&standing, Over::Enable) {
         return Ok(Frame::Forbidden);
     }
     let Some(record) = store::providers::by_identity(&mut tx, &frame.identity, true).await? else {
         return Ok(Frame::NotFound);
     };
+    if !judge::providers::over(&standing, Over::Enable, &record) {
+        return Ok(Frame::Forbidden);
+    }
     store::providers::set_enabled(&mut tx, &record.identity, true).await?;
     tx.commit().await?;
     daemon.providers.reload(&daemon.store).await?;

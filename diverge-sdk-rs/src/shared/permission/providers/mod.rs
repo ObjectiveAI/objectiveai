@@ -1,14 +1,20 @@
-//! What a grant over providers allows.
+//! Grants over providers that name none of them.
 //!
-//! The daemon's providers are its records: a grant over them names the
-//! acts it allows — reading them, discovering through them, and adding,
-//! editing, deleting, enabling, disabling and tagging them.
+//! The daemon's providers are its records, each one provider it works
+//! with. What a grant may ask over them, in the shapes
+//! [`permission`](crate::shared::permission) states: [`Make`], the
+//! action that records one; [`Over`], the actions over the records —
+//! reading, listing, discovering, listening and messaging through them,
+//! changing, deleting, enabling and disabling one — reaching by tags;
+//! and [`Permission`], one grant's worth of either, or of tagging.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
-mod action;
+mod make;
+mod over;
 mod permission;
 
-pub use action::*;
+pub use make::*;
+pub use over::*;
 pub use permission::*;

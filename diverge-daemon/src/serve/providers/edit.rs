@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::providers::edit::client::request;
 use diverge_sdk::daemon::endpoints::providers::edit::server::response::Frame;
-use diverge_sdk::daemon::grant::providers::Action;
+use diverge_sdk::daemon::grant::providers::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::daemon::lifecycle::Reason;
 
@@ -26,7 +26,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` with no `edit` grant; `NotFound`; else every member given
+/// `Forbidden` with no `edit` grant at all; `NotFound`; `Forbidden`
+/// for a record the grants do not reach; else every member given
 /// written over the record's, the book read again, and the lists told.
 /// A change to the direction or the discover flag closes the
 /// connection, its runs ending as `provider_edited`, and the provider is
@@ -36,12 +37,15 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     let Some(standing) = Standing::of(&mut tx, who).await? else {
         return Ok(Frame::Forbidden);
     };
-    if !judge::providers::holds(&standing, Action::Edit) {
+    if !judge::providers::holds(&standing, Over::Edit) {
         return Ok(Frame::Forbidden);
     }
     let Some(kept) = store::providers::by_identity(&mut tx, &frame.identity, true).await? else {
         return Ok(Frame::NotFound);
     };
+    if !judge::providers::over(&standing, Over::Edit, &kept) {
+        return Ok(Frame::Forbidden);
+    }
     let mut record = kept.clone();
     if let Some(direction) = frame.direction {
         record.direction = direction;

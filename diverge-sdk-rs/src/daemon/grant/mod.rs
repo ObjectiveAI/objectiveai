@@ -98,14 +98,18 @@
 //! and re-exported here: the grants a dependency tool template carries
 //! are made of the same actions, reaching by tags alone, and a grant
 //! here reaches by the kind's own filter. The kinds that carry tags —
-//! agents, templates, tools, dependency tools, accounts, roles, volumes,
-//! the vault's keys and the host's identities — have the tagging shape,
-//! and all of them but dependency tools, which a registration makes,
-//! the making shape. The providers, the remote daemons, the database,
+//! agents, templates, tools, dependency tools, providers, remote
+//! daemons, accounts, roles, volumes, the vault's keys and the host's
+//! identities — have the tagging shape, and all of them but dependency
+//! tools, which a registration makes, the making shape. The database,
 //! the events and the images carry none, and their grants are bare
 //! lists of actions. A grant that names nothing becomes one of
 //! these by [`From`]: the same actions, reaching by a filter of the
 //! tags alone, which is how a dependency tool's requests are judged.
+//! The providers' grant is the one exception: their list filter names
+//! no tags, so a grant over them reaches by the shared
+//! [`Tags`](crate::shared::permission::Tags) test itself, and
+//! [`providers`] is the shared module, re-exported whole.
 
 mod convert;
 mod grant;

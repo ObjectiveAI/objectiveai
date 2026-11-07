@@ -1,9 +1,12 @@
-// Over the daemon's providers.
+// Over providers' records.
 //
-// The daemon's providers are its configuration's, read at its start:
-// no request adds, edits or removes one. A grant over them reads
-// them, and nothing else: on the wire a bare array of the `Action`s
-// held, `{"providers":["get","list"]}`.
+// In the shapes `permission` states: `Make`, the action that records one;
+// `Over`, the actions over the records — reading, listing, discovering,
+// listening and messaging through them, changing, deleting, enabling and
+// disabling one — reaching by tags; and `Permission`, one grant's worth
+// of either, or of tagging. The daemon's grant over providers is this
+// one, re-exported: their list filter names no tags.
 
-export * from "./action.js";
+export * from "./make.js";
+export * from "./over.js";
 export * from "./permission.js";
