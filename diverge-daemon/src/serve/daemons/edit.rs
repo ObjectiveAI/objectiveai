@@ -1,4 +1,4 @@
-//! Changing a remote daemon's record.
+//! Changing a remote daemon's record: its description.
 
 use diverge_sdk::daemon::endpoints::daemons::edit::client::request;
 use diverge_sdk::daemon::endpoints::daemons::edit::server::response::Frame;
@@ -21,10 +21,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `edit` grant at all; `NotFound`; `Forbidden` for
-/// a record the grants do not reach; the `Error` for our identity at
-/// another issuer than the remote's, as the record ends up; else the
-/// record changed, its connection — if one is held — dropped, so the
-/// next use connects anew, and the lists told.
+/// a record the grants do not reach; else the record's description
+/// changed, where one is given, and the lists told. What the record
+/// reaches and as whom is its ID and never changes, so a connection held
+/// for it is kept.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -33,39 +33,17 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::daemons::holds(&standing, Over::Edit) {
         return Ok(Frame::Forbidden);
     }
-    let Some(mut record) = store::daemons::by_name(&mut tx, &frame.name, true).await? else {
+    let Some(record) = store::daemons::by_id(&mut tx, frame.id, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let reported = record.report(daemon.live.is_daemon_connected(&record.name).await);
+    let reported = record.report(daemon.live.is_daemon_connected(record.id).await);
     if !judge::daemons::over(&standing, Over::Edit, &reported) {
         return Ok(Frame::Forbidden);
     }
     if let Some(description) = frame.description {
-        record.description = description;
+        store::daemons::edit(&mut tx, record.id, &description).await?;
     }
-    if let Some(remote) = frame.daemon {
-        record.daemon = remote;
-    }
-    if let Some(identity) = frame.identity {
-        record.identity = identity;
-    }
-    if let Some(providers) = frame.providers {
-        record.routes.providers = providers;
-    }
-    if let Some(ips) = frame.ips {
-        record.routes.ips = ips;
-    }
-    if let Some(addresses) = frame.addresses {
-        record.routes.addresses = addresses;
-    }
-    if record.identity.issuer != record.daemon.issuer {
-        return Ok(Frame::Error(reply::failure(&"our identity must be at the remote's issuer: the handshake between the two speaks one")));
-    }
-    store::daemons::edit(&mut tx, &record).await?;
     tx.commit().await?;
-    if let Some(peer) = daemon.live.daemon_peer(&record.name).await {
-        daemon.live.remove_peer(&peer).await;
-    }
     daemon.live.changed(Kind::Daemons);
     Ok(Frame::Edited)
 }

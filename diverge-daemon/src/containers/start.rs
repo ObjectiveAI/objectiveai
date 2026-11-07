@@ -366,12 +366,12 @@ async fn start_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, S
             let service = record.template.r#type.mode == Mode::Service;
             (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service, Some(stream), secrets, Some(permissions))
         }
-        Origin::Connected { daemon: name, route, tool: remote } => {
+        Origin::Connected { daemon: id, route, tool: remote } => {
             let record = {
                 let mut conn = daemon.store.acquire().await?;
-                crate::store::daemons::by_name(&mut conn, name, false).await?
+                crate::store::daemons::by_id(&mut conn, *id, false).await?
             };
-            let record = record.ok_or_else(|| StartError::NoDaemon(name.clone()))?;
+            let record = record.ok_or(StartError::NoDaemon(*id))?;
             let peer = daemons::connect(daemon, &record).await.map_err(StartError::Daemon)?;
             // The connect relayed along the record's route, when it has
             // one: each hop served as an account, as any relay is.
@@ -388,7 +388,7 @@ async fn start_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, S
                 template: connected.template().to_string(),
                 index: tool.index,
                 name: tool.name.clone(),
-                daemon: name.clone(),
+                daemon: *id,
             };
             (peer.provider.clone(), None, ToolHandle::Connected(connected), mounts, attestation, false, None, None, None)
         }

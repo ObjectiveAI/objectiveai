@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::daemons::list::client::request::Filter;
 
 /// Whether the record, as a list reports it, passes `filter`.
 pub fn test(filter: &Filter, daemon: &Daemon) -> bool {
-    (filter.names.is_empty() || filter.names.contains(&daemon.name))
+    (filter.ids.is_empty() || filter.ids.contains(&daemon.id))
         && (filter.issuers.is_empty() || filter.issuers.contains(&daemon.daemon.issuer))
         && (filter.creators.is_empty() || filter.creators.contains(&daemon.creator))
         && filter.connected.is_none_or(|wanted| daemon.connected == wanted)

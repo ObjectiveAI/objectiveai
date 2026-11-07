@@ -11,7 +11,7 @@ use sqlx::postgres::PgRow;
 use sqlx::types::Json;
 
 use super::{Origin, Tool};
-use crate::store::{Error, ToolId};
+use crate::store::{Error, ToolId, daemons};
 use diverge_sdk::shared::permission::Grant;
 
 /// The columns every tool query selects.
@@ -38,9 +38,13 @@ pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
             let Some(Json(tool)) = tool else {
                 return Err(Error::Json(serde::de::Error::custom("a connected tool names no tool")));
             };
+            let Some(daemon) = row.try_get::<Option<i64>, _>("connected_daemon")? else {
+                return Err(Error::Json(serde::de::Error::custom("a connected tool names no daemon")));
+            };
+            let route: Vec<i64> = row.try_get("connected_route")?;
             Origin::Connected {
-                daemon: row.try_get::<Option<String>, _>("connected_daemon")?.unwrap_or_default(),
-                route: row.try_get("connected_route")?,
+                daemon: daemons::from_column(daemon),
+                route: route.into_iter().map(daemons::from_column).collect(),
                 tool,
             }
         }

@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use diverge_sdk::daemon::agent_log::Identity;
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
 use diverge_sdk::daemon::endpoints::providers::Status;
 use diverge_sdk::provider::endpoints::capacity::server::response::Frame as CapacityFrame;
 use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;
@@ -126,16 +127,16 @@ pub struct Live {
     /// Each connected provider's discover listing, while something
     /// watches: see [`Discovery`].
     pub discovery: Discovery,
-    /// The remote daemons connected to now, by the name the
-    /// configuration gives each, each through one provider: what a
-    /// connected tool's exchanges and a relayed request ride.
-    daemons: Mutex<HashMap<String, Arc<Peer>>>,
+    /// The remote daemons connected to now, by the ID of the record
+    /// each was opened for, each through one provider: what a connected
+    /// tool's exchanges and a relayed request ride.
+    daemons: Mutex<HashMap<DaemonId, Arc<Peer>>>,
     /// One lock per remote daemon's record a connect is made or waited
     /// on for now, taken for the length of the connect: two connects of
     /// one record are made one after the other, so a record holds one
     /// connection. An entry leaves once nobody holds its lock: see
     /// [`connected_to`](Self::connected_to).
-    connecting: Mutex<HashMap<String, Arc<Mutex<()>>>>,
+    connecting: Mutex<HashMap<DaemonId, Arc<Mutex<()>>>>,
     /// The next number for a connect scope another daemon opens.
     next_connect: Mutex<u64>,
     /// Which providers are known to hold which image, by digest: what
@@ -976,17 +977,17 @@ impl Live {
         Some(VolumeHold { operations: Arc::clone(&self.operations), volume: Some(volume.clone()) })
     }
 
-    /// The connection to the remote daemon of the name, if one is
-    /// held.
-    pub async fn daemon_peer(&self, name: &str) -> Option<Arc<Peer>> {
-        self.daemons.lock().await.get(name).cloned()
+    /// The connection opened for the remote daemon's record of the ID,
+    /// if one is held.
+    pub async fn daemon_peer(&self, id: DaemonId) -> Option<Arc<Peer>> {
+        self.daemons.lock().await.get(&id).cloned()
     }
 
-    /// A connection to a remote daemon is open: held under its name,
+    /// A connection to a remote daemon is open: held under its record's ID,
     /// replacing one that ended, which is closed as
     /// [`remove_peer`](Self::remove_peer) closes one.
     pub async fn insert_daemon(&self, peer: Arc<Peer>) {
-        let replaced = self.daemons.lock().await.insert(peer.daemon.clone(), Arc::clone(&peer));
+        let replaced = self.daemons.lock().await.insert(peer.daemon, Arc::clone(&peer));
         if let Some(replaced) = replaced
             && !Arc::ptr_eq(&replaced, &peer)
         {
@@ -995,8 +996,8 @@ impl Live {
         self.changes.changed(Kind::Daemons);
     }
 
-    /// The peer is forgotten — its connection ended, its record edited
-    /// or deleted: its closer told, so its watcher lets the connection
+    /// The peer is forgotten — its connection ended, its record
+    /// deleted: its closer told, so its watcher lets the connection
     /// go, and it is no longer held, unless a newer one has taken its
     /// place.
     pub async fn remove_peer(&self, peer: &Arc<Peer>) {
@@ -1013,38 +1014,38 @@ impl Live {
         }
     }
 
-    /// Whether this daemon holds a connection to the remote daemon of
-    /// the name now, one that has not ended.
-    pub async fn is_daemon_connected(&self, name: &str) -> bool {
-        self.daemons.lock().await.get(name).is_some_and(|peer| !peer.connected.is_ended())
+    /// Whether this daemon holds a connection for the remote daemon's
+    /// record of the ID now, one that has not ended.
+    pub async fn is_daemon_connected(&self, id: DaemonId) -> bool {
+        self.daemons.lock().await.get(&id).is_some_and(|peer| !peer.connected.is_ended())
     }
 
-    /// Every remote daemon connected to now, by name: one snapshot,
-    /// for a list.
-    pub async fn connected_daemons(&self) -> HashSet<String> {
+    /// Every remote daemon's record connected for now, by ID: one
+    /// snapshot, for a list.
+    pub async fn connected_daemons(&self) -> HashSet<DaemonId> {
         self.daemons
             .lock()
             .await
             .iter()
             .filter(|(_, peer)| !peer.connected.is_ended())
-            .map(|(name, _)| name.clone())
+            .map(|(id, _)| *id)
             .collect()
     }
 
-    /// The lock a connect to the remote daemon of the record `name` is
+    /// The lock a connect to the remote daemon of the record `id` is
     /// made under: see `connecting`. The caller lets it go, then calls
     /// [`connected_to`](Self::connected_to).
-    pub async fn connecting(&self, name: &str) -> Arc<Mutex<()>> {
-        Arc::clone(self.connecting.lock().await.entry(name.to_string()).or_default())
+    pub async fn connecting(&self, id: DaemonId) -> Arc<Mutex<()>> {
+        Arc::clone(self.connecting.lock().await.entry(id).or_default())
     }
 
-    /// A connect to the record `name` let its lock go: the entry
-    /// forgotten when nobody holds it any more, as
-    /// [`started`](Self::started) forgets a start's.
-    pub async fn connected_to(&self, name: &str) {
+    /// A connect to the record `id` let its lock go: the entry forgotten
+    /// when nobody holds it any more, as [`started`](Self::started)
+    /// forgets a start's.
+    pub async fn connected_to(&self, id: DaemonId) {
         let mut connecting = self.connecting.lock().await;
-        if connecting.get(name).is_some_and(|lock| Arc::strong_count(lock) == 1) {
-            connecting.remove(name);
+        if connecting.get(&id).is_some_and(|lock| Arc::strong_count(lock) == 1) {
+            connecting.remove(&id);
         }
     }
 

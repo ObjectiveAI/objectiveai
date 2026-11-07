@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
+
 use super::NoProvider;
 use super::fuse::MountsError;
 use crate::daemons;
@@ -19,9 +21,9 @@ pub enum StartError {
     NoTemplate(String),
     /// No provider to run on.
     Provider(NoProvider),
-    /// The remote daemon a connected tool names is none the
-    /// configuration names.
-    NoDaemon(String),
+    /// The remote daemon's record a connected tool names, by ID, is not
+    /// on record.
+    NoDaemon(DaemonId),
     /// No connection to the daemon named could be opened.
     Daemon(daemons::Fail),
     /// A mount could not be served: a volume the provider refused, or
@@ -51,7 +53,7 @@ impl fmt::Display for StartError {
             StartError::Store(error) => write!(f, "{error}"),
             StartError::NoTemplate(id) => write!(f, "the template {id} is not on record"),
             StartError::Provider(error) => write!(f, "{error}"),
-            StartError::NoDaemon(name) => write!(f, "no remote daemon is named `{name}`"),
+            StartError::NoDaemon(id) => write!(f, "no remote daemon's record has the ID `{id}`"),
             StartError::Daemon(error) => write!(f, "{error}"),
             StartError::Mounts(error) => write!(f, "a mount could not be served: {error}"),
             StartError::Secrets(what) => write!(f, "a secret could not be taken: {what}"),

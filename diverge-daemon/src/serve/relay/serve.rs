@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::ClientRequest;
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
 use diverge_sdk::daemon::grant::daemons::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
@@ -14,20 +15,21 @@ use crate::serve::reply;
 use crate::store;
 
 /// Serve `request` — decoded only for its name and its refusals — on
-/// the remote daemon of the record named `first`, the relay's first
-/// name, carrying `bytes`, the request with that name taken off its
-/// `relay` — served there as our account the record names, which judges
-/// the rest. `Forbidden`, in the request's own words, with no standing,
-/// or with no `relay` grant reaching the record; the request's own
-/// `Error` for no record of the name, a store that cannot be read, or a
+/// the remote daemon of the record of the ID `first`, the relay's first
+/// ID, carrying `bytes`, the request with that ID taken off its `relay`
+/// — served there as our account the record names, which judges the
+/// rest. `Forbidden`, in the request's own words, with no standing, or
+/// with no `relay` grant reaching the record; the request's own `Error`
+/// for no record of the ID — a record deleted and added again reaching
+/// elsewhere has another ID, so an old one finds nothing — a store that cannot be read, or a
 /// connection that could not be opened; else the
 /// conduit, to the remote's finish — or, the connection ending at any
 /// frame before that, the one [`LOST`] error, then the finish. An
 /// invalid request has no words and is finished with nothing, as it
 /// would have been.
-pub async fn serve(scope: ScopeHandle, request: &ClientRequest<'_>, bytes: Vec<u8>, first: String, who: Who, daemon: &Arc<Daemon>) {
+pub async fn serve(scope: ScopeHandle, request: &ClientRequest<'_>, bytes: Vec<u8>, first: DaemonId, who: Who, daemon: &Arc<Daemon>) {
     let scope = Arc::new(scope);
-    let outcome = judge_and_connect(&first, who, daemon).await;
+    let outcome = judge_and_connect(first, who, daemon).await;
     let handle = match outcome {
         Ok(handle) => handle,
         Err(Refusal::Forbidden) => {
@@ -63,7 +65,7 @@ enum Refusal {
 
 /// The caller judged and the connection taken or opened: the handle
 /// every frame of the relay rides.
-async fn judge_and_connect(first: &str, who: Who, daemon: &Arc<Daemon>) -> Result<diverge_sdk::wire::client::handle::Handle, Refusal> {
+async fn judge_and_connect(first: DaemonId, who: Who, daemon: &Arc<Daemon>) -> Result<diverge_sdk::wire::client::handle::Handle, Refusal> {
     let record = {
         let mut conn = daemon.store.acquire().await.map_err(|error| Refusal::Error(error.to_string()))?;
         let Some(standing) = Standing::of(&mut conn, who).await.map_err(|error| Refusal::Error(error.to_string()))? else {
@@ -72,10 +74,10 @@ async fn judge_and_connect(first: &str, who: Who, daemon: &Arc<Daemon>) -> Resul
         if !judge::daemons::holds(&standing, Over::Relay) {
             return Err(Refusal::Forbidden);
         }
-        let Some(record) = store::daemons::by_name(&mut conn, first, false).await.map_err(|error| Refusal::Error(error.to_string()))? else {
-            return Err(Refusal::Error(format!("no remote daemon is named `{first}`")));
+        let Some(record) = store::daemons::by_id(&mut conn, first, false).await.map_err(|error| Refusal::Error(error.to_string()))? else {
+            return Err(Refusal::Error(format!("no remote daemon's record has the ID `{first}`")));
         };
-        let reported = record.report(daemon.live.is_daemon_connected(&record.name).await);
+        let reported = record.report(daemon.live.is_daemon_connected(record.id).await);
         if !judge::daemons::over(&standing, Over::Relay, &reported) {
             return Err(Refusal::Forbidden);
         }

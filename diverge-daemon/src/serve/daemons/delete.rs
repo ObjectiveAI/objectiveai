@@ -32,19 +32,19 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::daemons::holds(&standing, Over::Delete) {
         return Ok(Frame::Forbidden);
     }
-    let Some(record) = store::daemons::by_name(&mut tx, &frame.name, true).await? else {
+    let Some(record) = store::daemons::by_id(&mut tx, frame.id, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let reported = record.report(daemon.live.is_daemon_connected(&record.name).await);
+    let reported = record.report(daemon.live.is_daemon_connected(record.id).await);
     if !judge::daemons::over(&standing, Over::Delete, &reported) {
         return Ok(Frame::Forbidden);
     }
-    if store::daemons::in_use(&mut tx, &record.name).await? {
+    if store::daemons::in_use(&mut tx, record.id).await? {
         return Ok(Frame::InUse);
     }
-    store::daemons::delete(&mut tx, &record.name).await?;
+    store::daemons::delete(&mut tx, record.id).await?;
     tx.commit().await?;
-    if let Some(peer) = daemon.live.daemon_peer(&record.name).await {
+    if let Some(peer) = daemon.live.daemon_peer(record.id).await {
         daemon.live.remove_peer(&peer).await;
     }
     daemon.live.changed(Kind::Daemons);

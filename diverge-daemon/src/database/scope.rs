@@ -117,7 +117,7 @@ pub fn container_of_tool(tool: &Tool) -> Container {
             index: tool.index,
         },
         Origin::Connected { daemon, tool, .. } => reference::Tool::Connected {
-            daemon: daemon.clone(),
+            daemon: *daemon,
             tool: Box::new(tool.clone()),
         },
     })

@@ -131,18 +131,19 @@ CREATE TABLE IF NOT EXISTS diverge.agents (
 );
 
 -- A tool: made from a template, or joined to another daemon's tool by
--- the daemon's record, by name, and the tool as that daemon names it.
+-- the daemon's record, by ID, and the tool as that daemon names it.
 CREATE TABLE IF NOT EXISTS diverge.tools (
     id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     -- `created` or `connected`.
     kind                  TEXT NOT NULL,
     template              TEXT,
     provider              JSONB,
-    connected_daemon      TEXT,
+    -- The record's ID, the u64 bit-cast to a BIGINT.
+    connected_daemon      BIGINT,
     -- The records a connected tool's connect is relayed through beyond
-    -- `connected_daemon`, each named on the daemon before it; empty for
-    -- a tool on that daemon itself.
-    connected_route       TEXT[] NOT NULL DEFAULT '{}',
+    -- `connected_daemon`, each by its ID on the daemon before it, bit-cast
+    -- as `connected_daemon` is; empty for a tool on that daemon itself.
+    connected_route       BIGINT[] NOT NULL DEFAULT '{}',
     connected_tool        JSONB,
     index                 BIGINT NOT NULL,
     name                  TEXT UNIQUE,
@@ -285,16 +286,18 @@ CREATE TABLE IF NOT EXISTS diverge.providers (
 );
 
 -- The remote daemons this daemon reaches: one record per account of
--- ours on one of them. Several records may name the same remote.
+-- ours on one of them. Several records may name the same remote. Keyed
+-- by the ID, the hash of the remote, our identity and the route filters
+-- — the u64 bit-cast to a BIGINT — so none of those is ever changed.
 CREATE TABLE IF NOT EXISTS diverge.daemons (
-    name             TEXT PRIMARY KEY,
+    id               BIGINT PRIMARY KEY,
     description      TEXT NOT NULL DEFAULT '',
     daemon_issuer    TEXT NOT NULL,
     daemon_subject   TEXT NOT NULL,
     identity_issuer  TEXT NOT NULL,
     identity_subject TEXT NOT NULL,
     -- The route filters: the providers, the IPs and the addresses a
-    -- route to the remote must be among; NULL, no filter.
+    -- route to the remote must be among; NULL or empty, no filter.
     providers        JSONB,
     ips              JSONB,
     addresses        JSONB,

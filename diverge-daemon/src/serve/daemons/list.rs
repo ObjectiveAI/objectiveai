@@ -3,6 +3,7 @@
 use std::future::Future;
 
 use diverge_sdk::daemon::endpoints::daemons::Daemon as Record;
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
 use diverge_sdk::daemon::endpoints::daemons::list::client::request;
 use diverge_sdk::daemon::endpoints::daemons::list::server::response::Frame;
 use diverge_sdk::daemon::grant::daemons::Over;
@@ -23,7 +24,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// One `Forbidden` with no `list` grant; else every record the request's
-/// filter lets through and a grant of `list` reaches, by name, the first
+/// filter lets through and a grant of `list` reaches, by ID, the first
 /// `count` of them, one frame each, then the word that the listing is
 /// whole — and from then on each record added, changed or removed as the
 /// records and their connections change, until the client cancels.
@@ -52,11 +53,11 @@ struct Listed<'a> {
 }
 
 impl Source for Listed<'_> {
-    type Key = String;
+    type Key = DaemonId;
     type Item = Record;
     type Error = store::Error;
 
-    fn read(&self) -> impl Future<Output = Result<Vec<(String, Record)>, store::Error>> + Send {
+    fn read(&self) -> impl Future<Output = Result<Vec<(DaemonId, Record)>, store::Error>> + Send {
         async move {
             let records = {
                 let mut conn = self.daemon.store.acquire().await?;
@@ -65,9 +66,9 @@ impl Source for Listed<'_> {
             let connected = self.daemon.live.connected_daemons().await;
             Ok(records
                 .iter()
-                .map(|record| record.report(connected.contains(&record.name)))
+                .map(|record| record.report(connected.contains(&record.id)))
                 .filter(|reported| filter::daemons::test(self.filter, reported) && judge::daemons::over(self.standing, Over::List, reported))
-                .map(|reported| (reported.name.clone(), reported))
+                .map(|reported| (reported.id, reported))
                 .collect())
         }
     }

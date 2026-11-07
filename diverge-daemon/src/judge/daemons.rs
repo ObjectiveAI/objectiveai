@@ -8,7 +8,7 @@
 //! [`filter::daemons::test`] reads it, over the record as a list reports
 //! it, its tags and its connection included; a tagging action by a grant
 //! that holds it, reaches the record, and covers every tag named. A
-//! relay is judged as `relay` over the record its first name is.
+//! relay is judged as `relay` over the record its first ID is.
 
 use diverge_sdk::daemon::endpoints::daemons::list::client::request::Filter;
 use diverge_sdk::daemon::endpoints::daemons::Daemon;

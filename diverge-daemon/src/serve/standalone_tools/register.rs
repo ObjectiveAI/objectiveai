@@ -24,8 +24,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` without the `register` grant, or without a `connect`
-/// grant reaching the remote daemon's record; the error for no record of
-/// the name; `InUse` for a name another tool has;
+/// grant reaching the remote daemon's record `daemon` names, by ID; the
+/// error for no record of the ID; `InUse` for a name another tool has;
 /// else the tool held — a connected one, with no account and no
 /// mounts, its index the next among tools registered from that
 /// daemon's tool — and nothing connected: the daemon is connected to
@@ -38,10 +38,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::standalone_tools::make(&standing, Make::Register) {
         return Ok(Frame::Forbidden);
     }
-    let Some(record) = store::daemons::by_name(&mut tx, &frame.daemon, false).await? else {
-        return Ok(Frame::Error(reply::failure(&format!("no remote daemon is named `{}`", frame.daemon))));
+    let Some(record) = store::daemons::by_id(&mut tx, frame.daemon, false).await? else {
+        return Ok(Frame::Error(reply::failure(&format!("no remote daemon's record has the ID `{}`", frame.daemon))));
     };
-    let reported = record.report(daemon.live.is_daemon_connected(&record.name).await);
+    let reported = record.report(daemon.live.is_daemon_connected(record.id).await);
     if !judge::daemons::over(&standing, Over::Connect, &reported) {
         return Ok(Frame::Forbidden);
     }

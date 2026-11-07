@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use diverge_sdk::daemon::agent_log::{self as logs, Identity};
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
 use diverge_sdk::daemon::endpoints::standalone_tools::list::server::response;
 use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::daemon::key;
@@ -26,13 +27,13 @@ pub enum Origin {
     },
     /// Joined to a tool another daemon holds.
     Connected {
-        /// The remote daemon the tool is on, by the name the
-        /// configuration gives it — the first of the route's.
-        daemon: String,
+        /// The remote daemon the tool is on, by the ID of this daemon's
+        /// record of it — the first of the route's.
+        daemon: DaemonId,
         /// The records the connect is relayed through beyond `daemon`,
-        /// each named on the daemon before it; empty for a tool on
+        /// each by its ID on the daemon before it; empty for a tool on
         /// `daemon` itself.
-        route: Vec<String>,
+        route: Vec<DaemonId>,
         /// The tool, as that daemon names it.
         tool: reference::Tool,
     },
@@ -99,7 +100,7 @@ impl Tool {
                 template: template.clone(),
             },
             Origin::Connected { daemon, tool, .. } => key::Origin::Connected {
-                daemon: daemon.clone(),
+                daemon: *daemon,
                 tool: Box::new(tool.clone()),
             },
         };
@@ -136,7 +137,7 @@ impl Tool {
                 id: running,
             },
             Origin::Connected { daemon, route, tool } => response::Origin::Connected {
-                daemon: daemon.clone(),
+                daemon: *daemon,
                 route: route.clone(),
                 tool: tool.clone(),
                 index: self.index,

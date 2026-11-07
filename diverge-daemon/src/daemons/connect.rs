@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
 use diverge_sdk::provider::endpoints::daemons::connect::client::{execute as daemons_connect, request as daemons_request};
 use rand::seq::IndexedRandom as _;
 use tokio::sync::watch;
@@ -13,7 +14,7 @@ use crate::store::daemons::Record;
 /// The connection the record `record` names: the one held, while it has
 /// not ended; else one opened now. The rules:
 ///
-/// 1. **One per record.** A record's connection is kept by its name and
+/// 1. **One per record.** A record's connection is kept by its ID and
 ///    reused by every relay and every connected tool naming it, so each
 ///    account of ours on a remote keeps its own.
 /// 2. **Found by discovery.** Discovery is touched — held, its listings
@@ -32,7 +33,7 @@ use crate::store::daemons::Record;
 ///    and admits only the record's remote — see
 ///    [`toward`](crate::judge::DaemonAuthenticator::toward).
 /// 5. **Kept until it ends**, and a watcher forgetting it then — or
-///    until the daemon forgets it first, its record edited or deleted:
+///    until the daemon forgets it first, its record deleted:
 ///    the watcher then lets it go, and it closes once nothing else of
 ///    the daemon's uses it.
 /// 6. **One at a time.** Two connects naming one record are made one
@@ -40,9 +41,9 @@ use crate::store::daemons::Record;
 ///    rule 1: a record never opens two.
 pub async fn connect(daemon: &Arc<Daemon>, record: &Record) -> Result<Arc<Peer>, Fail> {
     // Rule 6.
-    let _connecting = Connecting::hold(daemon, &record.name).await;
+    let _connecting = Connecting::hold(daemon, record.id).await;
     // Rule 1.
-    if let Some(peer) = daemon.live.daemon_peer(&record.name).await {
+    if let Some(peer) = daemon.live.daemon_peer(record.id).await {
         if !peer.connected.is_ended() {
             return Ok(peer);
         }
@@ -65,7 +66,7 @@ pub async fn connect(daemon: &Arc<Daemon>, record: &Record) -> Result<Arc<Peer>,
         .await
         .map_err(|error| Fail::Refused(error.to_string()))?;
     // Rule 5.
-    let peer = Arc::new(Peer { daemon: record.name.clone(), provider, connected, closer: watch::channel(false).0 });
+    let peer = Arc::new(Peer { daemon: record.id, provider, connected, closer: watch::channel(false).0 });
     daemon.live.insert_daemon(Arc::clone(&peer)).await;
     tokio::spawn(watch(Arc::clone(daemon), Arc::clone(&peer)));
     Ok(peer)
@@ -98,19 +99,19 @@ async fn closed(mut closing: watch::Receiver<bool>) {
 struct Connecting {
     /// The daemon whose map the entry is in.
     daemon: Arc<Daemon>,
-    /// The record's name.
-    name: String,
+    /// The record's ID.
+    id: DaemonId,
     /// The lock, held; taken at the drop, so the entry is unshared
     /// before it is looked at.
     held: Option<tokio::sync::OwnedMutexGuard<()>>,
 }
 
 impl Connecting {
-    /// The connect lock of the record `name`, waited for and held.
-    async fn hold(daemon: &Arc<Daemon>, name: &str) -> Connecting {
-        let lock = daemon.live.connecting(name).await;
+    /// The connect lock of the record `id`, waited for and held.
+    async fn hold(daemon: &Arc<Daemon>, id: DaemonId) -> Connecting {
+        let lock = daemon.live.connecting(id).await;
         let held = lock.lock_owned().await;
-        Connecting { daemon: Arc::clone(daemon), name: name.to_string(), held: Some(held) }
+        Connecting { daemon: Arc::clone(daemon), id, held: Some(held) }
     }
 }
 
@@ -118,8 +119,8 @@ impl Drop for Connecting {
     fn drop(&mut self) {
         drop(self.held.take());
         if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            let (daemon, name) = (Arc::clone(&self.daemon), std::mem::take(&mut self.name));
-            runtime.spawn(async move { daemon.live.connected_to(&name).await });
+            let (daemon, id) = (Arc::clone(&self.daemon), self.id);
+            runtime.spawn(async move { daemon.live.connected_to(id).await });
         }
     }
 }

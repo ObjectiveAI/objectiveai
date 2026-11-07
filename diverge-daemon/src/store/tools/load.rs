@@ -6,7 +6,7 @@ use sqlx::{PgConnection, Row as _};
 
 use super::Tool;
 use super::row::{self, ORDER, SELECT};
-use crate::store::{Error, ToolId};
+use crate::store::{Error, ToolId, daemons};
 
 /// Every tool, oldest first.
 pub async fn all(conn: &mut PgConnection) -> Result<Vec<Tool>, Error> {
@@ -46,7 +46,7 @@ pub async fn by_reference(conn: &mut PgConnection, reference: &reference::Tool, 
         }
         reference::Tool::Connected { daemon, tool } => {
             sqlx::query("SELECT id FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1 AND connected_tool = $2 ORDER BY index LIMIT 1")
-                .bind(daemon)
+                .bind(daemons::to_column(*daemon))
                 .bind(Json(tool))
                 .fetch_optional(&mut *conn)
                 .await?

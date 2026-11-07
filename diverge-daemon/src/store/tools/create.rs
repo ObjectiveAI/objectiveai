@@ -9,7 +9,7 @@ use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
 use super::Origin;
-use crate::store::{Error, ToolId, counters};
+use crate::store::{Error, ToolId, counters, daemons};
 
 /// What a new tool is made of: its origin, checked by the caller —
 /// the template live, the remote daemon configured — and what a create
@@ -55,7 +55,10 @@ pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error
     let index = counters::next(conn, &key).await?;
     let (kind, template, provider, connected_daemon, connected_route, connected_tool) = match &new.origin {
         Origin::Created { template, provider } => ("created", Some(template.clone()), provider.as_ref().map(Json), None, Vec::new(), None),
-        Origin::Connected { daemon, route, tool } => ("connected", None, None, Some(daemon.clone()), route.clone(), Some(Json(tool))),
+        Origin::Connected { daemon, route, tool } => {
+            let route: Vec<i64> = route.iter().copied().map(daemons::to_column).collect();
+            ("connected", None, None, Some(daemons::to_column(*daemon)), route, Some(Json(tool)))
+        }
     };
     let inserted = sqlx::query(
         "INSERT INTO diverge.tools (kind, template, provider, connected_daemon, connected_route, connected_tool, index, name, \

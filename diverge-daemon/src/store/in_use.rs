@@ -9,9 +9,10 @@
 
 use std::collections::HashSet;
 
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
 use sqlx::{PgConnection, Row as _};
 
-use crate::store::Error;
+use crate::store::{Error, daemons};
 
 /// The ids of every agent template some agent was made from.
 pub async fn agents_templates(conn: &mut PgConnection) -> Result<HashSet<String>, Error> {
@@ -23,10 +24,11 @@ pub async fn tools_templates(conn: &mut PgConnection) -> Result<HashSet<String>,
     ids(conn, "SELECT DISTINCT template AS id FROM diverge.tools WHERE kind = 'created'").await
 }
 
-/// Whether some connected tool names the remote daemon of the name.
-pub async fn daemon(conn: &mut PgConnection, name: &str) -> Result<bool, Error> {
+/// Whether some connected tool names the remote daemon's record of the
+/// ID.
+pub async fn daemon(conn: &mut PgConnection, id: DaemonId) -> Result<bool, Error> {
     let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1) AS held")
-        .bind(name)
+        .bind(daemons::to_column(id))
         .fetch_one(&mut *conn)
         .await?;
     Ok(row.try_get("held")?)

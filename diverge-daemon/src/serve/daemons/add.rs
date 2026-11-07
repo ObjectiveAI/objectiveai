@@ -22,8 +22,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `add` grant; the `Error` for our identity at
 /// another issuer than the remote's, since the handshake between the two
-/// speaks one; `Exists` for a name a record has; else the record kept,
-/// its tags sorted, and the lists told.
+/// speaks one; `Exists`, with the ID, for a record of the ID what the
+/// request reaches and as whom hash to — see
+/// [`DaemonId::of`](diverge_sdk::daemon::endpoints::daemons::DaemonId::of);
+/// else the record kept under that ID, its tags sorted, the lists told,
+/// and `Added` with the ID.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -35,8 +38,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if frame.identity.issuer != frame.daemon.issuer {
         return Ok(Frame::Error(reply::failure(&"our identity must be at the remote's issuer: the handshake between the two speaks one")));
     }
-    let record = store::daemons::Record {
-        name: frame.name,
+    let new = store::daemons::New {
         description: frame.description.unwrap_or_default(),
         daemon: frame.daemon,
         identity: frame.identity,
@@ -45,9 +47,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         created: chrono::Utc::now(),
         creator: standing.creator.clone(),
     };
-    if !store::daemons::create(&mut conn, &record).await? {
-        return Ok(Frame::Exists);
+    let (id, added) = store::daemons::create(&mut conn, &new).await?;
+    if !added {
+        return Ok(Frame::Exists(id));
     }
     daemon.live.changed(Kind::Daemons);
-    Ok(Frame::Added)
+    Ok(Frame::Added(id))
 }
