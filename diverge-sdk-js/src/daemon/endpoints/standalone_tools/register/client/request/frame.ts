@@ -18,6 +18,8 @@ import { Tool } from "../../../../../../daemon/reference/tool.js";
 export const Frame = z.object({
   /** The remote daemon the tool is on, by its name in the configuration: see `providers.daemons`. A name no remote daemon has is the register's error. */
   daemon: z.string(),
+  /** The remote-daemon records the tool's connect is relayed through beyond `daemon`, each named on the daemon before it: the tool is on the last. Each hop is served as the account the previous daemon's record names. Absent or empty, the tool is on `daemon`. */
+  route: z.array(z.string()).optional(),
   /** The tool, as that daemon names it: by name, by template and index, or another daemon's by the daemon and its reference there. */
   tool: Tool,
   /** The name, if the tool is to have one; unique among the caller's tools. Absent, none. */

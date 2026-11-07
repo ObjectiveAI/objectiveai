@@ -37,6 +37,8 @@ export const Origin = z.discriminatedUnion("kind", [
     kind: z.literal("connected"),
     /** The remote daemon the tool is on, by its name in the configuration, as the register named it. */
     daemon: z.string(),
+    /** The records the tool's connect is relayed through beyond `daemon`, as the register named them. Absent, the tool is on `daemon`. */
+    route: z.array(z.string()).optional(),
     /** The tool, as that daemon names it. */
     tool: reference.Tool,
     /** Its number among all connected tools of the caller's ever registered, deleted ones included; never given twice. */
