@@ -15,5 +15,7 @@ export const Via = z.object({
   ip: z.string(),
   /** The dial target the provider dialled it at — a `host:port` or a URL — when it did; absent when it dialled the provider. */
   address: z.string().optional(),
+  /** Whether the identity listens for messages through the provider. */
+  listening: z.boolean(),
 });
 export type Via = z.infer<typeof Via>;

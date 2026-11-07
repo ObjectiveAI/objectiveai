@@ -1,6 +1,6 @@
 //! The providers' discover listings, held while watched, and merged.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -61,6 +61,12 @@ use crate::daemon::{Daemon, Kind};
 ///    before its request until its finish is read, and a listing let go
 ///    reads to its finish before the lane is free. A listing refused all
 ///    the same ends as a failure does (rule 4).
+/// 9. **Listening.** Each listing's held items keep whether their
+///    identity listens for messages there, as the provider's
+///    `Listening` and `NotListening` tell it by the identity alone; each
+///    route carries it, and a flip is the word [`Kind::Discover`] — the
+///    merge then tells it as `Changed`, as every daemon listing tells a
+///    change.
 #[derive(Debug, Default)]
 pub struct Discovery {
     inner: Mutex<Inner>,
@@ -233,15 +239,18 @@ impl Discovery {
         inner.upstreams.remove(identity).is_some()
     }
 
-    /// The merge (rule 6), in order of identity, each identity's
-    /// providers in order, and its descriptions in order, each once.
-    pub async fn read(&self, daemon: &Daemon) -> Vec<(Identity, Discovered)> {
+    /// The merge (rule 6) of the listings of the providers in `reached`
+    /// alone — what a reader's grant reaches, so neither a route nor a
+    /// description of another provider's is in it — in order of identity,
+    /// each identity's providers in order, and its descriptions in
+    /// order, each once.
+    pub async fn read(&self, daemon: &Daemon, reached: &HashSet<Identity>) -> Vec<(Identity, Discovered)> {
         let whole: Vec<(Identity, Arc<Mutex<Held>>)> = {
             let inner = self.inner.lock().await;
             inner
                 .upstreams
                 .iter()
-                .filter(|(_, upstream)| *upstream.whole.borrow())
+                .filter(|(provider, upstream)| *upstream.whole.borrow() && reached.contains(*provider))
                 .map(|(provider, upstream)| (provider.clone(), Arc::clone(&upstream.held)))
                 .collect()
         };
@@ -317,6 +326,17 @@ async fn keep(daemon: Arc<Daemon>, handle: Handle, lane: Arc<Mutex<()>>, held: A
                     Some(Ok(response::Frame::Listed)) => {
                         whole.send_replace(true);
                     }
+                    // Rule 9: the listening of an identity held, by its key.
+                    Some(Ok(response::Frame::Listening(identity))) => {
+                        if let Some(listed) = held.lock().await.get_mut(&identity) {
+                            listed.listening = true;
+                        }
+                    }
+                    Some(Ok(response::Frame::NotListening(identity))) => {
+                        if let Some(listed) = held.lock().await.get_mut(&identity) {
+                            listed.listening = false;
+                        }
+                    }
                     // Refused (rule 8), failed, or finished: the end.
                     Some(Ok(response::Frame::AlreadyOpen)) | Some(Err(_)) | None => {
                         whole.send_replace(true);
@@ -371,5 +391,5 @@ pub async fn idle(daemon: Arc<Daemon>) {
 
 /// The route to an identity `provider`'s listing holds as `listed`.
 fn via(provider: &Identity, listed: &Discoverable) -> Via {
-    Via { provider: provider.clone(), ip: listed.ip, address: listed.address.clone() }
+    Via { provider: provider.clone(), ip: listed.ip, address: listed.address.clone(), listening: listed.listening }
 }

@@ -26,4 +26,8 @@ pub struct Via {
     /// provider.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
+    /// Whether the identity listens for messages through the provider:
+    /// a [`daemons::message`](crate::daemon::endpoints::daemons) to it
+    /// goes only through a provider where it listens.
+    pub listening: bool,
 }
