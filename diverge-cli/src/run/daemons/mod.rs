@@ -1,7 +1,8 @@
 //! `diverge run daemons …`.
 //!
 //! The requests over the remote daemons' records: each one account of
-//! ours on another daemon, named, which relays and connected tools name.
+//! ours on another daemon, keyed by an ID, which relays and connected
+//! tools name it by.
 //! One file per request: the tree of files is the tree of subcommands.
 
 use clap::Subcommand;
