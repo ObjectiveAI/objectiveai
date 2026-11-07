@@ -1,12 +1,13 @@
 ---
 title: 'Response'
-summary: 'The server sends the id, one of five refusals, or an error, as the first response; after the id it sends active whenever an exchange is in flight where none was and inactive carrying the rotating secrets whenever the last in flight is answered, and nothing else until the finish but the proxy’s error, relayed, when the secrets could not be collected; the finish carries no error.'
+summary: 'The server sends the id, one of six refusals, or an error, as the first response; after the id it sends active whenever an exchange is in flight where none was and inactive carrying the rotating secrets whenever the last in flight is answered, and nothing else until the finish but the proxy’s error, relayed, when the secrets could not be collected; the finish carries no error.'
 order: 2
 draft: false
 ---
 
-The server sends the id; or one of five refusals — the volume that
-refused the run, named, and why; or an error; and, after the id,
+The server sends the id; or one of six refusals — the server's
+refusal to run containers, or the volume that refused the run,
+named, and why; or an error; and, after the id,
 zero or more periods of activity: for each, the word that an MCP
 exchange is in flight where none was, and the word that the last in
 flight was answered, carrying the rotating secrets the program
@@ -23,10 +24,11 @@ scope. No frame bearing the scope follows the finish.
 [6][error JSON …]                       once, when it is not running for another reason, or after the id when the proxy ends the begin with an error
 [7]                                     active: an exchange is in flight where none was
 [8][values JSON …]                      inactive: the last exchange in flight was answered, and these are the rotating secrets
+[9]                                     unsupported: once, when the server runs no containers
 ```
 
 - **The sequence.** Before the id, the server sends no response.
-  The first response is the id, one of the five refusals, or an
+  The first response is the id, one of the six refusals, or an
   error. A refusal and an error before the id are each followed by
   the response finish, and the container is not running and will not
   be. After the id, the server sends zero or more periods of
@@ -49,7 +51,9 @@ scope. No frame bearing the scope follows the finish.
   container is registered and, where its program declared a secret,
   fed, as [containers::tools::run](/endpoints/containers-tools-run/)
   states.
-- **The refusals, and their order.** The server decides
+- **The refusals, and their order.** A server that does not hold
+  out [`containers`](/capabilities/#containers) sends the byte `9`
+  before it decides anything else. Every other server decides
   the bytes `1` to `5` for each distinct `volume_name` the request
   names, in the order first named, in the order
   [Capabilities](/capabilities/#the-hold) states, the first rule that
@@ -95,6 +99,13 @@ scope. No frame bearing the scope follows the finish.
   `ephemeral` and `read_only`. The volume is as it was. A request
   naming one volume under two modes is answered the same way, with
   the mode the volume is in.
+- **Unsupported.** A payload that is the byte `9` and nothing else
+  states that the server runs no containers: the member
+  [`containers`](/capabilities/#containers) of its `capabilities`
+  object is `false` or absent. The server sends it as the first and only
+  response, for every request whose payload decodes, before it
+  checks the request, holds any volume, fetches anything or deploys
+  anything, and the response finish follows it.
 - **The error.** A payload whose first byte is `6` carries an error
   after that byte, exactly one JSON value in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
@@ -134,12 +145,13 @@ scope. No frame bearing the scope follows the finish.
   declared a secret until the client feeds them again on the
   [secrets](/endpoints/containers-tools-run/client/secrets/) channel.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0` to `8`, a payload whose bytes after `0` do not parse
+  is none of `0` to `9`, a payload whose bytes after `0` do not parse
   as the id, a payload whose bytes after `1`, `2`, `3`, `4` or `5` do
   not parse as that refusal, a payload whose bytes after `8` do not
   parse as the values, and a payload whose bytes after `6` are not
   one JSON value are malformed. A payload whose first byte is `7` is
-  read by that byte alone; bytes after it are not read.
+  read by that byte alone; bytes after it are not read. A payload
+  whose first byte is `9` is read the same way.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/run/server/response/frame.rs`:
 

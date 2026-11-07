@@ -27,7 +27,11 @@ about the client, which may open any channel at any time.
 
 1. **The server reads the request.** A request whose payload does not
    decode is answered by a response finish that no response precedes,
-   as [Endpoints](/endpoints/) provides. A request the server refuses
+   as [Endpoints](/endpoints/) provides. A server that does not hold
+   out [`containers`](/capabilities/#containers) answers every other
+   request by exactly one response, the byte `9` and nothing else,
+   and the finish, and does nothing of what follows. A request the
+   server refuses
    is answered by exactly one response, the error, and the finish.
    The server refuses a request that names a volume not in the
    client's [volumes::list](/endpoints/volumes-list/) listing, a mount
