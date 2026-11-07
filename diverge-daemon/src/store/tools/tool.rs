@@ -27,8 +27,12 @@ pub enum Origin {
     /// Joined to a tool another daemon holds.
     Connected {
         /// The remote daemon the tool is on, by the name the
-        /// configuration gives it.
+        /// configuration gives it — the first of the route's.
         daemon: String,
+        /// The records the connect is relayed through beyond `daemon`,
+        /// each named on the daemon before it; empty for a tool on
+        /// `daemon` itself.
+        route: Vec<String>,
         /// The tool, as that daemon names it.
         tool: reference::Tool,
     },
@@ -94,7 +98,7 @@ impl Tool {
             Origin::Created { template, .. } => key::Origin::Created {
                 template: template.clone(),
             },
-            Origin::Connected { daemon, tool } => key::Origin::Connected {
+            Origin::Connected { daemon, tool, .. } => key::Origin::Connected {
                 daemon: daemon.clone(),
                 tool: Box::new(tool.clone()),
             },
@@ -131,8 +135,9 @@ impl Tool {
                 provider: self.last_provider.clone().map(|identity| logs::Provider { identity }),
                 id: running,
             },
-            Origin::Connected { daemon, tool } => response::Origin::Connected {
+            Origin::Connected { daemon, route, tool } => response::Origin::Connected {
                 daemon: daemon.clone(),
+                route: route.clone(),
                 tool: tool.clone(),
                 index: self.index,
             },

@@ -139,6 +139,10 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
     template              TEXT,
     provider              JSONB,
     connected_daemon      TEXT,
+    -- The records a connected tool's connect is relayed through beyond
+    -- `connected_daemon`, each named on the daemon before it; empty for
+    -- a tool on that daemon itself.
+    connected_route       TEXT[] NOT NULL DEFAULT '{}',
     connected_tool        JSONB,
     index                 BIGINT NOT NULL,
     name                  TEXT UNIQUE,

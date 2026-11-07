@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use chrono::Utc;
 use diverge_sdk::shared::mcp::attestation;
+use diverge_sdk::shared::relay::Relay;
 use diverge_sdk::daemon::agent_log::{self as log, Item};
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::{execute as tools_connect, request as connect_request};
 use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
@@ -263,7 +264,8 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
 /// first of its providers that runs it, with its mounts served; a
 /// connected tool connected to — the daemon named connected to, over
 /// the one connection to it, and its connect opened naming the tool,
-/// which starts the container there and carries the tool's MCP
+/// relayed along the record's route when it has one, which starts the
+/// container on the daemon that runs it and carries the tool's MCP
 /// exchanges from then on. A created tool's secrets are taken at its
 /// registration, as [`Registrar`](diverge_sdk::provider::client::Registrar)
 /// states, and moved into the run; [`pump_tool`](super::pump_tool)
@@ -364,16 +366,18 @@ async fn start_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, S
             let service = record.template.r#type.mode == Mode::Service;
             (identity, Some(id), ToolHandle::Run(handle), mounts, attestation, service, Some(stream), secrets, Some(permissions))
         }
-        Origin::Connected { daemon: name, tool: remote } => {
+        Origin::Connected { daemon: name, route, tool: remote } => {
             let record = {
                 let mut conn = daemon.store.acquire().await?;
                 crate::store::daemons::by_name(&mut conn, name, false).await?
             };
             let record = record.ok_or_else(|| StartError::NoDaemon(name.clone()))?;
             let peer = daemons::connect(daemon, &record).await.map_err(StartError::Daemon)?;
+            // The connect relayed along the record's route, when it has
+            // one: each hop served as an account, as any relay is.
             let request = connect_request::Frame {
                 tool: remote.clone(),
-                relay: None,
+                relay: (!route.is_empty()).then(|| Relay(route.clone())),
             };
             let connected = tools_connect::execute(&peer.connected.handle, &request)
                 .await

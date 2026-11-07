@@ -15,7 +15,7 @@ use crate::store::{Error, ToolId};
 use diverge_sdk::shared::permission::Grant;
 
 /// The columns every tool query selects.
-pub(super) const SELECT: &str = "SELECT id, kind, template, provider, connected_daemon, connected_tool, index, name, \
+pub(super) const SELECT: &str = "SELECT id, kind, template, provider, connected_daemon, connected_route, connected_tool, index, name, \
      fuse_file_mounts, fuse_directory_mounts, secrets, permissions, last_provider, last_deployed, last_active, tags, created, creator \
      FROM diverge.tools";
 
@@ -40,6 +40,7 @@ pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
             };
             Origin::Connected {
                 daemon: row.try_get::<Option<String>, _>("connected_daemon")?.unwrap_or_default(),
+                route: row.try_get("connected_route")?,
                 tool,
             }
         }

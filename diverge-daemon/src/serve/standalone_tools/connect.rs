@@ -38,7 +38,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// The one sentence a connected tool's connect answers with: it is
-/// another daemon's, and that daemon serves it.
+/// another daemon's, and that daemon serves it. A tool is never served
+/// onward from here; one further away is reached by its record's route,
+/// the connect relayed to the daemon that runs it — see
+/// [`register`](diverge_sdk::daemon::endpoints::standalone_tools::register).
 const CONNECTED: &str = "a connected tool is another daemon's, and is served there";
 
 /// `Forbidden` with no `connect` grant at all; `NotFound`; `Forbidden`

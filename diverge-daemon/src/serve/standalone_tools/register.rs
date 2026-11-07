@@ -48,6 +48,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let new = tools::New {
         origin: Origin::Connected {
             daemon: frame.daemon,
+            route: frame.route,
             tool: frame.tool,
         },
         name: frame.name,
