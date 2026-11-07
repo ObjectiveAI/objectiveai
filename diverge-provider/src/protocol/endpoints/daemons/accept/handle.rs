@@ -8,10 +8,10 @@ use crate::protocol::endpoints::containers::run::encoded::encoded;
 use diverge_sdk::provider::endpoints::daemons::accept::client::channel_request;
 use crate::protocol::acceptors::Acceptors;
 use crate::protocol::release::Release;
-use diverge_sdk::shared::error::Error;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use crate::protocol::singles::Single;
 
 /// Hold the identity's accept slot for the scope's life, and pair the
 /// halves of every connection relayed on it.
@@ -19,7 +19,9 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 /// In order:
 ///
 /// 1. The slot, taken under the connection's identity — or not, which
-///    is the scope's one `Error`, `{"kind":"held"}`, then the finish.
+///    is [`AlreadyOpen`](response::Frame::AlreadyOpen), then the
+///    finish. The connection's own claim on its one accept was made
+///    before this was called, and refused there as the same answer.
 /// 2. Exactly one response, [`Accepting`] with the identity.
 /// 3. For the scope's life, every channel the daemon opens: its half
 ///    of a connection, quoting an id — handed to the connect handler
@@ -29,16 +31,18 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///    that does not decode is finished with nothing. The daemon
 ///    reading no more of the scope ends it as the stop does.
 /// 4. The slot given back, which ends every connection relayed on
-///    the scope, and the finish. The giving back is a [`Release`], so
-///    a scope that panics or is cancelled gives the slot back at the
-///    drop.
+///    the scope, then the connection's claim, and the finish. The
+///    giving back is a [`Release`], so a scope that panics or is
+///    cancelled gives the slot back at the drop; the claim is held
+///    with the scope, and goes before its finish either way — see
+///    [`Single`].
 ///
 /// The provider's half of each connection is opened by the connect
 /// handler, on this scope, and read there; nothing here reads it.
-pub async fn handle(scope: ScopeHandle, client_identity: &Identity, acceptors: Arc<Acceptors>) {
-    let scope = Arc::new(scope);
-    let Some(accepting) = acceptors.take(client_identity, Arc::clone(&scope)).await else {
-        send(&scope, response::Frame::Error(held())).await;
+pub async fn handle(scope: Single<ScopeHandle>, client_identity: &Identity, acceptors: Arc<Acceptors>) {
+    let scope = scope.map(Arc::new);
+    let Some(accepting) = acceptors.take(client_identity, Arc::clone(scope.scope())).await else {
+        send(&scope, response::Frame::AlreadyOpen).await;
         scope.send_response_finish().await;
         return;
     };
@@ -79,14 +83,17 @@ pub async fn handle(scope: ScopeHandle, client_identity: &Identity, acceptors: A
     scope.send_response_finish().await;
 }
 
+/// An accept on a connection holding one open already: `AlreadyOpen`
+/// and the finish, and nothing else — see
+/// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time).
+pub async fn refuse(scope: ScopeHandle) {
+    send(&scope, response::Frame::AlreadyOpen).await;
+    scope.send_response_finish().await;
+}
+
 /// One response on the scope.
 async fn send(scope: &ScopeHandle, frame: response::Frame) {
     if let Some(payload) = encoded(&frame) {
         scope.send_response(&payload).await;
     }
-}
-
-/// The identity accepts here already.
-fn held() -> Error {
-    Error(serde_json::json!({ "kind": "held" }))
 }

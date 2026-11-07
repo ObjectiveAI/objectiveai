@@ -12,6 +12,7 @@ use super::capacity_reporter::CapacityReporter;
 use super::container_deployer::ContainerDeployer;
 use super::directory::Directory;
 use super::discoverable::Discoverable;
+use super::singles::Singles;
 use super::changes::Changes;
 use super::image_checker::ImageChecker;
 use super::image_manager::ImageManager;
@@ -62,6 +63,17 @@ use diverge_sdk::shared::error::Error;
 /// the [`Discoverable`], one per provider likewise, which a `discover`
 /// on this connection lists.
 ///
+/// # One open at a time
+///
+/// Four scopes are held at most one of each per connection — see
+/// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time)
+/// — and this is where they are claimed: the connection's own
+/// [`Singles`], made here and never shared, claimed in the arm that
+/// reads the request and before the handler is spawned. A claim that
+/// fails is the endpoint's `AlreadyOpen` and the finish, and the
+/// handler is never spawned. The handler holds the claim with its
+/// scope, and lets it go before its finish.
+///
 /// # The handshake is done before
 ///
 /// The connection reaching here is past its
@@ -110,6 +122,9 @@ where
     // same teardown below, which is why this is a variable rather than
     // two exits.
     let mut outcome = Ok(());
+    // This connection's four slots, and only its: see "One open at a
+    // time" above.
+    let singles = Singles::default();
 
     while let Some(received) = session.next().await {
         // Finished ones, so the set does not grow for the life of the
@@ -177,6 +192,13 @@ where
                 });
             }
             ClientRequest::VolumesList(_) => {
+                let scope = match singles.volumes_list.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::volumes::list::refuse(scope));
+                        continue;
+                    }
+                };
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
                 let changes = Arc::clone(&volume_changes);
@@ -313,6 +335,13 @@ where
                 });
             }
             ClientRequest::ImagesList(_) => {
+                let scope = match singles.images_list.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::images::list::refuse(scope));
+                        continue;
+                    }
+                };
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&image_manager);
                 let changes = Arc::clone(&image_changes);
@@ -370,6 +399,13 @@ where
                 });
             }
             ClientRequest::DaemonsAccept(_) => {
+                let scope = match singles.daemons_accept.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::daemons::accept::refuse(scope));
+                        continue;
+                    }
+                };
                 let identity = Arc::clone(&client_identity);
                 let acceptors = Arc::clone(&acceptors);
                 scopes.spawn(async move {
@@ -384,6 +420,13 @@ where
                 });
             }
             ClientRequest::Discover(_) => {
+                let scope = match singles.discover.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::discover::refuse(scope));
+                        continue;
+                    }
+                };
                 let discoverable = Arc::clone(&discoverable);
                 scopes.spawn(async move {
                     endpoints::discover::handle(scope, discoverable).await;

@@ -17,6 +17,7 @@ use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use crate::protocol::singles::Single;
 
 /// Send the caller every image it built, the word that the listing
 /// is whole, and every change after, until the caller stops.
@@ -44,12 +45,13 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///    will not answer then is the `Error`, last.
 /// 4. The finish, when the caller's [`Stop`](channel_request::Frame::Stop)
 ///    arrives, the caller is gone or reads no more of the listing, or
-///    the error was sent.
+///    the error was sent. The connection's claim on its one listing,
+///    held with the scope, goes before it — see [`Single`].
 ///
 /// A response that will not encode is the one failure with nowhere to
 /// go, and is not sent; the listing goes on without it.
 pub async fn handle<M>(
-    scope: ScopeHandle,
+    scope: Single<ScopeHandle>,
     client_identity: &Identity,
     manager: &M,
     changes: Arc<Changes>,
@@ -114,6 +116,14 @@ pub async fn handle<M>(
             () = scope.responses_gone() => break,
         }
     }
+    scope.send_response_finish().await;
+}
+
+/// A image listing on a connection holding one open already: `AlreadyOpen`
+/// and the finish, and nothing else — see
+/// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time).
+pub async fn refuse(scope: ScopeHandle) {
+    send(&scope, &response::Frame::AlreadyOpen).await;
     scope.send_response_finish().await;
 }
 

@@ -15,6 +15,7 @@ use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::protocol::discoverable::Discoverable;
+use crate::protocol::singles::Single;
 
 /// List every identity `discoverable` holds — every connected identity
 /// whose discover flag was `1` or `2`, with its description, its IP and
@@ -38,11 +39,14 @@ use crate::protocol::discoverable::Discoverable;
 ///    listing, or the nudges closing end the scope with its finish. A
 ///    channel request that is not a stop is finished, and the listing
 ///    goes on.
+/// 5. **One per connection.** The connection's claim on its one
+///    listing is held with the scope, and goes before the finish — see
+///    [`Single`].
 ///
 /// Every connected peer may ask, and the asking identity is listed when
 /// it is itself discoverable. Nothing fails: a provider always knows
 /// what is connected to it.
-pub async fn handle(scope: ScopeHandle, discoverable: Arc<Discoverable>) {
+pub async fn handle(scope: Single<ScopeHandle>, discoverable: Arc<Discoverable>) {
     let mut nudges = discoverable.subscribe();
     let mut known = discoverable.list().await;
     for listed in known.values() {
@@ -76,6 +80,14 @@ pub async fn handle(scope: ScopeHandle, discoverable: Arc<Discoverable>) {
             () = scope.responses_gone() => break,
         }
     }
+    scope.send_response_finish().await;
+}
+
+/// A discover listing on a connection holding one open already: `AlreadyOpen`
+/// and the finish, and nothing else — see
+/// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time).
+pub async fn refuse(scope: ScopeHandle) {
+    send(&scope, &response::Frame::AlreadyOpen).await;
     scope.send_response_finish().await;
 }
 

@@ -215,5 +215,6 @@ pub mod progress;
 pub mod proxy;
 pub mod release;
 pub mod served;
+pub mod singles;
 pub mod volume;
 pub mod volume_manager;
