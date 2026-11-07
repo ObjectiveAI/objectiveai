@@ -15,6 +15,10 @@ pub enum Action {
     /// [`providers::discover`](crate::daemon::endpoints::providers::discover)
     /// does.
     Discover,
+    /// Hear the messages sent to the daemon through them, as
+    /// [`daemons::listen`](crate::daemon::endpoints::daemons::listen)
+    /// does.
+    Listen,
     /// Add one.
     Add,
     /// Edit one.

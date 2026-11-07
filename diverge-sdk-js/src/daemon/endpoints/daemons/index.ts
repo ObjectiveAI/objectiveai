@@ -12,6 +12,7 @@ export * as delete from "./delete/index.js";
 export * as edit from "./edit/index.js";
 export * as get from "./get/index.js";
 export * as list from "./list/index.js";
+export * as listen from "./listen/index.js";
 export * as tag from "./tag/index.js";
 export * as untag from "./untag/index.js";
 export * from "./id.js";

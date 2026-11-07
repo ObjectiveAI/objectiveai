@@ -273,6 +273,8 @@ pub enum ClientRequest<'a> {
     ProvidersTag(providers::tag::client::request::Frame),
     /// Tag `142`. Tags taken off a provider's record.
     ProvidersUntag(providers::untag::client::request::Frame),
+    /// Tag `143`. The messages sent to the daemon, as they come.
+    DaemonsListen(daemons::listen::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -410,6 +412,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersDisable(frame) => frame.encode(out),
             ClientRequest::ProvidersTag(frame) => frame.encode(out),
             ClientRequest::ProvidersUntag(frame) => frame.encode(out),
+            ClientRequest::DaemonsListen(frame) => frame.encode(out),
             ClientRequest::IdentitiesLogin(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -792,6 +795,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             142 => providers::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersUntag)
                 .ok(),
+            143 => daemons::listen::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsListen)
+                .ok(),
             128 => identities::login::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesLogin)
                 .ok(),
@@ -923,6 +929,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersDisable(_) => f.write_str("providers disable"),
             ClientRequest::ProvidersTag(_) => f.write_str("providers tag"),
             ClientRequest::ProvidersUntag(_) => f.write_str("providers untag"),
+            ClientRequest::DaemonsListen(_) => f.write_str("daemons listen"),
             ClientRequest::IdentitiesLogin(_) => f.write_str("identities login"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
@@ -1055,6 +1062,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "providers/disable" => Some(140),
         "providers/tag" => Some(141),
         "providers/untag" => Some(142),
+        "daemons/listen" => Some(143),
         "identities/login" => Some(128),
         _ => None,
     }
@@ -1184,6 +1192,7 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDisable(_) => "providers/disable",
             ClientRequest::ProvidersTag(_) => "providers/tag",
             ClientRequest::ProvidersUntag(_) => "providers/untag",
+            ClientRequest::DaemonsListen(_) => "daemons/listen",
             ClientRequest::IdentitiesLogin(_) => "identities/login",
             ClientRequest::Invalid(_) => "",
         }
