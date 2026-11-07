@@ -25,9 +25,9 @@
 //! relayed along them, as any request's
 //! [`relay`](crate::shared::relay::Relay) is. The rules:
 //!
-//! 1. **An explicit route.** `daemon` is a record of this daemon's, and
-//!    each name of `route` a record of the daemon before it; the tool
-//!    is on the last. An empty route is the tool on `daemon`.
+//! 1. **An explicit route.** `daemon` is a record of this daemon's, by
+//!    its ID, and each ID of `route` a record of the daemon before it;
+//!    the tool is on the last. An empty route is the tool on `daemon`.
 //! 2. **Every hop is an account.** Each daemon along the route serves
 //!    the connect as the account the previous daemon's record names,
 //!    and judges that account's `relay` grant over its next record; the
@@ -35,9 +35,14 @@
 //!    daemon's account, and judges that account's grants over the tool
 //!    — as a relayed request of any kind is served.
 //! 3. **No limit.** A route is as long as the register writes it. It
-//!    cannot loop: each hop consumes one name.
+//!    cannot loop: each hop consumes one ID.
 //! 4. **Fixed at the register.** A connected tool is not edited; a
 //!    tool reached by another route is another register.
+//! 5. **Each hop is what the register meant.** An ID is the hash of
+//!    what its record reaches and as whom — see
+//!    [`DaemonId`](crate::daemon::endpoints::daemons::DaemonId) — so no
+//!    daemon along the route can re-point a hop: it holds the record
+//!    the ID names, or none, and the connect is refused there.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer

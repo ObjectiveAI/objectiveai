@@ -4,47 +4,24 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-#[allow(unused_imports)]
-use crate::shared::Identity;
-use crate::daemon::endpoints::providers::Ip;
-use crate::shared::nullable;
+use crate::daemon::endpoints::daemons::DaemonId;
 use crate::shared::relay::Relay;
 
-/// Ask the daemon to change a record, by its name: every member given
-/// replaces what the record holds, every member absent leaves it. Each
-/// of the three route filters — see
-/// [`Routes`](crate::daemon::endpoints::daemons::Routes) — is absent to
-/// leave it, `null` to clear it, or a list to replace it.
+/// Ask the daemon to change a record's description, by its ID: given, it
+/// replaces the record's; absent, it is left. Nothing else of a record
+/// changes: what it reaches and as whom is its ID — see
+/// [`DaemonId`] — so reaching elsewhere is a delete and an add, with
+/// another ID, and its tags change by tag and untag. A request naming
+/// any other member does not parse.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Frame {
-    /// The record, by its name.
-    pub name: String,
+    /// The record, by its ID.
+    pub id: DaemonId,
     /// The description, in place of the record's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    /// The remote, in place of the record's.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub daemon: Option<Identity>,
-    /// Our identity, in place of the record's; its issuer must be the
-    /// remote's, as the record ends up.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub identity: Option<Identity>,
-    /// The providers filter: absent leaves it, `null` clears it, a list
-    /// replaces it.
-    #[serde(default, deserialize_with = "nullable::deserialize", skip_serializing_if = "Option::is_none")]
-    #[schemars(with = "Option<Vec<Identity>>")]
-    pub providers: Option<Option<Vec<Identity>>>,
-    /// The IPs filter: absent leaves it, `null` clears it, a list
-    /// replaces it.
-    #[serde(default, deserialize_with = "nullable::deserialize", skip_serializing_if = "Option::is_none")]
-    #[schemars(with = "Option<Vec<Ip>>")]
-    pub ips: Option<Option<Vec<Ip>>>,
-    /// The addresses filter: absent leaves it, `null` clears it, a list
-    /// replaces it.
-    #[serde(default, deserialize_with = "nullable::deserialize", skip_serializing_if = "Option::is_none")]
-    #[schemars(with = "Option<Vec<String>>")]
-    pub addresses: Option<Option<Vec<String>>>,
     /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,

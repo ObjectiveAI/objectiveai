@@ -5,6 +5,7 @@ use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 use crate::shared::relay::Relay;
 
+use crate::daemon::endpoints::daemons::DaemonId;
 use crate::daemon::reference;
 
 /// Ask the daemon to hold, under a name, a tool another daemon holds.
@@ -12,7 +13,7 @@ use crate::daemon::reference;
 /// Three things name the tool — the daemon it is on, by a record of
 /// [`daemons`](crate::daemon::endpoints::daemons),
 /// the account on it this daemon reaches the tool as, by the record's
-/// name for it, and the tool as that daemon names it — and the name
+/// ID, and the tool as that daemon names it — and the name
 /// it is held
 /// under here from then on. Nothing here is what the container is made
 /// from: its image, its limits, its mounts and its arguments are the
@@ -50,19 +51,19 @@ use crate::daemon::reference;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The daemon the tool is on, by the name of this daemon's record of
+    /// The daemon the tool is on, by the ID of this daemon's record of
     /// it — and so the account of ours it is reached as: see
     /// [`daemons`](crate::daemon::endpoints::daemons).
-    /// A name no remote daemon has is the register's error. The
+    /// An ID no record has is the register's error. The
     /// caller must hold the daemons grant's `connect`.
-    pub daemon: String,
+    pub daemon: DaemonId,
     /// The remote-daemon records the tool's connect is relayed through
-    /// beyond `daemon`, each named on the daemon before it: the tool is
+    /// beyond `daemon`, each by its ID on the daemon before it: the tool is
     /// on the last. Empty — the default — the tool is on `daemon`. See
     /// [`register`](crate::daemon::endpoints::standalone_tools::register)
     /// for how each hop is served.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub route: Vec<String>,
+    pub route: Vec<DaemonId>,
     /// The tool, as that daemon names it: by its name there, or by its
     /// template and its index there. See [`reference::Tool`]. Compared
     /// by this daemon, and read by that one.

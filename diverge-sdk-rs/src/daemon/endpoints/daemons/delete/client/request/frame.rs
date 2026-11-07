@@ -4,16 +4,15 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-#[allow(unused_imports)]
-use crate::shared::Identity;
+use crate::daemon::endpoints::daemons::DaemonId;
 use crate::shared::relay::Relay;
 
-/// Ask the daemon to delete a record, by its name.
+/// Ask the daemon to delete a record, by its ID.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The record, by its name.
-    pub name: String,
+    /// The record, by its ID.
+    pub id: DaemonId,
     /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,

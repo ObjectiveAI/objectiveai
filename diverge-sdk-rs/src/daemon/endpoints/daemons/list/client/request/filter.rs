@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
+use crate::daemon::endpoints::daemons::DaemonId;
 
 /// The filter over remote daemons: every member optional, and every one
 /// given a condition a daemon passes or does not. In a list request it
@@ -17,9 +18,9 @@ use crate::daemon::creator::Creator;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Filter {
-    /// Any one of these names.
+    /// Any one of these IDs.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub names: Vec<String>,
+    pub ids: Vec<DaemonId>,
     /// The remote at any one of these issuers.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub issuers: Vec<String>,

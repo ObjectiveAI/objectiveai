@@ -3,17 +3,26 @@
 use serde::Serialize;
 use std::fmt;
 
+use crate::daemon::endpoints::daemons::DaemonId;
 use crate::shared::error::Error;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// A daemons add's answer: added, a record of the name already,
+/// A daemons add's answer: added, a record of that ID already,
 /// forbidden, or a failure.
 ///
 /// One question and one reply, so there is exactly one of these per
 /// scope, before the finish that ends it. A payload leads with one byte
-/// saying which, in the order of the variants, and the error carries its
-/// JSON after it.
+/// saying which, in the order of the variants, and the rest is that
+/// variant's own JSON: the record's [`DaemonId`], a base62 string, for
+/// the first two; the error for the last; nothing for `Forbidden`.
+///
+/// # As JSON
+///
+/// For a client that prints what the daemon answered: the variant,
+/// snake case, over its payload — `{"added":"…"}`, `{"exists":"…"}`,
+/// `{"error":…}` — and a bare variant the string alone —
+/// `"forbidden"`. The wire is the tag byte and the payload, never this.
 ///
 /// # Forbidden
 ///
@@ -26,10 +35,11 @@ use crate::wire::encode::{Encode, Writer};
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The record is kept. Tag `0`.
-    Added,
-    /// A record of that name is kept already; nothing changed. Tag `1`.
-    Exists,
+    /// The record is kept, by this ID. Tag `0`.
+    Added(DaemonId),
+    /// A record of this ID — the same remote, the same account, the same
+    /// routes — is kept already; nothing changed. Tag `1`.
+    Exists(DaemonId),
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `2`.
     Forbidden,
@@ -49,7 +59,7 @@ const FORBIDDEN: u8 = 2;
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 3;
 
-/// A tag, and — for the error alone — its JSON.
+/// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
     /// The ordinary JSON failure. The bare answers cannot fail.
     type Error = serde_json::Error;
@@ -58,13 +68,13 @@ impl Encode for Frame {
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Added => {
+            Frame::Added(id) => {
                 out.extend_from_slice(&[ADDED]);
-                Ok(())
+                serde_json::to_writer(out, id)
             }
-            Frame::Exists => {
+            Frame::Exists(id) => {
                 out.extend_from_slice(&[EXISTS]);
-                Ok(())
+                serde_json::to_writer(out, id)
             }
             Frame::Forbidden => {
                 out.extend_from_slice(&[FORBIDDEN]);
@@ -79,15 +89,15 @@ impl Encode for Frame {
 }
 
 impl Decode<'_> for Frame {
-    /// Three ways to fail.
+    /// Four ways to fail, and each names which half failed.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            ADDED => Ok(Frame::Added),
-            EXISTS => Ok(Frame::Exists),
+            ADDED => serde_json::from_slice(rest).map(Frame::Added).map_err(FrameError::Id),
+            EXISTS => serde_json::from_slice(rest).map(Frame::Exists).map_err(FrameError::Id),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -102,6 +112,8 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's.
     UnknownTag(u8),
+    /// The ID, added or kept already, did not parse.
+    Id(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -111,6 +123,7 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("daemons add response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown daemons add response frame tag {tag}"),
+            FrameError::Id(error) => write!(f, "daemons add id did not parse: {error}"),
             FrameError::Error(error) => write!(f, "daemons add error did not parse: {error}"),
         }
     }
@@ -119,7 +132,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Error(error) => Some(error),
+            FrameError::Id(error) | FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

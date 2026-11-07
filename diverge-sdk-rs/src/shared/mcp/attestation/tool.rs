@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::endpoints::daemons::DaemonId;
 use crate::daemon::key;
 use crate::shared::containers::request::Image;
 
@@ -52,9 +53,9 @@ pub enum Tool {
         /// Its name, as its register gave it, if it gave one.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         name: Option<String>,
-        /// The daemon that runs it, by the name this daemon's
-        /// configuration gives it, as the register named it.
-        daemon: String,
+        /// The daemon that runs it, by the ID of this daemon's record
+        /// of it, as the register named it.
+        daemon: DaemonId,
     },
     /// A dependency tool, run by this daemon from a template an
     /// agent's program declared.

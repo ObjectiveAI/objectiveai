@@ -1,6 +1,6 @@
 //! Adding a remote daemon: one account of ours on it. One request, one
-//! answer: added, a record of that name already, forbidden, or a
-//! failure — the handshake's issuer refused among them where ours and
+//! answer: added, with the record's ID; a record of that ID already,
+//! with it; forbidden; or a failure — the handshake's issuer refused among them where ours and
 //! the remote's differ — and the scope finishes.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the

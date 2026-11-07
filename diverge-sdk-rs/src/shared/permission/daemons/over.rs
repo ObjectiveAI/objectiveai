@@ -16,7 +16,7 @@ pub enum Over {
     /// [`daemons::list`](crate::daemon::endpoints::daemons::list) does;
     /// the list sends what the grant reaches.
     List,
-    /// Change one, as
+    /// Change one's description, as
     /// [`daemons::edit`](crate::daemon::endpoints::daemons::edit) does.
     Edit,
     /// Delete one, as
@@ -27,7 +27,7 @@ pub enum Over {
     /// [`standalone_tools::register`](crate::daemon::endpoints::standalone_tools::register)
     /// does.
     Connect,
-    /// Relay any request to one, served there: the first name of a
+    /// Relay any request to one, served there: the first ID of a
     /// request's `relay`, see [`Relay`](crate::shared::relay::Relay).
     Relay,
 }

@@ -28,7 +28,7 @@ use crate::wire::encode::{Encode, Writer};
 pub enum Frame {
     /// The record is gone. Tag `0`.
     Deleted,
-    /// No record has the name; nothing changed. Tag `1`.
+    /// No record has the ID; nothing changed. Tag `1`.
     NotFound,
     /// A connected tool names it; nothing changed. Tag `2`.
     InUse,

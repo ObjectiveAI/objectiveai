@@ -28,7 +28,7 @@ use crate::wire::encode::{Encode, Writer};
 pub enum Frame {
     /// The record is changed. Tag `0`.
     Edited,
-    /// No record has the name; nothing changed. Tag `1`.
+    /// No record has the ID; nothing changed. Tag `1`.
     NotFound,
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `2`.

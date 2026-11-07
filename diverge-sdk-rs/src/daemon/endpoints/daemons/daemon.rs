@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::Routes;
+use super::{DaemonId, Routes};
 use crate::daemon::creator::Creator;
 use crate::shared::Identity;
 use crate::shared::listing::Keyed;
@@ -11,8 +11,10 @@ use crate::shared::listing::Keyed;
 /// One remote daemon this daemon reaches: a record of one account of
 /// ours there. The rules:
 ///
-/// 1. **The name** is how a relay and a connected tool name it; it never
-///    changes.
+/// 1. **The ID** is how a relay and a connected tool name it: the hash
+///    of `daemon`, `identity` and `routes` — see [`DaemonId::of`] — so
+///    none of the three ever changes. Only the description and the tags
+///    do.
 /// 2. **The remote** is `daemon`, the identity the remote daemon answers
 ///    a handshake as. Several records may name the same remote: each is
 ///    another account of ours there.
@@ -25,8 +27,9 @@ use crate::shared::listing::Keyed;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Daemon {
-    /// The name, unique among the records.
-    pub name: String,
+    /// The ID: what it reaches and as whom, hashed. Unique among the
+    /// records.
+    pub id: DaemonId,
     /// What it is, in the caller's words; empty where none was given.
     pub description: String,
     /// The remote daemon, by the identity it answers as.
@@ -47,11 +50,11 @@ pub struct Daemon {
     pub connected: bool,
 }
 
-/// Keyed by the name.
+/// Keyed by the ID.
 impl Keyed for Daemon {
-    type Key = String;
+    type Key = DaemonId;
 
-    fn key(&self) -> String {
-        self.name.clone()
+    fn key(&self) -> DaemonId {
+        self.id
     }
 }

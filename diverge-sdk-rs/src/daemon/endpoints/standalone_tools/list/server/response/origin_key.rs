@@ -1,5 +1,6 @@
 //! An origin as a key: what never changes of it.
 
+use crate::daemon::endpoints::daemons::DaemonId;
 use crate::daemon::reference;
 
 use super::Origin;
@@ -21,8 +22,8 @@ pub enum OriginKey {
     /// Somebody else's, joined: the remote daemon, the tool there and
     /// the index.
     Connected {
-        /// The daemon record's name.
-        daemon: String,
+        /// The daemon record's ID.
+        daemon: DaemonId,
         /// The tool as that daemon refers to it.
         tool: reference::Tool,
         /// The index among the connections to that tool.
@@ -44,7 +45,7 @@ impl Origin {
                 index,
                 ..
             } => OriginKey::Connected {
-                daemon: daemon.clone(),
+                daemon: *daemon,
                 tool: tool.clone(),
                 index: *index,
             },

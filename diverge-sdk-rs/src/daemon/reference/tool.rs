@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::endpoints::daemons::DaemonId;
+
 /// One tool of the caller's: by its name, by its template and its
 /// index, or — a connected tool — by the daemon and the tool it
 /// joined. See [`reference`](super) for which names what. Untagged
@@ -30,9 +32,9 @@ pub enum Tool {
     /// connected tool only, which has no template; the pair names it
     /// once and for all, as the register named it.
     Connected {
-        /// The daemon the tool is on, by the name of this daemon's record
+        /// The daemon the tool is on, by the ID of this daemon's record
         /// of it: see [`daemons`](crate::daemon::endpoints::daemons).
-        daemon: String,
+        daemon: DaemonId,
         /// The tool, as that daemon names it: any of these, read by
         /// that daemon and compared by this one.
         tool: Box<Tool>,

@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::endpoints::daemons::DaemonId;
 use crate::daemon::reference;
 
 /// What a tool was made with, as much of it as is fixed for its life:
@@ -23,9 +24,9 @@ pub enum Origin {
     },
     /// Registered, from another daemon's tool.
     Connected {
-        /// The daemon the tool is on, by the name the configuration
-        /// gives it, as the register named it.
-        daemon: String,
+        /// The daemon the tool is on, by the ID of this daemon's record
+        /// of it, as the register named it.
+        daemon: DaemonId,
         /// The tool, as that daemon names it and as the register
         /// named it: see [`reference::Tool`].
         tool: Box<reference::Tool>,

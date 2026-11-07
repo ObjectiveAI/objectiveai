@@ -12,7 +12,7 @@
 //! else ever, and names it still after it is deleted — when a request
 //! naming it that way finds nothing. A connected tool has no template,
 //! and is named instead by the DAEMON and the TOOL it is registered
-//! from — the record of the other daemon, by name, and the tool as
+//! from — the record of the other daemon, by ID, and the tool as
 //! that daemon names it — which name it once and for all the same way.
 //! These are the variants of [`Agent`] and of [`Tool`], one JSON
 //! object each, told apart by their members: `{"name":…}`,

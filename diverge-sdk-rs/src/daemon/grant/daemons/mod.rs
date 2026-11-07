@@ -5,7 +5,7 @@
 //! defined once in [`shared::permission`](crate::shared::permission) and
 //! re-exported; and [`Permission`], one grant's worth of either, or of
 //! tagging. A relay is judged as [`Over::Relay`] over the record its
-//! first name is, and nothing else.
+//! first ID is, and nothing else.
 
 mod permission;
 

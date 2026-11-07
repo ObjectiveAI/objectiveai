@@ -9,15 +9,15 @@ use crate::shared::Identity;
 use crate::daemon::endpoints::daemons::Routes;
 use crate::shared::relay::Relay;
 
-/// Ask the daemon to record a remote daemon and the account of ours it is
-/// reached as. Nothing is connected now: the first relay or connected
-/// tool that names it connects.
+/// Ask the daemon to record a remote daemon, the account of ours it is
+/// reached as, and the routes it may be reached by. The record's ID is
+/// the hash of those — see
+/// [`DaemonId::of`](crate::daemon::endpoints::daemons::DaemonId::of) —
+/// and the answer carries it. Nothing is connected now: the first relay
+/// or connected tool that names it connects.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The name, unique among the records: how relays and connected tools
-    /// name it from now on.
-    pub name: String,
     /// What it is, in the caller's words. Absent, none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -27,7 +27,7 @@ pub struct Frame {
     /// issuer must be the remote's.
     pub identity: Identity,
     /// The routes it may be reached by: see [`Routes`]. Its members lie
-    /// beside the request's own; each absent, no filter.
+    /// beside the request's own; each absent, or empty, no filter.
     #[serde(flatten)]
     pub routes: Routes,
     /// The tags to put on it. Absent, none.

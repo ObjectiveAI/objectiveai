@@ -4,14 +4,15 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::endpoints::daemons::DaemonId;
 use crate::shared::relay::Relay;
 
-/// Ask the daemon for one daemon, by name.
+/// Ask the daemon for one daemon's record, by its ID.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The record's name.
-    pub name: String,
+    /// The record's ID.
+    pub id: DaemonId,
     /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,

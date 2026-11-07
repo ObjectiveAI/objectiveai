@@ -3,17 +3,18 @@
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
+use crate::daemon::endpoints::daemons::DaemonId;
 use crate::shared::relay::Relay;
 
 
 
-/// Ask the daemon to take tags off a remote daemon's record, by its name. A tag the record did
+/// Ask the daemon to take tags off a remote daemon's record, by its ID. A tag the record did
 /// not hold is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The record, by its name.
-    pub name: String,
+    /// The record, by its ID.
+    pub id: DaemonId,
     /// The tags to take off, one by one. Empty changes nothing and is
     /// not a failure.
     pub tags: Vec<String>,

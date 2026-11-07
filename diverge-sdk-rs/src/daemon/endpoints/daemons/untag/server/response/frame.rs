@@ -46,7 +46,7 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The tags are off the record. Tag `0`.
     Untagged,
-    /// No record has the name; nothing changed. Tag `1`.
+    /// No record has the ID; nothing changed. Tag `1`.
     NotFound,
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `2`.
