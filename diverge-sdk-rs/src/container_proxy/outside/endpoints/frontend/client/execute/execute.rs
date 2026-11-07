@@ -7,7 +7,7 @@ use crate::wire::client::handle::Handle;
 use crate::wire::encode::{Encode, Writer};
 
 /// Open a frontend request with `head`: the answer as a stream, and the
-/// handle that writes its body and stops it. Dropping the stream
+/// handle that writes its body and cancels it. Dropping the stream
 /// abandons it, which drops the request too.
 pub async fn execute(handle: &Handle, head: frontend::request::Head) -> Result<(ExecuteStream, ExecuteHandle), ExecuteError> {
     let mut payload = Vec::new();

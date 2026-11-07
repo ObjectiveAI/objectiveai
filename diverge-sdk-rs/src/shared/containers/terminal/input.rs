@@ -7,10 +7,10 @@ use crate::wire::encode::{Encode, Writer};
 
 const STDIN: u8 = 0;
 const RESIZE: u8 = 1;
-const STOP: u8 = 2;
+const CANCEL: u8 = 2;
 
 /// One thing a caller puts into a terminal: one byte of tag, then the
-/// bytes as they are for `Stdin`, JSON for `Resize`, nothing for `Stop`.
+/// bytes as they are for `Stdin`, JSON for `Resize`, nothing for `Cancel`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input<'a> {
     /// Tag `0`: bytes written to the terminal, in the order sent.
@@ -18,7 +18,7 @@ pub enum Input<'a> {
     /// Tag `1`: the terminal's new size.
     Resize(super::open::Open),
     /// Tag `2`: kill the shell.
-    Stop,
+    Cancel,
 }
 
 impl Encode for Input<'_> {
@@ -36,8 +36,8 @@ impl Encode for Input<'_> {
                 out.extend_from_slice(&[RESIZE]);
                 serde_json::to_writer(out, size)
             }
-            Input::Stop => {
-                out.extend_from_slice(&[STOP]);
+            Input::Cancel => {
+                out.extend_from_slice(&[CANCEL]);
                 Ok(())
             }
         }
@@ -53,7 +53,7 @@ impl<'a> Decode<'a> for Input<'a> {
         Ok(match tag {
             STDIN => Input::Stdin(rest),
             RESIZE => Input::Resize(serde_json::from_slice(rest).map_err(InputError::Body)?),
-            STOP => Input::Stop,
+            CANCEL => Input::Cancel,
             other => return Err(InputError::UnknownTag(other)),
         })
     }

@@ -1,10 +1,10 @@
-//! Stopping an exec.
+//! Cancelling an exec.
 
 use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
 
-/// The way to stop a command while its output streams.
+/// The way to cancel a command while its output streams.
 #[derive(Debug, Clone)]
 pub struct ExecuteHandle {
     handle: Handle,
@@ -21,8 +21,8 @@ impl ExecuteHandle {
         self.scope
     }
 
-    /// Stop the command: the proxy kills it and finishes the scope.
-    pub async fn stop(&self) -> Result<(), SendError> {
+    /// Cancel the command: the proxy kills it and finishes the scope.
+    pub async fn cancel(&self) -> Result<(), SendError> {
         let mut payload = Vec::new();
         channel_request::Frame
             .encode(&mut Writer::new(&mut payload))

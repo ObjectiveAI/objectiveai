@@ -17,7 +17,7 @@ use crate::shared::listing::Change;
 /// [`Listed`](Self::Listed); then, for the scope's life, a volume the
 /// caller creates as `Added`, one it edits as
 /// [`Changed`](Self::Changed), one it deletes as
-/// [`Removed`](Self::Removed). The finish follows the caller's stop,
+/// [`Removed`](Self::Removed). The finish follows the caller's cancel,
 /// the caller's connection ending, or exactly one
 /// [`Error`](Self::Error), and nothing else: a caller with no volume
 /// is listed as `Listed` at once, and watched. A payload leads with
@@ -31,7 +31,7 @@ use crate::shared::listing::Change;
 ///
 /// # A finish with nothing is an answer
 ///
-/// The caller stopped before anything was sent, or the request was
+/// The caller cancelled before anything was sent, or the request was
 /// not served: a scope that finishes with no response before it is
 /// that, not a failure. An [`Error`](Self::Error) is a failure: the
 /// provider could not tell — a caller that confuses the two stops

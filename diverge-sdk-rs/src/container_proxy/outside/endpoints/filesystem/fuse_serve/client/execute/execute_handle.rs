@@ -1,4 +1,4 @@
-//! The FUSE serve scope, held: asks one at a time, the tree, and the stop.
+//! The FUSE serve scope, held: asks one at a time, the tree, and the cancel.
 
 use bytes::Bytes;
 use tokio::sync::Mutex;
@@ -12,19 +12,19 @@ use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame;
 
 /// A served subtree, as the server holds it: every [`ask`](Self::ask)
-/// is one channel, one answer, and [`stop`](Self::stop) is the end.
+/// is one channel, one answer, and [`cancel`](Self::cancel) is the end.
 ///
 /// Every method takes `&self`, so one handle serves a relay that
-/// answers asks on tasks of its own and stops the scope from the
-/// loop that heard the stop: the scope's own stream, which carries
+/// answers asks on tasks of its own and cancels the scope from the
+/// loop that heard the cancel: the scope's own stream, which carries
 /// nothing after the serving but the finish, is kept behind a lock
-/// for the stop to read.
+/// for the cancel to read.
 #[derive(Debug)]
 pub struct ExecuteHandle {
     handle: Handle,
     scope: u32,
     /// The scope's main stream after the serving: quiet until the
-    /// finish that answers the stop, or the connection's end.
+    /// finish that answers the cancel, or the connection's end.
     finish: Mutex<crate::wire::credit::Receiver>,
 }
 
@@ -103,14 +103,14 @@ impl ExecuteHandle {
             .map_err(AskError::Send)
     }
 
-    /// Stop serving: the stop goes out, and this waits for the scope's
+    /// Cancel the serve: the cancel goes out, and this waits for the scope's
     /// finish — the proxy's, after the asks still in flight are
     /// answered and every filetree channel is finished — or the
-    /// connection's end. Nothing is answered on the stop's own
-    /// channel. A second stop waits for the same finish.
-    pub async fn stop(&self) {
+    /// connection's end. Nothing is answered on the cancel's own
+    /// channel. A second cancel waits for the same finish.
+    pub async fn cancel(&self) {
         let mut payload = Vec::new();
-        channel_request::Frame::Stop
+        channel_request::Frame::Cancel
             .encode(&mut Writer::new(&mut payload))
             .unwrap_or_else(|error| match error {
                 mount::FrameEncodeError::PathLength(_) => {}

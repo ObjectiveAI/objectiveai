@@ -5,7 +5,7 @@
 //! to the task that serves it — after the id is out, and not before,
 //! so a request the caller sent early waits in the inbox rather than
 //! being answered against a container that is not up. The loop also
-//! hears the three things that end a scope: the caller's stop, the
+//! hears the three things that end a scope: the caller's cancel, the
 //! container leaving, and the caller going away. A tree, a read and a
 //! write are scopes this end opens on the proxy, and a transfer is a
 //! read on this proxy wired into a write on another container's; a

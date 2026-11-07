@@ -15,7 +15,7 @@ use crate::wire::frame;
 /// provider sends them: every image the caller built as added, the
 /// word that the listing is whole, and from then on images added and
 /// removed as the caller builds and deletes them. Ends at the
-/// provider's finish — after the stop, or the connection ending — and
+/// provider's finish — after the cancel, or the connection ending — and
 /// an error from the provider is the last item, with nothing after
 /// it.
 #[must_use = "a scope that is not polled grows a queue nobody reads"]

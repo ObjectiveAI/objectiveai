@@ -22,7 +22,7 @@ use crate::shared::containers::daemon;
 ///
 /// | tag | asks for |
 /// |-----|----------|
-/// | `0` | [`Stop`](Self::Stop) |
+/// | `0` | [`Cancel`](Self::Cancel) |
 /// | `1` | [`Filetree`](Self::Filetree) |
 /// | `2` | [`Read`](Self::Read) |
 /// | `3` | [`Write`](Self::Write) |
@@ -55,7 +55,7 @@ use crate::shared::containers::daemon;
 /// channels open outward from the client rather than the other way.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// Stop the container. Tag `0`.
+    /// Cancel the run: stop the container. Tag `0`.
     ///
     /// # It has no answer, and does not need one
     ///
@@ -74,7 +74,7 @@ pub enum Frame {
     /// to wait to find out. This is unambiguous and immediate: a
     /// caller that says so is not gone, it is finished.
     ///
-    Stop,
+    Cancel,
     /// The container's filesystem, watched. Tag `1`.
     ///
     /// Carries nothing — the variant is bare — and the provider answers
@@ -232,8 +232,8 @@ pub enum Frame {
     McpCloseSession(Sessioned<mcp::close_session::request::Request>),
 }
 
-/// Tag for [`Frame::Stop`].
-const STOP: u8 = 0;
+/// Tag for [`Frame::Cancel`].
+const CANCEL: u8 = 0;
 
 /// Tag for [`Frame::Filetree`].
 const FILETREE: u8 = 1;
@@ -307,8 +307,8 @@ impl Encode for Frame {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         match self {
-            Frame::Stop => {
-                out.extend_from_slice(&[STOP]);
+            Frame::Cancel => {
+                out.extend_from_slice(&[CANCEL]);
                 Ok(())
             }
             Frame::Filetree => {
@@ -411,7 +411,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            STOP => Ok(Frame::Stop),
+            CANCEL => Ok(Frame::Cancel),
             FILETREE => Ok(Frame::Filetree),
             READ => read::request::Request::decode(rest)
                 .map(Frame::Read)

@@ -39,13 +39,13 @@ pub(crate) async fn exec(run: Arc<Run>, channel: u32, command: Request) {
                     // Rule 2.
                     Some(Err(error)) => {
                         run.respond(channel, encoded(&Frame::Error(render::proxy(error)))).await;
-                        let _ = handle.stop().await;
+                        let _ = handle.cancel().await;
                         break;
                     }
                 },
                 // Rule 4.
                 () = run.scope.answer_gone(channel) => {
-                    let _ = handle.stop().await;
+                    let _ = handle.cancel().await;
                     break;
                 }
             }

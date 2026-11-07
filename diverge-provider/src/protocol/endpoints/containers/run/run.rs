@@ -127,11 +127,11 @@ impl Run {
     /// would otherwise hold the finish hostage. The trees are stopped
     /// here, on the way out, rather than by the tasks on a signal: a
     /// task woken and then aborted before it runs would never have
-    /// sent the stop, and would leave its trees watching a container
+    /// sent the cancel, and would leave its trees watching a container
     /// that goes on.
     pub(crate) async fn shutdown(&self) {
         for (_, handle) in self.trees.lock().await.drain() {
-            let _ = handle.stop().await;
+            let _ = handle.cancel().await;
         }
         self.terminals.stop_all().await;
         let mut tasks = self.tasks.lock().await;

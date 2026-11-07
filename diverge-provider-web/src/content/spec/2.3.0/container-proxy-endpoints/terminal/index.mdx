@@ -1,6 +1,6 @@
 ---
 title: 'terminal'
-summary: 'Tag 8: the client names a size; the server starts one shell on a pseudo-terminal of that size in the container and sends what the terminal prints, while the client writes its input, resizes it and stops it on channels at any time.'
+summary: 'Tag 8: the client names a size; the server starts one shell on a pseudo-terminal of that size in the container and sends what the terminal prints, while the client writes its input, resizes it and cancels it on channels at any time.'
 order: 8
 draft: false
 ---
@@ -11,7 +11,7 @@ one shell on a pseudo-terminal of that size in the container, sends
 what the terminal prints as responses as it is read, then one response
 stating how the shell ended, and ends the scope by the response finish.
 While the scope is open, the client opens channels on it to write the
-terminal's input, to set its size, and to stop it.
+terminal's input, to set its size, and to cancel it.
 
 - **The request.** [Request](/container-proxy-endpoints/terminal/request/) states its form.
 - **The response.** [Response](/container-proxy-endpoints/terminal/response/) states the sequence of the main
@@ -44,7 +44,7 @@ terminal's input, to set its size, and to stop it.
 - **Input at any time.** The server serves the client's channels
   whatever the main stream is doing. Output the client has not taken
   does not hold input back, and input does not hold output back.
-- **The kill.** The stop, the end of the connection, or the client's
+- **The kill.** The cancel, the end of the connection, or the client's
   abandoning the scope's responses, as [Credits](/frames/credits/)
   provides, kills the shell's process group with the signal `SIGKILL`.
   The server sends no response after it, and sends the response

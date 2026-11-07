@@ -20,7 +20,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::singles::Single;
 
 /// Send the caller every image it built, the word that the listing
-/// is whole, and every change after, until the caller stops.
+/// is whole, and every change after, until the caller cancels.
 ///
 /// In order:
 ///
@@ -43,7 +43,7 @@ use crate::protocol::singles::Single;
 ///    another caller's image is nothing. A subscription that fell
 ///    behind is the manager asked again the same way. A manager that
 ///    will not answer then is the `Error`, last.
-/// 4. The finish, when the caller's [`Stop`](channel_request::Frame::Stop)
+/// 4. The finish, when the caller's [`Cancel`](channel_request::Frame::Cancel)
 ///    arrives, the caller is gone or reads no more of the listing, or
 ///    the error was sent. The connection's claim on its one listing,
 ///    held with the scope, goes before it — see [`Single`].
@@ -107,12 +107,12 @@ pub async fn handle<M>(
                     continue;
                 };
                 match channel_request::Frame::decode(payload) {
-                    Ok(channel_request::Frame::Stop) => break,
+                    Ok(channel_request::Frame::Cancel) => break,
                     Err(_) => scope.send_channel_response_finish(channel).await,
                 }
             }
             // The caller reads no more of the listing: abandoned, and
-            // over as at the stop.
+            // over as at the cancel.
             () = scope.responses_gone() => break,
         }
     }

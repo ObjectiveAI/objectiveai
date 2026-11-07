@@ -3,7 +3,7 @@
 //! [`response`] is the whole of it: a volume added, changed or
 //! removed, the word that the listing is whole, or the error. A
 //! provider opens no channel of its own on a listing; the one channel
-//! on it is the caller's stop.
+//! on it is the caller's cancel.
 //!
 //! # And a way to answer it
 //!
@@ -15,7 +15,7 @@
 //! and the provider's
 //! `VolumeChanges`,
 //! and it answers with the volumes, and keeps answering until the
-//! caller stops.
+//! caller cancels.
 //!
 //! It is the mirror of [`execute`](super::client::execute) on the other
 //! side, and it is gated the same way and for the same reason: this

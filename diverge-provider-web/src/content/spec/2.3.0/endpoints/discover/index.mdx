@@ -1,6 +1,6 @@
 ---
 title: 'discover'
-summary: 'Tag 25: a client asks which connected identities are discoverable; the server sends every such identity, with its description, its IP and its address, as added, says when the listing is whole, keeps sending as discoverable identities connect and disconnect, and finishes when the client stops.'
+summary: 'Tag 25: a client asks which connected identities are discoverable; the server sends every such identity, with its description, its IP and its address, as added, says when the listing is whole, keeps sending as discoverable identities connect and disconnect, and finishes when the client cancels.'
 order: 25
 draft: false
 ---
@@ -14,7 +14,7 @@ listing is whole, and keeps the scope open: an
 identity whose connection opens with the flag `1` or `2` is sent as
 added, and an identity whose connection ends is sent as
 removed, for as long as the scope lives. The scope ends at the
-client's stop or at the client's connection ending; the response
+client's cancel or at the client's connection ending; the response
 finish follows, and no frame follows the finish. A connection holds
 at most one discover scope open at a time, as
 [One open at a time](/endpoints/#one-open-at-a-time) provides.
@@ -25,7 +25,7 @@ at most one discover scope open at a time, as
 - **The response.** [Response](/endpoints/discover/response/) states
   the responses and the sequence of the main stream.
 - **The channels.** The client opens the one channel of
-  [Client Channels](/endpoints/discover/client/), the stop. The server
+  [Client Channels](/endpoints/discover/client/), the cancel. The server
   opens no channel on a discover scope.
 - **The listing.** The listing is zero or more identities. An
   identity is in the listing exactly when a connection authorized
@@ -60,14 +60,14 @@ at most one discover scope open at a time, as
    added; when such a connection ends, the server sends its identity
    as removed.
 5. **The server ends the scope.** When the server receives the
-   client's [stop](/endpoints/discover/client/stop/), or the client's
+   client's [cancel](/endpoints/discover/client/cancel/), or the client's
    connection ends, the server sends the response finish.
 
 ## The rules that hold throughout
 
 - **No end of its own.** The server does not end the scope because
   the listing is empty, nor because every identity listed has been
-  removed. The client's stop and the client's connection ending are
+  removed. The client's cancel and the client's connection ending are
   the only ends.
 - **Once per identity.** An identity holds at most one connection to
   the server at a time. The server sends an identity as added exactly

@@ -15,7 +15,7 @@ use crate::wire::frame;
 /// back holding the scope; each refusal is its own
 /// [`ExecuteError`], and an error is
 /// [`Refused`](ExecuteError::Refused), the provider's own words. Nothing else arrives on the scope until
-/// the finish that answers the stop, which the handle reads.
+/// the finish that answers the cancel, which the handle reads.
 pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<ExecuteHandle, ExecuteError> {
     let mut payload = Vec::new();
     request.encode(&mut Writer::new(&mut payload)).map_err(ExecuteError::Request)?;

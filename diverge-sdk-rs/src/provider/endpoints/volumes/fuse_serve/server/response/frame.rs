@@ -22,7 +22,7 @@ use crate::shared::error::Error;
 /// | the scope | means |
 /// |-----------|-------|
 /// | a serving, then quiet, and stays open | the volume is held, and every ask the caller opens is answered on its channel |
-/// | a serving, then a finish | the caller stopped, and the volume is given back |
+/// | a serving, then a finish | the caller cancelled, and the volume is given back |
 /// | a mounted, then a finish | it was not served: a running container has the volume, and the provider does not FUSE serve a volume of its mode beside one |
 /// | a FUSE served, then a finish | it was not served: another FUSE serve holds the volume, and the provider FUSE serves a volume of its mode once |
 /// | a held, then a finish | it was not served: another operation has the volume to itself |

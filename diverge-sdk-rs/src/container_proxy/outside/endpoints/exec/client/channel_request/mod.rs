@@ -1,4 +1,4 @@
-//! What stops an exec.
+//! What cancels an exec.
 
 mod frame;
 

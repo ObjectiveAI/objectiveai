@@ -601,7 +601,7 @@ the byte `1` followed by the Volume, and a Volume that ceases to be
 available as the byte `2` followed by the Volume as the Provider last
 sent it, each sent after the Provider has sent the byte `0` of the
 request that made the change; and the Response Finish when the
-Provider receives the Identity's `stop` Channel request or the
+Provider receives the Identity's `cancel` Channel request or the
 Identity's Connection ends, or the byte `5` followed by an error and
 the Response Finish when the Provider cannot list. The listing shall
 contain every Volume the Identity created by `volumes::create` and
@@ -732,11 +732,11 @@ shall discard the layer at the Response Finish, leaving the Volume as
 it was before the FUSE serve. For a `read_only` Volume the Provider
 shall answer every write, truncate, setattr, removal, rename and mkdir
 with the byte `2` and shall not change the Volume, and shall answer
-every stat, read and listing as for any Volume. On the Client's stop
+every stat, read and listing as for any Volume. On the Client's cancel
 the Provider shall answer every ask still open, send the Response
 Finish, and release the Volume; on the close of the Connection it
 shall release the Volume. The Provider shall send nothing on the
-stop's Channel.
+cancel's Channel.
 
 (h) **Capacity.** The Provider shall answer every
 `volumes::create_capacity` request with the largest size in bytes of a
@@ -819,7 +819,7 @@ the Scope, exactly one Response of the byte `0` followed by each
 Client Image the Identity builds, and exactly one Response of the
 byte `1` followed by each Client Image the Identity deletes, each
 after the Provider has answered the build or the deletion; and the
-Response Finish when the Identity's stop arrives, the Connection
+Response Finish when the Identity's cancel arrives, the Connection
 ends, or exactly one Response of the byte `4` followed by an error
 has been sent. The Provider shall not end the Scope because the
 Identity has no Client Image, and shall send no Response of the byte
@@ -1121,7 +1121,7 @@ Section and of Section 5.11, lives until the run ends, and is
 unmounted by nothing; every tree Scope the Provider opens after the
 mount shall name the mount's path among those the tree leaves out.
 
-(l) **End the run.** When the Provider receives the Client's stop
+(l) **End the run.** When the Provider receives the Client's cancel
 channel request, when the Proxy's connection ends, or when the
 Client's Connection ends, the Provider shall stop the Container, end
 every Channel task, and send the Response Finish with no error. After the
@@ -1215,7 +1215,7 @@ Proxy on that Channel as a Channel Response on the Client's Channel,
 byte for byte, in order, and the Proxy's Channel Response Finish as
 the Client's Channel Response Finish, answering a Channel Request that
 does not decode by a Bare Finish; (f) end the Scope by the Response
-Finish, after the last answer, when it receives the Client's `stop`
+Finish, after the last answer, when it receives the Client's `cancel`
 Channel request, when the Client's Connection ends, and when the run
 of the Container ends, stopping the `filesystem::fuse_serve` Scope on
 the Proxy and holding and releasing nothing of the Container. The
@@ -1234,7 +1234,7 @@ Connection, on any Connection, by exactly one Response, the byte `1`
 followed by exactly `{"kind":"held"}`, and the Response Finish; hold
 the Identity for the Scope; answer exactly one Response, the byte `0`
 followed by the Identity as JSON; and hold the Scope open until the
-Acceptor's `stop` Channel request or the Acceptor's Connection ending,
+Acceptor's `cancel` Channel request or the Acceptor's Connection ending,
 on which it shall finish every half of every connection open on the
 Scope, finish every connect Scope relayed to it, release the Identity,
 and send the Response Finish.

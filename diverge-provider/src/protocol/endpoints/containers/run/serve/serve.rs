@@ -11,8 +11,8 @@ use diverge_sdk::wire::frame::client::ClientFrame;
 /// How a scope stopped being served.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum End {
-    /// The caller said stop, or leave.
-    Stopped,
+    /// The caller cancelled, or left.
+    Cancelled,
     /// The container is gone.
     Over,
     /// The caller went away: the connection ended, or the caller reads
@@ -28,7 +28,7 @@ pub(crate) enum End {
 /// own through [`Family::serve`](super::super::family::Family::serve).
 /// A request that will not decode is
 /// finished with nothing — the wire's could-not-serve — and the loop
-/// goes on. A stop ends the loop at once; channels still being served
+/// goes on. A cancel ends the loop at once; channels still being served
 /// are the handler's to end.
 ///
 /// Raced against [`Run::over`] and against the caller abandoning the
@@ -57,7 +57,7 @@ pub(crate) async fn serve<F: Runs>(run: &Arc<Run>) -> End {
         };
         let run = Arc::clone(run);
         match F::classify(request) {
-            Opened::Stop => return End::Stopped,
+            Opened::Cancel => return End::Cancelled,
             Opened::Filetree => run.spawn(filetree::filetree::<F>(Arc::clone(&run), channel)).await,
             Opened::Read(path) => run.spawn(read::read::<F>(Arc::clone(&run), channel, path)).await,
             Opened::Exec(command) => run.spawn(exec::exec(Arc::clone(&run), channel, command)).await,

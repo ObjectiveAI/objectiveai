@@ -32,7 +32,7 @@ use crate::wire::frame;
 /// connector's client frames into the acceptor's session, the
 /// session's server frames back onto the provider's half — until
 /// either side hangs up. What comes back is the [`Accepting`]: the
-/// identity, the stop, and the end.
+/// identity, the cancel, and the end.
 pub async fn execute<A: Acceptor + 'static>(handle: &Handle, acceptor: Arc<A>) -> Result<Accepting, ExecuteError> {
     let mut payload = Vec::new();
     request::Frame

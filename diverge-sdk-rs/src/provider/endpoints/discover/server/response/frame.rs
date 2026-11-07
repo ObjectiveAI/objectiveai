@@ -33,7 +33,7 @@ use crate::wire::encode::{Encode, Writer};
 ///    disconnects and connects again is sent `Removed`, then `Added`.
 ///    Nothing is told as changed: a description is its connection's,
 ///    and does not change while it is listed.
-/// 5. **No end of its own.** The finish follows the caller's stop or
+/// 5. **No end of its own.** The finish follows the caller's cancel or
 ///    the caller's connection ending, and nothing else: a provider with
 ///    nothing discoverable sends `Listed` at once, and is watched.
 /// 6. **No error.** A provider always knows what is connected to it,
@@ -46,7 +46,7 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// # A finish with nothing is an answer
 ///
-/// The caller stopped before anything was sent, or the request was
+/// The caller cancelled before anything was sent, or the request was
 /// not served: a scope that finishes with no response before it is
 /// that, not a failure.
 #[derive(Debug, Clone, PartialEq, Eq)]

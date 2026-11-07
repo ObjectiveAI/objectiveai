@@ -2,7 +2,7 @@
 //!
 //! [`handle`] takes the scope a
 //! [`Session`](diverge_sdk::wire::server::session::Session) yielded, holds the
-//! volume, and answers every ask until the stop.
+//! volume, and answers every ask until the cancel.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

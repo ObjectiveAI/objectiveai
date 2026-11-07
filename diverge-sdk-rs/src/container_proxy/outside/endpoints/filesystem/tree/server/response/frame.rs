@@ -18,7 +18,7 @@ use crate::shared::filetree;
 ///
 /// | the scope ends with | means |
 /// |---------------------|-------|
-/// | frames, then a finish | the watch ended — the server said stop, or the proxy is ending |
+/// | frames, then a finish | the watch ended — the server cancelled, or the proxy is ending |
 /// | an [`Error`](Self::Error), then a finish | the tree could not be watched, or is no longer |
 ///
 /// A [`Snapshot`](crate::shared::filetree::response::Frame::Snapshot)

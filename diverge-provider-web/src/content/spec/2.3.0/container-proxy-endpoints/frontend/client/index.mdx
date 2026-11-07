@@ -1,6 +1,6 @@
 ---
 title: 'Client Channels'
-summary: 'The channels the client opens on a frontend scope, by tag: body, end and stop, each answered by the channel response finish.'
+summary: 'The channels the client opens on a frontend scope, by tag: body, end and cancel, each answered by the channel response finish.'
 order: 3
 draft: false
 ---
@@ -16,7 +16,7 @@ a channel response finish that no channel response precedes.
 |-----|---------|
 | `0` | [body](/container-proxy-endpoints/frontend/client/body/) |
 | `1` | [end](/container-proxy-endpoints/frontend/client/end/) |
-| `2` | [stop](/container-proxy-endpoints/frontend/client/stop/) |
+| `2` | [cancel](/container-proxy-endpoints/frontend/client/cancel/) |
 
 The channel request is defined by `diverge-sdk-rs/src/shared/containers/frontend/input.rs`:
 

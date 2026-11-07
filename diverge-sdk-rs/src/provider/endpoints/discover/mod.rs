@@ -6,7 +6,7 @@
 //! the provider whose [discover flag](crate::wire::frame::auth::Auth)
 //! was `1` or `2`, with the description its flag `2` carried, the word
 //! that the listing is whole, then every such identity that connects
-//! or disconnects after, until the caller stops.
+//! or disconnects after, until the caller cancels.
 //!
 //! # The flag is the peer's, and the handshake carries it
 //!
@@ -17,7 +17,7 @@
 //! the flag `0` is never listed, and an identity that is not connected
 //! is never listed.
 //!
-//! Split by who SENDS, as everywhere else: the question and the stop
+//! Split by who SENDS, as everywhere else: the question and the cancel
 //! are in [`client`], the answer in [`server`].
 
 pub mod client;

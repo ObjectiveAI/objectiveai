@@ -17,7 +17,7 @@ use crate::shared::listing::Change;
 /// [`Listed`](Self::Listed); then, for the scope's life, an image the
 /// caller builds as `Added` and one it deletes as
 /// [`Removed`](Self::Removed). Nothing is told as changed: an image
-/// never changes. The finish follows the caller's stop, the caller's
+/// never changes. The finish follows the caller's cancel, the caller's
 /// connection ending, or exactly one [`Error`](Self::Error), and
 /// nothing else: a caller with no image is listed as `Listed` at
 /// once, and watched. A payload leads with one byte saying which —
@@ -31,7 +31,7 @@ use crate::shared::listing::Change;
 ///
 /// # A finish with nothing is an answer
 ///
-/// The caller stopped before anything was sent, or the request was
+/// The caller cancelled before anything was sent, or the request was
 /// not served: a scope that finishes with no response before it is
 /// that, not a failure. An [`Error`](Self::Error) is a failure: the
 /// provider could not tell.

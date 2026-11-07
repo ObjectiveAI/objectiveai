@@ -35,7 +35,7 @@ pub enum Frame<'a> {
         /// The daemon's request frame, as the endpoint lays it out.
         payload: &'a [u8],
     },
-    /// Open a channel on a scope: a cancel, a stop.
+    /// Open a channel on a scope: a cancel.
     ChannelRequest {
         /// The scope.
         scope: u32,

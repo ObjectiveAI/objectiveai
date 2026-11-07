@@ -1,6 +1,6 @@
 ---
 title: 'Client Channels'
-summary: 'The channels the client opens on a FUSE serve scope, by tag: the nine asks a FUSE mount makes, each answered by exactly one channel response from the container, the stop that ends the scope, and the filetree that streams the tree of the served subtree.'
+summary: 'The channels the client opens on a FUSE serve scope, by tag: the nine asks a FUSE mount makes, each answered by exactly one channel response from the container, the cancel that ends the scope, and the filetree that streams the tree of the served subtree.'
 order: 3
 draft: false
 ---
@@ -13,7 +13,7 @@ names no container: the scope is the subtree. The channel request is,
 byte for byte, the channel request of a
 [volumes::fuse_serve](/endpoints/volumes-fuse-serve/client/) scope: tags `0`
 through `8` are the asks of a FUSE mount's scope on the container
-proxy — the same tags, the same forms — tag `9` is the stop, and tag
+proxy — the same tags, the same forms — tag `9` is the cancel, and tag
 `10` is the filetree. The server answers each ask on its channel with
 exactly one channel response and the channel response finish, answers
 the filetree with a stream that ends with the scope, and answers a
@@ -31,7 +31,7 @@ that no channel response precedes.
 | `6` | [stat](/endpoints/containers-fuse-serve/client/stat/) |
 | `7` | [truncate](/endpoints/containers-fuse-serve/client/truncate/) |
 | `8` | [setattr](/endpoints/containers-fuse-serve/client/setattr/) |
-| `9` | [stop](/endpoints/containers-fuse-serve/client/stop/) |
+| `9` | [cancel](/endpoints/containers-fuse-serve/client/cancel/) |
 | `10` | [filetree](/endpoints/containers-fuse-serve/client/filetree/) |
 
 The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/fuse_serve/client/channel_request/frame.rs`:

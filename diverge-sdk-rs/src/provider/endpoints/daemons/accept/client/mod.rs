@@ -1,7 +1,7 @@
 //! The client side of an accept: what the accepting daemon sends.
 //!
 //! [`request`] opens the scope. [`channel_request`] is what the daemon
-//! opens on it: its half of each connection, and the stop.
+//! opens on it: its half of each connection, and the cancel.
 //! [`channel_response`] answers the channel the provider opens, the
 //! provider's half of each connection.
 //!

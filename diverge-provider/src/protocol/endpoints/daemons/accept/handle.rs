@@ -27,9 +27,9 @@ use crate::protocol::singles::Single;
 ///    of a connection, quoting an id — handed to the connect handler
 ///    waiting on that id, which relays the connector's frames onto
 ///    it from then on; an id nobody waits for is finished with
-///    nothing — or the stop, which ends the scope. A channel request
+///    nothing — or the cancel, which ends the scope. A channel request
 ///    that does not decode is finished with nothing. The daemon
-///    reading no more of the scope ends it as the stop does.
+///    reading no more of the scope ends it as the cancel does.
 /// 4. The slot given back, which ends every connection relayed on
 ///    the scope, then the connection's claim, and the finish. The
 ///    giving back is a [`Release`], so a scope that panics or is
@@ -75,7 +75,7 @@ pub async fn handle(scope: Single<ScopeHandle>, client_identity: &Identity, acce
                     scope.send_channel_response_finish(channel).await;
                 }
             }
-            Ok(channel_request::Frame::Stop) => break,
+            Ok(channel_request::Frame::Cancel) => break,
             Err(_) => scope.send_channel_response_finish(channel).await,
         }
     }

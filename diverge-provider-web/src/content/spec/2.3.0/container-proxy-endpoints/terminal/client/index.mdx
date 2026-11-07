@@ -1,6 +1,6 @@
 ---
 title: 'Client Channels'
-summary: 'The channels the client opens on a terminal scope, by tag: stdin, resize and stop, each answered by the channel response finish once done.'
+summary: 'The channels the client opens on a terminal scope, by tag: stdin, resize and cancel, each answered by the channel response finish once done.'
 order: 3
 draft: false
 ---
@@ -16,7 +16,7 @@ a channel response finish that no channel response precedes.
 |-----|---------|
 | `0` | [stdin](/container-proxy-endpoints/terminal/client/stdin/) |
 | `1` | [resize](/container-proxy-endpoints/terminal/client/resize/) |
-| `2` | [stop](/container-proxy-endpoints/terminal/client/stop/) |
+| `2` | [cancel](/container-proxy-endpoints/terminal/client/cancel/) |
 
 The channel request is defined by `diverge-sdk-rs/src/shared/containers/terminal/input.rs`:
 

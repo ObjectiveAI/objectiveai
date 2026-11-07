@@ -5,7 +5,7 @@
 //! [`ExecuteHandle`]: one [`ask`](ExecuteHandle::ask) at a time, each
 //! its own channel and its own one answer, the
 //! [`filetree`](ExecuteHandle::filetree), and
-//! [`stop`](ExecuteHandle::stop) to end the scope.
+//! [`cancel`](ExecuteHandle::cancel) to end the scope.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

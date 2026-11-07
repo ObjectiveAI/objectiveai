@@ -39,11 +39,11 @@ const SHELLS: [&str; 2] = ["/bin/bash", "/bin/sh"];
 /// 3. Input is taken on its own, whatever the output is doing: each
 ///    channel request is `Stdin`, written to the terminal whole, in the
 ///    order the requests came; `Resize`, which sets the terminal's
-///    size; or `Stop`. Each is answered by a bare finish once done.
+///    size; or `Cancel`. Each is answered by a bare finish once done.
 /// 4. When the shell exits, what remains in its process group is
 ///    killed, what the terminal still holds is sent, and `Exited` or
 ///    `Signaled` is last.
-/// 5. A stop, the client gone, or the reader abandoning the stream
+/// 5. A cancel, the client gone, or the reader abandoning the stream
 ///    kills the group at once: nothing more but the finish.
 pub async fn terminal(scope: ScopeHandle, frame: request::Frame) {
     let scope = Arc::new(scope);
@@ -146,7 +146,7 @@ pub async fn terminal(scope: ScopeHandle, frame: request::Frame) {
     scope.send_response_finish().await;
 }
 
-/// Rule 3: every channel request in order, until a stop or the client
+/// Rule 3: every channel request in order, until a cancel or the client
 /// is gone, either of which tells `stopped`.
 async fn take_input(scope: Arc<ScopeHandle>, master: Arc<AsyncFd<OwnedFd>>, stopped: Arc<Notify>) {
     while let Some(bytes) = scope.recv_channel_request().await {
@@ -163,7 +163,7 @@ async fn take_input(scope: Arc<ScopeHandle>, master: Arc<AsyncFd<OwnedFd>>, stop
             Ok(channel_request::Frame::Resize(size)) => {
                 let _ = resize(&master, size);
             }
-            Ok(channel_request::Frame::Stop) => {
+            Ok(channel_request::Frame::Cancel) => {
                 scope.send_channel_response_finish(channel).await;
                 break;
             }

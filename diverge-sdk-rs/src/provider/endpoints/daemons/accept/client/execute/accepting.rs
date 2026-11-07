@@ -9,13 +9,13 @@ use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame;
 
 /// The scope an accept opened, held for as long as the daemon accepts:
-/// the identity the provider knows the daemon by, the stop, and the
+/// the identity the provider knows the daemon by, the cancel, and the
 /// end.
 ///
 /// # Dropping it does nothing
 ///
 /// No destructor sends a frame. Ending an accept is
-/// [`stop`](Self::stop), or the connection going; the task answering
+/// [`cancel`](Self::cancel), or the connection going; the task answering
 /// the provider's announcements runs until the scope's request stream
 /// ends either way.
 pub struct Accepting {
@@ -37,17 +37,17 @@ impl Accepting {
         }
     }
 
-    /// Stop accepting. Nothing answers on the channel this opens; what
+    /// Cancel the accept: stop accepting. Nothing answers on the channel this opens; what
     /// answers is the scope's own finish, on [`wait`](Self::wait).
-    pub async fn stop(&self) -> Result<(), SendError> {
+    pub async fn cancel(&self) -> Result<(), SendError> {
         let mut payload = Vec::new();
-        channel_request::Frame::Stop
+        channel_request::Frame::Cancel
             .encode(&mut Writer::new(&mut payload))
             .unwrap_or_else(|error| match error {});
         self.handle.send_channel_request(self.scope, &payload).await.map(|_| ())
     }
 
-    /// The accept's end: the finish, after the stop or at the
+    /// The accept's end: the finish, after the cancel or at the
     /// provider's own ending, or the connection going first.
     pub async fn wait(&mut self) -> End {
         while let Some(bytes) = self.responses.recv().await {
@@ -64,7 +64,7 @@ impl Accepting {
 /// How an accept ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum End {
-    /// The finish came: the stop was answered, or the provider ended
+    /// The finish came: the cancel was answered, or the provider ended
     /// the accept.
     Finished,
     /// The connection ended before the finish.

@@ -11,7 +11,7 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// | tag | asks for |
 /// |-----|----------|
-/// | `0` | [`Stop`](Self::Stop) |
+/// | `0` | [`Cancel`](Self::Cancel) |
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Frame {
     /// End the listing. Tag `0`.
@@ -25,11 +25,11 @@ pub enum Frame {
     /// ending, and the provider's error are the only ends it has;
     /// this is the one that says the caller is finished rather than
     /// gone.
-    Stop,
+    Cancel,
 }
 
-/// Tag for [`Frame::Stop`].
-const STOP: u8 = 0;
+/// Tag for [`Frame::Cancel`].
+const CANCEL: u8 = 0;
 
 impl Encode for Frame {
     /// Nothing can fail: the frame is one byte.
@@ -37,8 +37,8 @@ impl Encode for Frame {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         match self {
-            Frame::Stop => {
-                out.extend_from_slice(&[STOP]);
+            Frame::Cancel => {
+                out.extend_from_slice(&[CANCEL]);
                 Ok(())
             }
         }
@@ -52,7 +52,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
         let (tag, _) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            STOP => Ok(Frame::Stop),
+            CANCEL => Ok(Frame::Cancel),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }

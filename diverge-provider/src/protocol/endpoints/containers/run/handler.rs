@@ -58,7 +58,7 @@ use diverge_sdk::shared::error::Error;
 ///    `Inactive` among them; on a tool container, its `Active` and
 ///    `Inactive` onto the main stream, the begin's end heard with
 ///    them.
-/// 5. The caller's channels are served until the run ends: a stop,
+/// 5. The caller's channels are served until the run ends: a cancel,
 ///    the container leaving, or the caller going away. Among them a
 ///    `fuse_mount`, one more FUSE mount made while the container
 ///    runs, checked against every mount it holds — see

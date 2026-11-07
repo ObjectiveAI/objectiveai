@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response: the byte 0 alone, Serving, after which the scope stays open until the client stops it; the byte 1, 2 or 3 alone when a running container, another FUSE serve or an operation holds the volume; the byte 4 followed by the volume and the mode it is in as JSON, when the request meant another; the byte 5 alone when the server does not FUSE serve a volume of its mode, or keeps no volume; or the byte 6 followed by an error as one JSON value; every refusal and an error are followed by the response finish.'
+summary: 'The server sends exactly one response: the byte 0 alone, Serving, after which the scope stays open until the client cancels it; the byte 1, 2 or 3 alone when a running container, another FUSE serve or an operation holds the volume; the byte 4 followed by the volume and the mode it is in as JSON, when the request meant another; the byte 5 alone when the server does not FUSE serve a volume of its mode, or keeps no volume; or the byte 6 followed by an error as one JSON value; every refusal and an error are followed by the response finish.'
 order: 2
 draft: false
 ---
@@ -23,7 +23,7 @@ before it serves any channel.
   the server sends no other response on the scope, answers every
   channel the client opens as [Client Channels](/endpoints/volumes-fuse-serve/client/) states,
   and sends the response finish after the last answer when the client
-  stops. After a response whose first byte is `1` to `6`, the
+  cancels. After a response whose first byte is `1` to `6`, the
   response finish follows the response, and no frame follows the
   finish. A response finish that no response precedes states that
   the request was not served, as [Endpoints](/endpoints/) provides.

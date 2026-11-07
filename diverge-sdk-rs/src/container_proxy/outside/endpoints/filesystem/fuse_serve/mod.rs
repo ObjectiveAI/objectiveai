@@ -1,7 +1,7 @@
 //! Serving a subtree of the container live: the FUSE asks, answered
 //! from the container's own filesystem.
 //!
-//! Split by who SENDS: the subtree, the asks, the stop and the tree
+//! Split by who SENDS: the subtree, the asks, the cancel and the tree
 //! go in [`client`]; whether it is served, and every answer, come
 //! back in [`server`].
 //!
@@ -13,7 +13,7 @@
 //! piece written, a truncate, a setattr, a listing, a removal, a
 //! rename, a mkdir — each from the subtree, with no mount id, since
 //! the scope is the subtree; and the tree of the subtree as a
-//! [`filetree`](crate::shared::filetree) stream. The server's stop ends
+//! [`filetree`](crate::shared::filetree) stream. The server's cancel ends
 //! the scope.
 //!
 //! # The far end of a container FUSE serve

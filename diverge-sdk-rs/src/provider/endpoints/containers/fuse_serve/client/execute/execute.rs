@@ -14,7 +14,7 @@ use crate::wire::frame;
 /// One frame is read: `Serving`, and the [`ExecuteHandle`] comes
 /// back holding the scope; an error is
 /// [`Refused`](ExecuteError::Refused), the provider's own words. Nothing else arrives on the scope until
-/// the finish — the answer to the stop, or the container's end —
+/// the finish — the answer to the cancel, or the container's end —
 /// which the handle reads.
 pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<ExecuteHandle, ExecuteError> {
     let mut payload = Vec::new();

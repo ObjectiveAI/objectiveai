@@ -15,7 +15,7 @@ use crate::wire::frame;
 /// provider sends them: every volume the caller has as added, the
 /// word that the listing is whole, and from then on volumes added,
 /// changed and removed as the caller creates, edits and deletes
-/// them. Ends at the provider's finish — after the stop, or the
+/// them. Ends at the provider's finish — after the cancel, or the
 /// connection ending — and an error from the provider is the last
 /// item, with nothing after it.
 #[must_use = "a scope that is not polled grows a queue nobody reads"]

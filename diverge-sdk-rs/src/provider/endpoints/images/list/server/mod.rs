@@ -3,7 +3,7 @@
 //! [`response`] is the whole of it: an image added or removed, the
 //! word that the listing is whole, or the error. A provider opens no
 //! channel of its own on a listing; the one channel on it is the
-//! caller's stop.
+//! caller's cancel.
 //!
 //! # And a way to answer it
 //!
@@ -13,7 +13,7 @@
 //! [`Session`](crate::wire::server::session::Session) yielded, whose
 //! caller it is, an `ImageManager` and the provider's `Changes`, and
 //! it answers with the images, and keeps answering until the caller
-//! stops. It is the mirror of [`execute`](super::client::execute) on
+//! cancels. It is the mirror of [`execute`](super::client::execute) on
 //! the other side.
 
 pub mod response;

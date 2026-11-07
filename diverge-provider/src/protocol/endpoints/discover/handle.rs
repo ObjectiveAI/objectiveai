@@ -34,10 +34,10 @@ use crate::protocol::singles::Single;
 ///    held still as another item — another description, IP or address:
 ///    its connection ended and another opened between two reads — is
 ///    told as `Removed` as it was, then `Added` as it is.
-/// 4. **The ends.** The caller's stop, the caller's connection ending
+/// 4. **The ends.** The caller's cancel, the caller's connection ending
 ///    (no channel request will come), the caller reading no more of the
 ///    listing, or the nudges closing end the scope with its finish. A
-///    channel request that is not a stop is finished, and the listing
+///    channel request that is not a cancel is finished, and the listing
 ///    goes on.
 /// 5. **One per connection.** The connection's claim on its one
 ///    listing is held with the scope, and goes before the finish — see
@@ -71,12 +71,12 @@ pub async fn handle(scope: Single<ScopeHandle>, discoverable: Arc<Discoverable>)
                     continue;
                 };
                 match channel_request::Frame::decode(payload) {
-                    Ok(channel_request::Frame::Stop) => break,
+                    Ok(channel_request::Frame::Cancel) => break,
                     Err(_) => scope.send_channel_response_finish(channel).await,
                 }
             }
             // The caller reads no more of the listing: abandoned, and
-            // over as at the stop.
+            // over as at the cancel.
             () = scope.responses_gone() => break,
         }
     }

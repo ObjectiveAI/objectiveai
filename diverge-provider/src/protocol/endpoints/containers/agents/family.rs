@@ -45,7 +45,7 @@ impl Family for Agents {
 
     fn classify(request: channel_request::Frame) -> Opened<Self::Exchange> {
         match request {
-            channel_request::Frame::Stop => Opened::Stop,
+            channel_request::Frame::Cancel => Opened::Cancel,
             channel_request::Frame::Filetree => Opened::Filetree,
             channel_request::Frame::Read(request) => Opened::Read(request.path),
             channel_request::Frame::Write(request) => Opened::Write {

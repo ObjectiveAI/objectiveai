@@ -56,7 +56,7 @@ pub(crate) async fn frontend<F: Family>(run: Arc<Run>, channel: u32, request: Re
                             }
                         }
                         Err(_) => {
-                            let _ = handle.stop().await;
+                            let _ = handle.cancel().await;
                             return;
                         }
                     }
@@ -75,14 +75,14 @@ pub(crate) async fn frontend<F: Family>(run: Arc<Run>, channel: u32, request: Re
                         // Rule 3.
                         Some(Err(error)) => {
                             run.respond(channel, encoded(&Frame::Error(render::proxy(error)))).await;
-                            let _ = handle.stop().await;
+                            let _ = handle.cancel().await;
                             break;
                         }
                     },
                     () = &mut feeding, if !fed => fed = true,
                     // Rule 5.
                     () = run.scope.answer_gone(channel) => {
-                        let _ = handle.stop().await;
+                        let _ = handle.cancel().await;
                         break;
                     }
                 }

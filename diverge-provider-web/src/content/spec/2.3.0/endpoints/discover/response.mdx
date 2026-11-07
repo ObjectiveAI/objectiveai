@@ -17,7 +17,7 @@ draft: false
   opened; exactly one response of the byte `2` and nothing else; then
   zero or more responses of the byte `0` or `1`, each followed by one
   identity, as discoverable identities connect and disconnect. The
-  response finish follows the last of them, when the client stops or
+  response finish follows the last of them, when the client cancels or
   the client's connection ends. Or: exactly one response of the byte
   `3` and nothing else, and the response finish. The server sends no
   response of the byte `1` before the byte `2`.
@@ -66,7 +66,7 @@ draft: false
 - **Whole.** A payload that is the byte `2` and nothing else states
   that every identity in the listing when the scope opened has been
   sent as added. A client that wants the listing once reads to this
-  byte and [stops](/endpoints/discover/client/stop/). A payload whose
+  byte and [cancels](/endpoints/discover/client/cancel/). A payload whose
   first byte is `2` is read by that byte alone; bytes after it are not
   read.
 - **Already open.** A payload that is the byte `3` and nothing else
@@ -78,7 +78,7 @@ draft: false
 - **Order.** The order of the identities is not prescribed. A client
   reads nothing into the position of an identity.
 - **A finish with nothing before it.** The request was not served, as
-  [Endpoints](/endpoints/) provides, or the client stopped before the
+  [Endpoints](/endpoints/) provides, or the client cancelled before the
   server had sent anything. The server does not say which.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is none of `0` to `3`, and a payload whose bytes after `0` or `1` do

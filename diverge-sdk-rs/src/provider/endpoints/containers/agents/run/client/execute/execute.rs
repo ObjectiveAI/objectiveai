@@ -58,7 +58,7 @@ use crate::shared::error::Error;
 /// # Dropping the handle ends nothing
 ///
 /// The scope lives until the provider finishes it, which a
-/// [`stop`](ExecuteHandle::stop) provokes and a dropped connection
+/// [`cancel`](ExecuteHandle::cancel) provokes and a dropped connection
 /// forces. A caller that drops every clone of the handle without
 /// stopping leaves the container running until the connection goes;
 /// the serving task goes on answering the provider's asks until the
@@ -113,9 +113,9 @@ where
         Err(error) => {
             // The provider believes the run started. A caller that
             // cannot read the id cannot name the container either, so
-            // the run is stopped rather than left to the connection's
+            // the run is cancelled rather than left to the connection's
             // end.
-            stop(handle, scope.scope).await;
+            cancel(handle, scope.scope).await;
             return Err(ExecuteError::Response(error));
         }
     };
@@ -150,10 +150,10 @@ where
     Ok((id, ExecuteHandle::new(Arc::clone(&scoped)), ExecuteStream::new(scoped)))
 }
 
-/// The stop, sent for a run this end cannot hold.
-async fn stop(handle: &Handle, scope: u32) {
+/// The cancel, sent for a run this end cannot hold.
+async fn cancel(handle: &Handle, scope: u32) {
     let mut payload = Vec::new();
-    if channel_request::Frame::Stop.encode(&mut Writer::new(&mut payload)).is_ok() {
+    if channel_request::Frame::Cancel.encode(&mut Writer::new(&mut payload)).is_ok() {
         let _ = handle.send_channel_request(scope, &payload).await;
     }
 }

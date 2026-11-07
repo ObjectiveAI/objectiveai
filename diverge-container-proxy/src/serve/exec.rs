@@ -36,7 +36,7 @@ use crate::paths;
 ///    killed — a process meant to outlive it detaches from the group
 ///    first — and the pipes are read to their end. `Exited` with the
 ///    code, or `Signaled` with the signal, is last.
-/// 5. A stop (any channel request), the client gone, or the reader
+/// 5. A cancel (any channel request), the client gone, or the reader
 ///    abandoning the stream kills the whole group at once: nothing more
 ///    is sent but the finish.
 pub async fn exec(scope: ScopeHandle, frame: request::Frame) {

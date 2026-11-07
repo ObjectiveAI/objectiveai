@@ -6,7 +6,7 @@
 //! and its own one answer — or one [`relayed`](ExecuteHandle::relay)
 //! as it arrived from somewhere else — the
 //! [`filetree`](ExecuteHandle::filetree), and
-//! [`stop`](ExecuteHandle::stop) to end the scope.
+//! [`cancel`](ExecuteHandle::cancel) to end the scope.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

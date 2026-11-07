@@ -47,7 +47,7 @@ pub async fn idle(daemon: Arc<Daemon>, run: Arc<AgentRun>) {
             () = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {
                 if !*active.borrow() && *inflight.borrow() == 0 && *files.borrow() == 0 && *touched.borrow() == last {
                     run.end_as(End::Expected).await;
-                    let _ = run.handle.stop().await;
+                    let _ = run.handle.cancel().await;
                     return;
                 }
             }

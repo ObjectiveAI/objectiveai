@@ -28,7 +28,7 @@
 //! are scopes because each is a stream of its own. A FUSE serve is one
 //! because the asks the server makes of a subtree ride it, for as
 //! long as the server wants them answered. An exec is one because a
-//! command's output is a stream, and a stop kills it. A terminal is
+//! command's output is a stream, and a cancel kills it. A terminal is
 //! one because a shell's output is a stream its input rides beside.
 //! A frontend request is one because an HTTP body streams both ways.
 //!

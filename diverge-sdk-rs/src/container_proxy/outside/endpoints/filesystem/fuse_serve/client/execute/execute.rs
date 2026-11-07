@@ -14,7 +14,7 @@ use crate::wire::frame;
 /// One frame is read: `Serving`, and the [`ExecuteHandle`] comes
 /// back holding the scope; an error is [`Refused`](ExecuteError::Refused),
 /// the proxy's own words. Nothing else arrives on the scope until the
-/// finish that answers the stop, which the handle reads. The scope's
+/// finish that answers the cancel, which the handle reads. The scope's
 /// inbox is dropped, because the proxy opens no channel on a FUSE serve; a
 /// stray one dead-letters rather than growing forever.
 pub async fn execute(handle: &Handle, path: Vec<String>) -> Result<ExecuteHandle, ExecuteError> {

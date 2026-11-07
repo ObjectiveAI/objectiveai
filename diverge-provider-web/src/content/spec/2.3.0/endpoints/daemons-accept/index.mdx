@@ -76,7 +76,7 @@ acceptor or the connector.
    the acceptor's half. The server finishes the other half of a
    connection whose one half has finished.
 7. **The server ends the scope.** When it receives the acceptor's
-   [stop](/endpoints/daemons-accept/client/stop/), or when the
+   [cancel](/endpoints/daemons-accept/client/cancel/), or when the
    acceptor's connection ends, the server finishes every half of
    every connection open on the scope, finishes every connect scope
    relayed to it, releases the identity, ceases to hold the scope

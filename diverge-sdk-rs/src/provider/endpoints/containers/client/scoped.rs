@@ -114,7 +114,7 @@ impl Scoped {
         unary::<A>(&self.handle, self.scope, payload).await
     }
 
-    /// Open a channel nothing answers on — a stop, a disconnect — and
+    /// Open a channel nothing answers on — a cancel, a disconnect — and
     /// let it go.
     pub(crate) async fn bare(&self, payload: &[u8]) -> Result<(), SendError> {
         self.handle

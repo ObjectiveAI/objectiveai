@@ -7,7 +7,7 @@ use crate::wire::client::handle::Handle;
 use crate::wire::encode::{Encode, Writer};
 
 /// Open a terminal at `size`: its output as a stream, and the handle
-/// that writes its stdin, resizes it and stops it. Dropping the stream
+/// that writes its stdin, resizes it and cancels it. Dropping the stream
 /// abandons it, which kills the shell too.
 pub async fn execute(handle: &Handle, size: terminal::open::Open) -> Result<(ExecuteStream, ExecuteHandle), ExecuteError> {
     let mut payload = Vec::new();

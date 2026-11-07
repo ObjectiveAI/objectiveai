@@ -421,7 +421,7 @@ impl ToolHandle {
     /// daemon's tool let go.
     pub async fn stop(&self) {
         let _ = match self {
-            ToolHandle::Run(handle) => handle.stop().await,
+            ToolHandle::Run(handle) => handle.cancel().await,
             ToolHandle::Connected(handle) => handle.disconnect().await,
         };
     }

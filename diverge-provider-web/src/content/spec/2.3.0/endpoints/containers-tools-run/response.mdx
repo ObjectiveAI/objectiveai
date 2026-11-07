@@ -39,7 +39,7 @@ scope. No frame bearing the scope follows the finish.
   byte `7` and nothing else, followed by exactly one response whose
   first byte is `8`, or, where the proxy could not collect the
   rotating secrets, by the error. The finish carries no error: a run
-  that ended after its id ended by the client's stop, by the
+  that ended after its id ended by the client's cancel, by the
   container's own end, by the proxy's error, or by the client's
   connection ending. A response finish that no response precedes
   states that the request was not served, as

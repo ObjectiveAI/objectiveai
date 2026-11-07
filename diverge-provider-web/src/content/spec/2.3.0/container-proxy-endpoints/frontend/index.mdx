@@ -62,7 +62,7 @@ scope by the response finish.
   The client's end channel closes the server's writing side of the
   connection. The server sends the response finish when the program
   closes its side of the connection.
-- **The stop.** The client's [stop](/container-proxy-endpoints/frontend/client/stop/) channel, the end of the
+- **The cancel.** The client's [cancel](/container-proxy-endpoints/frontend/client/cancel/) channel, the end of the
   connection, or the client's abandoning the scope's responses, as
   [Credits](/frames/credits/) provides, ends the server's request to the
   program. The server sends no response after it, and sends the

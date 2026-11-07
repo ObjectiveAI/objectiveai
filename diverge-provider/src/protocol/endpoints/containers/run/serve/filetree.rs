@@ -48,7 +48,7 @@ pub(crate) async fn filetree<F: Family>(run: Arc<Run>, channel: u32) {
                 match watch {
                     Ok(watch) => opened.push(watch),
                     Err(error) => {
-                        let _ = proxy.1.stop().await;
+                        let _ = proxy.1.cancel().await;
                         run.respond(channel, F::filetree_error(&error)).await;
                         run.finish(channel).await;
                         return;
@@ -109,7 +109,7 @@ pub(crate) async fn filetree<F: Family>(run: Arc<Run>, channel: u32) {
     // never both stop it; a scope the proxy already ended takes the
     // stop as nothing.
     if run.trees.lock().await.remove(&handle.scope()).is_some() {
-        let _ = handle.stop().await;
+        let _ = handle.cancel().await;
     }
 }
 
@@ -135,7 +135,7 @@ async fn relay_watch<F: Family>(ending: Arc<Ending>, container_path: Vec<String>
 /// first — ended by another relay, or by the caller reading no more
 /// of it, which ends it here with the finish.
 ///
-/// The stop is waited on from before the channel is looked at: a
+/// The cancel is waited on from before the channel is looked at: a
 /// [`Notified`](tokio::sync::futures::Notified) hears every
 /// `notify_waiters` from the moment it is made, so an ending that
 /// lands between the look and the wait is still heard, and never

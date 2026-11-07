@@ -6,8 +6,8 @@ draft: false
 ---
 
 The client opens this channel to close a held terminal. The server
-stops the proxy's terminal scope through its
-[stop](/container-proxy-endpoints/terminal/client/stop/) channel, which
+cancels the proxy's terminal scope through its
+[cancel](/container-proxy-endpoints/terminal/client/cancel/) channel, which
 kills the shell, forgets the id, and answers.
 
 - **After the close.** The id names no terminal. A later channel that

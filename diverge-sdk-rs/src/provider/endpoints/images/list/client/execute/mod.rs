@@ -3,8 +3,8 @@
 //! [`execute`] opens the scope and hands back an [`ExecuteStream`] of
 //! what the provider sends — every image the caller built as added,
 //! the word that the listing is whole, then images added and removed
-//! as the caller builds and deletes them — with the [`Stop`] that
-//! ends it. A listing has no end of its own, so the stop is how a
+//! as the caller builds and deletes them — with the [`Cancel`] that
+//! ends it. A listing has no end of its own, so the cancel is how a
 //! caller that has read what it wanted lets the scope go.
 //!
 //! Its own files are flattened into it, so everything is named
@@ -13,9 +13,9 @@
 mod error;
 mod execute;
 mod execute_stream;
-mod stop;
+mod cancel;
 
 pub use error::*;
 pub use execute::*;
 pub use execute_stream::*;
-pub use stop::*;
+pub use cancel::*;

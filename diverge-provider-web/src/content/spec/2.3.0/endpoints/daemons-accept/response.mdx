@@ -19,7 +19,7 @@ scope follows the finish.
 
 - **The sequence.** Exactly one response precedes the response
   finish. The byte `0` is the identity: the scope stays open, and
-  the finish follows the acceptor's stop or the acceptor's connection
+  the finish follows the acceptor's cancel or the acceptor's connection
   ending. The byte `1` is an error, and the byte `2` is the refusal
   of an accept already open: the finish follows either, and no
   connection is announced. A response finish that no response

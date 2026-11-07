@@ -42,7 +42,7 @@
 //!   database connection, a feed of the secrets, one more FUSE mount,
 //!   and the family's own
 //!   exchange — each served against the proxy on a task of its own,
-//!   read off the scope by one loop that also hears the stop, the
+//!   read off the scope by one loop that also hears the cancel, the
 //!   container leaving, and the caller going away.
 //! - `watched`, every volume mount the container's tree leaves out,
 //!   each with the way to watch the volume itself, which a filetree

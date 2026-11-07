@@ -7,18 +7,18 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// What a client asks the provider for while a volume is served: one
-/// of the nine asks, the stop, or the tree.
+/// of the nine asks, the cancel, or the tree.
 ///
 /// A payload leads with one byte saying which. The nine asks carry
 /// the tags they carry on a mount's scope — `0` read, `1` write, `2`
 /// list, `3` remove, `4` rename, `5` mkdir, `6` stat, `7` truncate,
 /// `8` setattr — and are that scope's very frames, so a bridge
-/// forwards bytes; `9` is the stop, bare; `10` is the tree, bare.
+/// forwards bytes; `9` is the cancel, bare; `10` is the tree, bare.
 ///
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0`–`8` | [`Ask`](Self::Ask): the mount's ask of that tag |
-/// | `9` | [`Stop`](Self::Stop) |
+/// | `9` | [`Cancel`](Self::Cancel) |
 /// | `10` | [`Filetree`](Self::Filetree) |
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
@@ -26,14 +26,14 @@ pub enum Frame<'a> {
     /// frame — the shared vocabulary's — and the finish. The provider
     /// answers as a caller's server would, from the volume.
     Ask(mount::Frame<'a>),
-    /// Stop serving. Tag `9`.
+    /// Cancel the serve: stop serving. Tag `9`.
     ///
     /// Carries nothing, and nothing comes back on this channel: the
     /// provider sends no channel response and no channel response
     /// finish on it. What comes back is the scope's finish, after
     /// every ask still being answered has been: the provider gives
-    /// the volume back and finishes. A second stop changes nothing.
-    Stop,
+    /// the volume back and finishes. A second cancel changes nothing.
+    Cancel,
     /// The tree of the volume as this FUSE serve sees it, and then every
     /// change to it. Tag `10`.
     ///
@@ -49,21 +49,21 @@ pub enum Frame<'a> {
     Filetree,
 }
 
-/// Tag for [`Frame::Stop`].
-const STOP: u8 = 9;
+/// Tag for [`Frame::Cancel`].
+const CANCEL: u8 = 9;
 
 /// Tag for [`Frame::Filetree`].
 const FILETREE: u8 = 10;
 
 impl Encode for Frame<'_> {
-    /// The ask's own failure; the stop and the tree cannot fail.
+    /// The ask's own failure; the cancel and the tree cannot fail.
     type Error = mount::FrameEncodeError;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         match self {
             Frame::Ask(ask) => ask.encode(out),
-            Frame::Stop => {
-                out.extend_from_slice(&[STOP]);
+            Frame::Cancel => {
+                out.extend_from_slice(&[CANCEL]);
                 Ok(())
             }
             Frame::Filetree => {
@@ -81,7 +81,7 @@ impl<'a> Decode<'a> for Frame<'a> {
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         match bytes.first() {
             None => Err(FrameError::Empty),
-            Some(&STOP) => Ok(Frame::Stop),
+            Some(&CANCEL) => Ok(Frame::Cancel),
             Some(&FILETREE) => Ok(Frame::Filetree),
             Some(_) => mount::Frame::decode(bytes).map(Frame::Ask).map_err(FrameError::Ask),
         }

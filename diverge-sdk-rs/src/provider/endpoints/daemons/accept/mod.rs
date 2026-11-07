@@ -14,7 +14,7 @@
 //! daemon's server frames — a daemon connection as a pair of channels,
 //! as a container program's is, and the first frame each way is that
 //! end's token, the relayed connection's
-//! [`handshake`](crate::wire::handshake). The scope ends by the daemon's stop or
+//! [`handshake`](crate::wire::handshake). The scope ends by the daemon's cancel or
 //! its connection ending, and every connection relayed on it ends
 //! with it.
 //!

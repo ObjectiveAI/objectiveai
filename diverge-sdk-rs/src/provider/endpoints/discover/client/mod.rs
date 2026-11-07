@@ -2,11 +2,11 @@
 //!
 //! [`request`] opens the scope, and carries nothing beyond its tag;
 //! [`channel_request`] is the one channel a caller opens on it, the
-//! stop: a listing has no end of its own, so the caller says when it
+//! cancel: a listing has no end of its own, so the caller says when it
 //! is done. [`execute`] performs the exchange: hand it a
 //! [`Handle`](crate::wire::client::handle::Handle) and a
 //! [`request::Frame`], read the listing off the stream it hands back,
-//! and stop it with the stop it hands back beside.
+//! and end it with the cancel it hands back beside.
 
 pub mod channel_request;
 pub mod request;

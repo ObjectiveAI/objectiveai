@@ -38,7 +38,7 @@ pub type McpNotificationsStream = ChannelStream<McpNotifications>;
 /// Every channel a caller may open into a tool container is a method
 /// here: the tree watched, a file read or written, the image's
 /// DIVERGE.md, the five MCP exchanges into the server the container
-/// runs, the secrets' feed, and the stop. What the proxy says of the
+/// runs, the secrets' feed, and the cancel. What the proxy says of the
 /// container's activity is not: it is the
 /// [`ExecuteStream`](super::ExecuteStream) `execute` handed back
 /// beside this. Each opens its own channel, so several may be in
@@ -47,7 +47,7 @@ pub type McpNotificationsStream = ChannelStream<McpNotifications>;
 ///
 /// # Dropping it does nothing
 ///
-/// No destructor sends a frame. Ending a run is [`stop`](Self::stop),
+/// No destructor sends a frame. Ending a run is [`cancel`](Self::cancel),
 /// or the connection going.
 #[derive(Debug, Clone)]
 pub struct ExecuteHandle(Arc<Scoped>);
@@ -70,7 +70,7 @@ impl ExecuteHandle {
     }
 
     /// The run's end: `Ok` when the scope finishes as it should — a
-    /// stop, or the container's own end — and the provider's error
+    /// cancel, or the container's own end — and the provider's error
     /// when it ended that way. Resolves once and answers the same way
     /// again after.
     ///
@@ -86,11 +86,11 @@ impl ExecuteHandle {
         self.0.ended().await
     }
 
-    /// Stop the container.
+    /// Cancel the run: stop the container.
     /// Nothing answers on the channel this opens; what answers is the
     /// scope's own finish, on [`ended`](Self::ended).
-    pub async fn stop(&self) -> Result<(), OpenError> {
-        let payload = payload(&channel_request::Frame::Stop).map_err(OpenError::Request)?;
+    pub async fn cancel(&self) -> Result<(), OpenError> {
+        let payload = payload(&channel_request::Frame::Cancel).map_err(OpenError::Request)?;
         self.0.bare(&payload).await.map_err(OpenError::Send)
     }
 

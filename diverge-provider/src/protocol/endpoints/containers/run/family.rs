@@ -139,8 +139,8 @@ pub(crate) trait Runs: Family {
 /// What a caller opened, classified.
 #[derive(Debug)]
 pub(crate) enum Opened<E> {
-    /// Stop the container, or leave it.
-    Stop,
+    /// Cancel the run: stop the container, or leave it.
+    Cancel,
     /// The container's tree, watched.
     Filetree,
     /// A daemon connection the proxy announced, by an id of this

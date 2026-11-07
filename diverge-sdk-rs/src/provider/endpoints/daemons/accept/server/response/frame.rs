@@ -20,7 +20,7 @@ use crate::wire::encode::{Encode, Writer};
 /// | an identity, then nothing, and stays open | the daemon accepts; every connection arrives as a channel |
 /// | already open, then a finish | it does not: this connection, or another under the identity, accepts here already |
 /// | an error, then a finish | it does not: the provider could not serve it |
-/// | a finish, with no error | the accept is over — the stop, or the connection |
+/// | a finish, with no error | the accept is over — the cancel, or the connection |
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The daemon accepts, under this identity. Tag `0`.

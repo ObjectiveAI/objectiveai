@@ -18,7 +18,7 @@ use crate::protocol::directory::Directory;
 use diverge_sdk::shared::error::Error;
 
 /// Find the container, open the proxy's serve of the subtree, relay
-/// every ask and every tree, and end the scope at the stop.
+/// every ask and every tree, and end the scope at the cancel.
 ///
 /// In order:
 ///
@@ -42,7 +42,7 @@ use diverge_sdk::shared::error::Error;
 ///    request that will not decode is finished with nothing.
 ///    A relay that is done is reaped as it ends, and a filetree the
 ///    caller reads no more of is finished there and then.
-/// 5. The end: the caller's stop, the caller's connection ending, the
+/// 5. The end: the caller's cancel, the caller's connection ending, the
 ///    caller reading no more of the scope, or the container ending,
 ///    heard through the directory. The proxy's
 ///    serve is stopped — it answers what is in flight and finishes,
@@ -53,7 +53,7 @@ use diverge_sdk::shared::error::Error;
 /// # The conduit
 ///
 /// Nothing here reads an ask or an answer. The channel request is
-/// decoded once to tell an ask from the stop and the tree, and the
+/// decoded once to tell an ask from the cancel and the tree, and the
 /// bytes relayed are the bytes that arrived.
 ///
 /// # The request arrives decoded
@@ -99,7 +99,7 @@ pub async fn handle(
                     Ok(channel_request::Frame::Filetree) => {
                         tasks.spawn(relay_tree(Arc::clone(&scope), Arc::clone(&served), channel));
                     }
-                    Ok(channel_request::Frame::Stop) => break,
+                    Ok(channel_request::Frame::Cancel) => break,
                     Err(_) => {
                         scope.send_channel_response_finish(channel).await;
                     }
@@ -113,14 +113,14 @@ pub async fn handle(
                 }
             }
             // The caller reads no more of the scope: the serve is
-            // abandoned, and ends as at the stop.
+            // abandoned, and ends as at the cancel.
             () = scope.responses_gone() => break,
             // A relay done is reaped as it ends, so the set holds only
             // the channels still in flight however long the serve runs.
             Some(_) = tasks.join_next(), if !tasks.is_empty() => {}
         }
     }
-    served.stop().await;
+    served.cancel().await;
     while tasks.join_next().await.is_some() {}
     scope.send_response_finish().await;
 }

@@ -20,7 +20,7 @@ draft: false
   scope opened; exactly one response of the byte `3` and nothing
   else; then zero or more responses of the byte `0`, `1` or `2`, each
   followed by one volume, as volumes are created, edited and deleted;
-  the response finish follows the last of them, when the client stops
+  the response finish follows the last of them, when the client cancels
   or the client's connection ends. Or: the responses sent so far,
   exactly one response of the byte `5` followed by an error, and the
   response finish. Or: exactly one response of the byte `4` and
@@ -54,7 +54,7 @@ draft: false
 - **Whole.** A payload that is the byte `3` and nothing else states
   that every volume available to the client when the scope opened has
   been sent as added. A client that wants the listing once reads to
-  this byte and [stops](/endpoints/volumes-list/client/stop/). A
+  this byte and [cancels](/endpoints/volumes-list/client/cancel/). A
   payload whose first byte is `3` is read by that byte alone; bytes
   after it are not read.
 - **`name`.** The name of the volume, UTF-8. The name is the only
@@ -91,7 +91,7 @@ draft: false
 - **Order.** The order of the volumes is not prescribed. A client
   reads nothing into the position of a volume.
 - **A finish with nothing before it.** The request was not served, as
-  [Endpoints](/endpoints/) provides, or the client stopped before the
+  [Endpoints](/endpoints/) provides, or the client cancelled before the
   server had sent anything. The server does not say which.
 - **Unsupported.** A payload that is the byte `4` and nothing else
   states that the server holds out none of the three mode objects

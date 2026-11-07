@@ -40,7 +40,7 @@ use crate::shared::error::Error;
 /// | a volume mode, then a finish | it never started: that volume is not in the mode its mount names |
 /// | unsupported, then a finish | it never started: the provider runs no containers |
 /// | an error, then a finish | it never came up, or it is gone |
-/// | a finish, with no error | the run is over — a stop, or the container's own end |
+/// | a finish, with no error | the run is over — a cancel, or the container's own end |
 ///
 /// # One mode, and who may hold it
 ///

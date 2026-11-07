@@ -7,7 +7,7 @@ use crate::wire::client::handle::Handle;
 use crate::wire::encode::{Encode, Writer};
 
 /// Run `command` in the container: its output as a stream, and the
-/// handle that stops it. Dropping the stream abandons it, which kills
+/// handle that cancels it. Dropping the stream abandons it, which kills
 /// the command too.
 pub async fn execute(handle: &Handle, command: exec::request::Request) -> Result<(ExecuteStream, ExecuteHandle), ExecuteError> {
     let mut payload = Vec::new();

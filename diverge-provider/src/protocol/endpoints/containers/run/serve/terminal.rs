@@ -72,7 +72,7 @@ impl Terminals {
             std::mem::take(&mut held.running)
         };
         for (_, session) in running {
-            let _ = session.input.stop().await;
+            let _ = session.input.cancel().await;
         }
     }
 
@@ -315,7 +315,7 @@ pub(crate) async fn close(run: Arc<Run>, channel: u32, id: u32) {
         None => Answer::Error(unknown(id)),
         Some(session) => {
             if let Some(session) = session {
-                let _ = session.input.stop().await;
+                let _ = session.input.cancel().await;
             }
             Answer::Done
         }

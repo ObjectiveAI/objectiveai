@@ -19,7 +19,7 @@
 //! 4. The reader paces it, as every stream is paced (see
 //!    [`credit`](crate::wire::credit)): a reader that falls behind
 //!    fills the pipe, and the command waits on its write.
-//! 5. A stop, the reader abandoning the stream, or the connection
+//! 5. A cancel, the reader abandoning the stream, or the connection
 //!    ending kills the command's whole process group: it answers
 //!    nothing more.
 

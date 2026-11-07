@@ -57,8 +57,8 @@ impl Serve {
     /// The scope stopped.
     pub async fn stop(self) {
         match self {
-            Serve::Volume(serve) => serve.stop().await,
-            Serve::Container(serve) => serve.stop().await,
+            Serve::Volume(serve) => serve.cancel().await,
+            Serve::Container(serve) => serve.cancel().await,
         }
     }
 }
@@ -322,7 +322,7 @@ impl Mounts {
             let tree = match serve.filetree().await {
                 Ok(tree) => tree,
                 Err(error) => {
-                    serve.stop().await;
+                    serve.cancel().await;
                     mounts.stop().await;
                     return Err(MountsError::Failed(format!("the agent's path {} could not be watched: {error:?}", mount.agent_path.join("/"))));
                 }

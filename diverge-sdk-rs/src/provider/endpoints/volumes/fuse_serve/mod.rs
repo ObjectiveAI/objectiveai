@@ -7,7 +7,7 @@
 //! rename, a mkdir — with no mount id, since the scope is the volume,
 //! and the provider answers each from the volume as a caller's own
 //! server would answer a mount. Split by who SENDS, as everywhere
-//! else: the ask and the stop are in [`client`], the answers in
+//! else: the ask and the cancel are in [`client`], the answers in
 //! [`server`].
 //!
 //! # What it is for

@@ -1,4 +1,4 @@
-//! The one channel a caller opens on a discover listing: the stop. See
+//! The one channel a caller opens on a discover listing: the cancel. See
 //! [`Frame`].
 
 mod frame;

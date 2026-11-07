@@ -7,7 +7,7 @@ use crate::wire::encode::{Encode, Writer};
 
 const BODY: u8 = 0;
 const END: u8 = 1;
-const STOP: u8 = 2;
+const CANCEL: u8 = 2;
 
 /// One thing a caller puts into a frontend request: one byte of tag,
 /// then the bytes as they are for `Body`, nothing for the rest.
@@ -19,7 +19,7 @@ pub enum Input<'a> {
     /// Tag `1`: the body is done.
     End,
     /// Tag `2`: drop the request.
-    Stop,
+    Cancel,
 }
 
 impl Encode for Input<'_> {
@@ -33,7 +33,7 @@ impl Encode for Input<'_> {
                 out.extend_from_slice(bytes);
             }
             Input::End => out.extend_from_slice(&[END]),
-            Input::Stop => out.extend_from_slice(&[STOP]),
+            Input::Cancel => out.extend_from_slice(&[CANCEL]),
         }
         Ok(())
     }
@@ -48,7 +48,7 @@ impl<'a> Decode<'a> for Input<'a> {
         Ok(match tag {
             BODY => Input::Body(rest),
             END => Input::End,
-            STOP => Input::Stop,
+            CANCEL => Input::Cancel,
             other => return Err(InputError::UnknownTag(other)),
         })
     }

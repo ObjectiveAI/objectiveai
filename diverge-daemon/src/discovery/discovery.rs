@@ -296,7 +296,7 @@ async fn keep(daemon: Arc<Daemon>, handle: Handle, lane: Arc<Mutex<()>>, held: A
         lane = lane.lock_owned() => lane,
         _ = ended.changed() => return,
     };
-    let (mut listing, stop) = match execute::execute(&handle, &request::Frame).await {
+    let (mut listing, cancel) = match execute::execute(&handle, &request::Frame).await {
         Ok(opened) => opened,
         Err(_) => {
             whole.send_replace(true);
@@ -327,10 +327,10 @@ async fn keep(daemon: Arc<Daemon>, handle: Handle, lane: Arc<Mutex<()>>, held: A
                 daemon.live.changed(Kind::Discover);
             }
             _ = ended.changed() => {
-                // Stopped, and read to the finish (or the connection's
+                // Cancelled, and read to the finish (or the connection's
                 // end) before the lane is let go: the provider frees
                 // its slot before it sends the finish.
-                stop.stop().await;
+                cancel.cancel().await;
                 while let Some(Ok(_)) = listing.next().await {}
                 return;
             }

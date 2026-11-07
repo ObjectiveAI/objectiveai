@@ -33,8 +33,8 @@ impl ExecuteHandle {
     }
 
     /// Drop the request: the proxy finishes the scope.
-    pub async fn stop(&self) -> Result<(), SendError> {
-        self.send(&Frame::Stop).await
+    pub async fn cancel(&self) -> Result<(), SendError> {
+        self.send(&Frame::Cancel).await
     }
 
     async fn send(&self, frame: &Frame<'_>) -> Result<(), SendError> {

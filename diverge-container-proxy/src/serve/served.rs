@@ -1,5 +1,5 @@
 //! A serve scope: one subtree of the container, answered ask by ask
-//! and watched, until the server says stop.
+//! and watched, until the server cancels.
 
 use std::sync::Arc;
 
@@ -22,7 +22,7 @@ use crate::filesystem::tree;
 use crate::paths;
 use crate::reply::reply;
 
-/// Serve one subtree until the server stops it or the proxy ends.
+/// Serve one subtree until the server cancels it or the proxy ends.
 ///
 /// The rules, in order:
 ///
@@ -42,7 +42,7 @@ use crate::reply::reply;
 ///    ended is reaped before the next channel is taken, so the set
 ///    holds the tasks in flight and no more, however long the serve
 ///    lives.
-/// 4. The stop ends the loop, and so does the server's connection
+/// 4. The cancel ends the loop, and so does the server's connection
 ///    ending: every filetree task is told the scope is over, every
 ///    task is awaited — so the finish follows the last answer — and
 ///    the scope is finished.
@@ -90,7 +90,7 @@ pub async fn served(scope: ScopeHandle, frame: request::Frame) {
             Ok(channel_request::Frame::Filetree) => {
                 tasks.spawn(stream(Arc::clone(&scope), Arc::clone(&root), channel, over.subscribe()));
             }
-            Ok(channel_request::Frame::Stop) => break,
+            Ok(channel_request::Frame::Cancel) => break,
             Err(_) => reply(&scope, channel, None).await,
         }
     }

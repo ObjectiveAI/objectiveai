@@ -33,7 +33,7 @@ use diverge_sdk::shared::filetree::response::{Frame as Tree, Node};
 /// is sent a fresh snapshot instead of the changes it missed.
 const CHANGES_BEHIND: usize = 256;
 
-/// Hold the volume, answer every ask, and end the scope at the stop.
+/// Hold the volume, answer every ask, and end the scope at the cancel.
 ///
 /// # Under the shared hold
 ///
@@ -62,11 +62,11 @@ const CHANGES_BEHIND: usize = 256;
 /// are answered in whatever order the volume answers them; a channel
 /// request that will not decode is finished with nothing. A task done
 /// is reaped as it ends, so the sets hold only the channels still in
-/// flight however long the serve runs. The stop ends the loop; the
+/// flight however long the serve runs. The cancel ends the loop; the
 /// filetree channels are ended, the asks still running are awaited,
 /// the scope is finished, and the volume unmounted — in that order, so
 /// the finish follows the last answer. A caller that leaves without a
-/// stop, or that reads no more of the scope, ends the loop the same
+/// cancel, or that reads no more of the scope, ends the loop the same
 /// way, and a caller that reads no more of the scope is not waited on
 /// for the asks either: they are ended with the trees.
 ///
@@ -80,7 +80,7 @@ const CHANGES_BEHIND: usize = 256;
 /// subscribes to; a channel that falls behind by more changes than
 /// the broadcast keeps is sent a fresh snapshot, as a source that lost
 /// track of the tree does. A caller that reads no more of a filetree
-/// channel ends it, with the finish. At the stop the broadcast is
+/// channel ends it, with the finish. At the cancel the broadcast is
 /// dropped and every filetree task still running is ended — one
 /// blocked on a caller that reads nothing would otherwise hold the
 /// finish forever — and the scope's finish ends their channels.
@@ -178,7 +178,7 @@ pub async fn handle<M>(
             Ok(channel_request::Frame::Filetree) => {
                 trees.spawn(watch(Arc::clone(&scope), Arc::clone(&served), channel, changes.subscribe()));
             }
-            Ok(channel_request::Frame::Stop) => break,
+            Ok(channel_request::Frame::Cancel) => break,
             Err(_) => {
                 scope.send_channel_response_finish(channel).await;
                 continue;

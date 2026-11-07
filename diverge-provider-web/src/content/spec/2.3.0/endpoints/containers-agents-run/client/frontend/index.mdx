@@ -19,9 +19,9 @@ sends.
   sends the proxy an [end](/container-proxy-endpoints/frontend/client/end/) channel when the write-bytes
   channel finishes. A write-bytes channel that ends in an error ends
   the request: the server opens the proxy's
-  [stop](/container-proxy-endpoints/frontend/client/stop/) channel.
+  [cancel](/container-proxy-endpoints/frontend/client/cancel/) channel.
 - **The response.** The proxy's responses, and the channel response
   finish. [Response](/endpoints/containers-agents-run/client/frontend/response/) states the sequence.
-- **The stop.** The client's abandoning the channel's responses, as
+- **The cancel.** The client's abandoning the channel's responses, as
   [Credits](/frames/credits/) provides, or the end of the scope, makes
-  the server open the proxy's stop channel.
+  the server open the proxy's cancel channel.

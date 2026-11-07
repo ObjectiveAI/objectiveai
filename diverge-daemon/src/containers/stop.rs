@@ -16,7 +16,7 @@ use crate::store::{AgentId, agents, tools as tool_records};
 pub async fn stop_agent(daemon: &Daemon, id: AgentId) {
     if let Some(run) = daemon.live.agent_run(id).await {
         run.end_as(End::Expected).await;
-        let _ = run.handle.stop().await;
+        let _ = run.handle.cancel().await;
     }
 }
 
@@ -60,7 +60,7 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
 /// through.
 pub async fn undo_agent(daemon: &Daemon, run: Arc<AgentRun>, live: bool) {
     run.end_as(End::Expected).await;
-    let _ = run.handle.stop().await;
+    let _ = run.handle.cancel().await;
     if live {
         ended_agent(daemon, run).await;
     } else {
@@ -194,7 +194,7 @@ pub async fn stop_all(daemon: &Daemon) {
     services::stop_all(daemon).await;
     for run in daemon.live.agent_runs().await {
         run.end_as(End::Unexpected(Reason::DaemonStopped)).await;
-        let _ = run.handle.stop().await;
+        let _ = run.handle.cancel().await;
         ended_agent(daemon, run).await;
     }
     for run in daemon.live.tool_runs().await {

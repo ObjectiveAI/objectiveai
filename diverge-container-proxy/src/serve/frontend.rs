@@ -42,7 +42,7 @@ enum Piece {
 ///    proxy. A request whose head carries `Content-Length` or
 ///    `Transfer-Encoding` has a body: the client's `Body` channels,
 ///    in their order, up to `End`. Any other has none.
-/// 3. Each channel is finished once its piece is taken; a `Stop`, the
+/// 3. Each channel is finished once its piece is taken; a `Cancel`, the
 ///    client gone, or the responses abandoned drops the request, and
 ///    only the finish follows.
 /// 4. The answer is one `Head`, its status and its headers as the
@@ -164,7 +164,7 @@ pub async fn frontend(scope: ScopeHandle, frame: request::Frame) {
 }
 
 /// Rule 5: both ways at once, until the program closes its side, a
-/// stop, or the client gone.
+/// cancel, or the client gone.
 async fn upgrade(scope: &ScopeHandle, upgraded: reqwest::Upgraded, mut taken: mpsc::Receiver<Piece>, stopped: &Notify, input: tokio::task::JoinHandle<()>) {
     let (mut reading, mut writing) = tokio::io::split(upgraded);
     let mut buffer = vec![0u8; CHUNK_SIZE];
@@ -194,7 +194,7 @@ async fn upgrade(scope: &ScopeHandle, upgraded: reqwest::Upgraded, mut taken: mp
 }
 
 /// Rule 3: every channel request in order, each finished once its
-/// piece is taken, until a stop or the client is gone, either of which
+/// piece is taken, until a cancel or the client is gone, either of which
 /// tells `stopped`.
 async fn take_input(scope: Arc<ScopeHandle>, pieces: mpsc::Sender<Piece>, stopped: Arc<Notify>) {
     while let Some(bytes) = scope.recv_channel_request().await {
@@ -209,7 +209,7 @@ async fn take_input(scope: Arc<ScopeHandle>, pieces: mpsc::Sender<Piece>, stoppe
             Ok(channel_request::Frame::End) => {
                 let _ = pieces.send(Piece::End).await;
             }
-            Ok(channel_request::Frame::Stop) => {
+            Ok(channel_request::Frame::Cancel) => {
                 scope.send_channel_response_finish(channel).await;
                 break;
             }
