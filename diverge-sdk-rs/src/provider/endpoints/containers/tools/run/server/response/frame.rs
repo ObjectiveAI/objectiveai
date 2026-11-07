@@ -38,7 +38,6 @@ use crate::shared::error::Error;
 /// | a volume FUSE served, then a finish | it never started: a FUSE serve has that volume, and the provider does not mount a volume of its mode beside one |
 /// | a volume mount unsupported, then a finish | it never started: the provider does not mount a volume of that volume's mode |
 /// | a volume mode, then a finish | it never started: that volume is not in the mode its mount names |
-/// | FUSE mounts unsupported, then a finish | it never started: the request names a FUSE mount, and the provider mounts none |
 /// | unsupported, then a finish | it never started: the provider runs no containers |
 /// | an error, then a finish | it never came up, or it is gone |
 /// | a finish, with no error | the run is over — a stop, or the container's own end |
