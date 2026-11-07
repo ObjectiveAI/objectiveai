@@ -836,14 +836,16 @@ pub enum MessageOutcome {
     Error { message: String },
 }
 
-impl From<agents::message::server::response::Frame> for MessageOutcome {
-    fn from(frame: agents::message::server::response::Frame) -> Self {
+/// The scope's one answer, or none: `None` is the bare finish — the
+/// cancel came in time — and is `Cancelled` here.
+impl From<Option<agents::message::server::response::Frame>> for MessageOutcome {
+    fn from(frame: Option<agents::message::server::response::Frame>) -> Self {
         use agents::message::server::response::Frame;
         match frame {
-            Frame::Delivered => MessageOutcome::Delivered,
-            Frame::Cancelled => MessageOutcome::Cancelled,
-            Frame::Forbidden => MessageOutcome::Forbidden,
-            Frame::Error(error) => MessageOutcome::Error { message: error_text(&error) },
+            Some(Frame::Delivered) => MessageOutcome::Delivered,
+            None => MessageOutcome::Cancelled,
+            Some(Frame::Forbidden) => MessageOutcome::Forbidden,
+            Some(Frame::Error(error)) => MessageOutcome::Error { message: error_text(&error) },
         }
     }
 }

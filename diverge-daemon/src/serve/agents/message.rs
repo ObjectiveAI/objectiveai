@@ -17,13 +17,16 @@ use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, agents};
 
-/// Deliver the message, or see it cancelled, and finish the scope.
+/// Deliver the message, or see it cancelled, and finish the scope: the
+/// answer, then the finish — or, for a cancel in time, the finish alone.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
     let answer = match serve(&scope, frame, who, daemon).await {
         Ok(answer) => answer,
-        Err(error) => Frame::Error(reply::failure(&error)),
+        Err(error) => Some(Frame::Error(reply::failure(&error))),
     };
-    reply::reply(&scope, &answer).await;
+    if let Some(answer) = answer {
+        reply::reply(&scope, &answer).await;
+    }
     scope.send_response_finish().await;
 }
 
@@ -33,33 +36,33 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// started if it was not up, activated for the message — its secrets
 /// taken and fed, which failing is the error — and the message
 /// enqueued under a key the daemon mints, the scope open until its
-/// fate is known: `Delivered` as the loop takes it, `Cancelled` when
-/// the client's one channel took it back first, or the container's
-/// own error.
-async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
+/// fate is known: `Delivered` as the loop takes it, or the container's
+/// own error; `None` — no answer, the finish alone — when the client's
+/// one channel took it back first.
+async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Option<Frame>, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
-        return Ok(Frame::Forbidden);
+        return Ok(Some(Frame::Forbidden));
     };
     if !judge::agents::holds(&standing, Over::Message) {
-        return Ok(Frame::Forbidden);
+        return Ok(Some(Frame::Forbidden));
     }
     let Some(agent) = agents::by_reference(&mut conn, &frame.agent, false).await? else {
-        return Ok(Frame::Error(reply::failure(&"the agent named is none the daemon has")));
+        return Ok(Some(Frame::Error(reply::failure(&"the agent named is none the daemon has"))));
     };
     drop(conn);
     if !judge::agents::over(&standing, Over::Message, &agent, state(daemon, agent.id).await) {
-        return Ok(Frame::Forbidden);
+        return Ok(Some(Frame::Forbidden));
     }
     scope.allowed().await;
     let run = match containers::agent(daemon, &agent).await {
         Ok(run) => run,
         Err(error) => {
-            return Ok(Frame::Error(match (error.unsupported(), error.no_source()) {
+            return Ok(Some(Frame::Error(match (error.unsupported(), error.no_source()) {
                 (Some(what), _) => reply::unsupported(what),
                 (None, Some(what)) => reply::no_source(what),
                 (None, None) => reply::failure(&error),
-            }));
+            })));
         }
     };
     let sender = standing.creator.clone();
@@ -73,9 +76,9 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         }
     };
     Ok(match fate {
-        message::Fate::Delivered => Frame::Delivered,
-        message::Fate::Cancelled => Frame::Cancelled,
-        message::Fate::Error(error) => Frame::Error(error),
+        message::Fate::Delivered => Some(Frame::Delivered),
+        message::Fate::Cancelled => None,
+        message::Fate::Error(error) => Some(Frame::Error(error)),
     })
 }
 

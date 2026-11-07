@@ -172,11 +172,14 @@ pub trait Daemon: Send + Sync + 'static {
 
     /// Tag 3. Send a message; resolves when it is delivered, or taken back
     /// in time. Firing `cancel` is the scope's `Cancel` channel request.
+    /// `None` is the bare finish — the scope finished with no response
+    /// before it: the cancel came in time, and the agent never saw the
+    /// message.
     async fn agents_message(
         &self,
         request: agents::message::client::request::Frame,
         cancel: CancellationToken,
-    ) -> agents::message::server::response::Frame;
+    ) -> Option<agents::message::server::response::Frame>;
 
     /// Tag 114. Read an agent's log, filtered, perhaps watched: the root `logs`
     /// read, its subject an agent. Firing `cancel` ends a watch.

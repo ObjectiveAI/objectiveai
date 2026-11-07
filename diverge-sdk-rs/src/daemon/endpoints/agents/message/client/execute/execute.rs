@@ -9,10 +9,11 @@ use crate::wire::client::handle::Handle;
 pub type OpenError = stream::OpenError<serde_json::Error>;
 
 /// Send the message and hand back what waits for its fate:
-/// [`Pending::wait`] reads the one answer — delivered, cancelled,
-/// forbidden, or the daemon's error, see [`response::Frame`] — and
-/// [`Pending::cancel`] opens the cancel channel, after which the answer
-/// says which came first.
+/// [`Pending::wait`] reads the one answer — delivered, forbidden, or
+/// the daemon's error, see [`response::Frame`], or `None` for the
+/// finish with no answer before it, a cancel in time — and
+/// [`Pending::cancel`] opens the cancel channel, after which whether an
+/// answer comes says which came first.
 pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<Pending<response::Frame>, OpenError> {
     pending::execute(handle, request).await
 }

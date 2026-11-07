@@ -10,7 +10,9 @@ use super::exchange;
 use crate::run::{Emitter, Error};
 
 /// The request put, its answer waited for and emitted: an agent's
-/// message, answered when it lands.
+/// message, answered when it lands. A scope finished with no answer
+/// before it — a cancel in time — emits nothing, as a stream that ends
+/// emits nothing.
 pub async fn pending<Q, A, E>(
     handle: &Handle,
     request: &Q,
@@ -24,7 +26,9 @@ where
     let waiting = pending::execute(handle, request)
         .await
         .map_err(exchange::open)?;
-    let answer: A = waiting.wait().await.map_err(exchange::one_shot)?;
-    emitter.emit(&answer).await?;
+    let answer: Option<A> = waiting.wait().await.map_err(exchange::one_shot)?;
+    if let Some(answer) = answer {
+        emitter.emit(&answer).await?;
+    }
     Ok(())
 }

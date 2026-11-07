@@ -7,31 +7,37 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A message's answer: the agent took it, the client cancelled it
-/// first, or a failure.
+/// A message's answer: the agent took it, or a failure.
 ///
-/// A message is one question and one reply, so there is exactly one of
-/// these per scope, before the finish that ends it — but the reply
-/// comes when the fate is known, which may be long after the ask: a
-/// message queued behind a running loop waits for a seam of the agent's
-/// choosing, and nothing times it out. A payload leads with one byte
-/// saying which — `0` for [`Delivered`](Self::Delivered), `1` for
-/// [`Cancelled`](Self::Cancelled), `2` for
-/// [`Forbidden`](Self::Forbidden), `3` for [`Error`](Self::Error) — and
+/// A message is one question and at most one reply, so there is at most
+/// one of these per scope, before the finish that ends it — but the
+/// reply comes when the fate is known, which may be long after the ask:
+/// a message queued behind a running loop waits for a seam of the
+/// agent's choosing, and nothing times it out. A payload leads with one
+/// byte saying which — `0` for [`Delivered`](Self::Delivered), `1` for
+/// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error) — and
 /// only the error carries anything after it.
 ///
-/// # Cancelled is not a failure
+/// # A finish with nothing before it
 ///
-/// [`Cancelled`](Self::Cancelled) is an ANSWER: the client opened a
+/// The client opened a
 /// [cancel](crate::daemon::endpoints::agents::message::client::channel_request::Frame::Cancel)
-/// on the scope before the agent took the message, and the message is
-/// gone. A cancel that arrives after the agent took it changes nothing,
-/// and the reply is [`Delivered`](Self::Delivered) all the same: the
-/// response, not the cancel, says which was first. An
-/// [`Error`](Self::Error) is the absence of an answer: no agent of the
-/// client's is the one named, the agent refused the message's content,
-/// or no run could start on it, in the daemon's or the agent's own
-/// words.
+/// on the scope before the agent took the message: the message is gone,
+/// the agent never saw it, and the daemon finishes the scope with no
+/// response before the finish, as every cancellable scope of the
+/// daemon's is ended. A cancel that arrives after the agent took it
+/// changes nothing, and the response is [`Delivered`](Self::Delivered)
+/// all the same: whether a response precedes the finish, not the
+/// cancel, says which was first. A request the daemon could not read is
+/// finished the same way, as
+/// [`endpoints`](crate::daemon::endpoints) states.
+///
+/// # Error
+///
+/// An [`Error`](Self::Error) is the absence of a delivery: no agent of
+/// the client's is the one named, the agent refused the message's
+/// content, or no run could start on it, in the daemon's or the agent's
+/// own words.
 ///
 /// # Forbidden
 ///
@@ -55,13 +61,10 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The agent took the message into its conversation. Tag `0`.
     Delivered,
-    /// The client cancelled the message before the agent took it;
-    /// the agent never saw it. Tag `1`.
-    Cancelled,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `2`.
+    /// it; nothing changed. Tag `1`.
     Forbidden,
-    /// A failure. Tag `3`.
+    /// A failure. Tag `2`.
     ///
     /// The message was not delivered and will not be. See
     /// [`shared::error::Error`](crate::shared::error::Error)
@@ -72,14 +75,11 @@ pub enum Frame {
 /// Tag for [`Frame::Delivered`].
 const DELIVERED: u8 = 0;
 
-/// Tag for [`Frame::Cancelled`].
-const CANCELLED: u8 = 1;
-
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 2;
+const FORBIDDEN: u8 = 1;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 3;
+const ERROR: u8 = 2;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -92,10 +92,6 @@ impl Encode for Frame {
         match self {
             Frame::Delivered => {
                 out.extend_from_slice(&[DELIVERED]);
-                Ok(())
-            }
-            Frame::Cancelled => {
-                out.extend_from_slice(&[CANCELLED]);
                 Ok(())
             }
             Frame::Forbidden => {
@@ -119,7 +115,6 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             DELIVERED => Ok(Frame::Delivered),
-            CANCELLED => Ok(Frame::Cancelled),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -132,7 +127,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

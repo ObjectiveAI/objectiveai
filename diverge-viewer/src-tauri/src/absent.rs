@@ -70,8 +70,8 @@ impl Daemon for Absent {
         agents::delete::server::response::Frame::Error(self.no())
     }
 
-    async fn agents_message(&self, _: agents::message::client::request::Frame, _: CancellationToken) -> agents::message::server::response::Frame {
-        agents::message::server::response::Frame::Error(self.no())
+    async fn agents_message(&self, _: agents::message::client::request::Frame, _: CancellationToken) -> Option<agents::message::server::response::Frame> {
+        Some(agents::message::server::response::Frame::Error(self.no()))
     }
 
     fn agents_logs(&self, _: diverge_sdk::daemon::endpoints::logs::client::request::Frame, _: CancellationToken) -> Frames<diverge_sdk::daemon::endpoints::logs::server::response::Frame> {

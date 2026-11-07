@@ -15,10 +15,10 @@ use crate::wire::encode::{Encode, Writer};
 /// |-----|----------|
 /// | `0` | [`Cancel`](Self::Cancel) |
 ///
-/// One, and it answers nothing: what it does is said by the scope's
-/// own response, [`Cancelled`](crate::daemon::endpoints::agents::message::server::response::Frame::Cancelled)
-/// when the cancel was in time and [`Delivered`](crate::daemon::endpoints::agents::message::server::response::Frame::Delivered)
-/// when the agent had the message already.
+/// One, and it answers nothing: what it does is said by the scope
+/// itself — its finish with no response before it when the cancel was
+/// in time, and [`Delivered`](crate::daemon::endpoints::agents::message::server::response::Frame::Delivered)
+/// before the finish when the agent had the message already.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Frame {
     /// Take the message back. Tag `0`.
@@ -27,10 +27,13 @@ pub enum Frame {
     /// message, since it enqueued it under a key of its own, one per
     /// message, and cancels by a dequeue of that key — and nothing
     /// comes back on this channel: the daemon sends no channel
-    /// response and no channel response finish on it. What comes back is the scope's
-    /// response, which was coming anyway. A cancel of a message the
-    /// agent has taken changes nothing, and the response says so; a
-    /// second cancel changes nothing either.
+    /// response and no channel response finish on it. What comes back
+    /// is the scope's finish: the daemon dequeues the message and
+    /// finishes the scope with no response before the finish — the
+    /// message is gone, and the agent never saw it. A cancel of a
+    /// message the agent has taken changes nothing, and the response
+    /// before the finish is `Delivered` all the same; a second cancel
+    /// changes nothing either.
     Cancel,
 }
 

@@ -1040,7 +1040,7 @@ mod tests {
         let mut cards = door.watch(cancel.clone());
         let content = vec![serde_json::from_value(json!({ "type": "text", "text": "Claim the open task for me" })).unwrap()];
         let outcome = daemon.agents_message(agents::message::client::request::Frame { agent: by_name("research-notes"), content, relay: None }, CancellationToken::new()).await;
-        assert!(matches!(outcome, agents::message::server::response::Frame::Delivered));
+        assert!(matches!(outcome, Some(agents::message::server::response::Frame::Delivered)));
         // First it asks to read the board, then to claim: two cards, each the whole call.
         let mut asked = Vec::new();
         while asked.len() < 2 {
@@ -1131,7 +1131,7 @@ mod tests {
         // A run starting: changed, active, its log's length as of the start.
         let content = vec![serde_json::from_value(json!({ "type": "text", "text": "Say hello" })).unwrap()];
         let message = agents::message::client::request::Frame { agent: by_name("brief"), content, relay: None };
-        assert!(matches!(daemon.agents_message(message, CancellationToken::new()).await, agents::message::server::response::Frame::Delivered));
+        assert!(matches!(daemon.agents_message(message, CancellationToken::new()).await, Some(agents::message::server::response::Frame::Delivered)));
         let started = next_frames(&mut frames, 1).await;
         let [Listed::Changed(running)] = &started[..] else { panic!("{started:?}") };
         assert!(running.active && running.logs_index > 0);
@@ -1325,7 +1325,7 @@ impl Daemon for StubDaemon {
         &self,
         request: agents::message::client::request::Frame,
         cancel: CancellationToken,
-    ) -> agents::message::server::response::Frame {
+    ) -> Option<agents::message::server::response::Frame> {
         use agents::message::server::response::Frame;
         let (delivered, mut on_delivery) = oneshot::channel();
         let (id, message, start) = {
@@ -1333,9 +1333,9 @@ impl Daemon for StubDaemon {
             let message = inner.next_id;
             inner.next_id += 1;
             let Some(id) = inner.find(&request.agent) else {
-                return Frame::Error(wire_error("no agent of yours is the one named"));
+                return Some(Frame::Error(wire_error("no agent of yours is the one named")));
             };
-            let Some(agent) = inner.agents.get_mut(&id) else { return Frame::Error(wire_error("no agent of yours is the one named")) };
+            let Some(agent) = inner.agents.get_mut(&id) else { return Some(Frame::Error(wire_error("no agent of yours is the one named"))) };
             agent.queue.push_back(Queued { id: message, content: request.content, delivered });
             let start = !agent.running;
             agent.running = true;
@@ -1345,24 +1345,25 @@ impl Daemon for StubDaemon {
             self.spawn_runner(id.clone(), Vec::new());
         }
         tokio::select! {
-            result = &mut on_delivery => match result {
+            result = &mut on_delivery => Some(match result {
                 Ok(()) => Frame::Delivered,
                 Err(_) => Frame::Error(wire_error("the agent was deleted")),
-            },
+            }),
             _ = cancel.cancelled() => {
                 {
                     let mut inner = self.lock();
                     if let Some(agent) = inner.agents.get_mut(&id) {
                         if let Some(at) = agent.queue.iter().position(|q| q.id == message) {
                             agent.queue.remove(at);
-                            return Frame::Cancelled;
+                            // In time: the bare finish, no response before it.
+                            return None;
                         }
                     }
                 }
-                match on_delivery.await {
+                Some(match on_delivery.await {
                     Ok(()) => Frame::Delivered,
                     Err(_) => Frame::Error(wire_error("the agent was deleted")),
-                }
+                })
             }
         }
     }

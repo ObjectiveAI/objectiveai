@@ -4,7 +4,11 @@
  * What a client asks the daemon for while a message is open: one thing,
  * `cancel`, tag `0`, carrying nothing. Nothing comes back on this
  * channel — the daemon sends no channel response and no finish on it;
- * what comes back is the scope's answer or its finish: the daemon takes the message back out of the agent's inbox if the loop has not taken it, and answers `cancelled`; one the loop took already is `delivered`, and the cancel changed nothing.
+ * what comes back is the scope's finish: the daemon takes the message
+ * back out of the agent's inbox if the loop has not taken it, and
+ * finishes the scope with no answer before the finish; one the loop
+ * took already is answered `delivered` before the finish, and the
+ * cancel changed nothing.
  */
 export type Frame = "cancel";
 

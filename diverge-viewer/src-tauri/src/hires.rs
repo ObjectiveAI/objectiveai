@@ -141,7 +141,7 @@ pub async fn handle(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: 
     );
     let content = vec![serde_json::from_value(json!({ "type": "text", "text": words })).expect("a text block")];
     let sent = daemon.agents_message(agents::message::client::request::Frame { agent: crate::daemon::reference_of(&agent), content, relay: None }, CancellationToken::new()).await;
-    if !matches!(sent, agents::message::server::response::Frame::Delivered) {
+    if !matches!(sent, Some(agents::message::server::response::Frame::Delivered)) {
         return;
     }
     // Wait for the run to end: the daemon's list is not live.
@@ -181,7 +181,7 @@ mod tests {
     async fn message(daemon: &StubDaemon, agent: &str, text: &str) {
         let content = vec![serde_json::from_value(json!({ "type": "text", "text": text })).unwrap()];
         let sent = daemon.agents_message(agents::message::client::request::Frame { agent: crate::daemon::reference_of(agent), content, relay: None }, CancellationToken::new()).await;
-        assert!(matches!(sent, agents::message::server::response::Frame::Delivered));
+        assert!(matches!(sent, Some(agents::message::server::response::Frame::Delivered)));
     }
 
     async fn idle(daemon: &StubDaemon, agent: &str) {
