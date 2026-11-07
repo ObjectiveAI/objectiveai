@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use futures_util::{Stream, StreamExt as _, stream};
+use futures_util::{Stream, StreamExt as _};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::tool_log::{self as log, Item};
 use diverge_sdk::shared::mcp::attest_request;
@@ -21,10 +21,10 @@ use rmcp::model::{
     CallToolRequestParams, CallToolResult, ErrorData, GetMeta as _, ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
     ReadResourceResult, ServerNotification,
 };
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::Mutex;
 use tokio::task::AbortHandle;
 
-use super::{Entry, Served, exposed, split};
+use super::{Entry, Outbox, Push, Served, exposed, split};
 use crate::containers::lifecycle::{Answer, Ask, End};
 use crate::containers::{AskError, Key, ToolKey, ToolRun, activate_tool, events, tool_log, tools};
 use crate::daemon::Daemon;
@@ -32,7 +32,7 @@ use crate::store::DependencyToolId;
 use crate::store::tools::Tool;
 
 /// The notifications a container hears: every served tool's, and the
-/// word that the set changed.
+/// merged lists' changes, read off an [`Outbox`].
 pub type Notifications = Pin<Box<dyn Stream<Item = Result<ServerNotification, ErrorData>> + Send>>;
 
 /// Who is asking, and whose tools: the daemon, the container asking,
@@ -378,36 +378,53 @@ async fn cut_short(context: &Context) {
     }
 }
 
-/// Every served tool's notifications, forwarded for as long as the
-/// set serves it and its run lives, and the set's own word that it
-/// changed: a relay per served tool, started when the tool is served
-/// and its run is up, ended when it leaves the set or its run ends,
-/// kept in step at every change of the set and every start of a
-/// served tool's run — so a tool attached while the stream is open
-/// has its notifications forwarded too, a tool list changed among
-/// them, and a tool detached has them forwarded no more. The stream
-/// dropped ends every task behind it — the forwarder of the set's word,
-/// the supervisor and each relay — at once, not at their next item.
+/// One merged notification stream: the set's own word that the merged
+/// lists changed, and every served tool's notifications, all into one
+/// [`Outbox`] the stream reads. The rules:
+///
+/// 1. **The set's changes.** At every change of the set the merged tool
+///    list and the merged resource list both changed, and both are
+///    announced — whether or not the tool that came or went had any.
+///    The set is followed by its revision, a watch: no change can be
+///    missed by falling behind, and many are one wake.
+/// 2. **A served tool's own list changes are the set's.** A tool saying
+///    its tool list or its resource list changed is the merged list
+///    changing, announced as the merged server's own. A tool's prompt
+///    list changing is nothing: the merged server serves no prompts.
+/// 3. **Everything else a tool says** is forwarded, attested as that
+///    tool's: a resource update coalesced by its URI, the rest in
+///    order — see [`Outbox`].
+/// 4. **A relay per served tool**, started when the tool is served and
+///    its run is up, ended when it leaves the set or its run ends, kept
+///    in step at every change of the set and every start of a served
+///    tool's run: a tool attached while the stream is open has its
+///    notifications forwarded too, and a tool detached has them
+///    forwarded no more.
+/// 5. **A tool's stream ending or failing ends its relay alone.** Nothing
+///    is forwarded for it; the relay is started again at the next
+///    change, and the merged stream goes on.
+/// 6. **The stream dropped ends everything behind it** — the set's
+///    watcher, the supervisor and each relay — at once, not at their
+///    next item.
 pub async fn notifications(context: &Context) -> Notifications {
-    let (sender, receiver) = mpsc::unbounded_channel::<Result<ServerNotification, ErrorData>>();
-    let (mut changes, mut generation) = {
+    let (outbox, notifications) = Outbox::open();
+    let (mut revision, mut generation) = {
         let served = context.served.lock().await;
-        (served.subscribe(), served.generation())
+        (served.revision(), served.generation())
     };
     {
-        let sender = sender.clone();
-        // Ended with its consumer: the stream dropped closes `sender`.
+        // Rule 1.
+        let outbox = Arc::clone(&outbox);
         tokio::spawn(async move {
             loop {
                 tokio::select! {
-                    () = sender.closed() => break,
-                    notification = changes.recv() => {
-                        let Ok(notification) = notification else {
-                            break;
-                        };
-                        if sender.send(Ok(notification)).is_err() {
+                    () = outbox.closed() => break,
+                    changed = revision.changed() => {
+                        if changed.is_err() {
                             break;
                         }
+                        outbox.push(Push::Tools).await;
+                        outbox.push(Push::Resources).await;
                     }
                 }
             }
@@ -415,10 +432,7 @@ pub async fn notifications(context: &Context) -> Notifications {
     }
     // A tool container's context has no caller, and nothing served.
     let Some(caller) = context.caller.clone() else {
-        return Box::pin(stream::unfold(receiver, |mut receiver| async move {
-            let item = receiver.recv().await?;
-            Some((item, receiver))
-        }));
+        return notifications;
     };
     let daemon = Arc::clone(&context.daemon);
     let served = Arc::clone(&context.served);
@@ -444,26 +458,29 @@ pub async fn notifications(context: &Context) -> Notifications {
                 let Ok(mut stream) = run.handle.notifications(&caller).await else {
                     continue;
                 };
-                let sender = sender.clone();
+                let outbox = Arc::clone(&outbox);
                 let relay = tokio::spawn(async move {
                     loop {
                         let item = tokio::select! {
-                            () = sender.closed() => break,
+                            () = outbox.closed() => break,
                             item = stream.next() => item,
                         };
-                        let Some(item) = item else {
+                        // Rule 5.
+                        let Some(Ok(mut notification)) = item else {
                             break;
                         };
-                        let forwarded = match item {
-                            Ok(mut notification) => {
+                        let push = match notification {
+                            // Rule 2.
+                            ServerNotification::ToolListChangedNotification(_) => Push::Tools,
+                            ServerNotification::ResourceListChangedNotification(_) => Push::Resources,
+                            ServerNotification::PromptListChangedNotification(_) => continue,
+                            // Rule 3.
+                            _ => {
                                 run.attest(notification.get_meta_mut());
-                                Ok(notification)
+                                Push::Notification(notification)
                             }
-                            Err(error) => Err(ErrorData::internal_error(format!("{error:?}"), None)),
                         };
-                        if sender.send(forwarded).is_err() {
-                            break;
-                        }
+                        outbox.push(push).await;
                     }
                 });
                 relays.insert(key, relay.abort_handle());
@@ -472,7 +489,7 @@ pub async fn notifications(context: &Context) -> Notifications {
             // does: `Served` owns the generation's sender, and never
             // drops it while the run lives.
             tokio::select! {
-                () = sender.closed() => break,
+                () = outbox.closed() => break,
                 changed = generation.changed() => {
                     if changed.is_err() {
                         break;
@@ -484,8 +501,5 @@ pub async fn notifications(context: &Context) -> Notifications {
             relay.abort();
         }
     });
-    Box::pin(stream::unfold(receiver, |mut receiver| async move {
-        let item = receiver.recv().await?;
-        Some((item, receiver))
-    }))
+    notifications
 }

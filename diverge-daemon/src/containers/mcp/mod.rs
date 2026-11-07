@@ -15,9 +15,11 @@
 //! through this module and not through the file it lives in.
 
 mod merge;
+mod outbox;
 mod prefix;
 mod served;
 
 pub use merge::*;
+pub use outbox::*;
 pub use prefix::*;
 pub use served::*;

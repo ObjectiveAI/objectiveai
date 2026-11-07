@@ -3,8 +3,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use rmcp::model::ServerNotification;
-use tokio::sync::{broadcast, watch};
+use tokio::sync::watch;
 
 use super::Registry;
 use crate::containers::{ToolKey, ToolRun};
@@ -36,14 +35,17 @@ pub enum Entry {
     },
 }
 
-/// The tools one run is served, each under its prefix, the word to
-/// the program when the set changes, and the word to the daemon's own
-/// relay of the tools' notifications whenever the set or a served
-/// tool's run changed.
+/// The tools one run is served, each under its prefix, the revision
+/// every listener announces the merged lists by when the set changes,
+/// and the word to the daemon's own relay of the tools' notifications
+/// whenever the set or a served tool's run changed.
 pub struct Served {
     registry: Registry<ToolKey>,
     entries: HashMap<ToolKey, Entry>,
-    changes: broadcast::Sender<ServerNotification>,
+    /// Bumped at every change of the set: what every notification
+    /// stream announces both merged lists by. A watch, so no listener can
+    /// fall behind it, and any number of changes is one wake.
+    revision: watch::Sender<u64>,
     /// Bumped at every change of the set and every start of a served
     /// tool's run: what the notifications relay keeps in step with.
     generation: watch::Sender<u64>,
@@ -61,7 +63,7 @@ impl Served {
         Served {
             registry: Registry::new(),
             entries: HashMap::new(),
-            changes: broadcast::channel(64).0,
+            revision: watch::channel(0).0,
             generation: watch::channel(0).0,
         }
     }
@@ -172,9 +174,10 @@ impl Served {
         self.registry.owner(prefix).copied()
     }
 
-    /// Where the program hears that the set changed.
-    pub fn subscribe(&self) -> broadcast::Receiver<ServerNotification> {
-        self.changes.subscribe()
+    /// Every change of the set from now on: what a notification stream
+    /// announces both merged lists by.
+    pub fn revision(&self) -> watch::Receiver<u64> {
+        self.revision.subscribe()
     }
 
     /// Every change of the set, and every start of a served tool's
@@ -184,10 +187,11 @@ impl Served {
         self.generation.subscribe()
     }
 
-    /// The set changed: tell every listener, the program and the
-    /// relay.
+    /// The set changed: the revision bumps, and every listener announces
+    /// that the merged tool list and resource list changed; the relay is
+    /// told too.
     fn changed(&self) {
-        let _ = self.changes.send(ServerNotification::ToolListChangedNotification(Default::default()));
+        self.revision.send_modify(|revision| *revision = revision.wrapping_add(1));
         self.bump();
     }
 
