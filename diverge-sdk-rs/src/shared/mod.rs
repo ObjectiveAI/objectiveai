@@ -53,6 +53,7 @@
 //! [`Listing::push`](listing::Listing::push) are exactly the kind of
 //! thing that would stop agreeing quietly.
 
+pub mod base64;
 pub mod canonical;
 pub mod containers;
 pub mod daemons;

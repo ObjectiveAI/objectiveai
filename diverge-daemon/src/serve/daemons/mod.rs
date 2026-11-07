@@ -11,5 +11,6 @@ pub mod edit;
 pub mod get;
 pub mod list;
 pub mod listen;
+pub mod message;
 pub mod tag;
 pub mod untag;

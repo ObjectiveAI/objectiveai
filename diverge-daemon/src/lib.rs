@@ -102,6 +102,7 @@ pub mod discovery;
 pub mod judge;
 pub mod listening;
 pub mod logs;
+pub mod messaging;
 pub mod postgres;
 pub mod providers;
 pub mod serve;

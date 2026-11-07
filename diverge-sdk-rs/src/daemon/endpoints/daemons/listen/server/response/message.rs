@@ -21,7 +21,7 @@ pub struct Message {
     /// provider authorized it.
     pub from: Identity,
     /// The body, exactly as the send carried it.
-    #[serde(serialize_with = "crate::shared::containers::exec::response::base64")]
+    #[serde(serialize_with = "crate::shared::base64::serialize")]
     #[schemars(with = "String")]
     pub body: Bytes,
 }

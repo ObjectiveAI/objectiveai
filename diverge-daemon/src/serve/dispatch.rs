@@ -112,6 +112,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ProvidersTag(frame) => providers::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersUntag(frame) => providers::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::DaemonsListen(frame) => daemons::listen::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsMessage(frame) => daemons::message::handle(scope, frame, who, daemon).await,
         ClientRequest::IdentitiesList(frame) => identities::list::handle(scope, frame, who, daemon).await,
         ClientRequest::IdentitiesTag(frame) => identities::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::IdentitiesUntag(frame) => identities::untag::handle(scope, frame, who, daemon).await,
