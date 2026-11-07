@@ -8,7 +8,7 @@ import { Error } from "../../../../../../shared/error.js";
 export const Frame = z.union([
   /** The record is gone. Tag `0`. */
   z.literal("deleted"),
-  /** No record has the name; nothing changed. Tag `1`. */
+  /** No record has the ID; nothing changed. Tag `1`. */
   z.literal("not_found"),
   /** A connected tool names it; nothing changed. Tag `2`. */
   z.literal("in_use"),

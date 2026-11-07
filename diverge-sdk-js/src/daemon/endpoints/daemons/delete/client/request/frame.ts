@@ -3,11 +3,12 @@
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../shared/relay.js";
+import { DaemonId } from "../../../id.js";
 
-/** Ask the daemon to delete a record, by its name. Refused while a connected tool names it. */
+/** Ask the daemon to delete a record, by its ID. Refused while a connected tool names it. */
 export const Frame = z.object({
-  /** The record, by its name. */
-  name: z.string(),
+  /** The record, by its ID. */
+  id: DaemonId,
   /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });

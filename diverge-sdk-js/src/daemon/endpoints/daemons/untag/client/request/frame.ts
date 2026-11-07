@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../shared/relay.js";
+import { DaemonId } from "../../../id.js";
 
 /**
  * Ask the daemon to take tags off a remote daemon's record. A tag not held is not a failure, and
@@ -11,8 +12,8 @@ import { Relay } from "../../../../../../shared/relay.js";
  * list item reports.
  */
 export const Frame = z.object({
-  /** The record, by its name. */
-  name: z.string(),
+  /** The record, by its ID. */
+  id: DaemonId,
   /** The tags to take tags off, one by one. Empty changes nothing and is not a failure. */
   tags: z.array(z.string()),
   /** Served by another daemon: see `Relay`. Absent, served here. */

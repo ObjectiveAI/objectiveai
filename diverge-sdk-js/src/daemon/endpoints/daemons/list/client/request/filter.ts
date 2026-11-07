@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { Creator } from "../../../../../creator/creator.js";
+import { DaemonId } from "../../../id.js";
 
 /**
  * The filter over remote daemons' records: every member optional, and
@@ -11,8 +12,8 @@ import { Creator } from "../../../../../creator/creator.js";
  * empty list is absent.
  */
 export const Filter = z.object({
-  /** Any one of these names. */
-  names: z.array(z.string()).optional(),
+  /** Any one of these IDs. */
+  ids: z.array(DaemonId).optional(),
   /** The remote at any one of these issuers. */
   issuers: z.array(z.string()).optional(),
   /** Added by any one of these. */

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { Provider } from "../../../../../agent_log/provider.js";
 import { Mode } from "../../../../../../daemon/endpoints/standalone_tools/templates/mode.js";
 import * as reference from "../../../../../../daemon/reference/tool.js";
+import { DaemonId } from "../../../../daemons/id.js";
 
 /**
  * The two ways a tool comes to be, and what the daemon knows of each: a
@@ -35,10 +36,10 @@ export const Origin = z.discriminatedUnion("kind", [
   /** Registered, from another daemon's tool: the remote daemon, the tool as that daemon names it, and its number among the tools ever registered. */
   z.object({
     kind: z.literal("connected"),
-    /** The remote daemon the tool is on, by its name in the configuration, as the register named it. */
-    daemon: z.string(),
-    /** The records the tool's connect is relayed through beyond `daemon`, as the register named them. Absent, the tool is on `daemon`. */
-    route: z.array(z.string()).optional(),
+    /** The remote daemon the tool is on, by the ID of this daemon's record of it, as the register named it. */
+    daemon: DaemonId,
+    /** The records the tool's connect is relayed through beyond `daemon`, by their IDs, as the register named them. Absent, the tool is on `daemon`. */
+    route: z.array(DaemonId).optional(),
     /** The tool, as that daemon names it. */
     tool: reference.Tool,
     /** Its number among all connected tools of the caller's ever registered, deleted ones included; never given twice. */

@@ -2,26 +2,15 @@
 
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
-import { Identity } from "../../../../../../shared/identity.js";
 import { Relay } from "../../../../../../shared/relay.js";
-import { Ip } from "../../../../providers/ip.js";
+import { DaemonId } from "../../../id.js";
 
-/** Ask the daemon to change a record, by its name: every member given replaces the record's; each route filter is absent to leave it, `null` to clear it, or a list to replace it. A change drops a connection held to it. */
-export const Frame = z.object({
-  /** The record, by its name. */
-  name: z.string(),
+/** Ask the daemon to change a record's description, by its ID: given, it replaces the record's; absent, it is left. Nothing else of a record changes: what it reaches and as whom is its ID, so reaching elsewhere is a delete and an add, with another ID. A request naming any other member does not parse. */
+export const Frame = z.strictObject({
+  /** The record, by its ID. */
+  id: DaemonId,
   /** The description, in place of the record's. */
   description: z.string().optional(),
-  /** The remote, in place of the record's. */
-  daemon: Identity.optional(),
-  /** Our identity, in place of the record's, at the remote's issuer. */
-  identity: Identity.optional(),
-  /** The providers filter: absent leaves it, `null` clears it, a list replaces it. */
-  providers: z.array(Identity).nullable().optional(),
-  /** The IPs filter: absent leaves it, `null` clears it, a list replaces it. */
-  ips: z.array(Ip).nullable().optional(),
-  /** The addresses filter: absent leaves it, `null` clears it, a list replaces it. */
-  addresses: z.array(z.string()).nullable().optional(),
   /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });

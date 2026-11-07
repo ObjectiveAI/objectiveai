@@ -6,13 +6,13 @@ import { Error } from "../../../../../../shared/error.js";
 import { Daemon } from "../../../../../../daemon/endpoints/daemons/list/server/response/daemon.js";
 
 /**
- * A get's answer: the daemon as a list would report it, no daemon has
- * the name, forbidden, or a failure.
+ * A get's answer: the daemon as a list would report it, no record has
+ * the ID, forbidden, or a failure.
  */
 export const Frame = z.union([
   /** The daemon, as the list reports it. Tag `0`. */
   z.strictObject({ found: Daemon }),
-  /** No remote daemon of the configuration's has the name. Tag `1`. */
+  /** No record has the ID. Tag `1`. */
   z.literal("not_found"),
   /** The account the request is served for holds no grant allowing it; nothing changed. Tag `2`. */
   z.literal("forbidden"),

@@ -8,7 +8,7 @@ import { Error } from "../../../../../../shared/error.js";
 export const Frame = z.union([
   /** The record is changed. Tag `0`. */
   z.literal("edited"),
-  /** No record has the name; nothing changed. Tag `1`. */
+  /** No record has the ID; nothing changed. Tag `1`. */
   z.literal("not_found"),
   /** The account the request is served for holds no grant allowing it; nothing changed. Tag `2`. */
   z.literal("forbidden"),

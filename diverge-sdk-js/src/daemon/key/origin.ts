@@ -1,6 +1,7 @@
 // The part of a tool's origin that never changes.
 
 import { z } from "zod";
+import { DaemonId } from "../endpoints/daemons/id.js";
 import { Tool } from "../reference/tool.js";
 
 /**
@@ -12,7 +13,7 @@ import { Tool } from "../reference/tool.js";
 export const Origin = z.discriminatedUnion("kind", [
   /** Made by a create, from a template. */
   z.object({ kind: z.literal("created"), template: z.string() }),
-  /** Registered, from another daemon's tool. */
-  z.object({ kind: z.literal("connected"), daemon: z.string(), tool: Tool }),
+  /** Registered, from another daemon's tool: the daemon by the ID of this daemon's record of it. */
+  z.object({ kind: z.literal("connected"), daemon: DaemonId, tool: Tool }),
 ]);
 export type Origin = z.infer<typeof Origin>;

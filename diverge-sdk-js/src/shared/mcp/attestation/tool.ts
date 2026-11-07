@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { Image } from "../../../daemon/endpoints/agents/create/client/request/image.js";
 import { Owner } from "../../../daemon/key/owner.js";
+import { DaemonId } from "../../../daemon/endpoints/daemons/id.js";
 
 /**
  * Who a response came from, as the daemon attests it on the
@@ -13,14 +14,14 @@ import { Owner } from "../../../daemon/key/owner.js";
 export const Tool = z.discriminatedUnion("kind", [
   /** A tool made here, by its template and its index, with its name when it has one. */
   z.object({ kind: z.literal("created"), image: Image, template: z.string(), index: z.number().int().nonnegative(), name: z.string().optional() }),
-  /** Another daemon's tool, as served to this one: the daemon it is reached on, by its name in this daemon's configuration. */
+  /** Another daemon's tool, as served to this one: the daemon it is reached on, by the ID of this daemon's record of it. */
   z.object({
     kind: z.literal("connected"),
     image: Image,
     template: z.string(),
     index: z.number().int().nonnegative(),
     name: z.string().optional(),
-    daemon: z.string(),
+    daemon: DaemonId,
   }),
   /** A dependency tool, by the template it runs from and whose it is. */
   z.object({ kind: z.literal("dependency"), image: Image, template: z.string(), owner: Owner }),

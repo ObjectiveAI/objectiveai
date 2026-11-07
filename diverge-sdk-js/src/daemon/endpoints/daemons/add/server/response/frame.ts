@@ -3,13 +3,14 @@
 import { z } from "zod";
 import { DecodeError, jsonOf, splitTag } from "../../../../../../wire/decode.js";
 import { Error } from "../../../../../../shared/error.js";
+import { DaemonId } from "../../../id.js";
 
 /** Exactly one per scope, before the finish. */
 export const Frame = z.union([
-  /** The record is kept. Tag `0`. */
-  z.literal("added"),
-  /** A record of that name is kept already; nothing changed. Tag `1`. */
-  z.literal("exists"),
+  /** The record is kept, by this ID. Tag `0`. */
+  z.strictObject({ added: DaemonId }),
+  /** A record of this ID — the same remote, the same account, the same routes — is kept already; nothing changed. Tag `1`. */
+  z.strictObject({ exists: DaemonId }),
   /** The account the request is served for holds no grant allowing it; nothing changed. Tag `2`. */
   z.literal("forbidden"),
   /** A failure; nothing changed. See `shared.error.Error` for why it says so little. Tag `3`. */
@@ -17,14 +18,14 @@ export const Frame = z.union([
 ]);
 export type Frame = z.infer<typeof Frame>;
 
-/** A frame out of its payload: the tag byte, and the error's JSON for a failure. */
+/** A frame out of its payload: the tag byte, then the ID's JSON for the first two, the error's for a failure. */
 export function decode(bytes: Uint8Array): Frame {
   const [tag, rest] = splitTag(bytes);
   switch (tag) {
     case 0:
-      return "added";
+      return { added: DaemonId.parse(jsonOf(rest)) };
     case 1:
-      return "exists";
+      return { exists: DaemonId.parse(jsonOf(rest)) };
     case 2:
       return "forbidden";
     case 3:
