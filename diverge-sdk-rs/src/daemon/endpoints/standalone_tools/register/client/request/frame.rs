@@ -56,6 +56,13 @@ pub struct Frame {
     /// A name no remote daemon has is the register's error. The
     /// caller must hold the daemons grant's `connect`.
     pub daemon: String,
+    /// The remote-daemon records the tool's connect is relayed through
+    /// beyond `daemon`, each named on the daemon before it: the tool is
+    /// on the last. Empty — the default — the tool is on `daemon`. See
+    /// [`register`](crate::daemon::endpoints::standalone_tools::register)
+    /// for how each hop is served.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub route: Vec<String>,
     /// The tool, as that daemon names it: by its name there, or by its
     /// template and its index there. See [`reference::Tool`]. Compared
     /// by this daemon, and read by that one.

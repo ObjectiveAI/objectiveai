@@ -42,6 +42,7 @@ impl Origin {
                 daemon,
                 tool,
                 index,
+                ..
             } => OriginKey::Connected {
                 daemon: daemon.clone(),
                 tool: tool.clone(),

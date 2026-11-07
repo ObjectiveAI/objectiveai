@@ -55,8 +55,15 @@ pub enum Origin {
     /// it itself.
     Connected {
         /// The daemon the tool is on, by its name in the configuration,
-        /// as the register named it.
+        /// as the register named it — the first of the route's daemons,
+        /// where it has a route.
         daemon: String,
+        /// The remote-daemon records the tool's connect is relayed through
+        /// beyond `daemon`, as the register named them: see
+        /// [`register`](crate::daemon::endpoints::standalone_tools::register).
+        /// Absent when empty: the tool is on `daemon`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        route: Vec<String>,
         /// The tool, as that daemon names it and as the register
         /// named it: see [`reference::Tool`].
         tool: reference::Tool,

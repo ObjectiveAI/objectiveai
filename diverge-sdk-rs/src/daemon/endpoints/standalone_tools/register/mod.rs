@@ -18,6 +18,27 @@
 //! [`attach_agent_template`](super::attach_agent_template), until a
 //! [`delete`](super::delete).
 //!
+//! # Reached through other daemons
+//!
+//! A tool need not be on the daemon named: the register's `route`
+//! names further remote-daemon records, and the tool's connect is
+//! relayed along them, as any request's
+//! [`relay`](crate::shared::relay::Relay) is. The rules:
+//!
+//! 1. **An explicit route.** `daemon` is a record of this daemon's, and
+//!    each name of `route` a record of the daemon before it; the tool
+//!    is on the last. An empty route is the tool on `daemon`.
+//! 2. **Every hop is an account.** Each daemon along the route serves
+//!    the connect as the account the previous daemon's record names,
+//!    and judges that account's `relay` grant over its next record; the
+//!    tool's daemon serves the connect itself as the last relaying
+//!    daemon's account, and judges that account's grants over the tool
+//!    — as a relayed request of any kind is served.
+//! 3. **No limit.** A route is as long as the register writes it. It
+//!    cannot loop: each hop consumes one name.
+//! 4. **Fixed at the register.** A connected tool is not edited; a
+//!    tool reached by another route is another register.
+//!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer
 //! is in [`server`]. Neither side holds both halves of the exchange.
