@@ -28,6 +28,7 @@ use crate::judge::AgentState;
 use crate::database::Scope;
 use crate::store::{self, AccountId, AgentId, Store};
 use crate::discovery::Discovery;
+use crate::listening::Listening;
 use crate::volumes::Mirror;
 
 /// The live state of the daemon: which accounts have a client
@@ -127,6 +128,9 @@ pub struct Live {
     /// Each connected provider's discover listing, while something
     /// watches: see [`Discovery`].
     pub discovery: Discovery,
+    /// Each connected provider's message listen, while anything
+    /// listens, and the ring they feed: see [`Listening`].
+    pub listening: Listening,
     /// The remote daemons connected to now, by the ID of the record
     /// each was opened for, each through one provider: what a connected
     /// tool's exchanges and a relayed request ride.
@@ -404,6 +408,7 @@ impl Live {
         if self.discovery.disconnected(identity).await {
             self.changes.changed(Kind::Discover);
         }
+        self.listening.disconnected(identity).await;
         self.holders.lock().await.retain(|_, holders| {
             holders.retain(|holder| holder != identity);
             !holders.is_empty()

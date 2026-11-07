@@ -100,6 +100,7 @@ pub mod daemons;
 pub mod database;
 pub mod discovery;
 pub mod judge;
+pub mod listening;
 pub mod logs;
 pub mod postgres;
 pub mod providers;

@@ -5,7 +5,7 @@ use tokio::sync::broadcast;
 
 /// How many words a listing may fall behind by before it is told so,
 /// and reads again instead of the words it missed.
-const CHANGES_BEHIND: usize = 256;
+pub const CHANGES_BEHIND: usize = 256;
 
 /// One kind of thing a list is over: what a word names, and what a
 /// listing of that kind listens for.

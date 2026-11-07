@@ -97,6 +97,7 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
             tokio::spawn(super::accept(Arc::clone(daemon), handle.clone()));
         }
         daemon.live.discovery.connected(daemon, identity.clone(), handle.clone()).await;
+        daemon.live.listening.connected(daemon, identity.clone(), handle.clone(), &info).await;
         if info.capabilities.volumes() {
             // The mirror kept here, before the connection is served:
             // its end, which forgets the mirror, comes after.
