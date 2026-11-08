@@ -1,6 +1,6 @@
 //! What a server's response frame carries on a manifest channel.
 
-/// A manifest in the caller's Store, with its media type. See [`oci::manifest::response::Frame`](crate::shared::containers::oci::manifest::response::Frame).
+/// A manifest the scope's image reaches, with its media type. See [`oci::manifest::response::Frame`](crate::shared::containers::oci::manifest::response::Frame).
 ///
 /// An alias rather than a re-export because this module is real: the
 /// path says this scope's answer lives here, and it does, rather than

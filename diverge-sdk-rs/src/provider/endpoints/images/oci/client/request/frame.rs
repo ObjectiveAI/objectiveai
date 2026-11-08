@@ -1,26 +1,28 @@
 //! What a client's request frame carries for an image pull.
 
-use std::convert::Infallible;
-
+use crate::shared::containers::oci;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Open a pull on a provider: a scope to ask, on channels, what the
-/// caller's Store there holds.
+/// Open a pull on a provider: a scope to ask, on channels, for the
+/// manifests and blobs of the ONE image this request names — the
+/// [`Image`](crate::shared::containers::request::Image), its digest
+/// and the references under which its bytes may be fetched, as the
+/// shared [`oci::has`](crate::shared::containers::oci::has) request
+/// carries it.
 ///
-/// A unit struct, because the scope has no parameters: what is
-/// asked about is said on each channel, by digest, and the scope
-/// itself names nothing.
+/// # On the wire
 ///
-/// # A frame that is only a tag
-///
-/// It still has to go on the wire, because
-/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
-/// carries one type of frame and the payload's leading byte is what
-/// says which request it is. So this encodes to exactly one byte and
-/// decodes by reading exactly one byte — the tag and nothing after it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct Frame;
+/// The tag, then the shared request's JSON, which is exactly the
+/// image's: `{"digest":…,"references":[…]}`, `references` absent when
+/// there are none — the same bytes as
+/// [`images::has`](crate::provider::endpoints::images::has) after its
+/// own tag.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Frame(
+    /// The image the scope serves.
+    pub oci::has::request::Request,
+);
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -37,30 +39,30 @@ pub struct Frame;
 const TAG: u8 = 23;
 
 impl Encode for Frame {
-    /// [`Infallible`]: writing one known byte has no failure mode.
-    type Error = Infallible;
+    /// The ordinary JSON failure. The tag cannot fail.
+    type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
-        Ok(())
+        self.0.encode(out)
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Only the tag can be wrong, because only the tag is read.
+    /// Three ways to fail, and only one of them is JSON.
     type Error = FrameError;
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
-        match bytes.first() {
-            Some(&TAG) => Ok(Frame),
-            Some(&tag) => Err(FrameError::UnexpectedTag(tag)),
-            None => Err(FrameError::Empty),
+        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
+        if *tag != TAG {
+            return Err(FrameError::UnexpectedTag(*tag));
         }
+        oci::has::request::Request::decode(rest).map(Frame).map_err(FrameError::Body)
     }
 }
 
 /// An image pull request that could not be read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
@@ -70,6 +72,8 @@ pub enum FrameError {
     /// assumed which request it held, and was wrong, will — which is
     /// the point of checking a tag rather than skipping it.
     UnexpectedTag(u8),
+    /// The request did not parse.
+    Body(serde_json::Error),
 }
 
 impl std::fmt::Display for FrameError {
@@ -77,8 +81,16 @@ impl std::fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("image pull request frame is empty"),
             FrameError::UnexpectedTag(tag) => write!(f, "expected image pull request tag {TAG}, found {tag}"),
+            FrameError::Body(error) => write!(f, "image pull request did not parse: {error}"),
         }
     }
 }
 
-impl std::error::Error for FrameError {}
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Body(error) => Some(error),
+            FrameError::Empty | FrameError::UnexpectedTag(_) => None,
+        }
+    }
+}

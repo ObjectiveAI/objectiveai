@@ -7,9 +7,15 @@ use super::Reference;
 
 /// The image, by its manifest digest and the references under which
 /// its bytes may be fetched — what
-/// [`images::check`](crate::provider::endpoints::images::check::client::request::Frame)
-/// asks about, so a check that came back available names an image a
-/// run can ask for, with nothing to translate between them.
+/// [`images::has`](crate::provider::endpoints::images::has::client::request::Frame)
+/// asks about, so a has that came back held names an image a run can
+/// ask for, with nothing to translate between them. The same value is
+/// the whole of the shared
+/// [`oci::has`](crate::shared::containers::oci::has) request a
+/// provider asks a caller on a run, the scope an
+/// [`images::oci`](crate::provider::endpoints::images::oci) pull
+/// serves, and part of every
+/// [`oci::prove`](crate::shared::containers::oci::prove) request.
 ///
 /// # The digest is the image
 ///
@@ -31,8 +37,8 @@ use super::Reference;
 /// own policy lists, with the credential it holds for it, and ignores
 /// a reference naming one it does not; and failing that it takes the
 /// image from the caller — asking on the run scope whether the caller
-/// holds it and, when it does, for its manifest and blobs, then for
-/// the proof that it holds it, see
+/// holds it, naming this image, and, when it does, for its manifest
+/// and blobs, then for the proof that it holds it, see
 /// [`oci`](crate::shared::containers::oci). The order, and which
 /// answered, is stated on
 /// [`Source`](crate::shared::containers::response::Source), which the

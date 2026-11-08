@@ -92,6 +92,7 @@ where
         scope.request_receiver,
         handle.clone(),
         scope.scope,
+        Arc::new(request.0.image.clone()),
         Arc::clone(&writes),
         answerers,
         decode_ask,

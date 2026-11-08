@@ -62,7 +62,7 @@ pub enum ClientRequest<'a> {
     /// Tag `14`. Destroy one.
     VolumesDelete(volumes::delete::client::request::Frame),
     /// Tag `15`. Ask whether an image can be supplied.
-    ImagesCheck(images::check::client::request::Frame),
+    ImagesHas(images::has::client::request::Frame),
     /// Tag `16`. List the images in the caller's Store.
     ImagesList(images::list::client::request::Frame),
     /// Tag `17`. Examine one of them.
@@ -77,7 +77,7 @@ pub enum ClientRequest<'a> {
     ImagesHash(images::hash::client::request::Frame),
     /// Tag `22`. Destroy one.
     ImagesDelete(images::delete::client::request::Frame),
-    /// Tag `23`. Pull what the caller's Store holds.
+    /// Tag `23`. Pull the manifests and blobs of one image.
     ImagesOci(images::oci::client::request::Frame),
     /// Tag `24`. Ask what the provider is, and what it does.
     Info(info::client::request::Frame),
@@ -182,7 +182,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesDelete(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
-            ClientRequest::ImagesCheck(frame) => {
+            ClientRequest::ImagesHas(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::ImagesList(frame) => {
@@ -203,15 +203,13 @@ impl Encode for ClientRequest<'_> {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::ImagesHash(frame) => {
-                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
+                frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::ImagesDelete(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::ImagesOci(frame) => {
-                // Its error is `Infallible`, and an empty match on one
-                // is how you say so: there is no value to handle.
-                frame.encode(out).map_err(|error| match error {})
+                frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::Info(frame) => {
                 // Its error is `Infallible`, and an empty match on one
@@ -297,8 +295,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             14 => volumes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesDelete)
                 .ok(),
-            15 => images::check::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ImagesCheck)
+            15 => images::has::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesHas)
                 .ok(),
             16 => images::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesList)

@@ -1,30 +1,24 @@
 //! What a client's request frame carries for an image hash.
 
-use serde::{Deserialize, Serialize};
-
+use crate::shared::containers::oci;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Compute the proof over an image in the caller's Store: the three
-/// fields of [`oci::prove`](crate::shared::containers::oci::prove)'s
-/// request, the same meaning each.
+/// Compute the proof over an image the provider can supply: the
+/// shared [`oci::prove`](crate::shared::containers::oci::prove)
+/// request — the image, the platform when its digest names an index,
+/// and the nonce — the same meaning each.
 ///
 /// # On the wire
 ///
-/// Postcard after the tag: the digest as a string, the platform as
-/// one byte, `0` for none and `1` followed by a string, then the
-/// nonce as its 32 bytes verbatim.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub struct Frame {
-    /// The manifest digest the image is named by, `<algorithm>:<hex>`:
-    /// an image the caller owns in its Store.
-    pub digest: String,
-    /// When [`digest`](Self::digest) names an index, the digest of the
-    /// one manifest in it whose image is meant; `None` otherwise.
-    pub platform: Option<String>,
-    /// The nonce, as the asking provider sent it.
-    pub nonce: [u8; 32],
-}
+/// The tag, then the shared request's JSON:
+/// `{"image":{…},"platform":"sha256:<hex>","nonce":"<64 hex>"}`,
+/// `platform` absent when it is `None`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Frame(
+    /// The image, the platform and the nonce.
+    pub oci::prove::request::Request,
+);
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -40,21 +34,21 @@ pub struct Frame {
 /// at once.
 const TAG: u8 = 21;
 
-/// Postcard, matching [`volumes`](crate::provider::endpoints::volumes) and the
-/// rest of this family's store.
+/// JSON, as the shared request is, and as
+/// [`has`](crate::provider::endpoints::images::has) and
+/// [`oci`](crate::provider::endpoints::images::oci) carry the image.
 impl Encode for Frame {
-    /// Postcard's own failure. The tag cannot fail.
-    type Error = postcard::Error;
+    /// The ordinary JSON failure. The tag cannot fail.
+    type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
-        postcard::to_io(self, &mut *out)?;
-        Ok(())
+        self.0.encode(out)
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Three ways to fail, and only one of them is postcard's.
+    /// Three ways to fail, and only one of them is JSON.
     type Error = FrameError;
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
@@ -62,7 +56,7 @@ impl Decode<'_> for Frame {
         if *tag != TAG {
             return Err(FrameError::UnexpectedTag(*tag));
         }
-        postcard::from_bytes(rest).map_err(FrameError::Body)
+        oci::prove::request::Request::decode(rest).map(Frame).map_err(FrameError::Body)
     }
 }
 
@@ -78,7 +72,7 @@ pub enum FrameError {
     /// the point of checking a tag rather than skipping it.
     UnexpectedTag(u8),
     /// The request did not parse.
-    Body(postcard::Error),
+    Body(serde_json::Error),
 }
 
 impl std::fmt::Display for FrameError {

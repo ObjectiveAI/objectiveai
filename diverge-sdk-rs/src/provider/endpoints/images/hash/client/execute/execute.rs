@@ -9,13 +9,14 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame;
 
-/// Ask for the proof over an image in the caller's Store, and wait for
-/// the answer.
+/// Ask for the proof over an image the provider can supply, and wait
+/// for the answer.
 ///
 /// One question, one answer, then the scope is over. The answer is
-/// returned as the frame it is — the proof, the word that the caller
-/// owns no such image, the word that the provider has no Store, or
-/// the provider's error — since a relay hands each on as it came.
+/// returned as the frame it is — the proof, the word that the provider
+/// cannot supply the image, the word that it has neither a Store nor
+/// any registry, or the provider's error — since a relay hands each
+/// on as it came.
 /// Everything that is not an answer is an [`ExecuteError`].
 ///
 /// # It reads one frame and leaves
@@ -50,7 +51,7 @@ pub enum ExecuteError {
     /// The request never went out. See [`SendError`].
     Send(SendError),
     /// The request would not serialize.
-    Request(postcard::Error),
+    Request(serde_json::Error),
     /// The connection ended before anything came back, which is the
     /// only way waiting stops early.
     Closed,

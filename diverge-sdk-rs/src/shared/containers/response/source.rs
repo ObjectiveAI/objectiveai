@@ -21,8 +21,9 @@ use serde::{Deserialize, Serialize};
 ///    holds from such a registry already:
 ///    [`Registry`](Self::Registry). No nonce check: the bytes are the
 ///    registry's, under the digest, and the caller supplied nothing.
-/// 3. **The caller.** A caller that answers the
-///    [`has`](crate::shared::containers::oci::has) question: the
+/// 3. **The caller.** A caller that answers held to the
+///    [`has`](crate::shared::containers::oci::has) question, asked
+///    with the run's own image: the
 ///    provider pulls what it lacks, then makes the nonce check of
 ///    [`prove`](crate::shared::containers::oci::prove), always, and
 ///    only a pass is [`Client`](Self::Client); a failure is the run's

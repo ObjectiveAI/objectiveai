@@ -3,7 +3,8 @@
 //!
 //! A provider that would take a run's image from the caller asks
 //! here, on the run scope. First whether the caller [`has`] it at
-//! all, by digest — a caller that does answers a name, a label the
+//! all, naming the run's own image — a caller that does answers a
+//! name, a label the
 //! provider puts in the one pull's reference and never stores. Then,
 //! running a registry — the read side of the OCI Distribution API, on
 //! its own loopback — that its container runtime pulls from as from

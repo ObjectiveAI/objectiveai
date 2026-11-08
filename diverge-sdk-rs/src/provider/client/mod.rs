@@ -6,7 +6,7 @@
 //! — and a provider opens channels back into it for the things it
 //! cannot reach itself, which the caller answers through the traits
 //! here. Every endpoint has its executor: eleven of the `volumes`,
-//! `images::check` and `info` collapse into a call; the two
+//! `images::has` and `info` collapse into a call; the two
 //! `containers` runs hand back a handle that holds the container's
 //! life.
 //!
@@ -18,7 +18,7 @@
 //!
 //! | trait | answers |
 //! |-------|---------|
-//! | [`OciStore`] | whether the caller holds an image, under what name, and its manifest and blobs |
+//! | [`OciStore`] | whether the caller holds an image, under what name, its manifests and blobs, and the proof that it holds it |
 //! | [`Registrar`] | the container's registration: the dependencies it declared, each a tool container, run; the secrets it takes, resolved to their first values; the permissions it holds |
 //! | [`PostgresDialer`] | the container's database connections |
 //! | [`Daemon`] | the frames of the container's daemon connection, answered by the daemon's session for it |

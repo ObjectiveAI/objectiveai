@@ -6,11 +6,13 @@ use super::super::request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::provider::endpoints::images::check::server::response;
+use crate::provider::endpoints::images::has::server::response;
 use crate::wire::frame;
 use crate::shared::error::Error;
 
-/// Ask whether an image can be supplied, and wait for the answer.
+/// Ask whether an image can be supplied, and wait for the answer:
+/// `true` for [`Held`](response::Frame::Held), `false` for
+/// [`NotFound`](response::Frame::NotFound).
 ///
 /// The rest of this crate describes the exchange; this performs it.
 /// Opening a scope, writing the request, waiting for the one frame that
@@ -18,7 +20,7 @@ use crate::shared::error::Error;
 /// the same steps every time, and there is nothing in them a caller
 /// gets to decide.
 ///
-/// # Why a check gets one of these and not everything does
+/// # Why a has gets one of these and not everything does
 ///
 /// Because it is the shape that collapses. One question, one answer,
 /// then the scope is over — so there is a value to return, and
@@ -41,29 +43,25 @@ use crate::shared::error::Error;
 /// [`Handle`] is cheap and would be fine, but nothing here outlives the
 /// call, so there is nothing for an owned one to buy.
 ///
-/// # Two answers, an error and an empty question, which are four things
+/// # Two answers, an error and no source, which are four things
 ///
-/// [`Available`](crate::provider::endpoints::images::check::server::response::Available)
-/// and
-/// [`Unavailable`](crate::provider::endpoints::images::check::server::response::Unavailable)
-/// are the two ANSWERS. A provider that could not reach one comes back
-/// as [`ExecuteError::Provider`], and the difference matters: an
-/// unavailable image is a provider that looked, and an error is a
-/// provider that could not. Treating them alike either gives up on an
-/// image that was there or retries forever against one that never will
-/// be. A request that named no source the provider has comes back as
-/// [`ExecuteError::NoSource`]: the provider looked nowhere, and the
-/// caller asks again with a source the provider has set, or asks
-/// another provider.
+/// Held and not found are the two ANSWERS. A provider that could not
+/// reach one comes back as [`ExecuteError::Provider`], and the
+/// difference matters: a not found is a provider that looked, and an
+/// error is a provider that could not. Treating them alike either
+/// gives up on an image that was there or retries forever against one
+/// that never will be. A provider with neither a Store nor any
+/// registry comes back as [`ExecuteError::Unsupported`]: it has
+/// nowhere to look, and the caller asks another provider.
 ///
 /// # It reads one frame and leaves
 ///
-/// The scope's queues are unbounded and a check takes one thing off one of
-/// them, so nothing about depth arises. The request stream is dropped
-/// unread: nothing is supposed to arrive on it, and a channel a
-/// provider opens anyway dead-letters at the router — the provider
-/// hears nothing, which is what the wire says of a scope nobody
-/// opens channels on.
+/// The scope's queues are unbounded and a has takes one thing off one
+/// of them, so nothing about depth arises. The request stream is
+/// dropped unread: nothing is supposed to arrive on it, and a channel
+/// a provider opens anyway dead-letters at the router — the provider
+/// hears nothing, which is what the wire says of a scope nobody opens
+/// channels on.
 ///
 /// # What ends the wait
 ///
@@ -79,7 +77,7 @@ use crate::shared::error::Error;
 pub async fn execute(
     handle: &Handle,
     request: &request::Frame,
-) -> Result<response::Response, ExecuteError> {
+) -> Result<bool, ExecuteError> {
     let mut payload = Vec::new();
     request
         .encode(&mut Writer::new(&mut payload))
@@ -103,13 +101,14 @@ pub async fn execute(
         return Err(ExecuteError::Unanswered);
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
-        response::Frame::Response(answer) => Ok(answer),
+        response::Frame::Held => Ok(true),
+        response::Frame::NotFound => Ok(false),
+        response::Frame::Unsupported => Err(ExecuteError::Unsupported),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
-        response::Frame::NoSource => Err(ExecuteError::NoSource),
     }
 }
 
-/// A check that did not produce an answer.
+/// A has that did not produce an answer.
 ///
 /// Five of these are this end's view of something going wrong. The
 /// last two are the provider speaking, and they are the only ones
@@ -134,25 +133,20 @@ pub enum ExecuteError {
     /// The scope finished without an answer in it.
     ///
     /// A provider sends exactly one response before the finish that
-    /// ends a check. One that sends only the finish has said nothing at
+    /// ends a has. One that sends only the finish has said nothing at
     /// all, which is different from saying no.
     Unanswered,
     /// The response frame did not parse.
     Response(response::FrameError),
     /// The provider could not answer, and said so.
     ///
-    /// **Not an unavailable image.** This is the absence of an answer,
-    /// where
-    /// [`Unavailable`](crate::provider::endpoints::images::check::server::response::Unavailable)
-    /// is one.
+    /// **Not a not found.** This is the absence of an answer, where
+    /// [`NotFound`](response::Frame::NotFound) is one.
     Provider(Error),
-    /// The request named no source the provider has — neither asked,
-    /// or `client` of a provider with no Store, or `registries`
-    /// of one listing no registry — and the provider answered so:
-    /// nothing was looked at, and nothing is determined about the
-    /// image. Asked again with a source it has set, the provider
-    /// answers.
-    NoSource,
+    /// The provider has neither a Store nor any registry, and answered
+    /// so: it has nowhere to look, and nothing is determined about the
+    /// image. Ask another provider.
+    Unsupported,
 }
 
 impl fmt::Display for ExecuteError {
@@ -162,25 +156,25 @@ impl fmt::Display for ExecuteError {
                 write!(f, "the request never went out: {error}")
             }
             ExecuteError::Request(error) => {
-                write!(f, "image check request did not serialize: {error}")
+                write!(f, "image has request did not serialize: {error}")
             }
             ExecuteError::Closed => {
-                f.write_str("connection ended before the image check answered")
+                f.write_str("connection ended before the image has answered")
             }
             ExecuteError::Frame(error) => {
-                write!(f, "image check answer did not decode: {error}")
+                write!(f, "image has answer did not decode: {error}")
             }
             ExecuteError::Unanswered => {
-                f.write_str("image check finished without an answer")
+                f.write_str("image has finished without an answer")
             }
             ExecuteError::Response(error) => {
-                write!(f, "image check answer did not parse: {error}")
+                write!(f, "image has answer did not parse: {error}")
             }
             ExecuteError::Provider(_) => {
-                f.write_str("the provider could not answer the image check")
+                f.write_str("the provider could not answer the image has")
             }
-            ExecuteError::NoSource => {
-                f.write_str("the image check named no source the provider has, and it answered so")
+            ExecuteError::Unsupported => {
+                f.write_str("the provider has neither a Store nor any registry")
             }
         }
     }
@@ -201,7 +195,7 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Closed
             | ExecuteError::Unanswered
             | ExecuteError::Provider(_)
-            | ExecuteError::NoSource => None,
+            | ExecuteError::Unsupported => None,
         }
     }
 }

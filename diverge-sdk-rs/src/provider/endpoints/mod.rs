@@ -39,7 +39,7 @@
 //! | `12` | [`volumes::edit_capacity`] |
 //! | `13` | [`volumes::edit`] |
 //! | `14` | [`volumes::delete`] |
-//! | `15` | [`images::check`] |
+//! | `15` | [`images::has`] |
 //! | `16` | [`images::list`] |
 //! | `17` | [`images::stat`] |
 //! | `18` | [`images::build`] |
@@ -65,9 +65,9 @@
 //! it, write one in, see its tree, serve its files live, ask how large
 //! one may be made, make one, ask how far one may grow, resize it,
 //! destroy it.
-//! Then the nine of [`images`]: the check, which asks rather than
+//! Then the nine of [`images`]: the has, which asks rather than
 //! does; the caller's Store — list, examine, build, push, edit, hash,
-//! destroy; and the pull of what the Store holds.
+//! destroy; and the pull of one image's manifests and blobs.
 //! Then [`info`], which asks what a provider is, and [`capacity`],
 //! which asks what is left of it. Last, the two of [`daemons`], added
 //! after: a daemon accepting connections from other daemons, and a

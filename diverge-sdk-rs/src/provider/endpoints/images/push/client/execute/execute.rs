@@ -8,6 +8,7 @@ use super::{ExecuteError, ExecuteStream};
 use crate::provider::client::OciStore;
 use crate::provider::endpoints::containers::client::Ask;
 use crate::provider::endpoints::containers::client::answer;
+use crate::shared::containers::request::Image;
 use crate::wire::client::handle::Handle;
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
@@ -39,12 +40,14 @@ pub async fn execute<O: OciStore + 'static>(
     let mut payload = Vec::new();
     request.encode(&mut Writer::new(&mut payload)).map_err(ExecuteError::Request)?;
     let scope = handle.send_request(&payload).await.map_err(ExecuteError::Send)?;
-    tokio::spawn(serve(scope.request_receiver, handle.clone(), scope.scope, store));
+    let image = Arc::new(request.image.clone());
+    tokio::spawn(serve(scope.request_receiver, handle.clone(), scope.scope, image, store));
     Ok(ExecuteStream::new(scope.response_receiver))
 }
 
 /// Read every channel request the provider opens on `scope` and
 /// answer it from `store`, until the scope's request stream ends.
+/// `image` is the push's own, which every ask is about.
 ///
 /// A frame that is not a channel request is dropped. An ask that will
 /// not decode is a channel this end cannot serve, and is answered as
@@ -53,6 +56,7 @@ async fn serve<O: OciStore + 'static>(
     mut requests: crate::wire::credit::Receiver,
     handle: Handle,
     scope: u32,
+    image: Arc<Image>,
     store: Arc<O>,
 ) {
     while let Some(bytes) = requests.recv().await {
@@ -64,11 +68,7 @@ async fn serve<O: OciStore + 'static>(
         let ask = match channel_request::Frame::decode(payload) {
             Ok(channel_request::Frame::OciManifest(request)) => Ask::OciManifest(request.digest),
             Ok(channel_request::Frame::OciBlob(request)) => Ask::OciBlob(request.digest),
-            Ok(channel_request::Frame::OciProve(request)) => Ask::OciProve {
-                digest: request.digest,
-                platform: request.platform,
-                nonce: request.nonce,
-            },
+            Ok(channel_request::Frame::OciProve(request)) => Ask::OciProve(request),
             Err(_) => {
                 let handle = handle.clone();
                 tokio::spawn(async move {
@@ -77,6 +77,6 @@ async fn serve<O: OciStore + 'static>(
                 continue;
             }
         };
-        tokio::spawn(answer::answer_oci(handle.clone(), scope, channel, ask, Arc::clone(&store)));
+        tokio::spawn(answer::answer_oci(handle.clone(), scope, channel, ask, Arc::clone(&image), Arc::clone(&store)));
     }
 }

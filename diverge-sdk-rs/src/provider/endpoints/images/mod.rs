@@ -1,21 +1,24 @@
 //! Images — what a provider can supply, and what a caller keeps on
 //! it.
 //!
-//! An image is the ARTIFACT, not a running container. [`check`] asks
-//! whether a provider could supply one without the caller's help,
-//! which settles nothing about execution; it settles whether
+//! An image is the ARTIFACT, not a running container. [`has`] asks
+//! whether a provider could supply one without the caller's help —
+//! from the caller's Store, or from a registry it is configured with
+//! — which settles nothing about execution; it settles whether
 //! execution is possible at all.
 //!
 //! # The Store
 //!
-//! Seven of the other eight are the Store: the images a caller owns on
+//! Six of the other eight are the Store: the images a caller owns on
 //! the provider, each by its digest alone, with a description the
 //! caller may give it. [`list`] is the listing, kept open; [`stat`]
 //! examines one; [`build`] makes one from a Containerfile, streaming
 //! what the build says as it goes; [`push`] takes one already built,
 //! from a registry the provider uses or from the caller; [`edit`]
-//! changes its description; [`hash`] computes the proof of possession
-//! over it; [`delete`] destroys one. The rules:
+//! changes its description; [`delete`] destroys one. [`hash`]
+//! computes the proof of possession over an image the provider can
+//! supply — one in the Store, or one a registry it is configured with
+//! serves. The rules:
 //!
 //! 1. **By digest.** An image in the Store is named by its manifest
 //!    digest and by nothing else. A caller owns a digest once.
@@ -45,32 +48,33 @@
 //!
 //! # An image owned is an image held, for its owner
 //!
-//! A [`check`] by the identity that owns an image, naming its digest,
-//! is available; a run by that identity naming it runs it from the
+//! A [`has`] by the identity that owns an image, naming its digest,
+//! is held; a run by that identity naming it runs it from the
 //! Store, with nothing pulled, nobody asked, and no nonce check — its
 //! answer's source is
 //! [`Store`](crate::shared::containers::response::Source::Store). To
-//! any other identity the image is not there: a check is answered as
+//! any other identity the image is not there: a `has` is answered as
 //! if the Store held nothing of the kind, and a run looks everywhere
 //! else — unless that identity owns the same digest itself.
 //!
 //! # Pulling what the provider holds
 //!
-//! The ninth, [`oci`], is the run's OCI asks the other way round: a
-//! caller opens a scope on the provider and asks, on channels,
-//! whether the provider holds an image in the caller's Store, for a
-//! manifest, for a blob — never another identity's, nor one the
-//! provider merely pulled. It is how a caller with images on one
-//! provider supplies them to a run on another; the proof such a run
-//! asks for is [`hash`]'s, relayed.
+//! The ninth, [`oci`], is the run's manifest and blob asks the other
+//! way round: a caller opens a scope on the provider naming one image,
+//! and asks, on channels, for that image's manifests and blobs — from
+//! the caller's Store, or from a registry the provider is configured
+//! with that one of the image's references names; never another
+//! identity's Store, nor what the provider merely pulled. It is how a
+//! caller with images on one provider supplies them to a run on
+//! another; the proof such a run asks for is [`hash`]'s, relayed.
 //!
 //! [`refusal`] is what the handlers answer on their own: a digest the
 //! caller owns no image by, and a build that ended without a result.
 
 pub mod build;
-pub mod check;
 pub mod delete;
 pub mod edit;
+pub mod has;
 pub mod hash;
 pub mod list;
 pub mod oci;

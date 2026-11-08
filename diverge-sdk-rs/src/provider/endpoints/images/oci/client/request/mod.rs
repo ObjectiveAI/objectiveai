@@ -1,6 +1,6 @@
 //! Image pull request data.
 //!
-//! There is none. The request has no fields — see [`Frame`].
+//! The one image the scope serves — see [`Frame`].
 
 mod frame;
 

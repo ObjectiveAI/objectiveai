@@ -64,27 +64,31 @@ pub struct Capabilities {
     /// [`stat`](crate::provider::endpoints::images::stat),
     /// [`build`](crate::provider::endpoints::images::build),
     /// [`push`](crate::provider::endpoints::images::push),
-    /// [`edit`](crate::provider::endpoints::images::edit),
-    /// [`hash`](crate::provider::endpoints::images::hash),
-    /// [`delete`](crate::provider::endpoints::images::delete) and
-    /// [`oci`](crate::provider::endpoints::images::oci), and an
-    /// [`images::check`](crate::provider::endpoints::images::check)
-    /// asking the `client` source looks in it. Absent — `false` —
-    /// each of the eight answers `Unsupported`, and a check asking
-    /// only `client` answers `NoSource`.
+    /// [`edit`](crate::provider::endpoints::images::edit) and
+    /// [`delete`](crate::provider::endpoints::images::delete), and
+    /// [`images::has`](crate::provider::endpoints::images::has),
+    /// [`hash`](crate::provider::endpoints::images::hash) and
+    /// [`oci`](crate::provider::endpoints::images::oci) look in it
+    /// first. Absent — `false` — each of the six answers
+    /// `Unsupported`, and `has`, `hash` and `oci` answer `Unsupported`
+    /// when [`images_registries`](Self::images_registries) is empty
+    /// as well.
     #[serde(default)]
     pub images_store: bool,
     /// The registries the provider pulls from: each a host as a
     /// [`Reference`](crate::shared::containers::request::Reference)
     /// names it — `docker.io`, `ghcr.io`, `registry.example.com:5000`
     /// — and the whole of them. An
-    /// [`images::check`](crate::provider::endpoints::images::check)
-    /// asking the `registries` source consults exactly these, and a
-    /// reference naming any other is ignored; a run's image whose
-    /// references name none of these, and that neither the caller's
-    /// Store nor the caller holds, cannot be supplied. Absent — empty — the provider
-    /// pulls from no registry, and a check asking only `registries`
-    /// answers `NoSource`.
+    /// [`images::has`](crate::provider::endpoints::images::has), an
+    /// [`images::hash`](crate::provider::endpoints::images::hash) and
+    /// an [`images::oci`](crate::provider::endpoints::images::oci)
+    /// consult exactly these after the caller's Store, and a reference
+    /// naming any other is ignored; a run's image whose references
+    /// name none of these, and that neither the caller's Store nor the
+    /// caller holds, cannot be supplied. Absent — empty — the provider
+    /// pulls from no registry, and `has`, `hash` and `oci` answer
+    /// `Unsupported` when [`images_store`](Self::images_store) is
+    /// `false` as well.
     #[serde(default)]
     pub images_registries: Vec<String>,
     /// What may be done with a volume in the

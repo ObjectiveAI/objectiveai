@@ -44,7 +44,7 @@ use crate::shared::containers::{daemon, fuse, oci, postgres, registration, write
 /// never declares.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
-    /// A manifest of an image the caller holds, by digest. Tag `0`.
+    /// A manifest of the run's image, by digest. Tag `0`.
     ///
     /// Opened when the provider takes the image from the caller, and
     /// opened by the container RUNTIME's appetite rather
@@ -52,17 +52,19 @@ pub enum Frame<'a> {
     /// and a manifest its store does not hold becomes one of these.
     /// See [`oci`](crate::shared::containers::oci).
     OciManifest(oci::manifest::request::Request),
-    /// A blob of an image the caller holds, by digest. Tag `1`.
+    /// A blob of the run's image, by digest. Tag `1`.
     ///
     /// The other half of a pull; see
     /// [`oci`](crate::shared::containers::oci).
     OciBlob(oci::blob::request::Request),
-    /// Whether the caller holds an image, by digest, and under what
-    /// name. Tag `2`.
+    /// Whether the caller holds an image, and under what name. Tag
+    /// `2`.
     ///
-    /// Opened by a provider that would take the image from the caller,
-    /// before it asks for anything of it; see
-    /// [`oci`](crate::shared::containers::oci).
+    /// Carries the run's own
+    /// [`Image`](crate::shared::containers::request::Image), its
+    /// digest and its references. Opened by a provider that would take
+    /// the image from the caller, before it asks for anything of it;
+    /// see [`oci::has`](crate::shared::containers::oci::has).
     OciHas(oci::has::request::Request),
     /// Send the content for a write. Tag `3`.
     ///

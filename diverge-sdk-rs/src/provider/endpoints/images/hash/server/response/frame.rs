@@ -6,8 +6,9 @@ use crate::shared::error::Error;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// The proof, or the word that the caller owns no such image, or that
-/// the provider has no Store, or that it could not.
+/// The proof, or the word that the provider cannot supply the image,
+/// or that it has neither a Store nor any registry, or that it could
+/// not.
 ///
 /// One of these on channel `0`, then the scope finishes. A payload
 /// leads with one byte saying which — `0` for [`Hash`](Self::Hash),
@@ -19,23 +20,28 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// | the scope ends with | means |
 /// |----------------------|-------|
-/// | [`Hash`](Self::Hash), then a finish | the proof over the caller's image, as the provider holds it |
-/// | [`NotFound`](Self::NotFound), then a finish | the caller owns no image by the digest, or the platform is not in it |
-/// | [`Unsupported`](Self::Unsupported), then a finish | the provider has no Store |
+/// | [`Hash`](Self::Hash), then a finish | the proof over the image, as the provider can supply it |
+/// | [`NotFound`](Self::NotFound), then a finish | the provider cannot supply the image, or the platform rule is broken |
+/// | [`Unsupported`](Self::Unsupported), then a finish | the provider has neither a Store nor any registry |
 /// | an [`Error`](Self::Error), then a finish | it could not, for some other reason |
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The proof: `SHA-256(nonce ‖ D)` over the provider's own copy of
-    /// the caller's image. Tag `0`, then the 32 bytes.
+    /// The proof: `SHA-256(nonce ‖ D)` over the image, as the provider
+    /// can supply it — from the caller's Store, or from a registry it
+    /// is configured with. Tag `0`, then the 32 bytes.
     Hash {
         /// The proof.
         proof: [u8; 32],
     },
-    /// The caller owns no image by the digest, or the platform is not
-    /// a manifest of the index it names. Tag `1`.
+    /// The provider cannot supply the image — neither the caller's
+    /// Store nor a registry it is configured with, named by one of the
+    /// image's references, has it — or the platform is absent for an
+    /// index, present for an image manifest, or not a manifest of the
+    /// index. Tag `1`.
     NotFound,
-    /// The provider has no Store — its `images_store` is `false`, see
-    /// [`info`](crate::provider::endpoints::info). Tag `2`.
+    /// The provider has neither a Store — its `images_store` is
+    /// `false` — nor any registry — its `images_registries` is empty;
+    /// see [`info`](crate::provider::endpoints::info). Tag `2`.
     ///
     /// Carries nothing. A caller asks another provider; nothing about
     /// the request is the cause.

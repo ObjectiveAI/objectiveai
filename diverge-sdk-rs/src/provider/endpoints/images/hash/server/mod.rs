@@ -1,6 +1,8 @@
 //! The server side of an image hash: what a provider sends.
 //!
-//! [`response`] is the whole of it. A provider computes the proof over its own copy, answers, and is done; it opens no channel of its own.
+//! [`response`] is the whole of it. A provider computes the proof
+//! over the image as it can supply it, answers, and is done; it opens
+//! no channel of its own.
 //!
 //! # And a way to answer it
 //!

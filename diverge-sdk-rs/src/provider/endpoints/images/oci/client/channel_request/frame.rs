@@ -6,49 +6,40 @@ use crate::shared::containers::oci;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// What a caller asks a provider for on an image pull: three of the
-/// asks of [`oci`](crate::shared::containers::oci), byte for byte as
-/// the provider asks them of a caller on a run scope — the same tags,
-/// the same request bodies, the same answers — and the disconnect
-/// that ends the scope. Not the proof: that is
+/// What a caller asks a provider for on an image pull: two of the
+/// asks of [`oci`](crate::shared::containers::oci) — the same request
+/// bodies and the same answers as on a run — and the cancel that ends
+/// the scope. Not the proof: that is
 /// [`hash`](crate::provider::endpoints::images::hash).
 ///
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`OciManifest`](Self::OciManifest) |
 /// | `1` | [`OciBlob`](Self::OciBlob) |
-/// | `2` | [`OciHas`](Self::OciHas) |
-/// | `3` | [`Disconnect`](Self::Disconnect) |
+/// | `2` | [`Cancel`](Self::Cancel) |
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Frame {
-    /// A manifest of an image in the caller's Store, by digest. Tag
-    /// `0`.
+    /// A manifest the scope's image reaches, by digest. Tag `0`.
     ///
     /// Answered with at most one frame, the media type and the bytes,
-    /// then the finish; the empty finish for a digest not in the
-    /// caller's Store. See
+    /// then the finish; the empty finish for a digest the image does
+    /// not reach. See
     /// [`oci::manifest`](crate::shared::containers::oci::manifest).
     OciManifest(oci::manifest::request::Request),
-    /// A blob of such an image, by digest. Tag `1`.
+    /// A blob the scope's image reaches, by digest. Tag `1`.
     ///
     /// Answered with the blob's bytes as zero or more frames, each
-    /// appending, then the finish; zero frames is a digest not in the
-    /// caller's Store. See
+    /// appending, then the finish; zero frames is a digest the image
+    /// does not reach. See
     /// [`oci::blob`](crate::shared::containers::oci::blob).
     OciBlob(oci::blob::request::Request),
-    /// Whether the caller's Store holds an image, by digest. Tag `2`.
-    ///
-    /// Answered with one frame, the byte `0`, or the byte `1` and the
-    /// fixed label `image`, then the finish. See
-    /// [`oci::has`](crate::shared::containers::oci::has).
-    OciHas(oci::has::request::Request),
-    /// Leave the scope. Tag `3`.
+    /// End the scope. Tag `2`.
     ///
     /// Carries nothing — the variant is bare — and nothing comes back
     /// on this channel: the provider sends no channel response and no
     /// channel response finish on it. What comes back is the scope's
     /// finish, after every ask still being answered has been.
-    Disconnect,
+    Cancel,
 }
 
 /// Tag for [`Frame::OciManifest`].
@@ -57,15 +48,12 @@ const OCI_MANIFEST: u8 = 0;
 /// Tag for [`Frame::OciBlob`].
 const OCI_BLOB: u8 = 1;
 
-/// Tag for [`Frame::OciHas`].
-const OCI_HAS: u8 = 2;
+/// Tag for [`Frame::Cancel`].
+const CANCEL: u8 = 2;
 
-/// Tag for [`Frame::Disconnect`].
-const DISCONNECT: u8 = 3;
-
-/// A tag, then the ask's own JSON; the disconnect is the tag alone.
+/// A tag, then the ask's own JSON; the cancel is the tag alone.
 impl Encode for Frame {
-    /// The ordinary JSON failure, from the three variants that have
+    /// The ordinary JSON failure, from the two variants that have
     /// one. A lone tag byte cannot fail.
     type Error = serde_json::Error;
 
@@ -79,12 +67,8 @@ impl Encode for Frame {
                 out.extend_from_slice(&[OCI_BLOB]);
                 request.encode(out)
             }
-            Frame::OciHas(request) => {
-                out.extend_from_slice(&[OCI_HAS]);
-                request.encode(out)
-            }
-            Frame::Disconnect => {
-                out.extend_from_slice(&[DISCONNECT]);
+            Frame::Cancel => {
+                out.extend_from_slice(&[CANCEL]);
                 Ok(())
             }
         }
@@ -92,7 +76,7 @@ impl Encode for Frame {
 }
 
 impl Decode<'_> for Frame {
-    /// Three ways to fail: nothing, a tag that is none of the four, or
+    /// Three ways to fail: nothing, a tag that is none of the three, or
     /// an ask that did not parse.
     type Error = FrameError;
 
@@ -101,8 +85,7 @@ impl Decode<'_> for Frame {
         match *tag {
             OCI_MANIFEST => oci::manifest::request::Request::decode(rest).map(Frame::OciManifest).map_err(FrameError::Oci),
             OCI_BLOB => oci::blob::request::Request::decode(rest).map(Frame::OciBlob).map_err(FrameError::Oci),
-            OCI_HAS => oci::has::request::Request::decode(rest).map(Frame::OciHas).map_err(FrameError::Oci),
-            DISCONNECT => Ok(Frame::Disconnect),
+            CANCEL => Ok(Frame::Cancel),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -113,7 +96,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// An ask did not parse.
     Oci(serde_json::Error),

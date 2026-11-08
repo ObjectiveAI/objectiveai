@@ -1,8 +1,9 @@
 //! Whether the caller possesses an image: the nonce check.
 //!
-//! The provider opens a channel with a [`request::Request`] — a fresh
-//! nonce, the manifest digest the image is named by, and the platform
-//! manifest's digest when that manifest is an index — and the caller
+//! The provider opens a channel with a [`request::Request`] — the
+//! [`Image`](crate::shared::containers::request::Image), the platform
+//! manifest's digest when the image's manifest is an index, and a
+//! fresh nonce — and the caller
 //! answers with one [`response::Frame`], the 32 bytes of the proof,
 //! then the finish; the empty finish is not held. It is the last ask
 //! of every image a provider takes from the caller, by a run or by an
@@ -15,18 +16,21 @@
 //! 1. **The nonce.** Exactly 32 bytes, which the provider draws from
 //!    a cryptographic random source for this one check and uses for
 //!    no other.
-//! 2. **The image's bytes, `D`.** The concatenation, in this order and
-//!    with no separator between any two parts, of:
-//!    1. the bytes of the manifest named by `digest`, verbatim;
+//! 2. **The image's bytes, `D`.** Defined over the image
+//!    `image.digest` names, and over nothing the references say: a
+//!    reference is only where the image's bytes may be fetched, and
+//!    the same bytes under any name prove the same. The concatenation,
+//!    in this order and with no separator between any two parts, of:
+//!    1. the bytes of the manifest named by `image.digest`, verbatim;
 //!    2. when that manifest is an image index: the bytes of the
 //!       manifest named by `platform`, verbatim;
 //!    3. the bytes of every blob that the image manifest references —
 //!       the platform manifest when there is an index, the manifest
-//!       named by `digest` otherwise: the config first, then each
+//!       named by `image.digest` otherwise: the config first, then each
 //!       entry of its `layers`, in order — an entry naming the same
 //!       blob as an earlier one is hashed again.
 //! 2a. **The platform, required or forbidden.** `platform` is
-//!    present exactly when the manifest named by `digest` is an index,
+//!    present exactly when the manifest named by `image.digest` is an index,
 //!    and then names a manifest that index lists. An ask that breaks
 //!    this names no image: it is answered not held, and the check
 //!    fails. No proof is ever computed over an index alone. Where the

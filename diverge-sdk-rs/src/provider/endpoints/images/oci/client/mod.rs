@@ -1,8 +1,8 @@
 //! The client side of an image pull: what a client sends.
 //!
-//! [`request`] opens the scope, and it is empty; [`channel_request`]
-//! is what the client opens on it: the three OCI asks, and the
-//! disconnect that ends the scope. There is no `response` here the
+//! [`request`] opens the scope, naming the one image it serves;
+//! [`channel_request`] is what the client opens on it: the two OCI
+//! asks, and the cancel that ends the scope. There is no `response` here the
 //! way there is on the other side: the provider's answers come on
 //! the asks' channels.
 //!
@@ -11,7 +11,7 @@
 //! [`execute`] performs the exchange rather than describing it: hand
 //! it a [`Handle`](crate::wire::client::handle::Handle) and a
 //! [`request::Frame`], get an [`ExecuteHandle`](execute::ExecuteHandle)
-//! with one method per ask, and the disconnect.
+//! with one method per ask, and the cancel.
 //!
 //! Every other module in [`endpoints`](crate::provider::endpoints) is types only,
 //! and this one still is unless a caller asked for the half of the

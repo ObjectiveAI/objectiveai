@@ -1,5 +1,5 @@
-//! What a provider sends on a pull's main stream, if anything: the
-//! one refusal — see [`Frame`].
+//! What a provider sends on a pull's main stream, if anything: one of
+//! the two refusals — see [`Frame`].
 //!
 //! Nothing is aliased here, because nothing here is somebody else's
 //! frame.

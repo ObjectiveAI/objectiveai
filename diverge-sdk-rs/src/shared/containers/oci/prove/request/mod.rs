@@ -1,4 +1,4 @@
-//! The ask: a nonce, a digest, and a platform.
+//! The ask: an image, a platform, and a nonce.
 
 mod request;
 

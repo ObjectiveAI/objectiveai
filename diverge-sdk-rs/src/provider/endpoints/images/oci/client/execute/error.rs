@@ -14,12 +14,15 @@ pub enum ExecuteError {
     /// [`SendError`] for the three reasons, only one of which is about
     /// this exchange rather than the whole connection.
     Send(SendError),
+    /// The request would not serialize.
+    Request(serde_json::Error),
 }
 
 impl fmt::Display for ExecuteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ExecuteError::Send(error) => write!(f, "image pull request could not be sent: {error}"),
+            ExecuteError::Request(error) => write!(f, "image pull request did not serialize: {error}"),
         }
     }
 }
@@ -28,6 +31,7 @@ impl std::error::Error for ExecuteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             ExecuteError::Send(error) => Some(error),
+            ExecuteError::Request(error) => Some(error),
         }
     }
 }

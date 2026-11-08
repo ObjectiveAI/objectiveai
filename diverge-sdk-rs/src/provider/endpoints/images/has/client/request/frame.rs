@@ -1,52 +1,33 @@
-//! What a client's request frame carries for an image check.
+//! What a client's request frame carries for an image has.
 
-use serde::{Deserialize, Serialize};
-
-use super::Sources;
-use crate::shared::containers::request::Image;
+use crate::shared::containers::oci;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// Ask a provider whether it can supply a particular image: the
-/// [`Image`] — its digest, and the references under which its bytes
-/// may be fetched — and where to look for it, the [`Sources`].
+/// [`Image`](crate::shared::containers::request::Image) — its digest,
+/// and the references under which its bytes may be fetched — as the
+/// shared [`oci::has`](crate::shared::containers::oci::has) request
+/// carries it.
 ///
 /// The digest is the image's identity and a reference is only a
 /// locator — any registry serving these bytes serves the same image,
 /// because a client recomputes the hash on pull and rejects a
 /// mismatch. The references are where the client knows the bytes to
 /// be, and a client that knows of none sends none; a provider asks a
-/// referenced registry only where its own policy lists it.
+/// referenced registry only where it is configured with it. Where it
+/// looks, and in what order, is stated on [`has`](super::super::super).
 ///
-/// # Where to look
+/// # On the wire
 ///
-/// Two places, each asked for or not, either or both: the Store — the
-/// client's own images, built or pushed on this provider — and the
-/// referenced registries. At least one is asked for, or the provider
-/// answers
-/// [`NoSource`](crate::provider::endpoints::images::check::server::response::Frame::NoSource)
-/// and determines nothing. Available means at least one source asked
-/// has the image; the provider looks in the Store before it asks a
-/// registry. What the provider holds on its own
-/// account is not a place a check can look: no image it pulled is
-/// revealed by one. See [`Sources`].
-///
-/// # An image the client owns is one the provider holds, for it
-///
-/// A digest the client owns in its Store on this provider is
-/// available to that client, from the Store, when the `client` source
-/// is asked; to any other client it is not there, unless that client
-/// owns it too. A provider never answers one identity's Store to
-/// another.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Frame {
+/// The tag, then the shared request's JSON, which is exactly the
+/// image's: `{"digest":…,"references":[…]}`, `references` absent when
+/// there are none.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Frame(
     /// The image asked about.
-    pub image: Image,
-    /// Where to look: two booleans, flat in the JSON beside
-    /// `image`.
-    #[serde(flatten)]
-    pub sources: Sources,
-}
+    pub oci::has::request::Request,
+);
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -68,7 +49,7 @@ impl Encode for Frame {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
-        serde_json::to_writer(out, self)
+        self.0.encode(out)
     }
 }
 
@@ -81,11 +62,11 @@ impl Decode<'_> for Frame {
         if *tag != TAG {
             return Err(FrameError::UnexpectedTag(*tag));
         }
-        serde_json::from_slice(rest).map_err(FrameError::Body)
+        oci::has::request::Request::decode(rest).map(Frame).map_err(FrameError::Body)
     }
 }
 
-/// A an image check request request frame that could not be read.
+/// An image has request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -104,13 +85,13 @@ impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FrameError::Empty => {
-                f.write_str("an image check request request frame is empty")
+                f.write_str("an image has request frame is empty")
             }
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected an image check request request tag {TAG}, found {tag}")
+                write!(f, "expected an image has request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "an image check request request did not parse: {error}")
+                write!(f, "an image has request did not parse: {error}")
             }
         }
     }

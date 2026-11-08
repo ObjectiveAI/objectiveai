@@ -38,7 +38,7 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// # On the wire
 ///
-/// JSON after the tag, as [`images::check`](crate::provider::endpoints::images::check)
+/// JSON after the tag, as [`images::has`](crate::provider::endpoints::images::has)
 /// and the runs carry an [`Image`]: its references are absent when
 /// there are none, which a format with no self-description cannot
 /// say.

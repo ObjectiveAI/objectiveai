@@ -5,6 +5,8 @@ use rmcp::model::{CallToolRequestParams, PaginatedRequestParams, ReadResourceReq
 
 use crate::provider::endpoints::containers::{agents, tools};
 use crate::shared::containers::fuse::Attrs;
+use crate::shared::containers::oci;
+use crate::shared::containers::request::Image;
 use crate::shared::containers::dependencies::Template;
 use crate::shared::containers::secrets::Declaration;
 use crate::shared::permission::Grant;
@@ -24,23 +26,16 @@ use crate::shared::permission::Grant;
 /// and dialer are the same behind either.
 #[derive(Debug, Clone)]
 pub enum Ask {
-    /// The manifest of an image the caller holds, by digest.
+    /// A manifest of the scope's image, by digest.
     OciManifest(String),
-    /// A blob of an image the caller holds, by digest.
+    /// A blob of the scope's image, by digest.
     OciBlob(String),
-    /// Whether the caller holds an image: its digest.
-    OciHas(String),
-    /// The proof that the caller holds an image: the digest, the
-    /// platform manifest's digest when the digest names an index, and
+    /// Whether the caller holds an image: the image the ask names.
+    OciHas(Image),
+    /// The proof that the caller holds an image: the image, the
+    /// platform manifest's digest when its digest names an index, and
     /// the nonce.
-    OciProve {
-        /// The manifest digest the image is named by.
-        digest: String,
-        /// The platform manifest's digest, when `digest` is an index.
-        platform: Option<String>,
-        /// The nonce, fresh for this one check.
-        nonce: [u8; 32],
-    },
+    OciProve(oci::prove::request::Request),
     /// The container's registration: the dependencies it declared, to
     /// deploy, the secrets it takes, to resolve, and the permissions it
     /// holds, with the run's id.
@@ -103,12 +98,8 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
         match frame {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
-            Frame::OciHas(request) => Ask::OciHas(request.digest),
-            Frame::OciProve(request) => Ask::OciProve {
-                digest: request.digest,
-                platform: request.platform,
-                nonce: request.nonce,
-            },
+            Frame::OciHas(request) => Ask::OciHas(request.image),
+            Frame::OciProve(request) => Ask::OciProve(request),
             Frame::Registration(request) => Ask::Registration {
                 id: request.id.into_owned(),
                 dependencies: request.dependencies.into_owned(),
@@ -161,12 +152,8 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
         match frame {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
-            Frame::OciHas(request) => Ask::OciHas(request.digest),
-            Frame::OciProve(request) => Ask::OciProve {
-                digest: request.digest,
-                platform: request.platform,
-                nonce: request.nonce,
-            },
+            Frame::OciHas(request) => Ask::OciHas(request.image),
+            Frame::OciProve(request) => Ask::OciProve(request),
             Frame::Registration(request) => Ask::Registration {
                 id: request.id.into_owned(),
                 dependencies: request.dependencies.into_owned(),
