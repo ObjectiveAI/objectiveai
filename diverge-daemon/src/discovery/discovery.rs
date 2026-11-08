@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
-use diverge_sdk::daemon::endpoints::providers::discover::server::response::{Discovered, Via};
+use diverge_sdk::daemon::endpoints::providers::daemons::discover::server::response::{Discovered, Via};
 use diverge_sdk::provider::endpoints::discover::client::{execute, request};
 use diverge_sdk::provider::endpoints::discover::server::response;
 use diverge_sdk::provider::endpoints::discover::server::response::Discoverable;

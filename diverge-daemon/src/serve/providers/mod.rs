@@ -5,13 +5,13 @@
 //! change read into the [`ProviderBook`](crate::providers::ProviderBook)
 //! and taking effect through [`reconcile`](crate::providers::reconcile);
 //! [`get`] and [`list`] report them, each with where the daemon stands
-//! with it now; [`discover`] lists the identities discoverable through
-//! them.
+//! with it now; [`daemons`] serves the requests over the daemons
+//! reached through them: discover, listen and message.
 
 pub mod add;
+pub mod daemons;
 pub mod delete;
 pub mod disable;
-pub mod discover;
 pub mod edit;
 pub mod enable;
 pub mod get;

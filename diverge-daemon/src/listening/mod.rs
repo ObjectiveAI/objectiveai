@@ -7,7 +7,7 @@
 //! the first listener, cancelled after the last — and takes every
 //! message into one ring that every listener reads at its own pace:
 //! [`Listening`], read by
-//! [`daemons::listen`](crate::serve::daemons::listen).
+//! [`providers::daemons::listen`](crate::serve::providers::daemons::listen).
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

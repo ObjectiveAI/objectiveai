@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::providers::Ip;
-use crate::daemon::endpoints::providers::discover::server::response::Via;
+use crate::daemon::endpoints::providers::daemons::discover::server::response::Via;
 use crate::shared::Identity;
 
 /// The routes a record lets the daemon reach its remote by, out of the

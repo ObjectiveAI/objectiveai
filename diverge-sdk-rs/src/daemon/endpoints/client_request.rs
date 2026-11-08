@@ -238,7 +238,7 @@ pub enum ClientRequest<'a> {
     AgentsConnect(agents::connect::client::request::Frame),
     /// Tag `125`. Every identity discoverable through the connected
     /// providers, kept.
-    ProvidersDiscover(providers::discover::client::request::Frame),
+    ProvidersDaemonsDiscover(providers::daemons::discover::client::request::Frame),
     /// Tag `126`. The host's identities, each with its tags.
     IdentitiesList(identities::list::client::request::Frame),
     /// Tag `127`. Tags put on one of the host's identities.
@@ -274,9 +274,9 @@ pub enum ClientRequest<'a> {
     /// Tag `142`. Tags taken off a provider's record.
     ProvidersUntag(providers::untag::client::request::Frame),
     /// Tag `143`. The messages sent to the daemon, as they come.
-    DaemonsListen(daemons::listen::client::request::Frame),
+    ProvidersDaemonsListen(providers::daemons::listen::client::request::Frame),
     /// Tag `144`. One direct message, through a provider the daemon chooses.
-    DaemonsMessage(daemons::message::client::request::Frame),
+    ProvidersDaemonsMessage(providers::daemons::message::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -397,7 +397,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::DependencyToolsFrontend(frame) => frame.encode(out),
             ClientRequest::AgentsFrontend(frame) => frame.encode(out),
             ClientRequest::AgentsConnect(frame) => frame.encode(out),
-            ClientRequest::ProvidersDiscover(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsDiscover(frame) => frame.encode(out),
             ClientRequest::IdentitiesList(frame) => frame.encode(out),
             ClientRequest::IdentitiesTag(frame) => frame.encode(out),
             ClientRequest::IdentitiesUntag(frame) => frame.encode(out),
@@ -414,8 +414,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersDisable(frame) => frame.encode(out),
             ClientRequest::ProvidersTag(frame) => frame.encode(out),
             ClientRequest::ProvidersUntag(frame) => frame.encode(out),
-            ClientRequest::DaemonsListen(frame) => frame.encode(out),
-            ClientRequest::DaemonsMessage(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsListen(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsMessage(frame) => frame.encode(out),
             ClientRequest::IdentitiesLogin(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -747,8 +747,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             124 => agents::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsConnect)
                 .ok(),
-            125 => providers::discover::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ProvidersDiscover)
+            125 => providers::daemons::discover::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsDiscover)
                 .ok(),
             126 => identities::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesList)
@@ -798,11 +798,11 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             142 => providers::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersUntag)
                 .ok(),
-            143 => daemons::listen::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DaemonsListen)
+            143 => providers::daemons::listen::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsListen)
                 .ok(),
-            144 => daemons::message::client::request::Frame::decode(bytes)
-                .map(ClientRequest::DaemonsMessage)
+            144 => providers::daemons::message::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsMessage)
                 .ok(),
             128 => identities::login::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesLogin)
@@ -918,7 +918,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::DependencyToolsFrontend(_) => f.write_str("dependency tools frontend"),
             ClientRequest::AgentsFrontend(_) => f.write_str("agents frontend"),
             ClientRequest::AgentsConnect(_) => f.write_str("agents connect"),
-            ClientRequest::ProvidersDiscover(_) => f.write_str("providers discover"),
+            ClientRequest::ProvidersDaemonsDiscover(_) => f.write_str("providers daemons discover"),
             ClientRequest::IdentitiesList(_) => f.write_str("identities list"),
             ClientRequest::IdentitiesTag(_) => f.write_str("identities tag"),
             ClientRequest::IdentitiesUntag(_) => f.write_str("identities untag"),
@@ -935,8 +935,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersDisable(_) => f.write_str("providers disable"),
             ClientRequest::ProvidersTag(_) => f.write_str("providers tag"),
             ClientRequest::ProvidersUntag(_) => f.write_str("providers untag"),
-            ClientRequest::DaemonsListen(_) => f.write_str("daemons listen"),
-            ClientRequest::DaemonsMessage(_) => f.write_str("daemons message"),
+            ClientRequest::ProvidersDaemonsListen(_) => f.write_str("providers daemons listen"),
+            ClientRequest::ProvidersDaemonsMessage(_) => f.write_str("providers daemons message"),
             ClientRequest::IdentitiesLogin(_) => f.write_str("identities login"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
@@ -1052,7 +1052,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "dependency_tools/frontend" => Some(122),
         "agents/frontend" => Some(123),
         "agents/connect" => Some(124),
-        "providers/discover" => Some(125),
+        "providers/daemons/discover" => Some(125),
         "identities/list" => Some(126),
         "identities/tag" => Some(127),
         "identities/untag" => Some(129),
@@ -1069,8 +1069,8 @@ pub fn tag(path: &str) -> Option<u8> {
         "providers/disable" => Some(140),
         "providers/tag" => Some(141),
         "providers/untag" => Some(142),
-        "daemons/listen" => Some(143),
-        "daemons/message" => Some(144),
+        "providers/daemons/listen" => Some(143),
+        "providers/daemons/message" => Some(144),
         "identities/login" => Some(128),
         _ => None,
     }
@@ -1183,7 +1183,7 @@ impl ClientRequest<'_> {
             ClientRequest::DependencyToolsFrontend(_) => "dependency_tools/frontend",
             ClientRequest::AgentsFrontend(_) => "agents/frontend",
             ClientRequest::AgentsConnect(_) => "agents/connect",
-            ClientRequest::ProvidersDiscover(_) => "providers/discover",
+            ClientRequest::ProvidersDaemonsDiscover(_) => "providers/daemons/discover",
             ClientRequest::IdentitiesList(_) => "identities/list",
             ClientRequest::IdentitiesTag(_) => "identities/tag",
             ClientRequest::IdentitiesUntag(_) => "identities/untag",
@@ -1200,8 +1200,8 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDisable(_) => "providers/disable",
             ClientRequest::ProvidersTag(_) => "providers/tag",
             ClientRequest::ProvidersUntag(_) => "providers/untag",
-            ClientRequest::DaemonsListen(_) => "daemons/listen",
-            ClientRequest::DaemonsMessage(_) => "daemons/message",
+            ClientRequest::ProvidersDaemonsListen(_) => "providers/daemons/listen",
+            ClientRequest::ProvidersDaemonsMessage(_) => "providers/daemons/message",
             ClientRequest::IdentitiesLogin(_) => "identities/login",
             ClientRequest::Invalid(_) => "",
         }

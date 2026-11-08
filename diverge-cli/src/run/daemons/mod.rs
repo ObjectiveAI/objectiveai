@@ -14,8 +14,6 @@ pub mod delete;
 pub mod edit;
 pub mod get;
 pub mod list;
-pub mod listen;
-pub mod message;
 pub mod tag;
 pub mod untag;
 
@@ -32,10 +30,6 @@ pub enum Daemons {
     Get(get::Arguments),
     /// Listing the remote daemons' records.
     List(list::Arguments),
-    /// Listening for the messages sent to the daemon.
-    Listen(listen::Arguments),
-    /// Sending one direct message through the daemon's providers.
-    Message(message::Arguments),
     /// Putting tags on a remote daemon's record.
     Tag(tag::Arguments),
     /// Taking tags off a remote daemon's record.
@@ -54,8 +48,6 @@ pub async fn run(
         Daemons::Edit(arguments) => edit::run(arguments, target, emitter).await,
         Daemons::Get(arguments) => get::run(arguments, target, emitter).await,
         Daemons::List(arguments) => list::run(arguments, target, emitter).await,
-        Daemons::Listen(arguments) => listen::run(arguments, target, emitter).await,
-        Daemons::Message(arguments) => message::run(arguments, target, emitter).await,
         Daemons::Tag(arguments) => tag::run(arguments, target, emitter).await,
         Daemons::Untag(arguments) => untag::run(arguments, target, emitter).await,
     }

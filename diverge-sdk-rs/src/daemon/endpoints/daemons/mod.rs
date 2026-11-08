@@ -22,9 +22,9 @@
 //! 2. **Reached through discovery.** The daemon reaches a remote through
 //!    a connected provider whose discover listing holds the remote's
 //!    identity — one route, a
-//!    [`Via`](crate::daemon::endpoints::providers::discover::server::response::Via)
+//!    [`Via`](crate::daemon::endpoints::providers::daemons::discover::server::response::Via)
 //!    — and holds those listings open while it is reaching remotes, as
-//!    [`providers::discover`](crate::daemon::endpoints::providers::discover)
+//!    [`providers::daemons::discover`](crate::daemon::endpoints::providers::daemons::discover)
 //!    holds them while watched. A remote that is discoverable on no
 //!    connected provider is not reached.
 //! 2a. **Through the routes its record lets through.** Of those routes,
@@ -47,7 +47,5 @@ pub mod delete;
 pub mod edit;
 pub mod get;
 pub mod list;
-pub mod listen;
-pub mod message;
 pub mod tag;
 pub mod untag;

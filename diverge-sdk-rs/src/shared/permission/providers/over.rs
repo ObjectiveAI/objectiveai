@@ -19,16 +19,16 @@ pub enum Over {
     /// does; the list sends what the grant reaches.
     List,
     /// Discover the identities their discover listings hold, as
-    /// [`providers::discover`](crate::daemon::endpoints::providers::discover)
+    /// [`providers::daemons::discover`](crate::daemon::endpoints::providers::daemons::discover)
     /// does; the listing holds only the routes through the providers
     /// the grant reaches.
     Discover,
     /// Hear the messages sent to the daemon through them, as
-    /// [`daemons::listen`](crate::daemon::endpoints::daemons::listen)
+    /// [`providers::daemons::listen`](crate::daemon::endpoints::providers::daemons::listen)
     /// does; the daemon sends only those that came through the
     /// providers the grant reaches.
     Listen,
-    /// Send messages through them, as `daemons::message` does.
+    /// Send messages through them, as `providers::daemons::message` does.
     Message,
     /// Change one, as
     /// [`providers::edit`](crate::daemon::endpoints::providers::edit) does.

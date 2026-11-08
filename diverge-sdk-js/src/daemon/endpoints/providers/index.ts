@@ -7,16 +7,16 @@
 // `tag` and `untag` change the records, each change taking effect at
 // once; a delete forgets only a disabled provider nothing is pinned to.
 // A list or a get reports the daemon's `Status` with each and its latest
-// capacity. `discover` lists the identities discoverable through them:
-// what a `daemons` record names a remote by.
+// capacity. `daemons` holds the requests over the daemons reached
+// through them: discover, listen and message.
 
 export * from "./direction.js";
 export * from "./ip.js";
 export * from "./status.js";
 export * as add from "./add/index.js";
+export * as daemons from "./daemons/index.js";
 export * as delete from "./delete/index.js";
 export * as disable from "./disable/index.js";
-export * as discover from "./discover/index.js";
 export * as edit from "./edit/index.js";
 export * as enable from "./enable/index.js";
 export * as get from "./get/index.js";

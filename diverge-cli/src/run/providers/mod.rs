@@ -10,9 +10,9 @@ use clap::Subcommand;
 use crate::run::{Emitter, Error, Target};
 
 pub mod add;
+pub mod daemons;
 pub mod delete;
 pub mod disable;
-pub mod discover;
 pub mod edit;
 pub mod enable;
 pub mod get;
@@ -27,9 +27,10 @@ pub enum Providers {
     Get(get::Arguments),
     /// Listing the providers.
     List(list::Arguments),
-    /// Discovering peers through the connected providers: every
-    /// identity discoverable on one, with the providers it was seen on.
-    Discover(discover::Arguments),
+    /// The daemons reached through the providers: discovering them,
+    /// listening for the messages sent to the daemon, sending one.
+    #[command(subcommand)]
+    Daemons(daemons::Daemons),
     /// Adding a provider's record: dialled at once when it is outgoing
     /// and enabled.
     Add(add::Arguments),
@@ -59,7 +60,7 @@ pub async fn run(
     match command {
         Providers::Get(arguments) => get::run(arguments, target, emitter).await,
         Providers::List(arguments) => list::run(arguments, target, emitter).await,
-        Providers::Discover(arguments) => discover::run(arguments, target, emitter).await,
+        Providers::Daemons(command) => daemons::run(command, target, emitter).await,
         Providers::Add(arguments) => add::run(arguments, target, emitter).await,
         Providers::Edit(arguments) => edit::run(arguments, target, emitter).await,
         Providers::Delete(arguments) => delete::run(arguments, target, emitter).await,

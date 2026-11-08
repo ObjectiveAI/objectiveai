@@ -44,9 +44,12 @@
 //!
 //! # And the daemons beyond them
 //!
-//! [`discover`] lists the identities discoverable through its connected
-//! providers: what a [`daemons`](crate::daemon::endpoints::daemons)
-//! record names a remote by.
+//! [`daemons`] holds the three requests over the daemons reached
+//! through the providers: [`daemons::discover`] lists the identities
+//! discoverable through the connected providers, what a
+//! [`daemons`](crate::daemon::endpoints::daemons) record names a remote
+//! by; [`daemons::listen`] hears the messages sent to the daemon through
+//! them; [`daemons::message`] sends one through them.
 
 mod direction;
 mod ip;
@@ -57,9 +60,9 @@ pub use ip::*;
 pub use status::*;
 
 pub mod add;
+pub mod daemons;
 pub mod delete;
 pub mod disable;
-pub mod discover;
 pub mod edit;
 pub mod enable;
 pub mod get;

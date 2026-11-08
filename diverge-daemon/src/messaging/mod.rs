@@ -6,7 +6,7 @@
 //! at each of its providers, so it keeps, per provider, the one lane its
 //! sends take turns on and the window they are counted in:
 //! [`Messaging`], used by
-//! [`daemons::message`](crate::serve::daemons::message).
+//! [`providers::daemons::message`](crate::serve::providers::daemons::message).
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

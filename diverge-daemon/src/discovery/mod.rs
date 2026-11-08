@@ -8,7 +8,7 @@
 //! stopped after the last — shared by every watcher, and merges them
 //! into one item per identity, the providers it was seen on listed
 //! with it: [`Discovery`], read by
-//! [`providers::discover`](crate::serve::providers::discover).
+//! [`providers::daemons::discover`](crate::serve::providers::daemons::discover).
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

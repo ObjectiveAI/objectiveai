@@ -9,8 +9,8 @@
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
 //! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
 //! | [`dependency_tools`] | list the dependency tools agents' programs declare, one per template and owner, narrowed, each with the agents that depend on it and its run; get one; delete every tool of a template none of which runs; tag one and untag one; watch a running one's container whole; download files out of one, upload files into one, transfer files out of one |
-//! | [`providers`] | add a provider's record, get one, list them, edit one, delete a disabled one, enable one, disable one, tag one and untag one; discover the identities their listings hold |
-//! | [`daemons`] | record a remote daemon, get one, list them, edit one, delete one, tag one and untag one; listen for the messages sent to the daemon through its providers; send one through them |
+//! | [`providers`] | add a provider's record, get one, list them, edit one, delete a disabled one, enable one, disable one, tag one and untag one; discover the identities their listings hold, listen for the messages sent to the daemon through them, and send one through them |
+//! | [`daemons`] | record a remote daemon, get one, list them, edit one, delete one, tag one and untag one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`vault`] | insert a value into a key — making the key, appending the value or replacing a slot's; get one key with every value and who holds each; list them by name, narrowed, never by value; delete one no agent or tool binds, or one free value of it; tag one and untag one |
@@ -155,7 +155,7 @@
 //! | `122` | [`dependency_tools::frontend`] |
 //! | `123` | [`agents::frontend`] |
 //! | `124` | [`agents::connect`] |
-//! | `125` | [`providers::discover`] |
+//! | `125` | [`providers::daemons::discover`] |
 //! | `126` | [`identities::list`] |
 //! | `127` | [`identities::tag`] |
 //! | `128` | [`identities::login`] |
@@ -173,8 +173,8 @@
 //! | `140` | [`providers::disable`] |
 //! | `141` | [`providers::tag`] |
 //! | `142` | [`providers::untag`] |
-//! | `143` | [`daemons::listen`] |
-//! | `144` | [`daemons::message`] |
+//! | `143` | [`providers::daemons::listen`] |
+//! | `144` | [`providers::daemons::message`] |
 //!
 //! One hundred and forty-five, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
