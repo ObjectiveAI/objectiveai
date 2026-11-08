@@ -1,0 +1,23 @@
+---
+title: 'OCI blob'
+summary: 'Tag 1: the server asks the client for a blob of an image the client holds, by digest, when the server does not already hold it; the client answers with the bytes in zero or more channel responses; bytes that are not those the digest names end the push with Malformed.'
+order: 1
+draft: false
+---
+
+The server opens this channel when it obtains the image of the
+request from the client and does not already hold a blob that
+the image requires: a config or a layer.
+
+- **When.** Between the request and the response that ends the main stream.
+- **The request.** The tag byte `1` followed by the digest as JSON.
+  [Request](/endpoints/images-push/server/oci-blob/request/) states its form.
+- **The response.** The bytes of the blob in zero or more channel
+  responses and the channel response finish.
+  [Response](/endpoints/images-push/server/oci-blob/response/) states the
+  sequence.
+- **The image.** The server keeps only the image the digest names. A
+  blob that ends short, and bytes that are not those the digest
+  names, are answered `Malformed`, and a channel response finish that
+  no channel response precedes is answered `Unavailable`. How the
+  server holds or verifies the bytes is not prescribed.

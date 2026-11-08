@@ -10,9 +10,8 @@ draft: false
 ```
 
 - **`digest`.** The manifest digest, `<algorithm>:<hex>`.
-- **No name.** The ask names no repository. The server's store is
-  keyed by digest, and the repository path the server holds the image
-  under is the server's to answer.
+- **No name.** The ask names no repository. The client's Store is
+  keyed by digest.
 - **Malformed.** A channel request whose payload does not decode as
   stated is answered by a channel response finish that no channel
   response precedes.

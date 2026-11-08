@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 18 followed by the name, the Containerfile and the optional context, in the postcard wire format.'
+summary: 'The payload is the tag byte 18 followed by the optional description, the Containerfile and the optional context, in the postcard wire format.'
 order: 1
 draft: false
 ---
@@ -10,12 +10,18 @@ the postcard wire format, as the postcard reading of
 [Notation](/endpoints/#notation) provides:
 
 ```text
-[18][name_len: varint][name: utf8 …][containerfile_len: varint][containerfile: utf8 …][0]
-[18][name_len: varint][name: utf8 …][containerfile_len: varint][containerfile: utf8 …][1][volume_name_len: varint][volume_name: utf8 …][components: varint][component_len: varint][component: utf8 …]…
+[18][0][containerfile_len: varint][containerfile: utf8 …][0]
+[18][1][description_len: varint][description: utf8 …][containerfile_len: varint][containerfile: utf8 …][0]
+[18][0][containerfile_len: varint][containerfile: utf8 …][1][volume_name_len: varint][volume_name: utf8 …][components: varint][component_len: varint][component: utf8 …]…
+[18][1][description_len: varint][description: utf8 …][containerfile_len: varint][containerfile: utf8 …][1][volume_name_len: varint][volume_name: utf8 …][components: varint][component_len: varint][component: utf8 …]…
 ```
 
-- **`name`.** The name of the image, UTF-8, preceded by its byte
-  length as a varint. The client chooses it.
+- **`description`.** One byte: `0`, the image has no description; or
+  `1`, followed by the description, UTF-8, preceded by its byte length
+  as a varint. The description is a description as
+  [The description](/authorization/#the-description) defines it. A
+  description that does not conform to that definition does not
+  decode.
 - **`containerfile`.** The Containerfile, UTF-8, preceded by its byte
   length as a varint. The server builds from it verbatim.
 - **`context`.** One byte: `0`, the build has no context; or `1`,
@@ -29,6 +35,8 @@ the postcard wire format, as the postcard reading of
   the volume itself. A component that is empty, `.` or `..` is
   answered with an error. The context carries no mode: a build writes
   nothing into it.
+- **No name.** The request names no image. The image is named by the
+  digest the build produces.
 - **Bytes after the request.** A server ignores every byte that
   follows the `context` field. A request whose payload extends past
   the request is not malformed.

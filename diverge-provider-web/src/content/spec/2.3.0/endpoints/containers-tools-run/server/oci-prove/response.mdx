@@ -1,0 +1,26 @@
+---
+title: 'Response'
+summary: 'The client answers with exactly one channel response, the 32-byte proof, and the channel response finish; a finish with nothing before it states that it does not hold the image, and the check fails.'
+order: 2
+draft: false
+---
+
+```text
+[proof: 32 bytes]      exactly once: the proof
+```
+
+- **The sequence.** Exactly one channel response, followed by the
+  channel response finish. A channel response finish that no channel
+  response precedes states that the client does not hold the image,
+  and the check fails.
+- **The frame.** Exactly 32 bytes, the proof, with no tag and no
+  header, as [Possession](/shared/possession/#the-answer) defines. A
+  payload of any other length is malformed, and the check fails.
+- **The comparison.** The server compares the proof with the value it
+  computes over the bytes it holds, as
+  [Possession](/shared/possession/#the-comparison) states.
+
+The channel response is defined by `diverge-sdk-rs/src/shared/containers/oci/prove/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/prove/response/frame.rs
+```

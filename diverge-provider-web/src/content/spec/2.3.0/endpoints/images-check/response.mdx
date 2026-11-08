@@ -23,9 +23,9 @@ finish follows the response, and no frame follows the finish.
   objects: `{"type":"available"}` or `{"type":"unavailable"}`. The
   available answer states that at least one source the request asked
   for has the image, at the time of the answer, for a container
-  request naming the requested digest: the client's own images, built
-  on the server by [images::build](/endpoints/images-build/) and no
-  other client's, where `client` was asked and the server holds out
+  request naming the requested digest: the client's Store, as
+  [Image sources](/endpoints/#image-sources) defines it, and no other
+  client's, where `client` was asked and the server holds out
   the `images_store` capability; a referenced registry in the
   server's `images_registries`, where `registries` was asked. The server
   does not answer available on account of an image it holds on its

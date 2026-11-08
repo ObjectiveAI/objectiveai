@@ -1,0 +1,142 @@
+---
+title: 'Possession'
+summary: 'The nonce check: the server sends a fresh nonce of exactly 32 bytes in a prove ask; the client answers with exactly one channel response, the SHA-256 of the nonce followed by the bytes of the image, and the channel response finish; the server computes the same value over the bytes it holds, and any other answer fails the check.'
+order: 1
+draft: false
+---
+
+The nonce check establishes that the client possesses every byte of
+an image. The server opens a channel whose request is a `prove` ask
+carrying a nonce and naming the image. The client answers with
+exactly one channel response, the proof, and the channel response
+finish. The server computes the proof over the bytes of the image it
+holds and compares the two values. The check passes if, and only if,
+the two values are equal.
+
+## The nonce
+
+- **Thirty-two bytes.** The nonce is exactly 32 bytes.
+- **Random.** The server takes the nonce from a cryptographically
+  secure random source.
+- **Fresh.** The server generates the nonce for exactly one check. The
+  server sends no nonce in more than one `prove` ask, on any
+  connection, and compares no answer against a nonce of another
+  check.
+
+## The image bytes
+
+The image bytes `D` of an image are the concatenation of the
+following byte strings, in the order listed, with no byte between
+them, before them or after them:
+
+1. **The named manifest.** The bytes of the manifest whose digest is
+   the `digest` of the ask, verbatim: the bytes whose hash under the
+   digest's algorithm is that digest.
+2. **The platform manifest.** Where the manifest of item 1 is an
+   image index, the bytes of the manifest whose digest is the
+   `platform` of the ask, verbatim. Where the manifest of item 1 is
+   not an image index, item 2 is empty.
+3. **The config.** The bytes of the blob that the `config` member of
+   the image manifest names, verbatim.
+4. **The layers.** The bytes of the blob that each entry of the
+   `layers` array of the image manifest names, verbatim, one entry
+   after another in the order of the array. An entry that names the
+   same blob as an earlier entry contributes the bytes of that blob
+   again.
+
+- **The platform, required or forbidden.** Where the manifest of item
+  1 is an image index, the ask carries a `platform`, and that
+  `platform` is the digest of a manifest the index lists. Where the
+  manifest of item 1 is not an image index, the ask carries no
+  `platform`. An ask that breaks either requirement names no image
+  bytes: a client answers it with a channel response finish that no
+  channel response precedes, and the check fails.
+- **No proof over an index alone.** No proof is defined over the bytes
+  of an image index without the bytes of one manifest it lists and
+  of every blob that manifest references.
+- **The platform the server selects.** Where the `digest` of an image
+  the server obtains names an image index, the server selects exactly
+  one manifest the index lists, the manifest for the operating system
+  and the architecture on which the server runs the image. The
+  `platform` of every ask the server sends for that image is the
+  digest of that manifest.
+
+The image manifest is the manifest of item 2 where the manifest of
+item 1 is an image index, and the manifest of item 1 otherwise.
+
+## The proof
+
+- **The value.** The proof is the SHA-256 hash, as FIPS 180-4
+  defines it, of the 32 bytes of the nonce followed by the image
+  bytes `D`, with no byte between them. The proof is exactly 32
+  bytes.
+- **The server's value.** The server computes the proof over the
+  bytes of the image that it holds at the time of the check, with
+  the nonce it sent in the ask. The server does not compute its value
+  over bytes the client sends in the answer.
+
+## The ask
+
+The `prove` ask is the content of a channel request, following the
+tag byte that designates the channel, as JSON running to the end of
+the payload. The page of each endpoint that carries the ask states
+the tag byte.
+
+- **`nonce`.** The nonce, as a JSON string of exactly 64
+  hexadecimal characters: two characters for each of the 32 bytes, in
+  the order of the bytes, the more significant four bits of a byte
+  first. The server writes the characters `0` to `9` and `a` to `f`.
+  A request whose `nonce` is not exactly 64 hexadecimal characters
+  does not parse.
+- **`digest`.** The manifest digest the image is named by, of the
+  form `<algorithm>:<hex>`.
+- **`platform`.** Absent where the manifest the `digest` names is
+  not an image index. Where it is an image index, the digest of
+  exactly one manifest that the index lists, of the form
+  `<algorithm>:<hex>`: the manifest of the platform whose bytes the
+  server holds.
+
+The ask is defined by `diverge-sdk-rs/src/shared/containers/oci/prove/request/request.rs`,
+read as [Notation](/endpoints/#notation) provides:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/prove/request/request.rs
+```
+
+## The answer
+
+```text
+[proof: 32 bytes]      exactly once: the client holds the image
+```
+
+- **The sequence.** The client answers with exactly one channel
+  response, followed by the channel response finish. A channel
+  response finish that no channel response precedes states that the
+  client does not hold the image.
+- **The frame.** The payload of the channel response is exactly 32
+  bytes, the proof, with no tag and no header. A payload of any other
+  length is malformed.
+
+The answer is defined by `diverge-sdk-rs/src/shared/containers/oci/prove/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/prove/response/frame.rs
+```
+
+## The comparison
+
+- **Pass.** The check passes when the client answers with exactly one
+  channel response whose payload equals, byte for byte, the proof the
+  server computed.
+- **Fail.** The check fails when the payload of the channel response
+  differs from the proof the server computed, when the channel
+  response finish follows with no channel response before it, when
+  and when the channel response is malformed. No other outcome
+  exists.
+- **Whatever was fetched.** The server makes the check whether or not
+  it obtained any byte of the image from the client. Bytes of the
+  image that the server held before the check began do not exempt the
+  image from the check.
+
+The module is defined by `diverge-sdk-rs/src/shared/containers/oci/prove/mod.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/prove/mod.rs
+```

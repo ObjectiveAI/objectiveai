@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 27, the receiver’s identity in the postcard wire format, and the body, running to the end of the payload.'
+summary: 'The payload is the tag byte 30, the receiver’s identity in the postcard wire format, and the body, running to the end of the payload.'
 order: 1
 draft: false
 ---
@@ -9,7 +9,7 @@ The payload of the request is the tag byte, the receiver's identity,
 and the body:
 
 ```text
-[27][to, postcard …][body …]
+[30][to, postcard …][body …]
 ```
 
 - **`to`.** The identity of the receiver: `issuer` as a varint byte length followed by that many bytes of
@@ -25,7 +25,7 @@ and the body:
   receiver byte for byte. This revision prescribes nothing about its
   content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is not `27`, and a payload whose bytes after the tag do not begin
+  is not `30`, and a payload whose bytes after the tag do not begin
   with one identity are malformed. [Endpoints](/endpoints/) states how
   a server answers a request it cannot read.
 

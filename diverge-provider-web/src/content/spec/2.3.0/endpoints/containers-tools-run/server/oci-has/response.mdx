@@ -23,11 +23,16 @@ draft: false
 - **What follows.** A client that answered `1` may be asked for the
   manifest and blobs of the image on
   [oci-manifest](/endpoints/containers-tools-run/server/oci-manifest/) and
-  [oci-blob](/endpoints/containers-tools-run/server/oci-blob/) channels, and the
-  server fetches the image from its own registry as
-  `<repository>/<name>@<digest>`, with `name` the path the client
-  answered; a server treats a path that is not a repository path as
-  the answer `0`. A client that answered `0` is not asked.
+  [oci-blob](/endpoints/containers-tools-run/server/oci-blob/) channels, and is asked the
+  nonce check on exactly one
+  [oci-prove](/endpoints/containers-tools-run/server/oci-prove/) channel. A server treats a
+  path that is not a repository path as the answer `0`. A client that
+  answered `0` is not asked.
+- **The path is a label.** The server uses the repository path the
+  client answered only as a label in the reference of its own
+  retrieval of the image for this run. The server does not store the
+  path, and does not read it as the identifier of an image, of a
+  client or of anything else.
 
 The channel response is defined by `diverge-sdk-rs/src/shared/containers/oci/has/response/frame.rs`:
 

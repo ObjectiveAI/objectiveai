@@ -1,0 +1,29 @@
+---
+title: 'OCI prove'
+summary: 'Tag 20: the server sends a fresh nonce and names the image it obtained from the client; the client answers with exactly one channel response, the 32-byte proof, and the channel response finish; a proof that differs from the server’s own, a finish with nothing before it and a malformed answer each fail the run with ProofFailed.'
+order: 20
+draft: false
+---
+
+The server opens this channel to make the nonce check that
+[Possession](/shared/possession/) defines, when the source of the
+image of the request is the client, as
+[Image sources](/endpoints/#image-sources) states.
+
+- **When.** After the server holds every byte of the image and before
+  it deploys the container. The server opens exactly one such channel
+  on a scope whose image it obtains from the client, and none on a
+  scope whose image it obtains from another source.
+- **Whatever was fetched.** The server opens the channel whether or
+  not it asked for any manifest or blob on an
+  [oci-manifest](/endpoints/containers-agents-run/server/oci-manifest/) or
+  [oci-blob](/endpoints/containers-agents-run/server/oci-blob/) channel.
+- **The request.** The tag byte `20` followed by the ask as
+  JSON. [Request](/endpoints/containers-agents-run/server/oci-prove/request/) states its form.
+- **The response.** Exactly one channel response, the proof, and the
+  channel response finish.
+  [Response](/endpoints/containers-agents-run/server/oci-prove/response/) states the sequence.
+- **The outcome.** A check that passes lets the run proceed to the
+  deploy, and the `source` of the run's id is `Client`. A check that
+  fails ends the run with `ProofFailed`, as the
+  [response](/endpoints/containers-agents-run/response/) states.

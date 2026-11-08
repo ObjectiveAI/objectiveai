@@ -1,12 +1,12 @@
 ---
 title: 'discover'
-summary: 'Tag 25: a client asks which connected identities are discoverable; the server sends every such identity, with its description, its IP and its address, as added, says when the listing is whole, keeps sending as discoverable identities connect and disconnect, and finishes when the client cancels.'
-order: 25
+summary: 'Tag 28: a client asks which connected identities are discoverable; the server sends every such identity, with its description, its IP and its address, as added, says when the listing is whole, keeps sending as discoverable identities connect and disconnect, and finishes when the client cancels.'
+order: 28
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`25` and nothing more. The server sends every identity connected to
+`28` and nothing more. The server sends every identity connected to
 it whose [discover flag](/authorization/#the-discover-flag) is `1` or
 `2`, one response each with the description its flag `2` carried and
 the IP and the address of its connection, then the word that the

@@ -1,6 +1,6 @@
 ---
 title: 'containers::tools::run'
-summary: 'Tag 1: a client asks the server to run a tool container from an image with limits and mounts; the server obtains the image, deploys, injects the proxy, connects to it and begins it with the arguments, mints the id and has the client register the container — value the secrets it takes — feeds the values to the container, makes every FUSE mount, sends exactly one id, relays the container’s activity, and relays and serves every channel until the run ends.'
+summary: 'Tag 1: a client asks the server to run a tool container from an image with limits and mounts; the server obtains the image from the client’s Store, a registry or the client, makes the nonce check where the client supplied it, deploys, injects the proxy, connects to it and begins it with the arguments, mints the id and has the client register the container — value the secrets it takes — feeds the values to the container, makes every FUSE mount, sends exactly one id, relays the container’s activity, and relays and serves every channel until the run ends.'
 order: 1
 draft: false
 ---
@@ -61,22 +61,24 @@ about the client, which may open any channel at any time.
    it. A request may name one
    volume more than once, at different paths.
 2. **The server obtains the image.** The server obtains the image the
-   digest names: from what it holds — among which every image the
-   client built on it by [images::build](/endpoints/images-build/),
-   and no image another client built — from a referenced registry
-   its policy lists, or from the client; this specification does not
-   prescribe which. Where it would obtain the image from the client,
-   the server asks the client whether it holds the image on an
-   [oci-has](/endpoints/containers-tools-run/server/oci-has/) channel, and a
-   client that holds it answers the repository path the server
-   fetches it under; a manifest or a blob the server requires it asks
-   for on an
-   [oci-manifest](/endpoints/containers-tools-run/server/oci-manifest/) or
-   [oci-blob](/endpoints/containers-tools-run/server/oci-blob/) channel. The server runs
-   only the image the digest names: bytes that are not those the
-   digest names are the run's error, and so is an image the server
-   obtains from nowhere. How the server holds, verifies or streams
-   what it obtains is not prescribed.
+   digest names from exactly one source, consulting the sources in
+   the order that [Image sources](/endpoints/#image-sources) states
+   for a run: the client's Store, a registry, the client. Where it
+   consults the client, the server asks the client whether it holds
+   the image on an [oci-has](/endpoints/containers-tools-run/server/oci-has/) channel; a
+   manifest or a blob the server requires and does not hold it asks
+   for on an [oci-manifest](/endpoints/containers-tools-run/server/oci-manifest/) or
+   [oci-blob](/endpoints/containers-tools-run/server/oci-blob/) channel; and, when it holds
+   every byte of the image, it makes the nonce check that
+   [Possession](/shared/possession/) defines on an
+   [oci-prove](/endpoints/containers-tools-run/server/oci-prove/) channel. A check that fails
+   is answered by exactly one response, `ProofFailed`, the byte
+   `10` and nothing else, and the finish; the server deploys
+   nothing and removes what [Image sources](/endpoints/#image-sources)
+   states. The server runs only the image the digest names: bytes
+   that are not those the digest names are the run's error, and so is
+   an image the server obtains from no source. How the server holds,
+   verifies or streams what it obtains is not prescribed.
 3. **The server deploys the container.** The server starts the image
    with `memory` and `disk` as limits; every volume mount resolved by
    `volume_name` against the identity under which the connection was

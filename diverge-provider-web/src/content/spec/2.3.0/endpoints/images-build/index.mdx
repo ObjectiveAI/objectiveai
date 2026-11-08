@@ -1,20 +1,21 @@
 ---
 title: 'images::build'
-summary: 'Tag 18: a client names an image, hands a Containerfile and names a directory of one of its volumes as the context, or none; the server sends the build’s output line by line, then exactly one response stating that the image exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the image persists until the client deletes it.'
+summary: 'Tag 18: a client hands a Containerfile, an optional description and a directory of one of its volumes as the context, or none; the server sends the build’s output line by line, then exactly one response stating that the image is in the client’s Store, that the client owned its digest already, that the server has insufficient capacity for it, or an error, and the scope finishes; the image stays in the Store until the client deletes it.'
 order: 18
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`18` followed by the name, the Containerfile, and the context of the
-build. The server sends zero or more responses, each one line of the
-build's output, then exactly one response which states that the
-image exists, that the server has insufficient capacity for it,
-that something holds the context volume, that the server keeps no
-client image, or an error. The response finish follows that response, and no frame
-follows the finish.
+`18` followed by the description, the Containerfile, and the context
+of the build. The server sends zero or more responses, each one line
+of the build's output, then exactly one response which states that
+the image is in the client's Store, that the client owned the
+digest the build produced already, that the server has insufficient
+capacity for it, that something holds the context volume, that the
+server keeps no Store, or an error. The response finish follows that
+response, and no frame follows the finish.
 
-- **The request.** The request carries a name the client chooses, the
+- **The request.** The request carries an optional description, the
   Containerfile as text, and the context: a directory of one of the
   client's volumes, or none.
   [Request](/endpoints/images-build/request/) states its form.
@@ -40,52 +41,63 @@ follows the finish.
   volume the server cannot hold — one an operation holds, one a
   running container holds beyond what `mount_many` allows, one a
   FUSE serve holds beyond what `mount_and_fuse_serve` allows — is
-  answered with `ContextHeld`, the byte `3`, which is not an error,
+  answered with `ContextHeld`, the byte `4`, which is not an error,
   and nothing is built. The hold ends when the scope ends.
 - **The output.** The server sends each line the build's tool writes
   as one response, as a string, as the tool writes it. This
   specification prescribes nothing about the lines: a client shows
   them to a person and does not parse them.
-- **The image.** When the server sends the byte `1`, the image
-  exists, under the name the client gave and with the digest the
-  response carries. From that moment, every
-  [images::list](/endpoints/images-list/) scope the client opens
-  lists the image, and every list scope the client holds open is sent
-  the image as added, until an [images::delete](/endpoints/images-delete/)
-  request by the client deletes it. The end of the scope, and the end
-  of every connection of the client, leave the image in existence.
-  The server does not remove the image on its own account.
+- **The image.** The image is named by the manifest digest the build
+  produces, and by nothing the client chooses. When the server sends
+  the byte `1`, the image is in the client's Store, with the digest
+  the response carries and the description of the request. From that
+  moment, every [images::list](/endpoints/images-list/) scope the
+  client opens lists the image, and every list scope the client holds
+  open is sent the image as added, until an
+  [images::delete](/endpoints/images-delete/) request by the client
+  deletes it. The end of the scope, and the end of every connection
+  of the client, leave the image in the Store. The server does not
+  remove the image from the Store on its own account.
   [Response](/endpoints/images-build/response/) states the form of
   the response.
+- **Exists.** When the digest the build produces is the digest of an
+  image already in the client's Store, the server sends the byte `2`
+  followed by that digest. The server adds nothing to the client's
+  Store, leaves the description of the image in the Store as it was,
+  and sends nothing to a list scope. The client's Store and listing are
+  as they were before the request.
 - **The client.** The client is the identity under which the
-  connection was authorized. The image is built for that identity,
-  and that identity alone can name it, examine it, delete it, or run
-  it: an [images::check](/endpoints/images-check/) by that identity
-  naming the image's digest is available, and a container request by
-  that identity naming the digest runs the image from what the server
-  holds. To any other identity the image is not held, unless that
-  identity has built an image of the same digest itself.
-- **The name.** The name is the client's choice. This revision
-  prescribes no form for it. A server may refuse a name; the refusal
-  is an error. A request whose name is the name of an image already
-  in the client's listing is answered with an error, and the listing
-  is unchanged. A name is unique among the images of one client only.
-- **Insufficient capacity.** When the server's store has no room for
-  the image, it sends the byte `2`. No image exists by that name as
-  a result of the request, and the client's listing is as it was
-  before the request. The server does not send the byte `1` for an
-  image its store cannot hold. Whether the server determines this
+  connection was authorized. The image enters that identity's Store,
+  and that identity alone can examine it, edit it, hash it, delete it,
+  or run it from its Store: an [images::check](/endpoints/images-check/)
+  by that identity naming the image's digest is available, and a
+  container request by that identity naming the digest runs the image
+  from the Store, as [Image sources](/endpoints/#image-sources)
+  states. To any other identity the image is not in its Store, unless
+  that identity has built or pushed an image of the same digest
+  itself.
+- **The description.** The `description` of the request is absent, or
+  a description as [The description](/authorization/#the-description)
+  defines it. A request whose `description` does not conform to that
+  definition does not decode. The image carries the description from
+  the moment it enters the Store, until an
+  [images::edit](/endpoints/images-edit/) by the client replaces or
+  clears it.
+- **Insufficient capacity.** When the server's Store has no room for
+  the image, it sends the byte `3`. No image enters the client's
+  Store as a result of the request, and the client's listing is as it
+  was before the request. The server does not send the byte `1` for
+  an image the Store cannot hold. Whether the server determines this
   before the build or after is the server's own.
-- **The error.** An error states that the image was not built, for a
-  reason other than capacity or the context's hold — a build that failed, a name refused or
-  taken, a context refused: no image exists by that name as a result
-  of the request, and the client's listing is as it was before the
-  request. The output sent before the error states what the build
-  said.
-- **No image store.** A server that holds out no
+- **The error.** An error states that no image entered the client's
+  Store, for a reason other than capacity, an owned digest or the
+  context's hold — a build that failed, a context refused: the
+  client's listing is as it was before the request. The output sent
+  before the error states what the build said.
+- **No Store.** A server that holds out no
   [`images_store`](/capabilities/#images_store) capability keeps no
-  client image and answers every request of this endpoint with
-  exactly one response, the byte `4` alone, and the response
-  finish, before anything is looked up; it sends no line of output,
-  holds no volume and builds nothing. Every other requirement of
-  this page holds for a server that holds the capability out.
+  Store and answers every request of this endpoint with exactly one
+  response, the byte `5` alone, and the response finish, before
+  anything is looked up; it sends no line of output, holds no volume
+  and builds nothing. Every other requirement of this page holds for
+  a server that holds the capability out.

@@ -18,10 +18,10 @@ the finish.
   [Request](/endpoints/containers-info/request/) states its form.
 - **The image.** The server obtains the image from the places a
   [containers::agents::run](/endpoints/containers-agents-run/) request
-  naming the same image obtains it from, less the client: the images
-  the client built on the server by
-  [images::build](/endpoints/images-build/), the images the server
-  holds, and every referenced registry the server's policy lists. The
+  naming the same image obtains it from, less the client: the
+  client's Store, as [Image sources](/endpoints/#image-sources)
+  defines it, the images the server holds, and every referenced
+  registry the server's policy lists. The
   scope has no channel on which the server asks the client whether it
   holds the image, so the server does not ask the client.
 - **Nothing runs.** The server reads the file at `/DIVERGE.md` in the

@@ -1,0 +1,45 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 19 followed by a JSON object that names the image by manifest digest and by zero or more references, and carries an optional description.'
+order: 1
+draft: false
+---
+
+The payload of the request is the tag byte followed by the request as
+JSON, running to the end of the payload:
+
+```text
+[19][request JSON …]
+```
+
+- **`image`.** An object of two fields: `{"digest":…,"references":…}`,
+  the form the `image` of a
+  [containers::tools::run request](/endpoints/containers-tools-run/request/)
+  has. `digest` is the manifest digest of the image, of the form
+  `<algorithm>:<hex>`, and identifies the image; `references` is an
+  array of objects of two fields, `registry` and `name`, as
+  [images::check](/endpoints/images-check/request/) states them, and
+  is absent when there are none. A reference locates the image and
+  does not identify it.
+- **`description`.** Absent, the image is to have no description; or
+  a string, a description as
+  [The description](/authorization/#the-description) defines it. A
+  `description` that does not conform to that definition does not
+  parse.
+- **No name.** The request names no image other than by its digest.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is not `19`, and a payload whose bytes after the tag do not parse as
+  the request are malformed. [Endpoints](/endpoints/) states how a
+  server answers a request it cannot read.
+
+The request is defined by
+`diverge-sdk-rs/src/provider/endpoints/images/push/client/request/frame.rs`,
+read as [Notation](/endpoints/#notation) provides:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/push/client/request/frame.rs
+```
+
+and the image by `diverge-sdk-rs/src/shared/containers/request/image.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/request/image.rs
+```

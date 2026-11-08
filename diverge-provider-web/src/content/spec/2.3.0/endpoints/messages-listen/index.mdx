@@ -1,12 +1,12 @@
 ---
 title: 'messages::listen'
-summary: 'Tag 26: a client asks for every message sent to its identity; the server sends each message, one at a time, as the client takes the one before it, and finishes when the client cancels.'
-order: 26
+summary: 'Tag 29: a client asks for every message sent to its identity; the server sends each message, one at a time, as the client takes the one before it, and finishes when the client cancels.'
+order: 29
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`26` and nothing more. The server opens a mailbox under the identity
+`29` and nothing more. The server opens a mailbox under the identity
 of the connection, and sends every message that a
 [messages::send](/endpoints/messages-send/) names that identity in, one
 response each, for as long as the scope lives. The scope ends at the

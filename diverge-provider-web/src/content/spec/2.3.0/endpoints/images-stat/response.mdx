@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the stat in the postcard wire format, is the byte 1 alone when the server keeps no client image, or begins with the byte 2 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the stat in the postcard wire format, is the byte 1 alone when the server keeps no Store, or begins with the byte 2 followed by an error as one JSON value, and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -10,7 +10,7 @@ finish follows the response, and no frame follows the finish.
 
 ```text
 [0][stat, postcard …]    the image, examined
-[1]                      not examined: the server keeps no client image
+[1]                      not examined: the server keeps no Store
 [2][error JSON …]        not examined
 ```
 
@@ -23,19 +23,23 @@ finish follows the response, and no frame follows the finish.
   `Stat` defined below, encoded as the postcard reading of
   [Notation](/endpoints/#notation) provides: the image as the
   [images::list response](/endpoints/images-list/response/) defines
-  it — `name`, `digest`, `bytes`, `created` — followed by
-  `containerfile` as a varint byte length followed by that many bytes
-  of UTF-8.
-- **`name`, `digest`, `bytes`, `created`.** The image as the client's
-  listing reports it. The four values equal those the listing reports
-  for the image at the time of the response.
-- **`containerfile`.** The Containerfile the image was built from,
-  UTF-8: the `containerfile` of the client's
-  [images::build](/endpoints/images-build/) request, verbatim.
+  it — `digest`, `description`, `bytes`, `created` — followed by
+  `containerfile` as the byte `0`, or as the byte `1` followed by a
+  varint byte length and that many bytes of UTF-8.
+- **`digest`, `description`, `bytes`, `created`.** The image as the
+  client's listing reports it. The four values equal those the
+  listing reports for the image at the time of the response.
+- **`containerfile`.** For an image that entered the client's Store
+  by an [images::build](/endpoints/images-build/) request, the byte
+  `1` followed by the Containerfile the image was built from, UTF-8:
+  the `containerfile` of that request, verbatim. For an image that
+  entered the client's Store by an
+  [images::push](/endpoints/images-push/) request, the byte `0` and
+  no Containerfile.
 - **Unsupported.** A payload that is the byte `1` and nothing else
   states that the server holds out no
   [`images_store`](/capabilities/#images_store) capability and keeps
-  no client image, as [Capabilities](/capabilities/) provides. It is
+  no Store, as [Capabilities](/capabilities/) provides. It is
   the only response of the scope, sent before anything is looked up;
   bytes after it are not read.
 - **The error.** A payload whose first byte is `2` carries an error

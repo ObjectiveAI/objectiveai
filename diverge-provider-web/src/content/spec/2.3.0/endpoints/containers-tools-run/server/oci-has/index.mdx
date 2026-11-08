@@ -15,7 +15,8 @@ request from the client, before it asks for anything of the image.
   the byte `1` followed by the repository path the client holds the
   image under, and the channel response finish. [Response](/endpoints/containers-tools-run/server/oci-has/response/)
   states the sequence.
-- **Whether to ask.** The server asks only when it would obtain the
-  image from the client. A server that obtains the image from a
-  source of its own does not open this channel, and a client is not
-  told where the image came from.
+- **Whether to ask.** The server asks only when it consults the
+  client, in the order that [Image sources](/endpoints/#image-sources)
+  states: the image is not in the client's Store, and no registry the
+  server consults serves it. A server that obtains the image from
+  another source does not open this channel.

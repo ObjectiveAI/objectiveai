@@ -1,6 +1,6 @@
 ---
 title: 'Endpoints'
-summary: 'A request’s payload begins with one tag byte designating the endpoint; twenty-eight endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
+summary: 'A request’s payload begins with one tag byte designating the endpoint; thirty-one endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
 order: 7
 draft: false
 ---
@@ -31,15 +31,18 @@ endpoint's request content, in the form the endpoint defines.
 | `16` | [images::list](/endpoints/images-list/) |
 | `17` | [images::stat](/endpoints/images-stat/) |
 | `18` | [images::build](/endpoints/images-build/) |
-| `19` | [images::delete](/endpoints/images-delete/) |
-| `20` | [images::oci](/endpoints/images-oci/) |
-| `21` | [info](/endpoints/info/) |
-| `22` | [capacity](/endpoints/capacity/) |
-| `23` | [daemons::accept](/endpoints/daemons-accept/) |
-| `24` | [daemons::connect](/endpoints/daemons-connect/) |
-| `25` | [discover](/endpoints/discover/) |
-| `26` | [messages::listen](/endpoints/messages-listen/) |
-| `27` | [messages::send](/endpoints/messages-send/) |
+| `19` | [images::push](/endpoints/images-push/) |
+| `20` | [images::edit](/endpoints/images-edit/) |
+| `21` | [images::hash](/endpoints/images-hash/) |
+| `22` | [images::delete](/endpoints/images-delete/) |
+| `23` | [images::oci](/endpoints/images-oci/) |
+| `24` | [info](/endpoints/info/) |
+| `25` | [capacity](/endpoints/capacity/) |
+| `26` | [daemons::accept](/endpoints/daemons-accept/) |
+| `27` | [daemons::connect](/endpoints/daemons-connect/) |
+| `28` | [discover](/endpoints/discover/) |
+| `29` | [messages::listen](/endpoints/messages-listen/) |
+| `30` | [messages::send](/endpoints/messages-send/) |
 
 The tag values are normative as tabulated. Each endpoint has its own
 section. Every section of this layer states requirements of the
@@ -74,7 +77,7 @@ Six endpoints are held at most once each per connection:
 
 - **One at a time.** On one connection, at most one scope of each of
   the six endpoints is open at a time.
-- **Open until its finish.** A scope of one of the four is open from
+- **Open until its finish.** A scope of one of the six is open from
   the moment the server reads its request until the server sends its
   response finish.
 - **Refused, not queued.** The server answers a request for one of
@@ -95,6 +98,97 @@ Six endpoints are held at most once each per connection:
   [daemons::accept](/endpoints/daemons-accept/) and
   [messages::listen](/endpoints/messages-listen/) provide for an
   identity.
+
+## Image sources
+
+The server obtains the image of a
+[containers::agents::run](/endpoints/containers-agents-run/) request,
+of a [containers::tools::run](/endpoints/containers-tools-run/)
+request and of an [images::push](/endpoints/images-push/) request from
+exactly one **source**. The image is the image the request's `digest`
+names. The Store of a client is the set of images that the client
+owns on the server: every image the client built by
+[images::build](/endpoints/images-build/) or pushed by
+[images::push](/endpoints/images-push/) and has not deleted by
+[images::delete](/endpoints/images-delete/). An image is in a
+client's Store when its digest is the digest of an image the client
+owns.
+
+| Source | Where the server obtains the image | Runs | Pushes |
+|--------|------------------------------------|------|--------|
+| `Registry` | a registry in the server's [`images_registries`](/capabilities/#images_registries) | yes | yes |
+| `Client` | the client of the scope, on the scope's OCI channels | yes | yes |
+| `Store` | the client's own Store | yes | no |
+
+1. **Registry.** The source is `Registry` when the server obtains the
+   image from a registry that is in its
+   [`images_registries`](/capabilities/#images_registries) and that a
+   reference of the request names, under the digest, or from bytes it
+   holds that it obtained from such a registry under the digest. The
+   `reference` member of the source is the reference under which the
+   server obtained the image, of the form
+   `<registry>/<name>@<digest>`.
+2. **Client.** The source is `Client` when the server obtains the
+   image from the client of the scope: the client answers the
+   scope's `has` ask that it holds the image, and the server takes
+   from the client, on the scope's manifest and blob channels, every
+   manifest and every blob of the image that it does not already
+   hold. The server may take from the client none of the image's
+   bytes, where it already holds every byte of the image.
+3. **Store.** The source is `Store` when the image is in the Store of
+   the client of the scope. The server obtains the image from the
+   bytes it holds for that Store, and asks the client for nothing.
+4. **The order of a run.** For a
+   [containers::agents::run](/endpoints/containers-agents-run/) or a
+   [containers::tools::run](/endpoints/containers-tools-run/)
+   request, the server consults the sources in the following order,
+   and the first that applies is the source: `Store`, where the image
+   is in the client's Store; otherwise `Registry`, where a registry
+   that is in its `images_registries` and that a reference of the
+   request names serves the digest; otherwise `Client`, where the
+   client answers the `has` ask that it holds the image. Where none
+   applies, the server obtains the image from no source, and the run
+   ends with the error that the run's page states.
+5. **The order of a push.** For an
+   [images::push](/endpoints/images-push/) request, the server
+   consults `Registry` and, where `Registry` does not apply,
+   `Client`, in the order and on the terms of item 4.
+6. **The Store source applies to runs only.** The source of a push is
+   never `Store`. The server answers an
+   [images::push](/endpoints/images-push/) request whose image is in
+   the client's Store with `Exists`, and obtains nothing for it, as
+   the push's page states.
+7. **The nonce check.** The server makes the nonce check that
+   [Possession](/shared/possession/) defines if, and only if, the
+   source is `Client`. The server makes it after it holds every byte
+   of the image, and before it deploys a container from the image or
+   records the image in the client's Store. The server makes it
+   whether or not it took any byte of the image from the client. The
+   server makes no nonce check where the source is `Registry` or
+   `Store`.
+8. **The source is stated.** Every answer that states the success of
+   a request whose image the server obtained carries a member
+   `source`, the source from which the server obtained the image: the
+   `Id` of a run, and the `Pushed` of a push. The source of a push is
+   `Registry` or `Client`.
+9. **A failed check.** When the nonce check fails, the server answers
+   the request with `ProofFailed`, as the request's page states. The
+   server deploys no container from the image and records no image in
+   any Store. The server removes every manifest and every blob that
+   it stored for the request and that no image in any client's Store,
+   and no image whose nonce check passed before, references.
+
+The source is defined by `diverge-sdk-rs/src/shared/containers/response/source.rs`.
+In JSON, `Store` is exactly the string `"store"`, `Client` is exactly
+the string `"client"`, and `Registry` is an object with the one member
+`registry`, whose value is an object with the one member `reference`,
+a string. In the postcard wire format, as the postcard reading of
+[Notation](/endpoints/#notation) provides, the source is the varint
+`0` followed by `reference` for `Registry`, the varint `1` for
+`Client`, and the varint `2` for `Store`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/response/source.rs
+```
 
 ## Notation
 
