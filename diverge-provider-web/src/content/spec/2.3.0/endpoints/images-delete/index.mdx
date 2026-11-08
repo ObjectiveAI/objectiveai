@@ -32,9 +32,10 @@ the response, and no frame follows the finish.
   [images::build](/endpoints/images-build/) or an
   [images::push](/endpoints/images-push/) request by the client
   brings an image of that digest into the client's Store again. An
-  [images::check](/endpoints/images-check/) by the client naming the
+  [images::has](/endpoints/images-has/) by the client naming the
   digest is answered as for any image that is not in the client's
-  Store. [Response](/endpoints/images-delete/response/) states the
+  Store: from the registries its references name, where the server
+  has them, and otherwise NotFound. [Response](/endpoints/images-delete/response/) states the
   form of the response.
 - **Other Stores.** The deletion removes the image from the client's
   Store alone. An image of the same digest in another identity's Store

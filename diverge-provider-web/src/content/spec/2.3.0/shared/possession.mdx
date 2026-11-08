@@ -30,8 +30,8 @@ following byte strings, in the order listed, with no byte between
 them, before them or after them:
 
 1. **The named manifest.** The bytes of the manifest whose digest is
-   the `digest` of the ask, verbatim: the bytes whose hash under the
-   digest's algorithm is that digest.
+   `image.digest`, the `digest` of the `image` of the ask, verbatim:
+   the bytes whose hash under the digest's algorithm is that digest.
 2. **The platform manifest.** Where the manifest of item 1 is an
    image index, the bytes of the manifest whose digest is the
    `platform` of the ask, verbatim. Where the manifest of item 1 is
@@ -54,7 +54,7 @@ them, before them or after them:
 - **No proof over an index alone.** No proof is defined over the bytes
   of an image index without the bytes of one manifest it lists and
   of every blob that manifest references.
-- **The platform the server selects.** Where the `digest` of an image
+- **The platform the server selects.** Where the digest of an image
   the server obtains names an image index, the server selects exactly
   one manifest the index lists, the manifest for the operating system
   and the architecture on which the server runs the image. The
@@ -77,10 +77,12 @@ item 1 is an image index, and the manifest of item 1 otherwise.
 
 ## The ask
 
-The `prove` ask is the content of a channel request, following the
-tag byte that designates the channel, as JSON running to the end of
-the payload. The page of each endpoint that carries the ask states
-the tag byte.
+The `prove` ask is exactly one JSON object,
+`{"image":<image>,"platform":"<algorithm>:<hex>","nonce":"<64 hex>"}`,
+with `platform` absent where no platform is named. It is the content of
+a channel request, following the tag byte that designates the channel,
+running to the end of the payload. The page of each endpoint that
+carries the ask states the tag byte.
 
 - **`nonce`.** The nonce, as a JSON string of exactly 64
   hexadecimal characters: two characters for each of the 32 bytes, in
@@ -88,9 +90,14 @@ the tag byte.
   first. The server writes the characters `0` to `9` and `a` to `f`.
   A request whose `nonce` is not exactly 64 hexadecimal characters
   does not parse.
-- **`digest`.** The manifest digest the image is named by, of the
-  form `<algorithm>:<hex>`.
-- **`platform`.** Absent where the manifest the `digest` names is
+- **`image`.** The image, an object of two members, `digest` and
+  `references`, in the form the request of
+  [images::has](/endpoints/images-has/request/) has. `image.digest` is
+  the manifest digest the image is named by, of the form
+  `<algorithm>:<hex>`. `image.references` is absent when the array is
+  empty. The image bytes `D` are defined over the image whose manifest
+  `image.digest` names; `image.references` has no bearing on them.
+- **`platform`.** Absent where the manifest `image.digest` names is
   not an image index. Where it is an image index, the digest of
   exactly one manifest that the index lists, of the form
   `<algorithm>:<hex>`: the manifest of the platform whose bytes the

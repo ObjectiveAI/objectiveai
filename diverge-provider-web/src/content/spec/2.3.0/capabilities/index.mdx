@@ -54,8 +54,8 @@ define.
 | Member | Type | Absent | Governs |
 |--------|------|--------|---------|
 | `containers` | boolean | `false` | [containers::agents::run](/endpoints/containers-agents-run/) and [containers::tools::run](/endpoints/containers-tools-run/) |
-| `images_store` | boolean | `false` | [images::list](/endpoints/images-list/), [images::stat](/endpoints/images-stat/), [images::build](/endpoints/images-build/), [images::push](/endpoints/images-push/), [images::edit](/endpoints/images-edit/), [images::hash](/endpoints/images-hash/), [images::delete](/endpoints/images-delete/), [images::oci](/endpoints/images-oci/), the `client` source of [images::check](/endpoints/images-check/), and the `Store` source of a run |
-| `images_registries` | array of strings | `[]` | the `registries` source of [images::check](/endpoints/images-check/), and the `Registry` source of a run and of an [images::push](/endpoints/images-push/) |
+| `images_store` | boolean | `false` | [images::list](/endpoints/images-list/), [images::stat](/endpoints/images-stat/), [images::build](/endpoints/images-build/), [images::push](/endpoints/images-push/), [images::edit](/endpoints/images-edit/), [images::delete](/endpoints/images-delete/), the client's Store as a source of [images::has](/endpoints/images-has/), [images::oci](/endpoints/images-oci/) and [images::hash](/endpoints/images-hash/), and the `Store` source of a run |
+| `images_registries` | array of strings | `[]` | the registries as a source of [images::has](/endpoints/images-has/), [images::oci](/endpoints/images-oci/) and [images::hash](/endpoints/images-hash/), and the `Registry` source of a run and of an [images::push](/endpoints/images-push/) |
 | `volumes_persistent` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the eleven volume endpoints, and the volume mounts of the two runs, for a volume whose `mode` is `persistent` |
 | `volumes_ephemeral` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the same, for a volume whose `mode` is `ephemeral` |
 | `volumes_read_only` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the same, for a volume whose `mode` is `read_only` |
@@ -109,16 +109,17 @@ endpoints define.
   [images::build](/endpoints/images-build/),
   [images::push](/endpoints/images-push/),
   [images::edit](/endpoints/images-edit/),
-  [images::hash](/endpoints/images-hash/),
-  [images::delete](/endpoints/images-delete/) and
-  [images::oci](/endpoints/images-oci/) as their pages state; the
-  `client` source of [images::check](/endpoints/images-check/) is a
-  source the server has; and the `Store` source of
+  and [images::delete](/endpoints/images-delete/) as their pages
+  state; the client's Store is a source from which the server answers
+  [images::has](/endpoints/images-has/), serves
+  [images::oci](/endpoints/images-oci/) and computes the proof of
+  [images::hash](/endpoints/images-hash/); and the `Store` source of
   [Image sources](/endpoints/#image-sources) is a source of a run.
-- **Not held out.** The server keeps no Store. The `client` source
-  of [images::check](/endpoints/images-check/) is not a source the
-  server has, and no run's image has the source `Store`. The server
-  answers:
+- **Not held out.** The server keeps no Store. The client's Store is
+  not a source of [images::has](/endpoints/images-has/),
+  [images::oci](/endpoints/images-oci/) or
+  [images::hash](/endpoints/images-hash/), and no run's image has the
+  source `Store`. The server answers:
   - an [images::list](/endpoints/images-list/) request with exactly
     one response, the byte `4` and nothing else, and the response
     finish; it sends no image, no byte `3` and no byte `5`;
@@ -135,24 +136,19 @@ endpoints define.
   - an [images::edit](/endpoints/images-edit/) request with exactly
     one response, the byte `2` and nothing else, and the response
     finish;
-  - an [images::hash](/endpoints/images-hash/) request with exactly
-    one response, the byte `2` and nothing else, and the response
-    finish;
   - an [images::delete](/endpoints/images-delete/) request with
     exactly one response, the byte `2` and nothing else, and the
     response finish;
-  - an [images::oci](/endpoints/images-oci/) request with exactly one
-    response on the main stream, the byte `0` and nothing else, and
-    the response finish; it answers no channel the client opens on
-    the scope;
-  - an [images::check](/endpoints/images-check/) request that asks
-    for the `client` source and not for the `registries` source, or
-    that asks for the `registries` source where
-    [`images_registries`](#images_registries) is empty, with exactly
+  - where [`images_registries`](#images_registries) is empty, an
+    [images::has](/endpoints/images-has/) request and an
+    [images::hash](/endpoints/images-hash/) request each with exactly
     one response, the byte `2` and nothing else, and the response
-    finish; a request that also asks for the `registries` source
-    where `images_registries` is not empty is answered from that
-    source alone.
+    finish, and an [images::oci](/endpoints/images-oci/) request with
+    exactly one response on the main stream, the byte `1` and nothing
+    else, and the response finish, after which it answers no channel
+    the client opens on the scope. Where `images_registries` is not
+    empty, the server answers each of the three from the registries
+    alone.
 - **The `images_disk` member of a capacity response.** The server
   sends the `images_disk` member of every
   [capacity](/endpoints/capacity/) response whether or not it holds
@@ -166,11 +162,14 @@ each the host of one registry as a reference's `registry` member
 names it — `docker.io`, `ghcr.io`, `registry.example.com:5000` — and
 every registry the server pulls from is in the array.
 
-- **The `registries` source.** An [images::check](/endpoints/images-check/)
-  request that asks for the `registries` source is answered by
-  consulting exactly the registries in the array that a reference of
-  the request names, as `<registry>/<name>@<digest>`. A reference
-  naming a registry not in the array is ignored. The source is one
+- **The registries as a source.** Where the client's Store does not
+  supply the image, the server answers an
+  [images::has](/endpoints/images-has/) request, serves an
+  [images::oci](/endpoints/images-oci/) scope, and computes the proof
+  of an [images::hash](/endpoints/images-hash/) request by consulting
+  exactly the registries in the array that a reference of the request
+  names, as `<registry>/<name>@<digest>`. A reference naming a
+  registry not in the array is ignored. The registries are a source
   the server has when the array is not empty.
 - **A run's image and a push's image.** A server obtains the image of a
   [containers::agents::run](/endpoints/containers-agents-run/), of a
@@ -180,13 +179,16 @@ every registry the server pulls from is in the array.
   of the request names it; it obtains an image from no registry the
   array does not list.
 - **Empty.** An empty array, or an absent member, states that the
-  server pulls from no registry. The `registries` source is not a
-  source the server has: an [images::check](/endpoints/images-check/)
-  request that asks for it and for no source the server has is
-  answered with exactly one response, the byte `2` and nothing else,
-  and the response finish; one that also asks for the `client`
-  source where [`images_store`](#images_store) is `true` is answered
-  from that source alone. A run's image is obtained from the
+  server pulls from no registry. The registries are not a source the
+  server has. Where [`images_store`](#images_store) is also `false`,
+  the server answers an [images::has](/endpoints/images-has/) request
+  and an [images::hash](/endpoints/images-hash/) request each with
+  exactly one response, the byte `2` and nothing else, and the
+  response finish, and an [images::oci](/endpoints/images-oci/)
+  request with exactly one response on the main stream, the byte `1`
+  and nothing else, and the response finish. Where `images_store` is
+  `true`, the server answers each of the three from the client's Store
+  alone. A run's image is obtained from the
   client's Store or from the client, and a push's image from the
   client, as [Image sources](/endpoints/#image-sources) states, and
   from no registry.

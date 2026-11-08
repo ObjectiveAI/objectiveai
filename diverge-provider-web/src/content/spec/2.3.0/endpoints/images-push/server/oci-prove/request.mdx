@@ -11,10 +11,11 @@ draft: false
 
 - **The ask.** The `prove` ask that [Possession](/shared/possession/#the-ask)
   defines: `nonce`, the 32 bytes of a nonce the server generated for
-  this check alone, as 64 lowercase hexadecimal characters; `digest`, the manifest digest the request of
-  the push names; and `platform`, absent where that manifest is not an
-  image index, and otherwise the digest of the manifest of the
-  platform the server obtained.
+  this check alone, as 64 lowercase hexadecimal characters; `image`,
+  the image the request of the push names, its `digest` and its
+  `references` verbatim; and `platform`, absent where the manifest
+  `image.digest` names is not an image index, and otherwise the digest
+  of the manifest of the platform the server obtained.
 
 The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/images/push/server/channel_request/frame.rs`:
 

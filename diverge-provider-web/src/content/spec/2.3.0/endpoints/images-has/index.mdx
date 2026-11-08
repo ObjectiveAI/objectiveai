@@ -1,0 +1,63 @@
+---
+title: 'images::has'
+summary: 'Tag 15: a client names an image by digest and by zero or more references; the server sends exactly one response stating that it can supply the image from the client’s Store or from a registry it is configured with that a reference names, that it cannot, that it has neither a Store nor any registry, or an error, and the scope finishes.'
+order: 15
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`15` followed by an image, named by its digest and by zero or more
+references. The server sends exactly one response, which states that
+the server holds the image, that it does not, that it has no source,
+or an error. The response finish follows the response, and no frame
+follows the finish.
+
+- **The request.** The request is the image: a manifest digest, which
+  identifies the image, and zero or more references, each a registry
+  host and a repository path, which locate it.
+  [Request](/endpoints/images-has/request/) states its form.
+- **The sources.** The server answers from two sources, in the
+  following order. The first is the client's Store, as
+  [Image sources](/endpoints/#image-sources) defines it: the server
+  holds the image when the client owns the digest. The second is the
+  registries the server is configured with, its
+  [`images_registries`](/capabilities/#images_registries): where the
+  client's Store does not supply the image, the server holds the image
+  when it can obtain it, as `<registry>/<name>@<digest>`, from a
+  registry in its `images_registries` that a reference of the request
+  names. The server ignores a reference that names a registry not in
+  its `images_registries`, and a reference whose `name` is not a
+  repository path by the grammar of the OCI Distribution
+  Specification. A request with no reference is answered
+  from the client's Store alone.
+- **Never another's.** The server never answers from another
+  identity's Store. An image in another identity's Store and not in
+  the client's Store is not held on that account.
+- **Never the client-sourced cache.** The server never answers from
+  an image it holds only because a client supplied it to a
+  [containers::agents::run](/endpoints/containers-agents-run/) or a
+  [containers::tools::run](/endpoints/containers-tools-run/), the
+  source `Client` of [Image sources](/endpoints/#image-sources). An
+  image held only on that account is not held.
+- **Held.** The byte `0` states that the server can supply the image
+  the digest names from one of the two sources, as determined at the
+  time of the answer. The answer names no source. The answer reserves
+  nothing: a later request naming the image may find that the server
+  cannot supply it.
+  [Response](/endpoints/images-has/response/) states the form of every
+  response.
+- **Not found.** The byte `1` states that neither source supplies the
+  image, as determined at the time of the answer. The answer states no
+  reason: an image the server cannot obtain and an image the server
+  could obtain and will not serve to this client receive the same
+  answer.
+- **Unsupported.** A server that holds out no
+  [`images_store`](/capabilities/#images_store) capability and whose
+  [`images_registries`](/capabilities/#images_registries) is empty has
+  no source. It answers every request of this endpoint with exactly
+  one response, the byte `2` alone, and the response finish, before
+  anything is looked up. A server that has exactly one of the two
+  sources answers from that source alone.
+- **The error.** An error states that the server did not answer the
+  question, and that nothing was determined about the image. An error
+  is not a not-found answer.

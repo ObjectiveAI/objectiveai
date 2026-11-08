@@ -1,0 +1,54 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 15 followed by exactly one JSON object, the image, which names the image by manifest digest and by zero or more references.'
+order: 1
+draft: false
+---
+
+The payload of the request is the tag byte followed by exactly one
+JSON object, the image, running to the end of the payload:
+
+```text
+[15][image JSON …]
+```
+
+- **The image.** An object of two members:
+  `{"digest":"<algorithm>:<hex>","references":[{"registry":"…","name":"…"}]}`,
+  the form the `image` of a
+  [containers::tools::run request](/endpoints/containers-tools-run/request/)
+  has.
+- **`digest`.** The manifest digest of the image, of the form
+  `<algorithm>:<hex>`. The digest identifies the image.
+- **`references`.** An array of objects, each of two members:
+  `registry`, a registry host with no scheme and no path, as
+  `docker.io` or `registry.example.com:5000`; and `name`, a
+  repository path at that registry with no host and no tag, as
+  `library/nginx`. A server obtains a referenced image as
+  `<registry>/<name>@<digest>`. The member is absent when the array
+  is empty.
+- **The references locate.** A reference does not identify the image:
+  every registry that serves the bytes the digest names serves the
+  same image. The server consults a referenced registry only where the
+  registry is in its
+  [`images_registries`](/capabilities/#images_registries), and
+  ignores a reference that names a registry not in it.
+- **No other member.** The request states no source. It carries no
+  member that asks the server to look in, or to omit, either source;
+  the server answers from the sources that
+  [images::has](/endpoints/images-has/) states.
+- **Malformed.** A payload with no byte, a payload whose first byte is
+  not `15`, and a payload whose bytes after the tag do not parse as
+  the image are malformed. [Endpoints](/endpoints/) states how a
+  server answers a request it cannot read.
+
+The request is defined by
+`diverge-sdk-rs/src/provider/endpoints/images/has/client/request/frame.rs`,
+read as [Notation](/endpoints/#notation) provides:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/has/client/request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/oci/has/request/request.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/has/request/request.rs
+```

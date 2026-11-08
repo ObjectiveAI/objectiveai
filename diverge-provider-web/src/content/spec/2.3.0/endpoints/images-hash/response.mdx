@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload is the byte 0 followed by the 32 bytes of the proof, exactly the byte 1 when no such image is in the client’s Store, exactly the byte 2 when the server keeps no Store, or the byte 3 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload is the byte 0 followed by the 32 bytes of the proof, exactly the byte 1 when the server cannot supply the image, exactly the byte 2 when the server has neither a Store nor any registry, or the byte 3 followed by an error as one JSON value, and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -10,8 +10,8 @@ finish follows the response, and no frame follows the finish.
 
 ```text
 [0][proof: 32 bytes]   the proof
-[1]                    no proof: no such image is in the client's Store
-[2]                    no proof: the server keeps no Store
+[1]                    no proof: the server cannot supply the image
+[2]                    no proof: the server has neither a Store nor any registry
 [3][error JSON …]      no proof
 ```
 
@@ -22,17 +22,21 @@ finish follows the response, and no frame follows the finish.
 - **Hash.** A payload whose first byte is `0` carries exactly 32
   bytes after that byte, the proof that
   [Possession](/shared/possession/#the-proof) defines, computed over
-  the bytes of the image the server holds for the client's Store, with
-  the nonce of the request.
-- **Not found.** A payload whose first byte is `1` states that no
-  image of the digest is in the client's Store, or that the request
-  breaks the requirement on `platform` that
-  [Possession](/shared/possession/#the-image-bytes) states. The server sends nothing after the byte `1`, and a client
-  ignores every byte that follows it.
+  the image the request's `image` names as the server can supply it
+  from the sources that [images::hash](/endpoints/images-hash/) states,
+  with the nonce of the request.
+- **Not found.** A payload whose first byte is `1` states that the
+  server cannot supply the image the request's `image` names from the
+  sources that [images::hash](/endpoints/images-hash/) states, or that
+  the request breaks the requirement on `platform` that
+  [Possession](/shared/possession/#the-image-bytes) states. The server
+  sends nothing after the byte `1`, and a client ignores every byte
+  that follows it.
 - **Unsupported.** A payload that is the byte `2` and nothing else
   states that the server holds out no
-  [`images_store`](/capabilities/#images_store) capability and keeps
-  no Store, as [Capabilities](/capabilities/) provides. It is the only
+  [`images_store`](/capabilities/#images_store) capability and that
+  its [`images_registries`](/capabilities/#images_registries) is
+  empty, as [Capabilities](/capabilities/) provides. It is the only
   response of the scope, sent before anything is looked up; bytes
   after it are not read.
 - **The error.** A payload whose first byte is `3` carries an error

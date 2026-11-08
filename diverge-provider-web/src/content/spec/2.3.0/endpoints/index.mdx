@@ -27,7 +27,7 @@ endpoint's request content, in the form the endpoint defines.
 | `12` | [volumes::edit_capacity](/endpoints/volumes-edit-capacity/) |
 | `13` | [volumes::edit](/endpoints/volumes-edit/) |
 | `14` | [volumes::delete](/endpoints/volumes-delete/) |
-| `15` | [images::check](/endpoints/images-check/) |
+| `15` | [images::has](/endpoints/images-has/) |
 | `16` | [images::list](/endpoints/images-list/) |
 | `17` | [images::stat](/endpoints/images-stat/) |
 | `18` | [images::build](/endpoints/images-build/) |
@@ -129,11 +129,13 @@ owns.
    server obtained the image, of the form
    `<registry>/<name>@<digest>`.
 2. **Client.** The source is `Client` when the server obtains the
-   image from the client of the scope: the client answers the
-   scope's `has` ask that it holds the image, and the server takes
-   from the client, on the scope's manifest and blob channels, every
-   manifest and every blob of the image that it does not already
-   hold. The server may take from the client none of the image's
+   image from the client of the scope. On a run, the client first
+   answers the scope's `oci-has` ask, whose request is the image of
+   the request, that it holds the image; an
+   [images::push](/endpoints/images-push/) scope carries no `oci-has`
+   ask. The server takes from the client, on the scope's manifest and
+   blob channels, every manifest and every blob of the image that it
+   does not already hold. The server may take from the client none of the image's
    bytes, where it already holds every byte of the image.
 3. **Store.** The source is `Store` when the image is in the Store of
    the client of the scope. The server obtains the image from the
@@ -146,13 +148,16 @@ owns.
    is in the client's Store; otherwise `Registry`, where a registry
    that is in its `images_registries` and that a reference of the
    request names serves the digest; otherwise `Client`, where the
-   client answers the `has` ask that it holds the image. Where none
+   client answers the `oci-has` ask that it holds the image. Where none
    applies, the server obtains the image from no source, and the run
    ends with the error that the run's page states.
 5. **The order of a push.** For an
    [images::push](/endpoints/images-push/) request, the server
    consults `Registry` and, where `Registry` does not apply,
-   `Client`, in the order and on the terms of item 4.
+   `Client`, in the order of item 4. The server sends no `oci-has`
+   ask on a push: `Client` applies where the client supplies the
+   manifest that the server asks for on the scope's manifest
+   channel.
 6. **The Store source applies to runs only.** The source of a push is
    never `Store`. The server answers an
    [images::push](/endpoints/images-push/) request whose image is in
@@ -177,6 +182,23 @@ owns.
    any Store. The server removes every manifest and every blob that
    it stored for the request and that no image in any client's Store,
    and no image whose nonce check passed before, references.
+10. **What has, oci and hash answer from.** A server answers an
+   [images::has](/endpoints/images-has/) request, serves an
+   [images::oci](/endpoints/images-oci/) scope, and computes the proof
+   of an [images::hash](/endpoints/images-hash/) request from the
+   image the request's image names as the server can supply it from
+   exactly the following sources, in the following order: the
+   client's Store, where the client owns the digest; otherwise a
+   registry that is in its
+   [`images_registries`](/capabilities/#images_registries) and that a
+   reference of the request names, as `<registry>/<name>@<digest>`.
+   The server ignores a reference that names a registry not in its
+   `images_registries`, and a reference whose `name` is not a
+   repository path by the grammar of the OCI Distribution
+   Specification. The server never answers, serves or computes
+   any of the three from an image in another identity's Store, and
+   never from an image it holds only because the source of a run's
+   image was `Client`.
 
 The source is defined by `diverge-sdk-rs/src/shared/containers/response/source.rs`.
 In JSON, `Store` is exactly the string `"store"`, `Client` is exactly

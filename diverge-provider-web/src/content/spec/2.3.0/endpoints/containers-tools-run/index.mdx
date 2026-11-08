@@ -65,7 +65,8 @@ about the client, which may open any channel at any time.
    the order that [Image sources](/endpoints/#image-sources) states
    for a run: the client's Store, a registry, the client. Where it
    consults the client, the server asks the client whether it holds
-   the image on an [oci-has](/endpoints/containers-tools-run/server/oci-has/) channel; a
+   the image on an [oci-has](/endpoints/containers-tools-run/server/oci-has/) channel,
+   whose request is the `image` of the request; a
    manifest or a blob the server requires and does not hold it asks
    for on an [oci-manifest](/endpoints/containers-tools-run/server/oci-manifest/) or
    [oci-blob](/endpoints/containers-tools-run/server/oci-blob/) channel; and, when it holds

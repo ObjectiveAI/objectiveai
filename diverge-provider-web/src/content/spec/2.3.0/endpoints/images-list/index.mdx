@@ -38,7 +38,10 @@ A connection holds at most one images::list scope open at a time, as
   [images::hash](/endpoints/images-hash/) and
   [images::delete](/endpoints/images-delete/) request, and in a
   container request. No image has a name. An image absent from the
-  listing is one the client cannot name. The Containerfile an image
+  listing is one the client cannot name in an
+  [images::stat](/endpoints/images-stat/),
+  [images::edit](/endpoints/images-edit/) or
+  [images::delete](/endpoints/images-delete/) request. The Containerfile an image
   was built from is reported by [images::stat](/endpoints/images-stat/),
   one image at a time.
 - **The client.** The client is the identity under which the

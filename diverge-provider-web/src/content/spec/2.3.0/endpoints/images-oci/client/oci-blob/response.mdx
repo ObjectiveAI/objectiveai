@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server answers with the bytes of the blob in zero or more channel responses, each a piece in order, and the channel response finish; a finish with nothing before it states that the server does not hold the digest for the client.'
+summary: 'The server answers with the bytes of the blob in zero or more channel responses, each a piece in order, and the channel response finish; a finish with nothing before it states that the server does not answer the digest on the scope.'
 order: 2
 draft: false
 ---
@@ -13,7 +13,10 @@ draft: false
   the blob verbatim with no tag and no header, in order; the pieces
   concatenated are the blob. The channel response finish follows the
   last. A channel response finish that no channel response precedes
-  states that the server does not hold the digest for the client.
+  states that the server does not answer the digest on the scope:
+  the image of the scope does not reach the digest, as
+  [images::oci](/endpoints/images-oci/) states, or the server cannot
+  supply its bytes.
 - **The pieces.** The server sends no piece larger than 2 MiB. A
   client appends each piece to what arrived before and measures
   nothing; the finish says the blob is whole, and a channel that

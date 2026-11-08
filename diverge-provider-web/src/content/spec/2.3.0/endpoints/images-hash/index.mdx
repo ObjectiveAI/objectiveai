@@ -1,52 +1,62 @@
 ---
 title: 'images::hash'
-summary: 'Tag 21: a client names an image of its Store by digest, and the platform where the digest names an index, and sends a nonce; the server sends exactly one response carrying the proof of Possession over its own bytes of the image, or stating that the client owns no such image, that the server keeps no Store, or an error, and the scope finishes.'
+summary: 'Tag 21: a client names an image by digest and by zero or more references, and the platform where the digest names an index, and sends a nonce; the server sends exactly one response carrying the proof of Possession over the image as it can supply it from the client’s Store or from a registry it is configured with that a reference names, or stating that it cannot supply the image, that it has neither a Store nor any registry, or an error, and the scope finishes.'
 order: 21
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`21` followed by the digest of an image, the platform or none, and a
-nonce. The server sends exactly one response, which is the proof,
-the word that no such image is in the client's Store, the word that
-the server keeps no Store, or an error. The response finish follows
-the response, and no frame follows the finish.
+`21` followed by the prove request as JSON: an image, the platform or
+none, and a nonce. The server sends exactly one response, which is the
+proof, the word that the server cannot supply the image, the word that
+the server has no source, or an error. The response finish follows the
+response, and no frame follows the finish.
 
-- **The request.** The request carries the digest of one image, the
-  digest of the platform manifest where the digest names an image
-  index, and a nonce of exactly 32 bytes.
-  [Request](/endpoints/images-hash/request/) states its form.
-- **The image named.** The client names an image by the `digest` its
-  [images::list](/endpoints/images-list/) listing gave it. The server
-  resolves the digest against the Store of the identity under which
-  the connection was authorized, as [Authorization](/authorization/)
-  provides. A digest of no image in the client's Store is answered
-  with `NotFound`, the byte `1`, whether or not the digest is that of
-  an image in another identity's Store. Where the digest names an
-  image index, a request that carries no `platform`, or a `platform`
-  that is not the digest of a manifest the index lists, is answered
-  with `NotFound`. Where the digest does not name an image index, a
-  request that carries a `platform` is answered with `NotFound`. The
-  server computes no proof over an image index alone.
+- **The request.** The request carries one image, named by its digest
+  and by zero or more references, the digest of the platform manifest
+  where the digest names an image index, and a nonce of exactly 32
+  bytes. [Request](/endpoints/images-hash/request/) states its form.
+- **The sources.** The server computes the proof over the image the
+  request's image names as the server can supply it from the sources,
+  and in the order, that [images::has](/endpoints/images-has/) states:
+  the client's Store, as [Image sources](/endpoints/#image-sources)
+  defines it, where the client owns the digest; otherwise a registry
+  in its [`images_registries`](/capabilities/#images_registries) that
+  a reference of the request names, as `<registry>/<name>@<digest>`.
+  The server ignores a reference that names a registry not in its
+  `images_registries`. The server never computes the proof from
+  another identity's Store, and never from an image it holds only
+  because a client supplied it to a
+  [containers::agents::run](/endpoints/containers-agents-run/) or a
+  [containers::tools::run](/endpoints/containers-tools-run/). This
+  revision prescribes nothing about how the server obtains or holds
+  the bytes over which it computes the proof.
+- **Not found.** A request whose image the server cannot supply from
+  either source is answered with `NotFound`, the byte `1`. Where the
+  digest names an image index, a request that carries no `platform`,
+  or a `platform` that is not the digest of a manifest the index
+  lists, is answered with `NotFound`. Where the digest does not name
+  an image index, a request that carries a `platform` is answered with
+  `NotFound`. The server computes no proof over an image index alone.
 - **The proof.** The server computes the proof that
   [Possession](/shared/possession/#the-proof) defines, with the nonce
   of the request, over the image bytes `D` of the image, as
   [Possession](/shared/possession/#the-image-bytes) defines them for
-  the `digest` and the `platform` of the request, read from the bytes
-  the server holds for the client's Store. The server computes it by
-  the same procedure by which it computes its own value in a nonce
-  check. The server sends the 32 bytes of the proof after the byte
-  `0`. [Response](/endpoints/images-hash/response/) states the form
-  of the response.
+  the `image` and the `platform` of the request. The server computes
+  it by the same procedure by which it computes its own value in a
+  nonce check. The server sends the 32 bytes of the proof after the
+  byte `0`. [Response](/endpoints/images-hash/response/) states the
+  form of the response.
 - **Nothing moves.** The server sends no byte of the image, opens no
   channel on the scope, and changes nothing in any Store.
 - **The nonce.** The server computes the proof with the 32 bytes the
   request carries as its nonce, whatever their value.
 - **The error.** An error states that the server did not compute the
-  proof, for a reason other than an image not in the client's Store.
-- **No Store.** A server that holds out no
-  [`images_store`](/capabilities/#images_store) capability keeps no
-  Store and answers every request of this endpoint with exactly one
-  response, the byte `2` alone, and the response finish, before
-  anything is looked up. Every other requirement of this page holds
-  for a server that holds the capability out.
+  proof, for a reason other than an image it cannot supply.
+- **Unsupported.** A server that holds out no
+  [`images_store`](/capabilities/#images_store) capability and whose
+  [`images_registries`](/capabilities/#images_registries) is empty has
+  no source. It answers every request of this endpoint with exactly
+  one response, the byte `2` alone, and the response finish, before
+  anything is looked up. A server that has exactly one of the two
+  sources computes the proof from that source alone.

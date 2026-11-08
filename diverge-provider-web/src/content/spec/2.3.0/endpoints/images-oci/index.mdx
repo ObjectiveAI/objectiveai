@@ -1,69 +1,85 @@
 ---
 title: 'images::oci'
-summary: 'Tag 23: a client opens a scope to pull the images of its Store; the server sends nothing on the main stream and, for as long as the scope lives, answers on channels the client opens whether it holds an image for the client and under what name, a manifest by digest, and a blob by digest; the client disconnects, or its connection ends, and the response finish follows.'
+summary: 'Tag 23: a client opens a scope to pull exactly one image, named by digest and by zero or more references; the server sends nothing on the main stream, or exactly one response stating that it cannot supply the image or that it has neither a Store nor any registry, and, while the scope lives, answers on channels the client opens the manifests and blobs the image reaches, until the client cancels or its connection ends and the response finish follows.'
 order: 23
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`23` and nothing more. The server sends no response on the scope,
-unless it keeps no Store, in which case it sends exactly one.
-The scope stays open: the client opens on it, as channels, the three asks
-the server makes of a client on a run scope — whether an image is
-held, a manifest, a blob — and the server answers each from the
-client's Store. The client ends the scope by opening the
-disconnect channel, or by its connection ending; the response finish
+`23` followed by exactly one image, named by its digest and by zero or
+more references. The scope is the pull of that image alone. Where the
+server can supply the image, it sends no response on the main stream,
+and the client opens on the scope, as channels, asks for the
+manifests and the blobs of the image, which the server answers. Where
+the server cannot supply the image, or has no source, it sends exactly
+one response on the main stream. The client ends the scope by opening
+the cancel channel, or by its connection ending. The response finish
 follows the last answer, and no frame follows the finish.
 
-- **The request.** The request carries no parameter; the tag is the
-  whole of it. [Request](/endpoints/images-oci/request/) states its
-  form.
+- **The request.** The request is the image, in the form the request
+  of [images::has](/endpoints/images-has/request/) has.
+  [Request](/endpoints/images-oci/request/) states its form.
 - **The response.** [Response](/endpoints/images-oci/response/)
-  states that the main stream carries nothing but the finish on a
-  server that keeps a Store, the one response a server that
-  keeps no Store sends, and when the finish comes.
+  states the sequence of the main stream: nothing until the response
+  finish, or exactly one response, first and alone, followed by the
+  response finish.
 - **The channels.** The client opens the channels that
-  [Client Channels](/endpoints/images-oci/client/) defines: the three
-  asks, byte for byte the asks of
-  [containers::agents::run](/endpoints/containers-agents-run/) and
-  [containers::tools::run](/endpoints/containers-tools-run/) with the
-  client and the server exchanged, and the disconnect. The server
+  [Client Channels](/endpoints/images-oci/client/) defines: the
+  oci-manifest and oci-blob asks, byte for byte the asks of tags `0`
+  and `1` of
+  [containers::agents::run](/endpoints/containers-agents-run/server/)
+  and [containers::tools::run](/endpoints/containers-tools-run/server/)
+  with the client and the server exchanged, and the cancel. The server
   opens no channel on a pull scope. No channel of a pull scope carries
   the `prove` ask of [Possession](/shared/possession/); the proof over
-  an image of the client's Store is the answer of
-  [images::hash](/endpoints/images-hash/).
-- **What is held for the client.** What the server holds for the
-  client is the client's Store, as
-  [Image sources](/endpoints/#image-sources) defines it: every image
-  the client built by [images::build](/endpoints/images-build/) or
-  pushed by [images::push](/endpoints/images-push/) and has not
-  deleted — the `client` source of
-  [images::check](/endpoints/images-check/). The server serves each
-  image byte for byte as it was when it entered the Store. An image
-  that is in another client's Store and not in the client's Store is
-  not held for the client, and the server does not serve it. An image
-  the server holds on its own account is not served on a pull: the
-  server obtains nothing for a pull, an image not held for the
-  client is answered as not held, and no registry is asked.
+  an image is the answer of [images::hash](/endpoints/images-hash/).
+- **The sources.** The server supplies the image from the sources,
+  and in the order, that [images::has](/endpoints/images-has/) states:
+  the client's Store, as [Image sources](/endpoints/#image-sources)
+  defines it, where the client owns the digest; otherwise a registry
+  in its [`images_registries`](/capabilities/#images_registries) that
+  a reference of the request names, as `<registry>/<name>@<digest>`.
+  The server ignores a reference that names a registry not in its
+  `images_registries`. The server never supplies the image from
+  another identity's Store, and never from an image it holds only
+  because a client supplied it to a
+  [containers::agents::run](/endpoints/containers-agents-run/) or a
+  [containers::tools::run](/endpoints/containers-tools-run/). Where
+  the source is the client's Store, the server serves each manifest
+  and each blob byte for byte as it was when the image entered the
+  Store.
+- **Not found.** A server that cannot supply the image the request
+  names sends exactly one response, the byte `0`, as the first frame
+  of the main stream, followed by the response finish. It answers no
+  channel the client opens on the scope.
+- **What the image reaches.** The server answers an oci-manifest or
+  an oci-blob ask only for a digest the image of the scope reaches. The
+  image reaches exactly the following digests: the digest of the
+  request, which names a manifest; where that manifest is an image
+  index, the digest of every manifest the index lists; and the digest
+  of the config and of every layer of each image manifest so reached.
+  The server answers an ask for any other digest with a channel
+  response finish that no channel response precedes.
 - **The client.** The client is the identity under which the
   connection was authorized, as [Authorization](/authorization/)
-  provides. What is held for the client is held for that identity.
+  provides. The client's Store is that identity's Store.
 - **Asks in flight at once.** A client may have any number of asks
   open at once. The server answers each on its own channel, in
   whatever order it answers them.
-- **The disconnect.** The client ends the scope by opening the
-  disconnect channel. The server answers every ask still open, sends
-  nothing on the disconnect's own channel, and sends the response
-  finish. A connection that closes with a pull scope open ends the
-  scope the same way.
+- **The cancel.** The client ends the scope by opening the cancel
+  channel. The server answers every ask still open, sends nothing on
+  the cancel's own channel, and sends the response finish. A
+  connection that closes with a pull scope open ends the scope the same
+  way.
 - **Not served.** A server that will not serve the pull sends the
   response finish with no response before it and serves no channel.
-  A client cannot tell this from its own disconnect but by having
-  sent none.
-- **No image store.** A server that holds out no
-  [`images_store`](/capabilities/#images_store) capability holds no
-  image for any client and answers every request of this endpoint
-  with exactly one response on the main stream, the byte `0` alone,
-  and the response finish; it answers no channel the client opens on
-  the scope. Every other requirement of this page holds for a server
-  that holds the capability out.
+  A client cannot tell this from the finish that follows its own
+  cancel except by having sent no cancel.
+- **Unsupported.** A server that holds out no
+  [`images_store`](/capabilities/#images_store) capability and whose
+  [`images_registries`](/capabilities/#images_registries) is empty has
+  no source. It answers every request of this endpoint with exactly
+  one response on the main stream, the byte `1` alone, and the
+  response finish, and it answers no channel the client opens on the
+  scope. A server that has exactly one of the two sources supplies the
+  image from that source alone.

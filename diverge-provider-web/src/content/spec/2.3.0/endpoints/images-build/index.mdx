@@ -69,8 +69,8 @@ response, and no frame follows the finish.
 - **The client.** The client is the identity under which the
   connection was authorized. The image enters that identity's Store,
   and that identity alone can examine it, edit it, hash it, delete it,
-  or run it from its Store: an [images::check](/endpoints/images-check/)
-  by that identity naming the image's digest is available, and a
+  or run it from its Store: an [images::has](/endpoints/images-has/)
+  by that identity naming the image's digest is answered Held, and a
   container request by that identity naming the digest runs the image
   from the Store, as [Image sources](/endpoints/#image-sources)
   states. To any other identity the image is not in its Store, unless
