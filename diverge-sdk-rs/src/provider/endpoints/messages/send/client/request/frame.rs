@@ -25,7 +25,7 @@ pub struct Frame<'a> {
 
 /// This frame's tag among the scope-opening requests. See the table
 /// in [`endpoints`](crate::provider::endpoints).
-const TAG: u8 = 27;
+const TAG: u8 = 30;
 
 impl Encode for Frame<'_> {
     /// The identity did not serialize.

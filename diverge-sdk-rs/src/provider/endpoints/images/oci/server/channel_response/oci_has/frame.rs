@@ -1,6 +1,6 @@
 //! What a server's response frame carries on a has channel.
 
-/// Whether the provider holds the image for the caller, and under what name. See [`oci::has::response::Frame`](crate::shared::containers::oci::has::response::Frame).
+/// Whether the caller's Store holds the image, and the fixed label `image`. See [`oci::has::response::Frame`](crate::shared::containers::oci::has::response::Frame).
 ///
 /// An alias rather than a re-export because this module is real: the
 /// path says this scope's answer lives here, and it does, rather than

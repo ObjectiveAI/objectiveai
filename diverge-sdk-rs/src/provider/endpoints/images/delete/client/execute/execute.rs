@@ -17,8 +17,8 @@ use crate::shared::error::Error;
 /// running container of the caller runs is [`ExecuteError::InUse`] —
 /// the protocol's defined refusal, not a failure, and the one a
 /// caller acts on by stopping the container and asking again.
-/// Everything else is an [`ExecuteError::Provider`] — an image the
-/// caller has none by that name, or a provider that could not do it.
+/// Everything else is an [`ExecuteError::Provider`] — a digest the
+/// caller owns no image by, or a provider that could not do it.
 ///
 /// # It reads one frame and leaves
 ///
@@ -73,7 +73,7 @@ pub enum ExecuteError {
     /// A running container of the caller runs the image, and the
     /// provider does not delete an image in use. Nothing was changed.
     InUse,
-    /// The provider has no image store. The protocol's defined
+    /// The provider has no Store. The protocol's defined
     /// refusal, not a failure.
     Unsupported,
     /// The provider could not do it, and said so. See
@@ -92,7 +92,7 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Unanswered => f.write_str("image deletion finished without an answer"),
             ExecuteError::Response(error) => write!(f, "image deletion answer did not parse: {error}"),
             ExecuteError::InUse => f.write_str("a running container runs the image, and it was not deleted"),
-            ExecuteError::Unsupported => f.write_str("the provider has no image store"),
+            ExecuteError::Unsupported => f.write_str("the provider has no Store"),
             ExecuteError::Provider(_) => f.write_str("the provider could not complete the image deletion"),
         }
     }

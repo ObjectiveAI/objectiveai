@@ -5,7 +5,7 @@ use super::{Cancel, ExecuteError, ExecuteStream};
 use crate::wire::client::handle::Handle;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the provider which images the caller has built, and keep
+/// Ask the provider which images the caller's Store holds, and keep
 /// asking.
 ///
 /// Reads nothing before returning: the provider's first frame is the

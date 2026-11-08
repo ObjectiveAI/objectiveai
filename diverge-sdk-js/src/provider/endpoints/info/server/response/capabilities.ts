@@ -9,7 +9,7 @@ import { VolumeCapabilities, kept } from "./volume_capabilities.js";
  * Which of the specification's optional parts this provider serves.
  * Every provider serves every endpoint's wire, but not every
  * provider does everything a request may ask: one runs no
- * containers, one has no image store, one pulls from no registry, one
+ * containers, one has no Store, one pulls from no registry, one
  * keeps volumes of some modes only, one relays no messages. Each such part is one member here, and a request past it is
  * not a failure but a refusal the endpoint has a variant of its own
  * for. Flat, and tolerant: a member absent is the capability absent;
@@ -18,7 +18,7 @@ import { VolumeCapabilities, kept } from "./volume_capabilities.js";
 export const Capabilities = z.looseObject({
   /** The provider runs containers: it answers the agents run and the tools run. Absent, `false`, and each answers `Unsupported`. */
   containers: z.boolean().optional(),
-  /** The provider keeps an image store for its callers. Absent, `false`. */
+  /** The provider keeps the Store for its callers: their images, by digest. Absent, `false`. */
   images_store: z.boolean().optional(),
   /** The registries the provider pulls from, each a host. Absent, none. */
   images_registries: z.array(z.string()).optional(),

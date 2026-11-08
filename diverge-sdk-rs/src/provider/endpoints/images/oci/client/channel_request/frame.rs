@@ -6,11 +6,12 @@ use crate::shared::containers::oci;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// What a caller asks a provider for on an image pull: the three asks
-/// of [`oci`](crate::shared::containers::oci), byte for byte as the
-/// provider asks them of a caller on a run scope — the same tags, the
-/// same request bodies, the same answers — and the disconnect that
-/// ends the scope.
+/// What a caller asks a provider for on an image pull: three of the
+/// asks of [`oci`](crate::shared::containers::oci), byte for byte as
+/// the provider asks them of a caller on a run scope — the same tags,
+/// the same request bodies, the same answers — and the disconnect
+/// that ends the scope. Not the proof: that is
+/// [`hash`](crate::provider::endpoints::images::hash).
 ///
 /// | tag | asks for |
 /// |-----|----------|
@@ -20,26 +21,25 @@ use crate::wire::encode::{Encode, Writer};
 /// | `3` | [`Disconnect`](Self::Disconnect) |
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Frame {
-    /// A manifest of an image the provider holds for the caller, by
-    /// digest. Tag `0`.
+    /// A manifest of an image in the caller's Store, by digest. Tag
+    /// `0`.
     ///
     /// Answered with at most one frame, the media type and the bytes,
-    /// then the finish; the empty finish for a digest the provider
-    /// does not hold for the caller. See
+    /// then the finish; the empty finish for a digest not in the
+    /// caller's Store. See
     /// [`oci::manifest`](crate::shared::containers::oci::manifest).
     OciManifest(oci::manifest::request::Request),
     /// A blob of such an image, by digest. Tag `1`.
     ///
     /// Answered with the blob's bytes as zero or more frames, each
-    /// appending, then the finish; zero frames is a digest the
-    /// provider does not hold for the caller. See
+    /// appending, then the finish; zero frames is a digest not in the
+    /// caller's Store. See
     /// [`oci::blob`](crate::shared::containers::oci::blob).
     OciBlob(oci::blob::request::Request),
-    /// Whether the provider holds an image for the caller, by digest,
-    /// and under what name. Tag `2`.
+    /// Whether the caller's Store holds an image, by digest. Tag `2`.
     ///
-    /// Answered with one frame, the byte `0` or the byte `1` and a
-    /// repository path, then the finish. See
+    /// Answered with one frame, the byte `0`, or the byte `1` and the
+    /// fixed label `image`, then the finish. See
     /// [`oci::has`](crate::shared::containers::oci::has).
     OciHas(oci::has::request::Request),
     /// Leave the scope. Tag `3`.

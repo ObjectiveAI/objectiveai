@@ -59,9 +59,9 @@ impl ExecuteHandle {
         self.scope
     }
 
-    /// Whether the provider holds the image for the caller, and under
-    /// what repository path: `None` for not held, which the provider
-    /// says with the byte `0` or with the empty finish alike.
+    /// Whether the caller's Store holds the image, and the label it is
+    /// answered under — always `image`: `None` for not held, which the
+    /// provider says with the byte `0` or with the empty finish alike.
     pub async fn has(&self, digest: &str) -> Result<Option<String>, UnaryError<OciHas>> {
         let request = oci::has::request::Request {
             digest: digest.to_string(),
@@ -74,8 +74,8 @@ impl ExecuteHandle {
         }
     }
 
-    /// The manifest under `digest`, as the provider holds it for the
-    /// caller: `None` for the empty finish, a digest not held.
+    /// The manifest under `digest`, from the caller's Store: `None` for
+    /// the empty finish, a digest not held.
     pub async fn manifest(&self, digest: &str) -> Result<Option<Manifest>, UnaryError<OciManifest>> {
         let request = oci::manifest::request::Request {
             digest: digest.to_string(),
@@ -109,7 +109,7 @@ impl ExecuteHandle {
 
     /// The scope's end: the finish, after the disconnect or unasked —
     /// a provider that will not serve the pull — or the connection
-    /// going first; a provider with no image store says so before its
+    /// going first; a provider with no Store says so before its
     /// finish, and that is [`End::Unsupported`]. Resolves once and
     /// answers the same way again after.
     pub async fn wait(&self) -> End {
@@ -136,7 +136,7 @@ pub enum End {
     /// The finish came: the disconnect was answered, or the provider
     /// would not serve the scope for a reason it does not say.
     Finished,
-    /// The provider has no image store, and said so; its finish
+    /// The provider has no Store, and said so; its finish
     /// follows. No ask was answered.
     Unsupported,
     /// The connection ended before the finish.

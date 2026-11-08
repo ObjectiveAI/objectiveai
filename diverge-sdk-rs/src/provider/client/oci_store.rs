@@ -21,8 +21,10 @@ pub struct Manifest {
 /// A provider that would take the image from the caller asks first
 /// whether the caller holds it, then runs the registry its runtime
 /// pulls from and asks the caller by digest for whatever that
-/// registry's store does not hold, over
-/// [`oci`](crate::shared::containers::oci). The caller needs no HTTP
+/// registry's store does not hold, and last asks the caller to prove
+/// it holds the image, over [`oci`](crate::shared::containers::oci).
+/// An [`images::push`](crate::provider::endpoints::images::push) asks
+/// the same, less the first question. The caller needs no HTTP
 /// at all: it answers a manifest whole and a blob as a stream, and
 /// answers nothing for a digest it does not hold — which the executor
 /// sends as the empty finish, the wire's "could not serve". There is
@@ -49,4 +51,15 @@ pub trait OciStore: Send + Sync {
 
     /// The blob under `digest`, or `None` for one not held.
     fn blob(&self, digest: &str) -> impl Future<Output = Option<Self::Blob>> + Send;
+
+    /// The proof that the image is held: `SHA-256(nonce ‖ D)` over the
+    /// image `digest` names — with `platform`, the manifest in it
+    /// meant, when `digest` names an index — exactly as
+    /// [`oci::prove`](crate::shared::containers::oci::prove) defines
+    /// `D`; [`Prover`](crate::shared::containers::oci::prove::proof::Prover)
+    /// computes it. `None` for an image not held whole. A caller whose
+    /// image is in another provider's Store answers from there,
+    /// through [`images::hash`](crate::provider::endpoints::images::hash),
+    /// and moves no byte of it.
+    fn prove(&self, digest: &str, platform: Option<&str>, nonce: &[u8; 32]) -> impl Future<Output = Option<[u8; 32]>> + Send;
 }

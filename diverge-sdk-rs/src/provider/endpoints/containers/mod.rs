@@ -38,7 +38,10 @@
 //! # The main stream is the id, and then the agent
 //!
 //! A run answers with the container's
-//! [`Id`](crate::shared::containers::response::Id). An agent
+//! [`Id`](crate::shared::containers::response::Id), which says where
+//! its image came from — the caller's Store, a registry, or the
+//! caller — or with a refusal, among them `ProofFailed`: the caller
+//! supplied the image and did not prove it holds it. An agent
 //! container's stream then carries the agent's chunks for as long as
 //! the container runs; a tool container's carries nothing more. An
 //! error ends the scope. Everything else a caller reads — a filetree,

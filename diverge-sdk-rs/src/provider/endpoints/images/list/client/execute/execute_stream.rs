@@ -12,9 +12,10 @@ use crate::wire::decode::Decode as _;
 use crate::wire::frame;
 
 /// The listing, one [`response::Frame`] per item, in the order the
-/// provider sends them: every image the caller built as added, the
-/// word that the listing is whole, and from then on images added and
-/// removed as the caller builds and deletes them. Ends at the
+/// provider sends them: every image in the caller's Store as added,
+/// the word that the listing is whole, and from then on images added,
+/// changed and removed as the caller builds, pushes, edits and deletes
+/// them. Ends at the
 /// provider's finish — after the cancel, or the connection ending — and
 /// an error from the provider is the last item, with nothing after
 /// it.
@@ -83,7 +84,7 @@ pub enum ExecuteStreamError {
     Misrouted,
     /// A response that is not this scope's.
     Response(response::FrameDecodeError),
-    /// The provider has no image store, and nothing is listed. The
+    /// The provider has no Store, and nothing is listed. The
     /// protocol's defined refusal, not a failure.
     Unsupported,
     /// This connection has an image listing open already, and nothing
@@ -105,7 +106,7 @@ impl fmt::Display for ExecuteStreamError {
             ExecuteStreamError::Frame(error) => write!(f, "frame did not decode: {error}"),
             ExecuteStreamError::Misrouted => f.write_str("a frame that cannot be on a main stream arrived"),
             ExecuteStreamError::Response(error) => write!(f, "{error}"),
-            ExecuteStreamError::Unsupported => f.write_str("the provider has no image store"),
+            ExecuteStreamError::Unsupported => f.write_str("the provider has no Store"),
             ExecuteStreamError::AlreadyOpen => f.write_str("this connection has an image listing open already"),
             ExecuteStreamError::Refused(_) => f.write_str("the provider ended the image listing with an error"),
         }

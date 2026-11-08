@@ -147,7 +147,7 @@ pub enum ExecuteError {
     /// is one.
     Provider(Error),
     /// The request named no source the provider has — neither asked,
-    /// or `client` of a provider with no image store, or `registries`
+    /// or `client` of a provider with no Store, or `registries`
     /// of one listing no registry — and the provider answered so:
     /// nothing was looked at, and nothing is determined about the
     /// image. Asked again with a source it has set, the provider

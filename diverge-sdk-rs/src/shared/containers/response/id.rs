@@ -2,13 +2,15 @@
 
 use serde::{Deserialize, Serialize};
 
-/// What the provider decided to call this container.
+use super::Source;
+
+/// What the provider decided to call this container, and where its
+/// image came from.
 ///
-/// An object rather than a bare string, so a provider that later has
+/// An object rather than a bare string, so a provider that has
 /// something else to say about the container's identity has somewhere
-/// to say it. A JSON string is a shape that can only ever be one
-/// field.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+/// to say it — as it does: the [`Source`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Id {
     /// The id itself.
     ///
@@ -24,4 +26,8 @@ pub struct Id {
     /// who was not given it, and nothing outside the provider that
     /// minted it.
     pub id: String,
+    /// Where the provider took the container's image from: the
+    /// caller's Store, a registry it uses, or the caller, who proved
+    /// it holds it. See [`Source`] for the order they are consulted in.
+    pub source: Source,
 }

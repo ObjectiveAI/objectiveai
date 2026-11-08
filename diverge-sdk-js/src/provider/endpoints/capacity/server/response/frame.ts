@@ -14,7 +14,7 @@ import { z } from "zod";
 export const Frame = z.looseObject({
   /** The largest size, in bytes, a new volume of the caller could have. */
   volumes_disk: z.number().int().nonnegative(),
-  /** The bytes the caller could still add to the client image store by a build. */
+  /** The bytes the caller could still add to the Store by a build or a push. */
   images_disk: z.number().int().nonnegative(),
   /** The bytes of memory a container run of the caller could still reserve. */
   container_memory: z.number().int().nonnegative(),

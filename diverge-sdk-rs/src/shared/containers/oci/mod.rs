@@ -1,17 +1,22 @@
-//! Taking an image from the caller: one question, and two fetches
-//! by digest.
+//! Taking an image from the caller: one question, two fetches by
+//! digest, and the proof.
 //!
 //! A provider that would take a run's image from the caller asks
 //! here, on the run scope. First whether the caller [`has`] it at
-//! all, by digest — a caller that does answers the repository path it
-//! holds it under, which the provider's registry serves it from. Then, running a registry — the read side
-//! of the OCI Distribution API, on its own loopback — that its
-//! container runtime pulls from as from any registry, whatever that
-//! registry does not hold: a [`manifest`] by digest, a [`blob`] by
-//! digest, bytes until the finish, or an empty finish for a digest
-//! the caller does not have. Whether a provider takes an image from
-//! the caller at all, rather than from its own store or a registry
-//! it uses, is its own; these are what it asks when it does.
+//! all, by digest — a caller that does answers a name, a label the
+//! provider puts in the one pull's reference and never stores. Then,
+//! running a registry — the read side of the OCI Distribution API, on
+//! its own loopback — that its container runtime pulls from as from
+//! any registry, whatever that registry does not hold: a [`manifest`]
+//! by digest, a [`blob`] by digest, bytes until the finish, or an
+//! empty finish for a digest the caller does not have. Last, always,
+//! whether or not it pulled a byte, it asks the caller to [`prove`]
+//! that it holds the image: the nonce check. An
+//! [`images::push`](crate::provider::endpoints::images::push) asks the
+//! same manifests, blobs and proof, without the question. In what
+//! order a provider looks for a run's image — the caller's Store, a
+//! registry it uses, the caller — is stated on
+//! [`Source`](crate::shared::containers::response::Source).
 //!
 //! # Two fetches, and only two
 //!
@@ -57,3 +62,4 @@
 pub mod blob;
 pub mod has;
 pub mod manifest;
+pub mod prove;

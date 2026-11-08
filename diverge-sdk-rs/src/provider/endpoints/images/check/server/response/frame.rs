@@ -72,7 +72,7 @@ pub enum Frame {
     ///
     /// Neither an answer nor a failure: the question was empty, for
     /// this provider. A request asking for neither source is this; so
-    /// is one asking `client` of a provider with no image store, or
+    /// is one asking `client` of a provider with no Store, or
     /// `registries` of one that lists no registry — see
     /// [`info`](crate::provider::endpoints::info) for both — and
     /// nothing else. A caller that wanted an answer asks again with a

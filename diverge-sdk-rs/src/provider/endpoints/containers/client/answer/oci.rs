@@ -1,5 +1,5 @@
-//! Whether the caller holds an image, and its manifest and blobs,
-//! from the caller's store.
+//! Whether the caller holds an image, its manifest and blobs, and
+//! the proof that it holds it, from the caller's store.
 
 use std::sync::Arc;
 
@@ -39,6 +39,23 @@ pub(crate) async fn manifest<O: OciStore>(
             body: &manifest.body,
         };
         respond(handle, scope, channel, &frame).await?;
+    }
+    finish(handle, scope, channel).await
+}
+
+/// One frame — the 32 bytes of the proof — then the finish; the
+/// empty finish for an image the store does not hold.
+pub(crate) async fn prove<O: OciStore>(
+    handle: &Handle,
+    scope: u32,
+    channel: u32,
+    digest: String,
+    platform: Option<String>,
+    nonce: [u8; 32],
+    store: Arc<O>,
+) -> Result<(), Stop> {
+    if let Some(proof) = store.prove(&digest, platform.as_deref(), &nonce).await {
+        respond(handle, scope, channel, &oci::prove::response::Frame { proof }).await?;
     }
     finish(handle, scope, channel).await
 }

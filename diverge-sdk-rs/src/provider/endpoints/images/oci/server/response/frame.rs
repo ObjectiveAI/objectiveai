@@ -6,7 +6,7 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// The one thing a provider says on channel `0` of a pull, and only
-/// when it will not serve one: it has no image store.
+/// when it will not serve one: it has no Store.
 ///
 /// An ordinary pull sends nothing on channel `0` — every answer comes
 /// on an ask's own channel, and the finish is the scope's end. A
@@ -20,10 +20,10 @@ use crate::wire::encode::{Encode, Writer};
 /// |-----------|-------|
 /// | nothing, and stays open | the provider serves the pull, and every ask the caller opens is answered on its channel |
 /// | nothing, then a finish | the caller disconnected, or the provider would not serve the pull for a reason it does not say |
-/// | an unsupported, then a finish | the provider has no image store; nothing was asked and nothing is held |
+/// | an unsupported, then a finish | the provider has no Store; nothing was asked and nothing is held |
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Frame {
-    /// The provider has no image store, and will not serve the pull.
+    /// The provider has no Store, and will not serve the pull.
     /// Tag `0`.
     ///
     /// Carries nothing. A caller asks another provider; nothing about

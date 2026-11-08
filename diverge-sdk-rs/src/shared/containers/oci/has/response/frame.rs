@@ -10,14 +10,14 @@ use crate::wire::encode::{Encode, Writer};
 /// path: the byte `0` and nothing after it when it does not; the byte
 /// `1` followed by the path as UTF-8 when it does.
 ///
-/// The path is the one the caller holds the image under, which the
-/// provider's registry serves it from: a runtime pulls
-/// `<registry>/<repository>/<name>@<digest>`, and `name` is this. The
-/// caller's store is keyed by digest, so the name is the caller's to
-/// answer and not the provider's to ask. A provider refuses a path
-/// that is not a repository path, since it lands in a reference by
-/// concatenation. A name that is empty is not a name: it encodes as
-/// not held.
+/// The path is a label, and nothing more: a runtime pulls
+/// `<registry>/<repository>/<name>@<digest>`, and `name` is this, for
+/// the one pull it is answered for. The provider never stores it and
+/// identifies nothing by it — the digest is the image, and the
+/// repository segment is the provider's own, minted for the pull. A
+/// provider refuses a path that is not a repository path, since it
+/// lands in a reference by concatenation. A name that is empty is not
+/// a name: it encodes as not held.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Frame {
     /// The repository path the image is held under, or `None` for not

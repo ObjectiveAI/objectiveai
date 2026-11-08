@@ -12,7 +12,7 @@
 mod daemon;
 mod fuse;
 mod mcp;
-mod oci;
+pub(crate) mod oci;
 mod postgres;
 mod registration;
 mod send;
@@ -47,6 +47,9 @@ pub(crate) async fn answer<O, T, P, D, M, F>(
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciHas(digest) => oci::has(&handle, scope, channel, digest, answerers.oci).await,
+        Ask::OciProve { digest, platform, nonce } => {
+            oci::prove(&handle, scope, channel, digest, platform, nonce, answerers.oci).await
+        }
         Ask::Registration { id, dependencies, secrets, permissions } => {
             registration::registration(&handle, scope, channel, id, dependencies, secrets, permissions, answerers.registrar).await
         }
@@ -85,6 +88,32 @@ pub(crate) async fn answer<O, T, P, D, M, F>(
         Ask::FuseSetattr(id, path, attrs) => {
             fuse::setattr(&handle, scope, channel, id, path, attrs, answerers.fuse).await
         }
+    };
+    if answered.is_err() {
+        let _ = send::finish(&handle, scope, channel).await;
+    }
+}
+
+/// Answer `ask` on `channel` of `scope` from `store` alone: what a
+/// scope whose provider asks only for an image answers with — an
+/// [`images::push`](crate::provider::endpoints::images::push). The
+/// four OCI asks are answered as a run answers them; any other ask is
+/// one this end cannot serve, and is finished with nothing before it.
+pub(crate) async fn answer_oci<O: OciStore + 'static>(
+    handle: Handle,
+    scope: u32,
+    channel: u32,
+    ask: Ask,
+    store: Arc<O>,
+) {
+    let answered = match ask {
+        Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, store).await,
+        Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, store).await,
+        Ask::OciHas(digest) => oci::has(&handle, scope, channel, digest, store).await,
+        Ask::OciProve { digest, platform, nonce } => {
+            oci::prove(&handle, scope, channel, digest, platform, nonce, store).await
+        }
+        _ => Err(send::Stop),
     };
     if answered.is_err() {
         let _ = send::finish(&handle, scope, channel).await;

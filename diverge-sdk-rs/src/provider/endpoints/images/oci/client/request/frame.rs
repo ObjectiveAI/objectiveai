@@ -6,7 +6,7 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// Open a pull on a provider: a scope to ask, on channels, what the
-/// provider holds for the caller.
+/// caller's Store there holds.
 ///
 /// A unit struct, because the scope has no parameters: what is
 /// asked about is said on each channel, by digest, and the scope
@@ -34,7 +34,7 @@ pub struct Frame;
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 20;
+const TAG: u8 = 23;
 
 impl Encode for Frame {
     /// [`Infallible`]: writing one known byte has no failure mode.

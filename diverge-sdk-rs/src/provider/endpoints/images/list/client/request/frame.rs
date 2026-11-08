@@ -5,12 +5,11 @@ use std::convert::Infallible;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask a provider which images the caller has built on it.
+/// Ask a provider which images the caller owns in its Store there.
 ///
 /// A unit struct, because the question has no parameters. There is
-/// nothing to narrow: the answer is every image the caller built and
-/// has not deleted, and a caller cannot ask about one it has not been
-/// told the name of.
+/// nothing to narrow: the answer is every image the caller built or
+/// pushed and has not deleted.
 ///
 /// # A frame that is only a tag
 ///

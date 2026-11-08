@@ -2,8 +2,9 @@
 //!
 //! [`execute`] opens the scope and hands back an [`ExecuteStream`] of
 //! what the provider sends — the build's output, line by line, and
-//! then the image built. A build the store had no room for and a
-//! build that failed end the stream as its error.
+//! then the image built, or the word that the caller owns it already.
+//! A build the Store had no room for and a build that failed end the
+//! stream as its error.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

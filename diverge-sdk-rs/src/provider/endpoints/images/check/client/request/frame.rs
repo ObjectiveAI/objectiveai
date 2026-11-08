@@ -20,23 +20,24 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// # Where to look
 ///
-/// Two places, each asked for or not, either or both: the client's
-/// own images, built on this provider, and the referenced
-/// registries. At least one is asked for, or the provider answers
+/// Two places, each asked for or not, either or both: the Store — the
+/// client's own images, built or pushed on this provider — and the
+/// referenced registries. At least one is asked for, or the provider
+/// answers
 /// [`NoSource`](crate::provider::endpoints::images::check::server::response::Frame::NoSource)
 /// and determines nothing. Available means at least one source asked
-/// has the image; the provider looks in the client's own images
-/// before it asks a registry. What the provider holds on its own
+/// has the image; the provider looks in the Store before it asks a
+/// registry. What the provider holds on its own
 /// account is not a place a check can look: no image it pulled is
 /// revealed by one. See [`Sources`].
 ///
-/// # An image the client built is one the provider holds, for it
+/// # An image the client owns is one the provider holds, for it
 ///
-/// A digest the client [built](crate::provider::endpoints::images::build)
-/// on this provider is available to that client, from the store,
-/// when the `client` source is asked; to any other client it is not
-/// there, unless that client built it too. A provider never answers
-/// one identity's store to another.
+/// A digest the client owns in its Store on this provider is
+/// available to that client, from the Store, when the `client` source
+/// is asked; to any other client it is not there, unless that client
+/// owns it too. A provider never answers one identity's Store to
+/// another.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The image asked about.

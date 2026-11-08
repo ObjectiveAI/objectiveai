@@ -15,9 +15,9 @@ use crate::shared::error::Error;
 /// One question, one answer, then the scope is over — so there is a
 /// value to return, and returning it is the whole of what a caller
 /// wanted. A [`Stat`](response::Stat) is an ANSWER, and it is the
-/// only one; everything else is an [`ExecuteError::Provider`] — an
-/// image the caller has none by that name, or a provider that could
-/// not look.
+/// only one; everything else is an [`ExecuteError::Provider`] — a
+/// digest the caller owns no image by, or a provider that could not
+/// look.
 ///
 /// # It reads one frame and leaves
 ///
@@ -68,7 +68,7 @@ pub enum ExecuteError {
     Unanswered,
     /// The response frame did not parse.
     Response(response::FrameDecodeError),
-    /// The provider has no image store. The protocol's defined
+    /// The provider has no Store. The protocol's defined
     /// refusal, not a failure.
     Unsupported,
     /// The provider could not do it, and said so. See
@@ -86,7 +86,7 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Frame(error) => write!(f, "image stat answer did not decode: {error}"),
             ExecuteError::Unanswered => f.write_str("image stat finished without an answer"),
             ExecuteError::Response(error) => write!(f, "image stat answer did not parse: {error}"),
-            ExecuteError::Unsupported => f.write_str("the provider has no image store"),
+            ExecuteError::Unsupported => f.write_str("the provider has no Store"),
             ExecuteError::Provider(_) => f.write_str("the provider could not complete the image stat"),
         }
     }

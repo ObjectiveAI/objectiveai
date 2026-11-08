@@ -30,6 +30,17 @@ pub enum Ask {
     OciBlob(String),
     /// Whether the caller holds an image: its digest.
     OciHas(String),
+    /// The proof that the caller holds an image: the digest, the
+    /// platform manifest's digest when the digest names an index, and
+    /// the nonce.
+    OciProve {
+        /// The manifest digest the image is named by.
+        digest: String,
+        /// The platform manifest's digest, when `digest` is an index.
+        platform: Option<String>,
+        /// The nonce, fresh for this one check.
+        nonce: [u8; 32],
+    },
     /// The container's registration: the dependencies it declared, to
     /// deploy, the secrets it takes, to resolve, and the permissions it
     /// holds, with the run's id.
@@ -93,6 +104,11 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.digest),
+            Frame::OciProve(request) => Ask::OciProve {
+                digest: request.digest,
+                platform: request.platform,
+                nonce: request.nonce,
+            },
             Frame::Registration(request) => Ask::Registration {
                 id: request.id.into_owned(),
                 dependencies: request.dependencies.into_owned(),
@@ -146,6 +162,11 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.digest),
+            Frame::OciProve(request) => Ask::OciProve {
+                digest: request.digest,
+                platform: request.platform,
+                nonce: request.nonce,
+            },
             Frame::Registration(request) => Ask::Registration {
                 id: request.id.into_owned(),
                 dependencies: request.dependencies.into_owned(),

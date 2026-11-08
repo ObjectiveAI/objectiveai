@@ -138,6 +138,7 @@ where
             return Err(ExecuteError::VolumeMode(refused));
         }
         server::response::Frame::Unsupported => return Err(ExecuteError::Unsupported),
+        server::response::Frame::ProofFailed => return Err(ExecuteError::ProofFailed),
         server::response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
         // No exchange is in flight before the id; either word first
         // is a provider out of order, which is a frame this end
@@ -191,11 +192,12 @@ fn write_error(error: &Error) -> Option<Vec<u8>> {
 /// A run that never started.
 ///
 /// Seven of these are this end's view of something going wrong. The
-/// last seven are the provider saying so itself, and they are the
+/// last eight are the provider saying so itself, and they are the
 /// only ones that mean the exchange worked: a volume the request
 /// named is held, mounted, FUSE served, of a mode the provider does
 /// not mount, or not in the mode its mount names; the provider runs
-/// no containers; or the provider could not run the container.
+/// no containers; the caller did not prove it holds the image it
+/// supplied; or the provider could not run the container.
 #[derive(Debug)]
 pub enum ExecuteError {
     /// The request never went out.
@@ -241,6 +243,12 @@ pub enum ExecuteError {
     /// `containers` capability is `false`. Nothing was fetched and
     /// nothing was deployed; ask another provider.
     Unsupported,
+    /// The provider refused the run: it took the image from this
+    /// caller, and the caller did not prove it holds it — see
+    /// [`oci::prove`](crate::shared::containers::oci::prove). Nothing
+    /// was run; answer the proof from the image's own bytes, or supply
+    /// it another way, and ask again.
+    ProofFailed,
     /// The provider could not run the container, and said so.
     Provider(Error),
 }
@@ -283,6 +291,7 @@ impl fmt::Display for ExecuteError {
                 refused.name, refused.mode
             ),
             ExecuteError::Unsupported => f.write_str("the provider runs no containers"),
+            ExecuteError::ProofFailed => f.write_str("the caller did not prove it holds the image"),
             ExecuteError::Provider(_) => f.write_str("the provider could not run the container"),
         }
     }
@@ -307,6 +316,7 @@ impl std::error::Error for ExecuteError {
             | ExecuteError::VolumeMountUnsupported(_)
             | ExecuteError::VolumeMode(_)
             | ExecuteError::Unsupported
+            | ExecuteError::ProofFailed
             | ExecuteError::Provider(_) => None,
         }
     }

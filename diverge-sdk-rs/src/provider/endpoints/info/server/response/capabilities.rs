@@ -10,7 +10,7 @@ use crate::provider::endpoints::volumes::Mode;
 ///
 /// Every provider serves every endpoint's wire — it reads every
 /// request and answers it — but not every provider does everything a
-/// request may ask: one runs no containers, one has no image store,
+/// request may ask: one runs no containers, one has no Store,
 /// one pulls from no registry, one has no FUSE on its host, one keeps
 /// volumes of some modes only, and keeps them more narrowly than the
 /// mode allows.
@@ -59,16 +59,19 @@ pub struct Capabilities {
     /// is deployed.
     #[serde(default)]
     pub containers: bool,
-    /// The provider keeps an image store for its callers: it answers
+    /// The provider keeps the Store for its callers: it answers
     /// [`images::list`](crate::provider::endpoints::images::list),
     /// [`stat`](crate::provider::endpoints::images::stat),
     /// [`build`](crate::provider::endpoints::images::build),
+    /// [`push`](crate::provider::endpoints::images::push),
+    /// [`edit`](crate::provider::endpoints::images::edit),
+    /// [`hash`](crate::provider::endpoints::images::hash),
     /// [`delete`](crate::provider::endpoints::images::delete) and
     /// [`oci`](crate::provider::endpoints::images::oci), and an
     /// [`images::check`](crate::provider::endpoints::images::check)
     /// asking the `client` source looks in it. Absent — `false` —
-    /// each of the five answers `Unsupported`, and a check asking only
-    /// `client` answers `NoSource`.
+    /// each of the eight answers `Unsupported`, and a check asking
+    /// only `client` answers `NoSource`.
     #[serde(default)]
     pub images_store: bool,
     /// The registries the provider pulls from: each a host as a
@@ -78,8 +81,8 @@ pub struct Capabilities {
     /// [`images::check`](crate::provider::endpoints::images::check)
     /// asking the `registries` source consults exactly these, and a
     /// reference naming any other is ignored; a run's image whose
-    /// references name none of these, and that no store the provider
-    /// has holds, cannot be supplied. Absent — empty — the provider
+    /// references name none of these, and that neither the caller's
+    /// Store nor the caller holds, cannot be supplied. Absent — empty — the provider
     /// pulls from no registry, and a check asking only `registries`
     /// answers `NoSource`.
     #[serde(default)]

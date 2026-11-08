@@ -10,11 +10,12 @@ use serde::{Deserialize, Serialize};
 ///
 /// # The two
 ///
-/// [`client`](Self::client) is the caller's own images — those it
-/// [built](crate::provider::endpoints::images::build) on this
+/// [`client`](Self::client) is the Store — the images the caller
+/// [built](crate::provider::endpoints::images::build) or
+/// [pushed](crate::provider::endpoints::images::push) on this
 /// provider and has not deleted — and no other identity's: a
-/// provider never answers one identity's store to another; a
-/// provider with no image store has this source for nobody.
+/// provider never answers one identity's Store to another; a
+/// provider with no Store has this source for nobody.
 /// [`registries`](Self::registries) is every referenced registry the
 /// provider's own policy lists — the `images_registries` of its
 /// [`info`](crate::provider::endpoints::info) — asked as
@@ -33,15 +34,14 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Local first
 ///
-/// Among the sources asked, the provider looks in the caller's own
-/// images before it asks a registry, and a registry is asked only
-/// when the caller's own images, where asked, did not have the
-/// image. The answer is the same either way: available when any
+/// Among the sources asked, the provider looks in the Store before it
+/// asks a registry, and a registry is asked only when the Store,
+/// where asked, did not have the image. The answer is the same either way: available when any
 /// source asked has it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Sources {
-    /// The caller's own images, built on this provider. Absent is
-    /// `false`.
+    /// The Store: the caller's own images, built or pushed on this
+    /// provider. Absent is `false`.
     #[serde(default)]
     pub client: bool,
     /// The referenced registries the provider's policy lists. Absent

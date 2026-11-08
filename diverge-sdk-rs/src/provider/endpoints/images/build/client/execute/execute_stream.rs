@@ -14,9 +14,10 @@ use crate::wire::frame;
 /// The build, one [`response::Frame`] per item, in the order the
 /// provider sends them: zero or more
 /// [`Output`](response::Frame::Output) lines, then the
-/// [`Built`](response::Frame::Built) image, then the end. A store
-/// with no room and a provider's error are the last item, as an
-/// [`ExecuteStreamError`], with nothing after it.
+/// [`Built`](response::Frame::Built) image or the word that the caller
+/// owns it already, [`Exists`](response::Frame::Exists), then the end.
+/// A Store with no room and a provider's error are the last item, as
+/// an [`ExecuteStreamError`], with nothing after it.
 #[must_use = "a scope that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct ExecuteStream {
@@ -83,13 +84,13 @@ pub enum ExecuteStreamError {
     Misrouted,
     /// A response that is not this scope's.
     Response(response::FrameDecodeError),
-    /// The store has no room for the image, and nothing was built.
+    /// The Store has no room for the image, and nothing was built.
     /// The protocol's defined refusal, not a failure.
     InsufficientCapacity,
     /// Something holds the context volume, and nothing was built. The
     /// protocol's defined refusal, not a failure.
     ContextHeld,
-    /// The provider has no image store, and nothing was built. The
+    /// The provider has no Store, and nothing was built. The
     /// protocol's defined refusal, not a failure.
     Unsupported,
     /// The provider ended the build with an error, in its own words;
@@ -108,7 +109,7 @@ impl fmt::Display for ExecuteStreamError {
             ExecuteStreamError::Response(error) => write!(f, "{error}"),
             ExecuteStreamError::InsufficientCapacity => f.write_str("the provider has no room for the image"),
             ExecuteStreamError::ContextHeld => f.write_str("something holds the context volume"),
-            ExecuteStreamError::Unsupported => f.write_str("the provider has no image store"),
+            ExecuteStreamError::Unsupported => f.write_str("the provider has no Store"),
             ExecuteStreamError::Refused(_) => f.write_str("the provider ended the image build with an error"),
         }
     }

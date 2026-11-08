@@ -60,9 +60,8 @@ pub struct Frame {
     /// sum of the provider's room. Read only where a volume mode
     /// object is held out.
     pub volumes_disk: u64,
-    /// The number of BYTES the caller could still add to the client
-    /// image store by a build. Read only where `images_store` is held
-    /// out.
+    /// The number of BYTES the caller could still add to the Store by
+    /// a build or a push. Read only where `images_store` is held out.
     pub images_disk: u64,
     /// The number of BYTES of memory a container run of the caller
     /// could still reserve: what remains of the provider's memory cap

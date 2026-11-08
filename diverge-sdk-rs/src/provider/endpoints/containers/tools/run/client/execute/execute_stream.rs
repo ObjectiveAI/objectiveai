@@ -70,7 +70,8 @@ fn decode(payload: &[u8]) -> Result<Decoded<Event>, response::FrameError> {
         | response::Frame::VolumeFuseServed(_)
         | response::Frame::VolumeMountUnsupported(_)
         | response::Frame::VolumeMode(_)
-        | response::Frame::Unsupported => Decoded::Skip,
+        | response::Frame::Unsupported
+        | response::Frame::ProofFailed => Decoded::Skip,
     })
 }
 

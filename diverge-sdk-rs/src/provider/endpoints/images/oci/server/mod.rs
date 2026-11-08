@@ -4,7 +4,7 @@
 //! answers every ask on the ask's own channel and sends no frame on
 //! channel `0` but the finish that ends the scope. [`response`] is
 //! the one frame it sends there when it will not serve the pull at
-//! all — it has no image store — before that finish. There is no
+//! all — it has no Store — before that finish. There is no
 //! `channel_request`: the provider opens no channel on a pull.
 //! [`channel_response`] is the three answers, one module per kind of
 //! channel the caller opens, each the run's own answer type.
@@ -15,7 +15,7 @@
 //! describing it: hand it the
 //! [`ScopeHandle`](crate::wire::server::scope_handle::ScopeHandle) a
 //! [`Session`](crate::wire::server::session::Session) yielded, whose
-//! caller it is, and the provider's `OciStore`, and it answers every
+//! caller it is, and the provider's Store, and it answers every
 //! ask until the caller disconnects. It is the mirror of
 //! [`execute`](super::client::execute) on the other side.
 
