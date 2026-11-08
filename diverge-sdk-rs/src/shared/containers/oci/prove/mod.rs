@@ -1,39 +1,47 @@
 //! Whether the caller possesses an image: the nonce check.
 //!
 //! The provider opens a channel with a [`request::Request`] — the
-//! [`Image`](crate::shared::containers::request::Image), the platform
-//! manifest's digest when the image's manifest is an index, and a
-//! fresh nonce — and the caller
-//! answers with one [`response::Frame`], the 32 bytes of the proof,
-//! then the finish; the empty finish is not held. It is the last ask
-//! of every image a provider takes from the caller, by a run or by an
+//! platform manifest's digest when the image's manifest is an index,
+//! and a fresh nonce — and the caller answers with one
+//! [`response::Frame`], the 32 bytes of the proof, then the finish;
+//! the empty finish is not held. The image is not in the ask: it is
+//! the one the scope carrying the ask names — a run's image, a push's
+//! image, an [`images::oci`](crate::provider::endpoints::images::oci)
+//! scope's image — and every ask on that scope is over it. It is the
+//! last ask of every image a provider takes from the caller, by a run
+//! or by an
 //! [`images::push`](crate::provider::endpoints::images::push),
 //! whether or not the provider pulled any byte of it: a digest names
-//! an image, and only the bytes prove that the caller has them.
+//! an image, and only the bytes prove that the caller has them. On an
+//! [`images::oci`](crate::provider::endpoints::images::oci) scope the
+//! roles turn round: the caller asks, and the provider answers over
+//! the image as it can supply it.
 //!
 //! # The proof
 //!
 //! 1. **The nonce.** Exactly 32 bytes, which the provider draws from
 //!    a cryptographic random source for this one check and uses for
 //!    no other.
-//! 2. **The image's bytes, `D`.** Defined over the image
-//!    `image.digest` names, and over nothing the references say: a
-//!    reference is only where the image's bytes may be fetched, and
-//!    the same bytes under any name prove the same. The concatenation,
-//!    in this order and with no separator between any two parts, of:
-//!    1. the bytes of the manifest named by `image.digest`, verbatim;
+//! 2. **The image's bytes, `D`.** Defined over the image the scope
+//!    carrying the ask names — by its digest, and over nothing its
+//!    references say: a reference is only where the image's bytes may
+//!    be fetched, and the same bytes under any name prove the same.
+//!    The concatenation, in this order and with no separator between
+//!    any two parts, of:
+//!    1. the bytes of the manifest named by the image's digest,
+//!       verbatim;
 //!    2. when that manifest is an image index: the bytes of the
 //!       manifest named by `platform`, verbatim;
 //!    3. the bytes of every blob that the image manifest references —
 //!       the platform manifest when there is an index, the manifest
-//!       named by `image.digest` otherwise: the config first, then each
-//!       entry of its `layers`, in order — an entry naming the same
-//!       blob as an earlier one is hashed again.
+//!       named by the image's digest otherwise: the config first,
+//!       then each entry of its `layers`, in order — an entry naming
+//!       the same blob as an earlier one is hashed again.
 //! 2a. **The platform, required or forbidden.** `platform` is
-//!    present exactly when the manifest named by `image.digest` is an index,
-//!    and then names a manifest that index lists. An ask that breaks
-//!    this names no image: it is answered not held, and the check
-//!    fails. No proof is ever computed over an index alone. Where the
+//!    present exactly when the manifest named by the image's digest is
+//!    an index, and then names a manifest that index lists. An ask
+//!    that breaks this names no image: it is answered not held, and
+//!    the check fails. No proof is ever computed over an index alone. Where the
 //!    provider obtains an index, it selects the manifest for its own
 //!    operating system and architecture, and every ask it sends names
 //!    that one.

@@ -5,8 +5,8 @@
 //! `client::execute` performs one exchange rather than describing it
 //! — and a provider opens channels back into it for the things it
 //! cannot reach itself, which the caller answers through the traits
-//! here. Every endpoint has its executor: eleven of the `volumes`,
-//! `images::has` and `info` collapse into a call; the two
+//! here. Every endpoint has its executor: eleven of the `volumes`
+//! and `info` collapse into a call; the two
 //! `containers` runs hand back a handle that holds the container's
 //! life.
 //!

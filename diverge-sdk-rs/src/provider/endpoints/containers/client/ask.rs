@@ -32,9 +32,9 @@ pub enum Ask {
     OciBlob(String),
     /// Whether the caller holds an image: the image the ask names.
     OciHas(Image),
-    /// The proof that the caller holds an image: the image, the
-    /// platform manifest's digest when its digest names an index, and
-    /// the nonce.
+    /// The proof that the caller holds the scope's image: the platform
+    /// manifest's digest when its digest names an index, and the
+    /// nonce.
     OciProve(oci::prove::request::Request),
     /// The container's registration: the dependencies it declared, to
     /// deploy, the secrets it takes, to resolve, and the permissions it

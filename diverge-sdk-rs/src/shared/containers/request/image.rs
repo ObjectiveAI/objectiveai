@@ -7,15 +7,14 @@ use super::Reference;
 
 /// The image, by its manifest digest and the references under which
 /// its bytes may be fetched — what
-/// [`images::has`](crate::provider::endpoints::images::has::client::request::Frame)
-/// asks about, so a has that came back held names an image a run can
-/// ask for, with nothing to translate between them. The same value is
-/// the whole of the shared
+/// [`images::oci`](crate::provider::endpoints::images::oci::client::request::Frame)
+/// asks about, so an oci scope that came back held names an image a
+/// run can ask for, with nothing to translate between them. The same
+/// value is the whole of the shared
 /// [`oci::has`](crate::shared::containers::oci::has) request a
-/// provider asks a caller on a run, the scope an
-/// [`images::oci`](crate::provider::endpoints::images::oci) pull
-/// serves, and part of every
-/// [`oci::prove`](crate::shared::containers::oci::prove) request.
+/// provider asks a caller on a run, and the image every
+/// [`oci::prove`](crate::shared::containers::oci::prove) ask on a
+/// scope naming it is over.
 ///
 /// # The digest is the image
 ///

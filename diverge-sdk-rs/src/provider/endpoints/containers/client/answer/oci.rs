@@ -48,15 +48,17 @@ pub(crate) async fn manifest<O: OciStore>(
 }
 
 /// One frame — the 32 bytes of the proof — then the finish; the
-/// empty finish for an image the store does not hold.
+/// empty finish for an image the store does not hold. `image` is the
+/// scope's own: the run's, or the push's.
 pub(crate) async fn prove<O: OciStore>(
     handle: &Handle,
     scope: u32,
     channel: u32,
+    image: Arc<Image>,
     request: oci::prove::request::Request,
     store: Arc<O>,
 ) -> Result<(), Stop> {
-    if let Some(proof) = store.prove(&request).await {
+    if let Some(proof) = store.prove(&image, &request).await {
         respond(handle, scope, channel, &oci::prove::response::Frame { proof }).await?;
     }
     finish(handle, scope, channel).await

@@ -1,6 +1,7 @@
-//! Image pull request data.
+//! Image oci request data.
 //!
-//! The one image the scope serves — see [`Frame`].
+//! The one image the scope asks about, and serves where it is held —
+//! see [`Frame`].
 
 mod frame;
 

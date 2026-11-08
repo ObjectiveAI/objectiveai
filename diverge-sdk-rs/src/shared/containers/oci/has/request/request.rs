@@ -22,7 +22,6 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// `references` is absent when there are none. The same value is the
 /// argument of the provider endpoint
-/// [`images::has`](crate::provider::endpoints::images::has) and of
 /// [`images::oci`](crate::provider::endpoints::images::oci), so an
 /// image asked about anywhere is named the same way everywhere.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -10,7 +10,7 @@
 //!
 //! Every other scope assumes something. A [`run`](super::containers)
 //! assumes the provider understands the request being sent; a
-//! [`has`](super::images::has) assumes it agrees about what an image is.
+//! [`oci`](super::images::oci) assumes it agrees about what an image is.
 //! This assumes only that the connection carries frames, which is the
 //! least a peer can be doing and still be a peer.
 //!

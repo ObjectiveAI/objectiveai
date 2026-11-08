@@ -1,12 +1,13 @@
-//! Performing an image pull, rather than describing it.
+//! Performing an oci scope, rather than describing it.
 //!
-//! [`execute`] opens the scope of one image and hands back an
+//! [`execute`] opens the scope of one image, reads whether the
+//! provider holds it, and where it does hands back an
 //! [`ExecuteHandle`]: one method per ask —
-//! [`manifest`](ExecuteHandle::manifest), [`blob`](ExecuteHandle::blob)
-//! — each its own channel, and [`cancel`](ExecuteHandle::cancel) to
-//! end the scope. The readers are the run's: the same shared frames
-//! answer the same two asks there, and [`answered`] reads them once
-//! for both.
+//! [`manifest`](ExecuteHandle::manifest), [`blob`](ExecuteHandle::blob),
+//! [`prove`](ExecuteHandle::prove) — each its own channel, and
+//! [`cancel`](ExecuteHandle::cancel) to end the scope. The readers are
+//! the run's: the same shared frames answer the same three asks there,
+//! and [`answered`] reads them once for both.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

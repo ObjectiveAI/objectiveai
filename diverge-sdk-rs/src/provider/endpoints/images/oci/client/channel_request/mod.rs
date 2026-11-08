@@ -1,4 +1,4 @@
-//! The channels a caller opens on an image pull: the two asks, and
+//! The channels a caller opens on an oci scope: the three asks, and
 //! the cancel. See [`Frame`].
 
 mod frame;

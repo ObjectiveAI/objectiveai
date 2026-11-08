@@ -51,7 +51,7 @@ pub(crate) async fn answer<O, T, P, D, M, F>(
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, image, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, image, digest, answerers.oci).await,
         Ask::OciHas(image) => oci::has(&handle, scope, channel, image, answerers.oci).await,
-        Ask::OciProve(request) => oci::prove(&handle, scope, channel, request, answerers.oci).await,
+        Ask::OciProve(request) => oci::prove(&handle, scope, channel, image, request, answerers.oci).await,
         Ask::Registration { id, dependencies, secrets, permissions } => {
             registration::registration(&handle, scope, channel, id, dependencies, secrets, permissions, answerers.registrar).await
         }
@@ -114,7 +114,7 @@ pub(crate) async fn answer_oci<O: OciStore + 'static>(
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, image, digest, store).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, image, digest, store).await,
         Ask::OciHas(image) => oci::has(&handle, scope, channel, image, store).await,
-        Ask::OciProve(request) => oci::prove(&handle, scope, channel, request, store).await,
+        Ask::OciProve(request) => oci::prove(&handle, scope, channel, image, request, store).await,
         _ => Err(send::Stop),
     };
     if answered.is_err() {

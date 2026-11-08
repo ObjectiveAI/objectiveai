@@ -13,7 +13,7 @@ pub struct Frame;
 
 /// This frame's tag among the scope-opening requests. See the table
 /// in [`endpoints`](crate::provider::endpoints).
-const TAG: u8 = 29;
+const TAG: u8 = 27;
 
 /// One byte, and no serialization. There is nothing to serialize.
 impl Encode for Frame {

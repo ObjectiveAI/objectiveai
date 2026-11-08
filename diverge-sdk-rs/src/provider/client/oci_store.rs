@@ -44,12 +44,11 @@ pub struct Manifest {
 ///
 /// A caller need not hold the bytes itself: one whose image another
 /// provider can supply — from the caller's Store there, or from a
-/// registry that provider is configured with — answers from it,
-/// through [`images::has`](crate::provider::endpoints::images::has),
-/// [`images::oci`](crate::provider::endpoints::images::oci) opened for
-/// the image, and
-/// [`images::hash`](crate::provider::endpoints::images::hash), and the
-/// provider asking never learns the difference.
+/// registry that provider is configured with — answers from an
+/// [`images::oci`](crate::provider::endpoints::images::oci) scope it
+/// holds there for the image, answered held: the manifests, the blobs
+/// and the proof all on that one scope. The provider asking never
+/// learns the difference.
 pub trait OciStore: Send + Sync {
     /// Whether `image` is held — its manifest under its digest — and
     /// the repository path it is held under, which the provider's
@@ -68,15 +67,15 @@ pub trait OciStore: Send + Sync {
     /// or `None` for one not held.
     fn blob(&self, image: &Image, digest: &str) -> impl Future<Output = Option<Self::Blob>> + Send;
 
-    /// The proof that the image is held: `SHA-256(nonce ‖ D)` over the
-    /// image the request's `image.digest` names — with its `platform`,
-    /// the manifest in it meant, when that digest names an index —
+    /// The proof that `image` — the run's or the push's — is held:
+    /// `SHA-256(nonce ‖ D)` over it — with the request's `platform`,
+    /// the manifest in it meant, when its digest names an index —
     /// exactly as [`oci::prove`](crate::shared::containers::oci::prove)
     /// defines `D`;
     /// [`Prover`](crate::shared::containers::oci::prove::proof::Prover)
     /// computes it. `None` for an image not held whole. A caller whose
-    /// image another provider can supply answers from there, through
-    /// [`images::hash`](crate::provider::endpoints::images::hash) with
-    /// the same request, and moves no byte of it.
-    fn prove(&self, request: &oci::prove::request::Request) -> impl Future<Output = Option<[u8; 32]>> + Send;
+    /// image another provider can supply answers from the
+    /// [`images::oci`](crate::provider::endpoints::images::oci) scope it
+    /// holds there, with the same request, and moves no byte of it.
+    fn prove(&self, image: &Image, request: &oci::prove::request::Request) -> impl Future<Output = Option<[u8; 32]>> + Send;
 }

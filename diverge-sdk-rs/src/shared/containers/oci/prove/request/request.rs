@@ -3,35 +3,31 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Error;
 
-use crate::shared::containers::request::Image;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// The image, the platform, and the nonce: everything the proof is
-/// computed over that the caller does not already hold.
+/// The platform and the nonce: everything the proof is computed over
+/// that the caller does not already hold. The image is not among
+/// them: it is the one the scope carrying the ask names — a run's
+/// image, a push's image, an oci scope's image — and an ask names no
+/// other.
 ///
 /// # On the wire
 ///
-/// Its JSON, as the other three asks', with the image as its own JSON
-/// and the nonce as 64 lowercase hexadecimal characters:
+/// Its JSON, as the other three asks', with the nonce as 64 lowercase
+/// hexadecimal characters:
 ///
 /// ```json
-/// {"image":{"digest":"sha256:<hex>","references":[…]},"platform":"sha256:<hex>","nonce":"<64 hex>"}
+/// {"platform":"sha256:<hex>","nonce":"<64 hex>"}
 /// ```
 ///
-/// `platform` is absent when it is `None`, and the image's
-/// `references` when there are none. A nonce that is not exactly 64
-/// hexadecimal characters is a request that does not parse.
+/// `platform` is absent when it is `None`. A nonce that is not exactly
+/// 64 hexadecimal characters is a request that does not parse.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Request {
-    /// The image: its manifest digest, `<algorithm>:<hex>` — an image
-    /// manifest, or an index — which is what `D` is defined over, and
-    /// the references under which its bytes may be fetched, which are
-    /// only where. See [`prove`](super::super).
-    pub image: Image,
-    /// When the image's digest names an index, the digest of the one
-    /// manifest in it whose image is meant, `<algorithm>:<hex>`;
-    /// `None` when it names an image manifest.
+    /// When the digest of the scope's image names an index, the digest
+    /// of the one manifest in it whose image is meant,
+    /// `<algorithm>:<hex>`; `None` when it names an image manifest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub platform: Option<String>,
     /// The nonce: 32 bytes, fresh, from a cryptographic random source,

@@ -1,13 +1,11 @@
-//! A pull held open, and everything a client can ask on it.
+//! An oci scope held open, and everything a client can ask on it.
 
 use std::fmt;
 
 use tokio::sync::Mutex;
 
 use super::super::channel_request;
-use super::super::super::server::response;
-use crate::wire::decode::Decode as _;
-use super::answered::{OciBlob, OciManifest};
+use super::answered::{OciBlob, OciManifest, OciProve};
 use crate::provider::client::Manifest;
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError, unary};
 use crate::shared::containers::oci;
@@ -20,16 +18,17 @@ use crate::wire::frame;
 /// finish is a digest the scope's image does not reach.
 pub type BlobStream = ChannelStream<OciBlob>;
 
-/// The scope a pull of one image opened, held until it is cancelled.
+/// The oci scope of one image, answered held, and held until it is
+/// cancelled.
 ///
-/// Every channel a client may open on a pull is a method here: the
-/// two asks, and the cancel. Each opens its own channel, so several
-/// may be in flight at once. The readers are the run's: the same
-/// shared frames answer the same two asks there.
+/// Every channel a client may open on an oci scope is a method here:
+/// the three asks, and the cancel. Each opens its own channel, so
+/// several may be in flight at once. The readers are the run's: the
+/// same shared frames answer the same three asks there.
 ///
 /// # Dropping it does nothing
 ///
-/// No destructor sends a frame. Ending a pull is
+/// No destructor sends a frame. Ending an oci scope is
 /// [`cancel`](Self::cancel), or the connection going; the provider
 /// finishes the scope on either.
 pub struct ExecuteHandle {
@@ -86,6 +85,18 @@ impl ExecuteHandle {
         Ok(ChannelStream::new(channel.response_receiver))
     }
 
+    /// The proof over the scope's image, under `request`'s platform and
+    /// nonce: `None` for the empty finish, a platform that breaks the
+    /// rule of [`oci::prove`](crate::shared::containers::oci::prove).
+    pub async fn prove(&self, request: &oci::prove::request::Request) -> Result<Option<[u8; 32]>, UnaryError<OciProve>> {
+        let payload = payload(&channel_request::Frame::OciProve(request.clone())).map_err(UnaryError::Request)?;
+        match unary::<OciProve>(&self.handle, self.scope, &payload).await {
+            Ok(proof) => Ok(Some(proof)),
+            Err(UnaryError::Unanswered) => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
     /// End the scope. Nothing answers on the channel this opens; what
     /// answers is the scope's own finish, on [`wait`](Self::wait).
     pub async fn cancel(&self) -> Result<(), OpenError> {
@@ -93,25 +104,17 @@ impl ExecuteHandle {
         self.handle.send_channel_request(self.scope, &payload).await.map(|_| ()).map_err(OpenError::Send)
     }
 
-    /// The scope's end: the finish, after the cancel or unasked — a
-    /// provider that will not serve the pull — or the connection going
-    /// first. A provider that cannot supply the image says so before
-    /// its finish, and that is [`End::NotFound`]; one with neither a
-    /// Store nor any registry says so too, and that is
-    /// [`End::Unsupported`]. Resolves once and answers the same way
+    /// The scope's end: the finish, after the cancel, the provider
+    /// ending the scope on its own, or the connection going first. The
+    /// held was read by [`execute`](super::execute), and nothing more
+    /// comes on the main stream before the finish; anything else that
+    /// arrives is passed over. Resolves once and answers the same way
     /// again after.
     pub async fn wait(&self) -> End {
         let mut main = self.main.lock().await;
         while let Some(bytes) = main.recv().await {
             match frame::server::ServerFrame::decode(&bytes) {
                 Ok(frame::server::ServerFrame::ResponseFinish { .. }) => return End::Finished,
-                Ok(frame::server::ServerFrame::Response { payload, .. }) => {
-                    match response::Frame::decode(payload) {
-                        Ok(response::Frame::NotFound) => return End::NotFound,
-                        Ok(response::Frame::Unsupported) => return End::Unsupported,
-                        Err(_) => {}
-                    }
-                }
                 Ok(_) => {}
                 Err(_) => return End::Closed,
             }
@@ -120,19 +123,12 @@ impl ExecuteHandle {
     }
 }
 
-/// How a pull ended.
+/// How an oci scope answered held ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum End {
-    /// The finish came: the cancel was answered, or the provider would
-    /// not serve the scope for a reason it does not say.
+    /// The finish came: the cancel was answered, or the provider ended
+    /// the scope for a reason it does not say.
     Finished,
-    /// The provider cannot supply the image — neither the caller's
-    /// Store nor a registry it is configured with has it — and said
-    /// so; its finish follows. No ask was answered.
-    NotFound,
-    /// The provider has neither a Store nor any registry, and said so;
-    /// its finish follows. No ask was answered.
-    Unsupported,
     /// The connection ended before the finish.
     Closed,
 }
