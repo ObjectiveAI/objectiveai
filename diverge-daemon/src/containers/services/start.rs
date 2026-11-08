@@ -111,7 +111,7 @@ async fn start_service(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Ar
             provider: identity.clone(),
             mounts: Arc::clone(&mounts),
             served: Arc::new(Mutex::new(Served::new())),
-            pulls: Pulls::new(),
+            pulls: Arc::new(Pulls::new()),
             touched: touched.clone(),
             inflight: Arc::new(Inflight::new()),
             files: Arc::new(Inflight::new()),

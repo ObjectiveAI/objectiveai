@@ -54,7 +54,7 @@ pub struct Answerer {
     pub served: Arc<Mutex<Served>>,
     /// The `images::oci` scopes the run's pull opened: released by the
     /// start once the run is answered.
-    pub pulls: Pulls,
+    pub pulls: Arc<Pulls>,
     /// Where a use is noted.
     pub touched: watch::Sender<Instant>,
     /// The MCP exchanges in flight: the agent's own, which a transient

@@ -306,7 +306,7 @@ async fn start(owner: &Owner, tool: &DependencyTool) -> Result<Arc<ToolRun>, Str
             provider: identity.clone(),
             mounts: Arc::clone(&mounts),
             served: Arc::new(Mutex::new(Served::new())),
-            pulls: Pulls::new(),
+            pulls: Arc::new(Pulls::new()),
             touched: touched.clone(),
             inflight: Arc::clone(&owner.inflight),
             files: Arc::clone(&owner.files),

@@ -13,7 +13,7 @@ use diverge_sdk::shared::mcp::attestation;
 use rand::Rng as _;
 use rand::seq::IndexedRandom as _;
 
-use super::locate;
+use super::{Pulls, locate};
 use crate::containers::capable;
 use crate::containers::run::ToolHandle;
 use crate::daemon::Daemon;
@@ -154,7 +154,11 @@ async fn choose_provider(daemon: &Arc<Daemon>, image: &Image) -> Option<Identity
     if let Some(chosen) = pulling.choose(&mut rand::rng()) {
         return Some(chosen.clone());
     }
-    locate(daemon, image, None).await
+    let pulls = Arc::new(Pulls::new());
+    let found = locate(daemon, image, None, &pulls).await;
+    // Only the answer was wanted: no scope is pulled through.
+    pulls.release().await;
+    found
 }
 
 /// A document read, or none shipped, as the answer.

@@ -9,15 +9,15 @@ use super::Answerer;
 use crate::containers::images;
 
 /// A provider asked whether the caller holds an image is answered
-/// from the other providers connected: one that holds it is found,
-/// and its manifests and blobs are pulled from there — see
-/// [`images`](crate::containers::images), through the run's own
-/// scopes. The provider asking is never asked, having looked already.
+/// from the other providers connected: an `images::oci` scope is
+/// opened with the image on each, and those answered held are the
+/// run's holders, its manifests, blobs and proof taken through them —
+/// see [`images`](crate::containers::images). The provider asking is never asked, having looked already.
 /// Asked for the proof of possession, the daemon relays it from a
 /// provider that can supply the image, and hashes nothing itself.
 impl OciStore for Answerer {
     async fn holds(&self, image: &Image) -> Option<String> {
-        images::locate(&self.daemon, image, Some(&self.provider))
+        images::locate(&self.daemon, image, Some(&self.provider), &self.pulls)
             .await
             .map(|_| images::name(&image.digest))
     }
@@ -32,7 +32,7 @@ impl OciStore for Answerer {
         images::blob(&self.daemon, &self.pulls, image, digest, &self.provider).await
     }
 
-    async fn prove(&self, request: &oci::prove::request::Request) -> Option<[u8; 32]> {
-        images::prove(&self.daemon, request, &self.provider).await
+    async fn prove(&self, image: &Image, request: &oci::prove::request::Request) -> Option<[u8; 32]> {
+        images::prove(&self.daemon, &self.pulls, image, request, &self.provider).await
     }
 }

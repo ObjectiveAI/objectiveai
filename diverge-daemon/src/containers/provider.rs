@@ -126,7 +126,13 @@ pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: 
     let asked = needs.image.as_ref().map(|image| {
         let daemon = Arc::clone(daemon);
         let image = image.clone();
-        tokio::spawn(async move { images::locate(&daemon, &image, None).await.is_some() })
+        tokio::spawn(async move {
+            let pulls = Arc::new(images::Pulls::new());
+            let found = images::locate(&daemon, &image, None, &pulls).await.is_some();
+            // Only the answer was wanted: no scope is pulled through.
+            pulls.release().await;
+            found
+        })
     });
     if let Some(identity) = pinned {
         let Some(handle) = daemon.live.provider(identity).await else {

@@ -146,12 +146,6 @@ pub struct Live {
     connecting: Mutex<HashMap<DaemonId, Arc<Mutex<()>>>>,
     /// The next number for a connect scope another daemon opens.
     next_connect: Mutex<u64>,
-    /// Which providers are known to hold which image, by digest: what
-    /// a provider's has ask is answered from, and where a manifest or
-    /// a blob is pulled from. Positives only, learned from checks; a
-    /// provider's entries go with its connection, or with a pull from
-    /// it that failed, and a digest with its last holder.
-    holders: Mutex<HashMap<String, Vec<Identity>>>,
     /// Each connected provider's capacity cell, by identity: a
     /// snapshot map, swapped whole when a provider connects or
     /// disconnects, so a reader looks a cell up under no lock at any
@@ -410,10 +404,6 @@ impl Live {
         }
         self.listening.disconnected(identity).await;
         self.messaging.disconnected(identity).await;
-        self.holders.lock().await.retain(|_, holders| {
-            holders.retain(|holder| holder != identity);
-            !holders.is_empty()
-        });
     }
 
     /// A fresh mirror for the provider's volumes, kept for its
@@ -427,35 +417,6 @@ impl Live {
     /// The provider's mirror, if it is connected.
     pub async fn mirror(&self, identity: &Identity) -> Option<Arc<Mirror>> {
         self.volumes.lock().await.get(identity).cloned()
-    }
-
-    /// The providers known to hold the image under `digest`, in the
-    /// order they were learned.
-    pub async fn holders(&self, digest: &str) -> Vec<Identity> {
-        self.holders.lock().await.get(digest).cloned().unwrap_or_default()
-    }
-
-    /// The provider answered that it holds the image: remembered,
-    /// once.
-    pub async fn add_holder(&self, digest: &str, identity: Identity) {
-        let mut holders = self.holders.lock().await;
-        let known = holders.entry(digest.to_string()).or_default();
-        if !known.contains(&identity) {
-            known.push(identity);
-        }
-    }
-
-    /// The provider does not hold the image after all, or could not
-    /// be pulled from: forgotten for this digest, and the digest with
-    /// it when it was the last holder known.
-    pub async fn drop_holder(&self, digest: &str, identity: &Identity) {
-        let mut holders = self.holders.lock().await;
-        if let Some(known) = holders.get_mut(digest) {
-            known.retain(|holder| holder != identity);
-            if known.is_empty() {
-                holders.remove(digest);
-            }
-        }
     }
 
     /// The kind changed: every list of it kept open reads again.
