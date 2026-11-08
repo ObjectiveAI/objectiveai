@@ -6,6 +6,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::client::Manifest;
+use diverge_sdk::provider::endpoints::images::hash;
 use diverge_sdk::provider::endpoints::images::oci::client::{execute, request};
 use futures_util::future::ready;
 use futures_util::{Stream, StreamExt as _, stream};
@@ -70,6 +71,31 @@ pub async fn blob(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Optio
             }
             Some(Err(_)) => failed(daemon, digest, &holder).await,
             None => daemon.live.drop_holder(digest, &holder).await,
+        }
+    }
+    None
+}
+
+/// The proof of possession over the image under `digest` — see
+/// [`prove`](diverge_sdk::shared::containers::oci::prove) — from a
+/// provider whose Store holds it, or `None` when none does.
+///
+/// The daemon hashes nothing itself: every holder it knows of is asked,
+/// in turn, by [`images::hash`](diverge_sdk::provider::endpoints::images::hash)
+/// with the asking provider's `nonce`, and the first proof answered is
+/// relayed as it came. No image byte moves. A holder that owns no such
+/// image is forgotten for this digest; one that cannot be asked, or
+/// answers the provider's own error or no Store, is passed over.
+pub async fn prove(daemon: &Arc<Daemon>, digest: &str, platform: Option<&str>, nonce: &[u8; 32], asker: &Identity) -> Option<[u8; 32]> {
+    let request = hash::client::request::Frame { digest: digest.to_string(), platform: platform.map(str::to_string), nonce: *nonce };
+    for holder in holders(daemon, digest, asker).await {
+        let Some(handle) = daemon.live.provider(&holder).await else {
+            continue;
+        };
+        match hash::client::execute::execute(&handle, &request).await {
+            Ok(hash::server::response::Frame::Hash { proof }) => return Some(proof),
+            Ok(hash::server::response::Frame::NotFound) => daemon.live.drop_holder(digest, &holder).await,
+            Ok(_) | Err(_) => {}
         }
     }
     None
