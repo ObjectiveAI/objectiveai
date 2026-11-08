@@ -1,12 +1,12 @@
 ---
 title: 'images::build'
-summary: 'Tag 18: a client hands a Containerfile, an optional description and a directory of one of its volumes as the context, or none; the server sends the build’s output line by line, then exactly one response stating that the image is in the client’s Store, that the client owned its digest already, that the server has insufficient capacity for it, or an error, and the scope finishes; the image stays in the Store until the client deletes it.'
-order: 18
+summary: 'Tag 17: a client hands a Containerfile, an optional description and a directory of one of its volumes as the context, or none; the server sends the build’s output line by line, then exactly one response stating that the image is in the client’s Store, that the client owned its digest already, that the server has insufficient capacity for it, or an error, and the scope finishes; the image stays in the Store until the client deletes it.'
+order: 17
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`18` followed by the description, the Containerfile, and the context
+`17` followed by the description, the Containerfile, and the context
 of the build. The server sends zero or more responses, each one line
 of the build's output, then exactly one response which states that
 the image is in the client's Store, that the client owned the
@@ -68,9 +68,9 @@ response, and no frame follows the finish.
   as they were before the request.
 - **The client.** The client is the identity under which the
   connection was authorized. The image enters that identity's Store,
-  and that identity alone can examine it, edit it, hash it, delete it,
-  or run it from its Store: an [images::has](/endpoints/images-has/)
-  by that identity naming the image's digest is answered Held, and a
+  and that identity alone can examine it, edit it, pull it, delete it,
+  or run it from its Store: an [images::oci](/endpoints/images-oci/)
+  request by that identity naming the image's digest is answered Held, and a
   container request by that identity naming the digest runs the image
   from the Store, as [Image sources](/endpoints/#image-sources)
   states. To any other identity the image is not in its Store, unless

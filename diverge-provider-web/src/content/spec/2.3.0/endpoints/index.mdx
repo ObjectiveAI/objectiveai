@@ -1,6 +1,6 @@
 ---
 title: 'Endpoints'
-summary: 'A request’s payload begins with one tag byte designating the endpoint; thirty-one endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
+summary: 'A request’s payload begins with one tag byte designating the endpoint; twenty-nine endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
 order: 7
 draft: false
 ---
@@ -27,22 +27,20 @@ endpoint's request content, in the form the endpoint defines.
 | `12` | [volumes::edit_capacity](/endpoints/volumes-edit-capacity/) |
 | `13` | [volumes::edit](/endpoints/volumes-edit/) |
 | `14` | [volumes::delete](/endpoints/volumes-delete/) |
-| `15` | [images::has](/endpoints/images-has/) |
-| `16` | [images::list](/endpoints/images-list/) |
-| `17` | [images::stat](/endpoints/images-stat/) |
-| `18` | [images::build](/endpoints/images-build/) |
-| `19` | [images::push](/endpoints/images-push/) |
-| `20` | [images::edit](/endpoints/images-edit/) |
-| `21` | [images::hash](/endpoints/images-hash/) |
-| `22` | [images::delete](/endpoints/images-delete/) |
-| `23` | [images::oci](/endpoints/images-oci/) |
-| `24` | [info](/endpoints/info/) |
-| `25` | [capacity](/endpoints/capacity/) |
-| `26` | [daemons::accept](/endpoints/daemons-accept/) |
-| `27` | [daemons::connect](/endpoints/daemons-connect/) |
-| `28` | [discover](/endpoints/discover/) |
-| `29` | [messages::listen](/endpoints/messages-listen/) |
-| `30` | [messages::send](/endpoints/messages-send/) |
+| `15` | [images::list](/endpoints/images-list/) |
+| `16` | [images::stat](/endpoints/images-stat/) |
+| `17` | [images::build](/endpoints/images-build/) |
+| `18` | [images::push](/endpoints/images-push/) |
+| `19` | [images::edit](/endpoints/images-edit/) |
+| `20` | [images::delete](/endpoints/images-delete/) |
+| `21` | [images::oci](/endpoints/images-oci/) |
+| `22` | [info](/endpoints/info/) |
+| `23` | [capacity](/endpoints/capacity/) |
+| `24` | [daemons::accept](/endpoints/daemons-accept/) |
+| `25` | [daemons::connect](/endpoints/daemons-connect/) |
+| `26` | [discover](/endpoints/discover/) |
+| `27` | [messages::listen](/endpoints/messages-listen/) |
+| `28` | [messages::send](/endpoints/messages-send/) |
 
 The tag values are normative as tabulated. Each endpoint has its own
 section. Every section of this layer states requirements of the
@@ -182,12 +180,10 @@ owns.
    any Store. The server removes every manifest and every blob that
    it stored for the request and that no image in any client's Store,
    and no image whose nonce check passed before, references.
-10. **What has, oci and hash answer from.** A server answers an
-   [images::has](/endpoints/images-has/) request, serves an
-   [images::oci](/endpoints/images-oci/) scope, and computes the proof
-   of an [images::hash](/endpoints/images-hash/) request from the
-   image the request's image names as the server can supply it from
-   exactly the following sources, in the following order: the
+10. **What an oci scope answers from.** A server answers the request
+   of an [images::oci](/endpoints/images-oci/) scope, and serves its
+   channels, from the image the request names as the server can supply
+   it from exactly the following sources, in the following order: the
    client's Store, where the client owns the digest; otherwise a
    registry that is in its
    [`images_registries`](/capabilities/#images_registries) and that a
@@ -195,10 +191,9 @@ owns.
    The server ignores a reference that names a registry not in its
    `images_registries`, and a reference whose `name` is not a
    repository path by the grammar of the OCI Distribution
-   Specification. The server never answers, serves or computes
-   any of the three from an image in another identity's Store, and
-   never from an image it holds only because the source of a run's
-   image was `Client`.
+   Specification. The server never answers or serves the scope from an
+   image in another identity's Store, and never from an image it holds
+   only because the source of a run's image was `Client`.
 
 The source is defined by `diverge-sdk-rs/src/shared/containers/response/source.rs`.
 In JSON, `Store` is exactly the string `"store"`, `Client` is exactly

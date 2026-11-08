@@ -1,12 +1,12 @@
 ---
 title: 'messages::send'
-summary: 'Tag 30: a client sends one message to one identity; the server queues it in that identity’s mailbox and answers exactly once, when the receiver has taken it, when the receiver is not listening, or at once when the sender is over its rate, and the scope finishes.'
-order: 30
+summary: 'Tag 28: a client sends one message to one identity; the server queues it in that identity’s mailbox and answers exactly once, when the receiver has taken it, when the receiver is not listening, or at once when the sender is over its rate, and the scope finishes.'
+order: 28
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`30`, the identity of the receiver, and the body of the message. The
+`28`, the identity of the receiver, and the body of the message. The
 server queues the message in the receiver's mailbox, which a
 [messages::listen](/endpoints/messages-listen/) scope holds open, and
 sends exactly one response when the message's fate is known; the

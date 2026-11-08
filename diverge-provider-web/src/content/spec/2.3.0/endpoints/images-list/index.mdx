@@ -1,12 +1,12 @@
 ---
 title: 'images::list'
-summary: 'Tag 16: a client asks which images are in its Store; the server sends every such image as added, says when the listing is whole, keeps sending as images enter the Store, have their descriptions edited and are deleted, and finishes when the client cancels.'
-order: 16
+summary: 'Tag 15: a client asks which images are in its Store; the server sends every such image as added, says when the listing is whole, keeps sending as images enter the Store, have their descriptions edited and are deleted, and finishes when the client cancels.'
+order: 15
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`16` and nothing more. The server sends every image in the client's
+`15` and nothing more. The server sends every image in the client's
 Store, one response each, then the word that the listing is whole,
 and keeps the scope open: an image that enters the Store is sent as
 added, an image whose description is edited as changed, and an image
@@ -35,7 +35,7 @@ A connection holds at most one images::list scope open at a time, as
   image of the listing by its digest in an
   [images::stat](/endpoints/images-stat/),
   [images::edit](/endpoints/images-edit/),
-  [images::hash](/endpoints/images-hash/) and
+  [images::oci](/endpoints/images-oci/) and
   [images::delete](/endpoints/images-delete/) request, and in a
   container request. No image has a name. An image absent from the
   listing is one the client cannot name in an

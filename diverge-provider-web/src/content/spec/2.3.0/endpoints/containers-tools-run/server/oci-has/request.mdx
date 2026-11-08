@@ -11,10 +11,10 @@ draft: false
 
 - **The image.** Exactly one JSON object, the `image` of the request
   of the run, its `digest` and its `references` verbatim, in the form
-  the request of [images::has](/endpoints/images-has/request/) has:
+  the request of [images::oci](/endpoints/images-oci/request/) has:
   `{"digest":"<algorithm>:<hex>","references":[{"registry":"…","name":"…"}]}`,
   with `references` absent when the array is empty. The ask carries
-  the same argument that [images::has](/endpoints/images-has/) takes.
+  the same argument that [images::oci](/endpoints/images-oci/) takes.
 - **No name.** The ask names no repository path under which the
   client holds the image. `digest` identifies the image; a reference
   locates it at a registry. The repository path the client holds the

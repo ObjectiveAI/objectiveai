@@ -1,17 +1,23 @@
 ---
 title: 'Possession'
-summary: 'The nonce check: the server sends a fresh nonce of exactly 32 bytes in a prove ask; the client answers with exactly one channel response, the SHA-256 of the nonce followed by the bytes of the image, and the channel response finish; the server computes the same value over the bytes it holds, and any other answer fails the check.'
+summary: 'The nonce check: the server sends a fresh nonce of exactly 32 bytes in a prove ask over the image of the scope that carries it; the client answers with exactly one channel response, the SHA-256 of the nonce followed by the bytes of the image, and the channel response finish; the server computes the same value over the bytes it holds, and any other answer fails the check.'
 order: 1
 draft: false
 ---
 
 The nonce check establishes that the client possesses every byte of
 an image. The server opens a channel whose request is a `prove` ask
-carrying a nonce and naming the image. The client answers with
+carrying a nonce, on a scope that names the image. The client answers with
 exactly one channel response, the proof, and the channel response
 finish. The server computes the proof over the bytes of the image it
 holds and compares the two values. The check passes if, and only if,
 the two values are equal.
+
+On an [images::oci](/endpoints/images-oci/) scope the parties to the
+ask are exchanged: the client opens the channel carrying the `prove`
+ask, and the server answers it with the proof, as
+[oci-prove](/endpoints/images-oci/client/oci-prove/) states. The
+server makes no check on that scope.
 
 ## The nonce
 
@@ -25,12 +31,20 @@ the two values are equal.
 
 ## The image bytes
 
+The image of an ask is the image that the scope carrying the ask
+names: on a [containers::agents::run](/endpoints/containers-agents-run/)
+or a [containers::tools::run](/endpoints/containers-tools-run/) scope,
+the image of the run; on an [images::push](/endpoints/images-push/)
+scope, the image of the push; on an
+[images::oci](/endpoints/images-oci/) scope, the image of the scope.
+The ask names no image.
+
 The image bytes `D` of an image are the concatenation of the
 following byte strings, in the order listed, with no byte between
 them, before them or after them:
 
 1. **The named manifest.** The bytes of the manifest whose digest is
-   `image.digest`, the `digest` of the `image` of the ask, verbatim:
+   the digest of the image of the ask, verbatim:
    the bytes whose hash under the digest's algorithm is that digest.
 2. **The platform manifest.** Where the manifest of item 1 is an
    image index, the bytes of the manifest whose digest is the
@@ -78,7 +92,7 @@ item 1 is an image index, and the manifest of item 1 otherwise.
 ## The ask
 
 The `prove` ask is exactly one JSON object,
-`{"image":<image>,"platform":"<algorithm>:<hex>","nonce":"<64 hex>"}`,
+`{"platform":"<algorithm>:<hex>","nonce":"<64 hex>"}`,
 with `platform` absent where no platform is named. It is the content of
 a channel request, following the tag byte that designates the channel,
 running to the end of the payload. The page of each endpoint that
@@ -87,18 +101,15 @@ carries the ask states the tag byte.
 - **`nonce`.** The nonce, as a JSON string of exactly 64
   hexadecimal characters: two characters for each of the 32 bytes, in
   the order of the bytes, the more significant four bits of a byte
-  first. The server writes the characters `0` to `9` and `a` to `f`.
+  first. In every ask the server sends, the server writes the
+  characters `0` to `9` and `a` to `f`.
   A request whose `nonce` is not exactly 64 hexadecimal characters
   does not parse.
-- **`image`.** The image, an object of two members, `digest` and
-  `references`, in the form the request of
-  [images::has](/endpoints/images-has/request/) has. `image.digest` is
-  the manifest digest the image is named by, of the form
-  `<algorithm>:<hex>`. `image.references` is absent when the array is
-  empty. The image bytes `D` are defined over the image whose manifest
-  `image.digest` names; `image.references` has no bearing on them.
-- **`platform`.** Absent where the manifest `image.digest` names is
-  not an image index. Where it is an image index, the digest of
+- **No image.** The ask carries no member naming an image. The image
+  bytes `D` are defined over the image of the ask, as
+  [The image bytes](/shared/possession/#the-image-bytes) states.
+- **`platform`.** Absent where the manifest the digest of the image of
+  the ask names is not an image index. Where it is an image index, the digest of
   exactly one manifest that the index lists, of the form
   `<algorithm>:<hex>`: the manifest of the platform whose bytes the
   server holds.
@@ -115,6 +126,9 @@ read as [Notation](/endpoints/#notation) provides:
 [proof: 32 bytes]      exactly once: the client holds the image
 ```
 
+- **The answerer.** The client answers the ask on every scope but an
+  [images::oci](/endpoints/images-oci/) scope, on which the server
+  answers it.
 - **The sequence.** The client answers with exactly one channel
   response, followed by the channel response finish. A channel
   response finish that no channel response precedes states that the
