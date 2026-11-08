@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// The actions over remote daemons' records, which a grant reaches as
 /// far as its `within` says. Snake case on the wire: `"get"`, `"list"`,
-/// `"edit"`, `"delete"`, `"connect"`, `"relay"`.
+/// `"edit"`, `"delete"`, `"connect"`, `"relay"`, `"oci"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -30,4 +30,9 @@ pub enum Over {
     /// Relay any request to one, served there: the first ID of a
     /// request's `relay`, see [`Relay`](crate::shared::relay::Relay).
     Relay,
+    /// Ask one for images, as
+    /// [`images::oci`](crate::daemon::endpoints::images::oci) does; the
+    /// daemon asks only the remote daemons whose records the grant
+    /// reaches.
+    Oci,
 }

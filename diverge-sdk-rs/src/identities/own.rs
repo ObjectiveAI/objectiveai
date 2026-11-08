@@ -60,6 +60,12 @@ impl Own {
         self.own.get(issuer).map(String::as_str)
     }
 
+    /// Every identity this program presents: one per issuer it holds a
+    /// subject at.
+    pub fn presented(&self) -> impl Iterator<Item = crate::shared::Identity> + '_ {
+        self.own.iter().map(|(issuer, subject)| crate::shared::Identity { issuer: issuer.clone(), subject: subject.clone() })
+    }
+
     /// This program's token from `issuer` — see rule 1. The answer's
     /// error is a reason for a log.
     pub async fn present(&self, issuer: &str) -> Result<String, String> {

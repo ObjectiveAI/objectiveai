@@ -134,6 +134,7 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersUntag(_) => bytes(&providers::untag::server::response::Frame::Forbidden),
             ClientRequest::ProvidersDaemonsListen(_) => bytes(&providers::daemons::listen::server::response::Frame::Forbidden),
             ClientRequest::ProvidersDaemonsMessage(_) => bytes(&providers::daemons::message::server::response::Frame::Forbidden),
+            ClientRequest::ImagesOci(_) => bytes(&images::oci::server::response::Frame::Forbidden),
             ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
@@ -265,6 +266,7 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersUntag(_) => bytes(&providers::untag::server::response::Frame::Error(error)),
             ClientRequest::ProvidersDaemonsListen(_) => bytes(&providers::daemons::listen::server::response::Frame::Error(error)),
             ClientRequest::ProvidersDaemonsMessage(_) => bytes(&providers::daemons::message::server::response::Frame::Error(error)),
+            ClientRequest::ImagesOci(_) => bytes(&images::oci::server::response::Frame::Error(error)),
             ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }

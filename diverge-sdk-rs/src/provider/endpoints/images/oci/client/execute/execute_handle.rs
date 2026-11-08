@@ -45,7 +45,7 @@ fn payload(frame: &channel_request::Frame) -> Result<Vec<u8>, serde_json::Error>
 }
 
 impl ExecuteHandle {
-    pub(super) fn new(handle: Handle, scope: u32, main: crate::wire::credit::Receiver) -> Self {
+    pub(crate) fn new(handle: Handle, scope: u32, main: crate::wire::credit::Receiver) -> Self {
         ExecuteHandle {
             handle,
             scope,

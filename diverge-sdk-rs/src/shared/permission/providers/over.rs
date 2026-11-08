@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 /// The actions over providers' records, which a grant reaches as far
 /// as its `within` says: the providers whose records the `within`
 /// reaches, by their tags. Snake case on the wire: `"get"`, `"list"`,
-/// `"discover"`, `"listen"`, `"message"`, `"edit"`, `"delete"`,
-/// `"enable"`, `"disable"`.
+/// `"discover"`, `"listen"`, `"message"`, `"oci"`, `"edit"`,
+/// `"delete"`, `"enable"`, `"disable"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -30,6 +30,10 @@ pub enum Over {
     Listen,
     /// Send messages through them, as `providers::daemons::message` does.
     Message,
+    /// Ask them for images, as
+    /// [`images::oci`](crate::daemon::endpoints::images::oci) does; the
+    /// daemon asks only the providers the grant reaches.
+    Oci,
     /// Change one, as
     /// [`providers::edit`](crate::daemon::endpoints::providers::edit) does.
     Edit,

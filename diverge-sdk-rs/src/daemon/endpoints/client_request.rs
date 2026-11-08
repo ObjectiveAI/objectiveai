@@ -277,6 +277,8 @@ pub enum ClientRequest<'a> {
     ProvidersDaemonsListen(providers::daemons::listen::client::request::Frame),
     /// Tag `144`. One direct message, through a provider the daemon chooses.
     ProvidersDaemonsMessage(providers::daemons::message::client::request::Frame),
+    /// Tag `145`. Whether the daemon can supply an image, and its parts.
+    ImagesOci(images::oci::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -416,6 +418,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersUntag(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsListen(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsMessage(frame) => frame.encode(out),
+            ClientRequest::ImagesOci(frame) => frame.encode(out),
             ClientRequest::IdentitiesLogin(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -804,6 +807,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             144 => providers::daemons::message::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersDaemonsMessage)
                 .ok(),
+            145 => images::oci::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesOci)
+                .ok(),
             128 => identities::login::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesLogin)
                 .ok(),
@@ -937,6 +943,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersUntag(_) => f.write_str("providers untag"),
             ClientRequest::ProvidersDaemonsListen(_) => f.write_str("providers daemons listen"),
             ClientRequest::ProvidersDaemonsMessage(_) => f.write_str("providers daemons message"),
+            ClientRequest::ImagesOci(_) => f.write_str("images oci"),
             ClientRequest::IdentitiesLogin(_) => f.write_str("identities login"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
@@ -1071,6 +1078,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "providers/untag" => Some(142),
         "providers/daemons/listen" => Some(143),
         "providers/daemons/message" => Some(144),
+        "images/oci" => Some(145),
         "identities/login" => Some(128),
         _ => None,
     }
@@ -1202,6 +1210,7 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersUntag(_) => "providers/untag",
             ClientRequest::ProvidersDaemonsListen(_) => "providers/daemons/listen",
             ClientRequest::ProvidersDaemonsMessage(_) => "providers/daemons/message",
+            ClientRequest::ImagesOci(_) => "images/oci",
             ClientRequest::IdentitiesLogin(_) => "identities/login",
             ClientRequest::Invalid(_) => "",
         }

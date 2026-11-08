@@ -175,8 +175,9 @@
 //! | `142` | [`providers::untag`] |
 //! | `143` | [`providers::daemons::listen`] |
 //! | `144` | [`providers::daemons::message`] |
+//! | `145` | [`images::oci`] |
 //!
-//! One hundred and forty-five, so far. Every one of them carries the optional
+//! One hundred and forty-six, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request
