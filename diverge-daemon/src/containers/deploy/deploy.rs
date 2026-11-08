@@ -17,6 +17,7 @@ use futures_util::future;
 use tokio::sync::{Mutex, watch};
 
 use crate::containers::answerers::Answerer;
+use crate::containers::images::Pulls;
 use crate::containers::fuse::Mounts;
 use crate::containers::lifecycle::End;
 use crate::containers::capable::Needs;
@@ -305,6 +306,7 @@ async fn start(owner: &Owner, tool: &DependencyTool) -> Result<Arc<ToolRun>, Str
             provider: identity.clone(),
             mounts: Arc::clone(&mounts),
             served: Arc::new(Mutex::new(Served::new())),
+            pulls: Pulls::new(),
             touched: touched.clone(),
             inflight: Arc::clone(&owner.inflight),
             files: Arc::clone(&owner.files),
@@ -314,6 +316,8 @@ async fn start(owner: &Owner, tool: &DependencyTool) -> Result<Arc<ToolRun>, Str
             secrets: Mutex::new(None),
         });
         let opened = tools_run::execute(&handle, &tools_request::Frame(container.clone()), run_answerer.set()).await;
+        // The run is answered: its pull is over either way.
+        run_answerer.pulls.release().await;
         let (container_id, handle, stream) = match opened {
             Ok(opened) => opened,
             Err(error) => {

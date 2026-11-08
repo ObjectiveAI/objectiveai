@@ -16,7 +16,6 @@ use tokio::task::AbortHandle;
 use chrono::{DateTime, Utc};
 
 use diverge_sdk::daemon::reference;
-use diverge_sdk::provider::endpoints::images::oci::client::execute;
 
 use super::{Capacity, Changes, Kind, Peers, Standing};
 use crate::containers::services::State;
@@ -153,9 +152,6 @@ pub struct Live {
     /// provider's entries go with its connection, or with a pull from
     /// it that failed, and a digest with its last holder.
     holders: Mutex<HashMap<String, Vec<Identity>>>,
-    /// The pull scope held open on each provider pulled from: opened
-    /// at the first pull, kept for the connection's life.
-    pulls: Mutex<HashMap<Identity, Arc<execute::ExecuteHandle>>>,
     /// Each connected provider's capacity cell, by identity: a
     /// snapshot map, swapped whole when a provider connects or
     /// disconnects, so a reader looks a cell up under no lock at any
@@ -418,7 +414,6 @@ impl Live {
             holders.retain(|holder| holder != identity);
             !holders.is_empty()
         });
-        self.pulls.lock().await.remove(identity);
     }
 
     /// A fresh mirror for the provider's volumes, kept for its
@@ -461,34 +456,6 @@ impl Live {
                 holders.remove(digest);
             }
         }
-    }
-
-    /// The pull scope held on the provider, if one is.
-    pub async fn pull_scope(&self, identity: &Identity) -> Option<Arc<execute::ExecuteHandle>> {
-        self.pulls.lock().await.get(identity).cloned()
-    }
-
-    /// Keep `scope` as the provider's pull scope, unless one is kept
-    /// already: the one kept, either way, so a second opener uses the
-    /// first's and lets its own go. `connection` is the capacity cell
-    /// of the connection the scope was opened on — one per connection
-    /// — and nothing is kept, `None`, when that connection is no longer
-    /// the provider's: a scope opened on a connection since gone would
-    /// otherwise outlive it, its disconnect having already forgotten
-    /// the pulls. Asked under the pulls' lock, which the disconnect
-    /// takes only after it has let the cell go.
-    pub async fn keep_pull_scope(&self, identity: Identity, scope: Arc<execute::ExecuteHandle>, connection: &Arc<Capacity>) -> Option<Arc<execute::ExecuteHandle>> {
-        let mut pulls = self.pulls.lock().await;
-        if !self.capacity_cell(&identity).is_some_and(|cell| Arc::ptr_eq(&cell, connection)) {
-            return None;
-        }
-        Some(Arc::clone(pulls.entry(identity).or_insert(scope)))
-    }
-
-    /// The provider's pull scope let go: a pull from it failed, and
-    /// the next opens anew.
-    pub async fn drop_pull_scope(&self, identity: &Identity) {
-        self.pulls.lock().await.remove(identity);
     }
 
     /// The kind changed: every list of it kept open reads again.

@@ -154,7 +154,7 @@ async fn choose_provider(daemon: &Arc<Daemon>, image: &Image) -> Option<Identity
     if let Some(chosen) = pulling.choose(&mut rand::rng()) {
         return Some(chosen.clone());
     }
-    locate(daemon, &image.digest, None).await
+    locate(daemon, image, None).await
 }
 
 /// A document read, or none shipped, as the answer.

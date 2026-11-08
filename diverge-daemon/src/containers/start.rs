@@ -15,6 +15,7 @@ use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute a
 use tokio::sync::{Mutex, watch};
 
 use super::answerers::Answerer;
+use super::images::Pulls;
 use super::capable::Needs;
 use super::fuse::Mounts;
 use super::lifecycle::{self, End};
@@ -169,6 +170,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             provider: identity.clone(),
             mounts: Arc::clone(&mounts),
             served: Arc::clone(&served),
+            pulls: Pulls::new(),
             touched: touched.clone(),
             inflight: Arc::clone(&inflight),
             files: Arc::clone(&files),
@@ -178,6 +180,8 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             secrets: Mutex::new(None),
         });
         let opened = agents_run::execute(&handle, &agents_request::Frame(container.clone()), answerer.set()).await;
+        // The run is answered: its pull is over either way.
+        answerer.pulls.release().await;
         let (id, handle, stream) = match opened {
             Ok(opened) => opened,
             Err(error) => {
@@ -332,6 +336,7 @@ async fn start_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, S
                     provider: identity.clone(),
                     mounts: Arc::clone(&mounts),
                     served: Arc::new(Mutex::new(Served::new())),
+                    pulls: Pulls::new(),
                     touched: touched.clone(),
                     inflight: Arc::new(Inflight::new()),
                     files: Arc::new(Inflight::new()),
@@ -340,7 +345,10 @@ async fn start_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, S
                     binding: tool.secrets.clone(),
                     secrets: Mutex::new(None),
                 });
-                match tools_run::execute(&handle, &tools_request::Frame(container.clone()), answerer.set()).await {
+                let started = tools_run::execute(&handle, &tools_request::Frame(container.clone()), answerer.set()).await;
+                // The run is answered: its pull is over either way.
+                answerer.pulls.release().await;
+                match started {
                     Ok((id, handle, stream)) => {
                         let secrets = answerer.secrets.lock().await.take();
                         let permissions = answerer.permissions.lock().await.clone();

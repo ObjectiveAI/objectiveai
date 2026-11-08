@@ -125,8 +125,8 @@ impl std::fmt::Display for NoProvider {
 pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: &Needs) -> Result<Vec<(Identity, Handle)>, NoProvider> {
     let asked = needs.image.as_ref().map(|image| {
         let daemon = Arc::clone(daemon);
-        let digest = image.digest.clone();
-        tokio::spawn(async move { images::locate(&daemon, &digest, None).await.is_some() })
+        let image = image.clone();
+        tokio::spawn(async move { images::locate(&daemon, &image, None).await.is_some() })
     });
     if let Some(identity) = pinned {
         let Some(handle) = daemon.live.provider(identity).await else {

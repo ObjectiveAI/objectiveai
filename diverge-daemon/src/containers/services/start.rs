@@ -12,6 +12,7 @@ use indexmap::IndexMap;
 use tokio::sync::{Mutex, watch};
 
 use crate::containers::answerers::Answerer;
+use crate::containers::images::Pulls;
 use crate::containers::fuse::Mounts;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
@@ -110,6 +111,7 @@ async fn start_service(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Ar
             provider: identity.clone(),
             mounts: Arc::clone(&mounts),
             served: Arc::new(Mutex::new(Served::new())),
+            pulls: Pulls::new(),
             touched: touched.clone(),
             inflight: Arc::new(Inflight::new()),
             files: Arc::new(Inflight::new()),
@@ -118,7 +120,10 @@ async fn start_service(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Ar
             binding: binding.clone(),
             secrets: Mutex::new(None),
         });
-        let (id, handle, stream) = match tools_run::execute(&handle, &tools_request::Frame(container.clone()), answerer.set()).await {
+        let started = tools_run::execute(&handle, &tools_request::Frame(container.clone()), answerer.set()).await;
+        // The run is answered: its pull is over either way.
+        answerer.pulls.release().await;
+        let (id, handle, stream) = match started {
             Ok(opened) => opened,
             Err(error) => {
                 secrets::abandon(daemon, &answerer).await;
