@@ -15,7 +15,6 @@ use super::discoverable::Discoverable;
 use super::mailboxes::Mailboxes;
 use super::singles::Singles;
 use super::changes::Changes;
-use super::image_holder::ImageHolder;
 use super::image_manager::ImageManager;
 use super::oci_store::OciStore;
 use diverge_sdk::wire::server::received::Received;
@@ -84,13 +83,12 @@ use diverge_sdk::shared::error::Error;
 /// [`HandleError::InvalidAuthorize`]: serving stops, the teardown below
 /// runs exactly as it would for the connection ending, and the error
 /// says why it ran early.
-pub async fn handle<D, V, I, M, O, C>(
+pub async fn handle<D, V, M, O, C>(
     mut session: Session,
     client_identity: Arc<Identity>,
     address: IpAddr,
     deployer: Arc<D>,
     volume_manager: Arc<V>,
-    image_holder: Arc<I>,
     image_manager: Arc<M>,
     oci_store: Arc<O>,
     capacity: Arc<C>,
@@ -107,11 +105,10 @@ where
     D::Error: Into<Error>,
     V: VolumeManager + 'static,
     V::Error: Into<Error>,
-    I: ImageHolder + 'static,
-    I::Error: Into<Error>,
     M: ImageManager + 'static,
     M::Error: Into<Error>,
     O: OciStore + 'static,
+    O::Error: Into<Error>,
     C: CapacityReporter + 'static,
 {
     // Owned here, so the drain at the bottom is over everything this
@@ -321,14 +318,6 @@ where
                     .await;
                 });
             }
-            ClientRequest::ImagesHas(frame) => {
-                let identity = Arc::clone(&client_identity);
-                let holder = Arc::clone(&image_holder);
-                let capabilities = Arc::clone(&capabilities);
-                scopes.spawn(async move {
-                    endpoints::images::has::handle(scope, frame, &identity, &*holder, &capabilities).await;
-                });
-            }
             ClientRequest::ImagesList(_) => {
                 let scope = match singles.images_list.claim(scope) {
                     Ok(single) => single,
@@ -379,14 +368,6 @@ where
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::images::edit::handle(scope, frame, &identity, &*manager, changes, &capabilities).await;
-                });
-            }
-            ClientRequest::ImagesHash(frame) => {
-                let identity = Arc::clone(&client_identity);
-                let manager = Arc::clone(&image_manager);
-                let capabilities = Arc::clone(&capabilities);
-                scopes.spawn(async move {
-                    endpoints::images::hash::handle(scope, frame, &identity, &*manager, &capabilities).await;
                 });
             }
             ClientRequest::ImagesDelete(frame) => {

@@ -60,7 +60,8 @@ impl ImageSource {
         ImageSource { scope, manifest, blob, prove }
     }
 
-    /// The caller's proof that it holds the image the request names:
+    /// The caller's proof that it holds the scope's image, at the
+    /// request's platform and keyed by its nonce:
     /// exactly one frame of 32 bytes, then the finish. `None` for the
     /// empty finish, a frame of any other length, more than one frame,
     /// and a caller that is gone — each a failed check.

@@ -53,9 +53,9 @@ pub struct Provider {
     pub(super) deployer: Arc<ContainerDeployer>,
     /// The volumes.
     volumes: Arc<VolumeManager>,
-    /// The Store's manager, which is the image holder and the OCI
-    /// store too: whether an image is held for a caller, and the image
-    /// served to its pull, both from one resolution.
+    /// The Store's manager, which is the OCI store too: the image
+    /// served to a caller's pull, held and proven from one
+    /// resolution.
     images: Arc<ImageManager>,
     /// The running containers, one map for the provider.
     directory: Arc<Directory>,
@@ -102,9 +102,8 @@ impl Provider {
     /// brings the machine up, sweeps an earlier life away, writes the
     /// auth file and opens the tunnel; the capacity reporter, given the
     /// volumes, the store and the deployer; the registry client, ONE
-    /// for the provider, which a push, a `has`, a pull and a hash all
-    /// fetch with; the image manager — the image holder and the OCI
-    /// store too — given the store, the blob store, the deployer and
+    /// for the provider, which a push and a pull both fetch with;
+    /// the image manager — the OCI store too — given the store, the blob store, the deployer and
     /// the registry client; and the directory. The store is handed to
     /// the registry, the deployer, the reporter and the manager, and
     /// the blob store to the registry, the deployer and the manager.
@@ -230,7 +229,6 @@ impl Provider {
             address,
             Arc::clone(&self.deployer),
             Arc::clone(&self.volumes),
-            Arc::clone(&self.images),
             Arc::clone(&self.images),
             Arc::clone(&self.images),
             Arc::clone(&self.capacity),

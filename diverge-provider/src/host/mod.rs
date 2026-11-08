@@ -13,9 +13,8 @@
 //! | `ContainerDeployer` | a container, running, with the proxy inside and port 14979 reachable |
 //! | `Container` | the address of that proxy, and the stop |
 //! | `VolumeManager` | the volumes of every identity |
-//! | `ImageHolder` | whether an image is held for a caller — its Store, or a registry the provider uses — and never the cache |
 //! | `ImageManager` | the Store: the images every identity owns on this provider, by digest, one copy of each blob for every owner |
-//! | `OciStore` | the image a caller's pull names, served from its Store or fetched through from a registry |
+//! | `OciStore` | whether the image a caller's pull names is held for it — its Store, or a registry the provider uses, and never the cache — and the image served and proven from there, fetched through from a registry |
 //! | `CapacityReporter` | how much a caller may still use: the stores' room and what remains of the two caps |
 //! | `Authenticator` | the provider's token at an issuer, and whether a peer's token is one it serves |
 //!
@@ -25,14 +24,12 @@
 //! and supply its own.
 //!
 //! Here is where the implementation goes; [`container_deployer`], [`volume_manager`],
-//! [`image_manager`] — the `ImageHolder` and the `OciStore` as well as
-//! the `ImageManager`, the three answering from one resolution —
-//! [`capacity_reporter`] and [`authenticator`] supply the eight, every
+//! [`image_manager`] — the `OciStore` as well as the `ImageManager` —
+//! [`capacity_reporter`] and [`authenticator`] supply the seven, every
 //! method of each written. [`image_registry`] is the registry podman
 //! pulls from, one random token per pull, from the Store or read
 //! through to a run's caller; [`registry_client`] the minimal OCI
-//! Distribution client a push, a `has`, a pull and a hash fetch from
-//! a registry with. [`tools`] is every program the provider runs — podman,
+//! Distribution client a push and a pull fetch from a registry with. [`tools`] is every program the provider runs — podman,
 //! and e2fsprogs, `mount` and `ssh` through it or beside it — and
 //! the one way it runs them. [`watch`] is a directory of this host
 //! walked and watched, the filetree of a fixed volume, one module

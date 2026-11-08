@@ -144,7 +144,7 @@ async fn taken(deployer: &ContainerDeployer, store: &Store, attempt: Attempt, ca
         }
         Err(Fetch::Store(error)) => return Err(Error::Store(error)),
     };
-    if !check(store, caller.source(), caller.image(), &plan).await.map_err(Error::Store)? {
+    if !check(store, caller.source(), &plan).await.map_err(Error::Store)? {
         return Err(Error::ProofFailed);
     }
     let origin = Origin::Client {

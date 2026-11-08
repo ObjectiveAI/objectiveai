@@ -1,5 +1,6 @@
 //! An image as the provider serves it to a caller: the one resolution
-//! `has`, `oci` and `hash` make, and the image one `oci` scope serves.
+//! an `oci` scope opens with, and the image — its parts and its proof —
+//! the scope serves.
 
 use diverge_sdk::shared::Identity;
 use std::sync::Arc;
@@ -7,6 +8,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 
 use super::manifest::{Descriptor, Parsed};
+use super::fetch::{Repository, fill, plan_at};
 use super::{Attempt, Error, Pieces, Store};
 use crate::host::container_deployer::name_ok;
 use crate::host::image_registry::Digest;
@@ -120,7 +122,13 @@ pub struct Owned {
 ///    verified against its digest, written and pinned, then served
 ///    from the blob store; one the registry does not supply, or
 ///    supplies bytes that are not its digest's, is the empty finish.
-/// 4. **Closed.** At the scope's end, an image every part of which is
+/// 4. **Proven.** A proof brings in the image's plan at the platform
+///    asked for — see [`plan_at`] — every blob the blob store lacks
+///    fetched from the registry, verified, written and pinned under the
+///    same attempt; then [`Store::prove`] over the blob store's bytes.
+///    A platform that breaks the rule, a part the registry does not
+///    supply or supplies wrong, and a store that fails are no proof.
+/// 5. **Closed.** At the scope's end, an image every part of which is
 ///    present — every part [`Store::reach`] names, and for an index at
 ///    least one platform manifest — is written a cache record, unless
 ///    an identity owns it, and the cache trimmed; then the attempt
@@ -196,6 +204,17 @@ impl oci_store::ServedImage for Served {
         }
     }
 
+    async fn prove(&self, platform: Option<&str>, nonce: &[u8; 32]) -> Option<[u8; 32]> {
+        let platform = match platform {
+            Some(platform) => Some(Digest::parse(platform)?),
+            None => None,
+        };
+        match self {
+            Served::Store(owned) => owned.prove(platform.as_ref(), nonce).await,
+            Served::Registry(through) => through.prove(platform.as_ref(), nonce).await,
+        }
+    }
+
     async fn close(&self) {
         if let Served::Registry(through) = self {
             through.close().await;
@@ -225,6 +244,15 @@ impl Owned {
             return None;
         }
         self.store.pieces(digest).await
+    }
+
+    /// The proof over the Store's own bytes, while the caller owns the
+    /// image.
+    async fn prove(&self, platform: Option<&Digest>, nonce: &[u8; 32]) -> Option<[u8; 32]> {
+        if !matches!(self.store.owned(&self.client_identity, &self.digest).await, Ok(Some(_))) {
+            return None;
+        }
+        self.store.prove(nonce, &self.digest, platform).await.ok()?
     }
 }
 
@@ -303,7 +331,22 @@ impl Through {
         self.blobs.pieces(digest).await
     }
 
-    /// Rule 4: a cache record of a whole image and the trim, then the
+    /// Rule 4: the image's plan at `platform` brought in under the
+    /// scope's attempt, its parts staying pinned for the scope, and the
+    /// proof over the blob store's bytes. The cache record is
+    /// [`close`](Self::close)'s, as for a part served.
+    async fn prove(&self, platform: Option<&Digest>, nonce: &[u8; 32]) -> Option<[u8; 32]> {
+        let repository = Repository {
+            client: &self.registries,
+            host: &self.host,
+            name: &self.name,
+        };
+        let plan = plan_at(&self.blobs, self.attempt, &repository, &self.digest, platform).await.ok()??;
+        fill(&self.blobs, self.attempt, &repository, &plan, |_, _| async {}).await.ok()?;
+        self.blobs.prove(nonce, &self.digest, platform).await.ok()?
+    }
+
+    /// Rule 5: a cache record of a whole image and the trim, then the
     /// attempt left and the blob store pruned.
     async fn close(&self) {
         if self.whole().await {

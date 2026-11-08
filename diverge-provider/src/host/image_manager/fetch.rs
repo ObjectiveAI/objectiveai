@@ -14,7 +14,6 @@ use crate::host::image_registry::Digest;
 use crate::host::registry_client::RegistryClient;
 use crate::protocol::image_source::ImageSource;
 use diverge_sdk::shared::containers::oci;
-use diverge_sdk::shared::containers::request::Image;
 
 /// A blob's pieces, as a supplier hands them.
 pub type Supplied = Pin<Box<dyn Stream<Item = Bytes> + Send>>;
@@ -118,7 +117,7 @@ pub async fn plan<S: Supplier>(store: &Store, attempt: Attempt, supplier: &S, di
 
 /// The manifests of the image `digest` names, in the Store, pinned for
 /// the attempt, and its plan at the `platform` a proof names — what a
-/// hash over an image a registry serves brings in. `None` is a
+/// proof over an image a registry serves brings in. `None` is a
 /// `platform` that breaks the rule of [`Store::prove`]:
 ///
 /// 1. The manifest is the Store's when it holds it, else the
@@ -207,17 +206,15 @@ pub fn nonce() -> Result<[u8; 32], Error> {
 /// The nonce check of
 /// [`prove`](diverge_sdk::shared::containers::oci::prove), made of the
 /// caller over the image `plan` names, whose every part is in the
-/// Store: a fresh nonce sent with `image` — the image the run or the
-/// push names, its digest the plan's and its references as the caller
-/// gave them — and, for an index, the platform this provider took from
-/// it; the caller's answer compared with the Store's own proof over
+/// Store: a fresh nonce sent — the image is the scope's own, the one
+/// the run or the push names — with, for an index, the platform this
+/// provider took from it; the caller's answer compared with the Store's own proof over
 /// its own bytes. `true` only for two equal proofs; an empty finish, a
 /// malformed answer, a different value, or a part the Store does not
 /// hold is `false`.
-pub async fn check(store: &Store, source: &ImageSource, image: &Image, plan: &Plan) -> Result<bool, Error> {
+pub async fn check(store: &Store, source: &ImageSource, plan: &Plan) -> Result<bool, Error> {
     let nonce = nonce()?;
     let request = oci::prove::request::Request {
-        image: image.clone(),
         platform: plan.platform.as_ref().map(Digest::to_string),
         nonce,
     };

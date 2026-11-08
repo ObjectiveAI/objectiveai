@@ -1,14 +1,11 @@
-//! The image endpoints, served: `has` against the provider's
-//! [`ImageHolder`](crate::protocol::image_holder::ImageHolder), the
-//! Store's seven against its
-//! [`ImageManager`](crate::protocol::image_manager::ImageManager), and
-//! the pull against its [`OciStore`](crate::protocol::oci_store::OciStore).
+//! The image endpoints, served: the Store's six against the
+//! provider's [`ImageManager`](crate::protocol::image_manager::ImageManager),
+//! and the pull — held, served and proven — against its
+//! [`OciStore`](crate::protocol::oci_store::OciStore).
 
 pub mod build;
 pub mod delete;
 pub mod edit;
-pub mod has;
-pub mod hash;
 pub mod list;
 pub mod oci;
 pub mod push;

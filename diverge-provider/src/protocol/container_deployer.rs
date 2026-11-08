@@ -246,9 +246,9 @@ pub trait ContainerDeployer: Send + Sync {
     /// nonce check passes; a check that fails is
     /// [`Refused::ProofFailed`]. An image it can get from none of them
     /// is an [`Error`](Self::Error) like any other. The image is the one
-    /// [`images::has`](diverge_sdk::provider::endpoints::images::has) asks about,
-    /// so a `has` that came back held names an image this can be
-    /// handed with nothing to translate.
+    /// an [`images::oci`](diverge_sdk::provider::endpoints::images::oci)
+    /// scope opens on, so a scope that answered held names an image
+    /// this can be handed with nothing to translate.
     ///
     /// # What the nonce check needs
     ///

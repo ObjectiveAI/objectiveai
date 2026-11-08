@@ -60,8 +60,8 @@ impl Caller {
         }
     }
 
-    /// The image the run names: what the has ask carries, and what
-    /// the nonce check's request names.
+    /// The image the run names: what the has ask carries, and the
+    /// image the scope's nonce check proves.
     pub fn image(&self) -> &Image {
         &self.image
     }

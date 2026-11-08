@@ -45,7 +45,7 @@ pub struct Meta {
 
 /// A cache record, `cache/<algorithm>-<hex>.json`: an image a caller
 /// supplied to a run and proved it held, or one brought in whole from
-/// a registry for a pull or a hash, which nobody owns, kept so that
+/// a registry for a pull, which nobody owns, kept so that
 /// its blobs need not cross again.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,7 +56,7 @@ pub struct Cached {
 }
 
 /// One attempt to bring an image into the Store — a build, a push, a
-/// deploy's pull from the caller, a pull or a hash fetched through
+/// deploy's pull from the caller, a pull fetched through
 /// from a registry — as [`Store::enter`] hands it out:
 /// every blob it pins is reachable until it [leaves](Store::leave).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -84,7 +84,7 @@ struct Attempts {
 ///    two identities never share a folder.
 /// 3. `cache/<algorithm>-<hex>.json`: one [`Cached`] per image a
 ///    caller supplied to a run and proved, or brought in whole from a
-///    registry for a pull or a hash, which no identity owns.
+///    registry for a pull, which no identity owns.
 /// 4. `tmp/`: a blob on its way in, renamed into `blobs/` once its
 ///    bytes are found to be its digest's. Emptied when the provider
 ///    starts.
