@@ -36,7 +36,7 @@ use crate::protocol::volume::Volume;
 use diverge_sdk::shared::containers::fuse::Kind;
 use diverge_sdk::shared::containers::oci;
 use diverge_sdk::shared::containers::response::Source;
-use diverge_sdk::shared::containers::request::{Container, FuseMount};
+use diverge_sdk::shared::containers::request::{Container, FuseMount, Image};
 use diverge_sdk::shared::containers::registration;
 use diverge_sdk::shared::containers::secrets::Values;
 use diverge_sdk::shared::error::Error;
@@ -159,7 +159,7 @@ where
     let watched: Arc<[Watched]> = Arc::from(watched(request, held.volumes()));
 
     let source = ImageSource::new(Arc::clone(scope), manifest_ask::<R>, blob_ask::<R>, prove_ask::<R>);
-    let caller = Caller::new(Arc::clone(scope), has_ask::<R>, request.image.digest.clone(), source);
+    let caller = Caller::new(Arc::clone(scope), has_ask::<R>, request.image.clone(), source);
     let Deployed { container, source } = match deployer.deploy(client_identity, &deployment, &request.image, &caller).await {
         Ok(deployed) => deployed,
         Err(Refused::ProofFailed) => return Err(Failed::ProofFailed),
@@ -359,8 +359,8 @@ where
 
 /// The ask whether the caller holds the image, as this family's
 /// frame.
-fn has_ask<R: Runs>(digest: &str) -> Vec<u8> {
-    R::Ask::try_from(Own::OciHas(digest)).ok().and_then(|ask| encoded(&ask)).unwrap_or_default()
+fn has_ask<R: Runs>(image: &Image) -> Vec<u8> {
+    R::Ask::try_from(Own::OciHas(image)).ok().and_then(|ask| encoded(&ask)).unwrap_or_default()
 }
 
 /// The ask for a manifest the provider does not hold, as this

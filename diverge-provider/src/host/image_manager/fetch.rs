@@ -14,6 +14,7 @@ use crate::host::image_registry::Digest;
 use crate::host::registry_client::RegistryClient;
 use crate::protocol::image_source::ImageSource;
 use diverge_sdk::shared::containers::oci;
+use diverge_sdk::shared::containers::request::Image;
 
 /// A blob's pieces, as a supplier hands them.
 pub type Supplied = Pin<Box<dyn Stream<Item = Bytes> + Send>>;
@@ -115,6 +116,45 @@ pub async fn plan<S: Supplier>(store: &Store, attempt: Attempt, supplier: &S, di
     })
 }
 
+/// The manifests of the image `digest` names, in the Store, pinned for
+/// the attempt, and its plan at the `platform` a proof names — what a
+/// hash over an image a registry serves brings in. `None` is a
+/// `platform` that breaks the rule of [`Store::prove`]:
+///
+/// 1. The manifest is the Store's when it holds it, else the
+///    supplier's, found to be the digest's and written.
+/// 2. An index takes a `platform`, which is one of the manifests it
+///    lists, fetched the same way, and an image manifest; an image
+///    manifest takes none. Either broken is `None`, and nothing more
+///    is fetched.
+/// 3. The image manifest's config and layers are the plan's blobs;
+///    none of them is fetched here.
+pub async fn plan_at<S: Supplier>(store: &Store, attempt: Attempt, supplier: &S, digest: &Digest, platform: Option<&Digest>) -> Result<Option<Plan>, Fetch> {
+    let body = manifest(store, attempt, supplier, digest).await?;
+    let image = match (Parsed::parse(&body).ok_or(Fetch::Malformed)?, platform) {
+        (Parsed::Index(entries), Some(platform)) => {
+            if !entries.iter().any(|entry| &entry.descriptor.digest == platform) {
+                return Ok(None);
+            }
+            let body = manifest(store, attempt, supplier, platform).await?;
+            Parsed::parse(&body).ok_or(Fetch::Malformed)?
+        }
+        (image @ Parsed::Image { .. }, None) => image,
+        _ => return Ok(None),
+    };
+    let Parsed::Image { config, layers } = image else {
+        return Ok(None);
+    };
+    let mut blobs = Vec::with_capacity(1 + layers.len());
+    blobs.push(config);
+    blobs.extend(layers);
+    Ok(Some(Plan {
+        digest: digest.clone(),
+        platform: platform.cloned(),
+        blobs,
+    }))
+}
+
 /// One manifest, the Store's or the supplier's, pinned.
 async fn manifest<S: Supplier>(store: &Store, attempt: Attempt, supplier: &S, digest: &Digest) -> Result<Vec<u8>, Fetch> {
     store.pin(attempt, digest).await;
@@ -167,17 +207,19 @@ pub fn nonce() -> Result<[u8; 32], Error> {
 /// The nonce check of
 /// [`prove`](diverge_sdk::shared::containers::oci::prove), made of the
 /// caller over the image `plan` names, whose every part is in the
-/// Store: a fresh nonce sent with the digest and — for an index — the
-/// platform this provider took from it; the caller's answer compared
-/// with the Store's own proof over its own bytes. `true` only for two
-/// equal proofs; an empty finish, a malformed answer, a different
-/// value, or a part the Store does not hold is `false`.
-pub async fn check(store: &Store, source: &ImageSource, plan: &Plan) -> Result<bool, Error> {
+/// Store: a fresh nonce sent with `image` — the image the run or the
+/// push names, its digest the plan's and its references as the caller
+/// gave them — and, for an index, the platform this provider took from
+/// it; the caller's answer compared with the Store's own proof over
+/// its own bytes. `true` only for two equal proofs; an empty finish, a
+/// malformed answer, a different value, or a part the Store does not
+/// hold is `false`.
+pub async fn check(store: &Store, source: &ImageSource, image: &Image, plan: &Plan) -> Result<bool, Error> {
     let nonce = nonce()?;
     let request = oci::prove::request::Request {
-        nonce,
-        digest: plan.digest.to_string(),
+        image: image.clone(),
         platform: plan.platform.as_ref().map(Digest::to_string),
+        nonce,
     };
     let (theirs, ours) = futures_util::future::join(
         source.prove(&request),

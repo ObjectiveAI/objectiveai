@@ -24,7 +24,7 @@
 //! connection is a provider's whole loop.
 //!
 //! Ten of the [`volumes`](diverge_sdk::provider::endpoints::volumes),
-//! [`images::check`](diverge_sdk::provider::endpoints::images::check),
+//! [`images::has`](diverge_sdk::provider::endpoints::images::has),
 //! the image store's stat and delete,
 //! [`info`](diverge_sdk::provider::endpoints::info) and
 //! [`capacity`](diverge_sdk::provider::endpoints::capacity) answer and
@@ -86,9 +86,9 @@
 //! the directory is the deployer's, the way publishing a port already
 //! is.
 //!
-//! [`image_checker`] is the third, and it is the smallest: would you
-//! supply this image, to this caller. It is not a
-//! [`container_deployer`] method because a check creates nothing and
+//! [`image_holder`] is the third, and it is the smallest: do you hold
+//! this image, for this caller. It is not a
+//! [`container_deployer`] method because asking creates nothing and
 //! pulls nothing, and because no is an ANSWER here where it would be an
 //! error there.
 //!
@@ -120,12 +120,14 @@
 //! directory a build reads from, with the identity attached as a
 //! [`mount`] has it, and a [`progress`] is one thing a build says.
 //! An image an identity owns is one the provider holds for that
-//! identity and for nobody else, which the checker and the deployer
-//! a provider supplies beside this are bound to.
+//! identity and for nobody else, which the holder, the OCI store and
+//! the deployer a provider supplies beside this are bound to.
 //!
-//! [`oci_store`] is the sixth: what the provider holds of an image
-//! for a caller, served to the caller's own asks on an `images::oci`
-//! scope — the run's three OCI asks the other way round, so a caller
+//! [`oci_store`] is the sixth: the one image an `images::oci` scope
+//! names, opened for the caller — from its Store, or from a registry
+//! the provider uses that one of the image's references names — and
+//! served to the caller's own asks for its manifests and blobs until
+//! the scope ends: the run's OCI asks the other way round, so a caller
 //! can carry an image from one provider to a run on another. The
 //! mirror of the caller half's `OciStore`, and like it without an
 //! error vocabulary.
@@ -145,8 +147,10 @@
 //! Nothing implements any of them, and all are consumed:
 //! [`volume_manager`] and [`volume`] by the eleven
 //! [`volumes`](diverge_sdk::provider::endpoints::volumes) endpoints' handlers,
-//! [`image_checker`] by
-//! [`images::check`](diverge_sdk::provider::endpoints::images::check)'s,
+//! [`image_holder`] by
+//! [`images::has`](diverge_sdk::provider::endpoints::images::has)'s,
+//! [`oci_store`] by
+//! [`images::oci`](diverge_sdk::provider::endpoints::images::oci)'s,
 //! [`image_manager`] by the store endpoints' — the build's
 //! taking the [`volume_manager`] too, for the volume it reads — and
 //! [`container_deployer`] and
@@ -163,7 +167,8 @@
 //! [`Capabilities`](diverge_sdk::provider::endpoints::info::server::response::Capabilities)
 //! the provider holds out, which it answers beside a compile-time
 //! version and which every handler of an optional part of the
-//! protocol enforces — the image store's five and the check, the
+//! protocol enforces — the image store's own; `has`, the pull and the
+//! hash, which a Store or a registry listed enables; the
 //! runs' FUSE mounts, the container FUSE serve, and the eleven volume
 //! endpoints, each answering the refusal the wire defines where the
 //! capability is absent and judging every hold on a volume by what
@@ -205,7 +210,7 @@ pub mod endpoints;
 pub mod handle;
 pub mod hold;
 pub mod holders;
-pub mod image_checker;
+pub mod image_holder;
 pub mod image_info;
 pub mod image_manager;
 pub mod image_source;

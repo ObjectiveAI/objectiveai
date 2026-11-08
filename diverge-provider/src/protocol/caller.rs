@@ -7,12 +7,14 @@ use diverge_sdk::wire::server::answer::{Answer, answer};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::shared::containers::oci;
+use diverge_sdk::shared::containers::request::Image;
 
 use super::image_source::ImageSource;
 
 /// The caller's help with one run's image, for the deployer to use or
 /// ignore: whether the caller holds the image, asked on the run scope
-/// by digest and answered with a name; and the caller's store itself
+/// by the image the run names — its digest and references — and
+/// answered with a name; and the caller's store itself
 /// — its manifests, its blobs and its proof of possession — as an
 /// [`ImageSource`].
 ///
@@ -40,22 +42,28 @@ use super::image_source::ImageSource;
 #[derive(Debug, Clone)]
 pub struct Caller {
     scope: Arc<ScopeHandle>,
-    has: fn(&str) -> Vec<u8>,
-    digest: String,
+    has: fn(&Image) -> Vec<u8>,
+    image: Image,
     source: ImageSource,
 }
 
 impl Caller {
     /// From the scope, the family's encoding of the has ask, the
-    /// image's digest as the request named it, and the caller's store
-    /// over the same scope.
-    pub(crate) fn new(scope: Arc<ScopeHandle>, has: fn(&str) -> Vec<u8>, digest: String, source: ImageSource) -> Self {
+    /// image as the request named it, and the caller's store over the
+    /// same scope.
+    pub(crate) fn new(scope: Arc<ScopeHandle>, has: fn(&Image) -> Vec<u8>, image: Image, source: ImageSource) -> Self {
         Caller {
             scope,
             has,
-            digest,
+            image,
             source,
         }
+    }
+
+    /// The image the run names: what the has ask carries, and what
+    /// the nonce check's request names.
+    pub fn image(&self) -> &Image {
+        &self.image
     }
 
     /// Whether the caller holds the image, and under what name: one
@@ -63,7 +71,7 @@ impl Caller {
     /// an empty finish, a frame that does not decode, and a caller
     /// that is gone.
     pub async fn holds(&self) -> Option<String> {
-        let mut channel = self.scope.send_channel_request(&(self.has)(&self.digest)).await;
+        let mut channel = self.scope.send_channel_request(&(self.has)(&self.image)).await;
         let mut held = None;
         while let Some(bytes) = channel.response_receiver.recv().await {
             match answer(&bytes) {

@@ -15,9 +15,9 @@ pub(crate) enum Own<'a> {
     OciManifest(&'a str),
     /// A blob of such an image, by digest.
     OciBlob(&'a str),
-    /// Whether the caller holds an image, by digest, and under what
-    /// name.
-    OciHas(&'a str),
+    /// Whether the caller holds an image, by its digest and
+    /// references, and under what name.
+    OciHas(&'a diverge_sdk::shared::containers::request::Image),
     /// The proof that the caller holds an image: the nonce check of
     /// [`prove`](diverge_sdk::shared::containers::oci::prove).
     OciProve(&'a diverge_sdk::shared::containers::oci::prove::request::Request),

@@ -15,7 +15,7 @@ use super::discoverable::Discoverable;
 use super::mailboxes::Mailboxes;
 use super::singles::Singles;
 use super::changes::Changes;
-use super::image_checker::ImageChecker;
+use super::image_holder::ImageHolder;
 use super::image_manager::ImageManager;
 use super::oci_store::OciStore;
 use diverge_sdk::wire::server::received::Received;
@@ -90,7 +90,7 @@ pub async fn handle<D, V, I, M, O, C>(
     address: IpAddr,
     deployer: Arc<D>,
     volume_manager: Arc<V>,
-    image_checker: Arc<I>,
+    image_holder: Arc<I>,
     image_manager: Arc<M>,
     oci_store: Arc<O>,
     capacity: Arc<C>,
@@ -107,7 +107,7 @@ where
     D::Error: Into<Error>,
     V: VolumeManager + 'static,
     V::Error: Into<Error>,
-    I: ImageChecker + 'static,
+    I: ImageHolder + 'static,
     I::Error: Into<Error>,
     M: ImageManager + 'static,
     M::Error: Into<Error>,
@@ -321,15 +321,12 @@ where
                     .await;
                 });
             }
-            ClientRequest::ImagesCheck(frame) => {
+            ClientRequest::ImagesHas(frame) => {
                 let identity = Arc::clone(&client_identity);
-                let checker = Arc::clone(&image_checker);
+                let holder = Arc::clone(&image_holder);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::images::check::handle(
-                        scope, frame, &identity, &*checker, &capabilities,
-                    )
-                    .await;
+                    endpoints::images::has::handle(scope, frame, &identity, &*holder, &capabilities).await;
                 });
             }
             ClientRequest::ImagesList(_) => {
@@ -401,12 +398,12 @@ where
                     endpoints::images::delete::handle(scope, frame, &identity, &*manager, changes, &capabilities).await;
                 });
             }
-            ClientRequest::ImagesOci(_) => {
+            ClientRequest::ImagesOci(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let store = Arc::clone(&oci_store);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::images::oci::handle(scope, &identity, store, &capabilities).await;
+                    endpoints::images::oci::handle(scope, frame, &identity, &*store, &capabilities).await;
                 });
             }
             ClientRequest::Info(_) => {

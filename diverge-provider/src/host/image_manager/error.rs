@@ -1,5 +1,5 @@
 //! Why the Store could not list, examine, build, push, describe,
-//! prove or remove an image.
+//! prove or remove an image, or say whether one is held.
 
 use std::fmt;
 use std::io;
@@ -40,7 +40,9 @@ pub enum Error {
     /// nonce could be drawn.
     Random(String),
     /// A registry that answered that it serves the image failed to
-    /// supply it, or supplied bytes that are not their digest's.
+    /// supply it, or supplied bytes that are not their digest's; or,
+    /// with no reference serving the image, a registry could not be
+    /// asked whether it does.
     Registry(String),
 }
 
@@ -57,7 +59,7 @@ impl fmt::Display for Error {
             Error::Json(error) => write!(f, "an image's record did not parse: {error}"),
             Error::Layout(dir) => write!(f, "the layout at `{}` could not be read", dir.display()),
             Error::Random(error) => write!(f, "no nonce could be drawn: {error}"),
-            Error::Registry(error) => write!(f, "the registry did not supply the image it serves: {error}"),
+            Error::Registry(error) => write!(f, "the registry did not answer for the image: {error}"),
         }
     }
 }
@@ -89,7 +91,7 @@ impl From<serde_json::Error> for Error {
 /// What the protocol puts on the wire for one of these.
 ///
 /// ```json
-/// {"kind":"registry","error":"the registry did not supply the image it serves: …"}
+/// {"kind":"registry","error":"the registry did not answer for the image: …"}
 /// ```
 impl From<Error> for error::Error {
     fn from(error: Error) -> Self {

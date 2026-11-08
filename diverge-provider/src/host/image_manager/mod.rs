@@ -28,15 +28,28 @@
 //!    Only what the Store lacks moves.
 //!
 //! Ownership is the record; nothing else is. A delete removes the
-//! caller's record and prunes; an edit rewrites its description; a
-//! hash is [`Store::prove`] over the Store's own bytes, the function
-//! the nonce check of a run and of a push uses.
+//! caller's record and prunes; an edit rewrites its description.
+//!
+//! # How an image is served
+//!
+//! `has`, a pull and a hash resolve the image one way — see
+//! [`resolve`]: the caller's own Store when it owns the digest, else
+//! the first reference whose registry the configuration lists and
+//! that has the manifest, else nowhere; never another identity's
+//! Store, never the cache. A pull from a registry is fetched through
+//! the blob store, part by part as it is asked for, under one attempt
+//! for the scope's life — see [`Served`]; a hash brings in the image's
+//! plan at the platform asked for. Either way an image whole at the
+//! end is written a cache record and the cache trimmed. A hash is
+//! [`Store::prove`] over the blob store's own bytes, the function the
+//! nonce check of a run and of a push uses.
 //!
 //! # The nonce check
 //!
 //! [`fetch::check`] draws 32 bytes from the operating system's
-//! cryptographic source for one check, asks the caller for
-//! `SHA-256(nonce ‖ D)` — `D` the manifest, the platform manifest when
+//! cryptographic source for one check, asks the caller — naming the
+//! image as the run or the push named it, its digest and references,
+//! and the platform — for `SHA-256(nonce ‖ D)` — `D` the manifest, the platform manifest when
 //! the manifest is an index, the config, then every layer in order,
 //! duplicates included — and compares it with [`Store::prove`] over
 //! the provider's own copy. Only two equal values pass. The platform
@@ -51,16 +64,19 @@
 //! not known before. Room is made by trimming cache records, oldest
 //! first; an ownership is never trimmed.
 //!
-//! [`ImageManager`] is the manager, [`Store`] the Store the manager,
-//! the registry, the deployer, the OCI store and the checker share,
-//! [`Meta`] an ownership's record and [`Cached`] a cache record,
-//! [`manifest`] a manifest read, [`fetch`] an image brought in from a
-//! supplier, [`Pieces`] a file's bytes piece by piece, and [`Error`]
-//! what the manager fails with. With no `images` section there is no
-//! Store for callers: a build or a push is [`Error::Absent`], a
-//! listing is empty, and nothing is owned by anyone; the deployer
-//! keeps a Store of its own under the provider's `run/` with no room,
-//! for the blobs a run takes from the caller.
+//! [`ImageManager`] is the manager — the image holder and the OCI
+//! store too — [`Store`] the Store the manager, the registry and the
+//! deployer share, [`Meta`] an ownership's record and [`Cached`] a
+//! cache record, [`resolve`] where an image is served from and
+//! [`Served`] the image one pull serves, [`manifest`] a manifest read,
+//! [`fetch`] an image brought in from a supplier, [`Pieces`] a file's
+//! bytes piece by piece, and [`Error`] what the manager fails with.
+//! With no `images` section there is no Store for callers: a build or
+//! a push is [`Error::Absent`], a listing is empty, and nothing is
+//! owned by anyone; the deployer keeps a Store of its own under the
+//! provider's `run/` with no room — the blobs a run takes from the
+//! caller, and those a pull or a hash fetches through from a
+//! registry.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -72,6 +88,7 @@ mod image_manager;
 pub mod manifest;
 mod pieces;
 mod push;
+mod serve;
 mod store;
 
 pub use build::*;
@@ -79,4 +96,5 @@ pub use error::*;
 pub use image_manager::*;
 pub use pieces::*;
 pub use push::*;
+pub use serve::*;
 pub use store::*;

@@ -64,8 +64,8 @@ pub struct Config {
     pub volumes: Option<Volumes>,
     /// Where the images clients build on the provider are kept, and
     /// how much they may take. Absent means no Store: a
-    /// build is refused, a listing is empty, and the `client` source
-    /// of a check is never available.
+    /// build is refused, a listing is empty, and no image is held for
+    /// a caller but one a registry the provider uses serves.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub images: Option<Images>,
     /// The rate the provider relays direct messages at, between the

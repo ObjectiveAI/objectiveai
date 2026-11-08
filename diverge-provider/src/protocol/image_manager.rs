@@ -12,6 +12,7 @@ use super::progress::{Progress, Pushing};
 use diverge_sdk::provider::endpoints::images::delete::server::response::Deletion;
 use diverge_sdk::provider::endpoints::images::list::server::response::Image;
 use diverge_sdk::provider::endpoints::images::stat::server::response::Stat;
+use diverge_sdk::shared::containers::oci;
 use diverge_sdk::shared::containers::request::Image as Wanted;
 use diverge_sdk::shared::discover::Description;
 
@@ -22,8 +23,11 @@ use diverge_sdk::shared::discover::Description;
 /// [`images`](diverge_sdk::provider::endpoints::images) are verbs over
 /// one thing, and this is the thing: what a listing reports, what a
 /// build or a push adds and a delete takes away, what an edit
-/// describes and a hash proves. An image is never acted on in place,
-/// so there is no second trait for the thing a digest resolves to.
+/// describes and a hash proves — a hash proving, beside, an image a
+/// registry the provider uses serves, as a pull through the
+/// [`OciStore`](super::oci_store::OciStore) would. An image is never
+/// acted on in place, so there is no second trait for the thing a
+/// digest resolves to.
 ///
 /// # Every method takes a `client_identity`
 ///
@@ -45,13 +49,14 @@ use diverge_sdk::shared::discover::Description;
 ///
 /// # An image owned is an image held, for its owner
 ///
-/// The [`ImageChecker`](super::image_checker::ImageChecker) and the
+/// The [`ImageHolder`](super::image_holder::ImageHolder), the
+/// [`OciStore`](super::oci_store::OciStore) and the
 /// [`ContainerDeployer`](super::container_deployer::ContainerDeployer)
 /// a provider supplies beside this treat an image an identity owns as
-/// one the provider holds for that identity — a check naming its
-/// digest is available, a run naming it runs it from the Store with no
-/// nonce check — and as not there for any other identity, unless that
-/// identity owns the same digest itself.
+/// one the provider holds for that identity — a `has` naming its
+/// digest is held, a pull serves it, a run naming it runs it from the
+/// Store with no nonce check — and as not there for any other
+/// identity, unless that identity owns the same digest itself.
 ///
 /// # No eviction, and a capacity
 ///
@@ -141,19 +146,20 @@ pub trait ImageManager: Send + Sync {
         description: Option<&Description>,
     ) -> impl Future<Output = Result<Option<bool>, Self::Error>> + Send;
 
-    /// The proof of possession over the caller's own image under
-    /// `digest`, keyed by `nonce` — see
+    /// The proof of possession over the image `request` names, keyed
+    /// by its nonce — see
     /// [`prove`](diverge_sdk::shared::containers::oci::prove), with the
-    /// same computation the provider's own check makes. [`None`] is a
-    /// digest the caller owns no image by, and a `platform` that breaks
-    /// the rule: required when the manifest is an index and one of the
-    /// manifests it lists, absent otherwise.
+    /// same computation the provider's own check makes — over the
+    /// image as the provider serves it to the caller: from its own
+    /// Store, else from a registry the provider uses that one of the
+    /// image's references names, its bytes brought in first. [`None`]
+    /// is an image served to the caller from neither, and a `platform`
+    /// that breaks the rule: required when the manifest is an index
+    /// and one of the manifests it lists, absent otherwise.
     fn hash(
         &self,
         client_identity: &Identity,
-        digest: &str,
-        platform: Option<&str>,
-        nonce: &[u8; 32],
+        request: &oci::prove::request::Request,
     ) -> impl Future<Output = Result<Option<[u8; 32]>, Self::Error>> + Send;
 
     /// Give up the caller's ownership of the image under `digest`.

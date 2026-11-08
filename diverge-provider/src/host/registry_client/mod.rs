@@ -1,6 +1,7 @@
 //! A minimal client of the OCI Distribution API: the read side, by
 //! digest, against the registries the configuration lists — what a
-//! push from a registry fetches with.
+//! push, a `has`, a pull and a hash fetch from a registry with, ONE
+//! client for the provider, so a repository's token serves all four.
 //!
 //! # What it asks
 //!

@@ -44,8 +44,9 @@ pub struct Meta {
 }
 
 /// A cache record, `cache/<algorithm>-<hex>.json`: an image a caller
-/// supplied to a run and proved it held, which nobody owns, kept so
-/// that its blobs need not cross again.
+/// supplied to a run and proved it held, or one brought in whole from
+/// a registry for a pull or a hash, which nobody owns, kept so that
+/// its blobs need not cross again.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Cached {
@@ -55,7 +56,8 @@ pub struct Cached {
 }
 
 /// One attempt to bring an image into the Store — a build, a push, a
-/// deploy's pull from the caller — as [`Store::enter`] hands it out:
+/// deploy's pull from the caller, a pull or a hash fetched through
+/// from a registry — as [`Store::enter`] hands it out:
 /// every blob it pins is reachable until it [leaves](Store::leave).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Attempt(u64);
@@ -81,7 +83,8 @@ struct Attempts {
 ///    them, by [`path_name`], so nothing of an identity is hashed and
 ///    two identities never share a folder.
 /// 3. `cache/<algorithm>-<hex>.json`: one [`Cached`] per image a
-///    caller supplied to a run and proved, which no identity owns.
+///    caller supplied to a run and proved, or brought in whole from a
+///    registry for a pull or a hash, which no identity owns.
 /// 4. `tmp/`: a blob on its way in, renamed into `blobs/` once its
 ///    bytes are found to be its digest's. Emptied when the provider
 ///    starts.
@@ -483,15 +486,6 @@ impl Store {
         read_record(self.owner_dir(client_identity).join(record_file(digest))).await
     }
 
-    /// Whether `digest` is in the identity's Store: a digest string
-    /// that does not parse never is.
-    pub async fn owns(&self, client_identity: &Identity, digest: &str) -> bool {
-        match Digest::parse(digest) {
-            Some(digest) => matches!(self.owned(client_identity, &digest).await, Ok(Some(_))),
-            None => false,
-        }
-    }
-
     /// The identity's ownership of `digest` recorded, `meta` its
     /// record: `false`, and nothing written, where it owns the digest
     /// already. The check and the write are one step under the
@@ -569,22 +563,6 @@ impl Store {
             return Ok(());
         }
         write_record(&self.cache_dir().join(record_file(digest)), &Cached { created: now() }).await
-    }
-
-    /// Whether the identity's Store reaches `digest`: an image it
-    /// owns, or a blob one of them reaches — what the `images::oci`
-    /// scope serves, and nothing else.
-    pub async fn reaches_owned(&self, client_identity: &Identity, digest: &Digest) -> bool {
-        let Ok(owned) = record_digests(self.owner_dir(client_identity)).await else {
-            return false;
-        };
-        let wanted = digest.to_string();
-        for image in owned {
-            if self.reach(&image).await.contains(&wanted) {
-                return true;
-            }
-        }
-        false
     }
 
     // --- the proof ------------------------------------------------------

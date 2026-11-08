@@ -181,7 +181,7 @@ impl Job {
         if let Err(fetched) = told {
             return client_end(fetched);
         }
-        if !check(&self.store, &self.source, &plan).await? {
+        if !check(&self.store, &self.source, &self.image, &plan).await? {
             return Ok(Pushing::ProofFailed);
         }
         self.own(&plan, Source::Client).await

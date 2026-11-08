@@ -30,11 +30,9 @@ use crate::config::volumes::Volumes;
 use super::Error;
 use crate::host::capacity_reporter::CapacityReporter;
 use crate::host::container_deployer::ContainerDeployer;
-use crate::host::image_checker::ImageChecker;
 use crate::host::image_manager::{ImageManager, Store};
 use crate::host::image_registry::ImageRegistry;
 use crate::host::registry_client::RegistryClient;
-use crate::host::oci_store::OciStore;
 use crate::host::tools::podman;
 use crate::host::authenticator::ProviderAuthenticator;
 use crate::host::volume_manager::{self, Scratch, VolumeManager};
@@ -55,13 +53,10 @@ pub struct Provider {
     pub(super) deployer: Arc<ContainerDeployer>,
     /// The volumes.
     volumes: Arc<VolumeManager>,
-    /// The image checker.
-    checker: Arc<ImageChecker>,
-    /// The Store's manager.
+    /// The Store's manager, which is the image holder and the OCI
+    /// store too: whether an image is held for a caller, and the image
+    /// served to its pull, both from one resolution.
     images: Arc<ImageManager>,
-    /// What is held of an image for a caller: its own images, from the
-    /// Store.
-    oci: Arc<OciStore>,
     /// The running containers, one map for the provider.
     directory: Arc<Directory>,
     /// The daemons accepting connections from other daemons, one map
@@ -105,13 +100,15 @@ impl Provider {
     /// the scratch directory under podman's storage, swept; the
     /// volumes; the deployer, which
     /// brings the machine up, sweeps an earlier life away, writes the
-    /// auth file and opens the tunnel; the image checker, given that
-    /// auth file; the registry client; the image manager, given the
-    /// deployer and the registry client; the capacity
-    /// reporter, given the volumes, the store and the deployer; and
-    /// the directory. The store is handed to the registry, the
-    /// deployer, the checker, the OCI store, the reporter and the
-    /// manager. `stop` is the caller's, made before anything here, so
+    /// auth file and opens the tunnel; the capacity reporter, given the
+    /// volumes, the store and the deployer; the registry client, ONE
+    /// for the provider, which a push, a `has`, a pull and a hash all
+    /// fetch with; the image manager — the image holder and the OCI
+    /// store too — given the store, the blob store, the deployer and
+    /// the registry client; and the directory. The store is handed to
+    /// the registry, the deployer, the reporter and the manager, and
+    /// the blob store to the registry, the deployer and the manager.
+    /// `stop` is the caller's, made before anything here, so
     /// the signal and the stop route send on the one sender.
     /// `authenticator` is the provider's side of every handshake, made
     /// already.
@@ -145,23 +142,19 @@ impl Provider {
         let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone(), scratch));
         let registries = config.containers.podman.registries.clone();
         let deployer = Arc::new(
-            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry, shares, disk, blobs)
+            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry, shares, disk, Arc::clone(&blobs))
                 .await
                 .map_err(Error::Deployer)?,
         );
-        let checker = Arc::new(ImageChecker::new(store.clone(), &registries, deployer.auth_file().to_path_buf()));
-        let oci = Arc::new(OciStore::new(store.clone()));
         let capacity = Arc::new(CapacityReporter::new(Arc::clone(&volumes), store.clone(), Arc::clone(&deployer)));
         let client = Arc::new(RegistryClient::new(&registries).map_err(Error::RegistryClient)?);
-        let images = Arc::new(ImageManager::new(store, Arc::clone(&volumes), Arc::clone(&deployer), client));
+        let images = Arc::new(ImageManager::new(store, blobs, Arc::clone(&volumes), Arc::clone(&deployer), client));
         let discoverable = Arc::new(Discoverable::new());
         Ok(Provider {
             authenticator,
             deployer,
             volumes,
-            checker,
             images,
-            oci,
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
             mailboxes: Arc::new(Mailboxes::new(capabilities.messages, Arc::clone(&discoverable))),
@@ -237,9 +230,9 @@ impl Provider {
             address,
             Arc::clone(&self.deployer),
             Arc::clone(&self.volumes),
-            Arc::clone(&self.checker),
             Arc::clone(&self.images),
-            Arc::clone(&self.oci),
+            Arc::clone(&self.images),
+            Arc::clone(&self.images),
             Arc::clone(&self.capacity),
             Arc::clone(&self.directory),
             Arc::clone(&self.volume_changes),

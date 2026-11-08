@@ -268,8 +268,8 @@ impl<'a> TryFrom<Own<'a>> for ask::Frame<'a> {
             Own::OciBlob(digest) => ask::Frame::OciBlob(oci::blob::request::Request {
                 digest: digest.to_string(),
             }),
-            Own::OciHas(digest) => ask::Frame::OciHas(oci::has::request::Request {
-                digest: digest.to_string(),
+            Own::OciHas(image) => ask::Frame::OciHas(oci::has::request::Request {
+                image: image.clone(),
             }),
             Own::OciProve(request) => ask::Frame::OciProve(request.clone()),
             Own::Daemon(_) => return Err(Unasked),

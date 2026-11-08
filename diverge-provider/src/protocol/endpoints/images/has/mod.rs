@@ -2,7 +2,7 @@
 //!
 //! [`handle`] takes the scope a
 //! [`Session`](diverge_sdk::wire::server::session::Session) yielded and answers
-//! whether the image can be supplied.
+//! whether the image is held for the caller.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
