@@ -52,8 +52,8 @@ use diverge_sdk::shared::containers::request::Image;
 ///
 /// Two sources, either or both — the handler answers `NoSource`
 /// itself for a request naming neither, so this is never asked with
-/// none. `client` is the caller's own images, those it built on this
-/// provider through the
+/// none. `client` is the caller's own Store, the images it built or
+/// pushed on this provider through the
 /// [`ImageManager`](super::image_manager::ImageManager) and no other
 /// identity's. `registries` is every referenced registry the
 /// provider's policy lists, asked as `<registry>/<name>@<digest>`, a

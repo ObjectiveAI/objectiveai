@@ -28,7 +28,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 /// In order:
 ///
 /// 0. [`Unsupported`](response::Frame::Unsupported), then the finish,
-///    on a provider whose capabilities keep no image store; nothing
+///    on a provider whose capabilities keep no Store; nothing
 ///    is looked at.
 /// 1. The context, when the request names one, held: its path
 ///    checked to be one of names ([`volumes::path`] otherwise), the
@@ -42,9 +42,11 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///    finishes with nothing built.
 /// 2. The manager asked to build, with the context as a
 ///    [`Context`] — the request's two fields and the caller's
-///    identity — and its stream read to the end: every
-///    [`Output`](Progress::Output) sent as it comes; the first of
-///    [`Built`](Progress::Built), told to every listing open by name,
+///    identity — and the description, and its stream read to the end:
+///    every [`Output`](Progress::Output) sent as it comes; the first
+///    of [`Built`](Progress::Built), told to every listing open by
+///    digest, [`Exists`](Progress::Exists), told to nobody since
+///    nothing changed,
 ///    [`InsufficientCapacity`](Progress::InsufficientCapacity) and the
 ///    stream's error, flattened, sent and the stream left. A stream
 ///    that ends with none of them is [`refusal::unfinished`]. A caller
@@ -99,7 +101,7 @@ pub async fn handle<M, V>(
         volume_relative_path: context.volume_relative_path.clone(),
     });
     let build = manager
-        .build(client_identity, &request.name, &request.containerfile, context.as_ref())
+        .build(client_identity, request.description.as_ref(), &request.containerfile, context.as_ref())
         .await;
     let mut build = Box::pin(build);
     let mut ended = false;
@@ -117,9 +119,13 @@ pub async fn handle<M, V>(
         let frame = match item {
             Ok(Progress::Output(line)) => response::Frame::Output(line),
             Ok(Progress::Built(built)) => {
-                changes.changed(client_identity, &request.name);
+                changes.changed(client_identity, &built.digest);
                 ended = true;
                 response::Frame::Built(built)
+            }
+            Ok(Progress::Exists(exists)) => {
+                ended = true;
+                response::Frame::Exists(exists)
             }
             Ok(Progress::InsufficientCapacity) => {
                 ended = true;

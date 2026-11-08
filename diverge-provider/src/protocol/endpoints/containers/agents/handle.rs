@@ -9,7 +9,6 @@ use diverge_sdk::provider::endpoints::containers::agents::run::client::request;
 use crate::protocol::endpoints::containers::run::handler;
 use crate::protocol::container_deployer::ContainerDeployer;
 use crate::protocol::directory::Directory;
-use crate::protocol::image_registry::ImageRegistry;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume_manager::VolumeManager;
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
@@ -25,30 +24,26 @@ use diverge_sdk::shared::error::Error;
 ///
 /// [`server::handle`](crate::protocol::handle::handle) reads every
 /// request once to dispatch it, and hands the result here.
-pub async fn handle<D, G, V>(
+pub async fn handle<D, V>(
     scope: ScopeHandle,
     request: request::Frame,
     client_identity: &Identity,
     deployer: &D,
-    registry: Arc<G>,
     manager: &V,
     capabilities: &Capabilities,
     directory: Arc<Directory>,
 ) where
     D: ContainerDeployer,
     D::Error: Into<Error>,
-    G: ImageRegistry + 'static,
-    G::Error: Into<Error>,
     V: VolumeManager,
     V::Error: Into<Error>,
 {
-    handler::run::<Agents, D, G, V>(
+    handler::run::<Agents, D, V>(
         scope,
         client_identity,
         &request.0,
         request.0.arguments.clone(),
         deployer,
-        registry,
         manager,
         capabilities,
         directory,

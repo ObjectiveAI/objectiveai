@@ -21,7 +21,7 @@ use crate::host::tools::podman;
 /// cache.
 #[derive(Debug)]
 pub struct ImageChecker {
-    /// The client image store, where the caller's own images are;
+    /// The Store, where the caller's own images are;
     /// `None` where the configuration has none.
     store: Option<Arc<Store>>,
     /// The hosts of the configured registries, in the configuration's
@@ -33,7 +33,7 @@ pub struct ImageChecker {
 }
 
 impl ImageChecker {
-    /// A checker over the client image store, if there is one, and
+    /// A checker over the Store, if there is one, and
     /// the `containers` section's `podman.registries`, with the auth
     /// file the deployer writes for podman, which every look into a
     /// registry is given.
@@ -50,7 +50,7 @@ impl image_checker::ImageChecker for ImageChecker {
     type Error = Error;
 
     /// Looked where `sources` says, local first. `client` is the
-    /// caller's own images in the client image store, by digest, and
+    /// caller's own images in the Store, by digest, and
     /// never another identity's; with no store, never available.
     /// Having the image ends it. `registries`, asked only when the
     /// local source asked did not have it: every reference's name
@@ -67,7 +67,7 @@ impl image_checker::ImageChecker for ImageChecker {
             return Err(Error::Name(reference.name.clone()));
         }
         if let (true, Some(store)) = (sources.client, &self.store) {
-            if store.find_digest(client_identity, &image.digest).await.is_some() {
+            if store.owns(client_identity, &image.digest).await {
                 return Ok(Response::Available(Available::default()));
             }
         }

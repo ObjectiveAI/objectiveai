@@ -1,4 +1,4 @@
-//! Why the registry could not start, or could not serve.
+//! Why the registry could not start, or could not mint.
 
 use std::fmt;
 use std::io;
@@ -12,17 +12,16 @@ pub enum Error {
     /// The loopback listener could not be bound, so there is no
     /// registry.
     Bind(io::Error),
-    /// A repository by this name is being served already. The protocol
-    /// mints a fresh name per run, so this is a run handed the same
-    /// name twice.
-    Taken(String),
+    /// The operating system's random source did not answer, so no
+    /// token could be minted.
+    Random(String),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Bind(error) => write!(f, "the registry could not listen: {error}"),
-            Error::Taken(repository) => write!(f, "the repository `{repository}` is served already"),
+            Error::Random(error) => write!(f, "no token could be minted: {error}"),
         }
     }
 }
@@ -31,7 +30,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Bind(error) => Some(error),
-            Error::Taken(_) => None,
+            Error::Random(_) => None,
         }
     }
 }
@@ -39,13 +38,13 @@ impl std::error::Error for Error {
 /// What the protocol puts on the wire for one of these.
 ///
 /// ```json
-/// {"kind":"taken","error":"the repository `…` is served already"}
+/// {"kind":"random","error":"no token could be minted: …"}
 /// ```
 impl From<Error> for error::Error {
     fn from(error: Error) -> Self {
         let kind = match &error {
             Error::Bind(_) => "bind",
-            Error::Taken(_) => "taken",
+            Error::Random(_) => "random",
         };
         error::Error(json!({
             "kind": kind,

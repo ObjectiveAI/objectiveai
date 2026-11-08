@@ -8,6 +8,34 @@ use super::container::Container;
 use super::deployment::Deployment;
 use super::image_info::ImageInfo;
 use diverge_sdk::shared::containers::request::Image;
+use diverge_sdk::shared::containers::response::Source;
+
+/// A container a deploy started, and where its image came from: what
+/// the run answers in its [`Id`](diverge_sdk::shared::containers::response::Id).
+#[derive(Debug)]
+pub struct Deployed<C> {
+    /// The container, running, its proxy listening.
+    pub container: C,
+    /// Where the image was taken from.
+    pub source: Source,
+}
+
+/// Why a deploy did not start a container.
+///
+/// One case the wire names apart from every other failure: the caller
+/// supplied the image and did not prove that it holds it — see
+/// [`prove`](diverge_sdk::shared::containers::oci::prove) — which the
+/// run answers as `ProofFailed`. Everything else is the provider's
+/// own error, which the run answers as its `Error`.
+#[derive(Debug)]
+pub enum Refused<E> {
+    /// The nonce check failed: a proof that differs from the
+    /// provider's own, the empty finish, or an answer that is not one
+    /// frame of 32 bytes. What the attempt brought in is removed.
+    ProofFailed,
+    /// Any other failure, in the provider's own type.
+    Error(E),
+}
 
 /// What runs a container for a provider.
 ///
@@ -207,39 +235,39 @@ pub trait ContainerDeployer: Send + Sync {
     /// Deploy the image `image` names, from wherever the implementation
     /// gets it.
     ///
-    /// Its own store, by digest; a referenced registry its policy
-    /// lists; or the caller: `caller` says whether the caller holds
-    /// the image, under what repository path, and where the provider's
-    /// registry serves it when it does, and an implementation that
-    /// takes the image from there points its runtime at
-    /// `<registry>/<repository>/<name>@<digest>`, with `name` the path
-    /// the caller answered, and pulls as from any registry. Which
-    /// sources it tries, and in what order, is its own; an image it
-    /// can get from none of them is an [`Error`](Self::Error) like any
-    /// other. The image is the one
+    /// The caller's Store on this provider, by digest; a referenced
+    /// registry its policy lists; or the caller: `caller` says whether
+    /// the caller holds the image and supplies its bytes and its proof
+    /// of possession. The answer says which was the source, as a
+    /// [`Source`]. The order is the protocol's — see
+    /// [`Source`](diverge_sdk::shared::containers::response::Source):
+    /// the caller's Store, then a registry, then the caller — and an
+    /// image taken from the caller is the caller's only after the
+    /// nonce check passes; a check that fails is
+    /// [`Refused::ProofFailed`]. An image it can get from none of them
+    /// is an [`Error`](Self::Error) like any other. The image is the one
     /// [`images::check`](diverge_sdk::provider::endpoints::images::check) asks about,
     /// so a check that came back available names an image this can
     /// be handed with nothing to translate.
     ///
-    /// # What the implementation does not do
+    /// # What the nonce check needs
     ///
-    /// Parse a manifest, diff layer digests, or decide what a blob is.
-    /// A runtime already indexes layers by digest and already skips the
-    /// ones it holds, so letting it pull means that logic is USED
-    /// rather than reimplemented beside it — one cache, and no second
-    /// one to disagree with it.
+    /// The proof is computed over the implementation's OWN copy of the
+    /// image's bytes, so an implementation that takes an image from
+    /// the caller keeps the manifests and the blobs the proof covers,
+    /// whether it fetched them or held them already. Which of them it
+    /// fetches is its own: only what it lacks needs to move.
     ///
     /// # A name is a path fragment, and is not checked
     ///
-    /// A reference's `name`, and the path the caller answers, land in
-    /// a reference by concatenation. A `..` in one walks out of the
-    /// repository segment and into another caller's namespace, so an
-    /// implementation refuses one that is not a repository path before
-    /// concatenating, and normalizes nothing. Nothing upstream of here
-    /// does it.
+    /// A reference's `name`, and the name the caller answers, land in
+    /// a reference by concatenation. A `..` in one walks out of its
+    /// segment, so an implementation refuses one that is not a
+    /// repository path before concatenating, and normalizes nothing.
+    /// Nothing upstream of here does it.
     ///
-    /// The digest needs no such care: the provider's registry hashes
-    /// what the caller sent before serving it, and the runtime hashes
+    /// The digest needs no such care: every byte taken is hashed
+    /// against its digest before it is kept, and the runtime hashes
     /// again on pull, so a source holding the wrong bytes under the
     /// right digest fails before anything runs.
     ///
@@ -254,7 +282,7 @@ pub trait ContainerDeployer: Send + Sync {
         deployment: &Deployment,
         image: &Image,
         caller: &Caller,
-    ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
+    ) -> impl Future<Output = Result<Deployed<Self::Container>, Refused<Self::Error>>> + Send;
 
     /// Read the `/DIVERGE.md` of the image `image` names, running
     /// nothing: see [`ImageInfo`].

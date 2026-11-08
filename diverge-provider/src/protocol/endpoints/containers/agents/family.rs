@@ -209,6 +209,10 @@ impl Runs for Agents {
     fn unsupported() -> Option<Vec<u8>> {
         encoded(&response::Frame::Unsupported)
     }
+
+    fn proof_failed() -> Option<Vec<u8>> {
+        encoded(&response::Frame::ProofFailed)
+    }
 }
 
 /// The proxy's ask as this family's frame; a database connection is
@@ -267,6 +271,7 @@ impl<'a> TryFrom<Own<'a>> for ask::Frame<'a> {
             Own::OciHas(digest) => ask::Frame::OciHas(oci::has::request::Request {
                 digest: digest.to_string(),
             }),
+            Own::OciProve(request) => ask::Frame::OciProve(request.clone()),
             Own::Daemon(_) => return Err(Unasked),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
         })

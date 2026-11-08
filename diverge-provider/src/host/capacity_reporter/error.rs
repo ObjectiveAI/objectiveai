@@ -11,7 +11,7 @@ use crate::host::{image_manager, volume_manager};
 pub enum Error {
     /// The volume stores could not be measured.
     Volumes(volume_manager::Error),
-    /// The client image store could not be measured.
+    /// The Store could not be measured.
     Images(image_manager::Error),
 }
 
@@ -19,7 +19,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Volumes(error) => write!(f, "the volume stores could not be measured: {error}"),
-            Error::Images(error) => write!(f, "the client image store could not be measured: {error}"),
+            Error::Images(error) => write!(f, "the Store could not be measured: {error}"),
         }
     }
 }

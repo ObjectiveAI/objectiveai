@@ -23,9 +23,9 @@ const FILE: &str = "DIVERGE.md";
 ///
 /// 1. A reference whose name is not a repository path is
 ///    [`Error::Name`], as a deploy refuses one.
-/// 2. The image is obtained as a deploy obtains it — the caller's own
-///    pool, the cache by digest, a referenced registry the
-///    configuration lists — and counted as starting in the cache for
+/// 2. The image is obtained as a deploy obtains it — the caller's
+///    Store, the cache by digest, a referenced registry the
+///    configuration lists; never the caller — and counted as starting in the cache for
 ///    the read, then as ended. One found nowhere is
 ///    [`ImageInfo::Unavailable`].
 /// 3. A container is made of it and never started: named

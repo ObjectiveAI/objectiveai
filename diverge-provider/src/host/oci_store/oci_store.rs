@@ -1,19 +1,22 @@
-//! The store that serves the caller's pool.
+//! The store that serves the caller's Store.
 
 use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
-use crate::host::image_manager::{Pieces, Store, pool};
+use crate::host::image_manager::{Pieces, Store};
 use crate::host::image_registry::Digest;
 use crate::protocol::image_source::Manifest;
 use crate::protocol::oci_store;
 
-/// This provider's OCI store: the caller's own images, from its
-/// pool; nothing without the client image store.
+/// The label a `has` is answered with: the name a puller writes into
+/// its reference, never stored and never read.
+const LABEL: &str = "image";
+
+/// This provider's OCI store: the caller's own images, from the
+/// Store; nothing without one.
 #[derive(Debug)]
 pub struct OciStore {
-    /// The client image store; `None` where the configuration has
-    /// none.
+    /// The Store; `None` where the configuration has none.
     store: Option<Arc<Store>>,
 }
 
@@ -25,32 +28,36 @@ impl OciStore {
 }
 
 impl oci_store::OciStore for OciStore {
-    /// Held where the caller built an image of that digest: under
-    /// `<hash>/<name>`, the repository path the provider's own
-    /// registry serves it at.
+    /// Held where the caller owns the digest, under the fixed label
+    /// `image`.
     async fn holds(&self, client_identity: &Identity, digest: &str) -> Option<String> {
         let store = self.store.as_ref()?;
-        let (name, _) = store.find_digest(client_identity, digest).await?;
-        Some(format!("{}/{name}", Store::hash(client_identity)))
+        store.owns(client_identity, digest).await.then(|| LABEL.to_string())
     }
 
-    /// The manifest of the caller's image of that digest, from its
-    /// pool: the record found first, so that a manifest is served
-    /// under a digest the caller built and no other.
+    /// A manifest the caller's Store reaches — an image it owns, or a
+    /// platform manifest of an index it owns — with the media type it
+    /// is served as.
     async fn manifest(&self, client_identity: &Identity, digest: &str) -> Option<Manifest> {
         let store = self.store.as_ref()?;
-        store.find_digest(client_identity, digest).await?;
         let parsed = Digest::parse(digest)?;
-        pool::manifest(&store.pool_dir(client_identity), &parsed).await
+        if !store.reaches_owned(client_identity, &parsed).await {
+            return None;
+        }
+        store.manifest(&parsed).await
     }
 
     type Blob = Pieces;
 
-    /// The blob of that digest in the caller's pool, and in no other
-    /// identity's.
+    /// A blob the caller's Store reaches, and no other: one copy of a
+    /// blob serves every owner, so what is served is decided by the
+    /// caller's records alone.
     async fn blob(&self, client_identity: &Identity, digest: &str) -> Option<Pieces> {
         let store = self.store.as_ref()?;
         let parsed = Digest::parse(digest)?;
-        pool::blob(&store.pool_dir(client_identity), &parsed).await
+        if !store.reaches_owned(client_identity, &parsed).await {
+            return None;
+        }
+        store.pieces(&parsed).await
     }
 }

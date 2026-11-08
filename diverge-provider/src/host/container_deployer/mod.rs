@@ -54,32 +54,37 @@
 //! # The images
 //!
 //! An image is a digest, and references stating where its bytes may
-//! be fetched; where they come from is this provider's decision. The
-//! caller's own images are looked in first: an image the caller
-//! built on this provider, in its pool of the client image store, is
-//! pulled from the provider's own registry, which serves the pool
-//! under the identity's hash — a confirmation and no bytes where the
-//! cache holds the copy still — and run as its id, with nobody
-//! asked. Then the cache, by the digest alone — the name an image is
-//! held under there, or no name, does not matter, except that an
-//! image pulled from the provider's own registry, named under
-//! `127.0.0.1:` and nothing else, is not the provider's own and is
-//! passed over — and an image there is run as its id, with nothing
-//! pulled and nobody asked. Any other is looked for
-//! everywhere else at once: every referenced registry the
-//! configuration lists, asked as `<registry>/<name>@<digest>` with
-//! the credential listed through an auth file the provider writes
-//! for podman — a reference naming a registry not listed is ignored
-//! — and the caller, asked on its scope whether it holds the image,
-//! which answers the path it holds it under. The first to say yes is
-//! the source, and the image is pulled from there: from a registry
-//! as the reference names it; from the caller through the provider's
-//! own registry, which listens on this host's loopback and fetches
-//! from the caller by digest — on Linux podman pulls on the host and
-//! reaches it there; on macOS and Windows podman pulls inside its
-//! machine, and reaches the registry through one SSH tunnel the
-//! provider opens into the machine with the machine's own settings,
-//! for the provider's life. An image nowhere is the run's error.
+//! be fetched; where they come from is this provider's decision,
+//! made in the protocol's order, and the run answers which it was:
+//!
+//! 1. **The caller's Store.** A digest the caller owns is pulled from
+//!    the provider's own registry under a token minted for the Store
+//!    — a confirmation and no bytes where the cache holds the copy
+//!    still — `Source::Store`, with nobody asked and no nonce check.
+//! 2. **A registry.** The cache, by the digest alone — an image held
+//!    there under a registry's name, run as its id with nothing
+//!    pulled; one pulled from the provider's own registry, named under
+//!    `127.0.0.1:` and nothing else, is passed over — then every
+//!    referenced registry the configuration lists, asked at once as
+//!    `<registry>/<name>@<digest>` with the credential listed through
+//!    an auth file the provider writes for podman, a reference naming
+//!    a registry not listed ignored. `Source::Registry`, with no nonce
+//!    check.
+//! 3. **The caller.** Asked on its scope whether it holds the image,
+//!    only after every registry said no. What the Store lacks of the
+//!    image is fetched from the caller, verified and kept; the nonce
+//!    check is made over the Store's own bytes; a pass is pulled from
+//!    the provider's own registry under a token minted for the caller
+//!    and read through, `Source::Client`, and the image cached in the
+//!    Store; a failure is `ProofFailed`, with what the attempt brought
+//!    in removed and nothing in podman.
+//! 4. An image nowhere is the run's error.
+//!
+//! The provider's own registry listens on this host's loopback — on
+//! Linux podman pulls on the host and reaches it there; on macOS and
+//! Windows podman pulls inside its machine, and reaches the registry
+//! through one SSH tunnel the provider opens into the machine with the
+//! machine's own settings, for the provider's life.
 //!
 //! Podman evicts nothing from its image store, so the provider does:
 //! whenever the store's count passes `image_cache_disk`, images are
@@ -96,7 +101,7 @@
 //! [`ContainerDeployer`] is the deployer, [`Container`] a container it
 //! started, [`Error`] what a deploy fails with. [`Limit`](crate::host::Limit) is one cap
 //! with a count against it, [`Images`] the image cache's bookkeeping,
-//! [`Source`] where an image was found, and `deploy`, `mounts`,
+//! `source` the three places an image is taken from, and `deploy`, `mounts`,
 //! `root` on Linux and `machine` and `tunnel` on the hosts with a
 //! machine the steps.
 //!

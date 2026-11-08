@@ -10,6 +10,7 @@ use diverge_sdk::identities;
 use crate::config;
 
 use crate::host::container_deployer;
+use crate::host::image_manager;
 use crate::host::image_registry;
 
 /// What [`run`](super::run) fails with: the configuration, the root's
@@ -42,8 +43,12 @@ pub enum Error {
     FixedMissing(PathBuf),
     /// A store's capacity is `0`.
     Capacity(PathBuf),
-    /// The client image store's capacity is `0`.
+    /// The Store's capacity is `0`.
     ImageCapacity(PathBuf),
+    /// The Store's folders could not be made ready.
+    Store(image_manager::Error),
+    /// The registry client could not be made.
+    RegistryClient(String),
     /// A fixed volume's name is not one a volume may have, or two
     /// fixed volumes have it.
     FixedName(String),
@@ -76,7 +81,9 @@ impl fmt::Display for Error {
             Error::Directory(path, error) => write!(f, "`{}` could not be made: {error}", path.display()),
             Error::FixedMissing(path) => write!(f, "the fixed volume `{}` is not a directory that exists", path.display()),
             Error::Capacity(path) => write!(f, "the store `{}` has a capacity of 0", path.display()),
-            Error::ImageCapacity(path) => write!(f, "the image store `{}` has a capacity of 0", path.display()),
+            Error::ImageCapacity(path) => write!(f, "the Store `{}` has a capacity of 0", path.display()),
+            Error::Store(error) => write!(f, "the Store could not be made ready: {error}"),
+            Error::RegistryClient(error) => write!(f, "the registry client could not be made: {error}"),
             Error::FixedName(name) => write!(f, "the fixed volume name `{name}` is not usable, or is used twice"),
             Error::Registry(error) => write!(f, "the image registry could not start: {error}"),
             Error::Deployer(error) => write!(f, "the deployer could not be made: {error}"),
@@ -105,6 +112,8 @@ impl std::error::Error for Error {
             Error::Directory(_, error) => Some(error),
             Error::FixedMissing(_) | Error::Capacity(_) | Error::ImageCapacity(_) | Error::FixedName(_) => None,
             Error::Registry(error) => Some(error),
+            Error::Store(error) => Some(error),
+            Error::RegistryClient(_) => None,
             Error::Deployer(error) => Some(error),
             Error::Bind(error) => Some(error),
             Error::Serve(error) => Some(error),

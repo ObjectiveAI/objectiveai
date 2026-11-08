@@ -3,7 +3,7 @@
 //! [`CapacityReporter`] answers the four numbers of the
 //! [`capacity`](diverge_sdk::provider::endpoints::capacity) endpoint
 //! from the pieces that hold them: the volumes' stores, the client
-//! image store and the deployer's two caps. This host partitions
+//! Store and the deployer's two caps. This host partitions
 //! nobody — every number is the whole of the room, which is what any
 //! one caller may use — so the caller's identity narrows nothing
 //! here.

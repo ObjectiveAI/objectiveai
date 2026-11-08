@@ -2,11 +2,11 @@
 //! help: the protocol's `ImageChecker`, supplied here.
 //!
 //! An image is a digest and references, and a run gets the bytes
-//! from wherever the provider finds them — the caller's own images,
-//! its own store, a referenced registry it uses, or the caller. A
-//! check asks the same question with the caller left out, and says
-//! where to look: the caller's own images, built on this provider
-//! and kept in the client image store, found by digest for the
+//! from wherever the provider finds them — the caller's Store, a
+//! referenced registry it uses, or the caller. A check asks the same
+//! question with the caller left out, and says where to look: the
+//! caller's own images, built or pushed on this provider and kept in
+//! the Store, found by digest for the
 //! identity asking and for no other; and the referenced registries
 //! the configuration lists, asked under each reference's name, a
 //! reference naming a registry not listed ignored. The provider's

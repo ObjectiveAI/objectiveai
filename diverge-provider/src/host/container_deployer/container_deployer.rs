@@ -1,14 +1,13 @@
 //! The deployer.
 
 use diverge_sdk::shared::Identity;
-use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use crate::protocol::caller::Caller;
-use crate::protocol::container_deployer;
+use crate::protocol::container_deployer::{self, Deployed, Refused};
 use crate::protocol::deployment::Deployment;
 use futures_util::future;
 use serde_json::json;
@@ -20,6 +19,7 @@ use super::mounts::tool_path;
 use super::{Container, Error, Images, Shared, name_ok};
 use crate::host::Limit;
 use crate::host::image_manager::Store;
+use crate::host::image_registry::ImageRegistry;
 use crate::config::containers::{Containers, Podman};
 use crate::host::tools::{mount, podman};
 use crate::host::volume_manager::VolumeManager;
@@ -39,9 +39,14 @@ pub struct ContainerDeployer {
     /// Where stored volumes are loop-mounted, `run/mounts/`, on this
     /// host.
     pub(super) mounts_dir: PathBuf,
-    /// The client image store, where a caller's own images are looked
-    /// for first; `None` where the configuration has none.
-    pub(super) store: Option<Arc<Store>>,
+    /// The Store: where a caller's own images are looked for first,
+    /// and where every blob taken from a caller is kept for its proof.
+    /// Where the configuration names none, a Store of the deployer's
+    /// own with no room, which no identity owns anything in.
+    pub(super) store: Arc<Store>,
+    /// The provider's registry, which mints a token for every pull from
+    /// the Store or from a caller.
+    pub(super) registry: Arc<ImageRegistry>,
     /// The port podman reaches the provider's registry at: the
     /// registry's own on Linux, where podman pulls on this host; the
     /// tunnel's elsewhere, inside the machine, where podman pulls.
@@ -60,12 +65,12 @@ pub struct ContainerDeployer {
 
 impl ContainerDeployer {
     /// A deployer over the `containers` section, with `dir` the
-    /// provider's directory, `volumes` its volumes, `registry` where
-    /// its image registry listens, `shares` the directories the
+    /// provider's directory, `volumes` its volumes, `registry` its
+    /// image registry, `shares` the directories the
     /// volumes live in, which a podman machine must see beside `dir`
     /// and the executable's directory, and `disk` the
     /// `container_overlay_disk` cap, which the volumes hold too, and
-    /// `store` the client image store, if there is one. Made ready here: on Linux the
+    /// `store` the Store the registry serves. Made ready here: on Linux the
     /// provider found to be root, and on the hosts with a machine the
     /// machine brought to what the configuration says, first, since
     /// everything after asks podman; the proxy
@@ -78,10 +83,10 @@ impl ContainerDeployer {
         containers: Containers,
         dir: PathBuf,
         volumes: Arc<VolumeManager>,
-        registry: SocketAddr,
+        registry: Arc<ImageRegistry>,
         shares: Vec<PathBuf>,
         disk: Arc<Limit>,
-        store: Option<Arc<Store>>,
+        store: Arc<Store>,
     ) -> Result<Self, Error> {
         let proxy = proxy_beside_executable()?;
         #[cfg(target_os = "linux")]
@@ -110,11 +115,11 @@ impl ContainerDeployer {
         )
         .await?;
         #[cfg(not(target_os = "linux"))]
-        let tunnel = super::Tunnel::open(&run_dir, registry).await?;
+        let tunnel = super::Tunnel::open(&run_dir, registry.address()).await?;
         #[cfg(not(target_os = "linux"))]
         let registry_port = tunnel.port();
         #[cfg(target_os = "linux")]
-        let registry_port = registry.port();
+        let registry_port = registry.address().port();
         Ok(ContainerDeployer {
             shared: Arc::new(Shared {
                 disk,
@@ -126,6 +131,7 @@ impl ContainerDeployer {
             auth_file,
             mounts_dir,
             store,
+            registry,
             registry_port,
             label,
             volumes,
@@ -171,7 +177,7 @@ impl ContainerDeployer {
     /// The port podman reaches the provider's registry at: the
     /// registry's own on Linux, where podman pulls on this host; the
     /// tunnel's elsewhere, inside the machine, where podman pulls.
-    /// What a client image is built under and pulled by.
+    /// What a build is tagged under and a pull by token names.
     pub fn registry_port(&self) -> u16 {
         self.registry_port
     }
@@ -198,19 +204,24 @@ impl container_deployer::ContainerDeployer for ContainerDeployer {
     type Error = Error;
 
     /// Every reference's name checked as a repository path; then the
-    /// deploy — the image found and pulled beside the volumes bound,
-    /// and the container run.
+    /// deploy — the image obtained beside the volumes bound, and the
+    /// container run — with the source the image was taken from. A
+    /// failed nonce check is [`Refused::ProofFailed`].
     async fn deploy(
         &self,
         client_identity: &Identity,
         deployment: &Deployment,
         image: &Image,
         caller: &Caller,
-    ) -> Result<Container, Error> {
+    ) -> Result<Deployed<Container>, Refused<Error>> {
         if let Some(reference) = image.references.iter().find(|reference| !name_ok(&reference.name)) {
-            return Err(Error::Name(reference.name.clone()));
+            return Err(Refused::Error(Error::Name(reference.name.clone())));
         }
-        deploy(self, client_identity, deployment, image, caller).await
+        match deploy(self, client_identity, deployment, image, caller).await {
+            Ok((container, source)) => Ok(Deployed { container, source }),
+            Err(Error::ProofFailed) => Err(Refused::ProofFailed),
+            Err(error) => Err(Refused::Error(error)),
+        }
     }
 
     /// The image obtained as a deploy obtains it, less the caller, and

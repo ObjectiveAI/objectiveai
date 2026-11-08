@@ -19,13 +19,13 @@ use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::singles::Single;
 
-/// Send the caller every image it built, the word that the listing
-/// is whole, and every change after, until the caller cancels.
+/// Send the caller every image it owns, the word that the listing is
+/// whole, and every change after, until the caller cancels.
 ///
 /// In order:
 ///
 /// 0. [`Unsupported`](response::Frame::Unsupported), then the finish,
-///    on a provider whose capabilities keep no image store; nothing
+///    on a provider whose capabilities keep no Store; nothing
 ///    is looked at.
 /// 1. The changes subscribed to, before anything is read, so nothing
 ///    that happens meanwhile is missed; then the manager asked which
@@ -35,12 +35,13 @@ use crate::protocol::singles::Single;
 ///    then exactly one [`Listed`](response::Frame::Listed) — at once,
 ///    with nothing before it, for a caller with no image.
 /// 3. For the scope's life: a change to one of the caller's images,
-///    heard by name, is the manager asked again and the difference
-///    told — a name not listed before as `Added`, a name listed and
-///    gone as [`Removed`](response::Frame::Removed) with the image
-///    as it was, and a name listed whose digest differs — deleted and
-///    built again meanwhile — as `Removed` then `Added`. A change to
-///    another caller's image is nothing. A subscription that fell
+///    heard by digest, is the manager asked again and the difference
+///    told, keyed by digest — a digest not listed before as `Added`, a
+///    digest listed and gone as [`Removed`](response::Frame::Removed)
+///    with the image as it was, and a digest listed whose image
+///    differs — its description edited — as
+///    [`Changed`](response::Frame::Changed). A change to another
+///    caller's image is nothing. A subscription that fell
 ///    behind is the manager asked again the same way. A manager that
 ///    will not answer then is the `Error`, last.
 /// 4. The finish, when the caller's [`Cancel`](channel_request::Frame::Cancel)
@@ -71,7 +72,7 @@ pub async fn handle<M>(
         Ok(images) => {
             for image in images {
                 send(&scope, &response::Frame::Added(image.clone())).await;
-                known.insert(image.name.clone(), image);
+                known.insert(image.digest.clone(), image);
             }
             send(&scope, &response::Frame::Listed).await;
         }
@@ -133,15 +134,12 @@ pub async fn refuse(scope: ScopeHandle) {
 async fn tell(scope: &ScopeHandle, known: &mut HashMap<String, response::Image>, now: Vec<response::Image>) {
     let mut seen: HashMap<String, response::Image> = HashMap::with_capacity(now.len());
     for image in now {
-        match known.remove(&image.name) {
+        match known.remove(&image.digest) {
             None => send(scope, &response::Frame::Added(image.clone())).await,
-            Some(was) if was.digest != image.digest => {
-                send(scope, &response::Frame::Removed(was)).await;
-                send(scope, &response::Frame::Added(image.clone())).await;
-            }
+            Some(was) if was != image => send(scope, &response::Frame::Changed(image.clone())).await,
             Some(_) => {}
         }
-        seen.insert(image.name.clone(), image);
+        seen.insert(image.digest.clone(), image);
     }
     for (_, was) in known.drain() {
         send(scope, &response::Frame::Removed(was)).await;

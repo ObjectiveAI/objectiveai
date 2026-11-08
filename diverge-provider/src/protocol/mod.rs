@@ -100,28 +100,30 @@
 //! token belongs to the connection and not to any scope on it; what
 //! [`handle`] receives is the caller's verified identity.
 //!
-//! [`image_registry`] is the fifth: the OCI registry a provider runs
-//! on its loopback for an image it takes from the CALLER, fed by
-//! digest through an [`image_source`] — the run scope's channels to
-//! the caller, which is the one thing only this crate can be. The
-//! registry's HTTP is the provider's, for the reason above: this
-//! crate serves none. [`caller`] is what a run hands the deployer
-//! beside the image: whether the caller holds it, asked on the
-//! scope, under what path, and where the registry serves it.
+//! [`image_source`] is no trait but what a provider takes an image
+//! FROM the caller with: the run scope's channels to the caller — or a
+//! push's — asking by digest for a manifest, a blob, and the proof of
+//! possession of
+//! [`prove`](diverge_sdk::shared::containers::oci::prove), which is
+//! the one thing only this crate can be. [`caller`] is what a run hands
+//! the deployer beside the image: whether the caller holds it, asked on
+//! the scope, and its source. Where a provider keeps what it takes, and
+//! how its runtime pulls it, are the provider's: this crate serves no
+//! HTTP.
 //!
-//! [`image_manager`] is the sixth: the images a caller BUILDS on the
-//! provider, from a Containerfile, under names of its own — listed,
-//! examined, built and destroyed by the four store endpoints of
+//! [`image_manager`] is the fifth: the Store, the images a caller OWNS
+//! on the provider, each by its digest — listed, examined, built,
+//! pushed, described, proven and destroyed by the store endpoints of
 //! [`images`](diverge_sdk::provider::endpoints::images). It is the
 //! [`volume_manager`]'s twin for a thing that is never acted on in
 //! place, so it has no second trait: a [`context`] is a volume
 //! directory a build reads from, with the identity attached as a
 //! [`mount`] has it, and a [`progress`] is one thing a build says.
-//! An image an identity built is one the provider holds for that
+//! An image an identity owns is one the provider holds for that
 //! identity and for nobody else, which the checker and the deployer
 //! a provider supplies beside this are bound to.
 //!
-//! [`oci_store`] is the seventh: what the provider holds of an image
+//! [`oci_store`] is the sixth: what the provider holds of an image
 //! for a caller, served to the caller's own asks on an `images::oci`
 //! scope — the run's three OCI asks the other way round, so a caller
 //! can carry an image from one provider to a run on another. The
@@ -145,9 +147,9 @@
 //! [`volumes`](diverge_sdk::provider::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
 //! [`images::check`](diverge_sdk::provider::endpoints::images::check)'s,
-//! [`image_manager`] by the four store endpoints' — the build's
+//! [`image_manager`] by the store endpoints' — the build's
 //! taking the [`volume_manager`] too, for the volume it reads — and
-//! [`container_deployer`], [`image_registry`] and
+//! [`container_deployer`] and
 //! — for the volumes a request mounts, locked for the run — the
 //! [`volume_manager`] again by the two run handlers of
 //! [`containers`](diverge_sdk::provider::endpoints::containers)
@@ -206,7 +208,6 @@ pub mod holders;
 pub mod image_checker;
 pub mod image_info;
 pub mod image_manager;
-pub mod image_registry;
 pub mod image_source;
 pub mod keepalive;
 pub mod mailboxes;

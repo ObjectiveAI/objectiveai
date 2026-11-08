@@ -4,18 +4,18 @@
 //! request, and serves every endpoint; what it cannot supply is what a
 //! provider IS — a place to run containers, a store of volumes, a
 //! registry, and a judgment about who may connect — and this module
-//! supplies those, as the protocol's eight provider-side traits and
-//! the handshake's [`Authenticator`](diverge_sdk::wire::handshake::Authenticator):
+//! supplies those, as the protocol's seven provider-side traits, the
+//! handshake's [`Authenticator`](diverge_sdk::wire::handshake::Authenticator),
+//! and the registry its runtime pulls from:
 //!
 //! | trait | supplies |
 //! |-------|----------|
 //! | `ContainerDeployer` | a container, running, with the proxy inside and port 14979 reachable |
 //! | `Container` | the address of that proxy, and the stop |
 //! | `VolumeManager` | the volumes of every identity |
-//! | `ImageRegistry` | the registry a runtime pulls from, for an image taken from the caller or from an identity's pool |
 //! | `ImageChecker` | whether an image can be had without the caller, and without the cache |
-//! | `ImageManager` | the images every identity built on this provider, in a pool of their own |
-//! | `OciStore` | what the provider holds of an image for a caller — its client images, from its pool — served to the caller's pull |
+//! | `ImageManager` | the Store: the images every identity owns on this provider, by digest, one copy of each blob for every owner |
+//! | `OciStore` | what the provider holds of an image for a caller — its Store — served to the caller's pull |
 //! | `CapacityReporter` | how much a caller may still use: the stores' room and what remains of the two caps |
 //! | `Authenticator` | the provider's token at an issuer, and whether a peer's token is one it serves |
 //!
@@ -25,9 +25,12 @@
 //! and supply its own.
 //!
 //! Here is where the implementation goes; [`container_deployer`], [`volume_manager`],
-//! [`image_checker`], [`image_manager`], [`image_registry`],
-//! [`oci_store`], [`capacity_reporter`] and [`authenticator`]
-//! supply the nine, every method of each written. [`tools`] is every program the provider runs — podman,
+//! [`image_checker`], [`image_manager`], [`oci_store`],
+//! [`capacity_reporter`] and [`authenticator`] supply the eight, every
+//! method of each written. [`image_registry`] is the registry podman
+//! pulls from, one random token per pull, from the Store or read
+//! through to a run's caller; [`registry_client`] the minimal OCI
+//! Distribution client a push from a registry fetches with. [`tools`] is every program the provider runs — podman,
 //! and e2fsprogs, `mount` and `ssh` through it or beside it — and
 //! the one way it runs them. [`watch`] is a directory of this host
 //! walked and watched, the filetree of a fixed volume, one module
@@ -52,6 +55,7 @@ pub mod image_checker;
 pub mod image_manager;
 pub mod image_registry;
 pub mod oci_store;
+pub mod registry_client;
 pub mod serve;
 pub mod tools;
 pub mod volume_manager;

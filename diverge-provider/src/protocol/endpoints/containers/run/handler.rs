@@ -14,7 +14,6 @@ use super::run::{Run, send};
 use super::{relay, serve, setup};
 use crate::protocol::container_deployer::ContainerDeployer;
 use crate::protocol::directory::Directory;
-use crate::protocol::image_registry::ImageRegistry;
 use crate::protocol::release::Release;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume_manager::VolumeManager;
@@ -43,14 +42,15 @@ use diverge_sdk::shared::error::Error;
 ///    or deployed. The holds are the `Held`'s and are given back at
 ///    every ending below.
 /// 2. The container is brought up — see
-///    [`setup::prepare`](super::setup::prepare): registry,
+///    [`setup::prepare`](super::setup::prepare): the
 ///    deploy, the proxy dialled, the family's begin, the id minted
 ///    and the container entered in the directory — with its proxy
 ///    connection, for serves and transfers — then the container
 ///    registered with the caller, the id told, its first secrets fed
-///    back to it, beside every mount. A failure is the run's error,
-///    and the scope finishes on it.
-/// 3. The id is sent. From here the container is running for the
+///    back to it, beside every mount. A failed nonce check is the
+///    family's `ProofFailed`, any other failure the run's error, and
+///    the scope finishes on it.
+/// 3. The id is sent, with the source the image was taken from. From here the container is running for the
 ///    caller.
 /// 4. The relays are spawned: the proxy's asks on the begin scope,
 ///    each mount's asks, and — on an agent container — the agent's
@@ -65,19 +65,16 @@ use diverge_sdk::shared::error::Error;
 ///    [`Ledger`] — and answered once the proxy has.
 /// 6. The teardown, the same for every ending: the directory entry
 ///    removed, the container stopped and its proxy's router ended, the
-///    volumes given back, every task ended, and the finish. The
-///    repository is not among them: it was released as the deploy
-///    answered. Every step of it is a release that also runs at the
+///    volumes given back, every task ended, and the finish. Every step of it is a release that also runs at the
 ///    drop — see [`Release`](crate::protocol::release::Release) and
 ///    [`Held`] — so a run that panics or is cancelled before here still
 ///    gives everything back.
-pub(crate) async fn run<R, D, G, V>(
+pub(crate) async fn run<R, D, V>(
     scope: ScopeHandle,
     client_identity: &Identity,
     request: &Container,
     arguments: Value,
     deployer: &D,
-    registry: Arc<G>,
     manager: &V,
     capabilities: &Capabilities,
     directory: Arc<Directory>,
@@ -85,8 +82,6 @@ pub(crate) async fn run<R, D, G, V>(
     R: Runs,
     D: ContainerDeployer,
     D::Error: Into<Error>,
-    G: ImageRegistry + 'static,
-    G::Error: Into<Error>,
     V: VolumeManager,
     V::Error: Into<Error>,
 {
@@ -140,20 +135,23 @@ pub(crate) async fn run<R, D, G, V>(
     };
 
     let identity: Arc<Identity> = Arc::new(client_identity.clone());
-    let prepared = match setup::prepare::<R, D, G, V::Volume>(&scope, &identity, request, arguments, deployer, &registry, &held, &directory)
+    let prepared = match setup::prepare::<R, D, V::Volume>(&scope, &identity, request, arguments, deployer, &held, &directory)
         .await
     {
         Ok(prepared) => prepared,
-        Err(error) => {
+        Err(failed) => {
             held.give_back().await;
-            send(&scope, R::error(&error)).await;
+            match failed {
+                setup::Failed::ProofFailed => send(&scope, R::proof_failed()).await,
+                setup::Failed::Error(error) => send(&scope, R::error(&error)).await,
+            }
             scope.send_response_finish().await;
             return;
         }
     };
 
     let id = prepared.id.clone();
-    send(&scope, R::id(&Id { id: id.clone() })).await;
+    send(&scope, R::id(&Id { id: id.clone(), source: prepared.source.clone() })).await;
 
     // The container was registered with the caller in the setup; what
     // it declared is not needed again.

@@ -28,7 +28,7 @@ use diverge_sdk::shared::error::Error;
 /// # No source is answered here
 ///
 /// The sources asked are first narrowed to the ones the provider's
-/// capabilities have: `client` only with an image store,
+/// capabilities have: `client` only with the Store,
 /// `registries` only with a registry listed. A request that leaves
 /// none — neither asked, or only sources this provider has not — is
 /// [`NoSource`](response::Frame::NoSource), and the checker is never

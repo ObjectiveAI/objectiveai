@@ -9,7 +9,7 @@ use crate::config::Config;
 /// - `containers`: `containers.enabled`, the configuration's word on
 ///   whether the host runs containers at all; `false` is every agents
 ///   run and tools run answered `Unsupported`.
-/// - `images_store`: the `images` section names a client image store,
+/// - `images_store`: the `images` section names a Store,
 ///   which is the only way the host has one.
 /// - `images_registries`: every host of `containers.podman.registries`,
 ///   the registries the host pulls from with the credentials it holds.

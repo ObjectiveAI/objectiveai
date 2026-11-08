@@ -12,21 +12,20 @@ use dashmap::DashMap;
 use crate::protocol::image_source::Manifest;
 use serde_json::json;
 
-use super::{Ask, Digest, Kind, Repository, pool, stored, verified};
+use super::{Ask, Digest, Kind, Repository, verified};
 use crate::host::image_manager::Store;
 
-/// The run repositories being served, by name.
+/// The tokens minted and not revoked, each with its repository.
 pub type Repositories = Arc<DashMap<String, Arc<Repository>>>;
 
-/// What the router answers from: the run repositories, and the
-/// client image store whose pools are the rest.
+/// What the router answers from: the tokens, and the Store every one
+/// of them is served from.
 #[derive(Debug, Clone)]
 pub struct Registry {
-    /// The run repositories, entered and released by the protocol.
+    /// The tokens, minted and revoked by the deployer.
     pub repositories: Repositories,
-    /// The store; `None` where the configuration has none, and then
-    /// no pool is served.
-    pub store: Option<Arc<Store>>,
+    /// The Store.
+    pub store: Arc<Store>,
 }
 
 /// The header a Distribution API registry answers `GET /v2/` with.
@@ -48,9 +47,9 @@ async fn base() -> Response {
     ([(header::HeaderName::from_static("docker-distribution-api-version"), API_VERSION)], StatusCode::OK).into_response()
 }
 
-/// Everything under `/v2/`: the path read as an [`Ask`], the
-/// repository found — a run's first, else a pool of the store's —
-/// and the manifest or blob answered.
+/// Everything under `/v2/`: the path read as an [`Ask`], the token
+/// found among those minted and not revoked — anything else is `404`
+/// — and the manifest or blob answered from its origin.
 async fn answer(State(registry): State<Registry>, method: Method, Path(rest): Path<String>) -> Response {
     let head = match method {
         Method::GET => false,
@@ -60,58 +59,54 @@ async fn answer(State(registry): State<Registry>, method: Method, Path(rest): Pa
     let Some(ask) = Ask::parse(&rest) else {
         return not_found("NAME_UNKNOWN", "not a manifest or a blob of a repository");
     };
-    if let Some(repository) = registry.repositories.get(&ask.repository).map(|repository| Arc::clone(&repository)) {
-        return match ask.kind {
-            Kind::Manifest(reference) => manifest(&repository, &reference, head).await,
-            Kind::Blob(digest) => blob(&repository, &digest, head).await,
-        };
-    }
-    let Some(pool) = stored(&registry.store, &ask.repository).await else {
+    let Some(repository) = registry.repositories.get(&ask.repository).map(|repository| Arc::clone(&repository)) else {
         return not_found("NAME_UNKNOWN", "no such repository");
     };
     match ask.kind {
-        Kind::Manifest(reference) => pool::manifest(&pool, &reference, head).await,
-        Kind::Blob(digest) => pool::blob(&pool, &digest, head).await,
+        Kind::Manifest(reference) => manifest(&registry.store, &repository, &reference, head).await,
+        Kind::Blob(digest) => blob(&registry.store, &repository, &digest, head).await,
     }
 }
 
-/// A manifest by reference, from a run's repository: the reference
-/// must be a digest, since a client image is pinned by one and a tag
-/// is never pulled; the manifest is answered as [`manifest_found`]
-/// answers it.
-async fn manifest(repository: &Repository, reference: &str, head: bool) -> Response {
+/// A manifest by reference: the reference must be a digest, since an
+/// image is pulled by one and a tag never is; the manifest is answered
+/// as [`manifest_found`] answers it.
+async fn manifest(store: &Arc<Store>, repository: &Repository, reference: &str, head: bool) -> Response {
     let Some(digest) = Digest::parse(reference) else {
         return not_found("MANIFEST_UNKNOWN", "manifests are served by digest");
     };
-    let Some(found) = repository.manifest(&digest).await else {
-        return not_found("MANIFEST_UNKNOWN", "the caller does not hold the manifest");
+    let Some(found) = repository.manifest(store, &digest).await else {
+        return not_found("MANIFEST_UNKNOWN", "the manifest cannot be had");
     };
     manifest_found(&digest, found, head)
 }
 
-/// A blob by digest, from a run's repository: a `HEAD` is the headers
-/// alone, with the length where a manifest's descriptor declared it,
-/// and asks the caller nothing; a `GET` is the caller's pieces
-/// streamed through [`verified`], with the same headers.
-async fn blob(repository: &Repository, digest: &str, head: bool) -> Response {
+/// A blob by digest, from the Store once the repository has it there:
+/// its length always stated, and a `GET` the file's pieces streamed
+/// through [`verified`], so a file that is not its digest's is never
+/// completed.
+async fn blob(store: &Arc<Store>, repository: &Repository, digest: &str, head: bool) -> Response {
     let Some(digest) = Digest::parse(digest) else {
         return not_found("BLOB_UNKNOWN", "not a digest");
+    };
+    let Some(size) = repository.blob(store, &digest).await else {
+        return not_found("BLOB_UNKNOWN", "the blob cannot be had");
     };
     let body = if head {
         Body::empty()
     } else {
-        let Some(pieces) = repository.blob(&digest).await else {
-            return not_found("BLOB_UNKNOWN", "the caller does not hold the blob");
+        let Some(pieces) = store.pieces(&digest).await else {
+            return not_found("BLOB_UNKNOWN", "the blob cannot be had");
         };
         Body::from_stream(verified(digest.clone(), pieces))
     };
-    blob_found(&digest, repository.size(&digest), body)
+    blob_found(&digest, Some(size), body)
 }
 
 /// A manifest found, answered: its media type as `Content-Type`, its
 /// digest, and its length, and its bytes unless the request was a
 /// `HEAD`.
-pub(super) fn manifest_found(digest: &Digest, found: Manifest, head: bool) -> Response {
+fn manifest_found(digest: &Digest, found: Manifest, head: bool) -> Response {
     let Manifest { media_type, body } = found;
     let mut response = Response::new(if head { Body::empty() } else { Body::from(body.clone()) });
     let headers = response.headers_mut();
@@ -127,7 +122,7 @@ pub(super) fn manifest_found(digest: &Digest, found: Manifest, head: bool) -> Re
 /// where `size` is known and its digest. A `Range` header is not
 /// read: the whole blob is answered with `200`, and the runtime falls
 /// back to an ordinary download.
-pub(super) fn blob_found(digest: &Digest, size: Option<u64>, body: Body) -> Response {
+fn blob_found(digest: &Digest, size: Option<u64>, body: Body) -> Response {
     let mut response = Response::new(body);
     let headers = response.headers_mut();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/octet-stream"));
@@ -145,7 +140,7 @@ fn digest_value(digest: &Digest) -> HeaderValue {
 
 /// `404` with the Distribution API's error body, which is what makes
 /// the runtime give up rather than retry.
-pub(super) fn not_found(code: &str, message: &str) -> Response {
+fn not_found(code: &str, message: &str) -> Response {
     let body = json!({ "errors": [{ "code": code, "message": message }] });
     (
         StatusCode::NOT_FOUND,

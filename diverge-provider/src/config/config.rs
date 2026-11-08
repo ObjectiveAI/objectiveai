@@ -16,7 +16,7 @@ use super::volumes::Volumes;
 ///
 /// An absent file is this type's [`Default`], and the provider runs
 /// on it: the proxy's own port, no identity of its own, no peer
-/// accepted, no peer dialled, no volume, no client image store, and the
+/// accepted, no peer dialled, no volume, no Store, and the
 /// [`Containers`] defaults. Every section may be absent, meaning what
 /// its doc says. An unknown key is an error, so a misspelled
 /// setting is refused rather than ignored.
@@ -63,7 +63,7 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub volumes: Option<Volumes>,
     /// Where the images clients build on the provider are kept, and
-    /// how much they may take. Absent means no client image store: a
+    /// how much they may take. Absent means no Store: a
     /// build is refused, a listing is empty, and the `client` source
     /// of a check is never available.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -78,7 +78,7 @@ pub struct Config {
 /// What a provider runs on before it has written a line of
 /// configuration: the proxy's port, no identity, nobody accepted,
 /// nobody dialled,
-/// the [`Containers`] defaults, no volume, no client image store, no
+/// the [`Containers`] defaults, no volume, no Store, no
 /// messages.
 impl Default for Config {
     fn default() -> Self {

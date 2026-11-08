@@ -18,7 +18,6 @@ use super::changes::Changes;
 use super::image_checker::ImageChecker;
 use super::image_manager::ImageManager;
 use super::oci_store::OciStore;
-use super::image_registry::ImageRegistry;
 use diverge_sdk::wire::server::received::Received;
 use diverge_sdk::wire::server::session::Session;
 use super::volume_manager::VolumeManager;
@@ -52,7 +51,7 @@ use diverge_sdk::shared::error::Error;
 /// boxed behind one pointer — the [`CapacityReporter`] among them,
 /// which `capacity` asks for the caller's room; the [`Capabilities`]
 /// it holds out, which `info` answers and every handler that serves
-/// an optional part of the protocol enforces — the image store, the registries, the FUSE
+/// an optional part of the protocol enforces — the Store, the registries, the FUSE
 /// mounts and serves, the volume modes and what may hold a volume of
 /// each; the [`Directory`], one per provider,
 /// through which a FUSE serve or a transfer on this connection finds a run
@@ -85,7 +84,7 @@ use diverge_sdk::shared::error::Error;
 /// [`HandleError::InvalidAuthorize`]: serving stops, the teardown below
 /// runs exactly as it would for the connection ending, and the error
 /// says why it ran early.
-pub async fn handle<D, V, I, M, O, R, C>(
+pub async fn handle<D, V, I, M, O, C>(
     mut session: Session,
     client_identity: Arc<Identity>,
     address: IpAddr,
@@ -94,7 +93,6 @@ pub async fn handle<D, V, I, M, O, R, C>(
     image_checker: Arc<I>,
     image_manager: Arc<M>,
     oci_store: Arc<O>,
-    image_registry: Arc<R>,
     capacity: Arc<C>,
     directory: Arc<Directory>,
     volume_changes: Arc<Changes>,
@@ -114,8 +112,6 @@ where
     M: ImageManager + 'static,
     M::Error: Into<Error>,
     O: OciStore + 'static,
-    R: ImageRegistry + 'static,
-    R::Error: Into<Error>,
     C: CapacityReporter + 'static,
 {
     // Owned here, so the drain at the bottom is over everything this
@@ -156,13 +152,12 @@ where
             ClientRequest::ContainersAgentsRun(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let deployer = Arc::clone(&deployer);
-                let registry = Arc::clone(&image_registry);
                 let manager = Arc::clone(&volume_manager);
                 let directory = Arc::clone(&directory);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::containers::agents::handle(
-                        scope, frame, &identity, &*deployer, registry, &*manager, &capabilities, directory,
+                        scope, frame, &identity, &*deployer, &*manager, &capabilities, directory,
                     )
                     .await;
                 });
@@ -170,13 +165,12 @@ where
             ClientRequest::ContainersToolsRun(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let deployer = Arc::clone(&deployer);
-                let registry = Arc::clone(&image_registry);
                 let manager = Arc::clone(&volume_manager);
                 let directory = Arc::clone(&directory);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::containers::tools::handle(
-                        scope, frame, &identity, &*deployer, registry, &*manager, &capabilities, directory,
+                        scope, frame, &identity, &*deployer, &*manager, &capabilities, directory,
                     )
                     .await;
                 });
@@ -370,6 +364,32 @@ where
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::images::build::handle(scope, frame, &identity, &*manager, &*volumes, changes, &capabilities).await;
+                });
+            }
+            ClientRequest::ImagesPush(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&image_manager);
+                let changes = Arc::clone(&image_changes);
+                let capabilities = Arc::clone(&capabilities);
+                scopes.spawn(async move {
+                    endpoints::images::push::handle(scope, frame, &identity, &*manager, changes, &capabilities).await;
+                });
+            }
+            ClientRequest::ImagesEdit(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&image_manager);
+                let changes = Arc::clone(&image_changes);
+                let capabilities = Arc::clone(&capabilities);
+                scopes.spawn(async move {
+                    endpoints::images::edit::handle(scope, frame, &identity, &*manager, changes, &capabilities).await;
+                });
+            }
+            ClientRequest::ImagesHash(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&image_manager);
+                let capabilities = Arc::clone(&capabilities);
+                scopes.spawn(async move {
+                    endpoints::images::hash::handle(scope, frame, &identity, &*manager, &capabilities).await;
                 });
             }
             ClientRequest::ImagesDelete(frame) => {

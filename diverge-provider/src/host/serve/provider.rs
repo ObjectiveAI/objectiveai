@@ -24,6 +24,7 @@ use super::capabilities::capabilities;
 use diverge_sdk::wire::server::session::Session;
 
 use crate::config::Config;
+use crate::config::images::Images;
 use crate::config::volumes::Volumes;
 
 use super::Error;
@@ -32,6 +33,7 @@ use crate::host::container_deployer::ContainerDeployer;
 use crate::host::image_checker::ImageChecker;
 use crate::host::image_manager::{ImageManager, Store};
 use crate::host::image_registry::ImageRegistry;
+use crate::host::registry_client::RegistryClient;
 use crate::host::oci_store::OciStore;
 use crate::host::tools::podman;
 use crate::host::authenticator::ProviderAuthenticator;
@@ -55,13 +57,11 @@ pub struct Provider {
     volumes: Arc<VolumeManager>,
     /// The image checker.
     checker: Arc<ImageChecker>,
-    /// The client image store's manager.
+    /// The Store's manager.
     images: Arc<ImageManager>,
-    /// What is held of an image for a caller: its client images, from
-    /// its pool.
+    /// What is held of an image for a caller: its own images, from the
+    /// Store.
     oci: Arc<OciStore>,
-    /// The registry, held to the end so its server lives as long.
-    registry: Arc<ImageRegistry>,
     /// The running containers, one map for the provider.
     directory: Arc<Directory>,
     /// The daemons accepting connections from other daemons, one map
@@ -97,15 +97,17 @@ impl Provider {
     /// `hooks/` and `run/`, podman's `storage_path` and every store
     /// made, every fixed volume found to be a directory, every store's
     /// capacity and every fixed name checked; podman told where its
-    /// data is; the client image store, where the configuration
-    /// names one, made first of all, since the registry serves its
-    /// pools; the registry started, since the
-    /// deployer is told its address; the container overlay cap and
+    /// data is; the Store, where the configuration names one — else
+    /// the deployer's own under `run/`, with no room — made and its
+    /// `tmp/` swept first of all, since the registry serves it; the
+    /// registry started, since the deployer mints its tokens and holds
+    /// it for its life; the container overlay cap and
     /// the scratch directory under podman's storage, swept; the
     /// volumes; the deployer, which
     /// brings the machine up, sweeps an earlier life away, writes the
     /// auth file and opens the tunnel; the image checker, given that
-    /// auth file; the image manager, given the deployer; the capacity
+    /// auth file; the registry client; the image manager, given the
+    /// deployer and the registry client; the capacity
     /// reporter, given the volumes, the store and the deployer; and
     /// the directory. The store is handed to the registry, the
     /// deployer, the checker, the OCI store, the reporter and the
@@ -123,21 +125,35 @@ impl Provider {
             shares.push(images.path.clone());
             Arc::new(Store::new(images))
         });
-        let registry = Arc::new(ImageRegistry::start(store.clone()).await.map_err(Error::Registry)?);
+        // The Store the deployer and the registry keep every blob a
+        // run takes from a caller in: the configured one, or — with no
+        // `images` section — one of the deployer's own under `run/`,
+        // with no room, which no identity owns anything in and whose
+        // cache is trimmed as soon as it is written.
+        let blobs = match &store {
+            Some(store) => Arc::clone(store),
+            None => Arc::new(Store::new(&Images {
+                path: dir.join("run").join("images"),
+                capacity: 0,
+            })),
+        };
+        blobs.sweep().await.map_err(Error::Store)?;
+        let registry = Arc::new(ImageRegistry::start(Arc::clone(&blobs)).await.map_err(Error::Registry)?);
         let disk = Arc::new(Limit::new(config.containers.podman.container_overlay_disk));
         let scratch = Scratch::new(config.containers.podman.storage_path.join("ephemeral"), Arc::clone(&disk));
         scratch.sweep().await.map_err(Error::Scratch)?;
         let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone(), scratch));
         let registries = config.containers.podman.registries.clone();
         let deployer = Arc::new(
-            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares, disk, store.clone())
+            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry, shares, disk, blobs)
                 .await
                 .map_err(Error::Deployer)?,
         );
         let checker = Arc::new(ImageChecker::new(store.clone(), &registries, deployer.auth_file().to_path_buf()));
         let oci = Arc::new(OciStore::new(store.clone()));
         let capacity = Arc::new(CapacityReporter::new(Arc::clone(&volumes), store.clone(), Arc::clone(&deployer)));
-        let images = Arc::new(ImageManager::new(store, Arc::clone(&volumes), Arc::clone(&deployer)));
+        let client = Arc::new(RegistryClient::new(&registries).map_err(Error::RegistryClient)?);
+        let images = Arc::new(ImageManager::new(store, Arc::clone(&volumes), Arc::clone(&deployer), client));
         let discoverable = Arc::new(Discoverable::new());
         Ok(Provider {
             authenticator,
@@ -146,7 +162,6 @@ impl Provider {
             checker,
             images,
             oci,
-            registry,
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
             mailboxes: Arc::new(Mailboxes::new(capabilities.messages, Arc::clone(&discoverable))),
@@ -225,7 +240,6 @@ impl Provider {
             Arc::clone(&self.checker),
             Arc::clone(&self.images),
             Arc::clone(&self.oci),
-            Arc::clone(&self.registry),
             Arc::clone(&self.capacity),
             Arc::clone(&self.directory),
             Arc::clone(&self.volume_changes),
@@ -247,11 +261,11 @@ impl Provider {
 
 /// The provider's disk, as its block names it: `dir` with `hooks/`
 /// and `run/` inside it, `storage_path` and every store made if
-/// absent, the client image store's directory made if absent and
+/// absent, the Store's directory made if absent and
 /// `run/builds/` swept; a fixed
 /// volume whose path is not an existing directory refused, since a
 /// fixed volume is content the operator already has; a store whose
-/// capacity is `0` refused, and the image store's likewise; a fixed
+/// capacity is `0` refused, and the Store's likewise; a fixed
 /// volume whose name is not one a volume may have, or is another
 /// fixed volume's, refused. What the file said is the SDK's to read; what it names
 /// here is the provider's to check.

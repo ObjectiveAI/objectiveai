@@ -16,11 +16,13 @@ use tokio::sync::{Mutex, OnceCell};
 use tokio::time::{Duration, sleep};
 
 use super::mounts::{Bound, bind, release};
-use super::source::find;
-use super::{Container, ContainerDeployer, Error, Source};
+use super::source::{from_client, from_registry, from_store};
+use super::{Container, ContainerDeployer, Error};
 use crate::host::Held;
+use crate::host::image_registry::Digest;
 use crate::host::tools::{capture, podman, start};
 use diverge_sdk::shared::containers::request::Image;
+use diverge_sdk::shared::containers::response::Source;
 
 /// Where the proxy is bound inside every container.
 const PROXY_INSIDE: &str = "/.diverge/diverge-container-proxy";
@@ -39,7 +41,7 @@ pub(super) async fn deploy(
     deployment: &Deployment,
     image: &Image,
     caller: &Caller,
-) -> Result<Container, Error> {
+) -> Result<(Container, Source), Error> {
     let Some(disk) = deployer.shared.disk.take(deployment.disk) else {
         return Err(Error::Disk);
     };
@@ -61,7 +63,7 @@ async fn after_limits(
     image: &Image,
     caller: &Caller,
     caps: (Held, Held),
-) -> Result<Container, Error> {
+) -> Result<(Container, Source), Error> {
     let (image, bound) = future::join(
         obtain(deployer, client_identity, image, Some(caller)),
         bind(deployer, &deployment.mounts),
@@ -79,17 +81,20 @@ async fn after_limits(
         }
         (Err(error), Err(_)) => return Err(error),
     };
-    match after_image(deployer, deployment, &source, &bound).await {
-        Ok((name, address, proxy)) => Ok(Container {
-            name,
-            address,
-            image,
-            caps: Mutex::new(Some(caps)),
-            bound,
-            proxy: Mutex::new(Some(proxy)),
-            shared: Arc::clone(&deployer.shared),
-            stopped: OnceCell::new(),
-        }),
+    match after_image(deployer, deployment, &image, &bound).await {
+        Ok((name, address, proxy)) => Ok((
+            Container {
+                name,
+                address,
+                image,
+                caps: Mutex::new(Some(caps)),
+                bound,
+                proxy: Mutex::new(Some(proxy)),
+                shared: Arc::clone(&deployer.shared),
+                stopped: OnceCell::new(),
+            },
+            source,
+        )),
         Err(error) => {
             deployer.shared.images.ended(&image).await;
             release(&bound).await;
@@ -98,45 +103,44 @@ async fn after_limits(
     }
 }
 
-/// The image obtained: the caller's own, from its pool in the client
-/// image store, pulled from the provider's own registry, which
-/// answers the id, and which is a confirmation and no bytes where
-/// the cache holds the copy still; else in the cache, found by digest
-/// under any name or none, run as its id with nothing pulled and
-/// nobody asked; else wherever of every referenced registry the
-/// configuration lists and the caller first answers that it holds
-/// it, pulled from there, which answers the id. Every way counted in
-/// the cache, as starting: the obtainer says when it [ended](super::Images::ended).
-/// The source and the id. With no caller, the caller is not asked.
+/// The image obtained, in the order the protocol sets — see
+/// [`Source`] — and counted in the cache as starting: the obtainer
+/// says when it [ended](super::Images::ended). The source and the id.
+///
+/// 1. **The caller's Store.** A digest the caller owns: pulled from
+///    the provider's own registry through a token minted for the
+///    Store, `Source::Store`, with no nonce check.
+/// 2. **A registry.** The cache's copy by digest under a registry's
+///    name, run as its id with nothing pulled; else every referenced
+///    registry the configuration lists, asked at once, and the first
+///    to serve it pulled from: `Source::Registry`, with no nonce
+///    check.
+/// 3. **The caller.** Asked only after every registry said no: what
+///    the Store lacks of the image fetched from the caller, verified
+///    and kept, then the nonce check; a pass is pulled through a token
+///    minted for the caller, read through, `Source::Client`, and the
+///    image cached; a failure is [`Error::ProofFailed`], with what the
+///    attempt brought in removed and nothing in podman.
+/// 4. **Otherwise** [`Error::Unavailable`].
+///
+/// With no caller — an image's info — the third is never reached.
 pub(super) async fn obtain(deployer: &ContainerDeployer, client_identity: &Identity, image: &Image, caller: Option<&Caller>) -> Result<(Source, String), Error> {
-    let (source, id) = match own(deployer, client_identity, &image.digest).await {
-        Some(source) => {
-            let id = pull(deployer, &source).await?;
-            (source, id)
-        }
-        None => match podman::image_by_digest(&image.digest).await.map_err(Error::Podman)? {
-            Some(id) => (Source::Local(id.clone()), id),
-            None => {
-                let source = find(deployer, image, caller).await?;
-                let id = pull(deployer, &source).await?;
-                (source, id)
-            }
+    let unavailable = || Error::Unavailable {
+        digest: image.digest.clone(),
+    };
+    let digest = Digest::parse(&image.digest).ok_or_else(unavailable)?;
+    let found = match from_store(deployer, client_identity, &digest).await? {
+        Some(found) => found,
+        None => match from_registry(deployer, image).await? {
+            Some(found) => found,
+            None => match caller {
+                Some(caller) => from_client(deployer, caller, &digest).await?.ok_or_else(unavailable)?,
+                None => return Err(unavailable()),
+            },
         },
     };
-    deployer.shared.images.starting(&id).await?;
-    Ok((source, id))
-}
-
-/// The caller's own image under `digest`, as the provider's own
-/// registry serves it from the caller's pool:
-/// `127.0.0.1:<port>/<hash>/<name>@<digest>`, at the port podman
-/// reaches the registry by. `None` where there is no store, or the
-/// caller built no image of that digest.
-async fn own(deployer: &ContainerDeployer, client_identity: &Identity, digest: &str) -> Option<Source> {
-    let store = deployer.store.as_ref()?;
-    let (name, _) = store.find_digest(client_identity, digest).await?;
-    let reference = store.reference(deployer.registry_port(), client_identity, &name);
-    Some(Source::Stored(format!("{reference}@{digest}")))
+    deployer.shared.images.starting(&found.1).await?;
+    Ok(found)
 }
 
 /// The steps once the image is in the store and counted: the
@@ -144,11 +148,11 @@ async fn own(deployer: &ContainerDeployer, client_identity: &Identity, digest: &
 async fn after_image(
     deployer: &ContainerDeployer,
     deployment: &Deployment,
-    source: &Source,
+    image: &str,
     bound: &[Bound],
 ) -> Result<(String, String, Child), Error> {
     let name = format!("diverge-{}", uuid::Uuid::new_v4());
-    run(deployer, deployment, source, bound, &name).await?;
+    run(deployer, deployment, image, bound, &name).await?;
     match after_run(&name).await {
         Ok((address, proxy)) => Ok((name, address, proxy)),
         Err(error) => {
@@ -166,25 +170,25 @@ async fn after_run(name: &str) -> Result<(String, Child), Error> {
     Ok((format!("ws://127.0.0.1:{port}"), proxy))
 }
 
-/// `podman pull` of the source, quiet, so its one answer is the id
+/// `podman pull` of `reference`, quiet, so its one answer is the id
 /// of the image pulled: with the provider's auth file, and, for the
-/// provider's own registry, without TLS, since it speaks plain HTTP
-/// on the loopback. The cache is told the pull is in flight before
+/// provider's own registry — `own` — without TLS, since it speaks
+/// plain HTTP on the loopback. The cache is told the pull is in flight before
 /// and what it brought after, so no trim removes the image between
 /// its arrival and its record. On the hosts with a machine the pull
 /// from the provider's registry goes through the tunnel, which has
 /// to be open still.
-async fn pull(deployer: &ContainerDeployer, source: &Source) -> Result<String, Error> {
+pub(super) async fn pull(deployer: &ContainerDeployer, reference: &str, own: bool) -> Result<String, Error> {
     #[cfg(not(target_os = "linux"))]
-    if source.own() && !deployer.tunnel.open_still().await {
+    if own && !deployer.tunnel.open_still().await {
         return Err(Error::Tunnel);
     }
     let auth_file = deployer.auth_file.to_string_lossy().into_owned();
     let mut args = vec!["pull", "--quiet", "--authfile", &auth_file];
-    if source.own() {
+    if own {
         args.push("--tls-verify=false");
     }
-    args.push(source.reference());
+    args.push(reference);
     deployer.shared.images.pull_begins().await;
     let pulled = capture("podman", podman::command(args)).await.map_err(Error::Pull);
     let image = pulled.as_deref().ok().map(str::trim);
@@ -198,11 +202,11 @@ async fn pull(deployer: &ContainerDeployer, source: &Source) -> Result<String, E
 /// loopback port podman picks; `/dev/fuse` and the mount capability
 /// for the proxy's FUSE mounts; the proxy bound read-only; the
 /// request's environment, entry by entry, and nothing else; every
-/// volume; the image.
+/// volume; the image, by its id.
 async fn run(
     deployer: &ContainerDeployer,
     deployment: &Deployment,
-    source: &Source,
+    image: &str,
     bound: &[Bound],
     name: &str,
 ) -> Result<(), Error> {
@@ -245,7 +249,7 @@ async fn run(
         args.push("--volume".to_string());
         args.push(one.argument.clone());
     }
-    args.push(source.reference().to_string());
+    args.push(image.to_string());
     podman::podman(&args)
         .await
         .map_err(Error::Run)?

@@ -16,7 +16,7 @@ const CHANGES_BEHIND: usize = 256;
 pub struct Changed {
     /// Whose thing.
     pub identity: Arc<Identity>,
-    /// Which thing, by name.
+    /// Which thing, by name — an image by its digest.
     pub name: String,
 }
 

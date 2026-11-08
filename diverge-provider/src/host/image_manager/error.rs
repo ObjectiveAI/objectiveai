@@ -1,5 +1,5 @@
-//! Why a client image could not be listed, examined, built or
-//! removed.
+//! Why the Store could not list, examine, build, push, describe,
+//! prove or remove an image.
 
 use std::fmt;
 use std::io;
@@ -16,12 +16,8 @@ use crate::host::volume_manager;
 /// absent, a request refused, or a tool or the host not answering.
 #[derive(Debug)]
 pub enum Error {
-    /// The configuration names no client image store.
+    /// The configuration names no Store.
     Absent,
-    /// The name is not one segment of a repository path.
-    Name(String),
-    /// The caller has an image by that name already.
-    Exists(String),
     /// The caller has no volume by the name the context gave.
     Volume(String),
     /// The volume manager could not look the context volume up.
@@ -40,14 +36,18 @@ pub enum Error {
     /// An image's layout has no index, or one that is not one
     /// manifest's.
     Layout(PathBuf),
+    /// The operating system's random source did not answer, so no
+    /// nonce could be drawn.
+    Random(String),
+    /// A registry that answered that it serves the image failed to
+    /// supply it, or supplied bytes that are not their digest's.
+    Registry(String),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Absent => f.write_str("this provider keeps no client images"),
-            Error::Name(name) => write!(f, "the image name `{name}` is not one segment of a repository path"),
-            Error::Exists(name) => write!(f, "an image named `{name}` exists already"),
+            Error::Absent => f.write_str("this provider keeps no Store"),
             Error::Volume(name) => write!(f, "no volume named `{name}`"),
             Error::Volumes(error) => write!(f, "the context volume could not be looked up: {error}"),
             Error::Mount(error) => write!(f, "the context volume could not be attached: {error}"),
@@ -56,6 +56,8 @@ impl fmt::Display for Error {
             Error::Io(error) => write!(f, "the store could not be read or written: {error}"),
             Error::Json(error) => write!(f, "an image's record did not parse: {error}"),
             Error::Layout(dir) => write!(f, "the layout at `{}` could not be read", dir.display()),
+            Error::Random(error) => write!(f, "no nonce could be drawn: {error}"),
+            Error::Registry(error) => write!(f, "the registry did not supply the image it serves: {error}"),
         }
     }
 }
@@ -67,7 +69,7 @@ impl std::error::Error for Error {
             Error::Volumes(error) => Some(error),
             Error::Io(error) => Some(error),
             Error::Json(error) => Some(error),
-            Error::Absent | Error::Name(_) | Error::Exists(_) | Error::Volume(_) | Error::Build(_) | Error::Layout(_) => None,
+            Error::Absent | Error::Volume(_) | Error::Build(_) | Error::Layout(_) | Error::Random(_) | Error::Registry(_) => None,
         }
     }
 }
@@ -87,14 +89,12 @@ impl From<serde_json::Error> for Error {
 /// What the protocol puts on the wire for one of these.
 ///
 /// ```json
-/// {"kind":"exists","error":"an image named `tools` exists already"}
+/// {"kind":"registry","error":"the registry did not supply the image it serves: …"}
 /// ```
 impl From<Error> for error::Error {
     fn from(error: Error) -> Self {
         let kind = match &error {
             Error::Absent => "absent",
-            Error::Name(_) => "name",
-            Error::Exists(_) => "exists",
             Error::Volume(_) => "volume",
             Error::Volumes(_) => "volumes",
             Error::Mount(_) => "mount",
@@ -103,6 +103,8 @@ impl From<Error> for error::Error {
             Error::Io(_) => "io",
             Error::Json(_) => "record",
             Error::Layout(_) => "layout",
+            Error::Random(_) => "random",
+            Error::Registry(_) => "registry",
         };
         error::Error(json!({
             "kind": kind,

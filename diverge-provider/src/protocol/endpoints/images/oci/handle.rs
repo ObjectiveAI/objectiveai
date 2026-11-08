@@ -20,7 +20,7 @@ use diverge_sdk::provider::endpoints::images::oci::server::response;
 /// Answer every ask the caller opens, until it disconnects.
 ///
 /// Nothing is sent on the main stream — but on a provider whose
-/// capabilities keep no image store, which sends
+/// capabilities keep no Store, which sends
 /// [`Unsupported`](response::Frame::Unsupported) there and finishes,
 /// serving no channel. Otherwise the scope is held, and each
 /// channel the caller opens is answered on its own task — a has with

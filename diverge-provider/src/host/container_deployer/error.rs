@@ -8,6 +8,8 @@ use std::path::PathBuf;
 use diverge_sdk::shared::error;
 use serde_json::json;
 
+use crate::host::image_manager;
+use crate::host::image_registry;
 use crate::host::tools;
 use crate::host::volume_manager;
 
@@ -20,12 +22,27 @@ pub enum Error {
     /// not lowercase letters, digits and single separators, or an
     /// empty one. Refused, never normalized, since it lands in a URL.
     Name(String),
-    /// The image is nowhere the provider looks: not in its store, not
-    /// in any referenced registry it uses, and not with the caller.
+    /// The image is nowhere the provider looks: not in the caller's
+    /// Store, not in any referenced registry it uses, and not with the
+    /// caller — or the caller said it held the image and did not
+    /// supply a part of it.
     Unavailable {
         /// The digest asked for.
         digest: String,
     },
+    /// The caller supplied a manifest the provider does not take, or
+    /// bytes that are not their digest's.
+    Malformed {
+        /// The digest asked for.
+        digest: String,
+    },
+    /// The caller supplied the image and did not prove that it holds
+    /// it: what the run answers as `ProofFailed`.
+    ProofFailed,
+    /// The Store could not be read or written.
+    Store(image_manager::Error),
+    /// The provider's registry could not mint a token.
+    Registry(image_registry::Error),
     /// The running containers' `disk` would pass
     /// `container_overlay_disk` with this one.
     Disk,
@@ -78,6 +95,10 @@ impl fmt::Display for Error {
             Error::Unavailable { digest } => {
                 write!(f, "the image `{digest}` is nowhere the provider looks")
             }
+            Error::Malformed { digest } => write!(f, "the caller supplied the image `{digest}` malformed"),
+            Error::ProofFailed => f.write_str("the caller did not prove that it holds the image"),
+            Error::Store(error) => write!(f, "the Store could not be used: {error}"),
+            Error::Registry(error) => write!(f, "the registry could not serve the pull: {error}"),
             Error::Disk => write!(f, "the running containers have the provider's disk"),
             Error::Memory => write!(f, "the running containers have the provider's memory"),
             Error::Volume(name) => write!(f, "no volume named `{name}`"),
@@ -108,6 +129,10 @@ impl std::error::Error for Error {
         match self {
             Error::Name(_) => None,
             Error::Unavailable { .. } => None,
+            Error::Malformed { .. } => None,
+            Error::ProofFailed => None,
+            Error::Store(error) => Some(error),
+            Error::Registry(error) => Some(error),
             Error::Disk => None,
             Error::Memory => None,
             Error::Volume(_) => None,
@@ -151,6 +176,10 @@ impl From<Error> for error::Error {
         let kind = match &error {
             Error::Name(_) => "name",
             Error::Unavailable { .. } => "unavailable",
+            Error::Malformed { .. } => "malformed",
+            Error::ProofFailed => "proof_failed",
+            Error::Store(_) => "store",
+            Error::Registry(_) => "registry",
             Error::Disk => "disk",
             Error::Memory => "memory",
             Error::Volume(_) => "volume",

@@ -14,13 +14,13 @@ use crate::protocol::capacity_reporter;
 use crate::protocol::volume_manager;
 
 /// The host's capacity reporter: the volumes' largest store room,
-/// the client image store's room, and the deployer's two caps, each
+/// the Store's room, and the deployer's two caps, each
 /// as of now.
 #[derive(Debug)]
 pub struct CapacityReporter {
     /// The volumes, whose stores hold the room for a new one.
     volumes: Arc<VolumeManager>,
-    /// The client image store; `None` where the configuration has
+    /// The Store; `None` where the configuration has
     /// none, and then its room is `0`.
     store: Option<Arc<Store>>,
     /// The deployer, whose caps hold the memory and the overlay room.
@@ -28,7 +28,7 @@ pub struct CapacityReporter {
 }
 
 impl CapacityReporter {
-    /// A reporter over the volumes, the client image store if there
+    /// A reporter over the volumes, the Store if there
     /// is one, and the deployer.
     pub fn new(volumes: Arc<VolumeManager>, store: Option<Arc<Store>>, deployer: Arc<ContainerDeployer>) -> Self {
         CapacityReporter { volumes, store, deployer }
@@ -41,7 +41,7 @@ impl capacity_reporter::CapacityReporter for CapacityReporter {
     /// The four numbers, the two stores measured beside each other:
     /// `volumes_disk` is what `volumes::create_capacity` answers, the
     /// most room any one store has; `images_disk` is the store's
-    /// capacity less what its pools hold, or `0` with no store; the
+    /// capacity less what its ownerships hold, or `0` with no Store; the
     /// container numbers are what remains of the two caps. The
     /// identity narrows nothing: this host allots every caller the
     /// whole of the room.

@@ -134,6 +134,9 @@ pub(crate) trait Runs: Family {
     /// The run refused because the provider runs no containers, on
     /// channel `0`.
     fn unsupported() -> Option<Vec<u8>>;
+    /// The run failed because the caller did not prove that it holds
+    /// the image it supplied, on channel `0`.
+    fn proof_failed() -> Option<Vec<u8>>;
 }
 
 /// What a caller opened, classified.

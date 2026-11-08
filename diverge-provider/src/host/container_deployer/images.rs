@@ -58,7 +58,7 @@ use crate::host::tools::podman;
 /// The record holds what the store holds, and no more, however long
 /// the provider runs:
 ///
-/// 1. An image removed — by a trim here, by a delete of a client image,
+/// 1. An image removed — by a trim here, by a delete of a Store image,
 ///    by a build undone — is [`forget`](Self::forget)ed with its
 ///    removal.
 /// 2. Every measure lets go of the record of every image the store no
@@ -173,7 +173,7 @@ impl Images {
     }
 
     /// Whether a container runs the image with `id` now, as far as
-    /// the provider recorded: what a delete of a client image asks
+    /// the provider recorded: what a delete of a Store image asks
     /// of its copy in the cache.
     pub async fn running(&self, id: &str) -> bool {
         self.state.lock().await.running.get(id).is_some_and(|count| *count > 0)

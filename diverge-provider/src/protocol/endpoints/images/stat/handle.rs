@@ -13,8 +13,8 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 /// Examine the image and end the scope.
 ///
 /// One question, one answer, done. A provider whose capabilities keep
-/// no image store answers [`Unsupported`](response::Frame::Unsupported)
-/// and asks nothing. A name the caller has no image by
+/// no Store answers [`Unsupported`](response::Frame::Unsupported)
+/// and asks nothing. A digest the caller owns no image by
 /// is [`refusal::unknown`]; a manager that will not answer is its
 /// error, flattened. A response that will not encode is the one
 /// failure with nowhere to go, and the scope finishes without an
@@ -32,9 +32,9 @@ pub async fn handle<M>(
     let frame = if !capabilities.images_store {
         response::Frame::Unsupported
     } else {
-        match manager.stat(client_identity, &request.name).await {
+        match manager.stat(client_identity, &request.digest).await {
             Ok(Some(stat)) => response::Frame::Stat(stat),
-            Ok(None) => response::Frame::Error(refusal::unknown(&request.name)),
+            Ok(None) => response::Frame::Error(refusal::unknown(&request.digest)),
             Err(error) => response::Frame::Error(error.into()),
         }
     };
