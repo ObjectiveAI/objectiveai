@@ -1,180 +1,168 @@
-//! Pulling a manifest, a blob or the proof of an image through a
-//! provider's held `images::oci` scope.
+//! Pulling a manifest, a blob or the proof of an image through the one
+//! held source's `images::oci` scope.
 
 use std::pin::Pin;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::client::Manifest;
-use diverge_sdk::provider::endpoints::images::oci::client::execute;
 use diverge_sdk::shared::containers::oci;
-use diverge_sdk::shared::containers::request::Image;
 use futures_util::future::ready;
 use futures_util::{Stream, StreamExt as _, stream};
 use tokio::sync::Mutex;
 
-use super::locate;
-use crate::daemon::Daemon;
+use super::Source;
 
-/// A blob as it is relayed: the pieces of one provider's answer, in
-/// order, ending at its finish or short where the provider went.
+/// A blob as it is relayed: the pieces of one source's answer, in
+/// order, ending at its finish or short where the source went.
 pub type Blob = Pin<Box<dyn Stream<Item = Bytes> + Send>>;
 
-/// The `images::oci` scopes held for one image, by the provider each
-/// is on: the providers that said they can supply it, and the way to
-/// it.
+/// The one `images::oci` scope held for an image: the source that
+/// answered held first, and the way to it.
 ///
 /// The rules:
 ///
-/// 1. **Held scopes are the holders.** A scope is kept here only once
-///    its provider answered held, in the order the answers came, by
-///    [`locate`]; the image's manifests, blobs and proof are taken
-///    through these scopes and no others.
-/// 2. **Let go when the run is answered.** The start releases every
-///    scope once the run's executor has returned — the container's id
-///    or the failure — through [`release`](Self::release): a provider
-///    holds what it fetched for a scope pinned until the scope ends,
-///    so a scope left open would keep it. A held answer arriving after
-///    the release is cancelled at once.
-/// 3. **A failed scope is dropped.** A scope an ask failed on, or that
-///    answered a part not held, is cancelled and forgotten, and the
-///    next holder is tried.
+/// 1. **One source.** A scope is kept here only once its source
+///    answered held first, by [`locate`](super::locate); every other
+///    was cancelled there. The image's manifests, blobs and proof are
+///    taken through this scope and no other, and with none kept each is
+///    answered not held.
+/// 2. **Let go when answered.** Whoever keeps a source releases it
+///    when done — a run once its executor has returned, the container's
+///    id or the failure; a client's oci scope once it ends — through
+///    [`release`](Self::release): a source holds what it fetched for a
+///    scope pinned until the scope ends, so a scope left open would
+///    keep it. A source kept after the release is cancelled at once.
+/// 3. **A failed ask lets it go.** A source an ask failed on, or that
+///    answered a part not held, is cancelled and forgotten, and the ask
+///    is answered not held; no other source is asked.
 pub struct Pulls {
     state: Mutex<State>,
 }
 
 /// What the lock protects.
 struct State {
-    /// The held scopes, in the order their providers answered.
-    held: Vec<(Identity, Arc<execute::ExecuteHandle>)>,
+    /// The source held, if any.
+    held: Option<Arc<Source>>,
     /// Rule 2: released, and keeping nothing more.
     released: bool,
 }
 
 impl Pulls {
-    /// No scope yet.
+    /// No source yet.
     pub fn new() -> Self {
         Pulls {
-            state: Mutex::new(State { held: Vec::new(), released: false }),
+            state: Mutex::new(State { held: None, released: false }),
         }
     }
 
-    /// Rule 2: every scope cancelled and forgotten, and none kept from
+    /// Rule 2: the source cancelled and forgotten, and none kept from
     /// now on.
     pub async fn release(&self) {
         let held = {
             let mut state = self.state.lock().await;
             state.released = true;
-            std::mem::take(&mut state.held)
+            state.held.take()
         };
-        for (_, scope) in held {
-            let _ = scope.cancel().await;
+        if let Some(source) = held {
+            let _ = source.scope.cancel().await;
         }
     }
 
-    /// Rule 1: `scope`, held by `holder`, kept — `false`, and the scope
-    /// cancelled, once released (rule 2).
-    pub async fn keep(&self, holder: Identity, scope: Arc<execute::ExecuteHandle>) -> bool {
-        let kept = {
+    /// Rule 1: `source` kept — `false`, and the source cancelled, once
+    /// released (rule 2). A source kept before it is cancelled: one is
+    /// held at a time.
+    pub async fn keep(&self, source: Source) -> bool {
+        let source = Arc::new(source);
+        let (kept, replaced) = {
             let mut state = self.state.lock().await;
-            if !state.released {
-                state.held.push((holder, Arc::clone(&scope)));
+            if state.released {
+                (false, None)
+            } else {
+                (true, state.held.replace(Arc::clone(&source)))
             }
-            !state.released
         };
+        if let Some(replaced) = replaced {
+            let _ = replaced.scope.cancel().await;
+        }
         if !kept {
-            let _ = scope.cancel().await;
+            let _ = source.scope.cancel().await;
         }
         kept
     }
 
-    /// The held scopes, in order.
-    async fn held(&self) -> Vec<(Identity, Arc<execute::ExecuteHandle>)> {
+    /// The source held, if any.
+    pub async fn held(&self) -> Option<Arc<Source>> {
         self.state.lock().await.held.clone()
     }
 
-    /// Rule 3.
-    async fn drop_scope(&self, holder: &Identity) {
-        let dropped = {
+    /// Rule 3: `source` cancelled, and forgotten where it is still the
+    /// one held.
+    async fn drop_source(&self, source: &Arc<Source>) {
+        {
             let mut state = self.state.lock().await;
-            let index = state.held.iter().position(|(held, _)| held == holder);
-            index.map(|index| state.held.remove(index).1)
-        };
-        if let Some(scope) = dropped {
-            let _ = scope.cancel().await;
-        }
-    }
-}
-
-/// The manifest under `digest`, of `image`, through a held scope, or
-/// `None` when no holder answers it.
-///
-/// Every held scope is tried in turn, and the first to answer the
-/// manifest is the answer; one that answers not held, or fails, is
-/// dropped (rule 3).
-pub async fn manifest(daemon: &Arc<Daemon>, pulls: &Arc<Pulls>, image: &Image, digest: &str, asker: &Identity) -> Option<Manifest> {
-    for (holder, scope) in holders(daemon, pulls, image, asker).await {
-        match scope.manifest(digest).await {
-            Ok(Some(manifest)) => return Some(manifest),
-            Ok(None) | Err(_) => pulls.drop_scope(&holder).await,
-        }
-    }
-    None
-}
-
-/// The blob under `digest`, of `image`, through a held scope, or
-/// `None` when no holder answers it.
-///
-/// As [`manifest`], except that a holder is judged by its first
-/// piece: a channel that finishes with none, or fails before any, is
-/// dropped, and from the first piece on the stream is that provider's,
-/// ending short where it goes — the asking provider hashes what it got
-/// and sees the shortfall, and nothing is retried mid-way.
-pub async fn blob(daemon: &Arc<Daemon>, pulls: &Arc<Pulls>, image: &Image, digest: &str, asker: &Identity) -> Option<Blob> {
-    for (holder, scope) in holders(daemon, pulls, image, asker).await {
-        let Ok(mut pieces) = scope.blob(digest).await else {
-            pulls.drop_scope(&holder).await;
-            continue;
-        };
-        match pieces.next().await {
-            Some(Ok(first)) => {
-                let rest = pieces.filter_map(|piece| ready(piece.ok()));
-                return Some(Box::pin(stream::once(ready(first)).chain(rest)));
+            if state.held.as_ref().is_some_and(|held| Arc::ptr_eq(held, source)) {
+                state.held = None;
             }
-            Some(Err(_)) | None => pulls.drop_scope(&holder).await,
         }
+        let _ = source.scope.cancel().await;
     }
-    None
 }
 
-/// The proof of possession the asking provider's `request` names, over
-/// `image` — see [`prove`](diverge_sdk::shared::containers::oci::prove)
-/// — through a held scope, or `None` when no holder answers it.
+/// The manifest under `digest` through the held source, or `None` when
+/// none is held or it does not answer it (rule 3).
+pub async fn manifest(pulls: &Pulls, digest: &str) -> Option<Manifest> {
+    let source = pulls.held().await?;
+    match source.scope.manifest(digest).await {
+        Ok(Some(manifest)) => Some(manifest),
+        Ok(None) | Err(_) => {
+            pulls.drop_source(&source).await;
+            None
+        }
+    }
+}
+
+/// The blob under `digest` through the held source, or `None` when
+/// none is held or it does not answer it.
+///
+/// As [`manifest`], except that the source is judged by its first
+/// piece: a channel that finishes with none, or fails before any, lets
+/// it go (rule 3), and from the first piece on the stream is the
+/// source's, ending short where it goes — the asking provider hashes
+/// what it got and sees the shortfall, and nothing is retried mid-way.
+pub async fn blob(pulls: &Pulls, digest: &str) -> Option<Blob> {
+    let source = pulls.held().await?;
+    let Ok(mut pieces) = source.scope.blob(digest).await else {
+        pulls.drop_source(&source).await;
+        return None;
+    };
+    match pieces.next().await {
+        Some(Ok(first)) => {
+            let rest = pieces.filter_map(|piece| ready(piece.ok()));
+            Some(Box::pin(stream::once(ready(first)).chain(rest)))
+        }
+        Some(Err(_)) | None => {
+            pulls.drop_source(&source).await;
+            None
+        }
+    }
+}
+
+/// The proof of possession `request` names, over the held source's
+/// image — see [`prove`](diverge_sdk::shared::containers::oci::prove)
+/// — or `None` when none is held or it does not answer it (rule 3).
 ///
 /// The daemon hashes nothing itself: the request is sent as it came,
-/// platform and nonce, on each held scope's prove channel in turn, and
-/// the first proof answered is relayed as it came. No image byte moves
-/// through the daemon for it. A holder that answers none, or fails, is
-/// dropped (rule 3).
-pub async fn prove(daemon: &Arc<Daemon>, pulls: &Arc<Pulls>, image: &Image, request: &oci::prove::request::Request, asker: &Identity) -> Option<[u8; 32]> {
-    for (holder, scope) in holders(daemon, pulls, image, asker).await {
-        match scope.prove(request).await {
-            Ok(Some(proof)) => return Some(proof),
-            Ok(None) | Err(_) => pulls.drop_scope(&holder).await,
+/// platform and nonce, on the source's prove channel, and the proof
+/// answered is relayed as it came. No image byte moves through the
+/// daemon for it.
+pub async fn prove(pulls: &Pulls, request: &oci::prove::request::Request) -> Option<[u8; 32]> {
+    let source = pulls.held().await?;
+    match source.scope.prove(request).await {
+        Ok(Some(proof)) => Some(proof),
+        Ok(None) | Err(_) => {
+            pulls.drop_source(&source).await;
+            None
         }
     }
-    None
-}
-
-/// The held scopes to take from, in order: those held already, or,
-/// none being held — a push, which asks no has first — those
-/// [`locate`] opens now. Never the asker's.
-async fn holders(daemon: &Arc<Daemon>, pulls: &Arc<Pulls>, image: &Image, asker: &Identity) -> Vec<(Identity, Arc<execute::ExecuteHandle>)> {
-    let mut held = pulls.held().await;
-    if held.is_empty() && locate(daemon, image, Some(asker), pulls).await.is_some() {
-        held = pulls.held().await;
-    }
-    held.retain(|(holder, _)| holder != asker);
-    held
 }

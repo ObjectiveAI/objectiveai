@@ -10,13 +10,16 @@
 //! that holds it, reaches the record, and covers every tag named. A
 //! relay is judged as `relay` over the record its first ID is.
 
+use std::collections::HashSet;
+
 use diverge_sdk::daemon::endpoints::daemons::list::client::request::Filter;
-use diverge_sdk::daemon::endpoints::daemons::Daemon;
+use diverge_sdk::daemon::endpoints::daemons::{Daemon, DaemonId};
 use diverge_sdk::daemon::grant::daemons::{Make, Over, Permission};
 use diverge_sdk::daemon::grant::{Tagging, Within};
 
 use super::Standing;
 use super::filter;
+use crate::store::daemons::Record;
 
 /// Whether the standing may do the making `action`.
 pub fn make(standing: &Standing, action: Make) -> bool {
@@ -47,6 +50,17 @@ pub fn over(standing: &Standing, action: Over, daemon: &Daemon) -> bool {
         Permission::Over { actions, within } => actions.contains(&action) && reaches(within, daemon),
         _ => false,
     })
+}
+
+/// Every one of `records` the standing may do `action` to, each judged
+/// as a list reports it, connected where its ID is in `connected`:
+/// every one of them for an administrator, none without a grant of
+/// `action`.
+pub fn reached(standing: &Standing, action: Over, records: Vec<Record>, connected: &HashSet<DaemonId>) -> Vec<Record> {
+    records
+        .into_iter()
+        .filter(|record| over(standing, action, &record.report(connected.contains(&record.id))))
+        .collect()
 }
 
 /// Whether the standing holds the tagging `action` over any record at

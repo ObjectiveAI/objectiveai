@@ -127,11 +127,13 @@ pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: 
         let daemon = Arc::clone(daemon);
         let image = image.clone();
         tokio::spawn(async move {
-            let pulls = Arc::new(images::Pulls::new());
-            let found = images::locate(&daemon, &image, None, &pulls).await.is_some();
+            let reach = images::Reach::Full { except: None };
+            let Some(source) = images::locate(&daemon, &image, &reach, &[]).await else {
+                return false;
+            };
             // Only the answer was wanted: no scope is pulled through.
-            pulls.release().await;
-            found
+            let _ = source.scope.cancel().await;
+            true
         })
     });
     if let Some(identity) = pinned {
@@ -235,7 +237,7 @@ async fn judge(daemon: &Daemon, identity: &Identity, needs: &Needs) -> Judged {
     Judged::Fit
 }
 
-/// Whether some connected provider's client image store holds the
+/// Whether some connected provider or remote daemon can supply the
 /// image: the ask spawned at the chooser's start, waited for here
 /// and nowhere else. No ask — the run names no image — and an ask
 /// whose task ended without answering are both no.
@@ -250,5 +252,5 @@ async fn held(asked: Option<JoinHandle<bool>>) -> bool {
 /// that no store holds it.
 fn no_source(reason: &str, needs: &Needs) -> String {
     let digest = needs.image.as_ref().map(|image| image.digest.as_str()).unwrap_or_default();
-    format!("{reason}, and no connected provider holds the image {digest}")
+    format!("{reason}, and no connected provider or remote daemon holds the image {digest}")
 }

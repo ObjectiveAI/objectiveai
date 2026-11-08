@@ -182,6 +182,12 @@ impl DaemonAuthenticator {
         Some(Identity { issuer: issuer.to_string(), subject: subject.to_string() })
     }
 
+    /// Every identity this daemon presents, one per issuer: whom it
+    /// answers a handshake as, wherever it is reached.
+    pub fn presented(&self) -> Vec<Identity> {
+        self.own.presented().collect()
+    }
+
     /// Every identity on the host, as the daemon opened them at its
     /// start: what a listing of them reads.
     pub fn identities(&self) -> &Identities {

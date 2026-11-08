@@ -13,7 +13,7 @@ use diverge_sdk::shared::mcp::attestation;
 use rand::Rng as _;
 use rand::seq::IndexedRandom as _;
 
-use super::{Pulls, locate};
+use super::{Holder, Reach, locate};
 use crate::containers::capable;
 use crate::containers::run::ToolHandle;
 use crate::daemon::Daemon;
@@ -154,11 +154,18 @@ async fn choose_provider(daemon: &Arc<Daemon>, image: &Image) -> Option<Identity
     if let Some(chosen) = pulling.choose(&mut rand::rng()) {
         return Some(chosen.clone());
     }
-    let pulls = Arc::new(Pulls::new());
-    let found = locate(daemon, image, None, &pulls).await;
+    // Providers only: a provider is what is asked for the file.
+    let reach = Reach::Granted {
+        providers: daemon.live.connected_providers().await.into_iter().collect(),
+        daemons: Vec::new(),
+    };
+    let source = locate(daemon, image, &reach, &[]).await?;
     // Only the answer was wanted: no scope is pulled through.
-    pulls.release().await;
-    found
+    let _ = source.scope.cancel().await;
+    match source.holder {
+        Holder::Provider(identity) => Some(identity),
+        Holder::Daemon(_) => None,
+    }
 }
 
 /// A document read, or none shipped, as the answer.

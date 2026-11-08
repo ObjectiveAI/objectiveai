@@ -1,49 +1,90 @@
-//! Finding a provider that can supply an image.
+//! Finding a source that can supply an image: a provider, or a remote
+//! daemon.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
-use diverge_sdk::daemon::agent_log::Identity;
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
+use diverge_sdk::daemon::endpoints::images::oci::client::{execute as daemon_execute, request as daemon_request};
 use diverge_sdk::provider::endpoints::images::oci::client::{execute, request};
+use diverge_sdk::shared::Identity;
 use diverge_sdk::shared::containers::oci;
 use diverge_sdk::shared::containers::request::Image;
-use futures_util::StreamExt as _;
+use futures_util::future::BoxFuture;
 use futures_util::stream::FuturesUnordered;
-use tokio::sync::mpsc;
+use futures_util::{FutureExt as _, StreamExt as _};
 
-use super::Pulls;
 use crate::daemon::Daemon;
+use crate::daemons;
+use crate::store;
+use crate::store::daemons::Record;
 
-/// A provider connected now that can supply `image`, or `None`; every
-/// provider that can is kept in `pulls`, by the scope that said so.
+/// Whom an ask may reach.
+pub enum Reach {
+    /// Every connected provider but `except`, and every remote daemon
+    /// recorded: a provider asking on a run — which has looked in its
+    /// own Store and its own registries already, and is `except` — or
+    /// the daemon asking for itself, `except` then `None`. A provider
+    /// asking needs no grant.
+    Full { except: Option<Identity> },
+    /// Exactly these providers and these remote daemons' records: what a
+    /// command's grants reach.
+    Granted { providers: HashSet<Identity>, daemons: Vec<Record> },
+}
+
+/// Who answered held.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Holder {
+    /// A connected provider, by its identity.
+    Provider(Identity),
+    /// A remote daemon, by the record it was reached through.
+    Daemon(DaemonId),
+}
+
+/// The one scope that answered held: the source an image's manifests,
+/// blobs and proof are taken through. A provider's oci scope and a
+/// remote daemon's share their channels byte for byte, so either is
+/// held by the same handle.
+#[derive(Debug)]
+pub struct Source {
+    pub holder: Holder,
+    pub scope: execute::ExecuteHandle,
+}
+
+/// The one source that can supply `image`, its scope held, or `None`.
 ///
 /// The rules:
 ///
-/// 1. **Who is asked.** Every connected provider but `asker` — the
-///    provider asking on a run, which has looked in its own Store and
-///    its own registries already; `None` when it is the daemon asking
-///    for itself, and then nobody is left out — whose capabilities
-///    keep a Store or list a registry, the only providers that can
-///    hold anything.
-/// 2. **The scope is the question.** Each is asked by opening an
-///    `images::oci` scope with the image, references and all; its
-///    first answer is whether it can supply the image. So a provider
-///    that pulls from a registry another does not supplies that other
-///    through the daemon.
-/// 3. **A held scope is kept.** A scope answered held is added to
-///    `pulls`, in the order the answers came, and is what the image's
-///    manifests, blobs and proof are taken through: no other scope is
-///    opened for them. A scope answered otherwise has finished.
-/// 4. **The first answers.** The first provider to answer held is the
-///    answer. The rest are not waited for: the scopes go on opening in
-///    a task of their own, and each later held is kept beside the
-///    first, so a pull that finds the first gone has the next.
-/// 5. **Everything else is no.** A not found, an unsupported, an error
-///    and a scope that would not open are all no; no provider
-///    answering held is `None`, after the last has answered.
-pub async fn locate(daemon: &Arc<Daemon>, image: &Image, asker: Option<&Identity>, pulls: &Arc<Pulls>) -> Option<Identity> {
-    let mut asked = Vec::new();
+/// 1. **Who is asked.** Every connected provider `reach` reaches whose
+///    capabilities keep a Store or list a registry, the only providers
+///    that can hold anything; and every remote daemon's record `reach`
+///    reaches whose remote is neither in `ignore` nor this daemon
+///    itself — one of the identities it presents.
+/// 2. **Asked alike, all at once.** Each provider is asked by opening an
+///    `images::oci` scope with the image, references and all; each
+///    remote daemon by opening its own `images::oci` scope with the
+///    image and `ignore`, this daemon's identities added, on the
+///    connection [`daemons::connect`] holds or opens for the record —
+///    the routes found as for every relay. A record that will not
+///    connect is a no.
+/// 3. **The first held answers.** The first scope answered held is the
+///    source, and is returned at once. Every other is cancelled: the
+///    scopes still opening go on in a task of their own, and each
+///    answered held after the first is cancelled as it answers.
+/// 4. **Everything else is no.** A not found, an unsupported, a
+///    forbidden, an error and a scope that would not open are all no;
+///    no scope answering held is `None`, after the last has answered.
+pub async fn locate(daemon: &Arc<Daemon>, image: &Image, reach: &Reach, ignore: &[Identity]) -> Option<Source> {
+    // Rule 1.
+    let own = daemon.authenticator.presented();
+    let mut asking: FuturesUnordered<BoxFuture<'static, Option<Source>>> = FuturesUnordered::new();
+    let frame = Arc::new(request::Frame(oci::has::request::Request { image: image.clone() }));
     for identity in daemon.live.connected_providers().await {
-        if asker == Some(&identity) {
+        let reached = match reach {
+            Reach::Full { except } => except.as_ref() != Some(&identity),
+            Reach::Granted { providers, .. } => providers.contains(&identity),
+        };
+        if !reached {
             continue;
         }
         let supplies = daemon
@@ -54,33 +95,66 @@ pub async fn locate(daemon: &Arc<Daemon>, image: &Image, asker: Option<&Identity
         if !supplies {
             continue;
         }
-        if let Some(handle) = daemon.live.provider(&identity).await {
-            asked.push((identity, handle));
-        }
-    }
-    if asked.is_empty() {
-        return None;
-    }
-    let (found, mut hits) = mpsc::unbounded_channel();
-    let frame = Arc::new(request::Frame(oci::has::request::Request { image: image.clone() }));
-    let pulls = Arc::clone(pulls);
-    tokio::spawn(async move {
-        let mut opening: FuturesUnordered<_> = asked
-            .into_iter()
-            .map(|(identity, handle)| {
-                let frame = Arc::clone(&frame);
-                async move { (identity, execute::execute(&handle, &frame).await) }
-            })
-            .collect();
-        while let Some((identity, opened)) = opening.next().await {
-            let Ok(scope) = opened else {
-                continue;
-            };
-            if pulls.keep(identity.clone(), Arc::new(scope)).await {
-                // Nobody waiting is the first already answered.
-                let _ = found.send(identity);
+        let Some(handle) = daemon.live.provider(&identity).await else {
+            continue;
+        };
+        let frame = Arc::clone(&frame);
+        // Rule 2.
+        asking.push(
+            async move {
+                let scope = execute::execute(&handle, &frame).await.ok()?;
+                Some(Source { holder: Holder::Provider(identity), scope })
             }
+            .boxed(),
+        );
+    }
+    let records = match reach {
+        Reach::Full { .. } => recorded(daemon).await,
+        Reach::Granted { daemons, .. } => daemons.clone(),
+    };
+    let mut passed: Vec<Identity> = ignore.to_vec();
+    passed.extend(own.iter().cloned());
+    let passed = Arc::new(passed);
+    for record in records {
+        if ignore.contains(&record.daemon) || own.contains(&record.daemon) {
+            continue;
         }
-    });
-    hits.recv().await
+        let daemon = Arc::clone(daemon);
+        let image = image.clone();
+        let passed = Arc::clone(&passed);
+        // Rule 2.
+        asking.push(
+            async move {
+                let peer = daemons::connect(&daemon, &record).await.ok()?;
+                let frame = daemon_request::Frame { image, ignore: passed.to_vec(), relay: None };
+                let scope = daemon_execute::execute(&peer.connected.handle, &frame).await.ok()?;
+                Some(Source { holder: Holder::Daemon(record.id), scope })
+            }
+            .boxed(),
+        );
+    }
+    // Rules 3 and 4.
+    while let Some(answered) = asking.next().await {
+        let Some(source) = answered else {
+            continue;
+        };
+        tokio::spawn(async move {
+            while let Some(answered) = asking.next().await {
+                if let Some(late) = answered {
+                    let _ = late.scope.cancel().await;
+                }
+            }
+        });
+        return Some(source);
+    }
+    None
+}
+
+/// Every remote daemon's record: none where the store cannot be read,
+/// so that a failing store leaves the providers to answer.
+async fn recorded(daemon: &Arc<Daemon>) -> Vec<Record> {
+    let Ok(mut conn) = daemon.store.acquire().await else {
+        return Vec::new();
+    };
+    store::daemons::all(&mut conn).await.unwrap_or_default()
 }
