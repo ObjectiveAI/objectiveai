@@ -8,6 +8,7 @@ use clap::Subcommand;
 use crate::run::{Emitter, Error, Target};
 
 pub mod info;
+pub mod oci;
 
 /// The requests over images.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
@@ -15,11 +16,16 @@ pub enum Images {
     /// Reading an image's DIVERGE.md, from a container of it running or
     /// from a provider that can obtain it.
     Info(info::Arguments),
+    /// Whether the daemon can supply an image, through a provider or a
+    /// remote daemon its grants reach, and, where it can, one ask of
+    /// it: a manifest, a blob, or the proof.
+    Oci(oci::Arguments),
 }
 
 /// The request put, by its subcommand.
 pub async fn run(command: Images, target: &Target<'_>, emitter: &mut Emitter) -> Result<(), Error> {
     match command {
         Images::Info(arguments) => info::run(arguments, target, emitter).await,
+        Images::Oci(arguments) => oci::run(arguments, target, emitter).await,
     }
 }
