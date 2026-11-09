@@ -278,7 +278,18 @@
   to { background: transparent; }
 }
 
-/* The scroller: a reversed column, so its resting place is its bottom; it holds the log alone. */
+/* Rules 4 and 12: the logs tab — the log's scroller, and an agent's composer under it. */
+.sheet .thread {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sheet .thread[hidden] {
+  display: none;
+}
+
+/* The scroller: a reversed column, so its resting place is its bottom; it holds the log, and an agent's pending strip beneath it. */
 .sheet .body {
   flex: 1;
   min-height: 0;
@@ -550,3 +561,118 @@
 }
 .transfers .transfer.done .said { color: #4ade80; }
 .transfers .transfer.failed .said { color: var(--sheet-error); }
+
+/* Composer, rule 1: the pending strip at the log's bottom, the log right above it however short; each message greyed, a failed one red. */
+.sheet .pending {
+  margin-bottom: auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sheet .pending:not(:empty) { padding-bottom: 12px; }
+.sheet .pending ~ .log { margin-bottom: 0; }
+.sheet .pending .waiting {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  opacity: 0.45;
+}
+.sheet .pending .waiting .blocks {
+  flex: 1;
+  min-width: 0;
+}
+.sheet .pending .waiting.failed {
+  opacity: 1;
+  color: var(--sheet-error);
+}
+.sheet .pending .waiting.failed .blocks { border-left-color: var(--sheet-error); }
+.sheet .pending .why { font-style: italic; }
+.sheet .pending button,
+.sheet .composer .chip button {
+  border: none;
+  background: none;
+  color: var(--sheet-dim);
+  font: inherit;
+  cursor: pointer;
+}
+.sheet .pending button:hover,
+.sheet .composer .chip button:hover { color: var(--sheet-cream); }
+
+/* Composer, rules 2 to 6: under the log, the chips over the text box, 📎 and send. */
+.sheet .composer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--sheet-line);
+}
+.sheet .composer .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sheet .composer .chips[hidden] { display: none; }
+.sheet .composer .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  padding: 2px 4px 2px 6px;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  font-size: 12px;
+}
+.sheet .composer .chip img {
+  height: 40px;
+  max-width: 80px;
+  object-fit: cover;
+  border-radius: 3px;
+}
+.sheet .composer .chip .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet .composer .row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+.sheet .composer textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 160px;
+  padding: 6px 8px;
+  resize: none;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  color: var(--sheet-text);
+  font: inherit;
+  outline: none;
+}
+.sheet .composer textarea:focus { border-color: var(--sheet-copper); }
+.sheet .composer .clip,
+.sheet .composer .send {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  color: var(--sheet-cream);
+  font: 13px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  cursor: pointer;
+}
+.sheet .composer .send {
+  border-color: var(--sheet-copper);
+  color: var(--sheet-copper-bright);
+}
+.sheet .composer .clip:hover,
+.sheet .composer .send:hover:not(:disabled) { border-color: var(--sheet-copper-bright); }
+.sheet .composer .send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

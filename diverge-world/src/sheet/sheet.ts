@@ -2,6 +2,7 @@
 
 import type { Route } from "../lib/wire";
 import type { Entity, Subject } from "../world/model";
+import { Composer } from "./composer";
 import { type Container, Console } from "./console";
 import { FrontendPane } from "./frontend";
 import { Files } from "./files";
@@ -134,6 +135,12 @@ function subline(subject: Subject): string {
  *    opens that daemon's own tab of the window.
  * 11. `dispose` closes the sheet and takes it out of the page: what a
  *    board does as its tab of the window closes.
+ * 12. An agent's logs tab holds its `Composer` too: the box that writes
+ *    to the agent under the log, and the messages sent and not yet
+ *    taken at the log's bottom. It is made on open, with the opened
+ *    route and the agent, and disposed of on close or a swap; the
+ *    messages stay in the outbox, and show again when the agent's
+ *    sheet next opens.
  */
 export class Sheet {
   private readonly root: HTMLElement;
@@ -142,6 +149,7 @@ export class Sheet {
   private readonly live: HTMLElement;
   private readonly tabs: HTMLElement;
   private readonly tab: Record<Tab, HTMLButtonElement>;
+  private readonly thread: HTMLElement;
   private readonly body: HTMLElement;
   private readonly log: HTMLElement;
   private readonly pane: HTMLElement;
@@ -155,6 +163,7 @@ export class Sheet {
   private files: Files | null = null;
   private console: Console | null = null;
   private frontend: FrontendPane | null = null;
+  private composer: Composer | null = null;
   private readonly fill: HTMLButtonElement;
   private height = HEIGHT;
   private full = false;
@@ -207,12 +216,16 @@ export class Sheet {
       this.closed();
     });
     head.append(this.live, this.title, this.sub, this.tabs, this.fill, exit);
+    // Rules 4 and 12: the log, and an agent's composer under it.
+    this.thread = document.createElement("div");
+    this.thread.className = "thread";
     this.body = document.createElement("div");
     this.body.className = "body";
     // Rule 4.
     this.log = document.createElement("div");
     this.log.className = "log";
     this.body.append(this.log);
+    this.thread.append(this.body);
     // Rule 5.
     this.pane = document.createElement("div");
     this.pane.className = "files";
@@ -232,7 +245,7 @@ export class Sheet {
       if (entity?.daemon) this.opening(entity.daemon.id, entity.label);
     });
     this.door.append(this.enter);
-    this.root.append(handle, head, this.body, this.pane, this.shell, this.site, this.door);
+    this.root.append(handle, head, this.thread, this.pane, this.shell, this.site, this.door);
     this.drag(handle);
     this.filled(false);
     document.body.append(this.root);
@@ -249,6 +262,14 @@ export class Sheet {
     const tabs = tabsOf(entity);
     this.tabs.hidden = tabs.length === 0;
     for (const which of ["logs", "files", "console", "frontend", "daemon"] as const) this.tab[which].hidden = !tabs.includes(which);
+    // Rule 12.
+    const subject = entity.subject;
+    if (subject?.type === "agent") {
+      const agent = "template" in subject ? { template: subject.template, index: subject.index } : { name: subject.name };
+      this.composer = new Composer(opened.route, agent, entity.key);
+      this.body.prepend(this.composer.strip);
+      this.thread.append(this.composer.root);
+    }
     this.filled(false);
     this.root.hidden = false;
     this.show(tabs.includes(chosen) ? chosen : (tabs[0] ?? "logs"));
@@ -272,6 +293,8 @@ export class Sheet {
     this.console = null;
     this.frontend?.dispose();
     this.frontend = null;
+    this.composer?.dispose();
+    this.composer = null;
     this.opened = null;
     this.root.hidden = true;
     this.filled(false);
@@ -301,7 +324,7 @@ export class Sheet {
     this.tab.console.classList.toggle("on", which === "console");
     this.tab.frontend.classList.toggle("on", which === "frontend");
     this.tab.daemon.classList.toggle("on", which === "daemon");
-    this.body.hidden = which !== "logs";
+    this.thread.hidden = which !== "logs";
     this.pane.hidden = which !== "files";
     this.shell.hidden = which !== "console";
     this.site.hidden = which !== "frontend";

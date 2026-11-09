@@ -337,6 +337,28 @@ The log is read from the start and then followed live.
   sent them (an account, another agent or a tool).
 - **Errors:** errors and refusals are shown in red.
 
+### Messaging an agent
+
+`sheet/composer.ts`, `sheet/attach.ts`, `sheet/outbox.ts`
+
+- **Writing:** an agent's log has a box under it. Enter sends;
+  Shift+Enter starts a new line.
+- **Files:** 📎 attaches files, any number; pasting a file, such as a
+  screenshot, attaches it too. Each shows as a chip — an image as a
+  thumbnail, a sound as ♪ and its name, anything else as 📄 and its
+  name — with ✕ to take it off.
+- **What is sent:** the text first, then the files in the order they
+  were attached. A file is known by its bytes, not its name, and goes
+  as an image, a sound, or a file.
+- **Waiting:** a message sent waits greyed at the bottom of the log
+  until the agent takes it; then it is gone from there and shows in
+  the log itself. ✕ cancels it, if the agent has not taken it yet.
+- **Failing:** a message the daemon refuses stays in red with why,
+  until its ✕.
+- **Kept:** closing or swapping the sheet neither cancels nor loses a
+  message; it shows again when the agent's sheet next opens.
+- **Permission:** the account needs the grant to message the agent.
+
 ### A tool's log
 
 - **Callers:** every call and resource read routed into the tool, as a
@@ -531,6 +553,8 @@ These are the gaps as they stand:
 - **Node positions** are lost on reload.
 - **Opening a file** in place is not possible: files can be browsed,
   downloaded and uploaded, but not viewed in the app.
+- **Attaching by dragging** is not possible in the log: use 📎 or
+  paste. A file is sent whole, inside the one message, however large.
 - **One console per sheet.** A shell lives only while its node's sheet
   is open; there is no reattaching to an earlier one.
 - **Desktop only.** Downloading and uploading need a desktop window.

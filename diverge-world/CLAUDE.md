@@ -12,7 +12,11 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   (`SELECTED`) through the registry, and pans and zooms for nothing over its bounds (`OUTLINER`). Text panels are the exception, HTML over the canvas: clicking an
   agent opens its bottom sheet (`src/sheet/`), the agent's log followed live (`agents logs` with `watch`) and folded
   into messages (`sheet/fold.ts`): assistant chunks join into one message (text contiguous, an image breaking it), each
-  tool call a card holding its response, user parts join per sender and are labelled by the sender. A listed tool
+  tool call a card holding its response, user parts join per sender and are labelled by the sender. Under an agent's
+  log, its composer (`sheet/composer.ts`) writes to it (`agents message`): text, then files attached by 📎 or a paste,
+  each known by its bytes (`file-type`, `sheet/attach.ts`) and sent as an MCP image, audio or resource block in base64;
+  a message sent waits greyed at the log's bottom, ✕ cancelling it, in the page's outbox (`sheet/outbox.ts`, by route
+  and agent, outliving every sheet) until `delivered` takes it out, or a refusal leaves it red. A listed tool
   opens its own log the same way (folded by `sheet/tool_fold.ts`); both are read through the one root `logs` endpoint,
   each entity carrying its `Subject`. A tool's sheet also holds the commands its container put to the daemon, and
   clicking an account opens its command log — every request it put to the daemon, marked allowed or refused (an
