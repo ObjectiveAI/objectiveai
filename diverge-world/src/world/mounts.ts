@@ -19,7 +19,7 @@ function ownerId(owner: Owner | Listed["owner"]): string {
  * The containers of a volume, by the keys the board draws them under:
  * every agent and standalone tool that names it in its mounts, and every
  * dependency tool among those the snapshot listed. A connected tool runs
- * on another daemon and mounts nothing here.
+ * on another daemon and mounts nothing here, and is left out.
  */
 export function mountsOf(snapshot: Snapshot): (volume: Volume) => string[] {
   const dependencies = new Map<string, string>();
@@ -27,9 +27,8 @@ export function mountsOf(snapshot: Snapshot): (volume: Volume) => string[] {
   return (volume) => {
     const keys = (volume.agents ?? []).map((a) => `agent:${a.template}:${a.index}`);
     for (const tool of volume.tools ?? []) {
-      if ("record" in tool) {
-        if (tool.record.origin.kind === "created") keys.push(`standalone_tool:${tool.record.origin.template}:${tool.record.index}`);
-      } else {
+      if ("record" in tool) keys.push(`standalone_tool:${tool.record.template}:${tool.record.index}`);
+      else if ("dependency" in tool) {
         const key = dependencies.get(`${tool.dependency.template}\n${ownerId(tool.dependency.owner)}`);
         if (key) keys.push(key);
       }

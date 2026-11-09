@@ -33,11 +33,14 @@ is named, so the two can be checked against each other.
 | Account | ◎ an open ring around a dot | yellow |
 | Agent | ⬡ a hexagon inside a hexagon | cyan |
 | Standalone tool | ◇ a diamond with a bar across | orange |
+| Connected standalone tool | ◈ a diamond held by two linked rings | violet |
 | Dependency tool | □ a small square | magenta |
 | Volume | ⛁ a cylinder | green |
 
-- **Who is shown.** Every account, agent, standalone tool, dependency
-  tool and volume the signed-in account may list. A party that appears
+- **Who is shown.** Every account, agent, standalone tool, connected
+  standalone tool (another daemon's standalone tool, held here, listed
+  by `connected_standalone_tools list`), dependency tool and volume the
+  signed-in account may list. A party that appears
   only in an event, with no list holding it, is drawn too, but cannot
   be opened.
 - **Live.** The board follows the daemon (`world/live.ts`): every list
@@ -66,11 +69,13 @@ is named, so the two can be checked against each other.
   | Kind | Bright when |
   |---|---|
   | Agent, standalone tool, dependency tool | its container is deployed |
+  | Connected standalone tool | the daemon holds the other daemon's connect on it |
   | Account | it is connected |
   | Volume | an agent or tool it is mounted into is deployed |
 
-- **Working:** an agent or tool that is active (its loop running, or a
-  call or read in flight) also has a breathing halo.
+- **Working:** an agent or tool — connected tools included — that is
+  active (its loop running, or a call or read in flight) also has a
+  breathing halo.
 - These update live, as the daemon's lists change.
 
 ### Lines (`grid/edges.ts`, `grid/styles.ts`, `grid/links.ts`)
@@ -78,8 +83,8 @@ is named, so the two can be checked against each other.
 | Type | Looks like | Means |
 |---|---|---|
 | Call | thin solid line in the sender's colour, chevron at the receiver | something sent to something else (an event ran that way) |
-| Attachment | dashed grey line, no mark | a tool attached to an agent (or to its template), a dependency tool to the agents that depend on it, a volume to what mounts it |
-| Creator | dotted line in the maker's colour, open dot at the maker | who made it: the account, agent or template that created an agent, tool or account |
+| Attachment | dashed grey line, no mark | a tool or a connected tool attached to an agent (or to its template), a dependency tool to the agents that depend on it, a volume to what mounts it |
+| Creator | dotted line in the maker's colour, open dot at the maker | who made it: the account, agent or tool that created an agent, tool, connected tool or account |
 
 - **Lanes.** Several lines between the same two nodes run side by side
   in lanes, in a fixed order, and keep that order however the nodes are
@@ -146,11 +151,12 @@ holds.
 | `1` | accounts |
 | `2` | agents |
 | `3` | standalone tools |
-| `4` | dependency tools |
-| `5` | volumes |
-| `6` | calls |
-| `7` | attachments |
-| `8` | creators |
+| `4` | connected tools |
+| `5` | dependency tools |
+| `6` | volumes |
+| `7` | calls |
+| `8` | attachments |
+| `9` | creators |
 
 - Click an entry, or press its key, to hide or show it. A hidden entry
   is drawn faint.
@@ -191,7 +197,8 @@ holds.
   is shown, covers the whole window; press **⤡** to put it back at the
   height it was. Closing the sheet puts it back too.
 - **The header:** the node's name, a second line of detail (its
-  template and index, who owns a dependency tool, an account's issuer),
+  template and index, the daemon a connected tool is from, who owns a
+  dependency tool, an account's issuer),
   and a green dot, lit exactly while the node is bright on the board
   (see [Live state](#live-state-gridlivets)).
 
@@ -201,12 +208,16 @@ holds.
 |---|---|---|---|---|
 | Agent | yes | yes | yes | when its image declares one |
 | Standalone tool | yes | yes | yes | when its image declares one |
+| Connected standalone tool | yes | — | — | — |
 | Dependency tool | yes | yes | yes | when its image declares one |
 | Account (and admin) | yes | — | — | — |
 | Volume | — | yes | — | — |
 
 - The tab bar always shows, even for a node with one tab (an account's
-  logs, a volume's filesystem).
+  or a connected tool's logs, a volume's filesystem).
+- A connected tool's files, container and image are the other
+  daemon's, so its sheet holds its log alone: every call and read this
+  daemon routed into it.
 - A tab starts reading the first time it is shown, and keeps running
   until the sheet closes, so switching back finds it current.
 - The tab you last chose is remembered, and the next node opens on it

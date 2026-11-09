@@ -1,4 +1,4 @@
-// The daemon as it stands now: the eight lists the world is drawn
+// The daemon as it stands now: the nine lists the world is drawn
 // from, each read once to its `listed` and no further, and the names
 // of the agents' and tools' images.
 
@@ -9,6 +9,7 @@ import { imageInfo } from "./names";
 type Account = daemon.endpoints.accounts.list.server.response.Account;
 type Agent = daemon.endpoints.agents.list.server.response.Agent;
 type Tool = daemon.endpoints.standalone_tools.list.server.response.Tool;
+type ConnectedTool = daemon.endpoints.connected_standalone_tools.list.server.response.ConnectedStandaloneTool;
 type Template = daemon.endpoints.standalone_tools.templates.list.server.response.Listed;
 type AgentTemplate = daemon.endpoints.agents.templates.list.server.response.Listed;
 type Dependency = daemon.endpoints.dependency_tools.list.server.response.Listed;
@@ -16,13 +17,15 @@ type Event = daemon.endpoints.events.Event;
 type Volume = daemon.endpoints.volumes.list.server.response.Volume;
 
 /**
- * The eight lists, the names of those the account may not read, and
+ * The nine lists, the names of those the account may not read, and
  * what each tool's image calls itself, by digest (see `imageNames`).
  */
 export type Snapshot = {
   accounts: Account[];
   agents: Agent[];
   tools: Tool[];
+  /** The connected tools: other daemons' standalone tools, held here. */
+  connectedTools: ConnectedTool[];
   templates: Template[];
   /** The agent templates: what each agent runs. */
   agentTemplates: AgentTemplate[];
@@ -84,6 +87,7 @@ async function once<T, F>(spec: Spec<T, F>): Promise<Read<T>> {
 const accounts = daemon.endpoints.accounts.list;
 const agents = daemon.endpoints.agents.list;
 const tools = daemon.endpoints.standalone_tools.list;
+const connectedTools = daemon.endpoints.connected_standalone_tools.list;
 const templates = daemon.endpoints.standalone_tools.templates.list;
 const dependencies = daemon.endpoints.dependency_tools.list;
 const events = daemon.endpoints.events.list;
@@ -91,30 +95,31 @@ const volumes = daemon.endpoints.volumes.list;
 const agentTemplates = daemon.endpoints.agents.templates.list;
 
 /**
- * The eight lists, read at once side by side, then the names of the
+ * The nine lists, read at once side by side, then the names of the
  * images the agents and tools run: an agent's from its template, a dependency tool's from its template, a
- * created standalone tool's from the template it was made from. A
- * connected tool's image is the other daemon's and is not asked.
+ * standalone tool's from the template it was made from. A connected
+ * tool's image is the other daemon's and is not asked.
  * Throws when the daemon cannot be reached.
  */
 export async function snapshot(): Promise<Snapshot> {
-  const [a, g, t, p, d, e, v, q] = await Promise.all([
+  const [a, g, t, c, p, d, e, v, q] = await Promise.all([
     once({ name: "accounts", open: () => accounts.client.execute(handle, {}), key: accounts.server.response.key, change: accounts.server.response.change }),
     once({ name: "agents", open: () => agents.client.execute(handle, {}), key: agents.server.response.key, change: agents.server.response.change }),
     once({ name: "standalone tools", open: () => tools.client.execute(handle, {}), key: tools.server.response.key, change: tools.server.response.change }),
+    once({ name: "connected standalone tools", open: () => connectedTools.client.execute(handle, {}), key: connectedTools.server.response.key, change: connectedTools.server.response.change }),
     once({ name: "standalone tool templates", open: () => templates.client.execute(handle, {}), key: templates.server.response.key, change: templates.server.response.change }),
     once({ name: "dependency tools", open: () => dependencies.client.execute(handle, {}), key: dependencies.server.response.key, change: dependencies.server.response.change }),
     once({ name: "events", open: () => events.client.execute(handle, {}), key: daemon.endpoints.events.key, change: events.server.response.change }),
     once({ name: "volumes", open: () => volumes.client.execute(handle, {}), key: volumes.server.response.key, change: volumes.server.response.change }),
     once({ name: "agent templates", open: () => agentTemplates.client.execute(handle, {}), key: agentTemplates.server.response.key, change: agentTemplates.server.response.change }),
   ]);
-  const named: [string, Read<unknown>][] = [["accounts", a], ["agents", g], ["standalone tools", t], ["standalone tool templates", p], ["dependency tools", d], ["events", e], ["volumes", v], ["agent templates", q]];
+  const named: [string, Read<unknown>][] = [["accounts", a], ["agents", g], ["standalone tools", t], ["connected standalone tools", c], ["standalone tool templates", p], ["dependency tools", d], ["events", e], ["volumes", v], ["agent templates", q]];
   const byId = new Map(p.items.map((listed) => [listed.id, listed.template.image]));
   const images = [
     ...q.items.map((listed) => listed.template.image),
     ...d.items.map((listed) => listed.template.image),
     ...t.items.flatMap((tool) => {
-      const image = tool.origin.kind === "created" ? byId.get(tool.origin.template) : undefined;
+      const image = byId.get(tool.template);
       return image ? [image] : [];
     }),
   ];
@@ -123,6 +128,7 @@ export async function snapshot(): Promise<Snapshot> {
     accounts: a.items,
     agents: g.items,
     tools: t.items,
+    connectedTools: c.items,
     templates: p.items,
     agentTemplates: q.items,
     dependencies: d.items,

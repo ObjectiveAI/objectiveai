@@ -3,7 +3,7 @@
 
 import { daemon, shared } from "@diverge/sdk";
 import { handle } from "../lib/wire";
-import { type Live, accountKey, accountLive, activeLive, agentKey, dependencyKey, toolKey } from "./model";
+import { type Live, accountKey, accountLive, activeLive, agentKey, connectedKey, dependencyKey, toolKey } from "./model";
 
 /** One volume, as the volumes list states it. */
 export type Volume = daemon.endpoints.volumes.list.server.response.Volume;
@@ -99,7 +99,8 @@ function tell<T, F>(spec: Spec<T, F>, told: Told, k: Keeper): void {
 }
 
 /**
- * Watch the accounts, agents, standalone tools and dependency tools,
+ * Watch the accounts, agents, standalone tools, connected standalone
+ * tools and dependency tools,
  * telling each entity's state as it changes; and the volumes, telling
  * `volume` each one listed, added or changed, and each one removed
  * (`gone`).
@@ -111,6 +112,8 @@ export function watch(told: Told, volume: (item: Volume, gone: boolean) => void)
   tell({ open: () => e.accounts.list.client.execute(handle, {}), change: e.accounts.list.server.response.change, key: accountKey, live: accountLive, deployed: (a) => a.connected }, told, k);
   tell({ open: () => e.agents.list.client.execute(handle, {}), change: e.agents.list.server.response.change, key: agentKey, live: activeLive, deployed }, told, k);
   tell({ open: () => e.standalone_tools.list.client.execute(handle, {}), change: e.standalone_tools.list.server.response.change, key: toolKey, live: activeLive, deployed }, told, k);
+  // A connected tool is deployed while the daemon holds the other daemon's connect on it.
+  tell({ open: () => e.connected_standalone_tools.list.client.execute(handle, {}), change: e.connected_standalone_tools.list.server.response.change, key: connectedKey, live: activeLive, deployed }, told, k);
   tell({ open: () => e.dependency_tools.list.client.execute(handle, {}), change: e.dependency_tools.list.server.response.change, key: dependencyKey, live: activeLive, deployed }, told, k);
   keep({ open: () => e.volumes.list.client.execute(handle, {}), change: e.volumes.list.server.response.change }, (change) => {
     if (change.kind !== "listed") volume(change.item, change.kind === "removed");

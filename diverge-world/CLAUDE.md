@@ -31,29 +31,30 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   serves it from `127.0.0.1:<fresh port>` (axum), each request one daemon `<family> frontend` scope over the page's
   connection, bodies streamed, a `101` piped both ways; gated by Host, `Sec-Fetch-Site` and a key on the first load;
   closed with the sheet, on a swap, and on every page load. An account
-  has only logs, a volume only its files; each tab starts reading the first time it is shown, and the tab last chosen
+  and a connected standalone tool (another daemon's, its own kind: `connected_standalone_tools list`, the
+  `connected_standalone_tool` log subject) have only logs, a volume only its files; each tab starts reading the first time it is shown, and the tab last chosen
   carries to the next sheet.
 - **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): a dark Tron grid, every agent,
-  standalone tool, dependency tool, account and volume a glowing node in its kind's neon, first standing in a column
+  standalone tool, connected standalone tool, dependency tool, account and volume a glowing node in its kind's neon, first standing in a column
   per kind (`grid/place.ts`) and then wherever it is dragged — the links have no say, and positions live only for the
   page. Each way an event ran is a glowing line in the sender's neon with a chevron at the receiver, a mount a dashed
-  green line (`grid/links.ts`); a working agent or tool breathes a halo; a node is bright only while deployed (an account: connected; a volume: mounted into a deployed container), and the sheet's dot is that brightness; a container
+  green line (`grid/links.ts`); a working agent or tool breathes a halo; a node is bright only while deployed (an account: connected; a connected tool: its connect held; a volume: mounted into a deployed container), and the sheet's dot is that brightness; a container
   that is down dims its node (`grid/live.ts`); every rise in an event's count runs a pulse of light along its link
   (`grid/pulses.ts`, the events list kept open). The backdrop tiles the grid under the board's camera, as the sea does
   for the hex map. The hex map below (`Sea`, `World`) is kept, unlisted in `main.ts`.
 - **Live lights** (`render/lights.ts`, `world/watch.ts`): the accounts, agents and tools lists stay open after the
   snapshot, and each entity's state lights it: a pulsing green halo and a plate dot while an agent or tool is `active`
   (working), a steady halo for a `connected` account. The map itself is not rebuilt.
-- **The board follows the daemon** (`world/live.ts`, `follow`): the eight lists (agent templates among them) kept open for the page's life, a list
+- **The board follows the daemon** (`world/live.ts`, `follow`): the nine lists (agent templates and connected standalone tools among them) kept open for the page's life, a list
   that reopens reconciled against what it held, the world handed to `scenes/board.ts` at most once a frame once every
   list was whole once. The board draws the first world, then diffs every later one by key (`apply`): new entities are
   nodes at `placeOne`, gone ones are removed (their sheet closed), kept ones relabelled; the edges are replaced
   (`links.setEdges`), the lights reapplied (`light`), the legend counts reset; pulses take the same events stream
   (`pulses.told`) after the world holding their line is drawn.
-- **The hex world is the daemon drawn once** (`scenes/world.ts`, unlisted): eight lists read to their `listed` (`world/snapshot.ts`),
+- **The hex world is the daemon drawn once** (`scenes/world.ts`, unlisted): nine lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its
   `images info` once (`world/names.ts`), and a tool is named by its image's DIVERGE.md `name` where it said one. Every account, agent, standalone tool,
-  dependency tool and volume is an entity; every event a directed link, and every volume an agent mounts a dashed
+  connected standalone tool, dependency tool and volume is an entity; every event a directed link, and every volume an agent mounts a dashed
   mount between them (`world/model.ts`). Each connected group is an island
   (`islands.ts`). The grid is pointy-top hexes (`hex.ts`). `place.ts` puts an island's entities on slots 3 hexes apart
   whose rings join into one island, and anneals them so lines avoid entities, plates, each other and tight fans.

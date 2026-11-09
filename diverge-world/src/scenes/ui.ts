@@ -14,6 +14,7 @@ const KIND_ORDER: [Kind, string, string][] = [
   ["account", "◎", "accounts"],
   ["agent", "⬡", "agents"],
   ["standalone_tool", "◇", "standalone tools"],
+  ["connected_standalone_tool", "◈", "connected tools"],
   ["dependency_tool", "□", "dependency tools"],
   ["volume", "⛁", "volumes"],
 ];
@@ -22,7 +23,7 @@ const KIND_ORDER: [Kind, string, string][] = [
 const SAMPLE: Record<EdgeType, string> = { call: "──▸", attachment: "╌╌╌", creator: "o┈┈" };
 
 /** The keys that toggle each entry, kinds first, then types of line. */
-const KEYS = ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT"];
+const KEYS = ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE"];
 
 /** The width a name is padded to, so the counts stand in one column. */
 const NAME_WIDTH = 18;

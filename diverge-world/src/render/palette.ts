@@ -18,6 +18,7 @@ export const KIND: Record<Kind, number> = {
   account: 0xd9a521,
   agent: 0x2f6fd0,
   standalone_tool: 0xc0392b,
+  connected_standalone_tool: 0xd9621f,
   dependency_tool: 0x8044b8,
   volume: 0x1f9e89,
 };

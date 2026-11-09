@@ -10,7 +10,7 @@ export const NODE = 64;
 const C = NODE / 2;
 
 /** How far from a node's middle a line to it stops: its shape's reach. */
-export const REACH: Record<Kind, number> = { account: 17, agent: 20, standalone_tool: 18, dependency_tool: 13, volume: 15 };
+export const REACH: Record<Kind, number> = { account: 17, agent: 20, standalone_tool: 18, connected_standalone_tool: 18, dependency_tool: 13, volume: 15 };
 
 /** Each texture's key. */
 export const nodeKey = (kind: Kind) => `grid-${kind}`;
@@ -37,6 +37,12 @@ const SHAPES: Record<Kind, Shape> = {
   standalone_tool: [
     { points: polygon(4, 19, -Math.PI / 2), closed: true },
     { points: [v(-7, 0), v(7, 0)], closed: false },
+  ],
+  // The standalone tool's diamond, held by a link: two rings through each other.
+  connected_standalone_tool: [
+    { points: polygon(4, 19, -Math.PI / 2), closed: true },
+    { points: arc(4.5, 0, 2 * Math.PI, 16).map((p) => new Phaser.Math.Vector2(p.x - 3.5, p.y)), closed: true },
+    { points: arc(4.5, 0, 2 * Math.PI, 16).map((p) => new Phaser.Math.Vector2(p.x + 3.5, p.y)), closed: true },
   ],
   dependency_tool: [{ points: polygon(4, 13, Math.PI / 4), closed: true }],
   account: [

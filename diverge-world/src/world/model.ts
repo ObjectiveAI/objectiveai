@@ -1,11 +1,12 @@
-// What the world shows: every account, agent, standalone tool and
-// dependency tool, and who has sent to whom.
+// What the world shows: every account, agent, standalone tool,
+// connected standalone tool, dependency tool and volume, and who has
+// sent to whom.
 
 import type { daemon } from "@diverge/sdk";
 import type { Snapshot } from "./snapshot";
 
-/** The four kinds of entity. */
-export type Kind = "account" | "agent" | "standalone_tool" | "dependency_tool" | "volume";
+/** The six kinds of entity. */
+export type Kind = "account" | "agent" | "standalone_tool" | "connected_standalone_tool" | "dependency_tool" | "volume";
 
 /** Whose log an entity is: what the root `logs` read names. */
 export type Subject = daemon.endpoints.logs.client.request.Subject;
@@ -23,8 +24,9 @@ export type Files =
 /**
  * One entity: its key, its kind, the name on its plate, a longer
  * line of detail, an agent's template and index, and — a listed agent's or
- * tool's — whose log it is, and — a listed agent's, tool's or volume's —
- * whose files.
+ * tool's — whose log it is, and — a listed agent's, created tool's,
+ * dependency tool's or volume's — whose files. A connected tool's files
+ * are the other daemon's, and none are here.
  */
 export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; files?: Files; frontend?: Frontend; live?: Live };
 
@@ -40,17 +42,23 @@ export type Live = { kind: "active" | "connected"; on: boolean; at?: string };
 
 type Account = daemon.endpoints.accounts.list.server.response.Account;
 type Agent = daemon.endpoints.agents.list.server.response.Agent;
+type Connected = daemon.endpoints.connected_standalone_tools.list.server.response.ConnectedStandaloneTool;
+
+/** A connected tool's tool, as the other daemon names it, as one string: its name, or its template and index. */
+const remote = (tool: daemon.reference.Tool) => ("name" in tool ? `name:${tool.name}` : `${tool.template}:${tool.index}`);
 
 /** The keys the lists' items are drawn under, one per kind, as `model` makes them. */
 export const accountKey = (a: Account) => `account:${a.identity.issuer}:${a.identity.subject}`;
 export const agentKey = (a: Agent) => `agent:${a.template}:${a.index}`;
-export const toolKey = (t: Tool) => (t.origin.kind === "created" ? `standalone_tool:${t.origin.template}:${t.origin.index}` : `connected:${t.origin.daemon}:${t.origin.index}`);
+export const toolKey = (t: { template: string; index: number }) => `standalone_tool:${t.template}:${t.index}`;
+/** A connected tool's key, by what names it once and for all: the daemon, the tool there and its index. */
+export const connectedKey = (t: { daemon: string; tool: daemon.reference.Tool; index: number }) => `connected_standalone_tool:${t.daemon}:${remote(t.tool)}:${t.index}`;
 export const dependencyKey = (d: Dependency) => `dependency_tool:${d.id}:${d.index}`;
 export const volumeKey = (v: Volume) => `volume:${v.provider.issuer}:${v.provider.subject}:${v.name}`;
 
 /** An account's live state: connected. */
 export const accountLive = (a: Account): Live => ({ kind: "connected", on: a.connected, at: a.last_connected });
-/** An agent's, a tool's or a dependency tool's live state: active. */
+/** An agent's, a tool's, a connected tool's or a dependency tool's live state: active. */
 export const activeLive = (x: { active: boolean; last_active?: string }): Live => ({ kind: "active", on: x.active, at: x.last_active });
 
 /**
@@ -106,23 +114,28 @@ function partyEntity(party: Party): Entity {
 }
 
 /**
- * The entity a listed tool is: a connected tool, another daemon's, is
- * drawn as a standalone tool. A created tool is named by its image,
- * else by the name its create gave it, else by its template and index.
+ * The entity a listed tool is: named by its image, else by the name
+ * its create gave it, else by its template and index.
  */
 function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
-  const o = tool.origin;
-  if (o.kind === "created") {
-    const image = snapshot.templates.find((listed) => listed.id === o.template)?.template.image;
-    const label = named(snapshot, image?.digest, tool.name ?? short(o.template, o.index));
-    const subject: Subject = { type: "standalone_tool", template: o.template, index: o.index };
-    const reference = { template: o.template, index: o.index };
-    const frontend = image !== undefined && snapshot.frontends.has(image.digest) ? { tool: reference } : undefined;
-    return { key: `standalone_tool:${o.template}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — ${o.template} #${o.index}`, subject, files: { tool: reference }, frontend };
-  }
-  const label = tool.name ?? `${o.daemon} #${o.index}`;
-  const subject: Subject = { type: "standalone_tool", daemon: o.daemon, tool: o.tool };
-  return { key: `connected:${o.daemon}:${o.index}`, kind: "standalone_tool", label, detail: `${label} — connected from ${o.daemon}`, subject, files: { tool: { daemon: o.daemon, tool: o.tool } } };
+  const image = snapshot.templates.find((listed) => listed.id === tool.template)?.template.image;
+  const label = named(snapshot, image?.digest, tool.name ?? short(tool.template, tool.index));
+  const subject: Subject = { type: "standalone_tool", template: tool.template, index: tool.index };
+  const reference = { template: tool.template, index: tool.index };
+  const frontend = image !== undefined && snapshot.frontends.has(image.digest) ? { tool: reference } : undefined;
+  return { key: toolKey(tool), kind: "standalone_tool", label, detail: `${label} — ${tool.template} #${tool.index}`, subject, files: { tool: reference }, frontend };
+}
+
+/**
+ * The entity a connected tool is — another daemon's standalone tool,
+ * held here: named by the name its create gave it, else by its daemon
+ * and index. Its image, its files and its container are the other
+ * daemon's, so it has a log here and nothing more.
+ */
+function connectedEntity(tool: Connected): Entity {
+  const label = tool.name ?? `${tool.daemon} #${tool.index}`;
+  const subject: Subject = { type: "connected_standalone_tool", daemon: tool.daemon, tool: tool.tool, index: tool.index };
+  return { key: connectedKey(tool), kind: "connected_standalone_tool", label, detail: `${label} — connected from ${tool.daemon}`, subject };
 }
 
 /**
@@ -130,10 +143,12 @@ function toolEntity(snapshot: Snapshot, tool: Tool): Entity {
  *
  * The rules:
  *
- * 1. Every listed account, agent, standalone tool and dependency tool
- *    is an entity, linked or not, with its live state (`Live`). A tool is named by its image's name
+ * 1. Every listed account, agent, standalone tool, connected standalone
+ *    tool and dependency tool is an entity, linked or not, with its live
+ *    state (`Live`). A created tool is named by its image's name
  *    (`imageNames`) where the image said one; each carries whose log
- *    it is (`Subject`), and an agent or a tool whose files (`Files`).
+ *    it is (`Subject`), and an agent, a created tool or a dependency
+ *    tool whose files (`Files`). A connected tool has no files here.
  * 2. An event's party that no list holds is an entity too, made from
  *    the event, and carries no subject: its log is not asked for.
  * 3. Every event joins its sender to its receiver, that way. An event
@@ -165,6 +180,7 @@ export function model(snapshot: Snapshot): Model {
     put({ key: agentKey(a), kind: "agent", label, detail: `${label} — ${a.template} #${a.index}`, agent, subject: { type: "agent", ...agent }, files: { agent }, frontend, live: activeLive(a) });
   }
   for (const tool of snapshot.tools) put({ ...toolEntity(snapshot, tool), live: activeLive(tool) });
+  for (const tool of snapshot.connectedTools) put({ ...connectedEntity(tool), live: activeLive(tool) });
   for (const d of snapshot.dependencies) {
     const label = named(snapshot, d.template.image.digest, short(d.id, d.index));
     const subject: Subject = { type: "dependency_tool", template: d.id, owner: ownerRef(d.owner) };

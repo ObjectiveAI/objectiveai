@@ -20,7 +20,11 @@ export type Opened = { entity: Entity; images: Map<string, string> };
 /** The sheet's three tabs. */
 type Tab = "logs" | "files" | "console" | "frontend";
 
-/** The tabs an entity has, in order: logs with a log, a filesystem with files, a console with a container. */
+/**
+ * The tabs an entity has, in order: logs with a log, a filesystem with
+ * files, a console with a container. A connected tool has its log
+ * alone: its files and its container are the other daemon's.
+ */
 function tabsOf(entity: Entity): Tab[] {
   const tabs: Tab[] = [];
   if (entity.subject) tabs.push("logs");
@@ -42,7 +46,7 @@ let chosen: Tab = "logs";
 const short = (template: string, index: number) => `${template.slice(0, 8)} #${index}`;
 
 /**
- * The header's second line: an agent's or a created tool's template
+ * The header's second line: an agent's or a standalone tool's template
  * and index; a connected tool's daemon; a dependency tool's template
  * and whose it is.
  */
@@ -54,8 +58,10 @@ function subline(subject: Subject): string {
       return `admin at ${subject.issuer}`;
     case "agent":
     case "standalone_tool":
-      if ("daemon" in subject) return `from ${subject.daemon}`;
       if ("template" in subject) return short(subject.template, subject.index);
+      return subject.name;
+    case "connected_standalone_tool":
+      if ("daemon" in subject) return `from ${subject.daemon}`;
       return subject.name;
     case "dependency_tool": {
       const owner = subject.owner;
@@ -81,16 +87,17 @@ function subline(subject: Subject): string {
  *    closes it and tells `closed`.
  * 3. An entity with a log (`subject`) has the logs tab, one with files
  *    (`files`) the filesystem tab, one with a container (an agent, a
- *    tool, a dependency tool) the console tab, an agent or a tool whose
+ *    standalone tool, a dependency tool — never a connected tool, whose
+ *    container is the other daemon's) the console tab, an agent or a tool whose
  *    image declares a frontend (`frontend`) the frontend tab (`tabsOf`). It opens on
  *    the tab last chosen (`chosen`) if it has it, else on the first it
  *    has. A tab's read starts the first time it is shown and runs until
  *    the sheet closes; closing stops every one and empties every one.
  *    Opening while open closes first.
  * 4. The logs tab follows the log (`follow`, the root `logs` read)
- *    into `Fold` for an agent, `ToolFold` for a tool or an account
- *    (whose log is commands alone), each entry unwrapped from its
- *    kind. It is held at its bottom while the history comes in: it
+ *    into `Fold` for an agent, `ToolFold` for a tool — standalone,
+ *    connected or dependency — or an account (whose log is commands
+ *    alone), each entry unwrapped from its kind. It is held at its bottom while the history comes in: it
  *    cannot be scrolled (`loading`) until the read is live, or ends.
  *    Then it stays tethered to its bottom as it grows, and holds still
  *    once scrolled up, until scrolled back down. The tether is the
@@ -292,13 +299,15 @@ export class Sheet {
       const tool = (entry: Entry) =>
         "standalone_tool" in entry
           ? entry.standalone_tool
-          : "dependency_tool" in entry
-            ? entry.dependency_tool
-            : "account" in entry
-              ? entry.account
-              : "admin" in entry
-                ? entry.admin
-                : null;
+          : "connected_standalone_tool" in entry
+            ? entry.connected_standalone_tool
+            : "dependency_tool" in entry
+              ? entry.dependency_tool
+              : "account" in entry
+                ? entry.account
+                : "admin" in entry
+                  ? entry.admin
+                  : null;
       this.following = follow(subject, (entry) => {
         const item = tool(entry);
         if (item) fold.push(item);

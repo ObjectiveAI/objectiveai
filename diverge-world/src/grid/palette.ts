@@ -14,6 +14,7 @@ export const NEON: Record<Kind, number> = {
   account: 0xffe14d,
   agent: 0x22e5ff,
   standalone_tool: 0xff8a1f,
+  connected_standalone_tool: 0x9b7bff,
   dependency_tool: 0xff3df0,
   volume: 0x39ff88,
 };

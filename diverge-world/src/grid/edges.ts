@@ -2,7 +2,7 @@
 // types — calls, attachments and creators.
 
 import type { daemon } from "@diverge/sdk";
-import { accountKey, dependencyKey, type Model, toolKey, volumeKey } from "../world/model";
+import { accountKey, connectedKey, dependencyKey, type Model, toolKey, volumeKey } from "../world/model";
 import type { Snapshot } from "../world/snapshot";
 
 /** The three types of line, in the order their lanes lie. */
@@ -41,13 +41,14 @@ const ordered = (x: string, y: string): [string, string] => (x < y ? [x, y] : [y
  * 1. A call is every way an event pair ran (`model`'s pairs), from its
  *    sender. A mount is not a call.
  * 2. An attachment joins, once per pair and without a way:
- *    a. a standalone tool and every agent it is attached to directly,
- *       and every listed agent of every agent template it is attached
- *       to;
+ *    a. a standalone tool or a connected standalone tool and every
+ *       agent it is attached to directly, and every listed agent of
+ *       every agent template it is attached to;
  *    b. a dependency tool and every agent that depends on it;
  *    c. a volume and every agent and tool that mounts it.
  * 3. A creator runs from the maker to what it made, for every agent,
- *    standalone tool, dependency tool and account whose `creator` is on
+ *    standalone tool, connected standalone tool, dependency tool and
+ *    account whose `creator` is on
  *    the board: the client's account, the agent, the created tool by
  *    its template and index, the dependency tool by its template and
  *    owner. A maker deleted or unlisted draws nothing.
@@ -70,8 +71,8 @@ export function edges(snapshot: Snapshot, made: Model): Edge[] {
   const dependencyAt = new Map(snapshot.dependencies.map((d) => [`${d.id}\n${ownerId(d.owner)}`, dependencyKey(d)]));
   const toolAt = (tool: ToolRef): string | undefined => {
     if ("dependency" in tool) return dependencyAt.get(`${tool.dependency.template}\n${ownerId(tool.dependency.owner)}`);
-    const { origin, index } = tool.record;
-    return origin.kind === "created" ? `standalone_tool:${origin.template}:${index}` : `connected:${origin.daemon}:${index}`;
+    if ("connected_standalone" in tool) return connectedKey(tool.connected_standalone);
+    return toolKey(tool.record);
   };
   // Rule 1.
   for (const p of made.pairs) {
@@ -80,13 +81,14 @@ export function edges(snapshot: Snapshot, made: Model): Edge[] {
     if (p.ba) add(p.a, p.b, "call", p.b);
   }
   // Rule 2a.
-  for (const t of snapshot.tools) {
-    const key = toolKey(t);
+  const attached = (key: string, t: { attached_agent_instances?: { template: string; index: number }[]; attached_agent_templates?: string[] }) => {
     for (const agent of t.attached_agent_instances ?? []) add(key, agentAt(agent), "attachment");
     for (const template of t.attached_agent_templates ?? []) {
       for (const agent of snapshot.agents) if (agent.template === template) add(key, agentAt(agent), "attachment");
     }
-  }
+  };
+  for (const t of snapshot.tools) attached(toolKey(t), t);
+  for (const t of snapshot.connectedTools) attached(connectedKey(t), t);
   // Rule 2b.
   for (const d of snapshot.dependencies) for (const x of d.agents ?? []) add(dependencyKey(d), agentAt(x.agent), "attachment");
   // Rule 2c.
@@ -108,6 +110,7 @@ export function edges(snapshot: Snapshot, made: Model): Edge[] {
   };
   for (const a of snapshot.agents) madeBy(agentAt(a), a.creator);
   for (const t of snapshot.tools) madeBy(toolKey(t), t.creator);
+  for (const t of snapshot.connectedTools) madeBy(connectedKey(t), t.creator);
   for (const d of snapshot.dependencies) madeBy(dependencyKey(d), d.creator);
   for (const a of snapshot.accounts) madeBy(accountKey(a), a.creator);
   return out;

@@ -99,7 +99,7 @@ export class World extends Phaser.Scene {
     this.sheet = new Sheet(() => this.deselect(), (key) => byKey.get(key)?.live?.on === true);
     const size = extent(map.columns, map.rows);
     controls(this, size.width, size.height);
-    const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, dependency_tool: 0, volume: 0, call: 0, attachment: 0, creator: 0 };
+    const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, connected_standalone_tool: 0, dependency_tool: 0, volume: 0, call: 0, attachment: 0, creator: 0 };
     for (const e of map.entities) counts[e.kind]++;
     for (const p of map.pairs) {
       counts.call += (p.ab ? 1 : 0) + (p.ba ? 1 : 0);
