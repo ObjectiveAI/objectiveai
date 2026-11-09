@@ -27,7 +27,7 @@ pub enum Providers {
     Get(get::Arguments),
     /// Listing the providers.
     List(list::Arguments),
-    /// The daemons reached through the providers: discovering them,
+    /// The daemons reached through the providers: listing them,
     /// listening for the messages sent to the daemon, sending one.
     #[command(subcommand)]
     Daemons(daemons::Daemons),
@@ -35,7 +35,7 @@ pub enum Providers {
     /// and enabled.
     Add(add::Arguments),
     /// Editing a provider's record: a change to its direction or its
-    /// discover flag closes its connection.
+    /// listable flag closes its connection.
     Edit(edit::Arguments),
     /// Deleting a disabled provider's record that nothing is pinned to.
     Delete(delete::Arguments),

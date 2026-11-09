@@ -1,14 +1,14 @@
-//! `diverge run providers daemons discover`: discovering peers through
+//! `diverge run providers daemons list`: listing peers through
 //! the providers, as
-//! [`discover`](diverge_sdk::daemon::endpoints::providers::daemons::discover)
+//! [`list`](diverge_sdk::daemon::endpoints::providers::daemons::list)
 //! states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::providers::daemons::discover::{client::request, server::response};
+use diverge_sdk::daemon::endpoints::providers::daemons::list::{client::request, server::response};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Discovering peers through the connected providers.
+/// Listing peers through the connected providers.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -40,10 +40,10 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>("diverge run providers daemons discover", emitter).await;
+            return request_schema::<request::Frame>("diverge run providers daemons list", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>("diverge run providers daemons discover", emitter).await;
+            return response_schema::<response::Frame>("diverge run providers daemons list", emitter).await;
         }
         None => {}
     }

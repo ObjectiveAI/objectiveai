@@ -6,7 +6,7 @@ use diverge_sdk::daemon::endpoints::providers::edit::{client::request, server::r
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Editing a provider's record: a change to its direction or its discover flag closes its connection.
+/// Editing a provider's record: a change to its direction or its listable flag closes its connection.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
