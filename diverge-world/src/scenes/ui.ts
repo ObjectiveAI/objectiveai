@@ -1,25 +1,16 @@
 // The UI scene: the game's menus, over the world with a camera of its
-// own, so they hold still while the map moves. For now, a status line,
-// the legend of the board's kinds and lines, and the Arrange button.
+// own, so they hold still while the map moves: a status line, the
+// legend of the board's kinds and lines, the Arrange button, and the
+// outliner.
 
 import * as Phaser from "phaser";
 import { type EdgeType, TYPES } from "../grid/edges";
 import { css, NEON } from "../grid/palette";
 import { NAMES } from "../grid/styles";
 import type { Kind } from "../world/model";
+import { KIND_ORDER } from "./kinds";
+import { outliner } from "./outliner";
 import { ARRANGE, KINDS, type Kinds, LINES, type Lines, STATUS, type Status } from "./status";
-
-/** The kinds, in the legend's order, each with its sample shape and its name. */
-const KIND_ORDER: [Kind, string, string][] = [
-  ["account", "◎", "accounts"],
-  ["agent", "⬡", "agents"],
-  ["standalone_tool", "◇", "standalone tools"],
-  ["connected_standalone_tool", "◈", "connected tools"],
-  ["daemon", "⊕", "daemons"],
-  ["dependency_tool", "□", "dependency tools"],
-  ["volume", "⛁", "volumes"],
-  ["provider", "▤", "providers"],
-];
 
 /** Each type's sample stroke on the legend. */
 const SAMPLE: Record<EdgeType, string> = { call: "──▸", attachment: "╌╌╌", creator: "o┈┈" };
@@ -87,6 +78,8 @@ type Row = {
  * 3. Beneath the legend, the Arrange row, in the same columns with no
  *    count; pressing it, or the `A` key, tells the board (`ARRANGE`) to
  *    arrange every node shown by the lines shown.
+ * 4. At the window's right, the outliner (`outliner`): every node, by
+ *    kind.
  */
 export class Ui extends Phaser.Scene {
   constructor() {
@@ -94,6 +87,8 @@ export class Ui extends Phaser.Scene {
   }
 
   create() {
+    // Rule 4.
+    outliner(this);
     // Rule 1.
     const status = this.add.text(LEFT, 12, "", STYLE);
     const rows: Row[] = [];

@@ -18,13 +18,16 @@ import { mountsOf } from "../world/mounts";
 import type { Snapshot } from "../world/snapshot";
 import type { Watching } from "../world/watch";
 import { controls } from "./camera";
-import { ARRANGE, type Counts, KINDS, type Kinds, LINES, type Lines, STATUS, type Status } from "./status";
+import { ARRANGE, type Bounds, type Counts, FOCUS, HOVER, KINDS, type Kinds, LINES, type Lines, OUTLINE, OUTLINER, type Outline, SELECTED, STATUS, type Status } from "./status";
 
 /** The selection ring's colour: white light. */
 const RING = 0xffffff;
 
 /** How long nodes take to glide to their arranged places, in milliseconds. */
 const GLIDE = 700;
+
+/** How long the view takes to bring a node the outliner chose to its middle, in milliseconds. */
+const PAN = 400;
 
 /**
  * The board, started by the backdrop; it starts the UI scene over
@@ -60,7 +63,15 @@ const GLIDE = 700;
  *    dragged, or while nodes are still gliding.
  * 7. The hovered node, else the one whose sheet is open, is focused:
  *    its lines stay bright and the rest are faint (`Links.focus`), and
- *    every node it has no line to is dimmed (`setDim`).
+ *    every node it has no line to is dimmed (`setDim`). A row hovered
+ *    in the outliner (`HOVER`) focuses its node as hovering it does.
+ * 8. The outliner is told every node (`OUTLINE`) with its brightness,
+ *    as each world is drawn, and the node whose sheet is open
+ *    (`SELECTED`). A row chosen in it (`FOCUS`) brings its node, if
+ *    shown, to the view's middle over `PAN`, and opens its sheet as
+ *    clicking it would — or keeps it open, if it is open already. The
+ *    view neither pans nor zooms for a press or a wheel over the
+ *    outliner (`OUTLINER`).
  */
 export class Board extends Phaser.Scene {
   private sheet: Sheet | null = null;
@@ -88,6 +99,8 @@ export class Board extends Phaser.Scene {
     this.registry.set(STATUS, { kind: "waiting", reason: null } satisfies Status);
     this.registry.set(LINES, { call: true, attachment: true, creator: true } satisfies Lines);
     this.registry.set(KINDS, { account: true, agent: true, standalone_tool: true, connected_standalone_tool: true, dependency_tool: true, volume: true, provider: true, daemon: true } satisfies Kinds);
+    this.registry.set(OUTLINE, [] satisfies Outline);
+    this.registry.set(SELECTED, null);
     this.scene.launch("ui");
     const show = (_parent: unknown, value: Lines) => {
       this.links?.show(value);
@@ -98,8 +111,14 @@ export class Board extends Phaser.Scene {
     this.registry.events.on(`changedata-${KINDS}`, shown);
     const arranged = () => this.arrange();
     this.game.events.on(ARRANGE, arranged);
+    const focus = (key: string) => this.focus(key);
+    this.game.events.on(FOCUS, focus);
+    const hoverKey = (key: string | null) => this.hoverKey(key);
+    this.game.events.on(HOVER, hoverKey);
     this.events.once("shutdown", () => {
       this.game.events.off(ARRANGE, arranged);
+      this.game.events.off(FOCUS, focus);
+      this.game.events.off(HOVER, hoverKey);
       this.following?.stop();
       this.registry.events.off(`changedata-${LINES}`, show);
       this.registry.events.off(`changedata-${KINDS}`, shown);
@@ -140,7 +159,12 @@ export class Board extends Phaser.Scene {
       }
       return e;
     };
-    controls(this, placed.width, placed.height, () => nodes.dragging(), reach);
+    // Rule 8: a press or a wheel over the outliner is the outliner's.
+    const blocks = (x: number, y: number) => {
+      const b = this.registry.get(OUTLINER) as Bounds | undefined;
+      return b !== undefined && x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
+    };
+    controls(this, placed.width, placed.height, () => nodes.dragging(), reach, blocks);
     this.count(read, made);
   }
 
@@ -220,8 +244,9 @@ export class Board extends Phaser.Scene {
     }
   }
 
-  /** Rule 3: the legend's counts, as the world has them. */
+  /** Rule 3: the legend's counts, as the world has them; rule 8: the outliner's nodes. */
   private count(read: Snapshot, made: Model) {
+    this.registry.set(OUTLINE, made.entities.map((e) => ({ key: e.key, kind: e.kind, label: e.label, bright: this.bright.get(e.key) === true })) satisfies Outline);
     const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, connected_standalone_tool: 0, dependency_tool: 0, volume: 0, provider: 0, daemon: 0, call: 0, attachment: 0, creator: 0 };
     for (const e of made.entities) counts[e.kind]++;
     for (const e of this.edges) counts[e.type]++;
@@ -244,6 +269,7 @@ export class Board extends Phaser.Scene {
     if (selected && !selected.image.visible) {
       this.sheet?.close();
       this.selected = null;
+      this.registry.set(SELECTED, null);
       this.ring?.setVisible(false);
     }
     const hovered = this.hovered === null ? undefined : nodes.byKey.get(this.hovered);
@@ -304,6 +330,7 @@ export class Board extends Phaser.Scene {
     const node = this.nodes?.byKey.get(entity.key);
     if (!(entity.subject || entity.files) || !node || !this.ring) return;
     this.selected = entity.key;
+    this.registry.set(SELECTED, entity.key);
     this.ring.setPosition(node.image.x, node.image.y).setRadius(REACH[entity.kind] + 10).setVisible(true);
     this.refocus();
     this.sheet?.open({ entity, images: this.images });
@@ -312,7 +339,26 @@ export class Board extends Phaser.Scene {
   /** Rule 5: the sheet closed, so nothing is selected. */
   private deselect() {
     this.selected = null;
+    this.registry.set(SELECTED, null);
     this.ring?.setVisible(false);
+    this.refocus();
+  }
+
+  /** Rule 8: a row chosen in the outliner. */
+  private focus(key: string) {
+    const node = this.nodes?.byKey.get(key);
+    if (!node || !node.image.visible) return;
+    const at = where(node);
+    this.cameras.main.pan(at.x, at.y, PAN, "Cubic.easeInOut");
+    if (this.selected !== key) this.select(node.entity);
+  }
+
+  /** Rule 7: a row hovered in the outliner, or left. */
+  private hoverKey(key: string | null) {
+    const node = key === null ? undefined : this.nodes?.byKey.get(key);
+    const next = node?.image.visible ? key : null;
+    if (this.hovered === next) return;
+    this.hovered = next;
     this.refocus();
   }
 

@@ -14,6 +14,8 @@ is named, so the two can be checked against each other.
   lines as events happen.
 - A panel at the top left shows and hides each kind of node and each
   type of line, with counts, and can arrange the board.
+- An outliner at the top right lists every node by kind; clicking one
+  flies the view to it and opens its sheet.
 - Clicking a node opens a sheet along the bottom: its **logs**, its
   **filesystem**, a **console** into its container, and — for an agent
   or a tool that serves one — its **frontend**, its own web page.
@@ -110,6 +112,8 @@ is named, so the two can be checked against each other.
 - **Pan:** drag the empty board with any mouse button.
 - **Zoom:** the mouse wheel, from a quarter size to three times, around
   the pointer.
+- **Not over the outliner:** a drag that starts on the outliner, or the
+  wheel over it, does not move the view.
 - **Bounds:** the view's middle can roam twice the width and height of
   the area the nodes cover, around its middle, and no further — so you
   can always reach every node however far you zoom.
@@ -186,6 +190,30 @@ names and counts each line up. The keys are not printed.
   can give a different, often better, layout.
 - It does nothing while a node is being dragged or nodes are still
   gliding.
+
+---
+
+## The outliner
+
+`scenes/outliner.ts`
+
+- **Where:** the top right of the window, as tall as its rows need and
+  no taller than the window.
+- **Sections:** one per kind, in the legend's order — accounts, agents,
+  standalone tools, connected tools, daemons, dependency tools, volumes,
+  providers. Each header shows its shape, its name and how many it
+  holds; click it to fold or unfold the section (`▾` open, `▸` folded).
+- **Rows:** every node of that kind, by name, with its shape and a dot
+  that is green while the node is bright.
+- **Click a row:** the view flies to the node and its sheet opens (a
+  provider or a daemon has no sheet, so the view only flies there).
+- **Hover a row:** the node's lines are focused, as hovering the node
+  itself does.
+- **The open sheet's row** is lit.
+- **A hidden kind** (from the legend) has its section drawn faint, and
+  clicking its rows does nothing.
+- **Scrolling:** the wheel over the outliner scrolls it when its rows
+  outgrow the window.
 
 ---
 
