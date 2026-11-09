@@ -22,7 +22,6 @@ pub mod filetree;
 pub mod frontend;
 pub mod get;
 pub mod list;
-pub mod register;
 pub mod tag;
 pub mod templates;
 pub mod terminal;
@@ -68,8 +67,6 @@ pub enum StandaloneTools {
     Get(get::Arguments),
     /// Listing a caller's tools.
     List(list::Arguments),
-    /// Registering a tool another daemon holds, under a name.
-    Register(register::Arguments),
     /// Putting tags on a tool.
     Tag(tag::Arguments),
     /// The requests over standalone tool templates.
@@ -115,7 +112,6 @@ pub async fn run(
         StandaloneTools::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         StandaloneTools::Get(arguments) => get::run(arguments, target, emitter).await,
         StandaloneTools::List(arguments) => list::run(arguments, target, emitter).await,
-        StandaloneTools::Register(arguments) => register::run(arguments, target, emitter).await,
         StandaloneTools::Tag(arguments) => tag::run(arguments, target, emitter).await,
         StandaloneTools::Templates(command) => templates::run(command, target, emitter).await,
         StandaloneTools::Transfer(arguments) => transfer::run(arguments, target, emitter).await,

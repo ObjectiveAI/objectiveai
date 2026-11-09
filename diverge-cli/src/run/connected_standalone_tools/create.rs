@@ -1,16 +1,16 @@
-//! `diverge run standalone-tools register`: registering a tool another
-//! daemon holds, under a name, as
-//! [`register`](diverge_sdk::daemon::endpoints::standalone_tools::register)
+//! `diverge run connected-standalone-tools create`: holding a
+//! standalone tool another daemon holds, under a name, as
+//! [`create`](diverge_sdk::daemon::endpoints::connected_standalone_tools::create)
 //! states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::standalone_tools::register::{
+use diverge_sdk::daemon::endpoints::connected_standalone_tools::create::{
     client::request, server::response,
 };
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Registering a tool another daemon holds, under a name.
+/// Holding a standalone tool another daemon holds, under a name.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -35,14 +35,14 @@ pub async fn run(
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
             return request_schema::<request::Frame>(
-                "diverge run standalone-tools register",
+                "diverge run connected-standalone-tools create",
                 emitter,
             )
             .await;
         }
         Some(Below::ResponseSchema(_)) => {
             return response_schema::<response::Frame>(
-                "diverge run standalone-tools register",
+                "diverge run connected-standalone-tools create",
                 emitter,
             )
             .await;

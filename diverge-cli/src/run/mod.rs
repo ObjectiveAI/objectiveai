@@ -3,7 +3,8 @@
 //! `diverge run <family> [<family>…] <request> [BODY]`: the tree of
 //! subcommands is the daemon's own tree of families and requests —
 //! `agents create`, `standalone-tools templates list`,
-//! `daemons add`, `events list` — and the tree of files
+//! `connected-standalone-tools create`, `daemons add`, `events list`
+//! — and the tree of files
 //! under this module is the same tree, one folder per family and one
 //! file per request, each file holding the request's arguments and its
 //! run. What a request alone takes is on its own leaf: the eight that
@@ -59,6 +60,7 @@ pub mod shape;
 
 pub mod accounts;
 pub mod agents;
+pub mod connected_standalone_tools;
 pub mod daemons;
 pub mod dependency_tools;
 pub mod events;
@@ -117,8 +119,13 @@ pub enum Command {
     /// The requests over agents, and their templates.
     #[command(subcommand)]
     Agents(agents::Agents),
+    /// The requests over connected standalone tools: another daemon's
+    /// standalone tools, held here under names, for this daemon's
+    /// agents.
+    #[command(subcommand)]
+    ConnectedStandaloneTools(connected_standalone_tools::ConnectedStandaloneTools),
     /// The requests over the remote daemons' records: relays and
-    /// connected tools name them.
+    /// connected standalone tools name them.
     #[command(subcommand)]
     Daemons(daemons::Daemons),
     /// The requests over dependency tools.
@@ -191,6 +198,9 @@ async fn dispatch(
     match command {
         Command::Accounts(command) => accounts::run(command, target, emitter).await,
         Command::Agents(command) => agents::run(command, target, emitter).await,
+        Command::ConnectedStandaloneTools(command) => {
+            connected_standalone_tools::run(command, target, emitter).await
+        }
         Command::Daemons(command) => daemons::run(command, target, emitter).await,
         Command::DependencyTools(command) => dependency_tools::run(command, target, emitter).await,
         Command::Events(command) => events::run(command, target, emitter).await,
