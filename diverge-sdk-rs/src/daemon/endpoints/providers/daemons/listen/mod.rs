@@ -6,7 +6,7 @@
 //! The rules:
 //!
 //! 1. **Every connected provider.** The messages are those of every
-//!    connected provider's own `messages::listen`, merged: at most one
+//!    connected provider's own `daemons::listen`, merged: at most one
 //!    listen per provider, however many clients listen.
 //! 2. **Every listener hears every message.** Each client listening
 //!    reads the same merged messages, at its own pace; none waits for

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::shared::containers::request::Image;
-use crate::shared::discover::Description;
+use crate::shared::description::Description;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 

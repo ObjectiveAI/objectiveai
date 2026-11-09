@@ -5,7 +5,7 @@ use std::num::NonZeroU32;
 use serde::{Deserialize, Serialize};
 
 /// The rate at which a provider relays
-/// [`messages`](crate::provider::endpoints::messages): at most
+/// [`daemons`](crate::provider::endpoints::daemons) messages: at most
 /// `messages` sends per sending identity in a fixed window of
 /// `seconds`. The rules:
 ///
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 ///    identity, to every receiver together.
 ///
 /// What counts, and when a window begins, is
-/// [`messages::send`](crate::provider::endpoints::messages::send)'s.
+/// [`daemons::message`](crate::provider::endpoints::daemons::message)'s.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]

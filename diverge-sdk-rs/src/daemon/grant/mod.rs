@@ -106,10 +106,11 @@
 //! lists of actions. A grant that names nothing becomes one of
 //! these by [`From`]: the same actions, reaching by a filter of the
 //! tags alone, which is how a dependency tool's requests are judged.
-//! The providers' grant is the one exception: their list filter names
-//! no tags, so a grant over them reaches by the shared
+//! The providers' grants are the exception: their list filter names no
+//! tags, so a grant over them, or through them, reaches by the shared
 //! [`Tags`](crate::shared::permission::Tags) test itself, and
-//! [`providers`] is the shared module, re-exported whole.
+//! [`providers`] and [`providers_daemons`] are the shared modules,
+//! re-exported whole.
 
 mod convert;
 mod grant;
@@ -124,6 +125,7 @@ pub mod standalone_tools;
 pub mod standalone_tools_templates;
 pub mod dependency_tools;
 pub use crate::shared::permission::providers;
+pub use crate::shared::permission::providers_daemons;
 pub mod daemons;
 pub mod accounts;
 pub mod roles;

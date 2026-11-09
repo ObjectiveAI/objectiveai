@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{accounts, agents, agents_templates, dependency_tools, daemons, events, identities, images, postgres, providers, roles, standalone_tools, standalone_tools_templates, vault, volumes};
+use super::{accounts, agents, agents_templates, dependency_tools, daemons, events, identities, images, postgres, providers, providers_daemons, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 
 /// One grant that names nothing: a permission over one kind of thing
 /// the daemon holds, reaching by tags alone. Externally tagged by the
@@ -12,7 +12,7 @@ use super::{accounts, agents, agents_templates, dependency_tools, daemons, event
 /// [`permission`](crate::shared::permission) states. Snake case on the
 /// wire: `"agents"`, `"agents_templates"`, `"standalone_tools"`,
 /// `"standalone_tools_templates"`, `"dependency_tools"`,
-/// `"providers"`, `"daemons"`, `"accounts"`,
+/// `"providers"`, `"providers_daemons"`, `"daemons"`, `"accounts"`,
 /// `"roles"`, `"volumes"`, `"vault"`, `"postgres"`, `"events"`, `"images"`,
 /// `"identities"` — the
 /// kinds of the daemon's [`Grant`](crate::daemon::grant::Grant), which
@@ -34,6 +34,9 @@ pub enum Grant {
     DependencyTools(dependency_tools::Permission),
     /// Over the daemon's providers: see [`providers::Permission`].
     Providers(providers::Permission),
+    /// Through the daemon's providers, over the daemons connected to
+    /// them: see [`providers_daemons::Permission`].
+    ProvidersDaemons(providers_daemons::Permission),
     /// Over the remote daemons it reaches: see [`daemons::Permission`].
     Daemons(daemons::Permission),
     /// Over accounts: see [`accounts::Permission`].

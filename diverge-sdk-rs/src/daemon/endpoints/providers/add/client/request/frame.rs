@@ -19,10 +19,10 @@ pub struct Frame {
     /// beside the request's own, under `direction`.
     #[serde(flatten)]
     pub direction: Direction,
-    /// Whether the daemon is discoverable to the provider: listed to its
-    /// `discover`, with the daemon's description. Absent, `false`.
+    /// Whether the daemon is listable to the provider: listed by its
+    /// `daemons::list`, with the daemon's description. Absent, `false`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub discover: bool,
+    pub listable: bool,
     /// Whether the daemon works with it from now on. Absent, `true`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,

@@ -3,12 +3,13 @@
 use std::fmt;
 use std::str::{self, Utf8Error};
 
-use crate::shared::discover::{Description, DescriptionError, Discover};
+use crate::shared::description::{Description, DescriptionError};
+use crate::shared::listable::Listable;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// The payload of an [`Auth`](super::client::ClientFrame::Auth) frame,
-/// in either direction: the discover flag, a description with it, and a
+/// in either direction: the listable flag, a description with it, and a
 /// token.
 ///
 /// One type for both ends, because each end sends exactly one — the
@@ -19,10 +20,10 @@ use crate::wire::encode::{Encode, Writer};
 /// # The layout
 ///
 /// 1. **The flag.** The first byte: `0`, the sender is not
-///    discoverable; `1`, it is, with no description; or `2`, it is,
+///    listable; `1`, it is, with no description; or `2`, it is,
 ///    with a description. Any other byte is malformed. Only a provider
-///    honors it — it lists the sender to its
-///    [`discover`](crate::provider::endpoints::discover) — and every
+///    honors it — it lists the sender in its
+///    [`daemons::list`](crate::provider::endpoints::daemons::list) — and every
 ///    other receiver reads it and ignores it.
 /// 2. **The description.** After the flag `2` only: its length in
 ///    bytes as a `u16`, big-endian, and then that many bytes, the
@@ -40,21 +41,21 @@ use crate::wire::encode::{Encode, Writer};
 /// bounded in length. Each end judges the other's by its own means.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Auth<'a> {
-    /// Whether the sender may be listed by a provider's `discover`,
+    /// Whether the sender may be listed by a provider's `daemons::list`,
     /// and with what description.
-    pub discover: Discover,
+    pub listable: Listable,
     /// The token, the payload's every byte after the flag and the
     /// description.
     pub token: &'a str,
 }
 
-/// Tag for [`Discover::Hidden`].
+/// Tag for [`Listable::Hidden`].
 const HIDDEN: u8 = 0;
 
-/// Tag for [`Discover::Listed`] with no description.
+/// Tag for [`Listable::Listed`] with no description.
 const LISTED: u8 = 1;
 
-/// Tag for [`Discover::Listed`] with a description.
+/// Tag for [`Listable::Listed`] with a description.
 const DESCRIBED: u8 = 2;
 
 /// The flag's byte, the description's length and bytes after the flag
@@ -65,10 +66,10 @@ impl Encode for Auth<'_> {
     type Error = std::convert::Infallible;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        match &self.discover {
-            Discover::Hidden => out.extend_from_slice(&[HIDDEN]),
-            Discover::Listed(None) => out.extend_from_slice(&[LISTED]),
-            Discover::Listed(Some(description)) => {
+        match &self.listable {
+            Listable::Hidden => out.extend_from_slice(&[HIDDEN]),
+            Listable::Listed(None) => out.extend_from_slice(&[LISTED]),
+            Listable::Listed(Some(description)) => {
                 let text = description.as_str().as_bytes();
                 out.extend_from_slice(&[DESCRIBED]);
                 out.extend_from_slice(&(text.len() as u16).to_be_bytes());
@@ -90,9 +91,9 @@ impl<'a> Decode<'a> for Auth<'a> {
         let Some((&flag, rest)) = bytes.split_first() else {
             return Err(AuthError::Empty);
         };
-        let (discover, token) = match flag {
-            HIDDEN => (Discover::Hidden, rest),
-            LISTED => (Discover::Listed(None), rest),
+        let (listable, token) = match flag {
+            HIDDEN => (Listable::Hidden, rest),
+            LISTED => (Listable::Listed(None), rest),
             DESCRIBED => {
                 let Some((length, rest)) = rest.split_first_chunk::<2>() else {
                     return Err(AuthError::Short);
@@ -104,15 +105,15 @@ impl<'a> Decode<'a> for Auth<'a> {
                 let (text, rest) = rest.split_at(length);
                 let text = str::from_utf8(text).map_err(AuthError::Utf8)?;
                 let description = Description::new(text).map_err(AuthError::Description)?;
-                (Discover::Listed(Some(description)), rest)
+                (Listable::Listed(Some(description)), rest)
             }
-            other => return Err(AuthError::Discover(other)),
+            other => return Err(AuthError::Listable(other)),
         };
         if token.is_empty() {
             return Err(AuthError::Empty);
         }
         let token = str::from_utf8(token).map_err(AuthError::Utf8)?;
-        Ok(Auth { discover, token })
+        Ok(Auth { listable, token })
     }
 }
 
@@ -123,7 +124,7 @@ pub enum AuthError {
     /// No bytes at all, or a flag and no token.
     Empty,
     /// The flag was none of `0`, `1` and `2`.
-    Discover(u8),
+    Listable(u8),
     /// The description's length, or its bytes, ran past the payload.
     Short,
     /// The description, or the token, was not UTF-8.
@@ -136,7 +137,7 @@ impl fmt::Display for AuthError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AuthError::Empty => f.write_str("the auth payload holds no token"),
-            AuthError::Discover(byte) => write!(f, "the discover flag is {byte}, none of 0, 1 and 2"),
+            AuthError::Listable(byte) => write!(f, "the listable flag is {byte}, none of 0, 1 and 2"),
             AuthError::Short => f.write_str("the auth payload's description runs past its end"),
             AuthError::Utf8(error) => write!(f, "the auth payload is not utf-8: {error}"),
             AuthError::Description(error) => write!(f, "the auth payload's description is not one: {error}"),
@@ -149,7 +150,7 @@ impl std::error::Error for AuthError {
         match self {
             AuthError::Utf8(error) => Some(error),
             AuthError::Description(error) => Some(error),
-            AuthError::Empty | AuthError::Discover(_) | AuthError::Short => None,
+            AuthError::Empty | AuthError::Listable(_) | AuthError::Short => None,
         }
     }
 }

@@ -13,10 +13,10 @@ use crate::wire::connection::Connection;
 /// 2. That token is verified by `authenticator`, `address` being the
 ///    connector's, which names the connector's issuer.
 /// 3. This end's token from that same issuer, from `authenticator`, is
-///    sent as this end's first frame, under the discover flag and
+///    sent as this end's first frame, under the listable flag and
 ///    description
 ///    `authenticator` gives for that connector — see
-///    [`discoverable`](Authenticator::discoverable).
+///    [`listable`](Authenticator::listable).
 ///
 /// A failure after step 2 accepted the connector is reported to
 /// `authenticator` as [`abandon`](Authenticator::abandon)ed. Every
@@ -25,9 +25,9 @@ use crate::wire::connection::Connection;
 /// at, earns no frame. The caller drops the connection, and the close
 /// is the whole answer.
 pub async fn accept(mut connection: Connection, authenticator: &dyn Authenticator, address: IpAddr) -> Result<Handshook, Error> {
-    let (token, discover) = receive(&mut connection).await?;
+    let (token, listable) = receive(&mut connection).await?;
     let peer = authenticator.verify(&token, address).await.map_err(Error::Refused)?;
-    let flag = authenticator.discoverable(&peer).await;
+    let flag = authenticator.listable(&peer).await;
     let answered = match authenticator.present(&peer.issuer).await {
         Ok(answer) => send(&mut connection, &answer, flag).await,
         Err(reason) => Err(Error::Present(reason)),
@@ -36,5 +36,5 @@ pub async fn accept(mut connection: Connection, authenticator: &dyn Authenticato
         authenticator.abandon(&peer).await;
         return Err(error);
     }
-    Ok(Handshook { connection, peer, discover })
+    Ok(Handshook { connection, peer, listable })
 }

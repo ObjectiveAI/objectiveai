@@ -21,9 +21,9 @@ use crate::shared::listing::Keyed;
 /// 3. **Ours** is `identity`, the identity this daemon presents to it,
 ///    one of the host's; its issuer is the remote's, the one issuer the
 ///    handshake between the two speaks.
-/// 4. **Reached** through any connected provider whose discover listing
+/// 4. **Reached** through any connected provider whose daemons list
 ///    holds `daemon` by a route its [`Routes`] let through: the remote is
-///    reachable exactly while it is discoverable so on one of them.
+///    reachable exactly while it is listable so on one of them.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Daemon {

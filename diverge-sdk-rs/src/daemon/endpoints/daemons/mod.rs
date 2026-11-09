@@ -19,13 +19,13 @@
 //! 1. **Several accounts.** Several records may name the same remote:
 //!    each is another account of ours there, or the same account by
 //!    other routes, and its ID says which.
-//! 2. **Reached through discovery.** The daemon reaches a remote through
-//!    a connected provider whose discover listing holds the remote's
+//! 2. **Reached through the listings.** The daemon reaches a remote through
+//!    a connected provider whose daemons list holds the remote's
 //!    identity — one route, a
-//!    [`Via`](crate::daemon::endpoints::providers::daemons::discover::server::response::Via)
+//!    [`Via`](crate::daemon::endpoints::providers::daemons::list::server::response::Via)
 //!    — and holds those listings open while it is reaching remotes, as
-//!    [`providers::daemons::discover`](crate::daemon::endpoints::providers::daemons::discover)
-//!    holds them while watched. A remote that is discoverable on no
+//!    [`providers::daemons::list`](crate::daemon::endpoints::providers::daemons::list)
+//!    holds them while watched. A remote that is listable on no
 //!    connected provider is not reached.
 //! 2a. **Through the routes its record lets through.** Of those routes,
 //!    only the ones the record's [`Routes`] let through are candidates,

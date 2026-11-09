@@ -9,7 +9,7 @@ use tokio::sync::watch;
 use super::super::super::server::response;
 use super::super::request;
 use super::Connected;
-use crate::shared::discover::Discover;
+use crate::shared::listable::Listable;
 use crate::shared::error::Error;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::connection::Connection;
@@ -63,7 +63,7 @@ pub async fn execute(
     tokio::spawn(outward(scope.request_receiver, from_handle, handle.clone(), scope.scope));
     let unknown = std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED);
     let Handshook { connection, peer, .. } =
-        handshake::connect(Connection::Local { incoming, outgoing }, issuer, Discover::Hidden, authenticator, unknown).await.map_err(ExecuteError::Handshake)?;
+        handshake::connect(Connection::Local { incoming, outgoing }, issuer, Listable::Hidden, authenticator, unknown).await.map_err(ExecuteError::Handshake)?;
     let (daemon, router) = Handle::open(connection);
     let (ended, ended_receiver) = watch::channel(false);
     tokio::spawn(async move {

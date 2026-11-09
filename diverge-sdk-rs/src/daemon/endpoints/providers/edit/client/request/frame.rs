@@ -23,9 +23,9 @@ pub struct Frame {
     /// request's own under `direction`. Absent, the record's.
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub direction: Option<Direction>,
-    /// The discover flag, in place of the record's.
+    /// The listable flag, in place of the record's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub discover: Option<bool>,
+    pub listable: Option<bool>,
     /// The description, in place of the record's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,

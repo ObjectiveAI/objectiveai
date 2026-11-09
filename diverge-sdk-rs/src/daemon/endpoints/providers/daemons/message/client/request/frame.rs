@@ -16,7 +16,7 @@ use crate::wire::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The identity to message, as discovery lists it.
+    /// The identity to message, as the providers daemons list lists it.
     pub to: Identity,
     /// The body, as standard base64 in JSON. Neither the daemon nor a
     /// provider reads it, and neither prescribes a format for it.

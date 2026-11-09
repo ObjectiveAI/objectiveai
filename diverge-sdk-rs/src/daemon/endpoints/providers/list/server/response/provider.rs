@@ -12,7 +12,7 @@ use crate::shared::listing::Keyed;
 /// One provider the daemon keeps a record of: its identity, the
 /// direction its connection is made in — its members beside the
 /// record's own, under `direction` — whether the daemon is
-/// discoverable to it and whether it is enabled, what it is in the
+/// listable to it and whether it is enabled, what it is in the
 /// caller's words and its tags, who made the record and when, and
 /// where the daemon stands with it now — and, connected, what the
 /// provider answered its `info` and `capacity` asks.
@@ -25,9 +25,9 @@ pub struct Provider {
     /// How the connection is made: see [`Direction`].
     #[serde(flatten)]
     pub direction: Direction,
-    /// Whether the daemon is discoverable to it: listed to its
-    /// `discover`, with the daemon's description.
-    pub discover: bool,
+    /// Whether the daemon is listable to it: listed by its
+    /// `daemons::list`, with the daemon's description.
+    pub listable: bool,
     /// Whether the daemon works with it: dials it, or admits it.
     pub enabled: bool,
     /// What it is, in the caller's words; empty where none was given.

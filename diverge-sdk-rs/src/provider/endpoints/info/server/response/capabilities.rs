@@ -108,8 +108,8 @@ pub struct Capabilities {
     pub volumes_read_only: VolumeCapabilities,
     /// The provider relays messages between the identities connected
     /// to it: it answers
-    /// [`messages::listen`](crate::provider::endpoints::messages::listen)
-    /// and [`messages::send`](crate::provider::endpoints::messages::send),
+    /// [`daemons::listen`](crate::provider::endpoints::daemons::listen)
+    /// and [`daemons::message`](crate::provider::endpoints::daemons::message),
     /// at no more than this rate. Absent, it relays none, and each of
     /// the two answers `Unsupported`, the first and only response of
     /// its scope. See [`MessagesCapabilities`].

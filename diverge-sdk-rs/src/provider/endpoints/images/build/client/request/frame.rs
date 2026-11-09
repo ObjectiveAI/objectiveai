@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::Context;
-use crate::shared::discover::Description;
+use crate::shared::description::Description;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};

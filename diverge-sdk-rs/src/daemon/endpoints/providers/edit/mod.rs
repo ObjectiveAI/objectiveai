@@ -1,5 +1,5 @@
 //! Editing a provider's record, by its identity: every member given
-//! replaces the record's. A change to its direction or its discover
+//! replaces the record's. A change to its direction or its listable
 //! flag closes its connection, and the daemon reaches it again as the
 //! record now stands. One request, one answer, and the scope finishes.
 //!

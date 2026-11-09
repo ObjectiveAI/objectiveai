@@ -106,6 +106,7 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
             },
         }),
         permission::Grant::Providers(permission) => Grant::Providers(permission),
+        permission::Grant::ProvidersDaemons(permission) => Grant::ProvidersDaemons(permission),
         permission::Grant::Daemons(permission) => Grant::Daemons(match permission {
             permission::daemons::Permission::Make(makes) => daemons::Permission::Make(makes),
             permission::daemons::Permission::Over { actions, within } => daemons::Permission::Over {

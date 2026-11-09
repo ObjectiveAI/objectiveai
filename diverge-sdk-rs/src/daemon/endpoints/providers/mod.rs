@@ -5,7 +5,7 @@
 //! provider [`Identity`](crate::shared::Identity), each with the
 //! [`Direction`] its connection is made in — the provider dials the
 //! daemon, from the IPs it may, or the daemon dials it — whether
-//! the daemon is discoverable to it, and whether it is enabled. The
+//! the daemon is listable to it, and whether it is enabled. The
 //! rules:
 //!
 //! 1. **By identity.** Whichever end dialled, the mutual handshake
@@ -16,7 +16,7 @@
 //!    provider identity at a time.
 //! 3. **Changes take effect at once.** [`add`] dials an outgoing
 //!    provider; [`edit`] closes the connection when the direction or
-//!    the discover flag changes, and the provider is reached again as
+//!    the listable flag changes, and the provider is reached again as
 //!    the record now stands; [`enable`] dials or admits it again;
 //!    [`disable`] stops the dial, refuses a dial in, closes the
 //!    connection, and takes down every run on it, each run's log
@@ -45,8 +45,8 @@
 //! # And the daemons beyond them
 //!
 //! [`daemons`] holds the three requests over the daemons reached
-//! through the providers: [`daemons::discover`] lists the identities
-//! discoverable through the connected providers, what a
+//! through the providers: [`daemons::list`] lists the identities
+//! listable through the connected providers, what a
 //! [`daemons`](crate::daemon::endpoints::daemons) record names a remote
 //! by; [`daemons::listen`] hears the messages sent to the daemon through
 //! them; [`daemons::message`] sends one through them.

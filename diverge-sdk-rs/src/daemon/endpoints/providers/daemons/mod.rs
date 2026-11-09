@@ -1,7 +1,7 @@
-//! The daemons reached through the providers: who is discoverable on
+//! The daemons reached through the providers: who is listable on
 //! them, and the direct messages sent through them.
 //!
-//! [`discover`] lists the identities discoverable through the
+//! [`list`] lists the identities listable through the
 //! connected providers: what a [`daemons`](crate::daemon::endpoints::daemons)
 //! record names a remote by. [`listen`] hears the messages sent to the
 //! daemon through them, and [`message`] sends one through them.
@@ -9,7 +9,7 @@
 //! The rules:
 //!
 //! 1. **Judged over providers.** Each of the three is judged by the
-//!    providers grant — its `discover`, `listen` and `message` actions —
+//!    `providers_daemons` grant — its `list`, `listen` and `message` actions —
 //!    and not by a grant over identities: what each reaches is the
 //!    providers the grant reaches.
 //! 2. **Only those providers.** A listing holds only the routes through
@@ -17,6 +17,6 @@
 //!    messages that came through them, and a message is sent through no
 //!    other.
 
-pub mod discover;
+pub mod list;
 pub mod listen;
 pub mod message;

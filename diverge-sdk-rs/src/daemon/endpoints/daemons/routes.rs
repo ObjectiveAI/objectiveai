@@ -3,11 +3,11 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::providers::Ip;
-use crate::daemon::endpoints::providers::daemons::discover::server::response::Via;
+use crate::daemon::endpoints::providers::daemons::list::server::response::Via;
 use crate::shared::Identity;
 
 /// The routes a record lets the daemon reach its remote by, out of the
-/// [`Via`]s discovery holds for it: three filters, each optional, their
+/// [`Via`]s the listings hold for it: three filters, each optional, their
 /// members beside the record's own. The rules:
 ///
 /// 1. **Absent is no filter.** A filter not given, or given as an empty
@@ -26,7 +26,7 @@ use crate::shared::Identity;
 ///    the remote has no address, and passes no `addresses` filter.
 /// 6. **Filters, not checks.** Nothing here is checked when the record
 ///    is added or edited: a provider named need not be connected, and
-///    the filters are applied to discovery as it stands at each
+///    the filters are applied to the listings as they stand at each
 ///    connect.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]

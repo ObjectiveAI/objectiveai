@@ -5,7 +5,7 @@
 //! The rules:
 //!
 //! 1. **The daemon chooses the provider.** The client names none. The
-//!    daemon sends through a provider whose discover listing holds the
+//!    daemon sends through a provider whose daemons list holds the
 //!    identity listening, that the account's providers grant reaches
 //!    with `message`, choosing the one with the most of its rate left.
 //! 2. **Never refused for another send.** A provider holds one send

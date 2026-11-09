@@ -4,8 +4,8 @@
 //! with. What a grant may ask over them, in the shapes
 //! [`permission`](crate::shared::permission) states: [`Make`], the
 //! action that records one; [`Over`], the actions over the records —
-//! reading, listing, discovering, listening and messaging through them,
-//! changing, deleting, enabling and disabling one — reaching by tags;
+//! reading, listing, asking them for images, changing, deleting,
+//! enabling and disabling one — reaching by tags;
 //! and [`Permission`], one grant's worth of either, or of tagging.
 //!
 //! Its own files are flattened into it, so everything is named

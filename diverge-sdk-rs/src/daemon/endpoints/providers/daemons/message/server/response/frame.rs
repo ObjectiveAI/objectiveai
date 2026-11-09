@@ -45,7 +45,7 @@ pub enum Frame {
     /// through, but listens through none, or stopped before it took the
     /// message. Tag `1`.
     NotListening,
-    /// No connected provider's discover listing holds the identity.
+    /// No connected provider's daemons list holds the identity.
     /// Tag `2`.
     NotFound,
     /// The account holds no grant allowing it, or the identity is

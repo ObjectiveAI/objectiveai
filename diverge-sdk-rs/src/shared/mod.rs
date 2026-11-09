@@ -34,8 +34,9 @@
 //! provider is made of: how it authenticates, and what the acceptor is
 //! told of it.
 //!
-//! [`discover`] is what a party's authorization frame says of listing
-//! it to a provider's `discover`, and the description it is listed with.
+//! [`listable`] is what a party's authorization frame says of listing
+//! it to a provider's `daemons::list`; [`description`] is the one line
+//! it is listed with, which an image is described by too.
 //!
 //! [`canonical`] is the one form a value is hashed in — compact JSON
 //! with every object key sorted at every depth — which every id that
@@ -57,9 +58,10 @@ pub mod base64;
 pub mod canonical;
 pub mod containers;
 pub mod daemons;
-pub mod discover;
+pub mod description;
 pub mod error;
 pub mod filetree;
+pub mod listable;
 pub mod listing;
 pub mod mcp;
 pub mod nullable;

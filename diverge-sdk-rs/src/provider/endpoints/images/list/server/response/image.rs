@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::shared::discover::Description;
+use crate::shared::description::Description;
 use crate::shared::listing::Keyed;
 
 /// An image the caller owns in its Store on the provider: one it

@@ -3,7 +3,7 @@
 use std::convert::Infallible;
 use std::fmt;
 
-use super::{capacity, containers, daemons, discover, images, info, messages, volumes};
+use super::{capacity, containers, daemons, images, info, volumes};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -84,12 +84,12 @@ pub enum ClientRequest<'a> {
     DaemonsAccept(daemons::accept::client::request::Frame),
     /// Tag `25`. Connect to another daemon.
     DaemonsConnect(daemons::connect::client::request::Frame),
-    /// Tag `26`. Ask which connected identities are discoverable.
-    Discover(discover::client::request::Frame),
+    /// Tag `26`. Ask which connected identities are listable.
+    DaemonsList(daemons::list::client::request::Frame),
     /// Tag `27`. Listen for the messages sent to the caller.
-    MessagesListen(messages::listen::client::request::Frame),
+    DaemonsListen(daemons::listen::client::request::Frame),
     /// Tag `28`. Send one message to one identity.
-    MessagesSend(messages::send::client::request::Frame<'a>),
+    DaemonsMessage(daemons::message::client::request::Frame<'a>),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -212,9 +212,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::DaemonsConnect(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
-            ClientRequest::Discover(frame) => frame.encode(out).map_err(|error| match error {}),
-            ClientRequest::MessagesListen(frame) => frame.encode(out).map_err(|error| match error {}),
-            ClientRequest::MessagesSend(frame) => {
+            ClientRequest::DaemonsList(frame) => frame.encode(out).map_err(|error| match error {}),
+            ClientRequest::DaemonsListen(frame) => frame.encode(out).map_err(|error| match error {}),
+            ClientRequest::DaemonsMessage(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::Invalid(bytes) => {
@@ -319,14 +319,14 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             25 => daemons::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::DaemonsConnect)
                 .ok(),
-            26 => discover::client::request::Frame::decode(bytes)
-                .map(ClientRequest::Discover)
+            26 => daemons::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsList)
                 .ok(),
-            27 => messages::listen::client::request::Frame::decode(bytes)
-                .map(ClientRequest::MessagesListen)
+            27 => daemons::listen::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsListen)
                 .ok(),
-            28 => messages::send::client::request::Frame::decode(bytes)
-                .map(ClientRequest::MessagesSend)
+            28 => daemons::message::client::request::Frame::decode(bytes)
+                .map(ClientRequest::DaemonsMessage)
                 .ok(),
             _ => None,
         };
