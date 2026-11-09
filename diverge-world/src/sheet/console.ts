@@ -5,7 +5,7 @@ import { daemon } from "@diverge/sdk";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
-import { handle } from "../lib/wire";
+import { handle, type Route, relayed } from "../lib/wire";
 import type { Files } from "../world/model";
 
 /** A container's files, which are whose shell it is: an agent's, a tool's, a dependency tool's. */
@@ -23,11 +23,11 @@ const SETTLE = 120;
 /** The fewest characters across and lines down a terminal is opened or resized to. */
 const LEAST = { cols: 20, rows: 4 };
 
-/** Open a terminal, by the family the entity is of. */
-function open(container: Container, size: { cols: number; rows: number }): Promise<[AsyncIterable<Item>, Way]> {
-  if ("agent" in container) return daemon.endpoints.agents.terminal.client.execute(handle, { agent: container.agent, ...size });
-  if ("tool" in container) return daemon.endpoints.standalone_tools.terminal.client.execute(handle, { tool: container.tool, ...size });
-  return daemon.endpoints.dependency_tools.terminal.client.execute(handle, { dependency: container.dependency, ...size });
+/** Open a terminal, by the family the entity is of, on the daemon `route` reaches. */
+function open(container: Container, route: Route, size: { cols: number; rows: number }): Promise<[AsyncIterable<Item>, Way]> {
+  if ("agent" in container) return daemon.endpoints.agents.terminal.client.execute(handle, { agent: container.agent, ...size, ...relayed(route) });
+  if ("tool" in container) return daemon.endpoints.standalone_tools.terminal.client.execute(handle, { tool: container.tool, ...size, ...relayed(route) });
+  return daemon.endpoints.dependency_tools.terminal.client.execute(handle, { dependency: container.dependency, ...size, ...relayed(route) });
 }
 
 /** A sheet colour, read from the page's own tokens. */
@@ -39,8 +39,9 @@ const token = (name: string) => getComputedStyle(document.documentElement).getPr
  * The rules:
  *
  * 1. It is one terminal filling the pane, at the size the pane holds
- *    (`fit`); the shell is opened at that size, the container started
- *    if it was not up, and held up while the tab lives.
+ *    (`fit`); the shell is opened at that size, on the daemon `route`
+ *    reaches (`relayed`), the container started if it was not up, and
+ *    held up while the tab lives.
  * 2. What is typed or pasted goes to the shell's stdin at once, one
  *    write in flight at a time: what is typed meanwhile is held and
  *    sent as one write once the last is done, so nothing reorders and
@@ -71,6 +72,7 @@ export class Console {
   constructor(
     private readonly pane: HTMLElement,
     private readonly container: Container,
+    private readonly route: Route,
   ) {
     this.term = new Terminal({
       cursorBlink: true,
@@ -142,7 +144,7 @@ export class Console {
     this.size = size;
     let output: AsyncIterable<Item>;
     try {
-      const [stream, way] = await open(this.container, size);
+      const [stream, way] = await open(this.container, this.route, size);
       if (this.disposed) {
         void way.close();
         return;

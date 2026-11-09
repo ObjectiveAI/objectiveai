@@ -1,6 +1,7 @@
 // What the world scene tells the UI scene, through the game's registry.
 
 import type { EdgeType } from "../grid/edges";
+import type { Route } from "../lib/wire";
 import type { Kind } from "../world/model";
 
 /** The registry key of the `Status`. */
@@ -51,3 +52,16 @@ export const OUTLINER = "outliner";
 
 /** A rectangle of the window, in its pixels, and whether something on it is being dragged. */
 export type Bounds = { x: number; y: number; width: number; height: number; held: boolean };
+
+/**
+ * The registry key of the scene key of the board shown — its tab the
+ * one lit — which alone writes `STATUS`, `OUTLINE` and `SELECTED` and
+ * takes `ARRANGE`, `FOCUS` and `HOVER`.
+ */
+export const ACTIVE = "active";
+
+/** The game event a daemon's sheet sends to open that daemon's tab, with its `Opening`. */
+export const OPEN = "open";
+
+/** A daemon's tab, as it is opened: the route to it, and the name of each daemon along it. */
+export type Opening = { route: Route; labels: string[] };

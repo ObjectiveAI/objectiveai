@@ -15,7 +15,7 @@ import { type Entity, model } from "../world/model";
 import { type Snapshot, snapshot } from "../world/snapshot";
 import { type Watching, watch } from "../world/watch";
 import { controls } from "./camera";
-import { type Counts, STATUS, type Status } from "./status";
+import { type Counts, OPEN, type Opening, STATUS, type Status } from "./status";
 
 /** How long the world waits before it reads the daemon again, after a try that failed: the link's own redial. */
 const RETRY = 5000;
@@ -96,7 +96,12 @@ export class World extends Phaser.Scene {
     }, () => {});
     this.selection = makeSelection(this);
     // The hex map lights only the live state: its dot is that.
-    this.sheet = new Sheet(() => this.deselect(), (key) => byKey.get(key)?.live?.on === true);
+    // The hex map is our own daemon's: a daemon's tab is one hop from it.
+    this.sheet = new Sheet(
+      () => this.deselect(),
+      (key) => byKey.get(key)?.live?.on === true,
+      (id, label) => this.game.events.emit(OPEN, { route: [id], labels: [label] } satisfies Opening),
+    );
     const size = extent(map.columns, map.rows);
     controls(this, size.width, size.height);
     const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, connected_standalone_tool: 0, dependency_tool: 0, volume: 0, provider: 0, daemon: 0, call: 0, attachment: 0, creator: 0 };
@@ -120,7 +125,7 @@ export class World extends Phaser.Scene {
     if (!subject || !at) return;
     this.selected = entity.key;
     this.selection?.show(at);
-    this.sheet?.open({ entity, images: this.images });
+    this.sheet?.open({ entity, images: this.images, route: [] });
   }
 
   /** Rule 4: the sheet closed, so nothing is selected. */

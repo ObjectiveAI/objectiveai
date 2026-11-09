@@ -1,5 +1,6 @@
 // The bottom sheet: one entity's log, files and console, in HTML over the map.
 
+import type { Route } from "../lib/wire";
 import type { Entity, Subject } from "../world/model";
 import { type Container, Console } from "./console";
 import { FrontendPane } from "./frontend";
@@ -14,18 +15,18 @@ const HEIGHT = 40;
 const LEAST = 20;
 const MOST = 90;
 
-/** What the sheet is opened on: the entity, and the image names for an agent's tools. */
-export type Opened = { entity: Entity; images: Map<string, string> };
+/** What the sheet is opened on: the entity, the image names for an agent's tools, and the route to the daemon it is on. */
+export type Opened = { entity: Entity; images: Map<string, string>; route: Route };
 
-/** The sheet's three tabs. */
-type Tab = "logs" | "files" | "console" | "frontend";
+/** The sheet's five tabs. */
+type Tab = "logs" | "files" | "console" | "frontend" | "daemon";
 
 /**
  * The tabs an entity has, in order: logs with a log, a filesystem with
- * files, a console with a container. A connected tool has its log
- * alone: its files and its container are the other daemon's. A
- * provider or a daemon has none: no log, no files, no container
- * of its own.
+ * files, a console with a container, a frontend with one, and a daemon
+ * tab for a daemon. A connected tool has its log alone: its files and
+ * its container are the other daemon's. A provider has none: no log,
+ * no files, no container of its own; a daemon has its own tab alone.
  */
 function tabsOf(entity: Entity): Tab[] {
   const tabs: Tab[] = [];
@@ -33,6 +34,7 @@ function tabsOf(entity: Entity): Tab[] {
   if (entity.files) tabs.push("files");
   if (container(entity)) tabs.push("console");
   if (entity.frontend) tabs.push("frontend");
+  if (entity.daemon) tabs.push("daemon");
   return tabs;
 }
 
@@ -88,19 +90,22 @@ function subline(subject: Subject): string {
  *    (`bright`, then `told`): an agent or a tool deployed, an account,
  *    a provider or a daemon connected, a volume mounted into a
  *    deployed container;
- *    its tabs, `logs`, `filesystem`, `console` and `frontend`, those it has, shown
+ *    its tabs, `logs`, `filesystem`, `console`, `frontend` and `daemon`, those it has, shown
  *    however many it has, one among them; the fill button; and ✕, which
  *    closes it and tells `closed`.
  * 3. An entity with a log (`subject`) has the logs tab, one with files
  *    (`files`) the filesystem tab, one with a container (an agent, a
  *    standalone tool, a dependency tool — never a connected tool, whose
  *    container is the other daemon's) the console tab, an agent or a tool whose
- *    image declares a frontend (`frontend`) the frontend tab (`tabsOf`);
- *    a provider or a daemon has none of them. It opens on
+ *    image declares a frontend (`frontend`) the frontend tab, a daemon
+ *    (`daemon`) the daemon tab alone (`tabsOf`); a provider has none of
+ *    them. It opens on
  *    the tab last chosen (`chosen`) if it has it, else on the first it
  *    has. A tab's read starts the first time it is shown and runs until
  *    the sheet closes; closing stops every one and empties every one.
- *    Opening while open closes first.
+ *    Opening while open closes first. Every read is served on the
+ *    daemon the opened route reaches (`Opened.route`), as the board's
+ *    own lists are.
  * 4. The logs tab follows the log (`follow`, the root `logs` read)
  *    into `Fold` for an agent, `ToolFold` for a tool — standalone,
  *    connected or dependency — or an account (whose log is commands
@@ -124,6 +129,11 @@ function subline(subject: Subject): string {
  *    tab with it, its handle hidden; pressed again (⤡) it is back at
  *    the height it was dragged to. Closing ends the fill, so the next
  *    sheet opens along the bottom.
+ * 10. The daemon tab is one button, "Open <name>": pressing it tells
+ *    `opening` the daemon's record's ID and its name, and the board
+ *    opens that daemon's own tab of the window.
+ * 11. `dispose` closes the sheet and takes it out of the page: what a
+ *    board does as its tab of the window closes.
  */
 export class Sheet {
   private readonly root: HTMLElement;
@@ -137,6 +147,8 @@ export class Sheet {
   private readonly pane: HTMLElement;
   private readonly shell: HTMLElement;
   private readonly site: HTMLElement;
+  private readonly door: HTMLElement;
+  private readonly enter: HTMLButtonElement;
   private opened: Opened | null = null;
   private following: Following | null = null;
   private fold: Fold | ToolFold | null = null;
@@ -150,6 +162,7 @@ export class Sheet {
   constructor(
     private readonly closed: () => void,
     private readonly bright: (key: string) => boolean,
+    private readonly opening: (id: string, label: string) => void,
   ) {
     this.root = document.createElement("section");
     this.root.className = "sheet";
@@ -177,8 +190,8 @@ export class Sheet {
       });
       return button;
     };
-    this.tab = { logs: tab("logs", "logs"), files: tab("files", "filesystem"), console: tab("console", "console"), frontend: tab("frontend", "frontend") };
-    this.tabs.append(this.tab.logs, this.tab.files, this.tab.console, this.tab.frontend);
+    this.tab = { logs: tab("logs", "logs"), files: tab("files", "filesystem"), console: tab("console", "console"), frontend: tab("frontend", "frontend"), daemon: tab("daemon", "daemon") };
+    this.tabs.append(this.tab.logs, this.tab.files, this.tab.console, this.tab.frontend, this.tab.daemon);
     // Rule 9.
     this.fill = document.createElement("button");
     this.fill.className = "fill";
@@ -209,7 +222,17 @@ export class Sheet {
     // Rule 7.
     this.site = document.createElement("div");
     this.site.className = "frontend";
-    this.root.append(handle, head, this.body, this.pane, this.shell, this.site);
+    // Rule 10.
+    this.door = document.createElement("div");
+    this.door.className = "daemon";
+    this.enter = document.createElement("button");
+    this.enter.type = "button";
+    this.enter.addEventListener("click", () => {
+      const entity = this.opened?.entity;
+      if (entity?.daemon) this.opening(entity.daemon.id, entity.label);
+    });
+    this.door.append(this.enter);
+    this.root.append(handle, head, this.body, this.pane, this.shell, this.site, this.door);
     this.drag(handle);
     this.filled(false);
     document.body.append(this.root);
@@ -225,7 +248,7 @@ export class Sheet {
     this.live.classList.toggle("on", this.bright(entity.key));
     const tabs = tabsOf(entity);
     this.tabs.hidden = tabs.length === 0;
-    for (const which of ["logs", "files", "console", "frontend"] as const) this.tab[which].hidden = !tabs.includes(which);
+    for (const which of ["logs", "files", "console", "frontend", "daemon"] as const) this.tab[which].hidden = !tabs.includes(which);
     this.filled(false);
     this.root.hidden = false;
     this.show(tabs.includes(chosen) ? chosen : (tabs[0] ?? "logs"));
@@ -254,6 +277,12 @@ export class Sheet {
     this.filled(false);
   }
 
+  /** Rule 11. */
+  dispose(): void {
+    this.close();
+    this.root.remove();
+  }
+
   /** Rule 9: fill the window, or lie along the bottom at the dragged height. */
   private filled(full: boolean): void {
     this.full = full;
@@ -271,24 +300,29 @@ export class Sheet {
     this.tab.files.classList.toggle("on", which === "files");
     this.tab.console.classList.toggle("on", which === "console");
     this.tab.frontend.classList.toggle("on", which === "frontend");
+    this.tab.daemon.classList.toggle("on", which === "daemon");
     this.body.hidden = which !== "logs";
     this.pane.hidden = which !== "files";
     this.shell.hidden = which !== "console";
     this.site.hidden = which !== "frontend";
+    this.door.hidden = which !== "daemon";
     const { subject, files } = opened.entity;
-    if (which === "logs" && subject && !this.following) this.logs(subject, opened.images);
-    if (which === "files" && files && !this.files) this.files = new Files(this.pane, files);
+    const { route } = opened;
+    if (which === "logs" && subject && !this.following) this.logs(subject, route, opened.images);
+    if (which === "files" && files && !this.files) this.files = new Files(this.pane, files, route);
     if (which === "console") {
       const shell = container(opened.entity);
-      if (shell && !this.console) this.console = new Console(this.shell, shell);
+      if (shell && !this.console) this.console = new Console(this.shell, shell, route);
       this.console?.shown();
     }
     const site = opened.entity.frontend;
-    if (which === "frontend" && site && !this.frontend) this.frontend = new FrontendPane(this.site, site);
+    if (which === "frontend" && site && !this.frontend) this.frontend = new FrontendPane(this.site, site, route);
+    // Rule 10.
+    if (which === "daemon") this.enter.textContent = `Open ${opened.entity.label}`;
   }
 
   /** Rule 4. */
-  private logs(subject: Subject, images: Map<string, string>): void {
+  private logs(subject: Subject, route: Route, images: Map<string, string>): void {
     this.body.classList.add("loading");
     // The dot is the node's brightness (rule 2), never the log's.
     const live = () => {};
@@ -296,7 +330,7 @@ export class Sheet {
     if (subject.type === "agent") {
       const fold = new Fold(this.log, images, live);
       this.fold = fold;
-      this.following = follow(subject, (entry) => "agent" in entry && fold.push(entry.agent), (why) => {
+      this.following = follow(subject, route, (entry) => "agent" in entry && fold.push(entry.agent), (why) => {
         loaded();
         fold.note(why);
       }, loaded);
@@ -315,7 +349,7 @@ export class Sheet {
                 : "admin" in entry
                   ? entry.admin
                   : null;
-      this.following = follow(subject, (entry) => {
+      this.following = follow(subject, route, (entry) => {
         const item = tool(entry);
         if (item) fold.push(item);
       }, (why) => {

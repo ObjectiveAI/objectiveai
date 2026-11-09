@@ -10,6 +10,8 @@
 //! 1. `frontend_open` serves one agent's or tool's frontend on a port of
 //!    its own, so every one is an origin of its own, and answers the address
 //!    the frame loads: `http://127.0.0.1:<port>/frontend/?__diverge=<key>`.
+//!    Its `relay` — the route to the daemon the agent or tool is on, absent
+//!    for our own — is on every request the frontend sends.
 //! 2. Every request is checked before it is sent on:
 //!    a. its `Host` is `127.0.0.1:<port>`, so a name made to point at
 //!       the loopback (DNS rebinding) reaches nothing;
@@ -51,6 +53,7 @@ use diverge_sdk::daemon::endpoints::{agents, dependency_tools, standalone_tools}
 use diverge_sdk::daemon::reference;
 use diverge_sdk::shared::containers::frontend::output::Head as Answered;
 use diverge_sdk::shared::containers::frontend::request::Head;
+use diverge_sdk::shared::relay::Relay;
 use diverge_sdk::tauri_proxy::TauriProxy;
 use futures_util::{Stream, StreamExt as _};
 use hyper_util::rt::TokioIo;
@@ -103,6 +106,8 @@ impl Frontends {
 struct Served {
     app: AppHandle,
     target: Target,
+    /// Rule 1: the route every request is relayed along.
+    relay: Option<Relay>,
     key: String,
     port: u16,
     /// `true` once the frontend is closed: every request and pipe ends.
@@ -124,12 +129,12 @@ fn key() -> String {
 
 /// Rule 1.
 #[tauri::command]
-pub async fn frontend_open(app: AppHandle, frontends: Managed<'_, Frontends>, target: Target) -> Result<Opened, String> {
+pub async fn frontend_open(app: AppHandle, frontends: Managed<'_, Frontends>, target: Target, relay: Option<Relay>) -> Result<Opened, String> {
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.map_err(|error| error.to_string())?;
     let port = listener.local_addr().map_err(|error| error.to_string())?.port();
     let key = key();
     let (ended_tx, ended) = watch::channel(false);
-    let served = Arc::new(Served { app, target, key: key.clone(), port, ended: ended.clone() });
+    let served = Arc::new(Served { app, target, relay, key: key.clone(), port, ended: ended.clone() });
     let router = Router::new().fallback(forward).with_state(served);
     let mut stopped = ended;
     let serving = tauri::async_runtime::spawn(async move {
@@ -204,13 +209,13 @@ impl Writer {
 /// An answer's frames, as one stream.
 type Answers = std::pin::Pin<Box<dyn Stream<Item = Said> + Send>>;
 
-/// Send the request to the daemon: its answers, and the way in.
-async fn send(app: &AppHandle, target: &Target, head: Head) -> Result<(Answers, Writer), String> {
+/// Send the request to the daemon, along `relay`: its answers, and the way in.
+async fn send(app: &AppHandle, target: &Target, relay: &Option<Relay>, head: Head) -> Result<(Answers, Writer), String> {
     let handle = app.state::<TauriProxy>().link().handle().await.map_err(|refusal| format!("{refusal:?}"))?;
     match target {
         Target::Agent(agent) => {
             use agents::frontend::{client::execute, client::request, server::response::Frame};
-            let request = request::Frame { agent: agent.clone(), head, relay: None };
+            let request = request::Frame { agent: agent.clone(), head, relay: relay.clone() };
             let (stream, writer) = execute::execute(&handle, &request).await.map_err(|error| error.to_string())?;
             let said = stream.map(|item| match item {
                 Ok(Frame::Head(head)) => Said::Head(head),
@@ -225,7 +230,7 @@ async fn send(app: &AppHandle, target: &Target, head: Head) -> Result<(Answers, 
         }
         Target::Tool(tool) => {
             use standalone_tools::frontend::{client::execute, client::request, server::response::Frame};
-            let request = request::Frame { tool: tool.clone(), head, relay: None };
+            let request = request::Frame { tool: tool.clone(), head, relay: relay.clone() };
             let (stream, writer) = execute::execute(&handle, &request).await.map_err(|error| error.to_string())?;
             let said = stream.map(|item| match item {
                 Ok(Frame::Head(head)) => Said::Head(head),
@@ -240,7 +245,7 @@ async fn send(app: &AppHandle, target: &Target, head: Head) -> Result<(Answers, 
         }
         Target::Dependency(dependency) => {
             use dependency_tools::frontend::{client::execute, client::request, server::response::Frame};
-            let request = request::Frame { dependency: dependency.clone(), head, relay: None };
+            let request = request::Frame { dependency: dependency.clone(), head, relay: relay.clone() };
             let (stream, writer) = execute::execute(&handle, &request).await.map_err(|error| error.to_string())?;
             let said = stream.map(|item| match item {
                 Ok(Frame::Head(head)) => Said::Head(head),
@@ -300,7 +305,7 @@ async fn forward(State(served): State<Arc<Served>>, mut request: Request) -> Res
     let head = Head { method: request.method().to_string(), path: onward(request.uri()), headers: sent };
     // Rule 4: the upgrade, taken before the request is spent.
     let upgrading = upgrade.then(|| hyper::upgrade::on(&mut request));
-    let (mut answers, writer) = match send(&served.app, &served.target, head).await {
+    let (mut answers, writer) = match send(&served.app, &served.target, &served.relay, head).await {
         Ok(sent) => sent,
         Err(why) => return page(StatusCode::BAD_GATEWAY, &why),
     };

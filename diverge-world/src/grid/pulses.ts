@@ -49,8 +49,11 @@ export type Pulses = { told(change: shared.listing.Change<Event>): void };
  *    dragged and a lane that moves over.
  * 4. An edge with a node not on the board, or whose lane is hidden,
  *    sends nothing.
+ * 5. While the board is not the one shown (`awake` says no), a rise is
+ *    counted and sends nothing, so a board asleep piles up no pulses
+ *    and wakes to none of the old.
  */
-export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline: Event[]): Pulses {
+export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline: Event[], awake: () => boolean): Pulses {
   // Rule 1.
   const counts = new Map(baseline.map((e) => [e.id, e.count]));
   const flying = new Map<number, number>();
@@ -99,6 +102,8 @@ export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline
       // Rule 2.
       const rise = event.count - (counts.get(event.id) ?? 0);
       counts.set(event.id, event.count);
+      // Rule 5.
+      if (!awake()) return;
       for (let i = 0; i < Math.min(rise, CAP); i++) scene.time.delayedCall(i * SPACING, () => run(event));
     },
   };

@@ -2,7 +2,9 @@
 //! saved where the person says, an upload read from what they dropped.
 //!
 //! Both run here, in Rust, over the page's own connection
-//! ([`TauriProxy::link`]): the bytes go between the disk and the wire
+//! ([`TauriProxy::link`]), each request along the `relay` the page
+//! gives — the route to the daemon the entity is on, absent for our
+//! own: the bytes go between the disk and the wire
 //! in pieces of at most [`CHUNK_SIZE`](diverge_sdk::CHUNK_SIZE), one
 //! frame ahead of whichever side is slower (see
 //! [`credit`](diverge_sdk::wire::credit)), and never cross into the
@@ -17,6 +19,7 @@ use bytes::Bytes;
 use diverge_sdk::daemon::endpoints::{agents, dependency_tools, standalone_tools, volumes};
 use diverge_sdk::daemon::reference;
 use diverge_sdk::shared::error::Error as Refusal;
+use diverge_sdk::shared::relay::Relay;
 use diverge_sdk::tauri_proxy::TauriProxy;
 use diverge_sdk::wire::client::handle::Handle;
 use futures_util::{Stream, StreamExt as _, stream};
@@ -116,6 +119,7 @@ pub async fn files_download(
     path: Vec<String>,
     directory: bool,
     progress: Channel<u64>,
+    relay: Option<Relay>,
 ) -> Result<Outcome, String> {
     let name = path.last().cloned().unwrap_or_else(|| "files".to_string());
     // Rule 1.
@@ -143,7 +147,7 @@ pub async fn files_download(
     // Rule 5.
     let cancelled = transfers.start(id).await;
     let outcome = tokio::select! {
-        outcome = download(&handle, &files, path, &base, directory, &progress) => outcome,
+        outcome = download(&handle, &files, &relay, path, &base, directory, &progress) => outcome,
         _ = cancelled => Outcome::Cancelled,
     };
     transfers.finish(id).await;
@@ -162,13 +166,13 @@ enum Got {
 
 type Chunks = Pin<Box<dyn Stream<Item = Got> + Send>>;
 
-/// Open the family's download.
-async fn chunks(handle: &Handle, files: &Target, path: Vec<String>) -> Result<Chunks, String> {
+/// Open the family's download, along `relay`.
+async fn chunks(handle: &Handle, files: &Target, relay: &Option<Relay>, path: Vec<String>) -> Result<Chunks, String> {
     let failed = |error: &dyn std::fmt::Display| Got::End(Outcome::Failed { why: error.to_string() });
     Ok(match files {
         Target::Agent(agent) => {
             use agents::download::client::{execute, request};
-            let opened = execute::execute(handle, &request::Frame { agent: agent.clone(), path, relay: None }).await.map_err(|error| error.to_string())?;
+            let opened = execute::execute(handle, &request::Frame { agent: agent.clone(), path, relay: relay.clone() }).await.map_err(|error| error.to_string())?;
             Box::pin(opened.map(move |item| match item {
                 Ok(execute::Item::Chunk { path, body }) => Got::Chunk(path, body),
                 Ok(execute::Item::NotFound) => Got::End(Outcome::NotFound),
@@ -179,7 +183,7 @@ async fn chunks(handle: &Handle, files: &Target, path: Vec<String>) -> Result<Ch
         }
         Target::Tool(tool) => {
             use standalone_tools::download::client::{execute, request};
-            let opened = execute::execute(handle, &request::Frame { tool: tool.clone(), path, relay: None }).await.map_err(|error| error.to_string())?;
+            let opened = execute::execute(handle, &request::Frame { tool: tool.clone(), path, relay: relay.clone() }).await.map_err(|error| error.to_string())?;
             Box::pin(opened.map(move |item| match item {
                 Ok(execute::Item::Chunk { path, body }) => Got::Chunk(path, body),
                 Ok(execute::Item::NotFound) => Got::End(Outcome::NotFound),
@@ -190,7 +194,7 @@ async fn chunks(handle: &Handle, files: &Target, path: Vec<String>) -> Result<Ch
         }
         Target::Dependency(dependency) => {
             use dependency_tools::download::client::{execute, request};
-            let opened = execute::execute(handle, &request::Frame { dependency: dependency.clone(), path, relay: None }).await.map_err(|error| error.to_string())?;
+            let opened = execute::execute(handle, &request::Frame { dependency: dependency.clone(), path, relay: relay.clone() }).await.map_err(|error| error.to_string())?;
             Box::pin(opened.map(move |item| match item {
                 Ok(execute::Item::Chunk { path, body }) => Got::Chunk(path, body),
                 Ok(execute::Item::NotFound) => Got::End(Outcome::NotFound),
@@ -201,7 +205,7 @@ async fn chunks(handle: &Handle, files: &Target, path: Vec<String>) -> Result<Ch
         }
         Target::Volume(volume) => {
             use volumes::download::client::{execute, request};
-            let opened = execute::execute(handle, &request::Frame { volume: volume.clone(), path, relay: None }).await.map_err(|error| error.to_string())?;
+            let opened = execute::execute(handle, &request::Frame { volume: volume.clone(), path, relay: relay.clone() }).await.map_err(|error| error.to_string())?;
             Box::pin(opened.map(move |item| match item {
                 Ok(execute::Item::Chunk { path, body }) => Got::Chunk(path, body),
                 Ok(execute::Item::NotFound) => Got::End(Outcome::NotFound),
@@ -215,8 +219,8 @@ async fn chunks(handle: &Handle, files: &Target, path: Vec<String>) -> Result<Ch
 }
 
 /// Rules 2 and 3.
-async fn download(handle: &Handle, files: &Target, path: Vec<String>, base: &Path, directory: bool, progress: &Channel<u64>) -> Outcome {
-    let mut chunks = match chunks(handle, files, path).await {
+async fn download(handle: &Handle, files: &Target, relay: &Option<Relay>, path: Vec<String>, base: &Path, directory: bool, progress: &Channel<u64>) -> Outcome {
+    let mut chunks = match chunks(handle, files, relay, path).await {
         Ok(chunks) => chunks,
         Err(why) => return Outcome::Failed { why },
     };
@@ -301,6 +305,7 @@ fn local(base: &Path, relative: &[String]) -> Option<PathBuf> {
 /// 4. The first upload that does not land ends the rest, and is the
 ///    outcome. Cancelling drops the exchange, which tells the daemon.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn files_upload(
     proxy: State<'_, TauriProxy>,
     transfers: State<'_, Transfers>,
@@ -309,6 +314,7 @@ pub async fn files_upload(
     into: Vec<String>,
     paths: Vec<String>,
     progress: Channel<u64>,
+    relay: Option<Relay>,
 ) -> Result<Outcome, String> {
     let handle = proxy.link().handle().await.map_err(|refusal| format!("{refusal:?}"))?;
     let (counter, counted) = watch::channel(0u64);
@@ -328,7 +334,7 @@ pub async fn files_upload(
     });
     let cancelled = transfers.start(id).await;
     let outcome = tokio::select! {
-        outcome = uploads(&handle, &files, &into, &paths, &counter) => outcome,
+        outcome = uploads(&handle, &files, &relay, &into, &paths, &counter) => outcome,
         _ = cancelled => Outcome::Cancelled,
     };
     transfers.finish(id).await;
@@ -339,7 +345,7 @@ pub async fn files_upload(
 }
 
 /// Rules 1 and 4.
-async fn uploads(handle: &Handle, files: &Target, into: &[String], paths: &[String], counter: &watch::Sender<u64>) -> Outcome {
+async fn uploads(handle: &Handle, files: &Target, relay: &Option<Relay>, into: &[String], paths: &[String], counter: &watch::Sender<u64>) -> Outcome {
     for dropped in paths {
         let dropped = PathBuf::from(dropped);
         let Some(name) = dropped.file_name().and_then(|name| name.to_str()).map(str::to_string) else {
@@ -360,7 +366,7 @@ async fn uploads(handle: &Handle, files: &Target, into: &[String], paths: &[Stri
         } else {
             None
         };
-        let outcome = upload(handle, files, path, named, dropped, counter).await;
+        let outcome = upload(handle, files, relay, path, named, dropped, counter).await;
         if !matches!(outcome, Outcome::Done { .. }) {
             return outcome;
         }
@@ -372,9 +378,9 @@ async fn uploads(handle: &Handle, files: &Target, into: &[String], paths: &[Stri
 /// in pieces as they are pulled.
 type Content = Pin<Box<dyn Stream<Item = Result<Bytes, Refusal>> + Send>>;
 
-/// One upload, through the family's own endpoint: `named` the files of
-/// a directory, `None` for a file.
-async fn upload(handle: &Handle, files: &Target, path: Vec<String>, named: Option<Vec<String>>, from: PathBuf, counter: &watch::Sender<u64>) -> Outcome {
+/// One upload, through the family's own endpoint, along `relay`: `named`
+/// the files of a directory, `None` for a file.
+async fn upload(handle: &Handle, files: &Target, relay: &Option<Relay>, path: Vec<String>, named: Option<Vec<String>>, from: PathBuf, counter: &watch::Sender<u64>) -> Outcome {
     let counter = counter.clone();
     // Rule 2: the file the daemon asks for, under what was dropped.
     let source = move |asked: Option<String>| -> Option<Content> {
@@ -389,8 +395,8 @@ async fn upload(handle: &Handle, files: &Target, path: Vec<String>, named: Optio
         Target::Agent(agent) => {
             use agents::upload::{client::execute, client::request, server::response};
             let request = match named {
-                None => request::Frame::File { agent: agent.clone(), path, relay: None },
-                Some(files) => request::Frame::Directory { agent: agent.clone(), path, files, relay: None },
+                None => request::Frame::File { agent: agent.clone(), path, relay: relay.clone() },
+                Some(files) => request::Frame::Directory { agent: agent.clone(), path, files, relay: relay.clone() },
             };
             match execute::execute(handle, &request, source).await {
                 Ok(response::Frame::Uploaded) => Outcome::Done { bytes: 0 },
@@ -403,8 +409,8 @@ async fn upload(handle: &Handle, files: &Target, path: Vec<String>, named: Optio
         Target::Tool(tool) => {
             use standalone_tools::upload::{client::execute, client::request, server::response};
             let request = match named {
-                None => request::Frame::File { tool: tool.clone(), path, relay: None },
-                Some(files) => request::Frame::Directory { tool: tool.clone(), path, files, relay: None },
+                None => request::Frame::File { tool: tool.clone(), path, relay: relay.clone() },
+                Some(files) => request::Frame::Directory { tool: tool.clone(), path, files, relay: relay.clone() },
             };
             match execute::execute(handle, &request, source).await {
                 Ok(response::Frame::Uploaded) => Outcome::Done { bytes: 0 },
@@ -417,8 +423,8 @@ async fn upload(handle: &Handle, files: &Target, path: Vec<String>, named: Optio
         Target::Dependency(dependency) => {
             use dependency_tools::upload::{client::execute, client::request, server::response};
             let request = match named {
-                None => request::Frame::File { dependency: dependency.clone(), path, relay: None },
-                Some(files) => request::Frame::Directory { dependency: dependency.clone(), path, files, relay: None },
+                None => request::Frame::File { dependency: dependency.clone(), path, relay: relay.clone() },
+                Some(files) => request::Frame::Directory { dependency: dependency.clone(), path, files, relay: relay.clone() },
             };
             match execute::execute(handle, &request, source).await {
                 Ok(response::Frame::Uploaded) => Outcome::Done { bytes: 0 },
@@ -431,8 +437,8 @@ async fn upload(handle: &Handle, files: &Target, path: Vec<String>, named: Optio
         Target::Volume(volume) => {
             use volumes::upload::{client::execute, client::request, server::response};
             let request = match named {
-                None => request::Frame::File { volume: volume.clone(), path, relay: None },
-                Some(files) => request::Frame::Directory { volume: volume.clone(), path, files, relay: None },
+                None => request::Frame::File { volume: volume.clone(), path, relay: relay.clone() },
+                Some(files) => request::Frame::Directory { volume: volume.clone(), path, files, relay: relay.clone() },
             };
             match execute::execute(handle, &request, source).await {
                 Ok(response::Frame::Uploaded) => Outcome::Done { bytes: 0 },

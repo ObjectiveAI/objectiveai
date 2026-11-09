@@ -1,9 +1,9 @@
-// The daemon followed: the eleven lists the world is drawn from, kept
-// open for as long as the board is up, and the names of the agents'
-// and tools' images as each is first seen.
+// A daemon followed — ours, or one along a route: the eleven lists the
+// world is drawn from, kept open for as long as the board is up, and
+// the names of the agents' and tools' images as each is first seen.
 
 import { daemon, shared } from "@diverge/sdk";
-import { handle } from "../lib/wire";
+import { handle, type Route, relayed } from "../lib/wire";
 import { imageInfo } from "./names";
 import type { Snapshot } from "./snapshot";
 import type { Watching } from "./watch";
@@ -28,8 +28,8 @@ type Kept<T> = { listing: shared.listing.Listing<T>; listed: boolean; forbidden:
 const e = daemon.endpoints;
 
 /**
- * Follow the daemon: `changed` is handed the world as it stands, and
- * `event` every change of the events list.
+ * Follow the daemon `route` reaches: `changed` is handed the world as
+ * it stands, and `event` every change of the events list.
  *
  * The rules:
  *
@@ -55,8 +55,12 @@ const e = daemon.endpoints;
  *    one rebuild.
  * 6. `event` is told every change of the events list after the world
  *    that holds it was handed on, so a pulse finds its pair drawn.
+ * 7. Every request — each list, each image asked — is served along
+ *    `route` (`relayed`): by our own daemon for `[]`, its frames carrying
+ *    no `relay`; else by the daemon at the route's end, through each
+ *    before it.
  */
-export function follow(changed: (world: Snapshot) => void, event: (change: shared.listing.Change<Event>) => void): Watching {
+export function follow(route: Route, changed: (world: Snapshot) => void, event: (change: shared.listing.Change<Event>) => void): Watching {
   let stopped = false;
   const cancels = new Set<{ cancel(): Promise<void> }>();
   const names = new Map<string, string>();
@@ -122,7 +126,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
     ].filter((image) => !asked.has(image.digest));
     if (images.length === 0) return;
     for (const image of images) asked.add(image.digest);
-    void imageInfo(images).then((found) => {
+    void imageInfo(images, route).then((found) => {
       if (stopped || found.size === 0) return;
       for (const [digest, image] of found) {
         names.set(digest, image.name);
@@ -192,29 +196,30 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
     })();
   };
 
-  keep({ name: "accounts", open: () => e.accounts.list.client.execute(handle, {}), key: e.accounts.list.server.response.key, change: e.accounts.list.server.response.change }, accounts);
-  keep({ name: "agents", open: () => e.agents.list.client.execute(handle, {}), key: e.agents.list.server.response.key, change: e.agents.list.server.response.change }, agents);
+  // Rule 7: every list along the route.
+  keep({ name: "accounts", open: () => e.accounts.list.client.execute(handle, { ...relayed(route) }), key: e.accounts.list.server.response.key, change: e.accounts.list.server.response.change }, accounts);
+  keep({ name: "agents", open: () => e.agents.list.client.execute(handle, { ...relayed(route) }), key: e.agents.list.server.response.key, change: e.agents.list.server.response.change }, agents);
   keep(
-    { name: "agent templates", open: () => e.agents.templates.list.client.execute(handle, {}), key: e.agents.templates.list.server.response.key, change: e.agents.templates.list.server.response.change },
+    { name: "agent templates", open: () => e.agents.templates.list.client.execute(handle, { ...relayed(route) }), key: e.agents.templates.list.server.response.key, change: e.agents.templates.list.server.response.change },
     agentTemplates,
   );
-  keep({ name: "standalone tools", open: () => e.standalone_tools.list.client.execute(handle, {}), key: e.standalone_tools.list.server.response.key, change: e.standalone_tools.list.server.response.change }, tools);
+  keep({ name: "standalone tools", open: () => e.standalone_tools.list.client.execute(handle, { ...relayed(route) }), key: e.standalone_tools.list.server.response.key, change: e.standalone_tools.list.server.response.change }, tools);
   keep(
-    { name: "connected standalone tools", open: () => e.connected_standalone_tools.list.client.execute(handle, {}), key: e.connected_standalone_tools.list.server.response.key, change: e.connected_standalone_tools.list.server.response.change },
+    { name: "connected standalone tools", open: () => e.connected_standalone_tools.list.client.execute(handle, { ...relayed(route) }), key: e.connected_standalone_tools.list.server.response.key, change: e.connected_standalone_tools.list.server.response.change },
     connectedTools,
   );
   keep(
-    { name: "standalone tool templates", open: () => e.standalone_tools.templates.list.client.execute(handle, {}), key: e.standalone_tools.templates.list.server.response.key, change: e.standalone_tools.templates.list.server.response.change },
+    { name: "standalone tool templates", open: () => e.standalone_tools.templates.list.client.execute(handle, { ...relayed(route) }), key: e.standalone_tools.templates.list.server.response.key, change: e.standalone_tools.templates.list.server.response.change },
     templates,
   );
-  keep({ name: "dependency tools", open: () => e.dependency_tools.list.client.execute(handle, {}), key: e.dependency_tools.list.server.response.key, change: e.dependency_tools.list.server.response.change }, dependencies);
-  keep({ name: "events", open: () => e.events.list.client.execute(handle, {}), key: e.events.key, change: e.events.list.server.response.change }, events, (change) => {
+  keep({ name: "dependency tools", open: () => e.dependency_tools.list.client.execute(handle, { ...relayed(route) }), key: e.dependency_tools.list.server.response.key, change: e.dependency_tools.list.server.response.change }, dependencies);
+  keep({ name: "events", open: () => e.events.list.client.execute(handle, { ...relayed(route) }), key: e.events.key, change: e.events.list.server.response.change }, events, (change) => {
     // Rule 6, once the list was whole: what it told before is the baseline, not a pulse.
     if (events.listed) waiting.push(change);
   });
-  keep({ name: "volumes", open: () => e.volumes.list.client.execute(handle, {}), key: e.volumes.list.server.response.key, change: e.volumes.list.server.response.change }, volumes);
-  keep({ name: "providers", open: () => e.providers.list.client.execute(handle, {}), key: e.providers.list.server.response.key, change: e.providers.list.server.response.change }, providers);
-  keep({ name: "daemons", open: () => e.daemons.list.client.execute(handle, {}), key: e.daemons.list.server.response.key, change: e.daemons.list.server.response.change }, daemons);
+  keep({ name: "volumes", open: () => e.volumes.list.client.execute(handle, { ...relayed(route) }), key: e.volumes.list.server.response.key, change: e.volumes.list.server.response.change }, volumes);
+  keep({ name: "providers", open: () => e.providers.list.client.execute(handle, { ...relayed(route) }), key: e.providers.list.server.response.key, change: e.providers.list.server.response.change }, providers);
+  keep({ name: "daemons", open: () => e.daemons.list.client.execute(handle, { ...relayed(route) }), key: e.daemons.list.server.response.key, change: e.daemons.list.server.response.change }, daemons);
 
   return {
     stop() {

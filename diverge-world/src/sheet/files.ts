@@ -2,6 +2,7 @@
 // current as its read tells.
 
 import type { shared } from "@diverge/sdk";
+import type { Route } from "../lib/wire";
 import type { Files as Target } from "../world/model";
 import { type Root, readTree } from "./filetree";
 import type { Following } from "./log";
@@ -82,6 +83,8 @@ const keyOf = (path: string[]) => path.join("\0");
  *    land. Outside the pane, or while the pane is not shown, nothing
  *    is aimed at.
  * 11. Transfers run in the strip (`strip`), which outlives the sheet.
+ *    Reads and transfers alike are served on the daemon `route`
+ *    reaches.
  * 12. Clicking a row, or right-clicking it, selects it: one row at a
  *    time, held lit more strongly than the pointer's light, through
  *    every change, until another is chosen or the pane's empty space
@@ -108,6 +111,7 @@ export class Files {
   constructor(
     private readonly pane: HTMLElement,
     private readonly target: Target,
+    private readonly route: Route,
   ) {
     this.head = document.createElement("div");
     this.head.className = "row head";
@@ -149,6 +153,7 @@ export class Files {
     this.ended = null;
     this.reading = readTree(
       this.target,
+      this.route,
       (root, touched) => {
         this.root = root;
         const now = performance.now();
@@ -208,7 +213,7 @@ export class Files {
     this.aim(null);
     if (into === null || drag.paths.length === 0) return;
     const name = drag.paths.length === 1 ? (drag.paths[0].split(/[\\/]/).pop() ?? drag.paths[0]) : `${drag.paths.length} items`;
-    strip.start(`${name} → /${into.join("/")}`, "up", null, (progress) => upload(this.target, into, drag.paths, progress), (outcome) => {
+    strip.start(`${name} → /${into.join("/")}`, "up", null, (progress) => upload(this.target, this.route, into, drag.paths, progress), (outcome) => {
       if (!this.disposed && outcome.kind === "done" && "volume" in this.target) this.read();
     });
   }
@@ -245,7 +250,7 @@ export class Files {
   /** Rule 9. */
   private download(node: Node, path: string[]): void {
     const total = size(node);
-    strip.start(path.join("/"), "down", total, (progress) => download(this.target, path, node.type === "directory", progress));
+    strip.start(path.join("/"), "down", total, (progress) => download(this.target, this.route, path, node.type === "directory", progress));
   }
 
   /** Rule 4: draw on the next frame, once. */

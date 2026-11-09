@@ -4,6 +4,7 @@
 
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { type Route, relayed } from "../lib/wire";
 import type { Files } from "../world/model";
 
 /** How a transfer ended, as the app says it. */
@@ -32,17 +33,17 @@ function counting(progress: (bytes: number) => void): Channel<number> {
 /** A failure to ask at all, as an outcome. */
 const refused = (error: unknown): Outcome => ({ kind: "failed", why: error instanceof Error ? error.message : String(error) });
 
-/** Download what is at `path` in `files`; the app asks where to save it. */
-export function download(files: Files, path: string[], directory: boolean, progress: (bytes: number) => void): Running {
+/** Download what is at `path` in `files`, on the daemon `route` reaches; the app asks where to save it. */
+export function download(files: Files, route: Route, path: string[], directory: boolean, progress: (bytes: number) => void): Running {
   const id = ++next;
-  const ended = invoke<Outcome>("files_download", { id, files, path, directory, progress: counting(progress) }).catch(refused);
+  const ended = invoke<Outcome>("files_download", { id, files, path, directory, progress: counting(progress), ...relayed(route) }).catch(refused);
   return { id, ended };
 }
 
-/** Upload the dropped `paths` into the directory `into` in `files`. */
-export function upload(files: Files, into: string[], paths: string[], progress: (bytes: number) => void): Running {
+/** Upload the dropped `paths` into the directory `into` in `files`, on the daemon `route` reaches. */
+export function upload(files: Files, route: Route, into: string[], paths: string[], progress: (bytes: number) => void): Running {
   const id = ++next;
-  const ended = invoke<Outcome>("files_upload", { id, files, into, paths, progress: counting(progress) }).catch(refused);
+  const ended = invoke<Outcome>("files_upload", { id, files, into, paths, progress: counting(progress), ...relayed(route) }).catch(refused);
   return { id, ended };
 }
 

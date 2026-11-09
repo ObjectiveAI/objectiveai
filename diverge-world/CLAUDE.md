@@ -37,10 +37,22 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   closed with the sheet, on a swap, and on every page load. An account
   and a connected standalone tool (another daemon's, its own kind: `connected_standalone_tools list`, the
   `connected_standalone_tool` log subject) have only logs, a volume only its files, a provider (`providers list`, the
-  record the daemon keeps of one; no log subject) and a daemon (`daemons list`, the record of one account of ours on
-  another daemon; no log subject) no tab at all — a provider's header's second line its direction and status, a
-  daemon's `as <our subject> · connected|disconnected`; each tab starts reading the first time it is shown, and the tab last chosen
-  carries to the next sheet.
+  record the daemon keeps of one; no log subject) no tab at all, and a daemon (`daemons list`, the record of one account
+  of ours on another daemon; no log subject; `Entity.daemon` its record's ID) one tab of its own, `daemon`, a single
+  button "Open <name>" that opens that daemon's tab of the window — a provider's header's second line its direction and
+  status, a daemon's `as <our subject> · connected|disconnected`; each tab starts reading the first time it is shown, and
+  the tab last chosen carries to the next sheet.
+- **A board per daemon, by its route** (`src/tabs/tabs.ts`, `scenes/board.ts`): the tab strip, HTML along the top
+  (`TABS` tall; the outliner starts beneath it), is Home — the `board` scene, route `[]` — then one tab per daemon
+  opened (`OPEN` from a daemon's sheet, with `{ route, labels }`): a `Board` added at runtime as `board:<id>/<id>…`,
+  given the route, with its own follow, nodes, camera and sheet, and `ui` brought back to the top. Switching sleeps the
+  board shown (its sheet closes; its lists stay open), sets `ACTIVE` and wakes the target; ✕ stops and removes the
+  board. Only the `ACTIVE` board writes `STATUS`, `OUTLINE` and `SELECTED` (`say` keeps the last of each and writes it
+  again on wake) and takes `ARRANGE`, `FOCUS`, `HOVER` and pulses; `KINDS` and `LINES` are shared, set by the first;
+  only Home launches `ui`; the backdrop follows the `ACTIVE` board's camera. **The route is on every request**: each
+  frame is spread with `relayed(route)` (`lib/wire.ts`) — `{}` for `[]`, so Home's frames carry no `relay`, else
+  `{ relay: route }` — in `world/live.ts`, `world/names.ts` and every sheet tab (`Opened.route`); our daemon takes the
+  first ID off and relays the rest. The hex world (`world/snapshot.ts`, `world/watch.ts`) stays Home's.
 - **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): a dark Tron grid, every agent,
   standalone tool, connected standalone tool, dependency tool, account, volume, provider and daemon a glowing node in its kind's neon, first standing in a column
   per kind (`grid/place.ts`) and then wherever it is dragged — the links have no say, and positions live only for the
@@ -78,7 +90,10 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 - **Rust holds the one connection** — the address, the identity, the socket — through the SDK's own `tauri_proxy`
   runner (the `tauri-proxy` feature): main.rs manages one `TauriProxy` and registers its eight commands, the four sends,
   `wire_took`/`wire_dropped` (a frame crosses to the page only after it took the last) and
-  `wire_status`/`wire_reset`. The content security policy connects only to Tauri's IPC.
+  `wire_status`/`wire_reset`. The content security policy connects only to Tauri's IPC. The app's own commands that
+  make daemon requests — `frontend_open`, `files_download`, `files_upload` — take `relay: Option<Relay>`
+  (`diverge_sdk::shared::relay::Relay`), absent at Home, and put it on every frame they send (a frontend keeps it on
+  `Served`).
 - **The root and the config are the viewer's**: `--config <dir>`, else `DIVERGE_CONFIG`, else `~/.diverge`, and
   `<root>/viewer.yaml` read with the viewer's own type (`diverge-viewer/config`, crate `diverge-viewer-config`):
   `daemon.address`, `daemon.issuer`, `daemon.subject` — one of `<root>/identities/`, signed in by

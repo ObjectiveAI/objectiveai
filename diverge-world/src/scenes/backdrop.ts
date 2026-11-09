@@ -1,9 +1,10 @@
-// The backdrop scene: the grid beneath the board, filling the window
-// wherever the board's camera looks, so its edge is never seen.
+// The backdrop scene: the grid beneath the board shown, filling the
+// window wherever its camera looks, so its edge is never seen.
 
 import * as Phaser from "phaser";
 import { FIELD, GRID_BOLD, GRID_FINE } from "../grid/palette";
 import { makeTextures } from "../grid/textures";
+import { ACTIVE } from "./status";
 
 /** The world's pixels between fine lines, and how many steps apart the bold ones are. */
 const STEP = 40;
@@ -20,10 +21,10 @@ const FADE_TO = 10;
  * The rules:
  *
  * 1. The field is the camera's own background, the colour of the board.
- * 2. Every frame it reads the board's camera: its zoom, and the world
- *    point at the window's top-left (the scroll, plus half the window,
- *    less half the window at the zoom, as the camera zooms about its
- *    middle).
+ * 2. Every frame it reads the camera of the board shown (`ACTIVE`, Home
+ *    until a tab is chosen): its zoom, and the world point at the
+ *    window's top-left (the scroll, plus half the window, less half the
+ *    window at the zoom, as the camera zooms about its middle).
  * 3. The grid is drawn again only when that view or the window has
  *    changed: in the window's own pixels, every line one pixel wide on
  *    a whole pixel, so zooming moves the lines apart and never blurs or
@@ -50,8 +51,8 @@ export class Backdrop extends Phaser.Scene {
 
   update() {
     // Rule 2. Until the board has started, it has no camera to follow.
-    const board = this.scene.get("board");
-    if (!board.sys.isActive()) return;
+    const board = this.scene.get((this.registry.get(ACTIVE) as string | undefined) ?? "board");
+    if (!board?.sys.isActive()) return;
     const camera = board.cameras.main;
     const zoom = camera.zoom;
     const left = camera.scrollX + camera.width / 2 - camera.width / (2 * zoom);

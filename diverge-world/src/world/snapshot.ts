@@ -133,7 +133,7 @@ export async function snapshot(): Promise<Snapshot> {
       return image ? [image] : [];
     }),
   ];
-  const info = await imageInfo(images);
+  const info = await imageInfo(images, []);
   return {
     accounts: a.items,
     agents: g.items,

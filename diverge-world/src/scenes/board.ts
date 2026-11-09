@@ -1,6 +1,8 @@
 // The board scene: every entity as a glowing node on the dark grid,
 // dragged wherever its owner wants it. It follows the daemon: what is
-// made appears, what changes is redrawn, what is deleted goes.
+// made appears, what changes is redrawn, what is deleted goes. One board
+// per tab of the window: Home, our own daemon, and each daemon opened
+// along a route.
 
 import * as Phaser from "phaser";
 import { arrange } from "../grid/arrange";
@@ -11,6 +13,7 @@ import { makeNodes, type Node, type Nodes, setAt, setDim, setShown, where } from
 import { place, placeOne } from "../grid/place";
 import { type Pulses, pulses } from "../grid/pulses";
 import { REACH } from "../grid/textures";
+import type { Route } from "../lib/wire";
 import { Sheet } from "../sheet/sheet";
 import { follow } from "../world/live";
 import { accountKey, agentKey, connectedKey, daemonKey, dependencyKey, type Entity, type Model, model, providerKey, providerLive, toolKey, volumeKey } from "../world/model";
@@ -18,7 +21,7 @@ import { mountsOf } from "../world/mounts";
 import type { Snapshot } from "../world/snapshot";
 import type { Watching } from "../world/watch";
 import { controls } from "./camera";
-import { ARRANGE, type Bounds, type Counts, FOCUS, HOVER, KINDS, type Kinds, LINES, type Lines, OUTLINE, OUTLINER, type Outline, SELECTED, STATUS, type Status } from "./status";
+import { ACTIVE, ARRANGE, type Bounds, type Counts, FOCUS, HOVER, KINDS, type Kinds, LINES, type Lines, OPEN, type Opening, OUTLINE, OUTLINER, type Outline, SELECTED, STATUS, type Status } from "./status";
 
 /** The selection ring's colour: white light. */
 const RING = 0xffffff;
@@ -30,14 +33,15 @@ const GLIDE = 700;
 const PAN = 400;
 
 /**
- * The board, started by the backdrop; it starts the UI scene over
- * itself.
+ * The board: Home, started by the backdrop, which starts the UI scene
+ * over itself; or a daemon's, added by the tab strip (`tabs`) with the
+ * route to it (`Opening`).
  *
  * The rules:
  *
- * 1. The daemon is followed (`follow`): its eight lists kept open, the
- *    world handed on as it changes. Until every list has been whole
- *    once, the board waits.
+ * 1. The daemon the board's route reaches is followed (`follow`): its
+ *    lists kept open, the world handed on as it changes. Until every
+ *    list has been whole once, the board waits.
  * 2. Every entity is a node at its first place (`place`), every edge
  *    (`edges`) — call, attachment, creator — a line under them, side by
  *    side in lanes (`makeLinks`). A node dragged takes its lines, its
@@ -72,6 +76,17 @@ const PAN = 400;
  *    clicking it would — or keeps it open, if it is open already. The
  *    view neither pans nor zooms for a press or a wheel over the
  *    outliner (`OUTLINER`).
+ * 9. Its route (`Opening.route`, `[]` for Home) is on every request it
+ *    and its sheet make; a daemon's sheet opens that daemon's tab
+ *    (`OPEN`) with the route one hop longer, and its name added.
+ * 10. Only the board shown (`ACTIVE`) speaks to the outliner: what it
+ *    would write of `STATUS`, `OUTLINE` and `SELECTED` is kept (`say`)
+ *    and written only while it is shown, and all of it again when it
+ *    wakes; `ARRANGE`, `FOCUS`, `HOVER` and pulses are its alone. Which
+ *    lines and kinds are shown (`LINES`, `KINDS`) is every board's
+ *    alike, set by the first. Put to sleep, it closes its sheet; its
+ *    lists stay open and its world current. Shut down — its tab closed —
+ *    its lists close and its sheet leaves the page.
  */
 export class Board extends Phaser.Scene {
   private sheet: Sheet | null = null;
@@ -90,18 +105,30 @@ export class Board extends Phaser.Scene {
   private pulses: Pulses | null = null;
   /** What each node was last lit with, so a world that changes nothing about it relights nothing. */
   private readonly litWith = new Map<string, string>();
+  /** Rule 9: the route to the daemon this board shows, and each daemon's name along it. */
+  private route: Route = [];
+  private labels: string[] = [];
+  /** Rule 10: the last of each value the board would tell the outliner, by registry key. */
+  private readonly said = new Map<string, unknown>();
 
-  constructor() {
-    super("board");
+  constructor(key = "board") {
+    super(key);
+  }
+
+  /** Rule 9: Home, unless a route is given. */
+  init(data: Partial<Opening>) {
+    this.route = data.route ?? [];
+    this.labels = data.labels ?? [];
   }
 
   create() {
-    this.registry.set(STATUS, { kind: "waiting", reason: null } satisfies Status);
-    this.registry.set(LINES, { call: true, attachment: true, creator: true } satisfies Lines);
-    this.registry.set(KINDS, { account: true, agent: true, standalone_tool: true, connected_standalone_tool: true, dependency_tool: true, volume: true, provider: true, daemon: true } satisfies Kinds);
-    this.registry.set(OUTLINE, [] satisfies Outline);
-    this.registry.set(SELECTED, null);
-    this.scene.launch("ui");
+    this.say(STATUS, { kind: "waiting", reason: null } satisfies Status);
+    // Rule 10: set by the first board, shared by the rest.
+    if (this.registry.get(LINES) === undefined) this.registry.set(LINES, { call: true, attachment: true, creator: true } satisfies Lines);
+    if (this.registry.get(KINDS) === undefined) this.registry.set(KINDS, { account: true, agent: true, standalone_tool: true, connected_standalone_tool: true, dependency_tool: true, volume: true, provider: true, daemon: true } satisfies Kinds);
+    this.say(OUTLINE, [] satisfies Outline);
+    this.say(SELECTED, null);
+    if (this.route.length === 0) this.scene.launch("ui");
     const show = (_parent: unknown, value: Lines) => {
       this.links?.show(value);
       this.refocus();
@@ -109,25 +136,56 @@ export class Board extends Phaser.Scene {
     this.registry.events.on(`changedata-${LINES}`, show);
     const shown = (_parent: unknown, value: Kinds) => this.showKinds(value);
     this.registry.events.on(`changedata-${KINDS}`, shown);
-    const arranged = () => this.arrange();
+    // Rule 10: the outliner's words are the shown board's alone.
+    const arranged = () => this.awake() && this.arrange();
     this.game.events.on(ARRANGE, arranged);
-    const focus = (key: string) => this.focus(key);
+    const focus = (key: string) => this.awake() && this.focus(key);
     this.game.events.on(FOCUS, focus);
-    const hoverKey = (key: string | null) => this.hoverKey(key);
+    const hoverKey = (key: string | null) => this.awake() && this.hoverKey(key);
     this.game.events.on(HOVER, hoverKey);
+    // Rule 10: asleep, the sheet closed; awake, the outliner told it all again.
+    const slept = () => {
+      if (this.selected !== null) {
+        this.sheet?.close();
+        this.deselect();
+      }
+      this.hovered = null;
+      this.refocus();
+    };
+    this.events.on("sleep", slept);
+    const woke = () => {
+      for (const [key, value] of this.said) this.registry.set(key, value);
+    };
+    this.events.on("wake", woke);
     this.events.once("shutdown", () => {
       this.game.events.off(ARRANGE, arranged);
       this.game.events.off(FOCUS, focus);
       this.game.events.off(HOVER, hoverKey);
+      this.events.off("sleep", slept);
+      this.events.off("wake", woke);
       this.following?.stop();
+      this.sheet?.dispose();
+      this.sheet = null;
       this.registry.events.off(`changedata-${LINES}`, show);
       this.registry.events.off(`changedata-${KINDS}`, shown);
     });
-    // Rule 1.
+    // Rules 1 and 9.
     this.following = follow(
+      this.route,
       (world) => (this.nodes ? this.apply(world) : this.draw(world)),
       (change) => this.pulses?.told(change),
     );
+  }
+
+  /** Rule 10: whether this board is the one shown. */
+  private awake(): boolean {
+    return this.registry.get(ACTIVE) === this.scene.key;
+  }
+
+  /** Rule 10: a value for the outliner, kept, and written while this board is shown. */
+  private say(key: string, value: unknown) {
+    this.said.set(key, value);
+    if (this.awake()) this.registry.set(key, value);
   }
 
   /** Rule 2: the first world. */
@@ -143,8 +201,13 @@ export class Board extends Phaser.Scene {
     this.links.show(this.registry.get(LINES) as Lines);
     this.showKinds(this.registry.get(KINDS) as Kinds);
     this.lit = makeLit(this, nodes);
-    this.pulses = pulses(this, nodes, this.links, read.events);
-    this.sheet = new Sheet(() => this.deselect(), (key) => this.bright.get(key) === true);
+    this.pulses = pulses(this, nodes, this.links, read.events, () => this.awake());
+    // Rule 9: a daemon's sheet opens its tab, one hop further along.
+    this.sheet = new Sheet(
+      () => this.deselect(),
+      (key) => this.bright.get(key) === true,
+      (id, label) => this.game.events.emit(OPEN, { route: [...this.route, id], labels: [...this.labels, label] } satisfies Opening),
+    );
     this.light(read, made);
     // The view's middle may reach the first columns and every node shown wherever it stands now.
     const reach = () => {
@@ -246,11 +309,11 @@ export class Board extends Phaser.Scene {
 
   /** Rule 3: the outliner's counts, as the world has them; rule 8: the outliner's nodes. */
   private count(read: Snapshot, made: Model) {
-    this.registry.set(OUTLINE, made.entities.map((e) => ({ key: e.key, kind: e.kind, label: e.label, bright: this.bright.get(e.key) === true })) satisfies Outline);
+    this.say(OUTLINE, made.entities.map((e) => ({ key: e.key, kind: e.kind, label: e.label, bright: this.bright.get(e.key) === true })) satisfies Outline);
     const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, connected_standalone_tool: 0, dependency_tool: 0, volume: 0, provider: 0, daemon: 0, call: 0, attachment: 0, creator: 0 };
     for (const e of made.entities) counts[e.kind]++;
     for (const e of this.edges) counts[e.type]++;
-    this.registry.set(STATUS, { kind: "drawn", counts, forbidden: read.forbidden } satisfies Status);
+    this.say(STATUS, { kind: "drawn", counts, forbidden: read.forbidden } satisfies Status);
   }
 
   /** Rule 2: a node moved; its links and its ring follow. */
@@ -269,7 +332,7 @@ export class Board extends Phaser.Scene {
     if (selected && !selected.image.visible) {
       this.sheet?.close();
       this.selected = null;
-      this.registry.set(SELECTED, null);
+      this.say(SELECTED, null);
       this.ring?.setVisible(false);
     }
     const hovered = this.hovered === null ? undefined : nodes.byKey.get(this.hovered);
@@ -330,16 +393,16 @@ export class Board extends Phaser.Scene {
     const node = this.nodes?.byKey.get(entity.key);
     if (!node || !this.ring) return;
     this.selected = entity.key;
-    this.registry.set(SELECTED, entity.key);
+    this.say(SELECTED, entity.key);
     this.ring.setPosition(node.image.x, node.image.y).setRadius(REACH[entity.kind] + 10).setVisible(true);
     this.refocus();
-    this.sheet?.open({ entity, images: this.images });
+    this.sheet?.open({ entity, images: this.images, route: this.route });
   }
 
   /** Rule 5: the sheet closed, so nothing is selected. */
   private deselect() {
     this.selected = null;
-    this.registry.set(SELECTED, null);
+    this.say(SELECTED, null);
     this.ring?.setVisible(false);
     this.refocus();
   }

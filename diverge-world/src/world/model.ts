@@ -29,9 +29,10 @@ export type Files =
  * are the other daemon's, and none are here. A provider's or a
  * daemon's `line` is the sheet's second line, where no log names it: a
  * provider's direction and where the daemon stands with it, a
- * daemon's account there and whether the daemon is connected to it.
+ * daemon's account there and whether the daemon is connected to it. A
+ * daemon's `daemon` is its record's ID: the hop a route to it takes.
  */
-export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; files?: Files; frontend?: Frontend; live?: Live; line?: string };
+export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; files?: Files; frontend?: Frontend; live?: Live; line?: string; daemon?: { id: string } };
 
 /** Whose frontend an entity serves: an agent's, a standalone tool's or a dependency tool's, as the daemon's `frontend` names it. */
 export type Frontend = { agent: daemon.reference.Agent } | { tool: daemon.reference.Tool } | { dependency: daemon.reference.Dependency };
@@ -174,13 +175,13 @@ function providerEntity(p: Provider): Entity {
  * The entity a daemon is — the record the daemon keeps of one
  * account of ours on another daemon: named by its description, else by
  * the remote's subject; its line our account there and whether the
- * daemon is connected to it. It has no log, no files and no container
- * here.
+ * daemon is connected to it; its record's ID, which a route to it
+ * takes. It has no log, no files and no container here.
  */
 function daemonEntity(d: Daemon): Entity {
   const { issuer, subject } = d.daemon;
   const line = `as ${d.identity.subject} · ${d.connected ? "connected" : "disconnected"}`;
-  return { key: daemonKey(d), kind: "daemon", label: d.description || subject, detail: `${issuer} ${subject} — ${line}`, line };
+  return { key: daemonKey(d), kind: "daemon", label: d.description || subject, detail: `${issuer} ${subject} — ${line}`, line, daemon: { id: d.id } };
 }
 
 /**
@@ -207,7 +208,8 @@ function daemonEntity(d: Daemon): Entity {
  * 6. Every listed provider is an entity, with its live state —
  *    connected — and no subject, files or container (`providerEntity`).
  * 7. Every listed daemon is an entity, with its live state —
- *    connected — and no subject, files or container (`daemonEntity`).
+ *    connected — its record's ID, and no subject, files or container
+ *    (`daemonEntity`).
  */
 export function model(snapshot: Snapshot): Model {
   const entities = new Map<string, Entity>();

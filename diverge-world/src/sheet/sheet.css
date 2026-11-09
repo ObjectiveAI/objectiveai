@@ -186,6 +186,30 @@
   background: #fff;
 }
 
+/* Rule 10: the daemon tab, its one button, which opens the daemon's own tab of the window. */
+.sheet .daemon {
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  background: var(--sheet-ink);
+}
+.sheet .daemon[hidden] {
+  display: none;
+}
+.sheet .daemon button {
+  padding: 6px 14px;
+  border: 1px solid var(--sheet-copper);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  color: var(--sheet-copper-bright);
+  font: 13px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  cursor: pointer;
+}
+.sheet .daemon button:hover {
+  border-color: var(--sheet-copper-bright);
+  color: var(--sheet-cream);
+}
+
 /* Rule 5: the filesystem, scrolled from its top; every row on one grid of columns. */
 .sheet .files {
   flex: 1;

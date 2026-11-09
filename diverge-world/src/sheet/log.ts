@@ -2,7 +2,7 @@
 // entry as it comes.
 
 import { daemon } from "@diverge/sdk";
-import { handle } from "../lib/wire";
+import { handle, type Route, relayed } from "../lib/wire";
 import type { Subject } from "../world/model";
 
 /** One entry of a log, in its subject's kind. */
@@ -12,13 +12,13 @@ export type Entry = daemon.endpoints.logs.server.response.Entry;
 export type Following = { stop(): void };
 
 /**
- * Follow `subject`'s log.
+ * Follow `subject`'s log, on the daemon `route` reaches.
  *
  * The rules:
  *
- * 1. The log is asked with `watch` (the root `logs` read): every entry
- *    so far, in order, then every new one as it is kept, each handed
- *    to `entry`.
+ * 1. The log is asked with `watch` (the root `logs` read), of the
+ *    daemon `route` reaches (`relayed`): every entry so far, in order,
+ *    then every new one as it is kept, each handed to `entry`.
  * 2. `watch` — the history sent, the read now live — is told to
  *    `live`, once, and handed to nothing else.
  * 3. `forbidden`, an error, a stream that ends and a connection that
@@ -27,13 +27,13 @@ export type Following = { stop(): void };
  *    opens if not; after it, nothing more is handed on and `ended` is
  *    not called.
  */
-export function follow(subject: Subject, entry: (entry: Entry) => void, ended: (why: string) => void, live: () => void): Following {
+export function follow(subject: Subject, route: Route, entry: (entry: Entry) => void, ended: (why: string) => void, live: () => void): Following {
   let stopped = false;
   let cancel: { cancel(): Promise<void> } | null = null;
   void (async () => {
     try {
       // Rule 1.
-      const [stream, c] = await daemon.endpoints.logs.client.execute(handle, { of: subject, watch: true });
+      const [stream, c] = await daemon.endpoints.logs.client.execute(handle, { of: subject, watch: true, ...relayed(route) });
       cancel = c;
       if (stopped) {
         await c.cancel();

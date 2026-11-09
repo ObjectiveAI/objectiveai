@@ -7,6 +7,7 @@
 import * as Phaser from "phaser";
 import { type EdgeType, TYPES } from "../grid/edges";
 import { css, NEON } from "../grid/palette";
+import { TABS } from "../tabs/tabs";
 import type { Kind } from "../world/model";
 import { KIND_ORDER } from "./kinds";
 import { ARRANGE, type Bounds, FOCUS, HOVER, KINDS, type Kinds, LINES, type Lines, OUTLINE, OUTLINER, type Outline, SELECTED, STATUS, type Status } from "./status";
@@ -109,11 +110,12 @@ export function flipLine(registry: Phaser.Data.DataManager, type: EdgeType): voi
  *
  * The rules:
  *
- * 1. It stands at the window's top-right, `WIDTH` wide, as tall as its
+ * 1. It stands at the window's top-right, under the tab strip (`TABS`),
+ *    `WIDTH` wide, as tall as its
  *    rows need and never taller than the window beneath it. Dragging
  *    the grip along its top moves it anywhere that keeps `KEEP` pixels
- *    of it in the window; it keeps its distance from the window's
- *    right edge as the window is resized. Its bounds are told to the
+ *    of it in the window, never above the strip's foot; it keeps its
+ *    distance from the window's right edge as the window is resized. Its bounds are told to the
  *    board (`OUTLINER`), which neither pans nor zooms for a press or a
  *    wheel that begins over it, nor while its grip or its scrollbar's
  *    thumb is dragged. A press counts only when it went down and came
@@ -153,7 +155,7 @@ export function outliner(scene: Phaser.Scene): void {
   let hovered: number | null = null;
   // Rule 1: where the outliner stands, as its distance from the window's right edge and from its top.
   let fromRight = EDGE;
-  let fromTop = EDGE;
+  let fromTop = TABS + EDGE;
   // Rule 7: the track's top and height, the thumb's height, and how many rows are in view, as last drawn.
   let track = { y: 0, height: 0, thumb: 0, shown: 0 };
   const style = (color: string) => ({ fontFamily: FONT, fontSize: "12px", color });
@@ -244,7 +246,7 @@ export function outliner(scene: Phaser.Scene): void {
     const selected = scene.registry.get(SELECTED) as string | null | undefined;
     // Rule 1: kept inside the window, the grip at its top.
     const x = Math.max(KEEP - WIDTH, Math.min(scene.scale.width - KEEP, scene.scale.width - fromRight - WIDTH));
-    const origin = Math.max(0, Math.min(scene.scale.height - KEEP, fromTop));
+    const origin = Math.max(TABS, Math.min(scene.scale.height - KEEP, fromTop));
     grip.setPosition(x, origin);
     grip.input?.hitArea.setTo(0, 0, WIDTH, GRIP);
     gripBar.setPosition(x + (WIDTH - GRIP_BAR) / 2, origin + (GRIP - 3) / 2);

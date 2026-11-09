@@ -20,6 +20,9 @@ is named, so the two can be checked against each other.
   or a tool that serves one — its **frontend**, its own web page.
 - Files can be downloaded (right-click) and uploaded (drag and drop),
   however large.
+- Another daemon our account reaches opens in a **tab** of its own,
+  along the top of the window, from its daemon node's sheet — and
+  everything in that tab works as at home.
 
 ---
 
@@ -139,15 +142,50 @@ same way.
 
 ---
 
+## Daemon tabs
+
+`tabs/tabs.ts`, `scenes/board.ts`
+
+- **The strip.** Along the top of the window: **Home** — our own
+  daemon — first, then one tab per daemon opened. Each is named by the
+  daemons along the way to it (`A › B`); hovering it shows their IDs.
+  The tab shown is lit copper.
+- **Opening one.** Click a daemon's node; its sheet's **daemon** tab has
+  one button, **Open <name>**. Pressing it opens that daemon in a new
+  tab and shows it. A daemon opened already is switched to instead.
+- **Further on.** A daemon's tab has daemon nodes of its own, the
+  daemons it has records of; opening one of those goes one hop
+  further (`A › B`).
+- **The same app.** Inside a tab everything works as at Home — the
+  board, the outliner, every sheet tab, downloads and uploads, consoles
+  and frontends — on that daemon. Our daemon passes each request on
+  (its `relay`, the route of daemon record IDs), connecting as our
+  account there.
+- **Switching.** Click a tab. The one left closes its sheet but keeps
+  everything else — its lists stay open, its nodes where they were
+  dragged, its view where it was — so switching back loses nothing.
+  The outliner shows the tab shown.
+- **Shared settings.** Which kinds and which types of line are shown is
+  the same in every tab.
+- **Closing.** **✕** on a tab closes it, its lists and its sheet; if it
+  was shown, the tab to its left is shown. Home has no ✕.
+- **Refused.** A daemon our daemon cannot reach, or the account may not
+  relay to, stays "waiting for the daemon" in the outliner's status
+  row.
+- **Through the strip:** a click on it never presses a node or the
+  outliner beneath.
+
+---
+
 ## The outliner
 
 `scenes/outliner.ts`, `scenes/ui.ts`
 
-The one menu, at the top right of the window at first: as tall as its
-rows need and no taller than the window, over a see-through dark
-backing. Drag the grip along its top (a short bar) to move it anywhere;
-it keeps its distance from the window's right edge when the window is
-resized. A drag that starts on it, or the wheel over it, does not move
+The one menu, at the top right of the window at first, under the tab
+strip: as tall as its rows need and no taller than the window, over a
+see-through dark backing. Drag the grip along its top (a short bar) to
+move it anywhere below the strip; it keeps its distance from the
+window's right edge when the window is resized. A drag that starts on it, or the wheel over it, does not move
 the view.
 
 ### Top rows
@@ -182,7 +220,7 @@ One row each, one beneath another, then a thin rule:
 - **Rows:** every node of that kind, by name, with its shape and a dot
   that is green while the node is bright.
 - **Press a row:** the view flies to the node, rings it, and opens its
-  sheet — for a provider or a daemon, the sheet's header alone.
+  sheet — for a provider, the sheet's header alone.
 - **Hover a row:** the node's lines are focused, as hovering the node
   itself does.
 - **The open sheet's row** is lit.
@@ -231,8 +269,8 @@ The keys are not printed.
 ### Opening and closing
 
 - **Open:** click any node. It gets a white selection ring, and its
-  sheet opens along the bottom of the window — for a provider or a
-  daemon, which have no tabs, its header alone.
+  sheet opens along the bottom of the window — for a provider, which
+  has no tabs, its header alone.
 - **Swap:** click another node to switch the sheet to it.
 - **Through the sheet:** a click on the sheet never selects a node
   beneath it.
@@ -253,25 +291,27 @@ The keys are not printed.
 
 ### Tabs by kind
 
-| Kind | Logs | Filesystem | Console | Frontend |
-|---|---|---|---|---|
-| Agent | yes | yes | yes | when its image declares one |
-| Standalone tool | yes | yes | yes | when its image declares one |
-| Connected standalone tool | yes | — | — | — |
-| Dependency tool | yes | yes | yes | when its image declares one |
-| Account (and admin) | yes | — | — | — |
-| Volume | — | yes | — | — |
-| Provider | — | — | — | — |
-| daemon | — | — | — | — |
+| Kind | Logs | Filesystem | Console | Frontend | Daemon |
+|---|---|---|---|---|---|
+| Agent | yes | yes | yes | when its image declares one | — |
+| Standalone tool | yes | yes | yes | when its image declares one | — |
+| Connected standalone tool | yes | — | — | — | — |
+| Dependency tool | yes | yes | yes | when its image declares one | — |
+| Account (and admin) | yes | — | — | — | — |
+| Volume | — | yes | — | — | — |
+| Provider | — | — | — | — | — |
+| daemon | — | — | — | — | yes |
 
 - The tab bar always shows, even for a node with one tab (an account's
   or a connected tool's logs, a volume's filesystem).
 - A connected tool's files, container and image are the other
   daemon's, so its sheet holds its log alone: every call and read this
   daemon routed into it.
-- A provider or a daemon has no tab at all: it has no log,
-  files or container of its own here, so its sheet is its header
-  alone.
+- A provider has no tab at all: it has no log, files or container of
+  its own here, so its sheet is its header alone.
+- **A daemon's tab** holds one button, **Open <name>**, which opens
+  that daemon in a tab of the window (see
+  [Daemon tabs](#daemon-tabs)).
 - A tab starts reading the first time it is shown, and keeps running
   until the sheet closes, so switching back finds it current.
 - The tab you last chose is remembered, and the next node opens on it
@@ -475,7 +515,10 @@ refused. An administrator's log is the daemon's own admin log.
   whenever one changes, at most once a frame. It waits until every list
   has been read whole once. A list that drops is opened again 5 seconds
   later, and anything deleted while it was closed is taken off the
-  board when it comes back.
+  board when it comes back. Every daemon tab keeps its own eleven, and
+  a tab not shown keeps them open too.
+- **Home's requests are unchanged.** A request at Home carries no
+  `relay`; one in a daemon's tab carries the route to it.
 - **The outliner's counts are live**, as the board is.
 - **Reconnecting.** The connection is held by the app's Rust and redials
   by itself as `viewer.yaml` says.

@@ -2,7 +2,7 @@
 // volume's, asked once.
 
 import { daemon, shared } from "@diverge/sdk";
-import { handle } from "../lib/wire";
+import { handle, type Route, relayed } from "../lib/wire";
 import type { Files } from "../world/model";
 import type { Following } from "./log";
 
@@ -12,15 +12,15 @@ export type Root = shared.filetree.response.Root;
 /** A frame of a container's watch, as the three families answer it alike. */
 type Watched = daemon.endpoints.agents.filetree.server.response.Frame;
 
-/** Open a container's watch, by the family the entity is of. */
-function open(files: Exclude<Files, { volume: unknown }>) {
-  if ("agent" in files) return daemon.endpoints.agents.filetree.client.execute(handle, { agent: files.agent });
-  if ("tool" in files) return daemon.endpoints.standalone_tools.filetree.client.execute(handle, { tool: files.tool });
-  return daemon.endpoints.dependency_tools.filetree.client.execute(handle, { dependency: files.dependency });
+/** Open a container's watch, by the family the entity is of, on the daemon `route` reaches. */
+function open(files: Exclude<Files, { volume: unknown }>, route: Route) {
+  if ("agent" in files) return daemon.endpoints.agents.filetree.client.execute(handle, { agent: files.agent, ...relayed(route) });
+  if ("tool" in files) return daemon.endpoints.standalone_tools.filetree.client.execute(handle, { tool: files.tool, ...relayed(route) });
+  return daemon.endpoints.dependency_tools.filetree.client.execute(handle, { dependency: files.dependency, ...relayed(route) });
 }
 
 /**
- * Read `files`.
+ * Read `files`, on the daemon `route` reaches.
  *
  * The rules:
  *
@@ -36,8 +36,9 @@ function open(files: Exclude<Files, { volume: unknown }>) {
  *    said once to `ended` in words. A volume's answer ends nothing.
  * 4. `stop` cancels a watch, at once if it is open and as soon as it
  *    opens if not; after it, nothing more is told.
+ * 5. The watch and the ask are both served along `route` (`relayed`).
  */
-export function readTree(files: Files, changed: (root: Root, touched: string[][]) => void, ended: (why: string) => void): Following {
+export function readTree(files: Files, route: Route, changed: (root: Root, touched: string[][]) => void, ended: (why: string) => void): Following {
   let stopped = false;
   let cancel: { cancel(): Promise<void> } | null = null;
   const fail = (error: unknown) => {
@@ -47,7 +48,7 @@ export function readTree(files: Files, changed: (root: Root, touched: string[][]
   if ("volume" in files) {
     void (async () => {
       try {
-        const answer = await daemon.endpoints.volumes.filetree.client.execute(handle, { volume: files.volume, path: [] });
+        const answer = await daemon.endpoints.volumes.filetree.client.execute(handle, { volume: files.volume, path: [], ...relayed(route) });
         if (stopped) return;
         if (typeof answer === "object" && "tree" in answer) return changed(new shared.filetree.response.Root(answer.tree), []);
         // Rule 3.
@@ -65,7 +66,7 @@ export function readTree(files: Files, changed: (root: Root, touched: string[][]
   void (async () => {
     try {
       // Rule 1.
-      const [stream, c] = await open(files);
+      const [stream, c] = await open(files, route);
       cancel = c;
       if (stopped) {
         await c.cancel();
