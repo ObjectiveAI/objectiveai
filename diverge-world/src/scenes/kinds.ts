@@ -3,7 +3,7 @@
 
 import type { Kind } from "../world/model";
 
-/** The kinds, in the legend's and the outliner's order, each with its sample shape and its name. */
+/** The kinds, in the outliner's order, each with its sample shape and its name. */
 export const KIND_ORDER: [Kind, string, string][] = [
   ["account", "◎", "accounts"],
   ["agent", "⬡", "agents"],

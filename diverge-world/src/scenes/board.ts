@@ -41,7 +41,7 @@ const PAN = 400;
  * 2. Every entity is a node at its first place (`place`), every edge
  *    (`edges`) — call, attachment, creator — a line under them, side by
  *    side in lanes (`makeLinks`). A node dragged takes its lines, its
- *    ring and its pulses with it. The legend shows and hides each type
+ *    ring and its pulses with it. The outliner shows and hides each type
  *    of line (`LINES`) and each kind of node (`KINDS`); a hidden node
  *    takes its lines and pulses with it, and closes its sheet if it was
  *    open.
@@ -49,7 +49,7 @@ const PAN = 400;
  *    new to it is a node at its own place (`placeOne`), one gone from it
  *    is removed with its lines — its sheet closed if it was open — and
  *    one still in it is relabelled; the lines are the world's edges
- *    now. A node that stays keeps where it stands. The legend's counts
+ *    now. A node that stays keeps where it stands. The outliner's counts
  *    are the world's.
  * 4. Every node is lit as the world says (`light`): bright or faint,
  *    its halo breathing while it works; pulses run as the events tell
@@ -244,7 +244,7 @@ export class Board extends Phaser.Scene {
     }
   }
 
-  /** Rule 3: the legend's counts, as the world has them; rule 8: the outliner's nodes. */
+  /** Rule 3: the outliner's counts, as the world has them; rule 8: the outliner's nodes. */
   private count(read: Snapshot, made: Model) {
     this.registry.set(OUTLINE, made.entities.map((e) => ({ key: e.key, kind: e.kind, label: e.label, bright: this.bright.get(e.key) === true })) satisfies Outline);
     const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, connected_standalone_tool: 0, dependency_tool: 0, volume: 0, provider: 0, daemon: 0, call: 0, attachment: 0, creator: 0 };

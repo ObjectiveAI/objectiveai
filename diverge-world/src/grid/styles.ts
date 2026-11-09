@@ -30,6 +30,3 @@ export const STYLES: Record<EdgeType, Style> = {
   attachment: { pattern: "dashed", width: 1, alpha: 0.45, color: () => NEUTRAL, head: null },
   creator: { pattern: "dotted", width: 1.2, alpha: 0.4, color: (from) => (from === null ? NEUTRAL : NEON[from]), head: "dot" },
 };
-
-/** Each type's name on the legend. */
-export const NAMES: Record<EdgeType, string> = { call: "calls", attachment: "attachments", creator: "creators" };

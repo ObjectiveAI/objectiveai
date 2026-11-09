@@ -5,8 +5,9 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 ## The seams
 - **The page is a Phaser game, no React**: `src/main.ts` makes one `Phaser.Game` filling the window, one scene per
   file under `src/scenes/`. `world` draws the map and starts `ui` over itself; `ui` draws the menus — game menus,
-  drawn in the engine — with a camera of its own: the status line and legend top-left, the outliner
-  (`scenes/outliner.ts`) top-right, every node by kind, a row's click (`FOCUS`) flying the board's camera to it and
+  drawn in the engine — with a camera of its own: one menu, the outliner
+  (`scenes/outliner.ts`) top-right — Arrange and the line-type toggles in its title bar, the status row beneath, then
+  every node by kind, each kind's header an eye that shows or hides it (`KINDS`), a row's click (`FOCUS`) flying the board's camera to it and
   opening its sheet, a row's hover (`HOVER`) focusing it; the board tells it the nodes (`OUTLINE`) and the open one
   (`SELECTED`) through the registry, and pans and zooms for nothing over its bounds (`OUTLINER`). Text panels are the exception, HTML over the canvas: clicking an
   agent opens its bottom sheet (`src/sheet/`), the agent's log followed live (`agents logs` with `watch`) and folded
@@ -55,7 +56,7 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   that reopens reconciled against what it held, the world handed to `scenes/board.ts` at most once a frame once every
   list was whole once. The board draws the first world, then diffs every later one by key (`apply`): new entities are
   nodes at `placeOne`, gone ones are removed (their sheet closed), kept ones relabelled; the edges are replaced
-  (`links.setEdges`), the lights reapplied (`light`), the legend counts reset; pulses take the same events stream
+  (`links.setEdges`), the lights reapplied (`light`), the outliner's counts reset; pulses take the same events stream
   (`pulses.told`) after the world holding their line is drawn.
 - **The hex world is the daemon drawn once** (`scenes/world.ts`, unlisted): eleven lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its

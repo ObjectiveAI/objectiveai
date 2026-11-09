@@ -12,10 +12,9 @@ is named, so the two can be checked against each other.
   what is made appears, what changes is redrawn, what is deleted goes.
 - Nodes light up while they work, and pulses of light run along the
   lines as events happen.
-- A panel at the top left shows and hides each kind of node and each
-  type of line, with counts, and can arrange the board.
-- An outliner at the top right lists every node by kind; clicking one
-  flies the view to it and opens its sheet.
+- An outliner at the top right lists every node by kind — clicking one
+  flies the view to it and opens its sheet — shows and hides each kind
+  and each type of line, with counts, and can arrange the board.
 - Clicking a node opens a sheet along the bottom: its **logs**, its
   **filesystem**, a **console** into its container, and — for an agent
   or a tool that serves one — its **frontend**, its own web page.
@@ -140,25 +139,55 @@ same way.
 
 ---
 
-## The top-left panel
+## The outliner
 
-`scenes/ui.ts`
+`scenes/outliner.ts`, `scenes/ui.ts`
 
-### Status line
+The one menu, at the top right of the window: as tall as its rows need
+and no taller than the window. A drag that starts on it, or the wheel
+over it, does not move the view.
 
-- It shows only when there is something to say: "waiting for the
-  daemon" while the world cannot reach it, or which lists this account
-  may not read.
-- Otherwise it is hidden.
+### Title bar
 
-### Legend
+- **Arrange** (`◇ arrange`) at the left; see Arrange below.
+- **One toggle per type of line** at the right — calls `──▸`,
+  attachments `╌╌╌`, creators `o┈┈` — each with how many the board
+  holds. Press one to hide or show that type; a hidden one is faint.
+  Hiding a type takes its lines and lanes off the board.
 
-One row per kind of node, then one per type of line, then Arrange.
-Each row shows three columns — its sample shape or stroke, its name,
-and how many the board holds — and every row is the same width, so the
-names and counts each line up. The keys are not printed.
+### Status row
 
-| Key | Toggles |
+- Under the title bar, in amber, only when there is something to say:
+  "waiting for the daemon" while the world cannot reach it, or which
+  lists this account may not read.
+
+### Sections
+
+- **One per kind**, in this order: accounts, agents, standalone tools,
+  connected tools, daemons, dependency tools, volumes, providers.
+- **A header** shows `▾` (open) or `▸` (folded), the kind's shape and
+  name, how many it holds, and its **eye**. Press the eye to hide or
+  show that kind on the board (`◉` shown, `◌` hidden); press the rest
+  of the header to fold or unfold the section. Folding and hiding are
+  separate: a folded kind stays on the board.
+- **Hiding a kind:** its nodes go, and their lines and pulses with
+  them; an open sheet for one of them closes. Its section stays,
+  faint, and pressing its rows does nothing.
+- **Rows:** every node of that kind, by name, with its shape and a dot
+  that is green while the node is bright.
+- **Press a row:** the view flies to the node and its sheet opens (a
+  provider or a daemon has no sheet, so the view only flies there).
+- **Hover a row:** the node's lines are focused, as hovering the node
+  itself does.
+- **The open sheet's row** is lit.
+- **Scrolling:** the wheel over the outliner scrolls the sections when
+  they outgrow the window; the title bar and status row stay put.
+
+### Keys
+
+The keys are not printed.
+
+| Key | Does |
 |---|---|
 | `1` | accounts |
 | `2` | agents |
@@ -171,17 +200,12 @@ names and counts each line up. The keys are not printed.
 | `9` | calls |
 | `0` | attachments |
 | `-` | creators |
-
-- Click an entry, or press its key, to hide or show it. A hidden entry
-  is drawn faint.
-- **Hiding a kind:** the nodes go, and their lines and pulses with them.
-  An open sheet for a node that is hidden closes.
-- **Hiding a line type:** its lines and lanes go.
+| `A` | arrange |
 
 ### Arrange
 
-- The **Arrange** row (`◇ arrange`, the last row of the legend), or the `A` key, lays out every shown node by
-  the shown lines (`grid/arrange.ts`).
+- **Arrange**, or the `A` key, lays out every shown node by the shown
+  lines (`grid/arrange.ts`).
 - The nodes glide to their new places over about 0.7 s.
 - **The goals:** fewer crossings, no line through a node it does not
   belong to, no overlapping nodes or names, no lines bunched at one
@@ -190,30 +214,6 @@ names and counts each line up. The keys are not printed.
   can give a different, often better, layout.
 - It does nothing while a node is being dragged or nodes are still
   gliding.
-
----
-
-## The outliner
-
-`scenes/outliner.ts`
-
-- **Where:** the top right of the window, as tall as its rows need and
-  no taller than the window.
-- **Sections:** one per kind, in the legend's order — accounts, agents,
-  standalone tools, connected tools, daemons, dependency tools, volumes,
-  providers. Each header shows its shape, its name and how many it
-  holds; click it to fold or unfold the section (`▾` open, `▸` folded).
-- **Rows:** every node of that kind, by name, with its shape and a dot
-  that is green while the node is bright.
-- **Click a row:** the view flies to the node and its sheet opens (a
-  provider or a daemon has no sheet, so the view only flies there).
-- **Hover a row:** the node's lines are focused, as hovering the node
-  itself does.
-- **The open sheet's row** is lit.
-- **A hidden kind** (from the legend) has its section drawn faint, and
-  clicking its rows does nothing.
-- **Scrolling:** the wheel over the outliner scrolls it when its rows
-  outgrow the window.
 
 ---
 
@@ -468,7 +468,7 @@ refused. An administrator's log is the daemon's own admin log.
   has been read whole once. A list that drops is opened again 5 seconds
   later, and anything deleted while it was closed is taken off the
   board when it comes back.
-- **The legend counts are live**, as the board is.
+- **The outliner's counts are live**, as the board is.
 - **Reconnecting.** The connection is held by the app's Rust and redials
   by itself as `viewer.yaml` says.
 - **Nothing is saved.** The app keeps no files of its own.

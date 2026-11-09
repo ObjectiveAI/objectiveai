@@ -16,13 +16,13 @@ export type Counts = Record<Kind, number> & Record<EdgeType, number>;
  */
 export type Status = { kind: "waiting"; reason: string | null } | { kind: "drawn"; counts: Counts; forbidden: string[] };
 
-/** The registry key of the `Lines`: which types of line the board shows, set by the legend. */
+/** The registry key of the `Lines`: which types of line the board shows, set by the outliner. */
 export const LINES = "lines";
 
 /** Whether each type of line is shown. */
 export type Lines = Record<EdgeType, boolean>;
 
-/** The registry key of the `Kinds`: which kinds of node the board shows, set by the legend. */
+/** The registry key of the `Kinds`: which kinds of node the board shows, set by the outliner. */
 export const KINDS = "kinds";
 
 /** Whether each kind of node is shown. */
