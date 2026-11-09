@@ -39,7 +39,7 @@ export const Agent = z.object({
   provider: Provider.optional(),
   /** The `logs_index` of its latest log item: how long its log is, and where a read that wants only what comes next starts. `0` for an empty log. */
   logs_index: z.number().int().nonnegative(),
-  /** The `standalone_tools` it has: those attached to it directly, in the order they were attached, then those attached to its template, in theirs, one it has both ways once — each by its `key`, its origin and its index, with its name beside when it has one; empty for an agent with none. The tools list reports the same attachments from the other side. */
+  /** The `standalone_tools` and the `connected_standalone_tools` it has: those attached to it directly, in the order they were attached, then those attached to its template, in theirs, one it has both ways once — each by its `key`, a `record` by its template and its index, a `connected_standalone` by its daemon, its tool there and its index, with its name beside when it has one; empty for an agent with none. The two tools lists report the same attachments from the other side. */
   tools: z.array(Tool).optional(),
   /** The dependency templates its LAST registration declared, by id, in the order it first declared them, each once: what it depends on now, as `dependency_tools` lists the same attachments from the other side. A registration replaces them whole. Absent when empty — an agent that never registered, or declared nothing. */
   dependencies: z.array(z.string()).optional(),

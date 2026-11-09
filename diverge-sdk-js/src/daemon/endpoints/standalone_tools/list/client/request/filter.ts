@@ -3,7 +3,6 @@
 import { z } from "zod";
 import { Creator } from "../../../../../creator/creator.js";
 import { Mode } from "../../../templates/mode.js";
-import { Kind } from "./kind.js";
 
 /**
  * The filter over tools: every member optional, and every one given
@@ -14,15 +13,13 @@ import { Kind } from "./kind.js";
  * an empty list is absent, and matches everything.
  */
 export const Filter = z.object({
-  /** Any one of these names, as a create or a connect gave them. */
+  /** Any one of these names, as a create gave them. */
   names: z.array(z.string()).optional(),
-  /** A created tool made from any one of these templates, by id; a connected tool matches none. */
+  /** Made from any one of these templates, by id. */
   templates: z.array(z.string()).optional(),
   /** Made by any one of these, directly. Absent when empty, and then made by anybody. */
   creators: z.array(Creator).optional(),
-  /** Created by the daemon or connected to somebody else's; absent, either. */
-  kind: Kind.optional(),
-  /** Made from a template whose `mode` is any one of these; a connected tool passes none. Absent when empty, and then either. */
+  /** Made from a template whose `mode` is any one of these. Absent when empty, and then either. */
   modes: z.array(Mode).optional(),
   /** Whether active — working, a call or a read in flight — `true`, or not, `false`; absent, either. */
   active: z.boolean().optional(),

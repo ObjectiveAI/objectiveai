@@ -10,7 +10,7 @@ import { z } from "zod";
  * - `list`: List them, as `daemons.list` does; the list sends what the grant reaches.
  * - `edit`: Change one, as `daemons.edit` does.
  * - `delete`: Delete one, as `daemons.delete` does.
- * - `connect`: Register a connected tool on one, as `standalone_tools.register` does.
+ * - `connect`: Hold a connected tool on one, as `connected_standalone_tools.create` does.
  * - `relay`: Relay any request to one: the first name of a request's `relay`.
  * - `oci`: Ask one for images, as `images.oci` does; the daemon asks only the remote daemons whose records the grant reaches.
  */

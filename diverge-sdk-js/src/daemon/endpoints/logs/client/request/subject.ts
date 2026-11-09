@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { Tool } from "../../../../reference/tool.js";
+import { DaemonId } from "../../../daemons/id.js";
 import { Owner } from "../../../../reference/owner.js";
 
 /**
@@ -18,8 +19,10 @@ export const Subject = z.union([
   z.strictObject({ type: z.literal("standalone_tool"), name: z.string() }),
   /** A standalone tool's log, by template and index. */
   z.strictObject({ type: z.literal("standalone_tool"), template: z.string(), index: z.number().int().nonnegative() }),
-  /** A standalone tool's log, as another daemon names it. */
-  z.strictObject({ type: z.literal("standalone_tool"), daemon: z.string(), tool: Tool }),
+  /** A connected tool's log, by name: every call and read this daemon routed into another daemon's tool held here. */
+  z.strictObject({ type: z.literal("connected_standalone_tool"), name: z.string() }),
+  /** A connected tool's log, by the daemon, the tool there and its index. */
+  z.strictObject({ type: z.literal("connected_standalone_tool"), daemon: DaemonId, tool: Tool, index: z.number().int().nonnegative() }),
   /** A dependency tool's log, by its dependency template and its owner. */
   z.strictObject({ type: z.literal("dependency_tool"), template: z.string(), owner: Owner }),
   /** An account's command log, by its identity. */

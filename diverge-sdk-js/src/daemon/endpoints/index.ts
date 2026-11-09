@@ -9,6 +9,7 @@
 
 export * as accounts from "./accounts/index.js";
 export * as agents from "./agents/index.js";
+export * as connected_standalone_tools from "./connected_standalone_tools/index.js";
 export * as daemons from "./daemons/index.js";
 export * as dependency_tools from "./dependency_tools/index.js";
 export * as events from "./events/index.js";

@@ -8,8 +8,8 @@ import { Tool } from "../../../../../../daemon/reference/tool.js";
 /**
  * Ask the daemon to hold a created tool open for MCP: its container
  * started if it does not run, and held while the scope is. A
- * connected tool is another daemon's, and naming one is a failure,
- * not `not_found`. While the scope is open the tool is in use by it
+ * connected tool is another daemon's, and no request of this family
+ * finds one. While the scope is open the tool is in use by it
  * exactly as by an active attached agent.
  */
 export const Frame = z.object({

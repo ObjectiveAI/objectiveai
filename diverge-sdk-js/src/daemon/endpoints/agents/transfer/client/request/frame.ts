@@ -12,7 +12,7 @@ import { Destination } from "../../../../../../daemon/transfer/destination.js";
  * what lands where. The bytes never reach the client: the daemon
  * copies on its own connections. A container at either end that is
  * not running is started for the operation and stopped when it
- * finishes; a connected tool is joined for it and left; a
+ * finishes; a
  * dependency tool that is not running is `no_destination`.
  */
 export const Frame = z.object({

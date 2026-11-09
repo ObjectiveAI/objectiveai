@@ -1,15 +1,14 @@
 // Standalone tools, and their templates.
 //
 // A tool is an MCP server the daemon keeps for a caller: made from a
-// template and run as a container, or registered from another
-// daemon's. Agents reach it attached — directly, or by their
+// template and run as a container. Another daemon's tool, held here,
+// is a `connected_standalone_tools` one. Agents reach it attached — directly, or by their
 // template — and a client reaches it through a connect, a scope
 // held open on which the MCP exchanges ride as channels.
 
 export * as create from "./create/index.js";
 export * as get from "./get/index.js";
 export * as edit from "./edit/index.js";
-export * as register from "./register/index.js";
 export * as attach_agent_instance from "./attach_agent_instance/index.js";
 export * as detach_agent_instance from "./detach_agent_instance/index.js";
 export * as attach_agent_template from "./attach_agent_template/index.js";

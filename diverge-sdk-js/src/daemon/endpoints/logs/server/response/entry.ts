@@ -13,6 +13,7 @@ import { ItemWrapper as CommandItem } from "../../../../command_log/item_wrapper
 export const Entry = z.union([
   z.strictObject({ agent: AgentItem }),
   z.strictObject({ standalone_tool: ToolItem }),
+  z.strictObject({ connected_standalone_tool: ToolItem }),
   z.strictObject({ dependency_tool: ToolItem }),
   z.strictObject({ account: CommandItem }),
   z.strictObject({ admin: CommandItem }),

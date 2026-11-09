@@ -19,6 +19,7 @@ export type { Within } from "../../shared/permission/index.js";
 export * as accounts from "./accounts/index.js";
 export * as agents from "./agents/index.js";
 export * as agents_templates from "./agents_templates/index.js";
+export * as connected_standalone_tools from "./connected_standalone_tools/index.js";
 export * as dependency_tools from "./dependency_tools/index.js";
 export * as roles from "./roles/index.js";
 export * as standalone_tools from "./standalone_tools/index.js";

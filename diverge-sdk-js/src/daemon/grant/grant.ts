@@ -11,6 +11,7 @@ import * as providers_daemons from "../../shared/permission/providers_daemons/in
 import * as accounts from "./accounts/index.js";
 import * as agents from "./agents/index.js";
 import * as agents_templates from "./agents_templates/index.js";
+import * as connected_standalone_tools from "./connected_standalone_tools/index.js";
 import * as dependency_tools from "./dependency_tools/index.js";
 import * as roles from "./roles/index.js";
 import * as standalone_tools from "./standalone_tools/index.js";
@@ -29,6 +30,7 @@ export const Grant = z.union([
   z.strictObject({ agents_templates: agents_templates.Permission }),
   z.strictObject({ standalone_tools: standalone_tools.Permission }),
   z.strictObject({ standalone_tools_templates: standalone_tools_templates.Permission }),
+  z.strictObject({ connected_standalone_tools: connected_standalone_tools.Permission }),
   z.strictObject({ dependency_tools: dependency_tools.Permission }),
   z.strictObject({ providers: providers.Permission }),
   z.strictObject({ providers_daemons: providers_daemons.Permission }),

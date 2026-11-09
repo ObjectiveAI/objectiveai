@@ -11,7 +11,7 @@ import { Tool } from "./tool.js";
  * the list is whole, forbidden, or a failure. First every one that
  * matches, oldest first, the first `count` of them, each as `added`;
  * then exactly one `listed`; then, for the scope's life, every
- * change — its name, whether it is active, its origin's provider or container, what it is attached to, or its tags. The finish follows the client's cancel or
+ * change — its name, whether it is active, its provider or container, what it is attached to, or its tags. The finish follows the client's cancel or
  * exactly one `error`; or the scope is exactly one `forbidden`.
  */
 export const Frame = z.union([
