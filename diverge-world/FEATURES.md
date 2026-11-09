@@ -143,9 +143,12 @@ same way.
 
 `scenes/outliner.ts`, `scenes/ui.ts`
 
-The one menu, at the top right of the window: as tall as its rows need
-and no taller than the window. A drag that starts on it, or the wheel
-over it, does not move the view.
+The one menu, at the top right of the window at first: as tall as its
+rows need and no taller than the window, over a see-through dark
+backing. Drag the grip along its top (a short bar) to move it anywhere;
+it keeps its distance from the window's right edge when the window is
+resized. A drag that starts on it, or the wheel over it, does not move
+the view.
 
 ### Top rows
 
@@ -184,7 +187,8 @@ One row each, one beneath another, then a thin rule:
   itself does.
 - **The open sheet's row** is lit.
 - **Scrolling:** the wheel over the outliner scrolls the sections when
-  they outgrow the window; the top rows and status row stay put.
+  they outgrow the window, and a scrollbar appears at their right; drag
+  its thumb to scroll too. The top rows and status row stay put.
 
 ### Keys
 

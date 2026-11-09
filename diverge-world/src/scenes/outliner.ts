@@ -19,6 +19,18 @@ const PAD = 8;
 /** One row's height, in pixels. */
 const ROW = 20;
 
+/** The grip's height at the outliner's top, and its bar's width. */
+const GRIP = 12;
+const GRIP_BAR = 36;
+
+/** The scrollbar's width, its gap from the outliner's right edge, and its thumb's least height. */
+const BAR = 4;
+const BAR_EDGE = 2;
+const THUMB = 16;
+
+/** How much of the outliner a dragged one must keep inside the window, in pixels. */
+const KEEP = 40;
+
 /** The gap under the title bar and under the status row. */
 const GAP = 4;
 
@@ -30,7 +42,7 @@ const NOTCH = 3;
 
 /** The panel's fill, and a row's when hovered or selected. */
 const PLATE = 0x05070d;
-const PLATE_ALPHA = 0xe0 / 0xff;
+const PLATE_ALPHA = 0.72;
 const HOVERED = 0.08;
 const CHOSEN = 0.16;
 
@@ -98,9 +110,13 @@ export function flipLine(registry: Phaser.Data.DataManager, type: EdgeType): voi
  * The rules:
  *
  * 1. It stands at the window's top-right, `WIDTH` wide, as tall as its
- *    rows need and never taller than the window. Its bounds are told
- *    to the board (`OUTLINER`), which neither pans nor zooms for a
- *    press or a wheel that begins over it.
+ *    rows need and never taller than the window beneath it. Dragging
+ *    the grip along its top moves it anywhere that keeps `KEEP` pixels
+ *    of it in the window; it keeps its distance from the window's
+ *    right edge as the window is resized. Its bounds are told to the
+ *    board (`OUTLINER`), which neither pans nor zooms for a press or a
+ *    wheel that begins over it, nor while its grip or its scrollbar's
+ *    thumb is dragged.
  * 2. Its top rows, one beneath another: Arrange — pressing it tells
  *    the board (`ARRANGE`) — then one row per type of line, its sample,
  *    its name, how many the board holds once drawn, and its eye;
@@ -123,8 +139,10 @@ export function flipLine(registry: Phaser.Data.DataManager, type: EdgeType): voi
  *    board (`HOVER`), which focuses its lines as hovering the node does.
  *    The row of the entity whose sheet is open (`SELECTED`) is lit.
  * 7. When the sections outgrow the window, the wheel over the outliner
- *    scrolls them `NOTCH` rows a notch; only the rows in view are drawn,
- *    and the top rows and the status row hold still.
+ *    scrolls them `NOTCH` rows a notch, and a scrollbar stands at their
+ *    right: its thumb as long as the share of rows in view, where they
+ *    stand among all, dragged to scroll. Only the rows in view are
+ *    drawn, and the top rows and the status row hold still.
  */
 export function outliner(scene: Phaser.Scene): void {
   const folded = new Set<Kind>();
@@ -132,9 +150,53 @@ export function outliner(scene: Phaser.Scene): void {
   let lines: Line[] = [];
   let top = 0;
   let hovered: number | null = null;
+  // Rule 1: where the outliner stands, as its distance from the window's right edge and from its top.
+  let fromRight = EDGE;
+  let fromTop = EDGE;
+  // Rule 7: the track's top and height, the thumb's height, and how many rows are in view, as last drawn.
+  let track = { y: 0, height: 0, thumb: 0, shown: 0 };
   const style = (color: string) => ({ fontFamily: FONT, fontSize: "12px", color });
   // Rule 1: the panel takes every press made on it, so the board beneath gets none.
   const panel = scene.add.rectangle(0, 0, WIDTH, 1, PLATE, PLATE_ALPHA).setOrigin(0, 0).setInteractive();
+  const grip = scene.add.rectangle(0, 0, WIDTH, GRIP, 0xffffff, 0).setOrigin(0, 0).setDepth(1).setInteractive({ cursor: "move", draggable: true });
+  const gripBar = scene.add.rectangle(0, 0, GRIP_BAR, 3, 0x22e5ff, 0.45).setOrigin(0, 0).setDepth(1);
+  // Rule 1: while the grip or the thumb is dragged, the board is told it is held.
+  let held = false;
+  const holding = (now: boolean) => {
+    held = now;
+    draw();
+  };
+  let grab = { x: 0, y: 0 };
+  grip.on("dragstart", (pointer: Phaser.Input.Pointer) => {
+    grab = { x: pointer.x - grip.x, y: pointer.y - grip.y };
+    holding(true);
+  });
+  grip.on("dragend", () => holding(false));
+  grip.on("drag", (pointer: Phaser.Input.Pointer) => {
+    fromRight = scene.scale.width - (pointer.x - grab.x) - WIDTH;
+    fromTop = pointer.y - grab.y;
+    draw();
+  });
+  grip.on("pointerover", () => gripBar.setFillStyle(0x22e5ff, 0.9));
+  grip.on("pointerout", () => gripBar.setFillStyle(0x22e5ff, 0.45));
+  // Rule 7: the scrollbar, over the rows.
+  const bar = scene.add.rectangle(0, 0, BAR, 1, 0xffffff, 0.08).setOrigin(0, 0).setDepth(1);
+  const thumb = scene.add.rectangle(0, 0, BAR, 1, 0x22e5ff, 0.55).setOrigin(0, 0).setDepth(1).setInteractive({ useHandCursor: true, draggable: true });
+  let hold = 0;
+  thumb.on("dragstart", (pointer: Phaser.Input.Pointer) => {
+    hold = pointer.y - thumb.y;
+    holding(true);
+  });
+  thumb.on("dragend", () => holding(false));
+  thumb.on("drag", (pointer: Phaser.Input.Pointer) => {
+    const room = track.height - track.thumb;
+    if (room <= 0) return;
+    const share = (pointer.y - hold - track.y) / room;
+    top = Math.round(share * (lines.length - track.shown));
+    draw();
+  });
+  thumb.on("pointerover", () => thumb.setFillStyle(0x22e5ff, 0.9));
+  thumb.on("pointerout", () => thumb.setFillStyle(0x22e5ff, 0.55));
   // Rule 2.
   const fixed = (type: EdgeType | null, press: () => void): Fixed => {
     const plate = scene.add.rectangle(0, 0, WIDTH - 2, ROW, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
@@ -177,9 +239,14 @@ export function outliner(scene: Phaser.Scene): void {
     const shownLines = scene.registry.get(LINES) as Lines | undefined;
     const value = scene.registry.get(STATUS) as Status | undefined;
     const selected = scene.registry.get(SELECTED) as string | null | undefined;
-    const x = scene.scale.width - EDGE - WIDTH;
+    // Rule 1: kept inside the window, the grip at its top.
+    const x = Math.max(KEEP - WIDTH, Math.min(scene.scale.width - KEEP, scene.scale.width - fromRight - WIDTH));
+    const origin = Math.max(0, Math.min(scene.scale.height - KEEP, fromTop));
+    grip.setPosition(x, origin);
+    grip.input?.hitArea.setTo(0, 0, WIDTH, GRIP);
+    gripBar.setPosition(x + (WIDTH - GRIP_BAR) / 2, origin + (GRIP - 3) / 2);
     // Rule 2: Arrange, then each type of line, a row each.
-    let y = EDGE + PAD;
+    let y = origin + GRIP;
     for (const row of tops) {
       row.plate.setPosition(x + 1, y);
       row.icon.setPosition(x + PAD + ICON, y + 3);
@@ -203,10 +270,25 @@ export function outliner(scene: Phaser.Scene): void {
     const shown = Math.min(lines.length, fit);
     top = Math.max(0, Math.min(top, lines.length - shown));
     while (slots.length < shown) slots.push(slot());
-    const height = y - EDGE + shown * ROW + PAD;
-    panel.setPosition(x, EDGE).setSize(WIDTH, height);
+    const height = y - origin + shown * ROW + PAD;
+    panel.setPosition(x, origin).setSize(WIDTH, height);
     panel.input?.hitArea.setTo(0, 0, WIDTH, height);
-    scene.registry.set(OUTLINER, { x, y: EDGE, width: WIDTH, height } satisfies Bounds);
+    scene.registry.set(OUTLINER, { x, y: origin, width: WIDTH, height, held } satisfies Bounds);
+    // Rule 7: the scrollbar, only while the rows outgrow the window.
+    const scrolls = lines.length > shown;
+    bar.setVisible(scrolls);
+    thumb.setVisible(scrolls);
+    if (scrolls) {
+      const length = shown * ROW;
+      const thumbHeight = Math.max(THUMB, (length * shown) / lines.length);
+      const thumbY = y + ((length - thumbHeight) * top) / (lines.length - shown);
+      track = { y, height: length, thumb: thumbHeight, shown };
+      bar.setPosition(x + WIDTH - BAR_EDGE - BAR, y).setSize(BAR, length);
+      thumb.setPosition(x + WIDTH - BAR_EDGE - BAR, thumbY).setSize(BAR, thumbHeight);
+      thumb.input?.hitArea.setTo(0, 0, BAR, thumbHeight);
+    }
+    // While it scrolls, the rows' right column stands clear of the scrollbar.
+    const right = x + WIDTH - PAD - (scrolls ? BAR + BAR_EDGE : 0);
     slots.forEach((s, i) => {
       const line = lines[top + i];
       const visible = i < shown && line !== undefined;
@@ -221,7 +303,7 @@ export function outliner(scene: Phaser.Scene): void {
       if ("header" in line) {
         // Rule 5.
         s.eye.setText(alpha === 1 ? EYE_OPEN : EYE_SHUT).setColor(color).setVisible(true);
-        s.eye.setPosition(x + WIDTH - PAD - s.eye.width, at + 3);
+        s.eye.setPosition(right - s.eye.width, at + 3);
         s.fold.setText(folded.has(kind) ? "▸" : "▾").setColor(color).setPosition(x + PAD + FOLD, at + 3);
         s.icon.setText(sample).setColor(color).setPosition(x + PAD + ICON, at + 3);
         s.name.setText(title).setColor(color).setFontStyle("bold").setPosition(x + PAD + TITLE, at + 3);
@@ -232,7 +314,7 @@ export function outliner(scene: Phaser.Scene): void {
         s.fold.setText("");
         s.icon.setText(sample).setColor(color).setPosition(x + PAD + 30, at + 3);
         s.name.setText(shortened(line.entry.label)).setColor("#d8e4f0").setFontStyle("").setPosition(x + PAD + 46, at + 3);
-        s.aux.setText("●").setColor(line.entry.bright ? ON : OFF).setPosition(x + WIDTH - PAD - s.aux.width, at + 3);
+        s.aux.setText("●").setColor(line.entry.bright ? ON : OFF).setPosition(right - s.aux.width, at + 3);
         s.plate.setFillStyle(0xffffff, line.entry.key === selected ? CHOSEN : top + i === hovered ? HOVERED : 0);
       }
       for (const part of [s.fold, s.icon, s.name, s.aux]) part.setAlpha(alpha);

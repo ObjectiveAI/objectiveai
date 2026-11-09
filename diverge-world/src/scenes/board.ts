@@ -162,7 +162,7 @@ export class Board extends Phaser.Scene {
     // Rule 8: a press or a wheel over the outliner is the outliner's.
     const blocks = (x: number, y: number) => {
       const b = this.registry.get(OUTLINER) as Bounds | undefined;
-      return b !== undefined && x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
+      return b !== undefined && (b.held || (x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height));
     };
     controls(this, placed.width, placed.height, () => nodes.dragging(), reach, blocks);
     this.count(read, made);

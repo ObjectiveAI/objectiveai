@@ -49,5 +49,5 @@ export const HOVER = "hover";
 /** The registry key of the outliner's `Bounds`, in the window's pixels. */
 export const OUTLINER = "outliner";
 
-/** A rectangle of the window, in its pixels. */
-export type Bounds = { x: number; y: number; width: number; height: number };
+/** A rectangle of the window, in its pixels, and whether something on it is being dragged. */
+export type Bounds = { x: number; y: number; width: number; height: number; held: boolean };
