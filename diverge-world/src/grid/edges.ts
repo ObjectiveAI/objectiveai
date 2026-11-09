@@ -50,6 +50,7 @@ const ordered = (x: string, y: string): [string, string] => (x < y ? [x, y] : [y
  *       `deployed` whose `provider` names it, and every dependency tool
  *       whose run's provider names it — a run only while deployed. A
  *       provider's last deployment, its container down, draws nothing.
+ *    e. a provider and every volume it holds.
  * 3. A creator runs from the maker to what it made, for every agent,
  *    standalone tool, connected standalone tool, dependency tool,
  *    account and provider whose `creator` is on
@@ -104,6 +105,8 @@ export function edges(snapshot: Snapshot, made: Model): Edge[] {
   for (const a of snapshot.agents) if (a.deployed && a.provider) add(providerAt(a.provider.identity), agentAt(a), "attachment");
   for (const t of snapshot.tools) if (t.deployed && t.provider) add(providerAt(t.provider.identity), toolKey(t), "attachment");
   for (const d of snapshot.dependencies) if (d.run) add(providerAt(d.run.provider.identity), dependencyKey(d), "attachment");
+  // Rule 2e.
+  for (const v of snapshot.volumes) add(providerAt(v.provider), volumeKey(v), "attachment");
   // Rule 3.
   const maker = (c: Creator | undefined): string | undefined => {
     if (c === undefined) return undefined;

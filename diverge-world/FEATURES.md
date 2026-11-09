@@ -86,7 +86,7 @@ is named, so the two can be checked against each other.
 | Type | Looks like | Means |
 |---|---|---|
 | Call | thin solid line in the sender's colour, chevron at the receiver | something sent to something else (an event ran that way) |
-| Attachment | dashed grey line, no mark | a tool or a connected tool attached to an agent (or to its template), a dependency tool to the agents that depend on it, a volume to what mounts it, a provider and what it runs (every agent and standalone tool deployed on it, every dependency tool running on it) |
+| Attachment | dashed grey line, no mark | a tool or a connected tool attached to an agent (or to its template), a dependency tool to the agents that depend on it, a volume to what mounts it, a provider and what it runs (every agent and standalone tool deployed on it, every dependency tool running on it), and a provider and every volume it holds |
 | Creator | dotted line in the maker's colour, open dot at the maker | who made it: the account, agent or tool that created an agent, tool, connected tool, account or provider |
 
 - **Lanes.** Several lines between the same two nodes run side by side
