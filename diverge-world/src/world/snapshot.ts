@@ -36,7 +36,7 @@ export type Snapshot = {
   volumes: Volume[];
   /** The providers: the records the daemon keeps of those it works with, and where it stands with each. */
   providers: Provider[];
-  /** The remote daemons: the records the daemon keeps of our accounts on other daemons, and whether it is connected to each. */
+  /** The daemons: the records the daemon keeps of our accounts on other daemons, and whether it is connected to each. */
   daemons: Daemon[];
   forbidden: string[];
   names: Map<string, string>;
@@ -121,9 +121,9 @@ export async function snapshot(): Promise<Snapshot> {
     once({ name: "volumes", open: () => volumes.client.execute(handle, {}), key: volumes.server.response.key, change: volumes.server.response.change }),
     once({ name: "agent templates", open: () => agentTemplates.client.execute(handle, {}), key: agentTemplates.server.response.key, change: agentTemplates.server.response.change }),
     once({ name: "providers", open: () => providers.client.execute(handle, {}), key: providers.server.response.key, change: providers.server.response.change }),
-    once({ name: "remote daemons", open: () => daemons.client.execute(handle, {}), key: daemons.server.response.key, change: daemons.server.response.change }),
+    once({ name: "daemons", open: () => daemons.client.execute(handle, {}), key: daemons.server.response.key, change: daemons.server.response.change }),
   ]);
-  const named: [string, Read<unknown>][] = [["accounts", a], ["agents", g], ["standalone tools", t], ["connected standalone tools", c], ["standalone tool templates", p], ["dependency tools", d], ["events", e], ["volumes", v], ["agent templates", q], ["providers", r], ["remote daemons", m]];
+  const named: [string, Read<unknown>][] = [["accounts", a], ["agents", g], ["standalone tools", t], ["connected standalone tools", c], ["standalone tool templates", p], ["dependency tools", d], ["events", e], ["volumes", v], ["agent templates", q], ["providers", r], ["daemons", m]];
   const byId = new Map(p.items.map((listed) => [listed.id, listed.template.image]));
   const images = [
     ...q.items.map((listed) => listed.template.image),

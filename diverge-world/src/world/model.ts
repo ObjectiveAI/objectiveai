@@ -1,6 +1,6 @@
 // What the world shows: every account, agent, standalone tool,
 // connected standalone tool, dependency tool, volume, provider and
-// remote daemon, and who has sent to whom.
+// daemon, and who has sent to whom.
 
 import type { daemon } from "@diverge/sdk";
 import type { Snapshot } from "./snapshot";
@@ -26,9 +26,9 @@ export type Files =
  * line of detail, an agent's template and index, and — a listed agent's or
  * tool's — whose log it is, and — a listed agent's, created tool's,
  * dependency tool's or volume's — whose files. A connected tool's files
- * are the other daemon's, and none are here. A provider's or a remote
+ * are the other daemon's, and none are here. A provider's or a
  * daemon's `line` is the sheet's second line, where no log names it: a
- * provider's direction and where the daemon stands with it, a remote
+ * provider's direction and where the daemon stands with it, a
  * daemon's account there and whether the daemon is connected to it.
  */
 export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; files?: Files; frontend?: Frontend; live?: Live; line?: string };
@@ -39,7 +39,7 @@ export type Frontend = { agent: daemon.reference.Agent } | { tool: daemon.refere
 /**
  * Whether a listed entity is live, as its list says: an agent or a
  * tool `active` (working — a loop, a call or a read in flight), an
- * account, a provider or a remote daemon `connected`; and when that
+ * account, a provider or a daemon `connected`; and when that
  * last changed.
  */
 export type Live = { kind: "active" | "connected"; on: boolean; at?: string };
@@ -64,7 +64,7 @@ export const volumeKey = (v: Volume) => `volume:${v.provider.issuer}:${v.provide
 /** A provider's key, by its identity alone: what a deployment's `provider` names it by, as its record does. */
 export const providerAt = (identity: { issuer: string; subject: string }) => `provider:${identity.issuer}:${identity.subject}`;
 export const providerKey = (p: Provider) => providerAt(p.identity);
-/** A remote daemon's key, by its record's ID: what a connected tool's `daemon` names it by. */
+/** A daemon's key, by its record's ID: what a connected tool's `daemon` names it by. */
 export const daemonAt = (id: string) => `daemon:${id}`;
 export const daemonKey = (d: Daemon) => daemonAt(d.id);
 
@@ -74,7 +74,7 @@ export const accountLive = (a: Account): Live => ({ kind: "connected", on: a.con
 export const activeLive = (x: { active: boolean; last_active?: string }): Live => ({ kind: "active", on: x.active, at: x.last_active });
 /** A provider's live state: connected — a connection the daemon uses; one held open at a different version is not. */
 export const providerLive = (p: Provider): Live => ({ kind: "connected", on: p.status.type === "connected" });
-/** A remote daemon's live state: connected — the daemon holds a connection to it now. */
+/** A daemon's live state: connected — the daemon holds a connection to it now. */
 export const daemonLive = (d: Daemon): Live => ({ kind: "connected", on: d.connected });
 
 /**
@@ -171,7 +171,7 @@ function providerEntity(p: Provider): Entity {
 }
 
 /**
- * The entity a remote daemon is — the record the daemon keeps of one
+ * The entity a daemon is — the record the daemon keeps of one
  * account of ours on another daemon: named by its description, else by
  * the remote's subject; its line our account there and whether the
  * daemon is connected to it. It has no log, no files and no container
@@ -206,7 +206,7 @@ function daemonEntity(d: Daemon): Entity {
  *    pair of its own, never merged with the events between the two.
  * 6. Every listed provider is an entity, with its live state —
  *    connected — and no subject, files or container (`providerEntity`).
- * 7. Every listed remote daemon is an entity, with its live state —
+ * 7. Every listed daemon is an entity, with its live state —
  *    connected — and no subject, files or container (`daemonEntity`).
  */
 export function model(snapshot: Snapshot): Model {

@@ -25,7 +25,7 @@ const WHITE = 0xffffff;
  * face for an account, a robot's head for an agent, a hammer for a
  * standalone tool, a chain's two links for a connected standalone tool,
  * a gear for a dependency tool, a drum for a volume, a server rack for
- * a provider, a globe for a remote daemon.
+ * a provider, a globe for a daemon.
  */
 export function makeIcons(scene: Phaser.Scene): void {
   const kinds: Kind[] = ["account", "agent", "standalone_tool", "connected_standalone_tool", "dependency_tool", "volume", "provider", "daemon"];

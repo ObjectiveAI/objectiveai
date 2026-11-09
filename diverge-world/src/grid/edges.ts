@@ -51,13 +51,13 @@ const ordered = (x: string, y: string): [string, string] => (x < y ? [x, y] : [y
  *       whose run's provider names it — a run only while deployed. A
  *       provider's last deployment, its container down, draws nothing.
  *    e. a provider and every volume it holds;
- *    f. a remote daemon and every connected tool on it: every connected
+ *    f. a daemon and every connected tool on it: every connected
  *       standalone tool whose `daemon` — its first hop — is the
  *       record's ID. The daemons further along a tool's `route` are
  *       records on other daemons, not on this board, and draw nothing.
  * 3. A creator runs from the maker to what it made, for every agent,
  *    standalone tool, connected standalone tool, dependency tool,
- *    account, provider and remote daemon whose `creator` is on
+ *    account, provider and daemon whose `creator` is on
  *    the board: the client's account, the agent, the created tool by
  *    its template and index, the dependency tool by its template and
  *    owner. A maker deleted or unlisted draws nothing.

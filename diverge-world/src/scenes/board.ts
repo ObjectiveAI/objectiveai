@@ -189,7 +189,7 @@ export class Board extends Phaser.Scene {
    * Rule 4: every node lit as the world says — accounts bright while
    * connected; agents, tools and dependency tools while deployed, a
    * connected tool while the daemon holds its connect, a provider
-   * while connected, a remote daemon while the daemon is connected to
+   * while connected, a daemon while the daemon is connected to
    * it; volumes while mounted into something bright; the halo breathing
    * while it works — and the open sheet's dot told. A node whose light
    * did not change is not lit again, so its breath runs on.

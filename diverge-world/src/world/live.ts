@@ -35,7 +35,7 @@ const e = daemon.endpoints;
  *
  * 1. The eleven lists — accounts, agents, agent templates, standalone
  *    tools, connected standalone tools, standalone tool templates,
- *    dependency tools, events, volumes, providers, remote daemons — are
+ *    dependency tools, events, volumes, providers, daemons — are
  *    each kept
  *    open and folded into a listing. A list that ends, fails or is
  *    refused is opened again `AGAIN` milliseconds later, until `stop`.
@@ -88,7 +88,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
     ["events", events],
     ["volumes", volumes],
     ["providers", providers],
-    ["remote daemons", daemons],
+    ["daemons", daemons],
   ];
 
   /** The world as it stands. */
@@ -214,7 +214,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
   });
   keep({ name: "volumes", open: () => e.volumes.list.client.execute(handle, {}), key: e.volumes.list.server.response.key, change: e.volumes.list.server.response.change }, volumes);
   keep({ name: "providers", open: () => e.providers.list.client.execute(handle, {}), key: e.providers.list.server.response.key, change: e.providers.list.server.response.change }, providers);
-  keep({ name: "remote daemons", open: () => e.daemons.list.client.execute(handle, {}), key: e.daemons.list.server.response.key, change: e.daemons.list.server.response.change }, daemons);
+  keep({ name: "daemons", open: () => e.daemons.list.client.execute(handle, {}), key: e.daemons.list.server.response.key, change: e.daemons.list.server.response.change }, daemons);
 
   return {
     stop() {

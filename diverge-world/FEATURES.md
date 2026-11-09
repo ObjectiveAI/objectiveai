@@ -7,7 +7,7 @@ is named, so the two can be checked against each other.
 
 ## At a glance
 
-- A dark grid with every account, agent, tool, volume, provider and remote daemon on it as a
+- A dark grid with every account, agent, tool, volume, provider and daemon on it as a
   glowing node, and lines for how they are connected — all of it live:
   what is made appears, what changes is redrawn, what is deleted goes.
 - Nodes light up while they work, and pulses of light run along the
@@ -37,13 +37,13 @@ is named, so the two can be checked against each other.
 | Dependency tool | □ a small square | magenta |
 | Volume | ⛁ a cylinder | green |
 | Provider | ▤ a server rack of three units | red |
-| Remote daemon | ⊕ a globe: its ring, meridian, equator and two parallels | silver |
+| daemon | ⊕ a globe: its ring, meridian, equator and two parallels | silver |
 
 - **Who is shown.** Every account, agent, standalone tool, connected
   standalone tool (another daemon's standalone tool, held here, listed
   by `connected_standalone_tools list`), dependency tool, volume,
   provider (the record the daemon keeps of a provider it works with,
-  listed by `providers list`) and remote daemon (the record the daemon
+  listed by `providers list`) and daemon (the record the daemon
   keeps of one account of ours on another daemon, listed by `daemons
   list`) the signed-in account may list. A party that appears
   only in an event, with no list holding it, is drawn too, but cannot
@@ -51,7 +51,7 @@ is named, so the two can be checked against each other.
 - **Live.** The board follows the daemon (`world/live.ts`): every list
   stays open.
   - **Appears:** something made — an agent, a tool, an account, a
-    volume, a provider, a remote daemon — appears as a node without a reload, and so do its lines.
+    volume, a provider, a daemon — appears as a node without a reload, and so do its lines.
   - **Changes:** something renamed is relabelled; something attached,
     detached, mounted or messaged for the first time gains or loses its
     line.
@@ -78,7 +78,7 @@ is named, so the two can be checked against each other.
   | Account | it is connected |
   | Volume | an agent or tool it is mounted into is deployed |
   | Provider | the daemon holds a connection to it that it uses (`connected`; not one at a different version) |
-  | Remote daemon | the daemon holds a connection to it now (`connected`) |
+  | daemon | the daemon holds a connection to it now (`connected`) |
 
 - **Working:** an agent or tool — connected tools included — that is
   active (its loop running, or a call or read in flight) also has a
@@ -90,8 +90,8 @@ is named, so the two can be checked against each other.
 | Type | Looks like | Means |
 |---|---|---|
 | Call | thin solid line in the sender's colour, chevron at the receiver | something sent to something else (an event ran that way) |
-| Attachment | dashed grey line, no mark | a tool or a connected tool attached to an agent (or to its template), a dependency tool to the agents that depend on it, a volume to what mounts it, a provider and what it runs (every agent and standalone tool deployed on it, every dependency tool running on it), a provider and every volume it holds, and a remote daemon and the connected tools on it (every connected tool whose `daemon`, its first hop, is that record; the further daemons of a tool's `route` are records on other daemons and draw nothing) |
-| Creator | dotted line in the maker's colour, open dot at the maker | who made it: the account, agent or tool that created an agent, tool, connected tool, account, provider or remote daemon |
+| Attachment | dashed grey line, no mark | a tool or a connected tool attached to an agent (or to its template), a dependency tool to the agents that depend on it, a volume to what mounts it, a provider and what it runs (every agent and standalone tool deployed on it, every dependency tool running on it), a provider and every volume it holds, and a daemon and the connected tools on it (every connected tool whose `daemon`, its first hop, is that record; the further daemons of a tool's `route` are records on other daemons and draw nothing) |
+| Creator | dotted line in the maker's colour, open dot at the maker | who made it: the account, agent or tool that created an agent, tool, connected tool, account, provider or daemon |
 
 - **Lanes.** Several lines between the same two nodes run side by side
   in lanes, in a fixed order, and keep that order however the nodes are
@@ -149,9 +149,10 @@ same way.
 
 ### Legend
 
-One line per kind of node, then one per type of line. Each shows its
-key, its sample shape or stroke, its name, and how many the board
-holds.
+One row per kind of node, then one per type of line, then Arrange.
+Each row shows three columns — its sample shape or stroke, its name,
+and how many the board holds — and every row is the same width, so the
+names and counts each line up. The keys are not printed.
 
 | Key | Toggles |
 |---|---|
@@ -159,7 +160,7 @@ holds.
 | `2` | agents |
 | `3` | standalone tools |
 | `4` | connected tools |
-| `5` | remote daemons |
+| `5` | daemons |
 | `6` | dependency tools |
 | `7` | volumes |
 | `8` | providers |
@@ -175,7 +176,7 @@ holds.
 
 ### Arrange
 
-- The **Arrange** button, or the `A` key, lays out every shown node by
+- The **Arrange** row (`◇ arrange`, the last row of the legend), or the `A` key, lays out every shown node by
   the shown lines (`grid/arrange.ts`).
 - The nodes glide to their new places over about 0.7 s.
 - **The goals:** fewer crossings, no line through a node it does not
@@ -209,7 +210,7 @@ holds.
   template and index, the daemon a connected tool is from, who owns a
   dependency tool, an account's issuer, a provider's direction —
   outgoing to its address, or incoming — and where the daemon stands
-  with it, a remote daemon's account of ours there and whether the
+  with it, a daemon's account of ours there and whether the
   daemon is connected to it: `as <subject> · connected`),
   and a green dot, lit exactly while the node is bright on the board
   (see [Live state](#live-state-gridlivets)).
@@ -225,14 +226,14 @@ holds.
 | Account (and admin) | yes | — | — | — |
 | Volume | — | yes | — | — |
 | Provider | — | — | — | — |
-| Remote daemon | — | — | — | — |
+| daemon | — | — | — | — |
 
 - The tab bar always shows, even for a node with one tab (an account's
   or a connected tool's logs, a volume's filesystem).
 - A connected tool's files, container and image are the other
   daemon's, so its sheet holds its log alone: every call and read this
   daemon routed into it.
-- A provider or a remote daemon has no tab at all: it has no log,
+- A provider or a daemon has no tab at all: it has no log,
   files or container of its own here, so its sheet is its header
   alone.
 - A tab starts reading the first time it is shown, and keeps running
