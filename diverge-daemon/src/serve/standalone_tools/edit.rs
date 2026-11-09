@@ -13,7 +13,6 @@ use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::inner::{self, Checked, Mounted, Outcome, Secrets, Which};
 use crate::serve::reply;
-use crate::store::tools::Origin;
 use crate::store::{self, tools, tools_templates};
 
 /// Answer the edit and finish the scope.
@@ -29,8 +28,6 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` with no `edit` grant at all; `NotFound`; `Forbidden`
 /// for a tool the grants do not reach; the `patch` error for a patch that could
 /// not be applied or a result that is not a tool's editable members;
-/// `NotOwned` for a result differing in anything but the name of a
-/// connected tool, which has nothing else of this caller's to change;
 /// `Active` for a result that, while the tool's container runs,
 /// differs in anything but FUSE mounts added — the name, the volume
 /// mounts, the secrets, a FUSE mount removed, replaced or reordered;
@@ -38,8 +35,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// there, or volumes named on a tool pinned to no provider; the
 /// `secrets` error for secrets that are not the template's, and
 /// `Forbidden` for a vault key the grants do not reach; `InUse` for a
-/// name another tool has; else the tool as the result states, whole
-/// or not at all.
+/// name a standalone or a connected tool has, as
+/// [`tool_names`](crate::store::tool_names) states; else the tool as
+/// the result states, whole or not at all.
 ///
 /// The rules of an edit while the container runs are the agents
 /// edit's, see [`agents::edit`](crate::serve::agents::edit): the run's
@@ -60,9 +58,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(tool) = resolve(&mut tx, &frame.tool, true).await? else {
         return Ok(Frame::NotFound);
     };
-    // A connected tool runs nothing of this caller's: no mount is
-    // added to it, and its name is edited as a record's is.
-    let run = if tool.is_connected() { None } else { daemon.live.tool_run(ToolKey::Record(tool.id)).await };
+    let run = daemon.live.tool_run(ToolKey::Record(tool.id)).await;
     // The lock first, then the record again under it: an edit
     // persisted while the lock was waited for is what this one
     // patches.
@@ -81,10 +77,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !reaches(&mut tx, daemon, &standing, Over::Edit, &tool).await? {
         return Ok(Frame::Forbidden);
     }
-    let pinned = match &tool.origin {
-        Origin::Created { provider, .. } => provider.clone(),
-        Origin::Connected { .. } => None,
-    };
+    let pinned = tool.provider.clone();
     let current = Editable {
         name: tool.name.clone(),
         volume_mounts: pinned.as_ref().map(|provider| provider.volume_mounts.clone()).unwrap_or_default(),
@@ -100,9 +93,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         || result.fuse_file_mounts != current.fuse_file_mounts
         || result.fuse_directory_mounts != current.fuse_directory_mounts;
     let secrets_changed = result.secrets != current.secrets;
-    if tool.is_connected() && (mounts_changed || secrets_changed) {
-        return Ok(Frame::NotOwned);
-    }
     let added = match &run {
         None => None,
         Some(_) => {
@@ -116,10 +106,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         }
     };
     if secrets_changed {
-        let Some(id) = tool.template() else {
-            return Ok(Frame::NotOwned);
-        };
-        let Some(template) = tools_templates::by_id(&mut tx, id, false).await? else {
+        let Some(template) = tools_templates::by_id(&mut tx, &tool.template, false).await? else {
             return Ok(Frame::Error(reply::failure(&"the tool's template is not on record")));
         };
         match inner::secrets(&mut tx, &standing, &template.template.secrets, &result.secrets).await? {
@@ -162,7 +149,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
             fuse_directory_mounts: result.fuse_directory_mounts,
             secrets: result.secrets,
         };
-        if let tools::Updated::InUse = tools::update(&mut tx, tool.id, &columns).await? {
+        if let tools::Updated::InUse = tools::update(&mut tx, tool.id, tool.name.as_deref(), &columns).await? {
             return Ok(Frame::InUse);
         }
         tx.commit().await?;
@@ -205,13 +192,13 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if made > 0 {
         let mut tx = daemon.store.begin().await?;
         let columns = tools::Columns {
-            name: current.name,
+            name: current.name.clone(),
             provider,
             fuse_file_mounts: made_files,
             fuse_directory_mounts: made_directories,
             secrets: current.secrets,
         };
-        if let tools::Updated::InUse = tools::update(&mut tx, tool.id, &columns).await? {
+        if let tools::Updated::InUse = tools::update(&mut tx, tool.id, current.name.as_deref(), &columns).await? {
             return Ok(Frame::InUse);
         }
         tx.commit().await?;

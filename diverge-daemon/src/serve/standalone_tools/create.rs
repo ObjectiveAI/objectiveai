@@ -9,7 +9,6 @@ use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::inner::{self, Checked, Mounted, Secrets};
 use crate::serve::reply;
-use crate::store::tools::Origin;
 use crate::store::{self, tools, tools_templates};
 
 /// Answer the create and finish the scope.
@@ -25,7 +24,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` without the `create` grant, or for a vault key the
 /// grants do not reach; the error for a template or a provider that is
 /// not there; the `secrets` error for secrets that are not the
-/// template's; `InUse` for a name another tool has; else the tool made, its index the next for its template,
+/// template's; `InUse` for a name a standalone or a connected tool
+/// has, as [`tool_names`](crate::store::tool_names) states; else the
+/// tool made, its index the next for its template,
 /// nothing running: the container runs while an attached agent is
 /// active.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -57,10 +58,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Mounted::Unsupported(what) => return Ok(Frame::Error(reply::unsupported(&what))),
     }
     let new = tools::New {
-        origin: Origin::Created {
-            template: inner.template,
-            provider: inner.provider,
-        },
+        template: inner.template,
+        provider: inner.provider,
         name: frame.name,
         fuse_file_mounts: inner.fuse_file_mounts,
         fuse_directory_mounts: inner.fuse_directory_mounts,

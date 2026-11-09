@@ -9,7 +9,7 @@
 //! description, tags, when it was added and by whom, and only the
 //! description and the tags ever change. Several records may name the
 //! same remote. A record a connected tool names is not deleted — see
-//! [`in_use`].
+//! [`in_use::daemon`](crate::store::in_use::daemon).
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

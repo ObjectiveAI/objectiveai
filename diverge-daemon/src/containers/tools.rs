@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use super::{ConnectionId, StartError, ToolKey, ToolRun, services, start};
 use crate::daemon::Daemon;
+use crate::store::connected_standalone_tools::ConnectedTool;
 use crate::store::tools::Tool;
 
 /// The tool's run: started now if it was not running, and touched if
@@ -30,6 +31,20 @@ pub async fn use_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>,
         services::held(daemon, run.id).await;
     }
     Ok(run)
+}
+
+/// The connected tool's run — this daemon's connect on the other
+/// daemon's tool: opened now if it was not held, and touched if it was.
+/// Nothing is held by this, as for [`use_tool`]; a connected tool is
+/// never a service here, and never served onward to another daemon.
+pub async fn use_connected(daemon: &Arc<Daemon>, tool: &ConnectedTool) -> Result<Arc<ToolRun>, StartError> {
+    match daemon.live.tool_run(ToolKey::Connected(tool.id)).await {
+        Some(run) => {
+            run.touch();
+            Ok(run)
+        }
+        None => start::connected(daemon, tool).await,
+    }
 }
 
 /// A connect scope of another daemon's holds the run from now on,

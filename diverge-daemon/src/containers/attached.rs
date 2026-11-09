@@ -3,10 +3,11 @@
 
 use std::sync::Arc;
 
-use super::{ToolKey, serve_name};
+use super::{ToolKey, serve_name, serve_name_connected};
 use crate::daemon::Daemon;
+use crate::store::connected_standalone_tools::ConnectedTool;
 use crate::store::tools::Tool;
-use crate::store::{AgentId, ToolId};
+use crate::store::AgentId;
 
 /// The tool is attached to every one of `agents` now — directly, or
 /// through their template: each one running has it served from this
@@ -26,16 +27,29 @@ pub async fn attached(daemon: &Arc<Daemon>, tool: &Tool, agents: &[AgentId]) {
 /// or through their template — and `keeps` are the agents that have it
 /// still the other way, by the records as of the detach: each of the
 /// rest that is running serves it no more from this instant and hears
-/// its tool list changed. An exchange in flight to the tool is
+/// its tool list changed. A standalone tool and a connected one alike,
+/// by its run's key. An exchange in flight to the tool is
 /// answered still, holding the tool's run up until it is; nothing of
 /// the run is stopped here.
-pub async fn detached(daemon: &Arc<Daemon>, tool: ToolId, agents: &[AgentId], keeps: &[AgentId]) {
+pub async fn detached(daemon: &Arc<Daemon>, tool: ToolKey, agents: &[AgentId], keeps: &[AgentId]) {
     for agent in agents {
         if keeps.contains(agent) {
             continue;
         }
         if let Some(run) = daemon.live.agent_run(*agent).await {
-            run.served.lock().await.remove(ToolKey::Record(tool));
+            run.served.lock().await.remove(tool);
+        }
+    }
+}
+
+/// The connected tool is attached to every one of `agents` now, as
+/// [`attached`] states for a standalone tool: served from this instant
+/// under its name, its connect opened at the agent's next use of it.
+pub async fn attached_connected(daemon: &Arc<Daemon>, tool: &ConnectedTool, agents: &[AgentId]) {
+    for agent in agents {
+        if let Some(run) = daemon.live.agent_run(*agent).await {
+            let name = serve_name_connected(tool);
+            run.served.lock().await.insert_connected(tool.clone(), &name);
         }
     }
 }

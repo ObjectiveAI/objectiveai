@@ -15,7 +15,7 @@ use crate::judge::{self, Standing, Who, filter};
 use crate::logs;
 use crate::serve::stream::{self, Source};
 use crate::serve::reply;
-use crate::store::{AgentId, agents, tools};
+use crate::store::{AgentId, agents, connected_standalone_tools, tools};
 
 /// Send the list and its changes, then finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -51,7 +51,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing(scope, daemon, &[Kind::Agents, Kind::DependencyTools], frame.count, &source, Frame::from)
+    stream::listing(scope, daemon, &[Kind::Agents, Kind::DependencyTools, Kind::ConnectedStandaloneTools], frame.count, &source, Frame::from)
     .await
 }
 
@@ -73,10 +73,10 @@ impl Source for Listed<'_> {
                 let mut conn = self.daemon.store.acquire().await?;
                 let all = agents::all(&mut conn).await?;
                 let keys: HashMap<_, _> = tools::all(&mut conn).await?.into_iter().map(|tool| (tool.id, tool.key())).collect();
-                let mut attached: HashMap<AgentId, Vec<key::Tool>> = HashMap::new();
+                let mut own: HashMap<AgentId, Vec<key::Tool>> = HashMap::new();
                 for attachment in tools::attachments::all(&mut conn).await? {
                     if let Some(key) = keys.get(&attachment.tool) {
-                        attached.entry(attachment.agent).or_default().push(key.clone());
+                        own.entry(attachment.agent).or_default().push(key.clone());
                     }
                 }
                 let mut by_template: HashMap<String, Vec<key::Tool>> = HashMap::new();
@@ -85,16 +85,33 @@ impl Source for Listed<'_> {
                         by_template.entry(attachment.template).or_default().push(key.clone());
                     }
                 }
-                // The template's after the agent's own, each once.
+                let connected: HashMap<_, _> = connected_standalone_tools::all(&mut conn).await?.into_iter().map(|tool| (tool.id, tool.key())).collect();
+                let mut own_connected: HashMap<AgentId, Vec<key::Tool>> = HashMap::new();
+                for attachment in connected_standalone_tools::attachments::all(&mut conn).await? {
+                    if let Some(key) = connected.get(&attachment.tool) {
+                        own_connected.entry(attachment.agent).or_default().push(key.clone());
+                    }
+                }
+                let mut connected_by_template: HashMap<String, Vec<key::Tool>> = HashMap::new();
+                for attachment in connected_standalone_tools::template_attachments::all(&mut conn).await? {
+                    if let Some(key) = connected.get(&attachment.tool) {
+                        connected_by_template.entry(attachment.template).or_default().push(key.clone());
+                    }
+                }
+                // The standalone tools before the connected ones, and in
+                // each family the template's after the agent's own, each
+                // once: the order the agent's run serves them in.
+                let mut attached: HashMap<AgentId, Vec<key::Tool>> = HashMap::new();
                 for agent in &all {
-                    let Some(through) = by_template.get(&agent.template) else {
-                        continue;
-                    };
-                    let tools = attached.entry(agent.id).or_default();
-                    for key in through {
+                    let parts = [own.get(&agent.id), by_template.get(&agent.template), own_connected.get(&agent.id), connected_by_template.get(&agent.template)];
+                    let mut tools: Vec<key::Tool> = Vec::new();
+                    for key in parts.into_iter().flatten().flatten() {
                         if !tools.contains(key) {
                             tools.push(key.clone());
                         }
+                    }
+                    if !tools.is_empty() {
+                        attached.insert(agent.id, tools);
                     }
                 }
                 (all, attached)

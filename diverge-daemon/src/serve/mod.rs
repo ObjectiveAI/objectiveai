@@ -19,7 +19,7 @@
 //! read as a [`ClientRequest`](diverge_sdk::daemon::endpoints::ClientRequest)
 //! and handed by [`dispatch`] to its handler — [`accounts`],
 //! [`roles`], [`providers`], [`agents`], [`standalone_tools`],
-//! [`dependency_tools`],
+//! [`connected_standalone_tools`], [`dependency_tools`],
 //! [`volumes`], [`vault`], [`postgres`] and [`events`] have one per request, every request
 //! of the wire served — or, when the request carries `relay`, by
 //! [`relay`], this daemon as a conduit to another; what the file
@@ -70,6 +70,7 @@ pub use stop_route::*;
 
 pub mod accounts;
 pub mod agents;
+pub mod connected_standalone_tools;
 pub mod daemons;
 pub mod dependency_tools;
 pub mod events;

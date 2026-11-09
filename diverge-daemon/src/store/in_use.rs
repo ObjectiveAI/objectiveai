@@ -19,15 +19,17 @@ pub async fn agents_templates(conn: &mut PgConnection) -> Result<HashSet<String>
     ids(conn, "SELECT DISTINCT template AS id FROM diverge.agents").await
 }
 
-/// The ids of every tool template some created tool was made from.
+/// The ids of every tool template some standalone tool was made from.
 pub async fn tools_templates(conn: &mut PgConnection) -> Result<HashSet<String>, Error> {
-    ids(conn, "SELECT DISTINCT template AS id FROM diverge.tools WHERE kind = 'created'").await
+    ids(conn, "SELECT DISTINCT template AS id FROM diverge.tools").await
 }
 
 /// Whether some connected tool names the remote daemon's record of the
-/// ID.
+/// ID as the daemon it is on: what refuses the record's delete. A
+/// record named only further along a connected tool's route is not
+/// held by it — that record is the other daemon's to keep.
 pub async fn daemon(conn: &mut PgConnection, id: DaemonId) -> Result<bool, Error> {
-    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1) AS held")
+    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.connected_standalone_tools WHERE daemon = $1) AS held")
         .bind(daemons::to_column(id))
         .fetch_one(&mut *conn)
         .await?;

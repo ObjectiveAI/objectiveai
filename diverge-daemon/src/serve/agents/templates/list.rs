@@ -12,7 +12,7 @@ use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Source};
 use crate::serve::reply;
-use crate::store::{self, agents_templates, tools};
+use crate::store::{self, agents_templates, connected_standalone_tools, tools};
 use diverge_sdk::daemon::key;
 use super::in_use;
 
@@ -48,7 +48,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         standing: &standing,
         filter: &frame.filter,
     };
-    stream::listing(scope, daemon, &[Kind::AgentsTemplates, Kind::Agents, Kind::StandaloneTools], frame.count, &source, Frame::from)
+    stream::listing(scope, daemon, &[Kind::AgentsTemplates, Kind::Agents, Kind::StandaloneTools, Kind::ConnectedStandaloneTools], frame.count, &source, Frame::from)
     .await
 }
 
@@ -74,6 +74,13 @@ impl Source for Templates<'_> {
                 let mut attached: HashMap<String, Vec<key::Tool>> = HashMap::new();
                 for attachment in tools::template_attachments::all(&mut conn).await? {
                     if let Some(key) = keys.get(&attachment.tool) {
+                        attached.entry(attachment.template).or_default().push(key.clone());
+                    }
+                }
+                // The connected tools after the standalone ones.
+                let connected: HashMap<_, _> = connected_standalone_tools::all(&mut conn).await?.into_iter().map(|tool| (tool.id, tool.key())).collect();
+                for attachment in connected_standalone_tools::template_attachments::all(&mut conn).await? {
+                    if let Some(key) = connected.get(&attachment.tool) {
                         attached.entry(attachment.template).or_default().push(key.clone());
                     }
                 }

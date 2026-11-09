@@ -182,6 +182,15 @@ impl Standing {
         })
     }
 
+    /// The grants over connected tools: other daemons' standalone tools,
+    /// held here.
+    pub fn connected_standalone_tools(&self) -> impl Iterator<Item = &grant::connected_standalone_tools::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::ConnectedStandaloneTools(permission) => Some(permission),
+            _ => None,
+        })
+    }
+
     /// The grants over the database.
     pub fn postgres(&self) -> impl Iterator<Item = &grant::postgres::Permission> {
         self.grants.iter().filter_map(|grant| match grant {

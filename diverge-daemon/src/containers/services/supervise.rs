@@ -39,6 +39,8 @@ pub async fn supervise(daemon: Arc<Daemon>, key: ToolKey, state: Arc<State>, out
         }
         let started = match key {
             ToolKey::Record(id) => record(&daemon, id).await,
+            // A connected tool is never a service here: nothing to keep.
+            ToolKey::Connected(_) => Started::Gone,
             ToolKey::Dependency(id) => dependency(&daemon, id).await,
         };
         match started {

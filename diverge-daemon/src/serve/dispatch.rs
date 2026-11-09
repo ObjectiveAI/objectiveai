@@ -6,7 +6,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, relay, roles, standalone_tools, vault, volumes};
+use super::{accounts, agents, connected_standalone_tools, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, relay, roles, standalone_tools, vault, volumes};
 use crate::daemon::Daemon;
 use crate::judge::Who;
 
@@ -22,7 +22,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// hundred and forty-three has a handler. A payload that is no request at all is
+/// hundred and thirty-four has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -49,7 +49,6 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::StandaloneToolsCreate(frame) => standalone_tools::create::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsGet(frame) => standalone_tools::get::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsEdit(frame) => standalone_tools::edit::handle(scope, frame, who, daemon).await,
-        ClientRequest::StandaloneToolsRegister(frame) => standalone_tools::register::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsAttachAgentInstance(frame) => standalone_tools::attach_agent_instance::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsDetachAgentInstance(frame) => standalone_tools::detach_agent_instance::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsAttachAgentTemplate(frame) => standalone_tools::attach_agent_template::handle(scope, frame, who, daemon).await,
@@ -58,6 +57,17 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::StandaloneToolsList(frame) => standalone_tools::list::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTag(frame) => standalone_tools::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsUntag(frame) => standalone_tools::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsCreate(frame) => connected_standalone_tools::create::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsGet(frame) => connected_standalone_tools::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsList(frame) => connected_standalone_tools::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsEdit(frame) => connected_standalone_tools::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsDelete(frame) => connected_standalone_tools::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsTag(frame) => connected_standalone_tools::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsUntag(frame) => connected_standalone_tools::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsAttachAgentInstance(frame) => connected_standalone_tools::attach_agent_instance::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsDetachAgentInstance(frame) => connected_standalone_tools::detach_agent_instance::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsAttachAgentTemplate(frame) => connected_standalone_tools::attach_agent_template::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsDetachAgentTemplate(frame) => connected_standalone_tools::detach_agent_template::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTemplatesCreate(frame) => standalone_tools::templates::create::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTemplatesGet(frame) => standalone_tools::templates::get::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTemplatesList(frame) => standalone_tools::templates::list::handle(scope, frame, who, daemon).await,

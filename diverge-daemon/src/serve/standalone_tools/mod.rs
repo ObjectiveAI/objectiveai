@@ -1,5 +1,5 @@
-//! The requests over tools, served: the seventeen over the records —
-//! [`create`], [`register`], [`get`], [`list`], [`edit`], [`delete`],
+//! The requests over tools, served: the sixteen over the records —
+//! [`create`], [`get`], [`list`], [`edit`], [`delete`],
 //! [`tag`], [`untag`], [`attach_agent_instance`],
 //! [`detach_agent_instance`], [`attach_agent_template`],
 //! [`detach_agent_template`], [`connect`],
@@ -7,8 +7,10 @@
 //! [`templates`], what tools are made from. What a request names is
 //! [`resolve`]d to a record, which is the only thing a tool reference
 //! names: a dependency tool is the
-//! [`dependency_tools`](crate::serve::dependency_tools) family's, and no
-//! request here finds one. Whether the caller's grants [`reaches`] a
+//! [`dependency_tools`](crate::serve::dependency_tools) family's, a
+//! connected tool the
+//! [`connected_standalone_tools`](crate::serve::connected_standalone_tools)
+//! family's, and no request here finds either. Whether the caller's grants [`reaches`] a
 //! record is one test. Whether a record is active, and the id of its
 //! container while it runs, are [`active`] and [`running`], false and
 //! none until containers run; what it is attached to is [`agents_of`]
@@ -39,7 +41,6 @@ pub mod filetree;
 pub mod frontend;
 pub mod get;
 pub mod list;
-pub mod register;
 pub mod tag;
 pub mod templates;
 pub mod terminal;

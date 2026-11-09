@@ -9,7 +9,7 @@ use futures_util::future;
 use super::lifecycle::{self, End};
 use super::{AgentRun, Key, ToolHandle, ToolKey, ToolRun, secrets, services, tool_log};
 use crate::daemon::{Daemon, Kind};
-use crate::store::{AgentId, agents, tools as tool_records};
+use crate::store::{AgentId, agents, connected_standalone_tools as connected_records, tools as tool_records};
 
 /// Stop the agent's run, if one is up, as asked: the container is told
 /// to stop, and the pump hears the end.
@@ -168,6 +168,11 @@ async fn down_tool(daemon: &Daemon, run: Arc<ToolRun>) {
                 let _ = tool_records::set_deployed(&mut conn, id, &run.provider, Utc::now()).await;
             }
         }
+        (ToolKey::Connected(id), _) => {
+            if let Ok(mut conn) = daemon.store.acquire().await {
+                let _ = connected_records::set_deployed(&mut conn, id, Utc::now()).await;
+            }
+        }
         (ToolKey::Dependency(_), Some(tool)) if !tool.is_service() => {
             if let Some(agent) = tool.owner_agent {
                 if let Some(agent) = daemon.live.agent_run(agent).await {
@@ -180,6 +185,7 @@ async fn down_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     }
     daemon.live.changed(Kind::DependencyTools);
     daemon.live.changed(Kind::StandaloneTools);
+    daemon.live.changed(Kind::ConnectedStandaloneTools);
     // A connected tool ran on another daemon's provider: nothing of
     // this daemon's was reserved there, and nothing is freed.
     if let ToolHandle::Run(_) = run.handle {

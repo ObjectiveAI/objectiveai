@@ -12,9 +12,8 @@ use crate::judge::{self, Standing};
 use crate::store::tools::Tool;
 use crate::store::{self, tools};
 
-/// The tool the reference names, if any: by name, by template and
-/// index, or by daemon and tool, a record, locked for the transaction
-/// when `lock`.
+/// The tool the reference names, if any: by name, or by template and
+/// index, a record, locked for the transaction when `lock`.
 pub async fn resolve(conn: &mut PgConnection, reference: &reference::Tool, lock: bool) -> Result<Option<Tool>, store::Error> {
     tools::by_reference(conn, reference, lock).await
 }

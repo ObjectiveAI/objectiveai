@@ -1,11 +1,10 @@
 //! Judging requests over tools.
 //!
-//! The shape of [`accounts`](super::accounts): a making action — the
-//! create, the connect — is held or it is not; an action over a tool
+//! The shape of [`accounts`](super::accounts): the making action — the
+//! create — is held or it is not; an action over a tool
 //! is allowed by a grant that holds it and whose `within` reaches the
 //! tool — `any`, or the tools list filter as [`filter::standalone_tools::test`]
-//! reads it, over the [`Facts`] of a record or a dependency, which
-//! the caller knows; a tagging action by a grant that holds it,
+//! reads it, over the [`Facts`] of a record, which the caller knows; a tagging action by a grant that holds it,
 //! reaches the tool, and covers every tag named. An attach and a
 //! detach also need `edit` over the agent, which is
 //! [`agents`](super::agents)' to judge.

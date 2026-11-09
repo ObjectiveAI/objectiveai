@@ -63,6 +63,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     daemon.live.changed(Kind::Agents);
     daemon.live.changed(Kind::StandaloneTools);
     services::held(daemon, ToolKey::Record(tool.id)).await;
-    containers::detached(daemon, tool.id, &agents, &keeps).await;
+    containers::detached(daemon, ToolKey::Record(tool.id), &agents, &keeps).await;
     Ok(Frame::Detached)
 }

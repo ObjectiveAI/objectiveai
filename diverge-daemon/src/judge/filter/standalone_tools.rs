@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::standalone_tools::list::client::request::{Filter, Kind};
+use diverge_sdk::daemon::endpoints::standalone_tools::list::client::request::Filter;
 use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::daemon::key;
 
@@ -12,23 +12,21 @@ use crate::store::tools::Tool;
 /// it is active now, the agents it is attached to directly and the
 /// agent templates it is attached to. A dependency tool is no tool of
 /// this family, and is judged by
-/// [`dependency_tools`](super::dependency_tools) over its template.
+/// [`dependency_tools`](super::dependency_tools) over its template; nor
+/// is a connected tool, judged by
+/// [`connected_standalone_tools`](super::connected_standalone_tools).
 pub struct Facts<'a> {
     /// Its name, if any.
     pub name: Option<&'a str>,
-    /// The template it was made from, for a created record.
-    pub template: Option<&'a str>,
+    /// The template it was made from.
+    pub template: &'a str,
     /// Who made it.
     pub creator: &'a Creator,
-    /// Which of the two it is.
-    pub kind: Kind,
-    /// Its template's mode, for a created record; a connected tool
-    /// runs by another daemon's template and has none here.
+    /// Its template's mode; none for a template that is gone.
     pub mode: Option<Mode>,
     /// Whether it is active now: a call or a read in flight.
     pub active: bool,
-    /// Whether it is deployed now: its container up, or its connect
-    /// held.
+    /// Whether it is deployed now: its container up.
     pub deployed: bool,
     /// The agents it is attached to directly.
     pub attached_agent_instances: &'a [key::Agent],
@@ -47,9 +45,8 @@ impl<'a> Facts<'a> {
     pub fn record(tool: &'a Tool, active: bool, deployed: bool, agents: &'a [key::Agent], templates: &'a [String], mode: Option<Mode>) -> Facts<'a> {
         Facts {
             name: tool.name.as_deref(),
-            template: tool.template(),
+            template: &tool.template,
             creator: &tool.creator,
-            kind: if tool.is_connected() { Kind::Connected } else { Kind::Created },
             mode,
             active,
             deployed,
@@ -68,9 +65,8 @@ impl<'a> Facts<'a> {
 /// among those it is attached to, by id.
 pub fn test(filter: &Filter, facts: &Facts<'_>) -> bool {
     (filter.names.is_empty() || facts.name.is_some_and(|name| filter.names.iter().any(|wanted| wanted == name)))
-        && (filter.templates.is_empty() || facts.template.is_some_and(|template| filter.templates.iter().any(|wanted| wanted == template)))
+        && (filter.templates.is_empty() || filter.templates.iter().any(|wanted| wanted == facts.template))
         && (filter.creators.is_empty() || filter.creators.contains(facts.creator))
-        && filter.kind.is_none_or(|wanted| facts.kind == wanted)
         && (filter.modes.is_empty() || facts.mode.is_some_and(|mode| filter.modes.contains(&mode)))
         && filter.active.is_none_or(|wanted| facts.active == wanted)
         && filter.deployed.is_none_or(|wanted| facts.deployed == wanted)

@@ -23,3 +23,9 @@ pub struct ToolId(pub i64);
 /// is named there by its template and whose it is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct DependencyToolId(pub i64);
+
+/// A connected standalone tool's row id. Never on the wire — a
+/// connected tool is named there by its name, or by the daemon it is
+/// on, the tool there and its index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ConnectedToolId(pub i64);

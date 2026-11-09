@@ -10,8 +10,11 @@
 //! `(issuer, subject)` — [`roles`], [`agents_templates`],
 //! [`tools_templates`], [`dependencies`] — the bodies of the templates
 //! agents' programs declare — [`dependency_tools`] — one per
-//! template and owner, with the agents attached to it — [`agents`]
-//! and [`tools`] are the records of each kind, [`vault`] the keys
+//! template and owner, with the agents attached to it — [`agents`],
+//! [`tools`] and [`connected_standalone_tools`] — other daemons'
+//! standalone tools, held here — are the records of each kind, whose
+//! two tool families share one namespace of names, [`tool_names`];
+//! [`vault`] the keys
 //! their secrets bind, [`events`] the graph of who sent what to
 //! whom through the daemon, and [`volumes`] what
 //! the daemon keeps of a volume, which is its tags alone;
@@ -23,7 +26,8 @@
 //! say; [`of_account`]
 //! is what an account may do, read fresh for every request; [`tags`]
 //! is the one way a set of tags is kept; the ids are [`AccountId`],
-//! [`RoleId`], [`AgentId`], [`ToolId`] and [`DependencyToolId`], so
+//! [`RoleId`], [`AgentId`], [`ToolId`], [`ConnectedToolId`] and
+//! [`DependencyToolId`], so
 //! that an
 //! id of one kind is never handed to a query of another.
 //!
@@ -57,6 +61,7 @@ pub use store::*;
 pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
+pub mod connected_standalone_tools;
 pub mod counters;
 pub mod daemons;
 pub mod dependencies;
@@ -69,6 +74,7 @@ pub mod in_use;
 pub mod providers;
 pub mod roles;
 pub mod tags;
+pub mod tool_names;
 pub mod tools;
 pub mod tools_templates;
 pub mod vault;

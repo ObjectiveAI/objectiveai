@@ -1085,6 +1085,7 @@ async fn on_record(store: &Store, key: Key) -> bool {
     let found = match key {
         Key::Agent(id) => store::agents::by_id(&mut conn, id, false).await.map(|row| row.is_some()),
         Key::Tool(ToolKey::Record(id)) => store::tools::by_id(&mut conn, id, false).await.map(|row| row.is_some()),
+        Key::Tool(ToolKey::Connected(id)) => store::connected_standalone_tools::by_id(&mut conn, id, false).await.map(|row| row.is_some()),
         Key::Tool(ToolKey::Dependency(id)) => store::dependency_tools::by_id(&mut conn, id, false).await.map(|row| row.is_some()),
     };
     found.unwrap_or(true)

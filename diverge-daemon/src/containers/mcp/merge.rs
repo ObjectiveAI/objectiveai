@@ -29,6 +29,7 @@ use crate::containers::lifecycle::{Answer, Ask, End};
 use crate::containers::{AskError, Key, ToolKey, ToolRun, activate_tool, events, tool_log, tools};
 use crate::daemon::Daemon;
 use crate::store::DependencyToolId;
+use crate::store::connected_standalone_tools::ConnectedTool;
 use crate::store::tools::Tool;
 
 /// The notifications a container hears: every served tool's, and the
@@ -60,6 +61,9 @@ enum Next {
     Run(Arc<ToolRun>),
     /// An attached tool, whose run is the live set's to find.
     Attached(Tool),
+    /// An attached connected tool, whose connect is the live set's to
+    /// find.
+    Connected(ConnectedTool),
     /// A service, whose run the live set holds.
     Service(DependencyToolId),
     /// Nothing is served under the key.
@@ -67,8 +71,9 @@ enum Next {
 }
 
 /// The served tool's run: a transient dependency tool's; an attached
-/// tool's as the live set holds it now, started now if it holds none;
-/// or a service's as the live set holds it now, which is an error
+/// tool's — a standalone tool's run or a connected tool's connect — as
+/// the live set holds it now, started now if it holds none; or a
+/// service's as the live set holds it now, which is an error
 /// while the service's container is not up.
 pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, String> {
     let next = {
@@ -76,11 +81,17 @@ pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, St
         match served.entry(key) {
             Some(Entry::Transient(run)) => Next::Run(Arc::clone(run)),
             Some(Entry::Attached { tool }) => Next::Attached(tool.clone()),
+            Some(Entry::Connected { tool }) => Next::Connected(tool.clone()),
             Some(Entry::Service { id, .. }) => Next::Service(*id),
             None => Next::Missing,
         }
     };
-    let tool = match next {
+    if matches!(next, Next::Attached(_) | Next::Connected(_))
+        && let Some(run) = context.daemon.live.tool_run(key).await
+    {
+        return Ok(run);
+    }
+    let run = match next {
         Next::Run(run) => return Ok(run),
         Next::Service(id) => {
             return context
@@ -91,12 +102,9 @@ pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, St
                 .ok_or_else(|| "the service is not running now".to_string());
         }
         Next::Missing => return Err("no tool is served under that prefix".to_string()),
-        Next::Attached(tool) => tool,
+        Next::Attached(tool) => tools::use_tool(&context.daemon, &tool).await.map_err(|error| error.to_string())?,
+        Next::Connected(tool) => tools::use_connected(&context.daemon, &tool).await.map_err(|error| error.to_string())?,
     };
-    if let Some(run) = context.daemon.live.tool_run(key).await {
-        return Ok(run);
-    }
-    let run = tools::use_tool(&context.daemon, &tool).await.map_err(|error| error.to_string())?;
     context.served.lock().await.started();
     Ok(run)
 }
@@ -109,7 +117,7 @@ async fn relayed(served: &Mutex<Served>, daemon: &Daemon, key: ToolKey) -> Optio
         let served = served.lock().await;
         match served.entry(key) {
             Some(Entry::Transient(run)) => return Some(Arc::clone(run)),
-            Some(Entry::Attached { .. }) | Some(Entry::Service { .. }) => true,
+            Some(Entry::Attached { .. }) | Some(Entry::Connected { .. }) | Some(Entry::Service { .. }) => true,
             None => false,
         }
     };

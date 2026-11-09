@@ -57,7 +57,7 @@ pub async fn resolve(conn: &mut PgConnection, creator: &Creator) -> Result<Optio
             return Ok(found.map(|id| Columns { agent: Some(id), ..Columns::of("agent") }));
         }
         Creator::Tool(creator::Tool::Record { template, index, .. }) => {
-            let found = sqlx::query_scalar("SELECT id FROM diverge.tools WHERE kind = 'created' AND template = $1 AND index = $2")
+            let found = sqlx::query_scalar("SELECT id FROM diverge.tools WHERE template = $1 AND index = $2")
                 .bind(template)
                 .bind(i64::try_from(*index).unwrap_or(i64::MAX))
                 .fetch_optional(&mut *conn)

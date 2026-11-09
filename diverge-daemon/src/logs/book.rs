@@ -97,6 +97,7 @@ impl Book for AgentId {
 }
 
 /// A tool's log: `<dir>/tools/<id>/` for a tool on record,
+/// `<dir>/connected_standalone_tools/<id>/` for a connected tool,
 /// `<dir>/dependency_tools/<id>/` for a dependency tool.
 impl Book for ToolKey {
     type Entry = tool_log::ItemWrapper;
@@ -104,6 +105,7 @@ impl Book for ToolKey {
     fn dir(self, root: &Path) -> PathBuf {
         match self {
             ToolKey::Record(id) => root.join("tools").join(id.0.to_string()),
+            ToolKey::Connected(id) => root.join("connected_standalone_tools").join(id.0.to_string()),
             ToolKey::Dependency(id) => root.join("dependency_tools").join(id.0.to_string()),
         }
     }

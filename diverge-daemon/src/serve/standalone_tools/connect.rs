@@ -37,16 +37,13 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// The one sentence a connected tool's connect answers with: it is
-/// another daemon's, and that daemon serves it. A tool is never served
-/// onward from here; one further away is reached by its record's route,
-/// the connect relayed to the daemon that runs it — see
-/// [`register`](diverge_sdk::daemon::endpoints::standalone_tools::register).
-const CONNECTED: &str = "a connected tool is another daemon's, and is served there";
-
 /// `Forbidden` with no `connect` grant at all; `NotFound`; `Forbidden`
-/// for a tool the grants do not reach; the error for a connected
-/// tool, which is another daemon's; the container started, or
+/// for a tool the grants do not reach — a connected tool is never
+/// found, so none is ever served onward from here: one further away is
+/// reached by its record's route, the connect relayed to the daemon
+/// that runs it, see
+/// [`connected_standalone_tools::create`](diverge_sdk::daemon::endpoints::connected_standalone_tools::create);
+/// the container started, or
 /// touched if it runs, as a user
 /// of the scope's own, which failing is the `Error`; else exactly one
 /// `Connected`, telling the tool's image and template for the other
@@ -91,11 +88,7 @@ async fn serve(scope: &Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon
         return Ok(());
     }
     scope.allowed().await;
-    let Some(template) = tool.template() else {
-        reply::reply(scope, &Frame::Error(reply::failure(&CONNECTED))).await;
-        return Ok(());
-    };
-    let template = template.to_string();
+    let template = tool.template.clone();
     let connection = daemon.live.mint_connection().await;
     let run = match containers::use_tool(daemon, &tool).await {
         Ok(run) => run,

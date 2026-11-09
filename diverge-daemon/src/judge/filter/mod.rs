@@ -10,7 +10,8 @@
 //! [`accounts`], [`roles`], [`providers`],
 //! [`daemons`], [`agents_templates`],
 //! [`standalone_tools_templates`], [`dependency_tools`], [`agents`],
-//! [`standalone_tools`], [`vault`], [`events`] and
+//! [`standalone_tools`], [`connected_standalone_tools`], [`vault`],
+//! [`events`] and
 //! [`volumes`] are the tests.
 //!
 //! Evaluated here, in the daemon, against records loaded whole, and
@@ -22,6 +23,7 @@
 pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
+pub mod connected_standalone_tools;
 pub mod dependency_tools;
 pub mod events;
 pub mod identities;

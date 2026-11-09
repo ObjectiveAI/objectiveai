@@ -130,27 +130,22 @@ CREATE TABLE IF NOT EXISTS diverge.agents (
     UNIQUE (template, index)
 );
 
--- A tool: made from a template, or joined to another daemon's tool by
--- the daemon's record, by ID, and the tool as that daemon names it.
+-- A standalone tool: made from a template, with what its create
+-- added. The container is work made from the row, never the row. Its
+-- name shares one namespace with the connected standalone tools',
+-- which no constraint can say across two tables: every create and
+-- rename of either takes the names lock and looks in both — see
+-- `store::tool_names`.
 CREATE TABLE IF NOT EXISTS diverge.tools (
     id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    -- `created` or `connected`.
-    kind                  TEXT NOT NULL,
-    template              TEXT,
+    template              TEXT NOT NULL,
     provider              JSONB,
-    -- The record's ID, the u64 bit-cast to a BIGINT.
-    connected_daemon      BIGINT,
-    -- The records a connected tool's connect is relayed through beyond
-    -- `connected_daemon`, each by its ID on the daemon before it, bit-cast
-    -- as `connected_daemon` is; empty for a tool on that daemon itself.
-    connected_route       BIGINT[] NOT NULL DEFAULT '{}',
-    connected_tool        JSONB,
     index                 BIGINT NOT NULL,
     name                  TEXT UNIQUE,
     fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
     fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
     -- Which vault key each secret the template declares is, as for
-    -- an agent; empty for a connected tool.
+    -- an agent.
     secrets               JSONB NOT NULL DEFAULT '{}',
     -- What its container declared it may ask of the daemon at its
     -- registration when it last started; empty for none.
@@ -164,20 +159,8 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
     tags                  TEXT[] NOT NULL DEFAULT '{}',
     created               TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator               JSONB NOT NULL,
-    CONSTRAINT tools_origin_daemon CHECK (
-        (kind = 'created' AND template IS NOT NULL
-            AND connected_daemon IS NULL AND connected_tool IS NULL)
-        OR (kind = 'connected' AND template IS NULL AND provider IS NULL
-            AND connected_daemon IS NOT NULL
-            AND connected_tool IS NOT NULL)
-    )
+    UNIQUE (template, index)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS tools_created_index
-    ON diverge.tools (template, index) WHERE kind = 'created';
--- A connected tool's once-and-for-all index counts among tools joined
--- to one daemon's one tool.
-CREATE UNIQUE INDEX IF NOT EXISTS tools_connected_index
-    ON diverge.tools (connected_daemon, connected_tool, index) WHERE kind = 'connected';
 
 -- A tool attached to an agent; `seq` is the order of attaching.
 CREATE TABLE IF NOT EXISTS diverge.attachments (
@@ -305,6 +288,57 @@ CREATE TABLE IF NOT EXISTS diverge.daemons (
     created          TIMESTAMPTZ NOT NULL,
     creator          JSONB NOT NULL
 );
+
+-- A connected standalone tool: another daemon's standalone tool, held
+-- here by this daemon's record of that daemon, by ID, the records its
+-- connect is relayed through beyond it, and the tool as that daemon
+-- names it. Nothing of what it is made from is here: that is the other
+-- daemon's. The record it names is not deleted while it does. Its index
+-- counts among the connected tools ever held from one daemon's one
+-- tool. Its name shares one namespace with the standalone tools', as
+-- theirs does with its.
+CREATE TABLE IF NOT EXISTS diverge.connected_standalone_tools (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    -- The record's ID, the u64 bit-cast to a BIGINT.
+    daemon        BIGINT NOT NULL REFERENCES diverge.daemons (id) ON DELETE RESTRICT,
+    -- The records the connect is relayed through beyond `daemon`, each
+    -- by its ID on the daemon before it, bit-cast as `daemon` is; empty
+    -- for a tool on that daemon itself.
+    route         BIGINT[] NOT NULL DEFAULT '{}',
+    -- The tool, as that daemon names it.
+    tool          JSONB NOT NULL,
+    index         BIGINT NOT NULL,
+    name          TEXT UNIQUE,
+    -- When its connect was last taken or let go.
+    last_deployed TIMESTAMPTZ,
+    -- When its calls in flight last began or ceased.
+    last_active   TIMESTAMPTZ,
+    tags          TEXT[] NOT NULL DEFAULT '{}',
+    created       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator       JSONB NOT NULL,
+    UNIQUE (daemon, tool, index)
+);
+
+-- A connected tool attached to an agent; `seq` is the order of
+-- attaching, among connected tools.
+CREATE TABLE IF NOT EXISTS diverge.connected_attachments (
+    tool        BIGINT NOT NULL REFERENCES diverge.connected_standalone_tools(id) ON DELETE CASCADE,
+    agent       BIGINT NOT NULL REFERENCES diverge.agents(id) ON DELETE CASCADE,
+    seq         BIGINT GENERATED ALWAYS AS IDENTITY,
+    PRIMARY KEY (tool, agent)
+);
+CREATE INDEX IF NOT EXISTS connected_attachments_agent ON diverge.connected_attachments (agent);
+
+-- A connected tool attached to every agent of an agent template, as
+-- `template_attachments` is for a standalone tool; the template's
+-- delete clears these rows itself.
+CREATE TABLE IF NOT EXISTS diverge.connected_template_attachments (
+    tool        BIGINT NOT NULL REFERENCES diverge.connected_standalone_tools(id) ON DELETE CASCADE,
+    template    TEXT NOT NULL REFERENCES diverge.agents_templates(id),
+    seq         BIGINT GENERATED ALWAYS AS IDENTITY,
+    PRIMARY KEY (tool, template)
+);
+CREATE INDEX IF NOT EXISTS connected_template_attachments_template ON diverge.connected_template_attachments (template);
 
 -- The tags on the host's identities: an identity is a file under the
 -- root's identities/, never a record, so its tags are kept here by its

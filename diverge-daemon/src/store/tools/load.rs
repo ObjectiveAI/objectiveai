@@ -1,12 +1,11 @@
 //! Loading tools.
 
 use diverge_sdk::daemon::reference;
-use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
 use super::Tool;
 use super::row::{self, ORDER, SELECT};
-use crate::store::{Error, ToolId, daemons};
+use crate::store::{Error, ToolId};
 
 /// Every tool, oldest first.
 pub async fn all(conn: &mut PgConnection) -> Result<Vec<Tool>, Error> {
@@ -25,10 +24,11 @@ pub async fn by_id(conn: &mut PgConnection, id: ToolId, lock: bool) -> Result<Op
     row.as_ref().map(row::tool).transpose()
 }
 
-/// The tool the reference names, if any — by name, by template and
-/// index, or by the daemon and tool it is connected to. With `lock`, its
-/// row is locked for the transaction, so that two edits of one tool
-/// take turns.
+/// The tool the reference names, if any — by name, or by template and
+/// index. With `lock`, its row is locked for the transaction, so that
+/// two edits of one tool take turns. A connected tool is none of
+/// these: see
+/// [`connected_standalone_tools`](crate::store::connected_standalone_tools).
 pub async fn by_reference(conn: &mut PgConnection, reference: &reference::Tool, lock: bool) -> Result<Option<Tool>, Error> {
     let found = match reference {
         reference::Tool::Name { name } => {
@@ -38,16 +38,9 @@ pub async fn by_reference(conn: &mut PgConnection, reference: &reference::Tool, 
                 .await?
         }
         reference::Tool::TemplateIndex { template, index } => {
-            sqlx::query("SELECT id FROM diverge.tools WHERE kind = 'created' AND template = $1 AND index = $2")
+            sqlx::query("SELECT id FROM diverge.tools WHERE template = $1 AND index = $2")
                 .bind(template)
                 .bind(i64::try_from(*index).unwrap_or(i64::MAX))
-                .fetch_optional(&mut *conn)
-                .await?
-        }
-        reference::Tool::Connected { daemon, tool } => {
-            sqlx::query("SELECT id FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1 AND connected_tool = $2 ORDER BY index LIMIT 1")
-                .bind(daemons::to_column(*daemon))
-                .bind(Json(tool))
                 .fetch_optional(&mut *conn)
                 .await?
         }

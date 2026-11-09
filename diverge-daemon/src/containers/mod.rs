@@ -17,8 +17,11 @@
 //! thing that uses it and held up by what is in flight into it and
 //! the connect scopes on it — [`connect`] and [`disconnect`] — a
 //! transient one stopped by its clock `idle_seconds` after the last
-//! use; [`attached`] and [`detached`] keep running agents' served
-//! sets in step with the attachments; [`running_dependency`] is
+//! use; [`use_connected`] is the same for a connected tool, whose run
+//! is this daemon's connect on another daemon's tool, opened by
+//! [`connected`]; [`attached`], [`attached_connected`] and
+//! [`detached`] keep running agents' served sets in step with the
+//! attachments; [`running_dependency`] is
 //! the dependency tool a reference names, found running or not at
 //! all, since one is started by nobody's request;
 //! [`mcp`] is the one tool list an agent sees and the routing of its
@@ -34,7 +37,8 @@
 //! provider's image asks from the other providers connected. [`Key`]
 //! names a container by
 //! its record or, a dependency tool, by its row, [`ToolKey`] a
-//! tool's run either way; [`AgentRun`] and [`ToolRun`] are what is
+//! tool's run — a standalone tool's, a connected tool's or a
+//! dependency tool's; [`AgentRun`] and [`ToolRun`] are what is
 //! live for one; [`container`] and [`dependency`] are the request a
 //! run is, and [`secrets`] what a run's secrets come to — the names
 //! its program takes bound to vault keys, and the slots held while

@@ -1,31 +1,28 @@
-//! Making a tool: from a template, or joined to another daemon's
-//! tool.
+//! Making a tool from a template.
 
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::agents::create::client::request::FuseMount;
-use diverge_sdk::shared::canonical;
+use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use indexmap::IndexMap;
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
-use super::Origin;
-use crate::store::{Error, ToolId, counters, daemons};
+use crate::store::{Error, ToolId, counters, tool_names};
 
-/// What a new tool is made of: its origin, checked by the caller —
-/// the template live, the remote daemon configured — and what a create
-/// adds, which a connect adds none of but the name.
+/// What a new tool is made of, checked by the caller — the template
+/// live, the provider and the mounts there — and what its create adds.
 #[derive(Debug, Clone)]
 pub struct New {
-    /// How it comes to be.
-    pub origin: Origin,
+    /// The template, by id.
+    pub template: String,
+    /// The provider pin and its volumes, if any.
+    pub provider: Option<Provider>,
     /// The name, if any.
     pub name: Option<String>,
     /// Files of other providers' volumes.
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes.
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// Which vault key each secret the template declares is; none
-    /// for a connected tool.
+    /// Which vault key each secret the template declares is.
     pub secrets: IndexMap<String, String>,
     /// Who makes it.
     pub creator: Creator,
@@ -36,41 +33,28 @@ pub struct New {
 pub enum Created {
     /// The tool, made, with the index it was given.
     Created(ToolId, u64),
-    /// The name is another tool's already; nothing was made.
+    /// The name is a standalone or a connected tool's already; nothing
+    /// was made.
     Exists,
 }
 
-/// Insert the tool, its index the next among tools made the same way,
-/// holding no tag yet. The counter is advanced in the caller's
-/// transaction, so a create that is not committed gives the number
-/// back.
+/// Insert the tool, its index the next among tools made from its
+/// template, holding no tag yet, its name claimed across both tool
+/// families as [`tool_names`] states. The counter is advanced in the
+/// caller's transaction, so a create that is not committed gives the
+/// number back.
 pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error> {
-    let key = match &new.origin {
-        Origin::Created { template, .. } => format!("tools:{template}"),
-        Origin::Connected { daemon, tool, .. } => {
-            let tool = canonical::bytes(tool).map_err(Error::Json)?;
-            format!("tools:{daemon}:{}", String::from_utf8_lossy(&tool))
-        }
-    };
-    let index = counters::next(conn, &key).await?;
-    let (kind, template, provider, connected_daemon, connected_route, connected_tool) = match &new.origin {
-        Origin::Created { template, provider } => ("created", Some(template.clone()), provider.as_ref().map(Json), None, Vec::new(), None),
-        Origin::Connected { daemon, route, tool } => {
-            let route: Vec<i64> = route.iter().copied().map(daemons::to_column).collect();
-            ("connected", None, None, Some(daemons::to_column(*daemon)), route, Some(Json(tool)))
-        }
-    };
+    if tool_names::claim(conn, new.name.as_deref(), None).await? {
+        return Ok(Created::Exists);
+    }
+    let index = counters::next(conn, &format!("tools:{}", new.template)).await?;
     let inserted = sqlx::query(
-        "INSERT INTO diverge.tools (kind, template, provider, connected_daemon, connected_route, connected_tool, index, name, \
+        "INSERT INTO diverge.tools (template, provider, index, name, \
          fuse_file_mounts, fuse_directory_mounts, secrets, creator) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
     )
-    .bind(kind)
-    .bind(template)
-    .bind(provider)
-    .bind(connected_daemon)
-    .bind(connected_route)
-    .bind(connected_tool)
+    .bind(&new.template)
+    .bind(new.provider.as_ref().map(Json))
     .bind(i64::try_from(index).unwrap_or(i64::MAX))
     .bind(&new.name)
     .bind(Json(&new.fuse_file_mounts))

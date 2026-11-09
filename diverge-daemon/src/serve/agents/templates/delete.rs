@@ -13,7 +13,7 @@ use crate::serve::reply;
 use crate::database;
 use crate::containers::{ToolKey, services, tool_log};
 use crate::store::tools::template_attachments;
-use crate::store::{self, agents_templates, dependency_tools};
+use crate::store::{self, agents_templates, connected_standalone_tools, dependency_tools};
 use super::in_use;
 
 /// Answer the delete and finish the scope.
@@ -59,6 +59,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     }
     let removed = dependency_tools::delete_of_owner_template(&mut tx, &record.id).await?;
     let detached = template_attachments::clear_template(&mut tx, &record.id).await?;
+    connected_standalone_tools::template_attachments::clear_template(&mut tx, &record.id).await?;
     agents_templates::delete(&mut tx, &record.id).await?;
     tx.commit().await?;
     let gone: Vec<ToolKey> = removed.iter().map(|tool| ToolKey::Dependency(tool.id)).collect();
@@ -72,5 +73,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     daemon.live.changed(Kind::AgentsTemplates);
     daemon.live.changed(Kind::DependencyTools);
     daemon.live.changed(Kind::StandaloneTools);
+    daemon.live.changed(Kind::ConnectedStandaloneTools);
     Ok(Frame::Deleted)
 }

@@ -15,7 +15,7 @@ use crate::commands::{AdminKey, Commander};
 use crate::containers::ToolKey;
 use crate::daemon::{Daemon, Log};
 use crate::judge::{self, Standing, Who};
-use crate::serve::{agents, dependency_tools, reply, standalone_tools};
+use crate::serve::{agents, connected_standalone_tools, dependency_tools, reply, standalone_tools};
 use crate::store;
 
 /// Send what the filter yields, watch if asked, and finish the scope.
@@ -94,6 +94,26 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
             let latest = daemon.live.tool_log(&daemon.store, key).await.latest.subscribe();
             let keep = |item: &tool_log::ItemWrapper| crate::logs::matches(r#type, from, to, tool_log::ItemType::of(&item.item).name(), item.created);
             send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::StandaloneTool(item)), Frame::Watch, is_cancel).await?;
+        }
+        Subject::ConnectedStandaloneTool(reference) => {
+            if !judge::connected_standalone_tools::holds(&standing, grant::connected_standalone_tools::Over::Logs) {
+                reply::reply(scope, &Frame::Forbidden).await;
+                return Ok(());
+            }
+            let Some(tool) = connected_standalone_tools::resolve(&mut conn, reference, false).await? else {
+                reply::reply(scope, &Frame::Error(reply::failure(&"the connected tool named is none the daemon has"))).await;
+                return Ok(());
+            };
+            if !connected_standalone_tools::reaches(&mut conn, daemon, &standing, grant::connected_standalone_tools::Over::Logs, &tool).await? {
+                reply::reply(scope, &Frame::Forbidden).await;
+                return Ok(());
+            }
+            drop(conn);
+            scope.allowed().await;
+            let key = ToolKey::Connected(tool.id);
+            let latest = daemon.live.tool_log(&daemon.store, key).await.latest.subscribe();
+            let keep = |item: &tool_log::ItemWrapper| crate::logs::matches(r#type, from, to, tool_log::ItemType::of(&item.item).name(), item.created);
+            send(scope, daemon, key, latest, &span, keep, |item| Frame::Item(Entry::ConnectedStandaloneTool(item)), Frame::Watch, is_cancel).await?;
         }
         Subject::DependencyTool(reference) => {
             if !judge::dependency_tools::holds(&standing, grant::dependency_tools::Over::Logs) {

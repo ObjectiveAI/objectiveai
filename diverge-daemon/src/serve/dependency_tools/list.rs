@@ -93,7 +93,7 @@ impl Source for Tools<'_> {
                 .into_iter()
                 .filter_map(|run| match run.id {
                     ToolKey::Dependency(id) => Some((id, run_of(&run))),
-                    ToolKey::Record(_) => None,
+                    ToolKey::Record(_) | ToolKey::Connected(_) => None,
                 })
                 .collect();
             let busy = self.daemon.live.busy_tools().await;

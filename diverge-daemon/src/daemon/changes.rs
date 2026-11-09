@@ -33,6 +33,9 @@ pub enum Kind {
     /// Tools: the records, what is attached, which run, and which
     /// dependency tools run.
     StandaloneTools,
+    /// Connected tools: the records, what is attached, and which
+    /// connects are held and busy.
+    ConnectedStandaloneTools,
     /// Volumes: a provider's listing, and the records that mount one.
     Volumes,
     /// The vault: the keys, and the records that bind one.

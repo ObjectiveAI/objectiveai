@@ -177,13 +177,3 @@ pub async fn delete(conn: &mut PgConnection, id: DaemonId) -> Result<(), Error> 
     sqlx::query("DELETE FROM diverge.daemons WHERE id = $1").bind(to_column(id)).execute(&mut *conn).await?;
     Ok(())
 }
-
-/// Whether a connected tool names the record of `id`: what refuses its
-/// delete.
-pub async fn in_use(conn: &mut PgConnection, id: DaemonId) -> Result<bool, Error> {
-    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.tools WHERE connected_daemon = $1) AS used")
-        .bind(to_column(id))
-        .fetch_one(&mut *conn)
-        .await?;
-    Ok(row.try_get("used")?)
-}

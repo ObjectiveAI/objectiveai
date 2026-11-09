@@ -33,7 +33,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// changed or removed as the records, the attachments and the runs
 /// change, until the client cancels. The attachments are one load for
 /// the whole list, at every reading. No dependency tool is among them:
-/// those are listed under their templates.
+/// those are listed under their templates; nor any connected tool,
+/// listed by [`connected_standalone_tools`](crate::serve::connected_standalone_tools).
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;
@@ -100,7 +101,7 @@ impl Source for Listed<'_> {
                 let active = busy.contains(&key);
                 let attached = attached.get(&tool.id).unwrap_or(&empty);
                 let attached_templates = templates.get(&tool.id).unwrap_or(&no_templates);
-                let mode = tool.template().and_then(|template| modes.get(template).copied());
+                let mode = modes.get(&tool.template).copied();
                 let facts = Facts::record(tool, active, deployed, attached, attached_templates, mode);
                 if !judge::standalone_tools::over(self.standing, Over::List, &facts) || !filter::standalone_tools::test(self.filter, &facts) {
                     continue;

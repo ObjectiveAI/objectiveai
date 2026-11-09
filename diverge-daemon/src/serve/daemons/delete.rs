@@ -39,7 +39,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::daemons::over(&standing, Over::Delete, &reported) {
         return Ok(Frame::Forbidden);
     }
-    if store::daemons::in_use(&mut tx, record.id).await? {
+    if store::in_use::daemon(&mut tx, record.id).await? {
         return Ok(Frame::InUse);
     }
     store::daemons::delete(&mut tx, record.id).await?;

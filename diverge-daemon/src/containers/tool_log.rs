@@ -71,11 +71,13 @@ pub async fn working(daemon: &Daemon, key: ToolKey, busy: bool) {
         let now = chrono::Utc::now();
         let _ = match key {
             ToolKey::Record(id) => crate::store::tools::set_active(&mut conn, id, now).await,
+            ToolKey::Connected(id) => crate::store::connected_standalone_tools::set_active(&mut conn, id, now).await,
             ToolKey::Dependency(id) => crate::store::dependency_tools::set_active(&mut conn, id, now).await,
         };
     }
     daemon.live.changed(match key {
         ToolKey::Record(_) => crate::daemon::Kind::StandaloneTools,
+        ToolKey::Connected(_) => crate::daemon::Kind::ConnectedStandaloneTools,
         ToolKey::Dependency(_) => crate::daemon::Kind::DependencyTools,
     });
 }

@@ -4,18 +4,17 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use diverge_sdk::daemon::agent_log::Identity;
-use diverge_sdk::daemon::reference;
 use indexmap::IndexMap;
 use sqlx::Row as _;
 use sqlx::postgres::PgRow;
 use sqlx::types::Json;
 
-use super::{Origin, Tool};
-use crate::store::{Error, ToolId, daemons};
+use super::Tool;
+use crate::store::{Error, ToolId};
 use diverge_sdk::shared::permission::Grant;
 
 /// The columns every tool query selects.
-pub(super) const SELECT: &str = "SELECT id, kind, template, provider, connected_daemon, connected_route, connected_tool, index, name, \
+pub(super) const SELECT: &str = "SELECT id, template, provider, index, name, \
      fuse_file_mounts, fuse_directory_mounts, secrets, permissions, last_provider, last_deployed, last_active, tags, created, creator \
      FROM diverge.tools";
 
@@ -24,34 +23,7 @@ pub(super) const ORDER: &str = "ORDER BY created, id";
 
 /// The tool a row of [`SELECT`] holds.
 pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
-    let kind: String = row.try_get("kind")?;
-    let origin = match kind.as_str() {
-        "created" => {
-            let provider: Option<Json<Provider>> = row.try_get("provider")?;
-            Origin::Created {
-                template: row.try_get::<Option<String>, _>("template")?.unwrap_or_default(),
-                provider: provider.map(|Json(provider)| provider),
-            }
-        }
-        "connected" => {
-            let tool: Option<Json<reference::Tool>> = row.try_get("connected_tool")?;
-            let Some(Json(tool)) = tool else {
-                return Err(Error::Json(serde::de::Error::custom("a connected tool names no tool")));
-            };
-            let Some(daemon) = row.try_get::<Option<i64>, _>("connected_daemon")? else {
-                return Err(Error::Json(serde::de::Error::custom("a connected tool names no daemon")));
-            };
-            let route: Vec<i64> = row.try_get("connected_route")?;
-            Origin::Connected {
-                daemon: daemons::from_column(daemon),
-                route: route.into_iter().map(daemons::from_column).collect(),
-                tool,
-            }
-        }
-        other => {
-            return Err(Error::Json(serde::de::Error::custom(format!("`{other}` is not a tool kind"))));
-        }
-    };
+    let provider: Option<Json<Provider>> = row.try_get("provider")?;
     let index: i64 = row.try_get("index")?;
     let Json(fuse_file_mounts): Json<Vec<FuseMount>> = row.try_get("fuse_file_mounts")?;
     let Json(fuse_directory_mounts): Json<Vec<FuseMount>> = row.try_get("fuse_directory_mounts")?;
@@ -62,7 +34,8 @@ pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
     let created: DateTime<Utc> = row.try_get("created")?;
     Ok(Tool {
         id: ToolId(row.try_get("id")?),
-        origin,
+        template: row.try_get("template")?,
+        provider: provider.map(|Json(provider)| provider),
         index: u64::try_from(index).unwrap_or(0),
         name: row.try_get("name")?,
         fuse_file_mounts,

@@ -11,9 +11,8 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use super::{reaches, resolve};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
-use crate::containers::{self, CONNECTED_FILES};
+use crate::containers;
 use crate::serve::{files, reply};
-use crate::store::tools::Origin;
 use crate::store::{self, tools_templates};
 
 /// Send the request, serve its answer and its body, and finish the scope.
@@ -56,14 +55,11 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let image = match &tool.origin {
-        Origin::Created { template, .. } => tools_templates::by_id(&mut conn, template, false).await?.map(|record| containers::image(&record.template.image)),
-        Origin::Connected { .. } => None,
-    };
+    let image = tools_templates::by_id(&mut conn, &tool.template, false).await?.map(|record| containers::image(&record.template.image));
     drop(conn);
     scope.allowed().await;
     let Some(image) = image else {
-        reply::reply(scope, &Frame::Error(reply::failure(&CONNECTED_FILES))).await;
+        reply::reply(scope, &Frame::Error(reply::failure(&"the tool's template is not on record"))).await;
         return Ok(());
     };
     match files::declares(daemon, &image).await? {

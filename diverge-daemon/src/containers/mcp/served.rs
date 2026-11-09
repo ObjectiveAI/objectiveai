@@ -8,19 +8,28 @@ use tokio::sync::watch;
 use super::Registry;
 use crate::containers::{ToolKey, ToolRun};
 use crate::store::DependencyToolId;
+use crate::store::connected_standalone_tools::ConnectedTool;
 use crate::store::tools::Tool;
 
-/// One served tool: an attached record, whose run — up or not, and a
-/// new one after every end — is the live set's to find; a transient
-/// dependency tool, which runs for as long as it is served; or a
-/// service, by its row, whose run is the live set's likewise.
+/// One served tool: an attached record, standalone or connected, whose
+/// run — up or not, and a new one after every end — is the live set's
+/// to find; a transient dependency tool, which runs for as long as it
+/// is served; or a service, by its row, whose run is the live set's
+/// likewise.
 pub enum Entry {
-    /// A tool the agent has, directly or through its template: its
-    /// record. Its run is looked up at every use and started at the
-    /// first that finds none.
+    /// A standalone tool the agent has, directly or through its
+    /// template: its record. Its run is looked up at every use and
+    /// started at the first that finds none.
     Attached {
         /// The record.
         tool: Tool,
+    },
+    /// A connected tool the agent has, directly or through its
+    /// template: its record. Its connect is looked up at every use and
+    /// opened at the first that finds none.
+    Connected {
+        /// The record.
+        tool: ConnectedTool,
     },
     /// A transient dependency tool deployed for the agent: running for
     /// the agent's run.
@@ -75,6 +84,17 @@ impl Served {
         let key = ToolKey::Record(tool.id);
         let prefix = self.registry.assign(key, serve_name);
         self.entries.entry(key).or_insert(Entry::Attached { tool });
+        self.changed();
+        prefix
+    }
+
+    /// Serve the attached connected tool under `serve_name`, idle; the
+    /// prefix it gets, kept until it leaves. One served already keeps
+    /// its prefix and its entry.
+    pub fn insert_connected(&mut self, tool: ConnectedTool, serve_name: &str) -> String {
+        let key = ToolKey::Connected(tool.id);
+        let prefix = self.registry.assign(key, serve_name);
+        self.entries.entry(key).or_insert(Entry::Connected { tool });
         self.changed();
         prefix
     }
@@ -148,7 +168,7 @@ impl Served {
             .values()
             .filter_map(|entry| match entry {
                 Entry::Transient(run) => Some(Arc::clone(run)),
-                Entry::Attached { .. } | Entry::Service { .. } => None,
+                Entry::Attached { .. } | Entry::Connected { .. } | Entry::Service { .. } => None,
             })
             .collect()
     }
@@ -159,7 +179,7 @@ impl Served {
             .values()
             .filter_map(|entry| match entry {
                 Entry::Service { id, .. } => Some(*id),
-                Entry::Attached { .. } | Entry::Transient(_) => None,
+                Entry::Attached { .. } | Entry::Connected { .. } | Entry::Transient(_) => None,
             })
             .collect()
     }
