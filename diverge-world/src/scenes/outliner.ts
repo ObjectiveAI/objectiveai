@@ -309,6 +309,8 @@ export function outliner(scene: Phaser.Scene): void {
         // Rule 5.
         s.eye.setText(alpha === 1 ? EYE_OPEN : EYE_SHUT).setColor(color).setVisible(true);
         s.eye.setPosition(right - s.eye.width, at + 3);
+        // A text's hit area is its size when made interactive, and the eye was made empty: it takes its size now.
+        s.eye.input?.hitArea.setTo(0, 0, s.eye.width, s.eye.height);
         s.fold.setText(folded.has(kind) ? "▸" : "▾").setColor(color).setPosition(x + PAD + FOLD, at + 3);
         s.icon.setText(sample).setColor(color).setPosition(x + PAD + ICON, at + 3);
         s.name.setText(title).setColor(color).setFontStyle("bold").setPosition(x + PAD + TITLE, at + 3);
