@@ -98,7 +98,7 @@ pub mod content;
 pub mod daemon;
 pub mod daemons;
 pub mod database;
-pub mod discovery;
+pub mod listings;
 pub mod judge;
 pub mod listening;
 pub mod logs;

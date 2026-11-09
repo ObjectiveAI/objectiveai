@@ -1,7 +1,7 @@
 //! Listening: the direct messages sent to the daemon through its
 //! connected providers, merged.
 //!
-//! Each provider answers its own `messages::listen`: the messages sent
+//! Each provider answers its own `daemons::listen`: the messages sent
 //! to the daemon's identity there. The daemon holds exactly one such
 //! listen per connected provider while any client listens — opened at
 //! the first listener, cancelled after the last — and takes every

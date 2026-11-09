@@ -1,12 +1,12 @@
-//! Discovering peers through the connected providers, and keeping the
+//! Listing peers through the connected providers, and keeping the
 //! listing.
 
 use std::future::Future;
 use std::sync::Arc;
 
-use diverge_sdk::daemon::endpoints::providers::daemons::discover::client::request;
-use diverge_sdk::daemon::endpoints::providers::daemons::discover::server::response::{Discovered, Frame};
-use diverge_sdk::daemon::grant::providers::Over;
+use diverge_sdk::daemon::endpoints::providers::daemons::list::client::request;
+use diverge_sdk::daemon::endpoints::providers::daemons::list::server::response::{Listed, Frame};
+use diverge_sdk::daemon::grant::providers_daemons::Over;
 use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
@@ -26,10 +26,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// The rules:
 ///
-/// 1. **Judged.** One `Forbidden` with no `discover` grant over any
-///    provider.
+/// 1. **Judged.** One `Forbidden` with no `providers_daemons`
+///    grant holding `list` over any provider.
 /// 2. **Watching.** The scope is a watcher of the daemon's
-///    [`Discovery`](crate::discovery::Discovery) from before its first
+///    [`Listings`](crate::listings::Listings) from before its first
 ///    read to its end, however it ends: every connected provider's
 ///    listing open and whole before anything is sent.
 /// 3. **The listing.** Every identity the merge holds, in order, the
@@ -37,8 +37,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 ///    listing is whole — and from then on each identity added, changed
 ///    or removed as the providers' listings tell, and as providers
 ///    connect and disconnect, until the client cancels.
-/// 4. **Reached.** Only routes through the providers a `discover`
-///    grant reaches are listed: an identity none of whose routes is
+/// 4. **Reached.** Only routes through the providers a `providers_daemons`
+///    grant's `list` reaches are listed: an identity none of whose routes is
 ///    reached is not listed at all, and a listed identity's
 ///    `providers` hold only its reached routes. The reach is read again
 ///    at every read, so a provider's record changed — a word of
@@ -53,15 +53,15 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     };
-    if !judge::providers::holds(&standing, Over::Discover) {
+    if !judge::providers_daemons::holds(&standing, Over::List) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
     // Rules 2, 3 and 4: the watcher left as its guard drops, however
     // the scope ends.
-    let _watching = daemon.live.discovery.enter(daemon).await;
+    let _watching = daemon.live.listings.enter(daemon).await;
     let source = Merged { daemon, standing: &standing };
-    stream::listing(scope, daemon, &[Kind::Discover, Kind::Providers], frame.count, &source, Frame::from).await
+    stream::listing(scope, daemon, &[Kind::Listings, Kind::Providers], frame.count, &source, Frame::from).await
 }
 
 /// The merge as it is now, narrowed to the routes the grants reach.
@@ -72,16 +72,16 @@ struct Merged<'a> {
 
 impl Source for Merged<'_> {
     type Key = Identity;
-    type Item = Discovered;
+    type Item = Listed;
     type Error = store::Error;
 
-    fn read(&self) -> impl Future<Output = Result<Vec<(Identity, Discovered)>, store::Error>> + Send {
+    fn read(&self) -> impl Future<Output = Result<Vec<(Identity, Listed)>, store::Error>> + Send {
         async move {
             // Rule 4: the reach as the records stand now.
-            let reached = judge::providers::reached(self.standing, Over::Discover, &self.daemon.providers.all());
+            let reached = judge::providers_daemons::reached(self.standing, Over::List, &self.daemon.providers.all());
             // Only the reached providers' listings are merged: their
             // routes, and their descriptions, and no other's.
-            Ok(self.daemon.live.discovery.read(self.daemon, &reached).await)
+            Ok(self.daemon.live.listings.read(self.daemon, &reached).await)
         }
     }
 }

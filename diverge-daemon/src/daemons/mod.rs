@@ -5,7 +5,7 @@
 //! remote's identity, our account there, and the routes it may be
 //! reached by. [`connect`] is the one
 //! connection a record names: the one held, while its router runs; else
-//! one opened through a connected provider whose discover listing holds
+//! one opened through a connected provider whose daemons list holds
 //! the remote, chosen at random among them, by the provider protocol's
 //! `daemons::connect` — the relayed connection opened by the
 //! [`handshake`](diverge_sdk::wire::handshake), in which the remote

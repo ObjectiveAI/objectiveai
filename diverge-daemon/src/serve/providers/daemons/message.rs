@@ -9,9 +9,9 @@ use rand::seq::SliceRandom as _;
 
 use diverge_sdk::daemon::endpoints::providers::daemons::message::client::{channel_request, request};
 use diverge_sdk::daemon::endpoints::providers::daemons::message::server::response::Frame;
-use diverge_sdk::daemon::grant::providers::Over;
-use diverge_sdk::provider::endpoints::messages::send::client::{execute as send, request as send_request};
-use diverge_sdk::provider::endpoints::messages::send::server::response as sent;
+use diverge_sdk::daemon::grant::providers_daemons::Over;
+use diverge_sdk::provider::endpoints::daemons::message::client::{execute as send, request as send_request};
+use diverge_sdk::provider::endpoints::daemons::message::server::response as sent;
 use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::frame::client::ClientFrame;
@@ -41,14 +41,14 @@ enum Excluded {
     /// The identity stopped listening there before it took the message.
     NotListening,
     /// The provider would not take the daemon's send: the daemon is not
-    /// in its discovery, or it relays no messages.
+    /// in its listing, or it relays no messages.
     Refused,
 }
 
 /// The rules:
 ///
 /// 1. **Judged.** One `Forbidden` with no providers `message` grant.
-/// 2. **Where.** Discovery held ([`touch`](crate::discovery::Discovery::touch)),
+/// 2. **Where.** Listings held ([`touch`](crate::listings::Listings::touch)),
 ///    the identity's routes read: none at all is `NotFound`; none
 ///    through a provider the grant reaches with `message` is
 ///    `Forbidden`; none of those through which the identity listens,
@@ -61,7 +61,7 @@ enum Excluded {
 ///    see [`Messaging`](crate::messaging::Messaging).
 /// 4. **Waits for room.** With none free with room, the message waits
 ///    for a lane freed, the soonest full window's end, a word that
-///    discovery or the providers changed, or the client's cancel — the
+///    the listings or the providers changed, or the client's cancel — the
 ///    finish alone — and then goes back to rule 2. A message never
 ///    waits behind another to one provider while another has room.
 /// 5. **Sent.** Counted as it goes, then the provider's answer read:
@@ -87,7 +87,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
     let Some(standing) = standing else {
         return Ok(Some(Frame::Forbidden));
     };
-    if !judge::providers::holds(&standing, Over::Message) {
+    if !judge::providers_daemons::holds(&standing, Over::Message) {
         return Ok(Some(Frame::Forbidden));
     }
     scope.allowed().await;
@@ -102,12 +102,12 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         let mut freed = std::pin::pin!(freed.notified());
         freed.as_mut().enable();
         // Rule 2.
-        daemon.live.discovery.touch(daemon).await;
-        let routes = daemon.live.discovery.routes(&to).await;
+        daemon.live.listings.touch(daemon).await;
+        let routes = daemon.live.listings.routes(&to).await;
         if routes.is_empty() {
             return Ok(Some(Frame::NotFound));
         }
-        let reached = judge::providers::reached(&standing, Over::Message, &daemon.providers.all());
+        let reached = judge::providers_daemons::reached(&standing, Over::Message, &daemon.providers.all());
         let reachable: Vec<_> = routes.into_iter().filter(|via| reached.contains(&via.provider)).collect();
         if reachable.is_empty() {
             return Ok(Some(Frame::Forbidden));
@@ -174,7 +174,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
                     () = &mut window => break,
                     word = words.recv() => match word {
                         // A word of another kind changes nothing here.
-                        Ok(kind) if kind != Kind::Discover && kind != Kind::Providers => {}
+                        Ok(kind) if kind != Kind::Listings && kind != Kind::Providers => {}
                         _ => break,
                     },
                     () = cancelled.clone() => return Ok(None),
@@ -211,7 +211,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
                 messaging.uncount(&provider).await;
                 messaging.full(&provider, retry_after).await;
             }
-            Ok(Some(sent::Frame::NotDiscoverable | sent::Frame::Unsupported | sent::Frame::AlreadyOpen)) => {
+            Ok(Some(sent::Frame::NotListed | sent::Frame::Unsupported | sent::Frame::AlreadyOpen)) => {
                 messaging.uncount(&provider).await;
                 excluded.push((provider, Excluded::Refused));
             }

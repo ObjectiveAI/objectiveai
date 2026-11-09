@@ -16,7 +16,7 @@
 //! the roles it holds, read fresh inside the request's own
 //! transaction, or a tool's grants as declared with the agents its
 //! `attached` reaches read fresh — and
-//! [`accounts`], [`roles`], [`providers`],
+//! [`accounts`], [`roles`], [`providers`], [`providers_daemons`],
 //! [`daemons`], [`agents_templates`],
 //! [`standalone_tools_templates`], [`dependency_tools`],
 //! [`agents`], [`standalone_tools`], [`postgres`], [`vault`], [`events`] and [`volumes`] are the pure functions that say whether a
@@ -62,6 +62,7 @@ pub mod filter;
 pub mod postgres;
 pub mod daemons;
 pub mod providers;
+pub mod providers_daemons;
 pub mod roles;
 pub mod standalone_tools;
 pub mod standalone_tools_templates;

@@ -103,7 +103,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::AgentsTerminal(frame) => agents::terminal::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsFrontend(frame) => agents::frontend::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsConnect(frame) => agents::connect::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsDiscover(frame) => providers::daemons::discover::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsList(frame) => providers::daemons::list::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersAdd(frame) => providers::add::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersEdit(frame) => providers::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersDelete(frame) => providers::delete::handle(scope, frame, who, daemon).await,

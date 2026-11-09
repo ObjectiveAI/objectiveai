@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;
-use diverge_sdk::provider::endpoints::messages::listen::client::{execute, request};
+use diverge_sdk::provider::endpoints::daemons::listen::client::{execute, request};
 use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::client::handle::Handle;
 use futures_util::StreamExt as _;

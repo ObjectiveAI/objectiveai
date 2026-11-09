@@ -37,7 +37,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     let record = store::providers::Record {
         identity: frame.identity,
         direction: frame.direction,
-        discover: frame.discover,
+        listable: frame.listable,
         enabled: frame.enabled.unwrap_or(true),
         description: frame.description.unwrap_or_default(),
         tags: store::tags::with(&[], &frame.tags),

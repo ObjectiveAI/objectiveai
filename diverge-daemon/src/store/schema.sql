@@ -269,13 +269,13 @@ CREATE TABLE IF NOT EXISTS diverge.volume_tags (
 -- The providers the daemon works with: one record per provider
 -- identity, with the direction its connection is made in — the
 -- provider's dialling in from the addresses it may, or the address the
--- daemon dials — whether the daemon is discoverable to it, and whether
+-- daemon dials — whether the daemon is listable to it, and whether
 -- it is enabled.
 CREATE TABLE IF NOT EXISTS diverge.providers (
     issuer      TEXT NOT NULL,
     subject     TEXT NOT NULL,
     direction   JSONB NOT NULL,
-    discover    BOOLEAN NOT NULL DEFAULT FALSE,
+    listable    BOOLEAN NOT NULL DEFAULT FALSE,
     enabled     BOOLEAN NOT NULL DEFAULT TRUE,
     description TEXT NOT NULL DEFAULT '',
     tags        TEXT[] NOT NULL DEFAULT '{}',

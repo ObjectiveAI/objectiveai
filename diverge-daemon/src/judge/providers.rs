@@ -2,8 +2,8 @@
 //!
 //! The shape of [`daemons`](super::daemons): a making action — adding a
 //! record — is held or it is not, judged by nothing else; an action over
-//! a record — reading, listing, discovering, listening or messaging
-//! through it, changing, deleting, enabling or disabling it — is allowed
+//! a record — reading, listing, asking it for images, changing,
+//! deleting, enabling or disabling it — is allowed
 //! by a grant that holds it and whose `within` reaches the record —
 //! `any`, or the shared [`Tags`] test over the record's tags, since the
 //! providers list filter names no tags; a tagging action by a grant that
@@ -99,7 +99,7 @@ pub fn tagging(standing: &Standing, action: Tagging, record: &Record, tags: &[St
 }
 
 /// Whether a grant's `within` reaches a record carrying `tags` — rule 6.
-fn reaches(within: &Within<Tags>, tags: &[String]) -> bool {
+pub(super) fn reaches(within: &Within<Tags>, tags: &[String]) -> bool {
     match within {
         Within::Any => true,
         Within::Only(test) => {

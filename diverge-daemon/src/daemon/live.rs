@@ -26,7 +26,7 @@ use crate::daemons::Peer;
 use crate::judge::AgentState;
 use crate::database::Scope;
 use crate::store::{self, AccountId, AgentId, Store};
-use crate::discovery::Discovery;
+use crate::listings::Listings;
 use crate::listening::Listening;
 use crate::messaging::Messaging;
 use crate::volumes::Mirror;
@@ -125,9 +125,9 @@ pub struct Live {
     changes: Changes,
     /// Each connected provider's volumes, as its listing streams them.
     volumes: Mutex<HashMap<Identity, Arc<Mirror>>>,
-    /// Each connected provider's discover listing, while something
-    /// watches: see [`Discovery`].
-    pub discovery: Discovery,
+    /// Each connected provider's daemons list, while something
+    /// watches: see [`Listings`].
+    pub listings: Listings,
     /// Each connected provider's message listen, while anything
     /// listens, and the ring they feed: see [`Listening`].
     pub listening: Listening,
@@ -399,8 +399,8 @@ impl Live {
         if self.volumes.lock().await.remove(identity).is_some() {
             self.changes.changed(Kind::Volumes);
         }
-        if self.discovery.disconnected(identity).await {
-            self.changes.changed(Kind::Discover);
+        if self.listings.disconnected(identity).await {
+            self.changes.changed(Kind::Listings);
         }
         self.listening.disconnected(identity).await;
         self.messaging.disconnected(identity).await;

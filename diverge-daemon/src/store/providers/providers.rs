@@ -16,8 +16,8 @@ pub struct Record {
     pub identity: Identity,
     /// How its connection is made.
     pub direction: Direction,
-    /// Whether the daemon is discoverable to it.
-    pub discover: bool,
+    /// Whether the daemon is listable to it.
+    pub listable: bool,
     /// Whether the daemon works with it.
     pub enabled: bool,
     /// What it is.
@@ -31,7 +31,7 @@ pub struct Record {
 }
 
 /// The columns a record is read from.
-const COLUMNS: &str = "issuer, subject, direction, discover, enabled, description, tags, created, creator";
+const COLUMNS: &str = "issuer, subject, direction, listable, enabled, description, tags, created, creator";
 
 /// A record out of its row.
 fn record(row: &sqlx::postgres::PgRow) -> Result<Record, Error> {
@@ -40,7 +40,7 @@ fn record(row: &sqlx::postgres::PgRow) -> Result<Record, Error> {
     Ok(Record {
         identity: Identity { issuer: row.try_get("issuer")?, subject: row.try_get("subject")? },
         direction,
-        discover: row.try_get("discover")?,
+        listable: row.try_get("listable")?,
         enabled: row.try_get("enabled")?,
         description: row.try_get("description")?,
         tags: row.try_get("tags")?,
@@ -53,13 +53,13 @@ fn record(row: &sqlx::postgres::PgRow) -> Result<Record, Error> {
 /// record's already.
 pub async fn create(conn: &mut PgConnection, record: &Record) -> Result<bool, Error> {
     let added = sqlx::query(
-        "INSERT INTO diverge.providers (issuer, subject, direction, discover, enabled, description, tags, created, creator) \
+        "INSERT INTO diverge.providers (issuer, subject, direction, listable, enabled, description, tags, created, creator) \
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (issuer, subject) DO NOTHING",
     )
     .bind(&record.identity.issuer)
     .bind(&record.identity.subject)
     .bind(Json(&record.direction))
-    .bind(record.discover)
+    .bind(record.listable)
     .bind(record.enabled)
     .bind(&record.description)
     .bind(&record.tags)
@@ -104,14 +104,14 @@ pub async fn all(conn: &mut PgConnection) -> Result<Vec<Record>, Error> {
     rows.iter().map(record).collect()
 }
 
-/// Write `record`'s direction, discover flag and description over the
+/// Write `record`'s direction, listable flag and description over the
 /// kept one of its identity.
 pub async fn edit(conn: &mut PgConnection, record: &Record) -> Result<(), Error> {
-    sqlx::query("UPDATE diverge.providers SET direction = $3, discover = $4, description = $5 WHERE issuer = $1 AND subject = $2")
+    sqlx::query("UPDATE diverge.providers SET direction = $3, listable = $4, description = $5 WHERE issuer = $1 AND subject = $2")
         .bind(&record.identity.issuer)
         .bind(&record.identity.subject)
         .bind(Json(&record.direction))
-        .bind(record.discover)
+        .bind(record.listable)
         .bind(&record.description)
         .execute(&mut *conn)
         .await?;

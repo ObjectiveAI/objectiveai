@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use diverge_sdk::daemon::DEFAULT_PORT;
 use diverge_sdk::shared::Identity;
-use diverge_sdk::shared::discover::Description;
+use diverge_sdk::shared::description::Description;
 use serde::{Deserialize, Serialize};
 
 use super::Postgres;
@@ -39,10 +39,10 @@ pub struct Config {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub admins: Vec<Identity>,
     /// What the daemon says of itself to every provider it is
-    /// discoverable to, which lists it beside the daemon's identity:
+    /// listable to, which lists it beside the daemon's identity:
     /// one line of plain text, of at most 132 characters — see
-    /// [`Description`]. It rides the discover flag, so a provider the
-    /// daemon is not discoverable to is not told it. Absent, none.
+    /// [`Description`]. It rides the listable flag, so a provider the
+    /// daemon is not listable to is not told it. Absent, none.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<Description>,
     /// The database the daemon keeps its records in and serves to its

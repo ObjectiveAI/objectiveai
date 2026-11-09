@@ -105,7 +105,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
         postgres.stop().await;
         return Err(Error::Store(error));
     }
-    tokio::spawn(crate::discovery::idle(Arc::clone(&daemon)));
+    tokio::spawn(crate::listings::idle(Arc::clone(&daemon)));
     providers::dial_all(&daemon).await;
     if let Err(error) = containers::services::boot(&daemon).await {
         postgres.stop().await;

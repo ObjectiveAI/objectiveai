@@ -7,7 +7,8 @@ use std::sync::Arc;
 
 use diverge_sdk::identities::{Identities, Own};
 use diverge_sdk::shared::Identity;
-use diverge_sdk::shared::discover::{Description, Discover};
+use diverge_sdk::shared::description::Description;
+use diverge_sdk::shared::listable::Listable;
 use diverge_sdk::wire::handshake::{Authenticator, Peer};
 use futures_util::future::BoxFuture;
 use tokio::sync::{Mutex, watch};
@@ -95,7 +96,7 @@ pub struct DaemonAuthenticator {
 impl DaemonAuthenticator {
     /// The daemon as `own` presents it, its providers' records
     /// `providers`, the `description` it is listed with by the providers
-    /// it is discoverable to, its `admins`, admitting the accounts of
+    /// it is listable to, its `admins`, admitting the accounts of
     /// `store`; nothing held.
     pub fn new(own: Own, providers: Arc<ProviderBook>, description: Option<Description>, admins: impl IntoIterator<Item = Identity>, store: Store) -> DaemonAuthenticator {
         DaemonAuthenticator {
@@ -109,10 +110,10 @@ impl DaemonAuthenticator {
         }
     }
 
-    /// The discover flag the daemon sends a provider it is discoverable
+    /// The listable flag the daemon sends a provider it is listable
     /// to: listed, with its description, if it has one.
-    pub fn listed(&self) -> Discover {
-        Discover::Listed(self.description.clone())
+    pub fn listed(&self) -> Listable {
+        Listable::Listed(self.description.clone())
     }
 
     /// The authenticator for one handshake for `expected` — see rule
@@ -340,17 +341,17 @@ impl Authenticator for Judging<'_> {
         Box::pin(self.authenticator.release(self.expected, peer))
     }
 
-    /// The discover flag the daemon answers with, as the connectee:
+    /// The listable flag the daemon answers with, as the connectee:
     /// [`listed`](DaemonAuthenticator::listed), with its description,
     /// only on a socket it accepted, to a provider whose record says
-    /// `discover`; hidden to every client, and to a daemon reaching this
+    /// `listable`; hidden to every client, and to a daemon reaching this
     /// one.
-    fn discoverable<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, Discover> {
+    fn listable<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, Listable> {
         Box::pin(async move {
-            if self.expected == Expected::Admitted && self.authenticator.providers.discover(peer) {
+            if self.expected == Expected::Admitted && self.authenticator.providers.listable(peer) {
                 self.authenticator.listed()
             } else {
-                Discover::Hidden
+                Listable::Hidden
             }
         })
     }
@@ -402,7 +403,7 @@ impl Authenticator for Toward<'_> {
         Box::pin(async {})
     }
 
-    fn discoverable<'a>(&'a self, _peer: &'a Peer) -> BoxFuture<'a, Discover> {
-        Box::pin(async { Discover::Hidden })
+    fn listable<'a>(&'a self, _peer: &'a Peer) -> BoxFuture<'a, Listable> {
+        Box::pin(async { Listable::Hidden })
     }
 }

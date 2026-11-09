@@ -29,7 +29,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` with no `edit` grant at all; `NotFound`; `Forbidden`
 /// for a record the grants do not reach; else every member given
 /// written over the record's, the book read again, and the lists told.
-/// A change to the direction or the discover flag closes the
+/// A change to the direction or the listable flag closes the
 /// connection, its runs ending as `provider_edited`, and the provider is
 /// reached again as the record now stands.
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
@@ -50,8 +50,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if let Some(direction) = frame.direction {
         record.direction = direction;
     }
-    if let Some(discover) = frame.discover {
-        record.discover = discover;
+    if let Some(listable) = frame.listable {
+        record.listable = listable;
     }
     if let Some(description) = frame.description {
         record.description = description;
@@ -59,7 +59,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     store::providers::edit(&mut tx, &record).await?;
     tx.commit().await?;
     daemon.providers.reload(&daemon.store).await?;
-    if record.direction != kept.direction || record.discover != kept.discover {
+    if record.direction != kept.direction || record.listable != kept.listable {
         providers::reconcile(daemon, &record.identity, Some(End::Unexpected(Reason::ProviderEdited))).await;
     }
     daemon.live.changed(Kind::Providers);

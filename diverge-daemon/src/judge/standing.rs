@@ -125,6 +125,15 @@ impl Standing {
         })
     }
 
+    /// The grants through the providers, over the daemons connected to
+    /// them.
+    pub fn providers_daemons(&self) -> impl Iterator<Item = &grant::providers_daemons::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::ProvidersDaemons(permission) => Some(permission),
+            _ => None,
+        })
+    }
+
     /// The grants through the remote daemons.
     pub fn daemons(&self) -> impl Iterator<Item = &grant::daemons::Permission> {
         self.grants.iter().filter_map(|grant| match grant {

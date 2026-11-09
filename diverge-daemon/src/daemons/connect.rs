@@ -17,12 +17,12 @@ use crate::store::daemons::Record;
 /// 1. **One per record.** A record's connection is kept by its ID and
 ///    reused by every relay and every connected tool naming it, so each
 ///    account of ours on a remote keeps its own.
-/// 2. **Found by discovery.** Discovery is touched — held, its listings
+/// 2. **Found by the listings.** Listings is touched — held, its listings
 ///    opened where they are not and waited on until whole — and the
 ///    routes to the record's remote that its
 ///    [`Routes`](diverge_sdk::daemon::endpoints::daemons::Routes) let
 ///    through are its candidates: none is [`Fail::NoProvider`], since a
-///    remote is reached only while it is discoverable on a connected
+///    remote is reached only while it is listable on a connected
 ///    provider by a route its record allows, and no route the filters
 ///    refuse is ever a fallback.
 /// 3. **One at random.** One candidate is chosen at random — what a
@@ -50,8 +50,8 @@ pub async fn connect(daemon: &Arc<Daemon>, record: &Record) -> Result<Arc<Peer>,
         daemon.live.remove_peer(&peer).await;
     }
     // Rule 2.
-    daemon.live.discovery.touch(daemon).await;
-    let candidates: Vec<_> = daemon.live.discovery.routes(&record.daemon).await.into_iter().filter(|via| record.routes.admits(via)).collect();
+    daemon.live.listings.touch(daemon).await;
+    let candidates: Vec<_> = daemon.live.listings.routes(&record.daemon).await.into_iter().filter(|via| record.routes.admits(via)).collect();
     // Rule 3.
     let Some(provider) = candidates.choose(&mut rand::rng()).map(|via| via.provider.clone()) else {
         return Err(Fail::NoProvider);

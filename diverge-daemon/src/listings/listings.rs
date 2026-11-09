@@ -1,25 +1,24 @@
-//! The providers' discover listings, held while watched, and merged.
+//! The providers' daemons lists, held while watched, and merged.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
-use diverge_sdk::daemon::endpoints::providers::daemons::discover::server::response::{Discovered, Via};
-use diverge_sdk::provider::endpoints::discover::client::{execute, request};
-use diverge_sdk::provider::endpoints::discover::server::response;
-use diverge_sdk::provider::endpoints::discover::server::response::Discoverable;
+use diverge_sdk::daemon::endpoints::providers::daemons::list::server::response::{Listed, Via};
+use diverge_sdk::provider::endpoints::daemons::list::client::{execute, request};
+use diverge_sdk::provider::endpoints::daemons::list::server::response;
 use diverge_sdk::shared::Identity;
-use diverge_sdk::shared::discover::Description;
+use diverge_sdk::shared::description::Description;
 use diverge_sdk::wire::client::handle::Handle;
 use futures_util::StreamExt as _;
 use tokio::sync::{Mutex, Notify, watch};
 
 use crate::daemon::{Daemon, Kind};
 
-/// Every connected provider's discover listing while it is in use, and
+/// Every connected provider's daemons list while it is in use, and
 /// their merge. One per daemon, in its live state. The rules:
 ///
-/// 1. **Two modes.** Discovery is held — one listing open on every
+/// 1. **Two modes.** Listings is held — one listing open on every
 ///    connected provider — or it is not, and nothing is open. A watcher
 ///    entering ([`enter`](Self::enter)) or a remote daemon being reached
 ///    ([`touch`](Self::touch)) holds it, opening the listings where they
@@ -27,12 +26,12 @@ use crate::daemon::{Daemon, Kind};
 /// 2. **Activity.** It is in use while a watcher is in, and for the
 ///    daemon's `idle_seconds` after it was last entered, left or
 ///    touched — the same idle time a container's clock runs. Past that,
-///    with no watcher in, [`idle`] stops every listing, and discovery is
-///    not held.
+///    with no watcher in, [`idle`] stops every listing, and the listings
+///    are not held.
 /// 2. **Shared.** Every watcher reads the same listings: a provider
-///    holds exactly one discover scope of this daemon's at a time,
+///    holds exactly one daemons list scope of this daemon's at a time,
 ///    however many watch.
-/// 3. **Followed.** While discovery is held, a provider that connects is
+/// 3. **Followed.** While the listings are held, a provider that connects is
 ///    given its listing ([`connected`](Self::connected)), and one that
 ///    disconnects has its listing and everything it told dropped
 ///    ([`disconnected`](Self::disconnected)).
@@ -42,8 +41,8 @@ use crate::daemon::{Daemon, Kind};
 ///    whole and holds what it told, which may be nothing — so a
 ///    watcher's first read holds every provider's.
 /// 5. **Told.** Every change a listing tells, its end among them, and
-///    every listing dropped, is the word [`Kind::Discover`].
-/// 6. **Merged.** [`read`](Self::read) is one [`Discovered`] per
+///    every listing dropped, is the word [`Kind::Listings`].
+/// 6. **Merged.** [`read`](Self::read) is one [`Listed`] per
 ///    identity held by a whole listing, with a route for every provider
 ///    whose listing holds it — the provider, the IP of the identity's
 ///    connection to it, and the address it dialled the identity at when
@@ -53,7 +52,7 @@ use crate::daemon::{Daemon, Kind};
 /// 7. **The routes to an identity.** [`routes`](Self::routes) is a route
 ///    for every provider whose whole listing holds an identity: what a
 ///    remote daemon is reached through, as its record's filters let it.
-/// 8. **One open at a time.** A provider refuses a second discover
+/// 8. **One open at a time.** A provider refuses a second daemons list
 ///    scope on one connection while one is open — see
 ///    [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time)
 ///    — so a listing is opened on a provider only once the one before it
@@ -64,11 +63,11 @@ use crate::daemon::{Daemon, Kind};
 /// 9. **Listening.** Each listing's held items keep whether their
 ///    identity listens for messages there, as the provider's
 ///    `Listening` and `NotListening` tell it by the identity alone; each
-///    route carries it, and a flip is the word [`Kind::Discover`] — the
+///    route carries it, and a flip is the word [`Kind::Listings`] — the
 ///    merge then tells it as `Changed`, as every daemon listing tells a
 ///    change.
 #[derive(Debug, Default)]
-pub struct Discovery {
+pub struct Listings {
     inner: Mutex<Inner>,
     /// A word to [`idle`] that the clock or the watchers changed.
     stirred: Notify,
@@ -77,14 +76,14 @@ pub struct Discovery {
 /// One provider's listing as it stands: each identity, as its item
 /// lists it — its description, its IP, and the address the provider
 /// dialled it at when it did.
-type Held = BTreeMap<Identity, Discoverable>;
+type Held = BTreeMap<Identity, response::Listed>;
 
 /// What is held, under the one lock.
 #[derive(Debug)]
 struct Inner {
     /// How many watch now.
     watchers: usize,
-    /// Whether discovery is held: every connected provider's listing open.
+    /// Whether the listings are held: every connected provider's listing open.
     held: bool,
     /// When it was last entered, left or touched.
     touched: Instant,
@@ -92,7 +91,7 @@ struct Inner {
     upstreams: HashMap<Identity, Upstream>,
     /// Each connected provider's lane (rule 8): held by the listing
     /// open on it, or still finishing, so the next waits for it. Kept
-    /// while discovery is let go, and dropped when the provider
+    /// while the listings are let go, and dropped when the provider
     /// disconnects: a connection after is another connection.
     lanes: HashMap<Identity, Arc<Mutex<()>>>,
 }
@@ -114,11 +113,11 @@ struct Upstream {
     _end: watch::Sender<()>,
 }
 
-/// One watcher of the daemon's discovery, from
-/// [`enter`](Discovery::enter): dropped, it [`leave`](Discovery::leave)s.
+/// One watcher of the daemon's listings, from
+/// [`enter`](Listings::enter): dropped, it [`leave`](Listings::leave)s.
 /// A drop cannot wait on the lock, so the leave is a task of its own.
 pub struct Watching {
-    /// The daemon whose discovery it watches.
+    /// The daemon whose listings it watches.
     daemon: Arc<Daemon>,
 }
 
@@ -126,13 +125,13 @@ impl Drop for Watching {
     fn drop(&mut self) {
         if let Ok(runtime) = tokio::runtime::Handle::try_current() {
             let daemon = Arc::clone(&self.daemon);
-            runtime.spawn(async move { daemon.live.discovery.leave().await });
+            runtime.spawn(async move { daemon.live.listings.leave().await });
         }
     }
 }
 
-impl Discovery {
-    /// One watcher more (rules 1 and 4): discovery held, its listings
+impl Listings {
+    /// One watcher more (rules 1 and 4): the listings held,
     /// opened where they are not, and every listing open waited on until
     /// it is whole. The watcher is the [`Watching`] handed back, counted
     /// from before the wait: dropped however the watch ends — returned,
@@ -147,7 +146,7 @@ impl Discovery {
         watching
     }
 
-    /// Discovery used to reach a remote daemon (rules 1, 2 and 4): held,
+    /// Listings used to reach a remote daemon (rules 1, 2 and 4): held,
     /// its listings opened where they are not, its clock begun again, and
     /// every listing open waited on until it is whole.
     pub async fn touch(&self, daemon: &Arc<Daemon>) {
@@ -160,7 +159,7 @@ impl Discovery {
         self.wait(waiting).await;
     }
 
-    /// Rules 1 and 4's holding: discovery held, its listings opened
+    /// Rules 1 and 4's holding: the listings held, opened
     /// where they are not, and a watcher counted last of all, with no
     /// wait after it; the word of every listing open, to wait on.
     async fn held(&self, daemon: &Arc<Daemon>, watcher: bool) -> Vec<watch::Receiver<bool>> {
@@ -189,8 +188,8 @@ impl Discovery {
         }
     }
 
-    /// One watcher fewer (rule 2): its clock begun again, so discovery
-    /// stays held for the idle time after the last leaves.
+    /// One watcher fewer (rule 2): its clock begun again, so the listings
+    /// stay held for the idle time after the last leaves.
     pub async fn leave(&self) {
         {
             let mut inner = self.inner.lock().await;
@@ -221,8 +220,8 @@ impl Discovery {
         routes
     }
 
-    /// A provider connected (rule 3): its listing opened when discovery
-    /// is held and none is open on it yet.
+    /// A provider connected (rule 3): its listing opened when the listings
+    /// are held and none is open on it yet.
     pub async fn connected(&self, daemon: &Arc<Daemon>, identity: Identity, handle: Handle) {
         let mut inner = self.inner.lock().await;
         if inner.held && !inner.upstreams.contains_key(&identity) {
@@ -244,7 +243,7 @@ impl Discovery {
     /// description of another provider's is in it — in order of identity,
     /// each identity's providers in order, and its descriptions in
     /// order, each once.
-    pub async fn read(&self, daemon: &Daemon, reached: &HashSet<Identity>) -> Vec<(Identity, Discovered)> {
+    pub async fn read(&self, daemon: &Daemon, reached: &HashSet<Identity>) -> Vec<(Identity, Listed)> {
         let whole: Vec<(Identity, Arc<Mutex<Held>>)> = {
             let inner = self.inner.lock().await;
             inner
@@ -269,7 +268,7 @@ impl Discovery {
         merged
             .into_iter()
             .map(|(identity, (providers, descriptions))| {
-                let item = Discovered {
+                let item = Listed {
                     issuer: identity.issuer.clone(),
                     subject: identity.subject.clone(),
                     providers: providers.into_iter().collect(),
@@ -309,7 +308,7 @@ async fn keep(daemon: Arc<Daemon>, handle: Handle, lane: Arc<Mutex<()>>, held: A
         Ok(opened) => opened,
         Err(_) => {
             whole.send_replace(true);
-            daemon.live.changed(Kind::Discover);
+            daemon.live.changed(Kind::Listings);
             return;
         }
     };
@@ -340,11 +339,11 @@ async fn keep(daemon: Arc<Daemon>, handle: Handle, lane: Arc<Mutex<()>>, held: A
                     // Refused (rule 8), failed, or finished: the end.
                     Some(Ok(response::Frame::AlreadyOpen)) | Some(Err(_)) | None => {
                         whole.send_replace(true);
-                        daemon.live.changed(Kind::Discover);
+                        daemon.live.changed(Kind::Listings);
                         return;
                     }
                 }
-                daemon.live.changed(Kind::Discover);
+                daemon.live.changed(Kind::Listings);
             }
             _ = ended.changed() => {
                 // Cancelled, and read to the finish (or the connection's
@@ -358,38 +357,38 @@ async fn keep(daemon: Arc<Daemon>, handle: Handle, lane: Arc<Mutex<()>>, held: A
     }
 }
 
-/// Discovery's clock (rule 2), for the daemon's life: while it is held
+/// Listings's clock (rule 2), for the daemon's life: while it is held
 /// and no watcher is in, it waits out the idle time since it was last
-/// entered, left or touched, and then stops every listing — discovery
+/// entered, left or touched, and then stops every listing — the listings
 /// not held. Any change of the clock or the watchers wakes it to wait
 /// again. No polling: it sleeps to the deadline or the word.
 pub async fn idle(daemon: Arc<Daemon>) {
-    let discovery = &daemon.live.discovery;
+    let listings = &daemon.live.listings;
     loop {
         let deadline = {
-            let inner = discovery.inner.lock().await;
+            let inner = listings.inner.lock().await;
             (inner.held && inner.watchers == 0).then(|| inner.touched + daemon.idle)
         };
         let Some(deadline) = deadline else {
-            discovery.stirred.notified().await;
+            listings.stirred.notified().await;
             continue;
         };
         tokio::select! {
             () = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {
-                let mut inner = discovery.inner.lock().await;
+                let mut inner = listings.inner.lock().await;
                 if inner.held && inner.watchers == 0 && inner.touched + daemon.idle <= Instant::now() {
                     inner.upstreams.clear();
                     inner.held = false;
                     drop(inner);
-                    daemon.live.changed(Kind::Discover);
+                    daemon.live.changed(Kind::Listings);
                 }
             }
-            () = discovery.stirred.notified() => {}
+            () = listings.stirred.notified() => {}
         }
     }
 }
 
 /// The route to an identity `provider`'s listing holds as `listed`.
-fn via(provider: &Identity, listed: &Discoverable) -> Via {
+fn via(provider: &Identity, listed: &response::Listed) -> Via {
     Via { provider: provider.clone(), ip: listed.ip, address: listed.address.clone(), listening: listed.listening }
 }

@@ -77,8 +77,8 @@ impl ProviderBook {
         record.direction.dialled().map(str::to_string)
     }
 
-    /// Whether the daemon is discoverable to `identity`.
-    pub fn discover(&self, identity: &Identity) -> bool {
-        self.records.load().iter().any(|record| &record.identity == identity && record.enabled && record.discover)
+    /// Whether the daemon is listable to `identity`.
+    pub fn listable(&self, identity: &Identity) -> bool {
+        self.records.load().iter().any(|record| &record.identity == identity && record.enabled && record.listable)
     }
 }

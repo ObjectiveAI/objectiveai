@@ -3,7 +3,7 @@
 //!
 //! A record names the provider by the identity its token establishes,
 //! and carries the [`Direction`](diverge_sdk::daemon::endpoints::providers::Direction)
-//! its connection is made in, whether the daemon is discoverable to it,
+//! its connection is made in, whether the daemon is listable to it,
 //! whether it is enabled, a description, tags, when it was added and by
 //! whom. A record an agent or a tool is pinned to, or mounts a volume
 //! of, is not deleted — see [`in_use`].

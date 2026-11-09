@@ -7,7 +7,7 @@ use tokio::sync::broadcast;
 
 use diverge_sdk::daemon::endpoints::providers::daemons::listen::client::request;
 use diverge_sdk::daemon::endpoints::providers::daemons::listen::server::response::{Frame, Message};
-use diverge_sdk::daemon::grant::providers::Over;
+use diverge_sdk::daemon::grant::providers_daemons::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
@@ -56,7 +56,7 @@ async fn serve(scope: &ScopeHandle, who: Who, daemon: &Arc<Daemon>) -> Result<()
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     };
-    if !judge::providers::holds(&standing, Over::Listen) {
+    if !judge::providers_daemons::holds(&standing, Over::Listen) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
@@ -66,7 +66,7 @@ async fn serve(scope: &ScopeHandle, who: Who, daemon: &Arc<Daemon>) -> Result<()
     // Rule 6: subscribed to the words before the reach is read, so no
     // change after the read goes unheard.
     let mut words = daemon.live.changes();
-    let mut reached = judge::providers::reached(&standing, Over::Listen, &daemon.providers.all());
+    let mut reached = judge::providers_daemons::reached(&standing, Over::Listen, &daemon.providers.all());
     let mut latest = listening.latest();
     let listener = listening.enter(daemon).await;
     let mut cursor = listener.cursor;
@@ -100,7 +100,7 @@ async fn serve(scope: &ScopeHandle, who: Who, daemon: &Arc<Daemon>) -> Result<()
                     Err(broadcast::error::RecvError::Closed) => return Ok(()),
                 };
                 if again {
-                    reached = judge::providers::reached(&standing, Over::Listen, &daemon.providers.all());
+                    reached = judge::providers_daemons::reached(&standing, Over::Listen, &daemon.providers.all());
                 }
             }
             // Rule 5.

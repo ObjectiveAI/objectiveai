@@ -4,7 +4,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use diverge_sdk::shared::discover::Discover;
+use diverge_sdk::shared::listable::Listable;
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::handshake::{self, Handshook};
 use tokio::net::TcpStream;
@@ -30,7 +30,7 @@ const PAUSE: Duration = Duration::from_secs(5);
 /// connector — the daemon's token from the provider's own issuer, the
 /// provider's from the same issuer verified, and required to be exactly
 /// `identity`, which no other connection holds and which it then holds
-/// — sends the discover flag the record says, and [`attach`]es: a
+/// — sends the listable flag the record says, and [`attach`]es: a
 /// provider that answers its info is held and served until the
 /// connection ends, or the daemon closes it. A handshake that fails is
 /// a round not attached, the socket dropped. Then the pause, and again.
@@ -55,8 +55,8 @@ async fn rounds(daemon: &Arc<Daemon>, identity: &Identity, number: u64) {
         if let Ok((socket, _)) = connect_async(url(&address)).await {
             let peer = peer_ip(&socket);
             let expecting = daemon.authenticator.dialling(identity);
-            let discover = if daemon.providers.discover(identity) { daemon.authenticator.listed() } else { Discover::Hidden };
-            let made = handshake::connect(Connection::Outgoing(socket), &identity.issuer, discover, &expecting, peer).await;
+            let listable = if daemon.providers.listable(identity) { daemon.authenticator.listed() } else { Listable::Hidden };
+            let made = handshake::connect(Connection::Outgoing(socket), &identity.issuer, listable, &expecting, peer).await;
             if let Ok(Handshook { connection, peer, .. }) = made {
                 // A dial that answers holds the identity: the hold goes
                 // with the connection, however it ends.

@@ -41,9 +41,9 @@ pub enum Kind {
     Postgres,
     /// Events: the graph, an edge added or its count raised.
     Events,
-    /// Discovery: a provider's discover listing changed, ended, or was
+    /// Listings: a provider's daemons list changed, ended, or was
     /// dropped.
-    Discover,
+    Listings,
 }
 
 /// Every change to any kind, as the handlers and the live state make
