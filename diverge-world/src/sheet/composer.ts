@@ -178,10 +178,15 @@ export class Composer {
     this.ready();
   }
 
-  /** Rule 5: the text box as tall as its text, up to `TALLEST`. */
+  /**
+   * Rule 5: the text box as tall as its text, up to `TALLEST`. Its
+   * height is its border box, and `scrollHeight` is its lines and its
+   * padding without its border, so the border is added once.
+   */
   private grow(): void {
     this.text.style.height = "auto";
-    this.text.style.height = `${Math.min(this.text.scrollHeight, TALLEST)}px`;
+    const border = this.text.offsetHeight - this.text.clientHeight;
+    this.text.style.height = `${Math.min(this.text.scrollHeight + border, TALLEST)}px`;
   }
 
   /** Rule 6: whether send may be pressed. */

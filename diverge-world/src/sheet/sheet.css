@@ -645,6 +645,8 @@
   flex: 1;
   min-width: 0;
   max-height: 160px;
+  /* Whole pixels: the box's height is its lines, its padding and its border, so growing and shrinking never leaves a fraction behind. */
+  box-sizing: border-box;
   padding: 6px 8px;
   resize: none;
   border: 1px solid var(--sheet-line);
@@ -652,6 +654,7 @@
   background: var(--sheet-raised);
   color: var(--sheet-text);
   font: inherit;
+  line-height: 20px;
   outline: none;
 }
 .sheet .composer textarea:focus { border-color: var(--sheet-copper); }
