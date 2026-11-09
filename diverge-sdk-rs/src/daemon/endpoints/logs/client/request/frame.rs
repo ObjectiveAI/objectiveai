@@ -62,8 +62,9 @@ use super::{ItemType, Subject};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// Whose log: an agent's, a standalone tool's or a dependency
-    /// tool's.
+    /// Whose log: an agent's, a standalone tool's, a connected tool's
+    /// or a dependency tool's, or an account's or an administrator's
+    /// commands.
     pub of: Subject,
     /// The first `logs_index` to read, inclusive; absent, the log's
     /// first.

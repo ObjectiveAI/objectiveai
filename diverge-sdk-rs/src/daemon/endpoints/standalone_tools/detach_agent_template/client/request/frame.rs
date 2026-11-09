@@ -22,9 +22,9 @@ use crate::wire::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The tool: by its name, as its create or its connect gave it,
-    /// or by its template and its index, which name a created tool
-    /// once and for all. See [`reference::Tool`].
+    /// The tool: by its name, as its create gave it, or by its
+    /// template and its index, which name it once and for all. See
+    /// [`reference::Tool`].
     pub tool: reference::Tool,
     /// The agent template, by its id: the hash every agent made from
     /// it carries as its `template`. See

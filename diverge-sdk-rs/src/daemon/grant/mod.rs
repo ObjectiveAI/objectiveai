@@ -2,7 +2,7 @@
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds —
 //! agents, agent templates, standalone tools, their templates,
-//! dependency tools, providers, daemons,
+//! connected tools, dependency tools, providers, daemons,
 //! accounts, roles, volumes, the vault, the database, the events,
 //! images — and a
 //! [role](crate::daemon::endpoints::roles) is a
@@ -14,7 +14,7 @@
 //! the logic:
 //!
 //! - **To make.** A bare array of the kind's making actions — the ones
-//!   that bring something into being: a create, an add, a connect —
+//!   that bring something into being: a create, an add, a login —
 //! `{"agents":["create"]}`. Holding the action
 //! is the whole of it; nothing is judged but that it is held, since
 //! there is nothing yet to judge it over.
@@ -98,7 +98,8 @@
 //! and re-exported here: the grants a dependency tool template carries
 //! are made of the same actions, reaching by tags alone, and a grant
 //! here reaches by the kind's own filter. The kinds that carry tags —
-//! agents, templates, tools, dependency tools, providers, remote
+//! agents, templates, tools, connected tools, dependency tools,
+//! providers, remote
 //! daemons, accounts, roles, volumes, the vault's keys and the host's
 //! identities — have the tagging shape, and all of them but dependency
 //! tools, which a registration makes, the making shape. The database,
@@ -123,6 +124,7 @@ pub mod agents;
 pub mod agents_templates;
 pub mod standalone_tools;
 pub mod standalone_tools_templates;
+pub mod connected_standalone_tools;
 pub mod dependency_tools;
 pub use crate::shared::permission::providers;
 pub use crate::shared::permission::providers_daemons;

@@ -4,7 +4,8 @@
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds
 //! — agents, agent templates, standalone tools, their templates,
-//! dependency tools, providers, the daemons through providers, daemons,
+//! connected tools, dependency tools, providers, the daemons through
+//! providers, daemons,
 //! accounts, roles, volumes, the vault, the database, the events,
 //! images — and on the wire it is
 //! one object with one member, named
@@ -70,6 +71,7 @@ pub use within::*;
 pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
+pub mod connected_standalone_tools;
 pub mod daemons;
 pub mod dependency_tools;
 pub mod events;

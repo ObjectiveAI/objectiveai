@@ -1,9 +1,9 @@
 //! A log, read: an agent's or a tool's, the subject named.
 //!
 //! The daemon keeps a log per agent — [`agent_log`](crate::daemon::agent_log),
-//! what its run streamed — and per tool —
-//! [`tool_log`](crate::daemon::tool_log), every call and read it routed
-//! into the tool. One scope reads any of them. A client names the
+//! what its run streamed — and per tool, standalone, connected or
+//! dependency — [`tool_log`](crate::daemon::tool_log), every call and
+//! read it routed into the tool. One scope reads any of them. A client names the
 //! subject and says what it wants: a span of indexes, a span of time,
 //! one kind of item, how many items at most, and whether to watch —
 //! every one optional, and a request that names only the subject is

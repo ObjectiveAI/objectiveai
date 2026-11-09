@@ -6,15 +6,15 @@ use serde::{Deserialize, Serialize};
 use crate::daemon::reference;
 
 /// Which container holds a database connection — which is to say,
-/// which database scope it reaches: an agent or a tool on record,
-/// named once and for all — by template and index, or, a connected
-/// tool, by daemon and tool — since a name may be absent and the
-/// daemon answers the form that always names; or a dependency tool,
+/// which database scope it reaches: an agent or a standalone tool on
+/// record, named once and for all — by template and index — since a
+/// name may be absent and the daemon answers the form that always
+/// names; or a dependency tool,
 /// by the template it runs from and whose it is, the owner in its
 /// once-and-for-all form, see [`reference::Dependency`]. On the wire
 /// one object with one member, named for the family:
 /// `{"agent":{"template":…,"index":…}}`,
-/// `{"tool":{"daemon":…,"tool":…}}` or
+/// `{"tool":{"template":…,"index":…}}` or
 /// `{"dependency":{"template":…,"owner":…}}`.
 ///
 /// # One scope per owner and part

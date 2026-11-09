@@ -8,27 +8,25 @@ use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
 /// An edit's answer: the tool is as the request states, no tool is the
-/// one named, the tool is active, the tool is connected, the name is
-/// another's, forbidden, or a failure.
+/// one named, the tool is active, the name is another's, forbidden, or
+/// a failure.
 ///
 /// An edit is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Edited`](Self::Edited), `1`
 /// for [`NotFound`](Self::NotFound), `2` for [`Active`](Self::Active),
-/// `3` for [`NotOwned`](Self::NotOwned), `4` for
-/// [`InUse`](Self::InUse), `5` for [`Forbidden`](Self::Forbidden), `6`
-/// for [`Error`](Self::Error) — and only the error carries anything
-/// after it.
+/// `3` for [`InUse`](Self::InUse), `4` for
+/// [`Forbidden`](Self::Forbidden), `5` for [`Error`](Self::Error) — and
+/// only the error carries anything after it.
 ///
 /// # Answers, and one failure
 ///
-/// [`NotFound`](Self::NotFound), [`Active`](Self::Active),
-/// [`NotOwned`](Self::NotOwned) and [`InUse`](Self::InUse) are
-/// ANSWERS: the daemon looked, and
+/// [`NotFound`](Self::NotFound), [`Active`](Self::Active) and
+/// [`InUse`](Self::InUse) are ANSWERS: the daemon looked, and
 /// no tool of the caller's is the one named, or one is and its container
 /// is running while the result differs in anything but FUSE mounts
-/// added, or it is a connected tool and the
-/// request names a mount, or the name requested is another tool's, and
+/// added, or the name requested is another standalone or connected
+/// tool's, and
 /// in each case nothing changed and nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not make the change, for whatever reason it knows, and the tool is
@@ -62,16 +60,13 @@ pub enum Frame {
     /// The tool's container is running and the result differs in
     /// anything but FUSE mounts added to it; nothing changed. Tag `2`.
     Active,
-    /// The tool is connected, somebody else's container, and the
-    /// request names a mount, which it has none of this caller's;
+    /// The name requested is another standalone or connected tool's;
     /// nothing changed. Tag `3`.
-    NotOwned,
-    /// The name requested is another tool's; nothing changed. Tag `4`.
     InUse,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `5`.
+    /// it; nothing changed. Tag `4`.
     Forbidden,
-    /// A failure. Tag `6`.
+    /// A failure. Tag `5`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -88,17 +83,14 @@ const NOT_FOUND: u8 = 1;
 /// Tag for [`Frame::Active`].
 const ACTIVE: u8 = 2;
 
-/// Tag for [`Frame::NotOwned`].
-const NOT_OWNED: u8 = 3;
-
 /// Tag for [`Frame::InUse`].
-const IN_USE: u8 = 4;
+const IN_USE: u8 = 3;
 
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 5;
+const FORBIDDEN: u8 = 4;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 6;
+const ERROR: u8 = 5;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -119,10 +111,6 @@ impl Encode for Frame {
             }
             Frame::Active => {
                 out.extend_from_slice(&[ACTIVE]);
-                Ok(())
-            }
-            Frame::NotOwned => {
-                out.extend_from_slice(&[NOT_OWNED]);
                 Ok(())
             }
             Frame::InUse => {
@@ -152,7 +140,6 @@ impl Decode<'_> for Frame {
             EDITED => Ok(Frame::Edited),
             NOT_FOUND => Ok(Frame::NotFound),
             ACTIVE => Ok(Frame::Active),
-            NOT_OWNED => Ok(Frame::NotOwned),
             IN_USE => Ok(Frame::InUse),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
@@ -166,7 +153,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's seven.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

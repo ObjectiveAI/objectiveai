@@ -8,15 +8,13 @@ use crate::daemon::endpoints::agents::create::client::request::{FuseMount, Volum
 /// The members of a tool an edit may change, as one JSON document:
 /// what a patch is applied to, and what its result must be again —
 /// every member present, a member the patch takes away read as
-/// absent or empty, and no member this type does not have. A
-/// connected tool's document is its name and nothing else of this
-/// caller's: every mount list empty, which a patch leaves so.
+/// absent or empty, and no member this type does not have.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Editable {
-    /// The name, unique among the caller's tools; another's is the
-    /// edit's `InUse`. `null`, the tool has no name, and is reached
+    /// The name, unique across the daemon's standalone and connected
+    /// tools together; another's is the edit's `InUse`. `null`, the tool has no name, and is reached
     /// once and for all only.
     #[serde(default)]
     pub name: Option<String>,

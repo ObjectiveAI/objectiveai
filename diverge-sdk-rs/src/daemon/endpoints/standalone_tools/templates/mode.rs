@@ -12,7 +12,8 @@ use serde::{Deserialize, Serialize};
 /// agent it is attached to beginning a loop, a connect scope opened
 /// on it, a file operation — and stopped when the last leaves. A
 /// connected tool, another daemon's, is whatever that daemon's
-/// template says.
+/// template says: see
+/// [`connected_standalone_tools`](crate::daemon::endpoints::connected_standalone_tools).
 ///
 /// # A service is kept while anything holds it
 ///

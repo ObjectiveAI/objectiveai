@@ -7,7 +7,8 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
-//! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`connected_standalone_tools`] | hold another daemon's standalone tool under a name; get one; change its name; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one |
 //! | [`dependency_tools`] | list the dependency tools agents' programs declare, one per template and owner, narrowed, each with the agents that depend on it and its run; get one; delete every tool of a template none of which runs; tag one and untag one; watch a running one's container whole; download files out of one, upload files into one, transfer files out of one |
 //! | [`providers`] | add a provider's record, get one, list them, edit one, delete a disabled one, enable one, disable one, tag one and untag one; list the identities their listings hold, listen for the messages sent to the daemon through them, and send one through them |
 //! | [`daemons`] | record a remote daemon, get one, list them, edit one, delete one, tag one and untag one |
@@ -48,7 +49,7 @@
 //! | `15` | [`standalone_tools::create`] |
 //! | `16` | [`standalone_tools::get`] |
 //! | `17` | [`standalone_tools::edit`] |
-//! | `18` | [`standalone_tools::register`] |
+//! | `18` | unused |
 //! | `19` | [`standalone_tools::attach_agent_instance`] |
 //! | `20` | [`standalone_tools::detach_agent_instance`] |
 //! | `21` | [`standalone_tools::delete`] |
@@ -176,8 +177,19 @@
 //! | `143` | [`providers::daemons::listen`] |
 //! | `144` | [`providers::daemons::message`] |
 //! | `145` | [`images::oci`] |
+//! | `146` | [`connected_standalone_tools::create`] |
+//! | `147` | [`connected_standalone_tools::get`] |
+//! | `148` | [`connected_standalone_tools::list`] |
+//! | `149` | [`connected_standalone_tools::edit`] |
+//! | `150` | [`connected_standalone_tools::delete`] |
+//! | `151` | [`connected_standalone_tools::tag`] |
+//! | `152` | [`connected_standalone_tools::untag`] |
+//! | `153` | [`connected_standalone_tools::attach_agent_instance`] |
+//! | `154` | [`connected_standalone_tools::detach_agent_instance`] |
+//! | `155` | [`connected_standalone_tools::attach_agent_template`] |
+//! | `156` | [`connected_standalone_tools::detach_agent_template`] |
 //!
-//! One hundred and forty-six, so far. Every one of them carries the optional
+//! One hundred and fifty-seven, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request
@@ -227,6 +239,7 @@ pub use client_request::*;
 
 pub mod accounts;
 pub mod agents;
+pub mod connected_standalone_tools;
 pub mod daemons;
 pub mod dependency_tools;
 pub mod events;

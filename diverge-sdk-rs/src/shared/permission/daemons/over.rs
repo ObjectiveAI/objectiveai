@@ -23,8 +23,8 @@ pub enum Over {
     /// [`daemons::delete`](crate::daemon::endpoints::daemons::delete)
     /// does.
     Delete,
-    /// Register a connected tool on one, as
-    /// [`standalone_tools::register`](crate::daemon::endpoints::standalone_tools::register)
+    /// Hold a connected tool on one, as
+    /// [`connected_standalone_tools::create`](crate::daemon::endpoints::connected_standalone_tools::create)
     /// does.
     Connect,
     /// Relay any request to one, served there: the first ID of a

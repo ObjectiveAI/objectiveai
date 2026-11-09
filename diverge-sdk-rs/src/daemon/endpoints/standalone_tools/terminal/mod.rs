@@ -7,7 +7,7 @@
 //! nothing is the one named, forbidden, or that it failed, and
 //! finishes. The terminal is the scope: while it is open the client
 //! writes the shell's stdin and sets its size on channels, at any time,
-//! and its close — or the client gone — kills the shell. A tool's container that is not running is started for the terminal, and held up while it is open; a connected tool's terminal is the other daemon's, and answered with an error.
+//! and its close — or the client gone — kills the shell. A tool's container that is not running is started for the terminal, and held up while it is open. A connected tool's container is the other daemon's, and no request here finds one.
 //! Split by who SENDS: the request and the channels are in [`client`],
 //! the output in [`server`].
 

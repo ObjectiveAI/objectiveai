@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{agents, agents_templates, standalone_tools, standalone_tools_templates, dependency_tools, providers, providers_daemons, daemons, accounts, roles, vault, volumes, postgres, events, images, identities};
+use super::{agents, agents_templates, standalone_tools, standalone_tools_templates, connected_standalone_tools, dependency_tools, providers, providers_daemons, daemons, accounts, roles, vault, volumes, postgres, events, images, identities};
 
 /// One grant: a permission over one kind of thing the daemon holds.
 /// Externally tagged by the kind's name — one object with one member,
@@ -10,7 +10,8 @@ use super::{agents, agents_templates, standalone_tools, standalone_tools_templat
 /// kind's [`Permission`](agents::Permission), in one of the shapes
 /// [`grant`](crate::daemon::grant) states. Snake case on the wire:
 /// `"agents"`, `"agents_templates"`, `"standalone_tools"`,
-/// `"standalone_tools_templates"`, `"dependency_tools"`,
+/// `"standalone_tools_templates"`, `"connected_standalone_tools"`,
+/// `"dependency_tools"`,
 /// `"providers"`, `"providers_daemons"`, `"daemons"`, `"accounts"`,
 /// `"roles"`, `"volumes"`,
 /// `"vault"`, `"postgres"`, `"events"`, `"images"`, `"identities"` — the kinds of
@@ -29,6 +30,9 @@ pub enum Grant {
     /// Over standalone tool templates: see
     /// [`standalone_tools_templates::Permission`].
     StandaloneToolsTemplates(standalone_tools_templates::Permission),
+    /// Over connected tools, other daemons' standalone tools held here:
+    /// see [`connected_standalone_tools::Permission`].
+    ConnectedStandaloneTools(connected_standalone_tools::Permission),
     /// Over dependency tools: see [`dependency_tools::Permission`].
     DependencyTools(dependency_tools::Permission),
     /// Over the daemon's providers: see [`providers::Permission`].

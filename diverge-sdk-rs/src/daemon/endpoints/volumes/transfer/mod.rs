@@ -15,8 +15,7 @@
 //! destination's to say. The volume
 //! is held for the length of the transfer and free after. An agent's or
 //! a created tool's container the destination names that is not running
-//! is started for the operation and stopped when it finishes; a
-//! connected tool is joined for it and left.
+//! is started for the operation and stopped when it finishes.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

@@ -17,6 +17,8 @@ pub enum Entry {
     Agent(agent_log::ItemWrapper),
     /// A standalone tool's.
     StandaloneTool(tool_log::ItemWrapper),
+    /// A connected tool's.
+    ConnectedStandaloneTool(tool_log::ItemWrapper),
     /// A dependency tool's.
     DependencyTool(tool_log::ItemWrapper),
     /// An account's.

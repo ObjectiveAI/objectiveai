@@ -20,7 +20,8 @@ use crate::shared::error::Error;
 /// # Answers, and one failure
 ///
 /// [`InUse`](Self::InUse) is an ANSWER: the daemon looked, and the
-/// name is a tool's of the caller's already; nothing was created and
+/// name is a standalone or a connected tool's already — the two
+/// families share one namespace of names; nothing was created and
 /// nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not create the tool, for whatever reason it knows, and nothing is
@@ -49,7 +50,8 @@ pub enum Frame {
     /// The tool exists, under the name if one was given, and is reached
     /// by its template and index from now on. Tag `0`.
     Created,
-    /// The name is a tool's of the caller's already; nothing was
+    /// The name is a standalone or a connected tool's already;
+    /// nothing was
     /// created. Tag `1`.
     InUse,
     /// The account the request is served for holds no grant allowing

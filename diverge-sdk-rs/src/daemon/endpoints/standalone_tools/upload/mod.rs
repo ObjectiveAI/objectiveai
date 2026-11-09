@@ -11,9 +11,9 @@
 //! error abandons that file, and the answer is the error. A created
 //! tool's container that is not running is started for the operation
 //! and stopped when it finishes; one the daemon has running anyway — an
-//! attached agent active — is used as it runs. A connected tool's
-//! files are on the other daemon, and naming one is the error. Nothing
-//! else about the tool changes.
+//! attached agent active — is used as it runs. Nothing else about the
+//! tool changes. A connected tool's files are on the other daemon, and
+//! no request here finds one.
 //!
 //! The content travels on channels the daemon opens, since only a
 //! responder can end a channel: the client could not say which piece

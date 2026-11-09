@@ -1,6 +1,6 @@
 //! A tool's declared grants, as grants of the daemon's.
 
-use super::{Grant, accounts, agents, agents_templates, daemons, dependency_tools, identities, roles, standalone_tools, standalone_tools_templates, vault, volumes};
+use super::{Grant, accounts, agents, agents_templates, connected_standalone_tools, daemons, dependency_tools, identities, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
 /// A tool's grants, as its container declared them at registration and
@@ -91,6 +91,18 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
             permission::standalone_tools_templates::Permission::Tags { actions, within, tags } => standalone_tools_templates::Permission::Tags {
                 actions,
                 within: within.map(standalone_tools_templates_filter),
+                tags,
+            },
+        }),
+        permission::Grant::ConnectedStandaloneTools(permission) => Grant::ConnectedStandaloneTools(match permission {
+            permission::connected_standalone_tools::Permission::Make(makes) => connected_standalone_tools::Permission::Make(makes),
+            permission::connected_standalone_tools::Permission::Over { actions, within } => connected_standalone_tools::Permission::Over {
+                actions,
+                within: within.map(connected_standalone_tools_filter),
+            },
+            permission::connected_standalone_tools::Permission::Tags { actions, within, tags } => connected_standalone_tools::Permission::Tags {
+                actions,
+                within: within.map(connected_standalone_tools_filter),
                 tags,
             },
         }),
@@ -231,6 +243,14 @@ fn standalone_tools_filter(tags: Tags) -> crate::daemon::endpoints::standalone_t
 
 fn standalone_tools_templates_filter(tags: Tags) -> crate::daemon::endpoints::standalone_tools::templates::list::client::request::Filter {
     crate::daemon::endpoints::standalone_tools::templates::list::client::request::Filter {
+        all_tags: tags.all_tags,
+        any_tags: tags.any_tags,
+        ..Default::default()
+    }
+}
+
+fn connected_standalone_tools_filter(tags: Tags) -> crate::daemon::endpoints::connected_standalone_tools::list::client::request::Filter {
+    crate::daemon::endpoints::connected_standalone_tools::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()

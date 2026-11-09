@@ -20,8 +20,8 @@ pub enum Tool {
         /// The template the tool was made from, by id.
         template: String,
         /// The tool's number among all tools of the client's ever
-        /// made from that template: the index its list item's origin
-        /// carries. The template and the index name the tool once and
+        /// made from that template: the index its list item carries.
+        /// The template and the index name the tool once and
         /// for all.
         index: u64,
         /// The tool's name, as its create gave it, if it gave one.

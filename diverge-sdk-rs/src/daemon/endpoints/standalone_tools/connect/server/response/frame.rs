@@ -39,8 +39,7 @@ use crate::wire::encode::{Encode, Writer};
 /// ANSWER: the daemon looked, and no tool of the caller's is the one
 /// named, and nothing is retried. An [`Error`](Self::Error) is a
 /// failure: the daemon could not serve the tool, for whatever reason
-/// it knows — a connected tool, which is another daemon's and is
-/// served there; a container that would not start.
+/// it knows — a container that would not start.
 //////
 /// # Forbidden
 ///

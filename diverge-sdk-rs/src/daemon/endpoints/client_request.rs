@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{accounts, agents, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
+use super::{accounts, agents, connected_standalone_tools, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -61,8 +61,6 @@ pub enum ClientRequest<'a> {
     StandaloneToolsGet(standalone_tools::get::client::request::Frame),
     /// Tag `17`. Change a tool.
     StandaloneToolsEdit(standalone_tools::edit::client::request::Frame),
-    /// Tag `18`. Register a tool another daemon holds, under a name.
-    StandaloneToolsRegister(standalone_tools::register::client::request::Frame),
     /// Tag `19`. Attach a tool to one agent.
     StandaloneToolsAttachAgentInstance(standalone_tools::attach_agent_instance::client::request::Frame),
     /// Tag `20`. Detach a tool from one agent.
@@ -279,6 +277,28 @@ pub enum ClientRequest<'a> {
     ProvidersDaemonsMessage(providers::daemons::message::client::request::Frame),
     /// Tag `145`. Whether the daemon can supply an image, and its parts.
     ImagesOci(images::oci::client::request::Frame),
+    /// Tag `146`. Hold another daemon's standalone tool under a name.
+    ConnectedStandaloneToolsCreate(connected_standalone_tools::create::client::request::Frame),
+    /// Tag `147`. Get one connected tool.
+    ConnectedStandaloneToolsGet(connected_standalone_tools::get::client::request::Frame),
+    /// Tag `148`. List the caller's connected tools, narrowed, and keep the list.
+    ConnectedStandaloneToolsList(connected_standalone_tools::list::client::request::Frame),
+    /// Tag `149`. Change a connected tool's name.
+    ConnectedStandaloneToolsEdit(connected_standalone_tools::edit::client::request::Frame),
+    /// Tag `150`. Delete a connected tool.
+    ConnectedStandaloneToolsDelete(connected_standalone_tools::delete::client::request::Frame),
+    /// Tag `151`. Put tags on a connected tool.
+    ConnectedStandaloneToolsTag(connected_standalone_tools::tag::client::request::Frame),
+    /// Tag `152`. Take tags off a connected tool.
+    ConnectedStandaloneToolsUntag(connected_standalone_tools::untag::client::request::Frame),
+    /// Tag `153`. Attach a connected tool to one agent.
+    ConnectedStandaloneToolsAttachAgentInstance(connected_standalone_tools::attach_agent_instance::client::request::Frame),
+    /// Tag `154`. Detach a connected tool from one agent.
+    ConnectedStandaloneToolsDetachAgentInstance(connected_standalone_tools::detach_agent_instance::client::request::Frame),
+    /// Tag `155`. Attach a connected tool to every agent of a template.
+    ConnectedStandaloneToolsAttachAgentTemplate(connected_standalone_tools::attach_agent_template::client::request::Frame),
+    /// Tag `156`. Detach a connected tool from every agent of a template.
+    ConnectedStandaloneToolsDetachAgentTemplate(connected_standalone_tools::detach_agent_template::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -314,7 +334,6 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::StandaloneToolsCreate(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsGet(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsEdit(frame) => frame.encode(out),
-            ClientRequest::StandaloneToolsRegister(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsAttachAgentInstance(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsDetachAgentInstance(frame) => frame.encode(out),
             ClientRequest::StandaloneToolsDelete(frame) => frame.encode(out),
@@ -419,6 +438,17 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsListen(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsMessage(frame) => frame.encode(out),
             ClientRequest::ImagesOci(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsCreate(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsGet(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsList(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsEdit(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsDelete(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsTag(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsUntag(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsAttachAgentInstance(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsDetachAgentInstance(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsAttachAgentTemplate(frame) => frame.encode(out),
+            ClientRequest::ConnectedStandaloneToolsDetachAgentTemplate(frame) => frame.encode(out),
             ClientRequest::IdentitiesLogin(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -494,9 +524,6 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
                 .ok(),
             17 => standalone_tools::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::StandaloneToolsEdit)
-                .ok(),
-            18 => standalone_tools::register::client::request::Frame::decode(bytes)
-                .map(ClientRequest::StandaloneToolsRegister)
                 .ok(),
             19 => standalone_tools::attach_agent_instance::client::request::Frame::decode(bytes)
                 .map(ClientRequest::StandaloneToolsAttachAgentInstance)
@@ -810,6 +837,39 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             145 => images::oci::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesOci)
                 .ok(),
+            146 => connected_standalone_tools::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsCreate)
+                .ok(),
+            147 => connected_standalone_tools::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsGet)
+                .ok(),
+            148 => connected_standalone_tools::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsList)
+                .ok(),
+            149 => connected_standalone_tools::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsEdit)
+                .ok(),
+            150 => connected_standalone_tools::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsDelete)
+                .ok(),
+            151 => connected_standalone_tools::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsTag)
+                .ok(),
+            152 => connected_standalone_tools::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsUntag)
+                .ok(),
+            153 => connected_standalone_tools::attach_agent_instance::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsAttachAgentInstance)
+                .ok(),
+            154 => connected_standalone_tools::detach_agent_instance::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsDetachAgentInstance)
+                .ok(),
+            155 => connected_standalone_tools::attach_agent_template::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsAttachAgentTemplate)
+                .ok(),
+            156 => connected_standalone_tools::detach_agent_template::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ConnectedStandaloneToolsDetachAgentTemplate)
+                .ok(),
             128 => identities::login::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesLogin)
                 .ok(),
@@ -839,7 +899,6 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::StandaloneToolsCreate(_) => f.write_str("standalone tools create"),
             ClientRequest::StandaloneToolsGet(_) => f.write_str("standalone tools get"),
             ClientRequest::StandaloneToolsEdit(_) => f.write_str("standalone tools edit"),
-            ClientRequest::StandaloneToolsRegister(_) => f.write_str("standalone tools register"),
             ClientRequest::StandaloneToolsAttachAgentInstance(_) => f.write_str("standalone tools attach agent instance"),
             ClientRequest::StandaloneToolsDetachAgentInstance(_) => f.write_str("standalone tools detach agent instance"),
             ClientRequest::StandaloneToolsDelete(_) => f.write_str("standalone tools delete"),
@@ -944,6 +1003,17 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsListen(_) => f.write_str("providers daemons listen"),
             ClientRequest::ProvidersDaemonsMessage(_) => f.write_str("providers daemons message"),
             ClientRequest::ImagesOci(_) => f.write_str("images oci"),
+            ClientRequest::ConnectedStandaloneToolsCreate(_) => f.write_str("connected standalone tools create"),
+            ClientRequest::ConnectedStandaloneToolsGet(_) => f.write_str("connected standalone tools get"),
+            ClientRequest::ConnectedStandaloneToolsList(_) => f.write_str("connected standalone tools list"),
+            ClientRequest::ConnectedStandaloneToolsEdit(_) => f.write_str("connected standalone tools edit"),
+            ClientRequest::ConnectedStandaloneToolsDelete(_) => f.write_str("connected standalone tools delete"),
+            ClientRequest::ConnectedStandaloneToolsTag(_) => f.write_str("connected standalone tools tag"),
+            ClientRequest::ConnectedStandaloneToolsUntag(_) => f.write_str("connected standalone tools untag"),
+            ClientRequest::ConnectedStandaloneToolsAttachAgentInstance(_) => f.write_str("connected standalone tools attach agent instance"),
+            ClientRequest::ConnectedStandaloneToolsDetachAgentInstance(_) => f.write_str("connected standalone tools detach agent instance"),
+            ClientRequest::ConnectedStandaloneToolsAttachAgentTemplate(_) => f.write_str("connected standalone tools attach agent template"),
+            ClientRequest::ConnectedStandaloneToolsDetachAgentTemplate(_) => f.write_str("connected standalone tools detach agent template"),
             ClientRequest::IdentitiesLogin(_) => f.write_str("identities login"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
@@ -974,7 +1044,6 @@ pub fn tag(path: &str) -> Option<u8> {
         "standalone_tools/create" => Some(15),
         "standalone_tools/get" => Some(16),
         "standalone_tools/edit" => Some(17),
-        "standalone_tools/register" => Some(18),
         "standalone_tools/attach_agent_instance" => Some(19),
         "standalone_tools/detach_agent_instance" => Some(20),
         "standalone_tools/delete" => Some(21),
@@ -1079,6 +1148,17 @@ pub fn tag(path: &str) -> Option<u8> {
         "providers/daemons/listen" => Some(143),
         "providers/daemons/message" => Some(144),
         "images/oci" => Some(145),
+        "connected_standalone_tools/create" => Some(146),
+        "connected_standalone_tools/get" => Some(147),
+        "connected_standalone_tools/list" => Some(148),
+        "connected_standalone_tools/edit" => Some(149),
+        "connected_standalone_tools/delete" => Some(150),
+        "connected_standalone_tools/tag" => Some(151),
+        "connected_standalone_tools/untag" => Some(152),
+        "connected_standalone_tools/attach_agent_instance" => Some(153),
+        "connected_standalone_tools/detach_agent_instance" => Some(154),
+        "connected_standalone_tools/attach_agent_template" => Some(155),
+        "connected_standalone_tools/detach_agent_template" => Some(156),
         "identities/login" => Some(128),
         _ => None,
     }
@@ -1106,7 +1186,6 @@ impl ClientRequest<'_> {
             ClientRequest::StandaloneToolsCreate(_) => "standalone_tools/create",
             ClientRequest::StandaloneToolsGet(_) => "standalone_tools/get",
             ClientRequest::StandaloneToolsEdit(_) => "standalone_tools/edit",
-            ClientRequest::StandaloneToolsRegister(_) => "standalone_tools/register",
             ClientRequest::StandaloneToolsAttachAgentInstance(_) => "standalone_tools/attach_agent_instance",
             ClientRequest::StandaloneToolsDetachAgentInstance(_) => "standalone_tools/detach_agent_instance",
             ClientRequest::StandaloneToolsDelete(_) => "standalone_tools/delete",
@@ -1211,6 +1290,17 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsListen(_) => "providers/daemons/listen",
             ClientRequest::ProvidersDaemonsMessage(_) => "providers/daemons/message",
             ClientRequest::ImagesOci(_) => "images/oci",
+            ClientRequest::ConnectedStandaloneToolsCreate(_) => "connected_standalone_tools/create",
+            ClientRequest::ConnectedStandaloneToolsGet(_) => "connected_standalone_tools/get",
+            ClientRequest::ConnectedStandaloneToolsList(_) => "connected_standalone_tools/list",
+            ClientRequest::ConnectedStandaloneToolsEdit(_) => "connected_standalone_tools/edit",
+            ClientRequest::ConnectedStandaloneToolsDelete(_) => "connected_standalone_tools/delete",
+            ClientRequest::ConnectedStandaloneToolsTag(_) => "connected_standalone_tools/tag",
+            ClientRequest::ConnectedStandaloneToolsUntag(_) => "connected_standalone_tools/untag",
+            ClientRequest::ConnectedStandaloneToolsAttachAgentInstance(_) => "connected_standalone_tools/attach_agent_instance",
+            ClientRequest::ConnectedStandaloneToolsDetachAgentInstance(_) => "connected_standalone_tools/detach_agent_instance",
+            ClientRequest::ConnectedStandaloneToolsAttachAgentTemplate(_) => "connected_standalone_tools/attach_agent_template",
+            ClientRequest::ConnectedStandaloneToolsDetachAgentTemplate(_) => "connected_standalone_tools/detach_agent_template",
             ClientRequest::IdentitiesLogin(_) => "identities/login",
             ClientRequest::Invalid(_) => "",
         }

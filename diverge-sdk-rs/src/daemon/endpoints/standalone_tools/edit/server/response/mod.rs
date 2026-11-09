@@ -1,6 +1,5 @@
-//! The edit response: the tool as stated, no such tool, active, not
-//! owned, the
-//! name in use, no such account, forbidden, or a failure.
+//! The edit response: the tool as stated, no such tool, active, the
+//! name in use, forbidden, or a failure.
 
 mod frame;
 

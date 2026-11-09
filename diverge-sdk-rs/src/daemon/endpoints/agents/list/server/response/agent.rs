@@ -66,13 +66,16 @@ pub struct Agent {
     /// and where a read that wants only what comes next starts.
     /// `0` for an empty log.
     pub logs_index: u64,
-    /// The [`standalone_tools`](crate::daemon::endpoints::standalone_tools) it has:
-    /// those attached to it directly, in the order they were attached,
-    /// then those attached to its template, in theirs, one it has both
-    /// ways once — each by its [`key`](crate::daemon::key), its origin
-    /// and its index, with its name beside when it has one; empty for
-    /// an agent with none. The tools list reports the same
-    /// attachments from the other side.
+    /// The [`standalone_tools`](crate::daemon::endpoints::standalone_tools)
+    /// and the
+    /// [`connected_standalone_tools`](crate::daemon::endpoints::connected_standalone_tools)
+    /// it has: those attached to it directly, in the order they were
+    /// attached, then those attached to its template, in theirs, one it
+    /// has both ways once — each by its [`key`](crate::daemon::key), a
+    /// `record` by its template and its index, a `connected_standalone`
+    /// by its daemon, its tool there and its index, with its name
+    /// beside when it has one; empty for an agent with none. The two
+    /// tools lists report the same attachments from the other side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<key::Tool>,
     /// The dependency templates its LAST registration declared, by

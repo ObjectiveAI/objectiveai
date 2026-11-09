@@ -8,9 +8,9 @@
 //! the path, forbidden, or that it failed, and finishes. A created
 //! tool's container that is not running is started for the operation
 //! and stopped when it finishes; one the daemon has running anyway — an
-//! attached agent active — is used as it runs. A connected tool's
-//! files are on the other daemon, and naming one is the error. Nothing
-//! else about the tool changes.
+//! attached agent active — is used as it runs. Nothing else about the
+//! tool changes. A connected tool's files are on the other daemon, and
+//! no request here finds one.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

@@ -1,6 +1,6 @@
 //! A request refused in its own words, whichever request it is.
 
-use super::{ClientRequest, accounts, agents, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
+use super::{ClientRequest, accounts, agents, connected_standalone_tools, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, roles, standalone_tools, vault, volumes};
 use crate::shared::error::Error;
 use crate::wire::encode::{Encode, Writer};
 
@@ -30,7 +30,6 @@ impl ClientRequest<'_> {
             ClientRequest::StandaloneToolsCreate(_) => bytes(&standalone_tools::create::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsGet(_) => bytes(&standalone_tools::get::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsEdit(_) => bytes(&standalone_tools::edit::server::response::Frame::Forbidden),
-            ClientRequest::StandaloneToolsRegister(_) => bytes(&standalone_tools::register::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsAttachAgentInstance(_) => bytes(&standalone_tools::attach_agent_instance::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsDetachAgentInstance(_) => bytes(&standalone_tools::detach_agent_instance::server::response::Frame::Forbidden),
             ClientRequest::StandaloneToolsDelete(_) => bytes(&standalone_tools::delete::server::response::Frame::Forbidden),
@@ -135,6 +134,17 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsListen(_) => bytes(&providers::daemons::listen::server::response::Frame::Forbidden),
             ClientRequest::ProvidersDaemonsMessage(_) => bytes(&providers::daemons::message::server::response::Frame::Forbidden),
             ClientRequest::ImagesOci(_) => bytes(&images::oci::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsCreate(_) => bytes(&connected_standalone_tools::create::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsGet(_) => bytes(&connected_standalone_tools::get::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsList(_) => bytes(&connected_standalone_tools::list::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsEdit(_) => bytes(&connected_standalone_tools::edit::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsDelete(_) => bytes(&connected_standalone_tools::delete::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsTag(_) => bytes(&connected_standalone_tools::tag::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsUntag(_) => bytes(&connected_standalone_tools::untag::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsAttachAgentInstance(_) => bytes(&connected_standalone_tools::attach_agent_instance::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsDetachAgentInstance(_) => bytes(&connected_standalone_tools::detach_agent_instance::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsAttachAgentTemplate(_) => bytes(&connected_standalone_tools::attach_agent_template::server::response::Frame::Forbidden),
+            ClientRequest::ConnectedStandaloneToolsDetachAgentTemplate(_) => bytes(&connected_standalone_tools::detach_agent_template::server::response::Frame::Forbidden),
             ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Forbidden),
             ClientRequest::Invalid(_) => None,
         }
@@ -162,7 +172,6 @@ impl ClientRequest<'_> {
             ClientRequest::StandaloneToolsCreate(_) => bytes(&standalone_tools::create::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsGet(_) => bytes(&standalone_tools::get::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsEdit(_) => bytes(&standalone_tools::edit::server::response::Frame::Error(error)),
-            ClientRequest::StandaloneToolsRegister(_) => bytes(&standalone_tools::register::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsAttachAgentInstance(_) => bytes(&standalone_tools::attach_agent_instance::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsDetachAgentInstance(_) => bytes(&standalone_tools::detach_agent_instance::server::response::Frame::Error(error)),
             ClientRequest::StandaloneToolsDelete(_) => bytes(&standalone_tools::delete::server::response::Frame::Error(error)),
@@ -267,6 +276,17 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsListen(_) => bytes(&providers::daemons::listen::server::response::Frame::Error(error)),
             ClientRequest::ProvidersDaemonsMessage(_) => bytes(&providers::daemons::message::server::response::Frame::Error(error)),
             ClientRequest::ImagesOci(_) => bytes(&images::oci::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsCreate(_) => bytes(&connected_standalone_tools::create::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsGet(_) => bytes(&connected_standalone_tools::get::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsList(_) => bytes(&connected_standalone_tools::list::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsEdit(_) => bytes(&connected_standalone_tools::edit::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsDelete(_) => bytes(&connected_standalone_tools::delete::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsTag(_) => bytes(&connected_standalone_tools::tag::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsUntag(_) => bytes(&connected_standalone_tools::untag::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsAttachAgentInstance(_) => bytes(&connected_standalone_tools::attach_agent_instance::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsDetachAgentInstance(_) => bytes(&connected_standalone_tools::detach_agent_instance::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsAttachAgentTemplate(_) => bytes(&connected_standalone_tools::attach_agent_template::server::response::Frame::Error(error)),
+            ClientRequest::ConnectedStandaloneToolsDetachAgentTemplate(_) => bytes(&connected_standalone_tools::detach_agent_template::server::response::Frame::Error(error)),
             ClientRequest::IdentitiesLogin(_) => bytes(&identities::login::server::response::Frame::Error(error)),
             ClientRequest::Invalid(_) => None,
         }

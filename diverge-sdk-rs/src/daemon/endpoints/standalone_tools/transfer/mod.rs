@@ -13,10 +13,10 @@
 //! What lands where is the destination's to say. A created tool's container that is not running
 //! is started for the operation and stopped when it finishes; one the
 //! daemon has running anyway — an attached agent active — is used as it
-//! runs. A connected tool's files are on the other daemon, and naming
-//! one, as the source or the destination, is the error. Nothing else
-//! about the tool changes. An agent or a created tool the destination
-//! names that is not running is started and stopped the same way.
+//! runs. Nothing else about the tool changes. An agent or a created
+//! tool the destination names that is not running is started and
+//! stopped the same way. A connected tool's files are on the other
+//! daemon, and neither the source nor the destination names one.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

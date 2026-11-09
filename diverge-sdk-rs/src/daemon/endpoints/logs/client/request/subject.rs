@@ -17,6 +17,11 @@ pub enum Subject {
     Agent(reference::Agent),
     /// A standalone tool's log: see [`tool_log`](crate::daemon::tool_log).
     StandaloneTool(reference::Tool),
+    /// A connected tool's log — every call and read this daemon routed
+    /// into another daemon's tool held here: see
+    /// [`tool_log`](crate::daemon::tool_log). Read under the
+    /// connected standalone tools family's `logs` grant.
+    ConnectedStandaloneTool(reference::ConnectedStandaloneTool),
     /// A dependency tool's log: see [`tool_log`](crate::daemon::tool_log).
     DependencyTool(reference::Dependency),
     /// An account's command log: see
