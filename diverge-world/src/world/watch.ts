@@ -3,7 +3,7 @@
 
 import { daemon, shared } from "@diverge/sdk";
 import { handle } from "../lib/wire";
-import { type Live, accountKey, accountLive, activeLive, agentKey, connectedKey, dependencyKey, providerKey, providerLive, toolKey } from "./model";
+import { type Live, accountKey, accountLive, activeLive, agentKey, connectedKey, daemonKey, daemonLive, dependencyKey, providerKey, providerLive, toolKey } from "./model";
 
 /** One volume, as the volumes list states it. */
 export type Volume = daemon.endpoints.volumes.list.server.response.Volume;
@@ -14,7 +14,8 @@ const AGAIN = 5000;
 /**
  * What is told of one entity: its key, and its live state, or `null`
  * when it is gone; and, for an agent or a tool, whether its container
- * is up — for an account or a provider, whether it is connected.
+ * is up — for an account, a provider or a remote daemon, whether it is
+ * connected.
  */
 type Told = (key: string, live: Live | null, deployed?: boolean) => void;
 
@@ -100,7 +101,7 @@ function tell<T, F>(spec: Spec<T, F>, told: Told, k: Keeper): void {
 
 /**
  * Watch the accounts, agents, standalone tools, connected standalone
- * tools, dependency tools and providers,
+ * tools, dependency tools, providers and remote daemons,
  * telling each entity's state as it changes; and the volumes, telling
  * `volume` each one listed, added or changed, and each one removed
  * (`gone`).
@@ -117,6 +118,8 @@ export function watch(told: Told, volume: (item: Volume, gone: boolean) => void)
   tell({ open: () => e.dependency_tools.list.client.execute(handle, {}), change: e.dependency_tools.list.server.response.change, key: dependencyKey, live: activeLive, deployed }, told, k);
   // A provider is lit while the daemon holds a connection it uses: `connected`, and nothing else.
   tell({ open: () => e.providers.list.client.execute(handle, {}), change: e.providers.list.server.response.change, key: providerKey, live: providerLive, deployed: (p) => providerLive(p).on }, told, k);
+  // A remote daemon is lit while the daemon holds a connection to it.
+  tell({ open: () => e.daemons.list.client.execute(handle, {}), change: e.daemons.list.server.response.change, key: daemonKey, live: daemonLive, deployed: (d) => d.connected }, told, k);
   keep({ open: () => e.volumes.list.client.execute(handle, {}), change: e.volumes.list.server.response.change }, (change) => {
     if (change.kind !== "listed") volume(change.item, change.kind === "removed");
   }, k);

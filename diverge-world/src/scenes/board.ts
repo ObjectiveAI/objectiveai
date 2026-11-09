@@ -13,7 +13,7 @@ import { type Pulses, pulses } from "../grid/pulses";
 import { REACH } from "../grid/textures";
 import { Sheet } from "../sheet/sheet";
 import { follow } from "../world/live";
-import { accountKey, agentKey, connectedKey, dependencyKey, type Entity, type Model, model, providerKey, providerLive, toolKey, volumeKey } from "../world/model";
+import { accountKey, agentKey, connectedKey, daemonKey, dependencyKey, type Entity, type Model, model, providerKey, providerLive, toolKey, volumeKey } from "../world/model";
 import { mountsOf } from "../world/mounts";
 import type { Snapshot } from "../world/snapshot";
 import type { Watching } from "../world/watch";
@@ -87,7 +87,7 @@ export class Board extends Phaser.Scene {
   create() {
     this.registry.set(STATUS, { kind: "waiting", reason: null } satisfies Status);
     this.registry.set(LINES, { call: true, attachment: true, creator: true } satisfies Lines);
-    this.registry.set(KINDS, { account: true, agent: true, standalone_tool: true, connected_standalone_tool: true, dependency_tool: true, volume: true, provider: true } satisfies Kinds);
+    this.registry.set(KINDS, { account: true, agent: true, standalone_tool: true, connected_standalone_tool: true, dependency_tool: true, volume: true, provider: true, daemon: true } satisfies Kinds);
     this.scene.launch("ui");
     const show = (_parent: unknown, value: Lines) => {
       this.links?.show(value);
@@ -189,7 +189,8 @@ export class Board extends Phaser.Scene {
    * Rule 4: every node lit as the world says — accounts bright while
    * connected; agents, tools and dependency tools while deployed, a
    * connected tool while the daemon holds its connect, a provider
-   * while connected; volumes while mounted into something bright; the halo breathing
+   * while connected, a remote daemon while the daemon is connected to
+   * it; volumes while mounted into something bright; the halo breathing
    * while it works — and the open sheet's dot told. A node whose light
    * did not change is not lit again, so its breath runs on.
    */
@@ -203,6 +204,7 @@ export class Board extends Phaser.Scene {
     for (const t of read.connectedTools) bright.set(connectedKey(t), t.deployed);
     for (const d of read.dependencies) bright.set(dependencyKey(d), d.deployed);
     for (const p of read.providers) bright.set(providerKey(p), providerLive(p).on);
+    for (const d of read.daemons) bright.set(daemonKey(d), d.connected);
     const mountsOfVolume = mountsOf(read);
     for (const v of read.volumes) bright.set(volumeKey(v), mountsOfVolume(v).some((container) => bright.get(container) === true));
     for (const entity of made.entities) {
@@ -220,7 +222,7 @@ export class Board extends Phaser.Scene {
 
   /** Rule 3: the legend's counts, as the world has them. */
   private count(read: Snapshot, made: Model) {
-    const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, connected_standalone_tool: 0, dependency_tool: 0, volume: 0, provider: 0, call: 0, attachment: 0, creator: 0 };
+    const counts: Counts = { account: 0, agent: 0, standalone_tool: 0, connected_standalone_tool: 0, dependency_tool: 0, volume: 0, provider: 0, daemon: 0, call: 0, attachment: 0, creator: 0 };
     for (const e of made.entities) counts[e.kind]++;
     for (const e of this.edges) counts[e.type]++;
     this.registry.set(STATUS, { kind: "drawn", counts, forbidden: read.forbidden } satisfies Status);

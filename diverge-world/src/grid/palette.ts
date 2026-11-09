@@ -18,6 +18,7 @@ export const NEON: Record<Kind, number> = {
   dependency_tool: 0xff3df0,
   volume: 0x39ff88,
   provider: 0xff3b4e,
+  daemon: 0xd8e4f0,
 };
 
 /** A colour as CSS, for the labels. */

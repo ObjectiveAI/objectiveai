@@ -19,16 +19,16 @@ export const tileShape = (): Phaser.Geom.Polygon => new Phaser.Geom.Polygon(corn
 const WHITE = 0xffffff;
 
 /**
- * Make the seven textures, `CELL` square: the entity's hex filled to its
+ * Make the eight textures, `CELL` square: the entity's hex filled to its
  * edges in the kind's colour, lit along its upper sides, darkened along
  * its lower ones, and outlined in ink, with a white glyph — a smiley
  * face for an account, a robot's head for an agent, a hammer for a
  * standalone tool, a chain's two links for a connected standalone tool,
  * a gear for a dependency tool, a drum for a volume, a server rack for
- * a provider.
+ * a provider, a globe for a remote daemon.
  */
 export function makeIcons(scene: Phaser.Scene): void {
-  const kinds: Kind[] = ["account", "agent", "standalone_tool", "connected_standalone_tool", "dependency_tool", "volume", "provider"];
+  const kinds: Kind[] = ["account", "agent", "standalone_tool", "connected_standalone_tool", "dependency_tool", "volume", "provider", "daemon"];
   const c = CELL / 2;
   const at = (radius: number) => corners(radius).map((p) => new Phaser.Math.Vector2(c + p.x, c + p.y));
   const outer = at(SIZE - 1);
@@ -133,6 +133,14 @@ const glyph: Record<Kind, (g: Phaser.GameObjects.Graphics, c: number) => void> =
       g.fillRect(c - 6, c + dy - 0.75, 6, 1.5);
       g.fillCircle(c + 5, c + dy, 1.3);
     }
+  },
+  daemon: (g, c) => {
+    g.lineStyle(1.8, WHITE, 1);
+    g.strokeCircle(c, c, 9);
+    g.strokeEllipse(c, c, 8, 18);
+    g.lineBetween(c - 9, c, c + 9, c);
+    g.lineBetween(c - 7.8, c - 4.5, c + 7.8, c - 4.5);
+    g.lineBetween(c - 7.8, c + 4.5, c + 7.8, c + 4.5);
   },
 };
 

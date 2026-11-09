@@ -2,7 +2,7 @@
 // types — calls, attachments and creators.
 
 import type { daemon } from "@diverge/sdk";
-import { accountKey, connectedKey, dependencyKey, type Model, providerAt, providerKey, toolKey, volumeKey } from "../world/model";
+import { accountKey, connectedKey, daemonAt, daemonKey, dependencyKey, type Model, providerAt, providerKey, toolKey, volumeKey } from "../world/model";
 import type { Snapshot } from "../world/snapshot";
 
 /** The three types of line, in the order their lanes lie. */
@@ -50,10 +50,14 @@ const ordered = (x: string, y: string): [string, string] => (x < y ? [x, y] : [y
  *       `deployed` whose `provider` names it, and every dependency tool
  *       whose run's provider names it — a run only while deployed. A
  *       provider's last deployment, its container down, draws nothing.
- *    e. a provider and every volume it holds.
+ *    e. a provider and every volume it holds;
+ *    f. a remote daemon and every connected tool on it: every connected
+ *       standalone tool whose `daemon` — its first hop — is the
+ *       record's ID. The daemons further along a tool's `route` are
+ *       records on other daemons, not on this board, and draw nothing.
  * 3. A creator runs from the maker to what it made, for every agent,
  *    standalone tool, connected standalone tool, dependency tool,
- *    account and provider whose `creator` is on
+ *    account, provider and remote daemon whose `creator` is on
  *    the board: the client's account, the agent, the created tool by
  *    its template and index, the dependency tool by its template and
  *    owner. A maker deleted or unlisted draws nothing.
@@ -107,6 +111,8 @@ export function edges(snapshot: Snapshot, made: Model): Edge[] {
   for (const d of snapshot.dependencies) if (d.run) add(providerAt(d.run.provider.identity), dependencyKey(d), "attachment");
   // Rule 2e.
   for (const v of snapshot.volumes) add(providerAt(v.provider), volumeKey(v), "attachment");
+  // Rule 2f.
+  for (const t of snapshot.connectedTools) add(daemonAt(t.daemon), connectedKey(t), "attachment");
   // Rule 3.
   const maker = (c: Creator | undefined): string | undefined => {
     if (c === undefined) return undefined;
@@ -125,5 +131,6 @@ export function edges(snapshot: Snapshot, made: Model): Edge[] {
   for (const d of snapshot.dependencies) madeBy(dependencyKey(d), d.creator);
   for (const a of snapshot.accounts) madeBy(accountKey(a), a.creator);
   for (const p of snapshot.providers) madeBy(providerKey(p), p.creator);
+  for (const d of snapshot.daemons) madeBy(daemonKey(d), d.creator);
   return out;
 }

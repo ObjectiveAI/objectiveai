@@ -1,12 +1,12 @@
 // What the world shows: every account, agent, standalone tool,
-// connected standalone tool, dependency tool, volume and provider, and
-// who has sent to whom.
+// connected standalone tool, dependency tool, volume, provider and
+// remote daemon, and who has sent to whom.
 
 import type { daemon } from "@diverge/sdk";
 import type { Snapshot } from "./snapshot";
 
-/** The seven kinds of entity. */
-export type Kind = "account" | "agent" | "standalone_tool" | "connected_standalone_tool" | "dependency_tool" | "volume" | "provider";
+/** The eight kinds of entity. */
+export type Kind = "account" | "agent" | "standalone_tool" | "connected_standalone_tool" | "dependency_tool" | "volume" | "provider" | "daemon";
 
 /** Whose log an entity is: what the root `logs` read names. */
 export type Subject = daemon.endpoints.logs.client.request.Subject;
@@ -26,9 +26,10 @@ export type Files =
  * line of detail, an agent's template and index, and — a listed agent's or
  * tool's — whose log it is, and — a listed agent's, created tool's,
  * dependency tool's or volume's — whose files. A connected tool's files
- * are the other daemon's, and none are here. A provider's `line` is the
- * sheet's second line, where no log names it: its direction and where
- * the daemon stands with it.
+ * are the other daemon's, and none are here. A provider's or a remote
+ * daemon's `line` is the sheet's second line, where no log names it: a
+ * provider's direction and where the daemon stands with it, a remote
+ * daemon's account there and whether the daemon is connected to it.
  */
 export type Entity = { key: string; kind: Kind; label: string; detail: string; agent?: { template: string; index: number }; subject?: Subject; files?: Files; frontend?: Frontend; live?: Live; line?: string };
 
@@ -38,7 +39,8 @@ export type Frontend = { agent: daemon.reference.Agent } | { tool: daemon.refere
 /**
  * Whether a listed entity is live, as its list says: an agent or a
  * tool `active` (working — a loop, a call or a read in flight), an
- * account or a provider `connected`; and when that last changed.
+ * account, a provider or a remote daemon `connected`; and when that
+ * last changed.
  */
 export type Live = { kind: "active" | "connected"; on: boolean; at?: string };
 
@@ -46,6 +48,7 @@ type Account = daemon.endpoints.accounts.list.server.response.Account;
 type Agent = daemon.endpoints.agents.list.server.response.Agent;
 type Connected = daemon.endpoints.connected_standalone_tools.list.server.response.ConnectedStandaloneTool;
 type Provider = daemon.endpoints.providers.list.server.response.Provider;
+type Daemon = daemon.endpoints.daemons.list.server.response.Daemon;
 
 /** A connected tool's tool, as the other daemon names it, as one string: its name, or its template and index. */
 const remote = (tool: daemon.reference.Tool) => ("name" in tool ? `name:${tool.name}` : `${tool.template}:${tool.index}`);
@@ -61,6 +64,9 @@ export const volumeKey = (v: Volume) => `volume:${v.provider.issuer}:${v.provide
 /** A provider's key, by its identity alone: what a deployment's `provider` names it by, as its record does. */
 export const providerAt = (identity: { issuer: string; subject: string }) => `provider:${identity.issuer}:${identity.subject}`;
 export const providerKey = (p: Provider) => providerAt(p.identity);
+/** A remote daemon's key, by its record's ID: what a connected tool's `daemon` names it by. */
+export const daemonAt = (id: string) => `daemon:${id}`;
+export const daemonKey = (d: Daemon) => daemonAt(d.id);
 
 /** An account's live state: connected. */
 export const accountLive = (a: Account): Live => ({ kind: "connected", on: a.connected, at: a.last_connected });
@@ -68,6 +74,8 @@ export const accountLive = (a: Account): Live => ({ kind: "connected", on: a.con
 export const activeLive = (x: { active: boolean; last_active?: string }): Live => ({ kind: "active", on: x.active, at: x.last_active });
 /** A provider's live state: connected — a connection the daemon uses; one held open at a different version is not. */
 export const providerLive = (p: Provider): Live => ({ kind: "connected", on: p.status.type === "connected" });
+/** A remote daemon's live state: connected — the daemon holds a connection to it now. */
+export const daemonLive = (d: Daemon): Live => ({ kind: "connected", on: d.connected });
 
 /**
  * Two entities joined: `a` before `b` by key, and which ways something
@@ -163,6 +171,19 @@ function providerEntity(p: Provider): Entity {
 }
 
 /**
+ * The entity a remote daemon is — the record the daemon keeps of one
+ * account of ours on another daemon: named by its description, else by
+ * the remote's subject; its line our account there and whether the
+ * daemon is connected to it. It has no log, no files and no container
+ * here.
+ */
+function daemonEntity(d: Daemon): Entity {
+  const { issuer, subject } = d.daemon;
+  const line = `as ${d.identity.subject} · ${d.connected ? "connected" : "disconnected"}`;
+  return { key: daemonKey(d), kind: "daemon", label: d.description || subject, detail: `${issuer} ${subject} — ${line}`, line };
+}
+
+/**
  * The model a snapshot makes.
  *
  * The rules:
@@ -185,6 +206,8 @@ function providerEntity(p: Provider): Entity {
  *    pair of its own, never merged with the events between the two.
  * 6. Every listed provider is an entity, with its live state —
  *    connected — and no subject, files or container (`providerEntity`).
+ * 7. Every listed remote daemon is an entity, with its live state —
+ *    connected — and no subject, files or container (`daemonEntity`).
  */
 export function model(snapshot: Snapshot): Model {
   const entities = new Map<string, Entity>();
@@ -220,6 +243,8 @@ export function model(snapshot: Snapshot): Model {
   }
   // Rule 6.
   for (const p of snapshot.providers) put({ ...providerEntity(p), live: providerLive(p) });
+  // Rule 7.
+  for (const d of snapshot.daemons) put({ ...daemonEntity(d), live: daemonLive(d) });
   // Rules 2 to 4.
   const pairs = new Map<string, Pair>();
   for (const event of snapshot.events) {

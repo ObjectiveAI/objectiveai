@@ -5,7 +5,7 @@ import type { Point } from "../world/geometry";
 import type { Entity, Kind } from "../world/model";
 
 /** The columns, left to right. */
-const COLUMNS: Kind[] = ["account", "agent", "standalone_tool", "connected_standalone_tool", "dependency_tool", "volume", "provider"];
+const COLUMNS: Kind[] = ["account", "agent", "standalone_tool", "connected_standalone_tool", "daemon", "dependency_tool", "volume", "provider"];
 
 /** Pixels between columns, between nodes down a column, and round the whole. */
 const ACROSS = 240;

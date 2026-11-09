@@ -10,7 +10,7 @@ export const NODE = 64;
 const C = NODE / 2;
 
 /** How far from a node's middle a line to it stops: its shape's reach. */
-export const REACH: Record<Kind, number> = { account: 17, agent: 20, standalone_tool: 18, connected_standalone_tool: 18, dependency_tool: 13, volume: 15, provider: 19 };
+export const REACH: Record<Kind, number> = { account: 17, agent: 20, standalone_tool: 18, connected_standalone_tool: 18, dependency_tool: 13, volume: 15, provider: 19, daemon: 16 };
 
 /** Each texture's key. */
 export const nodeKey = (kind: Kind) => `grid-${kind}`;
@@ -63,6 +63,14 @@ const SHAPES: Record<Kind, Shape> = {
     { points: [v(-6, -11), v(-2, -11)], closed: false },
     { points: [v(-6, 0), v(-2, 0)], closed: false },
     { points: [v(-6, 11), v(-2, 11)], closed: false },
+  ],
+  // A globe: its ring, its meridian, its equator and two parallels — another daemon, far off.
+  daemon: [
+    { points: arc(16, 0, 2 * Math.PI), closed: true },
+    { points: arc(16, 0, 2 * Math.PI).map((p) => new Phaser.Math.Vector2(C + (p.x - C) * 0.42, p.y)), closed: true },
+    { points: [v(-16, 0), v(16, 0)], closed: false },
+    { points: [v(-13.9, -8), v(13.9, -8)], closed: false },
+    { points: [v(-13.9, 8), v(13.9, 8)], closed: false },
   ],
 };
 

@@ -15,6 +15,7 @@ const KIND_ORDER: [Kind, string, string][] = [
   ["agent", "⬡", "agents"],
   ["standalone_tool", "◇", "standalone tools"],
   ["connected_standalone_tool", "◈", "connected tools"],
+  ["daemon", "⊕", "remote daemons"],
   ["dependency_tool", "□", "dependency tools"],
   ["volume", "⛁", "volumes"],
   ["provider", "▤", "providers"],
@@ -23,8 +24,24 @@ const KIND_ORDER: [Kind, string, string][] = [
 /** Each type's sample stroke on the legend. */
 const SAMPLE: Record<EdgeType, string> = { call: "──▸", attachment: "╌╌╌", creator: "o┈┈" };
 
-/** The keys that toggle each entry, kinds first, then types of line: the tenth is `0`. */
-const KEYS = ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "ZERO"];
+/**
+ * The keys that toggle each entry, kinds first, then types of line:
+ * each as Phaser names it, and as the legend prints it. The tenth is
+ * `0`, the eleventh `-`.
+ */
+const KEYS: [string, string][] = [
+  ["ONE", "1"],
+  ["TWO", "2"],
+  ["THREE", "3"],
+  ["FOUR", "4"],
+  ["FIVE", "5"],
+  ["SIX", "6"],
+  ["SEVEN", "7"],
+  ["EIGHT", "8"],
+  ["NINE", "9"],
+  ["ZERO", "0"],
+  ["MINUS", "-"],
+];
 
 /** The width a name is padded to, so the counts stand in one column. */
 const NAME_WIDTH = 18;
@@ -122,9 +139,10 @@ export class Ui extends Phaser.Scene {
     };
     const add = (what: Entry["toggle"], sample: string, name: string, color: string) => {
       const text = this.add.text(0, 0, "", { ...STYLE, fontSize: "12px", color, padding: { x: 10, y: 3 } });
-      const entry = { toggle: what, head: `${(entries.length + 1) % 10}  ${sample}`, name, text };
+      const [code, label] = KEYS[entries.length];
+      const entry = { toggle: what, head: `${label}  ${sample}`, name, text };
       text.setInteractive({ useHandCursor: true }).on("pointerup", () => toggle(entry));
-      this.input.keyboard?.on(`keydown-${KEYS[entries.length]}`, () => toggle(entry));
+      this.input.keyboard?.on(`keydown-${code}`, () => toggle(entry));
       entries.push(entry);
     };
     for (const [kind, sample, name] of KIND_ORDER) add({ kind }, sample, name, css(NEON[kind]));
