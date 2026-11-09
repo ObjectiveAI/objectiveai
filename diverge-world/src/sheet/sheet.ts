@@ -23,7 +23,8 @@ type Tab = "logs" | "files" | "console" | "frontend";
 /**
  * The tabs an entity has, in order: logs with a log, a filesystem with
  * files, a console with a container. A connected tool has its log
- * alone: its files and its container are the other daemon's.
+ * alone: its files and its container are the other daemon's. A
+ * provider has none: no log, no files, no container of its own.
  */
 function tabsOf(entity: Entity): Tab[] {
   const tabs: Tab[] = [];
@@ -78,10 +79,13 @@ function subline(subject: Subject): string {
  *
  * 1. It lies along the bottom of the window, the full width, `HEIGHT`
  *    hundredths tall; its handle drags it between `LEAST` and `MOST`.
- * 2. Its header names the entity (`subline`, else its detail), and
+ * 2. Its header names the entity (`subline`; else, a provider's, its
+ *    `line` — its direction and where the daemon stands with it; else
+ *    its detail), and
  *    its green dot, lit exactly while its node on the board is bright
  *    (`bright`, then `told`): an agent or a tool deployed, an account
- *    connected, a volume mounted into a deployed container;
+ *    or a provider connected, a volume mounted into a deployed
+ *    container;
  *    its tabs, `logs`, `filesystem`, `console` and `frontend`, those it has, shown
  *    however many it has, one among them; the fill button; and ✕, which
  *    closes it and tells `closed`.
@@ -89,7 +93,8 @@ function subline(subject: Subject): string {
  *    (`files`) the filesystem tab, one with a container (an agent, a
  *    standalone tool, a dependency tool — never a connected tool, whose
  *    container is the other daemon's) the console tab, an agent or a tool whose
- *    image declares a frontend (`frontend`) the frontend tab (`tabsOf`). It opens on
+ *    image declares a frontend (`frontend`) the frontend tab (`tabsOf`);
+ *    a provider has none of them. It opens on
  *    the tab last chosen (`chosen`) if it has it, else on the first it
  *    has. A tab's read starts the first time it is shown and runs until
  *    the sheet closes; closing stops every one and empties every one.
@@ -214,7 +219,7 @@ export class Sheet {
     const { entity } = opened;
     this.opened = opened;
     this.title.textContent = entity.label;
-    this.sub.textContent = entity.subject ? subline(entity.subject) : entity.detail;
+    this.sub.textContent = entity.subject ? subline(entity.subject) : (entity.line ?? entity.detail);
     this.live.classList.toggle("on", this.bright(entity.key));
     const tabs = tabsOf(entity);
     this.tabs.hidden = tabs.length === 0;

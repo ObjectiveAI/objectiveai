@@ -1,4 +1,4 @@
-// The daemon followed: the nine lists the world is drawn from, kept
+// The daemon followed: the ten lists the world is drawn from, kept
 // open for as long as the board is up, and the names of the agents'
 // and tools' images as each is first seen.
 
@@ -33,9 +33,9 @@ const e = daemon.endpoints;
  *
  * The rules:
  *
- * 1. The nine lists — accounts, agents, agent templates, standalone
+ * 1. The ten lists — accounts, agents, agent templates, standalone
  *    tools, connected standalone tools, standalone tool templates,
- *    dependency tools, events, volumes — are each kept
+ *    dependency tools, events, volumes, providers — are each kept
  *    open and folded into a listing. A list that ends, fails or is
  *    refused is opened again `AGAIN` milliseconds later, until `stop`.
  * 2. A list opened again tells every item it holds once more, and
@@ -74,6 +74,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
   const dependencies = kept(e.dependency_tools.list.server.response.key);
   const events = kept(e.events.key);
   const volumes = kept(e.volumes.list.server.response.key);
+  const providers = kept(e.providers.list.server.response.key);
   const all: [string, { listed: boolean; forbidden: boolean }][] = [
     ["accounts", accounts],
     ["agents", agents],
@@ -84,6 +85,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
     ["dependency tools", dependencies],
     ["events", events],
     ["volumes", volumes],
+    ["providers", providers],
   ];
 
   /** The world as it stands. */
@@ -97,6 +99,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
     dependencies: [...dependencies.listing.items],
     events: [...events.listing.items],
     volumes: [...volumes.listing.items],
+    providers: [...providers.listing.items],
     forbidden: all.filter(([, list]) => list.forbidden).map(([name]) => name),
     names: new Map(names),
     frontends: new Set(frontends),
@@ -206,6 +209,7 @@ export function follow(changed: (world: Snapshot) => void, event: (change: share
     if (events.listed) waiting.push(change);
   });
   keep({ name: "volumes", open: () => e.volumes.list.client.execute(handle, {}), key: e.volumes.list.server.response.key, change: e.volumes.list.server.response.change }, volumes);
+  keep({ name: "providers", open: () => e.providers.list.client.execute(handle, {}), key: e.providers.list.server.response.key, change: e.providers.list.server.response.change }, providers);
 
   return {
     stop() {

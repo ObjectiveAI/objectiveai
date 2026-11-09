@@ -21,6 +21,7 @@ export const KIND: Record<Kind, number> = {
   connected_standalone_tool: 0xd9621f,
   dependency_tool: 0x8044b8,
   volume: 0x1f9e89,
+  provider: 0x5b6878,
 };
 
 /** `color` made lighter by `amount` (towards white) or darker (negative, towards black). */

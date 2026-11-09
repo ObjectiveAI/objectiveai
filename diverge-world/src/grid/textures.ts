@@ -10,7 +10,7 @@ export const NODE = 64;
 const C = NODE / 2;
 
 /** How far from a node's middle a line to it stops: its shape's reach. */
-export const REACH: Record<Kind, number> = { account: 17, agent: 20, standalone_tool: 18, connected_standalone_tool: 18, dependency_tool: 13, volume: 15 };
+export const REACH: Record<Kind, number> = { account: 17, agent: 20, standalone_tool: 18, connected_standalone_tool: 18, dependency_tool: 13, volume: 15, provider: 19 };
 
 /** Each texture's key. */
 export const nodeKey = (kind: Kind) => `grid-${kind}`;
@@ -54,6 +54,15 @@ const SHAPES: Record<Kind, Shape> = {
     { points: arc(13, 0, Math.PI).map((p) => new Phaser.Math.Vector2(p.x, C + (p.y - C) * 0.35 + 9)), closed: false },
     { points: [v(-13, -9), v(-13, 9)], closed: false },
     { points: [v(13, -9), v(13, 9)], closed: false },
+  ],
+  // A server rack: a tall block of three units, each with its light.
+  provider: [
+    { points: [v(-11, -16), v(11, -16), v(11, 16), v(-11, 16)], closed: true },
+    { points: [v(-11, -5.5), v(11, -5.5)], closed: false },
+    { points: [v(-11, 5.5), v(11, 5.5)], closed: false },
+    { points: [v(-6, -11), v(-2, -11)], closed: false },
+    { points: [v(-6, 0), v(-2, 0)], closed: false },
+    { points: [v(-6, 11), v(-2, 11)], closed: false },
   ],
 };
 

@@ -17,13 +17,14 @@ const KIND_ORDER: [Kind, string, string][] = [
   ["connected_standalone_tool", "◈", "connected tools"],
   ["dependency_tool", "□", "dependency tools"],
   ["volume", "⛁", "volumes"],
+  ["provider", "▤", "providers"],
 ];
 
 /** Each type's sample stroke on the legend. */
 const SAMPLE: Record<EdgeType, string> = { call: "──▸", attachment: "╌╌╌", creator: "o┈┈" };
 
-/** The keys that toggle each entry, kinds first, then types of line. */
-const KEYS = ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE"];
+/** The keys that toggle each entry, kinds first, then types of line: the tenth is `0`. */
+const KEYS = ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "ZERO"];
 
 /** The width a name is padded to, so the counts stand in one column. */
 const NAME_WIDTH = 18;
@@ -121,7 +122,7 @@ export class Ui extends Phaser.Scene {
     };
     const add = (what: Entry["toggle"], sample: string, name: string, color: string) => {
       const text = this.add.text(0, 0, "", { ...STYLE, fontSize: "12px", color, padding: { x: 10, y: 3 } });
-      const entry = { toggle: what, head: `${entries.length + 1}  ${sample}`, name, text };
+      const entry = { toggle: what, head: `${(entries.length + 1) % 10}  ${sample}`, name, text };
       text.setInteractive({ useHandCursor: true }).on("pointerup", () => toggle(entry));
       this.input.keyboard?.on(`keydown-${KEYS[entries.length]}`, () => toggle(entry));
       entries.push(entry);
