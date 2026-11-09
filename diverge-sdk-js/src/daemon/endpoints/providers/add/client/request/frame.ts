@@ -11,8 +11,8 @@ export const Frame = z.intersection(
   z.object({
   /** The provider, by the identity its token establishes. */
   identity: Identity,
-  /** Whether the daemon is discoverable to the provider. Absent, `false`. */
-  discover: z.boolean().optional(),
+  /** Whether the daemon is listable to the provider: listed by its `daemons::list`. Absent, `false`. */
+  listable: z.boolean().optional(),
   /** Whether the daemon works with it from now on. Absent, `true`. */
   enabled: z.boolean().optional(),
   /** What it is, in the caller's words. Absent, none. */

@@ -11,7 +11,7 @@ import type { Keyed } from "../../../../../../shared/listing/keyed.js";
 /**
  * One provider the daemon keeps a record of: its identity, the direction
  * its connection is made in — its members beside the record's own —
- * whether the daemon is discoverable to it and whether it is enabled,
+ * whether the daemon is listable to it and whether it is enabled,
  * its description and tags, who made the record and when, and where
  * the daemon stands with it now — and, connected, its latest capacity.
  */
@@ -19,8 +19,8 @@ export const Provider = z.intersection(
   z.object({
     /** The provider's identity: the `(issuer, subject)` its token establishes in the handshake. */
     identity: Identity,
-    /** Whether the daemon is discoverable to it. */
-    discover: z.boolean(),
+    /** Whether the daemon is listable to it: listed by its `daemons::list`. */
+    listable: z.boolean(),
     /** Whether the daemon works with it: dials it, or admits it. */
     enabled: z.boolean(),
     /** What it is, in the caller's words; empty where none was given. */

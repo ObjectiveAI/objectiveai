@@ -1,12 +1,12 @@
-// One identity discovered, and the routes it was seen on.
+// One identity listed, and the routes it was seen on.
 
 import { z } from "zod";
 import type { Keyed } from "../../../../../../../shared/listing/keyed.js";
 import { Via } from "./via.js";
 
 /**
- * One identity discoverable through the daemon's connected providers,
- * a route for every connected provider it is discoverable on — the
+ * One identity listable through the daemon's connected providers,
+ * a route for every connected provider it is listable on — the
  * provider, the IP, and the address when the provider dialled it — in
  * order of provider, never empty, and every distinct description
  * those providers list it with, in order: equal descriptions are one
@@ -14,7 +14,7 @@ import { Via } from "./via.js";
  * reaching it is `issuer` as its `issuer`, and one link per provider:
  * `provider` that provider, `daemon` this identity.
  */
-export const Discovered = z.object({
+export const Listed = z.object({
   /** The `iss` claim the identity's connections were authorized under. */
   issuer: z.string(),
   /** The `sub` claim. */
@@ -24,7 +24,7 @@ export const Discovered = z.object({
   /** Every distinct description it is listed with, in order: one trimmed line of 1 to 132 characters each. */
   descriptions: z.array(z.string().min(1).max(132)),
 });
-export type Discovered = z.infer<typeof Discovered>;
+export type Listed = z.infer<typeof Listed>;
 
 /** Keyed by the identity. */
-export const key: Keyed<Discovered> = (discovered) => ({ issuer: discovered.issuer, subject: discovered.subject });
+export const key: Keyed<Listed> = (listed) => ({ issuer: listed.issuer, subject: listed.subject });

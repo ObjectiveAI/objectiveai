@@ -7,6 +7,7 @@ import * as identities from "./identities/index.js";
 import * as images from "../../shared/permission/images/index.js";
 import * as postgres from "../../shared/permission/postgres/index.js";
 import * as providers from "../../shared/permission/providers/index.js";
+import * as providers_daemons from "../../shared/permission/providers_daemons/index.js";
 import * as accounts from "./accounts/index.js";
 import * as agents from "./agents/index.js";
 import * as agents_templates from "./agents_templates/index.js";
@@ -30,6 +31,7 @@ export const Grant = z.union([
   z.strictObject({ standalone_tools_templates: standalone_tools_templates.Permission }),
   z.strictObject({ dependency_tools: dependency_tools.Permission }),
   z.strictObject({ providers: providers.Permission }),
+  z.strictObject({ providers_daemons: providers_daemons.Permission }),
   z.strictObject({ daemons: daemons.Permission }),
   z.strictObject({ accounts: accounts.Permission }),
   z.strictObject({ roles: roles.Permission }),

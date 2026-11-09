@@ -1,30 +1,30 @@
-// A discover's answer: a stream kept open.
+// A list's answer: a stream kept open.
 
 import { z } from "zod";
 import { DecodeError, jsonOf, splitTag } from "../../../../../../../wire/decode.js";
 import { Error } from "../../../../../../../shared/error.js";
 import type { Change } from "../../../../../../../shared/listing/change.js";
-import { Discovered } from "./discovered.js";
+import { Listed } from "./listed.js";
 
 /**
- * A discover's answer: an identity added, changed or removed, the word
+ * A list's answer: an identity added, changed or removed, the word
  * that the listing is whole, forbidden, or a failure. First every
- * identity discoverable when the scope opened, in order, the first
+ * identity listable when the scope opened, in order, the first
  * `count` of them, each as `added`; then exactly one `listed`; then,
- * for the scope's life, an identity come to be discoverable as
+ * for the scope's life, an identity come to be listable as
  * `added`, one whose providers grew or shrank as `changed`, one
- * discoverable on no connected provider any more as `removed`. The
+ * listable on no connected provider any more as `removed`. The
  * finish follows the client's cancel or exactly one `error`; or the
  * scope is exactly one `forbidden`.
  */
 export const Frame = z.union([
   /** One identity, with its providers, listed now and not before. Tag `0`. */
-  z.strictObject({ added: Discovered }),
+  z.strictObject({ added: Listed }),
   /** One identity listed already, its providers as they are now, differing from what was last sent. Tag `1`. */
-  z.strictObject({ changed: Discovered }),
-  /** One identity listed already, discoverable on no connected provider any more: as it was last sent. Tag `2`. */
-  z.strictObject({ removed: Discovered }),
-  /** Every identity discoverable when the scope opened has been sent. A client that wants the listing once cancels here; one that watches reads on. Tag `3`. */
+  z.strictObject({ changed: Listed }),
+  /** One identity listed already, listable on no connected provider any more: as it was last sent. Tag `2`. */
+  z.strictObject({ removed: Listed }),
+  /** Every identity listable when the scope opened has been sent. A client that wants the listing once cancels here; one that watches reads on. Tag `3`. */
   z.literal("listed"),
   /** The account the request is served for holds no grant allowing it; nothing was sent. Tag `4`. */
   z.literal("forbidden"),
@@ -50,11 +50,11 @@ export function decode(bytes: Uint8Array): Frame {
   const [tag, rest] = splitTag(bytes);
   switch (tag) {
     case ADDED:
-      return { added: Discovered.parse(jsonOf(rest)) };
+      return { added: Listed.parse(jsonOf(rest)) };
     case CHANGED:
-      return { changed: Discovered.parse(jsonOf(rest)) };
+      return { changed: Listed.parse(jsonOf(rest)) };
     case REMOVED:
-      return { removed: Discovered.parse(jsonOf(rest)) };
+      return { removed: Listed.parse(jsonOf(rest)) };
     case LISTED:
       return "listed";
     case FORBIDDEN:
@@ -71,7 +71,7 @@ export function decode(bytes: Uint8Array): Frame {
  * or `null` where it tells a listing nothing: forbidden, or a
  * failure, the answers that end the scope.
  */
-export function change(frame: Frame): Change<Discovered> | null {
+export function change(frame: Frame): Change<Listed> | null {
   if (frame === "listed") {
     return { kind: "listed" };
   }

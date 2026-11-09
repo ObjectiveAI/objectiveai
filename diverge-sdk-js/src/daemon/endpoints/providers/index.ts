@@ -2,13 +2,13 @@
 //
 // A provider is a record, by the identity its token establishes in the
 // handshake — the `(issuer, subject)` — with the `Direction` its
-// connection is made in, whether the daemon is discoverable to it, and
+// connection is made in, whether the daemon is listable to it, and
 // whether it is enabled. `add`, `edit`, `delete`, `enable`, `disable`,
 // `tag` and `untag` change the records, each change taking effect at
 // once; a delete forgets only a disabled provider nothing is pinned to.
 // A list or a get reports the daemon's `Status` with each and its latest
 // capacity. `daemons` holds the requests over the daemons reached
-// through them: discover, listen and message.
+// through them: list, listen and message.
 
 export * from "./direction.js";
 export * from "./ip.js";

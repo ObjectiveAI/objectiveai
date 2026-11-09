@@ -1,24 +1,24 @@
-// The auth frame's payload: the discover flag, a description with it, and a token.
+// The auth frame's payload: the listable flag, a description with it, and a token.
 
 import { utf8 } from "../encode.js";
 import { text } from "../decode.js";
 import { FrameError } from "./error.js";
 
 /**
- * The payload of an auth frame, in either direction: the discover
+ * The payload of an auth frame, in either direction: the listable
  * flag — one byte, `0`, `1` or `2` — then, after `2` only, the
  * description's byte length as a `u16`, big-endian, and its UTF-8
  * bytes; then the token, an RFC 7519 JWT, as UTF-8, every byte after
  * those, with no length. Each end sends exactly one, the connector's
  * first and the connectee's in answer, from the same issuer. Only a
  * provider honors the flag, listing a peer that sent `1` or `2` to its
- * `discover`; this SDK dials daemons, so it sends `0` unless told
+ * `daemons.list`; this SDK dials daemons, so it sends `0` unless told
  * otherwise, and never a description.
  */
-export function auth(token: string, discover = false): Uint8Array {
+export function auth(token: string, listable = false): Uint8Array {
   const bytes = utf8(token);
   const payload = new Uint8Array(bytes.length + 1);
-  payload[0] = discover ? 1 : 0;
+  payload[0] = listable ? 1 : 0;
   payload.set(bytes, 1);
   return payload;
 }

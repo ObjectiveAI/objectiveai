@@ -6,12 +6,12 @@ import { Direction } from "../../../direction.js";
 import { Identity } from "../../../../../../shared/identity.js";
 import { Relay } from "../../../../../../shared/relay.js";
 
-/** Ask the daemon to change a provider's record, by its identity: every member given replaces the record's; a direction given replaces the whole of it. A change to the direction or the discover flag closes the connection. */
+/** Ask the daemon to change a provider's record, by its identity: every member given replaces the record's; a direction given replaces the whole of it. A change to the direction or the listable flag closes the connection. */
 const Base = z.object({
   /** The provider, by the identity its token establishes. */
   identity: Identity,
-  /** The discover flag, in place of the record's. */
-  discover: z.boolean().optional(),
+  /** The listable flag, in place of the record's. */
+  listable: z.boolean().optional(),
   /** The description, in place of the record's. */
   description: z.string().optional(),
   /** Served by another daemon: see `Relay`. Absent, served here. */

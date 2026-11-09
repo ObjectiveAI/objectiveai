@@ -1,10 +1,10 @@
-// One route to a discovered identity: a provider that lists it, and where.
+// One route to a listed identity: a provider that lists it, and where.
 
 import { z } from "zod";
 import { Identity } from "../../../../../../../shared/identity.js";
 
 /**
- * One provider whose `discover` listing holds the identity, with where
+ * One provider whose `daemons.list` listing holds the identity, with where
  * that provider holds its connection: the IP of the identity's
  * connection to it, and the dial target when the provider dialled it.
  */

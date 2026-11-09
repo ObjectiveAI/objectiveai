@@ -27,6 +27,7 @@ export * as identities from "./identities/index.js";
 export * as images from "./images/index.js";
 export * as postgres from "./postgres/index.js";
 export * as providers from "./providers/index.js";
+export * as providers_daemons from "./providers_daemons/index.js";
 export * as roles from "./roles/index.js";
 export * as standalone_tools from "./standalone_tools/index.js";
 export * as standalone_tools_templates from "./standalone_tools_templates/index.js";

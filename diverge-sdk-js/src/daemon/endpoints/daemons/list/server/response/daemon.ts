@@ -14,7 +14,7 @@ import type { Keyed } from "../../../../../../shared/listing/keyed.js";
  * the description and the tags do. `daemon` is the remote, by the identity it answers as, and several records may
  * name the same remote; `identity` is ours, presented to it, at the
  * remote's issuer. It is reached through any connected provider whose
- * discover listing holds `daemon` by a route its `Routes` let through.
+ * `daemons.list` listing holds `daemon` by a route its `Routes` let through.
  */
 export const Daemon = z.object({
   /** The ID: what it reaches and as whom, hashed. Unique among the records. */

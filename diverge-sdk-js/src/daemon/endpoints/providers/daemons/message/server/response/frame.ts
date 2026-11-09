@@ -16,7 +16,7 @@ export const Frame = z.union([
   z.literal("delivered"),
   /** Listed through a provider the account may send through, but listening through none. Tag `1`. */
   z.literal("not_listening"),
-  /** No connected provider's discover listing holds the identity. Tag `2`. */
+  /** No connected provider's `daemons.list` listing holds the identity. Tag `2`. */
   z.literal("not_found"),
   /** No grant allows it, or the identity is listed only through providers the grant does not reach. Tag `3`. */
   z.literal("forbidden"),

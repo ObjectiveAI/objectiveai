@@ -11,7 +11,7 @@ import { Relay } from "../../../../../../../shared/relay.js";
  * standard base64.
  */
 export const Frame = z.object({
-  /** The identity to message, as discovery lists it. */
+  /** The identity to message, as `list` lists it. */
   to: Identity,
   /** The body, as standard base64. Neither the daemon nor a provider reads it. */
   body: z.base64(),

@@ -11,6 +11,7 @@ import * as identities from "./identities/index.js";
 import * as images from "./images/index.js";
 import * as postgres from "./postgres/index.js";
 import * as providers from "./providers/index.js";
+import * as providers_daemons from "./providers_daemons/index.js";
 import * as roles from "./roles/index.js";
 import * as standalone_tools from "./standalone_tools/index.js";
 import * as standalone_tools_templates from "./standalone_tools_templates/index.js";
@@ -21,10 +22,10 @@ import * as volumes from "./volumes/index.js";
  * One grant that names nothing: a permission over one kind of thing
  * the daemon holds, reaching by tags alone. Externally tagged by the
  * kind's name — one object with one member, `{"agents":…}` — whose
- * value is that kind's `Permission`. The fifteen kinds, snake case:
+ * value is that kind's `Permission`. The sixteen kinds, snake case:
  * `agents`, `agents_templates`, `standalone_tools`,
  * `standalone_tools_templates`, `dependency_tools`, `providers`,
- * `daemons`, `accounts`, `roles`, `volumes`, `vault`, `postgres`,
+ * `providers_daemons`, `daemons`, `accounts`, `roles`, `volumes`, `vault`, `postgres`,
  * `events`, `images`, `identities`.
  */
 export const Grant = z.union([
@@ -34,6 +35,7 @@ export const Grant = z.union([
   z.strictObject({ standalone_tools_templates: standalone_tools_templates.Permission }),
   z.strictObject({ dependency_tools: dependency_tools.Permission }),
   z.strictObject({ providers: providers.Permission }),
+  z.strictObject({ providers_daemons: providers_daemons.Permission }),
   z.strictObject({ daemons: daemons.Permission }),
   z.strictObject({ accounts: accounts.Permission }),
   z.strictObject({ roles: roles.Permission }),

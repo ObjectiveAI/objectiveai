@@ -3,9 +3,9 @@
 // what it reaches and as whom, so fixed but for its description and
 // tags. There are no names: relays and connected tools name records by
 // ID. Several records may name the same remote. A remote is reached
-// through any connected provider whose discover listing holds it by a
+// through any connected provider whose `daemons.list` listing holds it by a
 // route its record's `Routes` let through, one chosen at random, so it
-// is reachable while it is discoverable so.
+// is reachable while it is listable so.
 
 export * as add from "./add/index.js";
 export * as delete from "./delete/index.js";
