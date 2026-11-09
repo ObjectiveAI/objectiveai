@@ -116,7 +116,8 @@ export function flipLine(registry: Phaser.Data.DataManager, type: EdgeType): voi
  *    right edge as the window is resized. Its bounds are told to the
  *    board (`OUTLINER`), which neither pans nor zooms for a press or a
  *    wheel that begins over it, nor while its grip or its scrollbar's
- *    thumb is dragged.
+ *    thumb is dragged. A press counts only when it went down and came
+ *    up on the canvas, so one made on the sheet over it presses nothing.
  * 2. Its top rows, one beneath another: Arrange — pressing it tells
  *    the board (`ARRANGE`) — then one row per type of line, its sample,
  *    its name, how many the board holds once drawn, and its eye;
@@ -156,6 +157,8 @@ export function outliner(scene: Phaser.Scene): void {
   // Rule 7: the track's top and height, the thumb's height, and how many rows are in view, as last drawn.
   let track = { y: 0, height: 0, thumb: 0, shown: 0 };
   const style = (color: string) => ({ fontFamily: FONT, fontSize: "12px", color });
+  // Rule 1: a press on the sheet, over the canvas, is the sheet's.
+  const onCanvas = (pointer: Phaser.Input.Pointer) => pointer.downElement === scene.game.canvas && pointer.upElement === scene.game.canvas;
   // Rule 1: the panel takes every press made on it, so the board beneath gets none.
   const panel = scene.add.rectangle(0, 0, WIDTH, 1, PLATE, PLATE_ALPHA).setOrigin(0, 0).setInteractive();
   const grip = scene.add.rectangle(0, 0, WIDTH, GRIP, 0xffffff, 0).setOrigin(0, 0).setDepth(1).setInteractive({ cursor: "move", draggable: true });
@@ -200,7 +203,7 @@ export function outliner(scene: Phaser.Scene): void {
   // Rule 2.
   const fixed = (type: EdgeType | null, press: () => void): Fixed => {
     const plate = scene.add.rectangle(0, 0, WIDTH - 2, ROW, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
-    plate.on("pointerup", press);
+    plate.on("pointerup", (pointer: Phaser.Input.Pointer) => onCanvas(pointer) && press());
     plate.on("pointerover", () => plate.setFillStyle(0xffffff, HOVERED));
     plate.on("pointerout", () => plate.setFillStyle(0xffffff, 0));
     const color = type === null ? "#ffffff" : CYAN;
@@ -217,11 +220,11 @@ export function outliner(scene: Phaser.Scene): void {
     const index = slots.length;
     const made: Slot = { plate, fold: text(), icon: text(), name: text(), aux: text(), eye: text() };
     plate.setInteractive({ useHandCursor: true });
-    plate.on("pointerup", () => press(top + index));
+    plate.on("pointerup", (pointer: Phaser.Input.Pointer) => onCanvas(pointer) && press(top + index));
     plate.on("pointerover", () => enter(top + index));
     plate.on("pointerout", () => leave(top + index));
     made.eye.setInteractive({ useHandCursor: true });
-    made.eye.on("pointerup", () => peek(top + index));
+    made.eye.on("pointerup", (pointer: Phaser.Input.Pointer) => onCanvas(pointer) && peek(top + index));
     return made;
   };
   // Rule 4.
