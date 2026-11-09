@@ -37,14 +37,14 @@ pub struct Singles {
     pub volumes_list: Slot,
     /// [`images::list`](diverge_sdk::provider::endpoints::images::list).
     pub images_list: Slot,
-    /// [`discover`](diverge_sdk::provider::endpoints::discover).
-    pub discover: Slot,
+    /// [`daemons::list`](diverge_sdk::provider::endpoints::daemons::list).
+    pub daemons_list: Slot,
     /// [`daemons::accept`](diverge_sdk::provider::endpoints::daemons::accept).
     pub daemons_accept: Slot,
-    /// [`messages::listen`](diverge_sdk::provider::endpoints::messages::listen).
-    pub messages_listen: Slot,
-    /// [`messages::send`](diverge_sdk::provider::endpoints::messages::send).
-    pub messages_send: Slot,
+    /// [`daemons::listen`](diverge_sdk::provider::endpoints::daemons::listen).
+    pub daemons_listen: Slot,
+    /// [`daemons::message`](diverge_sdk::provider::endpoints::daemons::message).
+    pub daemons_message: Slot,
 }
 
 /// One of the six, on one connection: free, or claimed by exactly one

@@ -18,7 +18,7 @@ use crate::protocol::progress::Pushing;
 use diverge_sdk::provider::endpoints::images::push::server::response::{Blob, Exists, Pushed};
 use diverge_sdk::shared::containers::request::Image;
 use diverge_sdk::shared::containers::response::Source;
-use diverge_sdk::shared::discover::Description;
+use diverge_sdk::shared::description::Description;
 
 /// The push as the manager hands it back: every blob taken from the
 /// caller as it lands, then how it ended.

@@ -11,7 +11,7 @@ use super::acceptors::Acceptors;
 use super::capacity_reporter::CapacityReporter;
 use super::container_deployer::ContainerDeployer;
 use super::directory::Directory;
-use super::discoverable::Discoverable;
+use super::listables::Listables;
 use super::mailboxes::Mailboxes;
 use super::singles::Singles;
 use super::changes::Changes;
@@ -59,10 +59,10 @@ use diverge_sdk::shared::error::Error;
 /// connection hears of a change made on any other; and the
 /// [`Acceptors`], one per provider likewise, through which a daemon
 /// connecting on this connection finds one accepting on any other; and
-/// the [`Discoverable`], one per provider likewise, which a `discover`
+/// the [`Listables`], one per provider likewise, which a `daemons::list`
 /// on this connection lists; and the [`Mailboxes`], one per provider
-/// likewise, through which a send on this connection reaches a listen
-/// on any other.
+/// likewise, through which a `daemons::message` on this connection reaches a
+/// `daemons::listen` on any other.
 ///
 /// # One open at a time
 ///
@@ -96,7 +96,7 @@ pub async fn handle<D, V, M, O, C>(
     volume_changes: Arc<Changes>,
     image_changes: Arc<Changes>,
     acceptors: Arc<Acceptors>,
-    discoverable: Arc<Discoverable>,
+    listables: Arc<Listables>,
     mailboxes: Arc<Mailboxes>,
     capabilities: Arc<Capabilities>,
 ) -> Result<(), HandleError>
@@ -421,40 +421,40 @@ where
                     endpoints::daemons::connect::handle(scope, frame, &identity, address, acceptors).await;
                 });
             }
-            ClientRequest::Discover(_) => {
-                let scope = match singles.discover.claim(scope) {
+            ClientRequest::DaemonsList(_) => {
+                let scope = match singles.daemons_list.claim(scope) {
                     Ok(single) => single,
                     Err(scope) => {
-                        scopes.spawn(endpoints::discover::refuse(scope));
+                        scopes.spawn(endpoints::daemons::list::refuse(scope));
                         continue;
                     }
                 };
-                let discoverable = Arc::clone(&discoverable);
+                let listables = Arc::clone(&listables);
                 scopes.spawn(async move {
-                    endpoints::discover::handle(scope, discoverable).await;
+                    endpoints::daemons::list::handle(scope, listables).await;
                 });
             }
-            ClientRequest::MessagesListen(_) => {
-                let scope = match singles.messages_listen.claim(scope) {
+            ClientRequest::DaemonsListen(_) => {
+                let scope = match singles.daemons_listen.claim(scope) {
                     Ok(single) => single,
                     Err(scope) => {
-                        scopes.spawn(endpoints::messages::listen::refuse(scope));
+                        scopes.spawn(endpoints::daemons::listen::refuse(scope));
                         continue;
                     }
                 };
                 let identity = Arc::clone(&client_identity);
                 let mailboxes = Arc::clone(&mailboxes);
-                let discoverable = Arc::clone(&discoverable);
+                let listables = Arc::clone(&listables);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::messages::listen::handle(scope, &identity, mailboxes, discoverable, &capabilities).await;
+                    endpoints::daemons::listen::handle(scope, &identity, mailboxes, listables, &capabilities).await;
                 });
             }
-            ClientRequest::MessagesSend(frame) => {
-                let scope = match singles.messages_send.claim(scope) {
+            ClientRequest::DaemonsMessage(frame) => {
+                let scope = match singles.daemons_message.claim(scope) {
                     Ok(single) => single,
                     Err(scope) => {
-                        scopes.spawn(endpoints::messages::send::refuse(scope));
+                        scopes.spawn(endpoints::daemons::message::refuse(scope));
                         continue;
                     }
                 };
@@ -464,10 +464,10 @@ where
                 let to = frame.to;
                 let identity = Arc::clone(&client_identity);
                 let mailboxes = Arc::clone(&mailboxes);
-                let discoverable = Arc::clone(&discoverable);
+                let listables = Arc::clone(&listables);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::messages::send::handle(scope, &identity, to, body, mailboxes, discoverable, &capabilities).await;
+                    endpoints::daemons::message::handle(scope, &identity, to, body, mailboxes, listables, &capabilities).await;
                 });
             }
             ClientRequest::Invalid(_) => scope.send_response_finish().await,

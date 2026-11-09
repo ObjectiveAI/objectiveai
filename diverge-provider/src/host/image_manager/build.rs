@@ -19,7 +19,7 @@ use crate::protocol::context::Context;
 use crate::protocol::progress::Progress;
 use crate::protocol::volume_manager::VolumeManager as _;
 use diverge_sdk::provider::endpoints::images::build::server::response::{Built, Exists};
-use diverge_sdk::shared::discover::Description;
+use diverge_sdk::shared::description::Description;
 
 /// The build as the manager hands it back: every line as it is
 /// said, then how it ended.

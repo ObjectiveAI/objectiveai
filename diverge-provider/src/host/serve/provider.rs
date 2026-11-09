@@ -10,12 +10,12 @@ use futures_util::future::{self, Either};
 use tokio::sync::watch;
 
 use diverge_sdk::shared::Identity;
-use diverge_sdk::shared::discover::Discover;
+use diverge_sdk::shared::listable::Listable;
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::handshake::{self, Handshook};
 use crate::protocol::acceptors::Acceptors;
 use crate::protocol::directory::Directory;
-use crate::protocol::discoverable::Discoverable;
+use crate::protocol::listables::Listables;
 use crate::protocol::mailboxes::Mailboxes;
 use crate::protocol::changes::Changes;
 use crate::protocol::handle::handle;
@@ -62,9 +62,9 @@ pub struct Provider {
     /// The daemons accepting connections from other daemons, one map
     /// for the provider.
     acceptors: Arc<Acceptors>,
-    /// The connected identities whose discover flag was `1`, one set
+    /// The connected identities whose listable flag was `1`, one set
     /// for the provider.
-    discoverable: Arc<Discoverable>,
+    listables: Arc<Listables>,
     /// The identities listening for messages, what waits for each, and
     /// every sender's window, one for the provider.
     mailboxes: Arc<Mailboxes>,
@@ -148,7 +148,7 @@ impl Provider {
         let capacity = Arc::new(CapacityReporter::new(Arc::clone(&volumes), store.clone(), Arc::clone(&deployer)));
         let client = Arc::new(RegistryClient::new(&registries).map_err(Error::RegistryClient)?);
         let images = Arc::new(ImageManager::new(store, blobs, Arc::clone(&volumes), Arc::clone(&deployer), client));
-        let discoverable = Arc::new(Discoverable::new());
+        let listables = Arc::new(Listables::new());
         Ok(Provider {
             authenticator,
             deployer,
@@ -156,8 +156,8 @@ impl Provider {
             images,
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
-            mailboxes: Arc::new(Mailboxes::new(capabilities.messages, Arc::clone(&discoverable))),
-            discoverable,
+            mailboxes: Arc::new(Mailboxes::new(capabilities.messages, Arc::clone(&listables))),
+            listables,
             volume_changes: Arc::new(Changes::new()),
             image_changes: Arc::new(Changes::new()),
             capabilities,
@@ -173,27 +173,27 @@ impl Provider {
     /// another connection holds among the ways — closes the connection
     /// with nothing sent.
     pub async fn accept(&self, connection: Connection, address: IpAddr) {
-        let Ok(Handshook { connection, peer, discover }) = handshake::accept(connection, self.authenticator.as_ref(), address).await else {
+        let Ok(Handshook { connection, peer, listable }) = handshake::accept(connection, self.authenticator.as_ref(), address).await else {
             return;
         };
-        self.held(connection, peer, discover, address, None).await;
+        self.held(connection, peer, listable, address, None).await;
     }
 
     /// A connection past its handshake, under `peer`, whose identity
     /// the handshake took: the connection served, and the identity let
-    /// go. `discover` is the peer's discover flag, honored whichever
+    /// go. `listable` is the peer's listable flag, honored whichever
     /// end dialled: when it lists the peer, `peer` is listed to every
-    /// `discover`, with its description, the socket's other end's
+    /// `listable`, with its description, the socket's other end's
     /// `address`, and the address `dialled` when this provider dialled
     /// it, for exactly as long as the connection is served.
-    pub async fn held(&self, connection: Connection, peer: Identity, discover: Discover, address: IpAddr, dialled: Option<String>) {
-        let listed = discover.is_listed();
-        if let Discover::Listed(description) = discover {
-            self.discoverable.enter(&peer, description, address, dialled).await;
+    pub async fn held(&self, connection: Connection, peer: Identity, listable: Listable, address: IpAddr, dialled: Option<String>) {
+        let listed = listable.is_listed();
+        if let Listable::Listed(description) = listable {
+            self.listables.enter(&peer, description, address, dialled).await;
         }
         self.connection(connection, Arc::new(peer.clone()), address).await;
         if listed {
-            self.discoverable.leave(&peer).await;
+            self.listables.leave(&peer).await;
         }
         self.mailboxes.left(&peer).await;
         self.authenticator.release(&peer).await;
@@ -236,7 +236,7 @@ impl Provider {
             Arc::clone(&self.volume_changes),
             Arc::clone(&self.image_changes),
             Arc::clone(&self.acceptors),
-            Arc::clone(&self.discoverable),
+            Arc::clone(&self.listables),
             Arc::clone(&self.mailboxes),
             Arc::clone(&self.capabilities),
         ));

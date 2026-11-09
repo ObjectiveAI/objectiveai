@@ -22,7 +22,7 @@ use crate::protocol::image_source::Manifest;
 use diverge_sdk::identities::path_name;
 use diverge_sdk::provider::endpoints::images::list::server::response::Image;
 use diverge_sdk::shared::containers::oci::prove::proof::Prover;
-use diverge_sdk::shared::discover::Description;
+use diverge_sdk::shared::description::Description;
 
 /// One identity's ownership of one image,
 /// `owners/<path_name(issuer)>/<path_name(subject)>/<algorithm>-<hex>.json`:

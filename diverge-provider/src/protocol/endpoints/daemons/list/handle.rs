@@ -1,4 +1,4 @@
-//! Answering a discover listing, from a scope and the discoverable
+//! Answering a daemons list, from a scope and the listables
 //! identities, and keeping it.
 
 use std::collections::BTreeMap;
@@ -6,19 +6,19 @@ use std::sync::Arc;
 
 use tokio::sync::broadcast;
 
-use diverge_sdk::provider::endpoints::discover::client::channel_request;
-use diverge_sdk::provider::endpoints::discover::server::response;
+use diverge_sdk::provider::endpoints::daemons::list::client::channel_request;
+use diverge_sdk::provider::endpoints::daemons::list::server::response;
 use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::protocol::discoverable::Discoverable;
+use crate::protocol::listables::Listables;
 use crate::protocol::singles::Single;
 
-/// List every identity `discoverable` holds — every connected identity
-/// whose discover flag was `1` or `2`, with its description, its IP and
+/// List every identity `listables` holds — every connected identity
+/// whose listable flag was `1` or `2`, with its description, its IP and
 /// the address it was dialled at — and keep
 /// listing, as an image listing
 /// keeps its images. The rules:
@@ -47,11 +47,11 @@ use crate::protocol::singles::Single;
 ///    [`Single`].
 ///
 /// Every connected peer may ask, and the asking identity is listed when
-/// it is itself discoverable. Nothing fails: a provider always knows
+/// it is itself listables. Nothing fails: a provider always knows
 /// what is connected to it.
-pub async fn handle(scope: Single<ScopeHandle>, discoverable: Arc<Discoverable>) {
-    let mut nudges = discoverable.subscribe();
-    let mut known = discoverable.list().await;
+pub async fn handle(scope: Single<ScopeHandle>, listables: Arc<Listables>) {
+    let mut nudges = listables.subscribe();
+    let mut known = listables.list().await;
     for listed in known.values() {
         send(&scope, &response::Frame::Added(listed.clone())).await;
     }
@@ -61,7 +61,7 @@ pub async fn handle(scope: Single<ScopeHandle>, discoverable: Arc<Discoverable>)
             nudge = nudges.recv() => {
                 match nudge {
                     Ok(()) | Err(broadcast::error::RecvError::Lagged(_)) => {
-                        tell(&scope, &mut known, discoverable.list().await).await;
+                        tell(&scope, &mut known, listables.list().await).await;
                     }
                     Err(broadcast::error::RecvError::Closed) => break,
                 }
@@ -86,7 +86,7 @@ pub async fn handle(scope: Single<ScopeHandle>, discoverable: Arc<Discoverable>)
     scope.send_response_finish().await;
 }
 
-/// A discover listing on a connection holding one open already: `AlreadyOpen`
+/// A daemons list on a connection holding one open already: `AlreadyOpen`
 /// and the finish, and nothing else — see
 /// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time).
 pub async fn refuse(scope: ScopeHandle) {
@@ -97,9 +97,9 @@ pub async fn refuse(scope: ScopeHandle) {
 /// What differs between `known` and `now`, told — every identity new
 /// or listed anew as added, after every identity gone or listed anew as
 /// removed — and `now` kept as what is known (rule 3).
-async fn tell(scope: &ScopeHandle, known: &mut BTreeMap<Identity, response::Discoverable>, now: BTreeMap<Identity, response::Discoverable>) {
+async fn tell(scope: &ScopeHandle, known: &mut BTreeMap<Identity, response::Listed>, now: BTreeMap<Identity, response::Listed>) {
     // The same connection's item, but for `listening` (rule 3a).
-    let same = |was: &response::Discoverable, is: &response::Discoverable| {
+    let same = |was: &response::Listed, is: &response::Listed| {
         was.description == is.description && was.ip == is.ip && was.address == is.address
     };
     for (identity, listed) in known.iter() {

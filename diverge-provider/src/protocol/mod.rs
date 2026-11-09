@@ -132,9 +132,9 @@
 //! to find the connection to its proxy.
 //! [`acceptors`] is its twin for daemons: every daemon accepting
 //! connections through the provider, by identity, which a
-//! `daemons::connect` on any connection finds. [`discoverable`] is
-//! one more: every connected identity whose discover flag was `1`,
-//! which a `discover` on any connection lists. [`changes`] is the
+//! `daemons::connect` on any connection finds. [`listables`] is
+//! one more: every connected identity whose listable flag was `1`,
+//! which a `daemons::list` on any connection lists. [`changes`] is the
 //! third, twice over: the word that a caller's volume, or image,
 //! changed, which the listings open on any connection hear.
 //!
@@ -197,7 +197,7 @@ pub mod container_deployer;
 pub mod context;
 pub mod deployment;
 pub mod directory;
-pub mod discoverable;
+pub mod listables;
 pub mod endpoints;
 pub mod handle;
 pub mod hold;

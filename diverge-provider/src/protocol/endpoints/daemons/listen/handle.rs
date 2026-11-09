@@ -3,15 +3,15 @@
 use std::sync::Arc;
 
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
-use diverge_sdk::provider::endpoints::messages::listen::client::channel_request;
-use diverge_sdk::provider::endpoints::messages::listen::server::response;
+use diverge_sdk::provider::endpoints::daemons::listen::client::channel_request;
+use diverge_sdk::provider::endpoints::daemons::listen::server::response;
 use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::protocol::discoverable::Discoverable;
+use crate::protocol::listables::Listables;
 use crate::protocol::mailboxes::{Mailboxes, Outcome};
 use crate::protocol::release::Release;
 use crate::protocol::singles::Single;
@@ -21,8 +21,8 @@ use crate::protocol::singles::Single;
 ///
 /// 0. [`Unsupported`](response::Frame::Unsupported), then the finish,
 ///    on a provider that relays no messages; then
-///    [`NotDiscoverable`](response::Frame::NotDiscoverable), then the
-///    finish, for a caller whose connection is not in discovery.
+///    [`NotListed`](response::Frame::NotListed), then the
+///    finish, for a caller whose connection is not listed.
 /// 1. The mailbox, opened under the connection's identity — or not,
 ///    one being open under it on another connection, which is
 ///    [`AlreadyOpen`](response::Frame::AlreadyOpen), then the finish.
@@ -45,14 +45,14 @@ use crate::protocol::singles::Single;
 ///    closing is a [`Release`], so a scope that panics or is cancelled
 ///    closes it at the drop; the claim is held with the scope, and goes
 ///    before its finish either way — see [`Single`].
-pub async fn handle(scope: Single<ScopeHandle>, client_identity: &Identity, mailboxes: Arc<Mailboxes>, discoverable: Arc<Discoverable>, capabilities: &Capabilities) {
+pub async fn handle(scope: Single<ScopeHandle>, client_identity: &Identity, mailboxes: Arc<Mailboxes>, listables: Arc<Listables>, capabilities: &Capabilities) {
     if capabilities.messages.is_none() {
         send(&scope, &response::Frame::Unsupported).await;
         scope.send_response_finish().await;
         return;
     }
-    if !discoverable.is_listed(client_identity).await {
-        send(&scope, &response::Frame::NotDiscoverable).await;
+    if !listables.is_listed(client_identity).await {
+        send(&scope, &response::Frame::NotListed).await;
         scope.send_response_finish().await;
         return;
     }

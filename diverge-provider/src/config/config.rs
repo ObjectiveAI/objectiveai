@@ -70,7 +70,8 @@ pub struct Config {
     pub images: Option<Images>,
     /// The rate the provider relays direct messages at, between the
     /// identities connected to it. Absent means it relays none: a
-    /// listen and a send are each answered unsupported.
+    /// `daemons::listen` and a `daemons::message` are each answered
+    /// unsupported.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub messages: Option<Messages>,
 }

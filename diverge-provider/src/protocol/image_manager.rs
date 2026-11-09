@@ -13,7 +13,7 @@ use diverge_sdk::provider::endpoints::images::delete::server::response::Deletion
 use diverge_sdk::provider::endpoints::images::list::server::response::Image;
 use diverge_sdk::provider::endpoints::images::stat::server::response::Stat;
 use diverge_sdk::shared::containers::request::Image as Wanted;
-use diverge_sdk::shared::discover::Description;
+use diverge_sdk::shared::description::Description;
 
 /// The Store: one per caller, of the images it owns, each by its
 /// manifest digest alone.

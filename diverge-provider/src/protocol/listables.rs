@@ -3,9 +3,9 @@
 use std::collections::BTreeMap;
 use std::net::IpAddr;
 
-use diverge_sdk::provider::endpoints::discover::server::response;
+use diverge_sdk::provider::endpoints::daemons::list::server::response;
 use diverge_sdk::shared::Identity;
-use diverge_sdk::shared::discover::Description;
+use diverge_sdk::shared::description::Description;
 use tokio::sync::{Mutex, broadcast};
 
 /// How many nudges a listing may fall behind before it is told it
@@ -13,9 +13,9 @@ use tokio::sync::{Mutex, broadcast};
 const NUDGES_BEHIND: usize = 256;
 
 /// Every identity connected to this provider whose authorization frame
-/// carried the discover flag `1` or `2`, the description it carried,
+/// carried the listable flag `1` or `2`, the description it carried,
 /// and where its connection is — the socket's other end, and the dial
-/// target when this provider dialled it — what a `discover` listing on
+/// target when this provider dialled it — what a `daemons::list` on
 /// any connection lists, and keeps listing.
 ///
 /// One per provider, shared across every connection, as the
@@ -37,19 +37,19 @@ const NUDGES_BEHIND: usize = 256;
 ///    order.
 /// 5. **Listening.** An entry is entered not listening; the
 ///    [`Mailboxes`](super::mailboxes::Mailboxes) mark it listening as a
-///    `messages::listen` opens under its identity, and not as it closes,
+///    `daemons::listen` opens under its identity, and not as it closes,
 ///    and each mark that changes it nudges. A mark for an identity not
 ///    held is nothing.
 #[derive(Debug)]
-pub struct Discoverable {
-    held: Mutex<BTreeMap<Identity, response::Discoverable>>,
+pub struct Listables {
+    held: Mutex<BTreeMap<Identity, response::Listed>>,
     nudges: broadcast::Sender<()>,
 }
 
-impl Discoverable {
+impl Listables {
     pub fn new() -> Self {
         let (nudges, _) = broadcast::channel(NUDGES_BEHIND);
-        Discoverable { held: Mutex::new(BTreeMap::new()), nudges }
+        Listables { held: Mutex::new(BTreeMap::new()), nudges }
     }
 
     /// A nudge for every change from now on — subscribed before a
@@ -60,10 +60,10 @@ impl Discoverable {
     }
 
     /// `identity` is connected from `ip` — dialled at `address`, when
-    /// this provider dialled it — and discoverable with `description`,
+    /// this provider dialled it — and listables with `description`,
     /// until [`leave`](Self::leave).
     pub(crate) async fn enter(&self, identity: &Identity, description: Option<Description>, ip: IpAddr, address: Option<String>) {
-        let listed = response::Discoverable { identity: identity.clone(), description, ip, address, listening: false };
+        let listed = response::Listed { identity: identity.clone(), description, ip, address, listening: false };
         self.held.lock().await.insert(identity.clone(), listed);
         let _ = self.nudges.send(());
     }
@@ -88,21 +88,21 @@ impl Discoverable {
         }
     }
 
-    /// Whether `identity` is in discovery now: connected with the flag
+    /// Whether `identity` is listed now: connected with the flag
     /// `1` or `2`.
     pub(crate) async fn is_listed(&self, identity: &Identity) -> bool {
         self.held.lock().await.contains_key(identity)
     }
 
-    /// Every discoverable identity connected now, in order, each as a
+    /// Every listables identity connected now, in order, each as a
     /// listing's item.
-    pub(crate) async fn list(&self) -> BTreeMap<Identity, response::Discoverable> {
+    pub(crate) async fn list(&self) -> BTreeMap<Identity, response::Listed> {
         self.held.lock().await.clone()
     }
 }
 
-impl Default for Discoverable {
+impl Default for Listables {
     fn default() -> Self {
-        Discoverable::new()
+        Listables::new()
     }
 }

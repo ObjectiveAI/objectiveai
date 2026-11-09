@@ -20,7 +20,7 @@ use diverge_sdk::provider::endpoints::images::delete::server::response::Deletion
 use diverge_sdk::provider::endpoints::images::list::server::response::Image;
 use diverge_sdk::provider::endpoints::images::stat::server::response::Stat;
 use diverge_sdk::shared::containers::request::Image as Wanted;
-use diverge_sdk::shared::discover::Description;
+use diverge_sdk::shared::description::Description;
 
 /// This provider's image manager: the Store, the blob store an image
 /// a registry serves is brought through, the volumes a build reads its
