@@ -1,7 +1,8 @@
 // The outliner: the game's one menu, down the right of the window, as a
 // grand strategy game lists what its player holds — Arrange and the
-// types of line along its top, what the world has to say beneath, and
-// every node on the board by kind, each kind shown or hidden by its eye.
+// types of line at its top, a row each, what the world has to say
+// beneath, and every node on the board by kind, each kind shown or
+// hidden by its eye.
 
 import * as Phaser from "phaser";
 import { type EdgeType, TYPES } from "../grid/edges";
@@ -44,14 +45,24 @@ const OFF = "#3a4656";
 const EYE_OPEN = "◉";
 const EYE_SHUT = "◌";
 
-/** The title bar's colour, and the status row's. */
+/** The types of line's colour, and the status row's. */
 const CYAN = "#22e5ff";
 const AMBER = "#ffb020";
 
 const FONT = "Consolas, 'Courier New', monospace";
 
-/** Each type's sample stroke in the title bar. */
+/** Each type's sample stroke, and its name. */
 const SAMPLE: Record<EdgeType, string> = { call: "──▸", attachment: "╌╌╌", creator: "o┈┈" };
+const NAMES: Record<EdgeType, string> = { call: "calls", attachment: "attachments", creator: "creators" };
+
+/** Where a row's columns begin, from the panel's inner edge: the fold, the sample, and the name — a stroke's name further, past its three characters. */
+const FOLD = 0;
+const ICON = 14;
+const TITLE = 30;
+const STROKE_TITLE = 40;
+
+/** One fixed row at the top: Arrange, or one type of line. */
+type Fixed = { plate: Phaser.GameObjects.Rectangle; icon: Phaser.GameObjects.Text; name: Phaser.GameObjects.Text; aux: Phaser.GameObjects.Text; eye: Phaser.GameObjects.Text; type: EdgeType | null };
 
 /** One line of the outliner: a kind's header, or one entity under it. */
 type Line = { header: Kind; count: number } | { entry: Outline[number] };
@@ -90,11 +101,12 @@ export function flipLine(registry: Phaser.Data.DataManager, type: EdgeType): voi
  *    rows need and never taller than the window. Its bounds are told
  *    to the board (`OUTLINER`), which neither pans nor zooms for a
  *    press or a wheel that begins over it.
- * 2. Its title bar holds Arrange — pressing it tells the board
- *    (`ARRANGE`) — and one toggle per type of line, its sample and,
- *    once drawn, how many the board holds; pressing one shows or hides
- *    that type (`LINES`), and a hidden one is faint.
- * 3. Beneath the title bar, the status row says what the world says
+ * 2. Its top rows, one beneath another: Arrange — pressing it tells
+ *    the board (`ARRANGE`) — then one row per type of line, its sample,
+ *    its name, how many the board holds once drawn, and its eye;
+ *    pressing the row shows or hides that type (`LINES`), and a hidden
+ *    one's eye is shut and its row faint. A rule closes them.
+ * 3. Beneath the rule, the status row says what the world says
  *    (`STATUS`) — waiting for the daemon, or the lists the account may
  *    not read — in amber, wrapped to the width; with nothing to say it
  *    is not there.
@@ -112,7 +124,7 @@ export function flipLine(registry: Phaser.Data.DataManager, type: EdgeType): voi
  *    The row of the entity whose sheet is open (`SELECTED`) is lit.
  * 7. When the sections outgrow the window, the wheel over the outliner
  *    scrolls them `NOTCH` rows a notch; only the rows in view are drawn,
- *    and the title bar and status row hold still.
+ *    and the top rows and the status row hold still.
  */
 export function outliner(scene: Phaser.Scene): void {
   const folded = new Set<Kind>();
@@ -124,13 +136,16 @@ export function outliner(scene: Phaser.Scene): void {
   // Rule 1: the panel takes every press made on it, so the board beneath gets none.
   const panel = scene.add.rectangle(0, 0, WIDTH, 1, PLATE, PLATE_ALPHA).setOrigin(0, 0).setInteractive();
   // Rule 2.
-  const arrange = scene.add.text(0, 0, "◇ arrange", style("#ffffff")).setInteractive({ useHandCursor: true });
-  arrange.on("pointerup", () => scene.game.events.emit(ARRANGE));
-  const toggles = TYPES.map((type) => {
-    const text = scene.add.text(0, 0, SAMPLE[type], style(CYAN)).setInteractive({ useHandCursor: true });
-    text.on("pointerup", () => flipLine(scene.registry, type));
-    return { type, text };
-  });
+  const fixed = (type: EdgeType | null, press: () => void): Fixed => {
+    const plate = scene.add.rectangle(0, 0, WIDTH - 2, ROW, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    plate.on("pointerup", press);
+    plate.on("pointerover", () => plate.setFillStyle(0xffffff, HOVERED));
+    plate.on("pointerout", () => plate.setFillStyle(0xffffff, 0));
+    const color = type === null ? "#ffffff" : CYAN;
+    const text = (words: string) => scene.add.text(0, 0, words, style(color));
+    return { plate, icon: text(type === null ? "◇" : SAMPLE[type]), name: text(type === null ? "arrange" : NAMES[type]), aux: text(""), eye: text(""), type };
+  };
+  const tops = [fixed(null, () => scene.game.events.emit(ARRANGE)), ...TYPES.map((type) => fixed(type, () => flipLine(scene.registry, type)))];
   const rule = scene.add.rectangle(0, 0, WIDTH - 2 * PAD, 1, 0x22e5ff, 0.25).setOrigin(0, 0);
   // Rule 3.
   const status = scene.add.text(0, 0, "", { ...style(AMBER), wordWrap: { width: WIDTH - 2 * PAD } });
@@ -163,18 +178,20 @@ export function outliner(scene: Phaser.Scene): void {
     const value = scene.registry.get(STATUS) as Status | undefined;
     const selected = scene.registry.get(SELECTED) as string | null | undefined;
     const x = scene.scale.width - EDGE - WIDTH;
-    // Rule 2: Arrange at the left, the types of line from the right.
+    // Rule 2: Arrange, then each type of line, a row each.
     let y = EDGE + PAD;
-    arrange.setPosition(x + PAD, y + 3);
-    let right = x + WIDTH - PAD;
-    for (const { type, text } of [...toggles].reverse()) {
-      text.setText(value?.kind === "drawn" ? `${SAMPLE[type]} ${value.counts[type]}` : SAMPLE[type]);
-      text.setAlpha(shownLines === undefined || shownLines[type] ? 1 : HIDDEN);
-      right -= text.width;
-      text.setPosition(right, y + 3);
-      right -= 12;
+    for (const row of tops) {
+      row.plate.setPosition(x + 1, y);
+      row.icon.setPosition(x + PAD + ICON, y + 3);
+      row.name.setPosition(x + PAD + (row.type === null ? TITLE : STROKE_TITLE), y + 3);
+      if (row.type !== null) {
+        const on = shownLines === undefined || shownLines[row.type];
+        row.eye.setText(on ? EYE_OPEN : EYE_SHUT).setPosition(x + WIDTH - PAD - row.eye.width, y + 3);
+        row.aux.setText(value?.kind === "drawn" ? String(value.counts[row.type]) : "").setPosition(row.eye.x - 10 - row.aux.width, y + 3);
+        for (const part of [row.icon, row.name, row.aux, row.eye]) part.setAlpha(on ? 1 : HIDDEN);
+      }
+      y += ROW;
     }
-    y += ROW;
     rule.setPosition(x + PAD, y + GAP / 2);
     y += GAP;
     // Rule 3.
@@ -205,9 +222,9 @@ export function outliner(scene: Phaser.Scene): void {
         // Rule 5.
         s.eye.setText(alpha === 1 ? EYE_OPEN : EYE_SHUT).setColor(color).setVisible(true);
         s.eye.setPosition(x + WIDTH - PAD - s.eye.width, at + 3);
-        s.fold.setText(folded.has(kind) ? "▸" : "▾").setColor(color).setPosition(x + PAD, at + 3);
-        s.icon.setText(sample).setColor(color).setPosition(x + PAD + 14, at + 3);
-        s.name.setText(title).setColor(color).setFontStyle("bold").setPosition(x + PAD + 30, at + 3);
+        s.fold.setText(folded.has(kind) ? "▸" : "▾").setColor(color).setPosition(x + PAD + FOLD, at + 3);
+        s.icon.setText(sample).setColor(color).setPosition(x + PAD + ICON, at + 3);
+        s.name.setText(title).setColor(color).setFontStyle("bold").setPosition(x + PAD + TITLE, at + 3);
         s.aux.setText(String(line.count)).setColor(color).setPosition(s.eye.x - 10 - s.aux.width, at + 3);
         s.plate.setFillStyle(0xffffff, top + i === hovered ? HOVERED : 0);
       } else {

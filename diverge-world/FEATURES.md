@@ -147,17 +147,20 @@ The one menu, at the top right of the window: as tall as its rows need
 and no taller than the window. A drag that starts on it, or the wheel
 over it, does not move the view.
 
-### Title bar
+### Top rows
 
-- **Arrange** (`◇ arrange`) at the left; see Arrange below.
-- **One toggle per type of line** at the right — calls `──▸`,
-  attachments `╌╌╌`, creators `o┈┈` — each with how many the board
-  holds. Press one to hide or show that type; a hidden one is faint.
-  Hiding a type takes its lines and lanes off the board.
+One row each, one beneath another, then a thin rule:
+
+- **Arrange** (`◇ arrange`); see Arrange below.
+- **One row per type of line** — calls `──▸`, attachments `╌╌╌`,
+  creators `o┈┈` — each with its name, how many the board holds, and
+  an eye. Press the row to hide or show that type; a hidden one's eye
+  is shut (`◌`) and its row faint. Hiding a type takes its lines and
+  lanes off the board.
 
 ### Status row
 
-- Under the title bar, in amber, only when there is something to say:
+- Under the rule, in amber, only when there is something to say:
   "waiting for the daemon" while the world cannot reach it, or which
   lists this account may not read.
 
@@ -181,7 +184,7 @@ over it, does not move the view.
   itself does.
 - **The open sheet's row** is lit.
 - **Scrolling:** the wheel over the outliner scrolls the sections when
-  they outgrow the window; the title bar and status row stay put.
+  they outgrow the window; the top rows and status row stay put.
 
 ### Keys
 

@@ -6,7 +6,7 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 - **The page is a Phaser game, no React**: `src/main.ts` makes one `Phaser.Game` filling the window, one scene per
   file under `src/scenes/`. `world` draws the map and starts `ui` over itself; `ui` draws the menus — game menus,
   drawn in the engine — with a camera of its own: one menu, the outliner
-  (`scenes/outliner.ts`) top-right — Arrange and the line-type toggles in its title bar, the status row beneath, then
+  (`scenes/outliner.ts`) top-right — Arrange and one row per line type at its top, the status row beneath, then
   every node by kind, each kind's header an eye that shows or hides it (`KINDS`), a row's click (`FOCUS`) flying the board's camera to it and
   opening its sheet, a row's hover (`HOVER`) focusing it; the board tells it the nodes (`OUTLINE`) and the open one
   (`SELECTED`) through the registry, and pans and zooms for nothing over its bounds (`OUTLINER`). Text panels are the exception, HTML over the canvas: clicking an
