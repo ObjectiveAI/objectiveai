@@ -181,8 +181,8 @@ One row each, one beneath another, then a thin rule:
   faint, and pressing its rows does nothing.
 - **Rows:** every node of that kind, by name, with its shape and a dot
   that is green while the node is bright.
-- **Press a row:** the view flies to the node and its sheet opens (a
-  provider or a daemon has no sheet, so the view only flies there).
+- **Press a row:** the view flies to the node, rings it, and opens its
+  sheet — for a provider or a daemon, the sheet's header alone.
 - **Hover a row:** the node's lines are focused, as hovering the node
   itself does.
 - **The open sheet's row** is lit.
@@ -230,8 +230,9 @@ The keys are not printed.
 
 ### Opening and closing
 
-- **Open:** click a node. It gets a white selection ring, and its sheet
-  opens along the bottom of the window.
+- **Open:** click any node. It gets a white selection ring, and its
+  sheet opens along the bottom of the window — for a provider or a
+  daemon, which have no tabs, its header alone.
 - **Swap:** click another node to switch the sheet to it.
 - **Through the sheet:** a click on the sheet never selects a node
   beneath it.

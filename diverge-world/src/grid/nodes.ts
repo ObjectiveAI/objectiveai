@@ -73,8 +73,8 @@ const shortened = (label: string) => (label.length > LABEL ? `${label.slice(0, L
  *    pixels; its halo and name go with it, and every step tells
  *    `moved`. While one is dragged the board does not pan.
  * 3. A press let go having moved less than that is a click, and calls
- *    `select` with the node's entity as it is now, if it has a log
- *    (`subject`) or files (`files`). Both the press and the release are
+ *    `select` with the node's entity as it is now, whatever its kind.
+ *    Both the press and the release are
  *    the board's own — made on the canvas: a release on the sheet, or
  *    anything else over the board, selects nothing, though the game
  *    hears it.
@@ -121,7 +121,7 @@ export function makeNodes(scene: Phaser.Scene, entities: Entity[], at: Map<strin
       const canvas = scene.game.canvas;
       if (pointer.downElement !== canvas || pointer.upElement !== canvas) return;
       const now = node.entity;
-      if ((now.subject || now.files) && Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) < CLICK) select(now);
+      if (Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) < CLICK) select(now);
     });
     // Rule 4.
     image.on("pointerover", () => over(node));

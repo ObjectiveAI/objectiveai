@@ -54,8 +54,8 @@ const PAN = 400;
  * 4. Every node is lit as the world says (`light`): bright or faint,
  *    its halo breathing while it works; pulses run as the events tell
  *    (`pulses`), after the world that holds their line is drawn.
- * 5. Clicking an agent, a tool, an account or a volume opens its sheet —
- *    its log, its files, or both — and rings it; clicking another swaps the sheet and the ring;
+ * 5. Clicking any node opens its sheet — its tabs, those it has, or
+ *    none: a provider's or a daemon's is its header alone — and rings it; clicking another swaps the sheet and the ring;
  *    clicking the same one again, or the sheet's ✕, closes it.
  * 6. Arrange (`ARRANGE`) gives every node shown a new place by the
  *    lines shown (`arrange`), and the nodes glide there over `GLIDE`, their
@@ -328,7 +328,7 @@ export class Board extends Phaser.Scene {
       return;
     }
     const node = this.nodes?.byKey.get(entity.key);
-    if (!(entity.subject || entity.files) || !node || !this.ring) return;
+    if (!node || !this.ring) return;
     this.selected = entity.key;
     this.registry.set(SELECTED, entity.key);
     this.ring.setPosition(node.image.x, node.image.y).setRadius(REACH[entity.kind] + 10).setVisible(true);
