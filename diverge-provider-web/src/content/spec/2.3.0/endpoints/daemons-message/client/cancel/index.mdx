@@ -10,10 +10,10 @@ sends no frame on the channel; the scope's answer states which came
 first.
 
 - **The request.** The payload is the tag byte `0` and nothing more.
-  [Request](/endpoints/messages-send/client/cancel/request/) states its
+  [Request](/endpoints/daemons-message/client/cancel/request/) states its
   form.
 - **The response.** The server sends nothing on the channel.
-  [Response](/endpoints/messages-send/client/cancel/response/) states
+  [Response](/endpoints/daemons-message/client/cancel/response/) states
   the sequence.
 - **In time.** When the server receives the channel request while the
   message is queued in the receiver's mailbox, it removes the message,

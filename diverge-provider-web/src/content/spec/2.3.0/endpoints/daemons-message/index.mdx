@@ -1,5 +1,5 @@
 ---
-title: 'messages::send'
+title: 'daemons::message'
 summary: 'Tag 28: a client sends one message to one identity; the server queues it in that identity’s mailbox and answers exactly once, when the receiver has taken it, when the receiver is not listening, or at once when the sender is over its rate, and the scope finishes.'
 order: 28
 draft: false
@@ -8,21 +8,21 @@ draft: false
 A client opens the scope with a request whose payload is the tag byte
 `28`, the identity of the receiver, and the body of the message. The
 server queues the message in the receiver's mailbox, which a
-[messages::listen](/endpoints/messages-listen/) scope holds open, and
+[daemons::listen](/endpoints/daemons-listen/) scope holds open, and
 sends exactly one response when the message's fate is known; the
 response finish follows it. A client that cancels while the message is
 queued ends the scope with the response finish and no response before
-it. A connection holds at most one messages::send scope open at a
+it. A connection holds at most one daemons::message scope open at a
 time, as [One open at a time](/endpoints/#one-open-at-a-time)
 provides.
 
-- **The request.** [Request](/endpoints/messages-send/request/) states
+- **The request.** [Request](/endpoints/daemons-message/request/) states
   its form.
-- **The response.** [Response](/endpoints/messages-send/response/)
+- **The response.** [Response](/endpoints/daemons-message/response/)
   states the one response and the sequence of the main stream.
 - **The channels.** The client opens the one channel of
-  [Client Channels](/endpoints/messages-send/client/), the cancel. The
-  server opens no channel on a send scope.
+  [Client Channels](/endpoints/daemons-message/client/), the cancel. The
+  server opens no channel on a daemons::message scope.
 - **The capability.** A server that holds out no
   [`messages`](/capabilities/#messages) object answers the request as
   that section states.
@@ -31,12 +31,12 @@ provides.
 
 1. **The server reads the request.** A request whose payload does not
    decode is answered by a response finish that no response precedes,
-   as [Endpoints](/endpoints/) provides. A request read while a send
+   as [Endpoints](/endpoints/) provides. A request read while a daemons::message
    scope is open on the same connection is answered by exactly one
    response, the byte `5`, and the response finish. A server that holds
    out no `messages` object answers exactly one response, the byte `4`,
-   and the response finish. A sending connection that is not in
-   discovery is answered by exactly one response, the byte `3`, and the
+   and the response finish. A sending connection that is not
+   listed is answered by exactly one response, the byte `3`, and the
    response finish; the server counts nothing.
 2. **The server counts the send.** The server counts the send against
    the window of the identity of the connection, as
@@ -54,7 +54,7 @@ provides.
    the message, the server sends exactly one response, the byte `1`.
    The response finish follows either.
 5. **The server takes the message back.** When it receives the
-   client's [cancel](/endpoints/messages-send/client/cancel/) while the
+   client's [cancel](/endpoints/daemons-message/client/cancel/) while the
    message is queued, the server removes the message from the mailbox,
    sends no response, and sends the response finish. When the client
    reads no more of the scope, or its connection ends, the server

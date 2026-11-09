@@ -10,14 +10,14 @@ no frame on the channel; the response finish of the scope is its
 answer.
 
 - **The request.** The payload is the tag byte `0` and nothing more.
-  [Request](/endpoints/discover/client/cancel/request/) states its form.
+  [Request](/endpoints/daemons-list/client/cancel/request/) states its form.
 - **The response.** The server sends nothing on the channel.
-  [Response](/endpoints/discover/client/cancel/response/) states the sequence.
+  [Response](/endpoints/daemons-list/client/cancel/response/) states the sequence.
 - **The effect.** When the server receives the channel request, it
   ends the listing and sends the response finish of the scope. No
   connection is altered. The server reads no further channel request on
   the scope.
 - **The one end the client has.** A listing does not end because the
-  server holds no discoverable identity. A client that has read what it wanted — the
+  server holds no listable identity. A client that has read what it wanted — the
   byte `2`, for a client that wanted the listing once — ends the
   scope with this, or by ending its connection.

@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'Responses of the byte 0 or 1 followed by one identity, its description, its IP, its address and whether it listens in the postcard wire format, added or removed; the byte 2, once, when the listing is whole; the byte 3 or 4 followed by one identity alone, when a listed identity comes to listen or stops; or the byte 5, alone and first, when the connection has a discover listing open already; and the response finish.'
+summary: 'Responses of the byte 0 or 1 followed by one identity, its description, its IP, its address and whether it listens in the postcard wire format, added or removed; the byte 2, once, when the listing is whole; the byte 3 or 4 followed by one identity alone, when a listed identity comes to listen or stops; or the byte 5, alone and first, when the connection has a listing open already; and the response finish.'
 order: 2
 draft: false
 ---
@@ -18,7 +18,7 @@ draft: false
   by one identity, one per identity in the listing when the scope
   opened; exactly one response of the byte `2` and nothing else; then
   zero or more responses of the byte `0` or `1`, each followed by one
-  identity, as discoverable identities connect and disconnect, and
+  identity, as listable identities connect and disconnect, and
   zero or more responses of the byte `3` or `4`, each followed by one
   identity, as listed identities come to listen and stop. The response
   finish follows the last of them, when the client cancels or the
@@ -54,7 +54,7 @@ draft: false
   length and that many bytes of UTF-8 states the dial target. An
   address is never an IP.
 - **`listening`.** One byte. The byte `1` states that a
-  [messages::listen](/endpoints/messages-listen/) scope is open under
+  [daemons::listen](/endpoints/daemons-listen/) scope is open under
   the identity as the item is sent. The byte `0` states that none is.
   `listening` is the one member of an item that changes while the
   identity is listed.
@@ -85,11 +85,11 @@ draft: false
 - **Whole.** A payload that is the byte `2` and nothing else states
   that every identity in the listing when the scope opened has been
   sent as added. A client that wants the listing once reads to this
-  byte and [cancels](/endpoints/discover/client/cancel/). A payload whose
+  byte and [cancels](/endpoints/daemons-list/client/cancel/). A payload whose
   first byte is `2` is read by that byte alone; bytes after it are not
   read.
 - **Already open.** A payload that is the byte `5` and nothing else
-  states that a discover scope is open on the connection already, as
+  states that a daemons::list scope is open on the connection already, as
   [One open at a time](/endpoints/#one-open-at-a-time) provides. It
   is the only response of the scope, sent before anything is listed;
   bytes after it are not read. It is the only response of this
@@ -105,14 +105,14 @@ draft: false
   `listening` among them, and a payload whose bytes after `3` or `4` do
   not decode as one identity are malformed.
 
-The response is defined by `diverge-sdk-rs/src/provider/endpoints/discover/server/response/frame.rs`:
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/list/server/response/frame.rs`:
 
-```rust include=diverge-sdk-rs/src/provider/endpoints/discover/server/response/frame.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/list/server/response/frame.rs
 ```
 
-the item by `diverge-sdk-rs/src/provider/endpoints/discover/server/response/discoverable.rs`:
+the item by `diverge-sdk-rs/src/provider/endpoints/daemons/list/server/response/listed.rs`:
 
-```rust include=diverge-sdk-rs/src/provider/endpoints/discover/server/response/discoverable.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/list/server/response/listed.rs
 ```
 
 and the identity by `diverge-sdk-rs/src/wire/handshake/peer.rs`:

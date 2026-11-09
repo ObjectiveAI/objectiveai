@@ -14,7 +14,7 @@ The payload of the channel request is exactly one byte:
 - **No parameter.** The channel request carries nothing after the
   tag. A server ignores every byte that follows the tag.
 
-The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/messages/send/client/channel_request/frame.rs`:
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/list/client/channel_request/frame.rs`:
 
-```rust include=diverge-sdk-rs/src/provider/endpoints/messages/send/client/channel_request/frame.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/list/client/channel_request/frame.rs
 ```

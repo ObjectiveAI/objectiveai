@@ -59,7 +59,7 @@ define.
 | `volumes_persistent` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the eleven volume endpoints, and the volume mounts of the two runs, for a volume whose `mode` is `persistent` |
 | `volumes_ephemeral` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the same, for a volume whose `mode` is `ephemeral` |
 | `volumes_read_only` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the same, for a volume whose `mode` is `read_only` |
-| `messages` | object, [the messages object](#messages) | no object: no message is relayed | [messages::listen](/endpoints/messages-listen/) and [messages::send](/endpoints/messages-send/) |
+| `messages` | object, [the messages object](#messages) | no object: no message is relayed | [daemons::listen](/endpoints/daemons-listen/) and [daemons::message](/endpoints/daemons-message/) |
 
 The object is defined by
 `diverge-sdk-rs/src/provider/endpoints/info/server/response/capabilities.rs`:
@@ -185,8 +185,8 @@ every registry the server pulls from is in the array.
 
 The server relays direct messages between the identities connected to
 it, at most at the rate the object states, as the pages of
-[messages::listen](/endpoints/messages-listen/) and
-[messages::send](/endpoints/messages-send/) define.
+[daemons::listen](/endpoints/daemons-listen/) and
+[daemons::message](/endpoints/daemons-message/) define.
 
 - **The object.** The object has exactly the members `messages` and
   `seconds`, each an integer from `1` to `4294967295`: at most
@@ -195,15 +195,15 @@ it, at most at the rate the object states, as the pages of
   that relays messages holds out the object; no server relays
   messages without a rate.
 - **Held out.** The server serves
-  [messages::listen](/endpoints/messages-listen/) and
-  [messages::send](/endpoints/messages-send/) as their pages state,
+  [daemons::listen](/endpoints/daemons-listen/) and
+  [daemons::message](/endpoints/daemons-message/) as their pages state,
   and counts every send against the window the
-  [messages::send](/endpoints/messages-send/#the-window) page defines.
+  [daemons::message](/endpoints/daemons-message/#the-window) page defines.
 - **Not held out.** The server relays no message. The server answers:
-  - a [messages::listen](/endpoints/messages-listen/) request with
+  - a [daemons::listen](/endpoints/daemons-listen/) request with
     exactly one response, the byte `2` and nothing else, and the
     response finish; it opens no mailbox;
-  - a [messages::send](/endpoints/messages-send/) request with exactly
+  - a [daemons::message](/endpoints/daemons-message/) request with exactly
     one response, the byte `4` and nothing else, and the response
     finish; it queues nothing and counts nothing.
 

@@ -38,9 +38,9 @@ endpoint's request content, in the form the endpoint defines.
 | `23` | [capacity](/endpoints/capacity/) |
 | `24` | [daemons::accept](/endpoints/daemons-accept/) |
 | `25` | [daemons::connect](/endpoints/daemons-connect/) |
-| `26` | [discover](/endpoints/discover/) |
-| `27` | [messages::listen](/endpoints/messages-listen/) |
-| `28` | [messages::send](/endpoints/messages-send/) |
+| `26` | [daemons::list](/endpoints/daemons-list/) |
+| `27` | [daemons::listen](/endpoints/daemons-listen/) |
+| `28` | [daemons::message](/endpoints/daemons-message/) |
 
 The tag values are normative as tabulated. Each endpoint has its own
 section. Every section of this layer states requirements of the
@@ -68,10 +68,10 @@ input the server serves, and imposes no requirement on the client.
 Six endpoints are held at most once each per connection:
 [volumes::list](/endpoints/volumes-list/),
 [images::list](/endpoints/images-list/),
-[discover](/endpoints/discover/),
+[daemons::list](/endpoints/daemons-list/),
 [daemons::accept](/endpoints/daemons-accept/),
-[messages::listen](/endpoints/messages-listen/) and
-[messages::send](/endpoints/messages-send/).
+[daemons::listen](/endpoints/daemons-listen/) and
+[daemons::message](/endpoints/daemons-message/).
 
 - **One at a time.** On one connection, at most one scope of each of
   the six endpoints is open at a time.
@@ -94,7 +94,7 @@ Six endpoints are held at most once each per connection:
   independent of one another. A scope open on one connection has no
   bearing on a request read on another connection, except as
   [daemons::accept](/endpoints/daemons-accept/) and
-  [messages::listen](/endpoints/messages-listen/) provide for an
+  [daemons::listen](/endpoints/daemons-listen/) provide for an
   identity.
 
 ## Image sources
