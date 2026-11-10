@@ -1,11 +1,8 @@
 //! A message to an agent.
 
-use diverge_sdk::daemon::endpoints::agents::message::client::channel_request;
 use diverge_sdk::daemon::endpoints::agents::message::client::request;
 use diverge_sdk::daemon::endpoints::agents::message::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
-use diverge_sdk::wire::decode::Decode as _;
-use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
@@ -17,16 +14,14 @@ use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, agents};
 
-/// Deliver the message, or see it cancelled, and finish the scope: the
-/// answer, then the finish — or, for a cancel in time, the finish alone.
+/// Deliver the message and finish the scope: the answer, then the
+/// finish.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
     let answer = match serve(&scope, frame, who, daemon).await {
         Ok(answer) => answer,
-        Err(error) => Some(Frame::Error(reply::failure(&error))),
+        Err(error) => Frame::Error(reply::failure(&error)),
     };
-    if let Some(answer) = answer {
-        reply::reply(&scope, &answer).await;
-    }
+    reply::reply(&scope, &answer).await;
     scope.send_response_finish().await;
 }
 
@@ -36,83 +31,39 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// the agent's container — started if it was not up — under a key
 /// the daemon mints, in arrival order, the run then fed for its burst
 /// as [`message::enqueue`] states, the scope open until its fate is
-/// known: `Delivered` as the loop takes it, or the container's own
-/// error, or the feed's; `None` — no answer, the finish alone — when
-/// the client's one channel took it back first. The cancel races the
-/// whole way: one before the send takes the message out of its line
-/// — rule 6 of [`message::enqueue`], never sent, the finish at once —
-/// and one after it is the provider's dequeue, the fate then awaited.
-async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Option<Frame>, store::Error> {
+/// known: `Delivered` once the agent's program has it — the loop it
+/// started, or the program's own queue — or the container's own
+/// error. Nothing takes a message back: the client opens no channel
+/// on the scope, and the answer is the fate.
+async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
-        return Ok(Some(Frame::Forbidden));
+        return Ok(Frame::Forbidden);
     };
     if !judge::agents::holds(&standing, Over::Message) {
-        return Ok(Some(Frame::Forbidden));
+        return Ok(Frame::Forbidden);
     }
     let Some(agent) = agents::by_reference(&mut conn, &frame.agent, false).await? else {
-        return Ok(Some(Frame::Error(reply::failure(&"the agent named is none the daemon has"))));
+        return Ok(Frame::Error(reply::failure(&"the agent named is none the daemon has")));
     };
     drop(conn);
     if !judge::agents::over(&standing, Over::Message, &agent, state(daemon, agent.id).await) {
-        return Ok(Some(Frame::Forbidden));
+        return Ok(Frame::Forbidden);
     }
     scope.allowed().await;
     let sender = standing.creator.clone();
-    let line = message::Line::default();
-    let enqueued = message::enqueue(daemon, &agent, frame.content, sender, line.clone());
-    tokio::pin!(enqueued);
-    let (enqueued, cancelled) = tokio::select! {
-        enqueued = &mut enqueued => (enqueued, false),
-        () = cancel(scope) => {
-            if line.withdraw().await {
-                return Ok(None);
-            }
-            (enqueued.await, true)
-        }
-    };
-    let (run, key, fate) = match enqueued {
-        Ok(Some(sent)) => sent,
-        Ok(None) => return Ok(None),
+    let fate = match message::enqueue(daemon, &agent, frame.content, sender).await {
+        Ok(fate) => fate,
         Err(error) => {
-            return Ok(Some(Frame::Error(match (error.unsupported(), error.no_source()) {
+            return Ok(Frame::Error(match (error.unsupported(), error.no_source()) {
                 (Some(what), _) => reply::unsupported(what),
                 (None, Some(what)) => reply::no_source(what),
                 (None, None) => reply::failure(&error),
-            })));
+            }));
         }
     };
-    tokio::pin!(fate);
-    if !cancelled {
-        tokio::select! {
-            fate = &mut fate => return Ok(answer(fate)),
-            () = cancel(scope) => {}
-        }
-    }
-    message::cancel(&run, &key).await;
-    Ok(answer(fate.await))
-}
-
-/// The fate as the answer: none for a message taken back.
-fn answer(fate: message::Fate) -> Option<Frame> {
-    match fate {
-        message::Fate::Delivered => Some(Frame::Delivered),
-        message::Fate::Cancelled => None,
-        message::Fate::Error(error) => Some(Frame::Error(error)),
-    }
-}
-
-/// The client's one channel, read for its cancel and never answered;
-/// the inbox closing is not a cancel.
-async fn cancel(scope: &ScopeHandle) {
-    loop {
-        let Some(bytes) = scope.recv_channel_request().await else {
-            return std::future::pending().await;
-        };
-        if let Ok(ClientFrame::ChannelRequest { payload, .. }) = ClientFrame::decode(&bytes)
-            && let Ok(channel_request::Frame::Cancel) = channel_request::Frame::decode(payload)
-        {
-            return;
-        }
-    }
+    Ok(match fate.await {
+        message::Fate::Delivered => Frame::Delivered,
+        message::Fate::Error(error) => Frame::Error(error),
+    })
 }

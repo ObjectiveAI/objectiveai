@@ -120,7 +120,7 @@ pub struct Gate {
 /// 1. **Kept from the enqueue.** An entry is made when the message is
 ///    enqueued, before it goes out.
 /// 2. **An undelivered one leaves at its fate.** A fate other than
-///    delivered — cancelled, an error — removes the entry; so does the
+///    delivered — an error — removes the entry; so does the
 ///    fate's future dropped before it was known, by its guard.
 /// 3. **A delivered one leaves two inactives on.** A delivered entry is
 ///    marked so; every user part of a message arrives inside the loop
@@ -133,7 +133,7 @@ pub struct Gate {
 pub struct Message {
     /// Who sent it.
     pub sender: Creator,
-    /// Whether the loop took it: rule 3.
+    /// Whether it was delivered — the agent's program has it: rule 3.
     pub delivered: bool,
     /// Whether an `inactive` has passed since it was delivered: rule 3.
     pub swept: bool,

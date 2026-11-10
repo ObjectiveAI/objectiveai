@@ -199,10 +199,9 @@ pub struct Arrival {
     /// the run got, the enqueue sent — first come, first served, as a
     /// tokio lock serves its waiters.
     pub lock: Mutex<()>,
-    /// The messages counted in and not yet through their turn: counted
-    /// before the lock is asked, counted out under it — sent, or
-    /// withdrawn and not. The one that counts it to zero is the last
-    /// of its burst.
+    /// The messages counted in and not yet sent: counted before the
+    /// lock is asked, counted out under it. The one that counts it to
+    /// zero is the last of its burst.
     pub arriving: Mutex<usize>,
 }
 

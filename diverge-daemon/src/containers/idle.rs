@@ -9,10 +9,9 @@ use crate::daemon::Daemon;
 /// Run the agent's idle clock until the run ends: while the agent is
 /// active — a loop runs in it, or an MCP exchange is in flight for it
 /// or one of its dependencies — or a message enqueued for it waits for
-/// its fate (`pending`: the loop has not yet taken it, which for the
-/// message a run starts on lasts the run's whole first turn, since
-/// the proxy says the loop began only once the program answers the
-/// run), or a file use is in progress on it or one of its dependencies
+/// its fate (`pending`: the agent's program does not have it yet — at
+/// the proxy, behind its gate or on its way to the program), or a file
+/// use is in progress on it or one of its dependencies
 /// (a filetree watch, a download, an upload, a transfer), the clock
 /// does not run; otherwise,
 /// `idle_seconds` after the last use with no use since, the run is
