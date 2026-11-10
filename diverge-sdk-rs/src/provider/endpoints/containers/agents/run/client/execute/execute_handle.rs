@@ -5,7 +5,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use futures_util::Stream;
+use futures_util::future::BoxFuture;
+use futures_util::{FutureExt as _, Stream};
 use rmcp::model::ContentBlock;
 
 use super::super::channel_request;
@@ -13,7 +14,7 @@ use super::{Exec, ExecStream, Filetree, FiletreeStream, Read, ReadStream, Transf
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::agents::run::server;
 use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, FuseMount, Info, Secrets};
-use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError};
+use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError, unary_answer};
 use crate::shared::containers::fuse::Kind;
 use crate::shared::containers::exec;
 use crate::shared::containers::terminal;
@@ -205,9 +206,18 @@ impl ExecuteHandle {
     /// is known, which may be long after the ask; nothing times it
     /// out. What the agent says arrives on the scope's main stream.
     pub async fn enqueue(&self, key: String, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        self.enqueue_sent(key, content).await?.await
+    }
+
+    /// The same message, handed back once its channel is out and
+    /// before its fate is known: the fate is the future, which owns
+    /// what it reads and borrows nothing. For a caller whose next ask
+    /// must follow this one on the wire.
+    pub async fn enqueue_sent(&self, key: String, content: Vec<ContentBlock>) -> Result<BoxFuture<'static, Result<enqueue::response::Frame, UnaryError<Enqueue>>>, UnaryError<Enqueue>> {
         let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, content }))
             .map_err(UnaryError::Request)?;
-        self.0.unary::<Enqueue>(&payload).await
+        let channel = self.0.sent(&payload).await.map_err(UnaryError::Send)?;
+        Ok(unary_answer::<Enqueue>(channel).boxed())
     }
 
     /// Withdraw every message waiting under `key`: whether any was.

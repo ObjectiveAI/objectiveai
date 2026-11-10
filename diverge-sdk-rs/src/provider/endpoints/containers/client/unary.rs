@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use crate::wire::client::channel::Channel;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::frame;
 
@@ -23,10 +24,17 @@ pub async fn unary<A: Answered>(
     scope: u32,
     payload: &[u8],
 ) -> Result<A::Item, UnaryError<A>> {
-    let mut channel = handle
+    let channel = handle
         .send_channel_request(scope, payload)
         .await
         .map_err(UnaryError::Send)?;
+    unary_answer::<A>(channel).await
+}
+
+/// The one answer on a channel already open, read as [`unary`] reads
+/// it: for a caller that wants the request out before it waits, and
+/// the waiting its own.
+pub async fn unary_answer<A: Answered>(mut channel: Channel) -> Result<A::Item, UnaryError<A>> {
     let bytes = channel
         .response_receiver
         .recv()

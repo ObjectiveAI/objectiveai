@@ -10,6 +10,7 @@ use futures_util::{Stream, StreamExt as _};
 use tokio::sync::{Mutex, Notify};
 
 use super::{Answered, ChannelStream, OpenError, UnaryError, Writes, unary};
+use crate::wire::client::channel::Channel;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::frame;
 use crate::shared::error::Error;
@@ -112,6 +113,13 @@ impl Scoped {
     /// Open a channel that answers once, and take the answer.
     pub(crate) async fn unary<A: Answered>(&self, payload: &[u8]) -> Result<A::Item, UnaryError<A>> {
         unary::<A>(&self.handle, self.scope, payload).await
+    }
+
+    /// Open a channel that answers once, and hand it back unread: the
+    /// request is out, and [`unary_answer`](super::unary_answer) takes
+    /// the answer when the caller wants it.
+    pub(crate) async fn sent(&self, payload: &[u8]) -> Result<Channel, SendError> {
+        self.handle.send_channel_request(self.scope, payload).await
     }
 
     /// Open a channel nothing answers on — a cancel, a disconnect — and
