@@ -24,8 +24,9 @@
 //! 6. The turn's end ends the run: the turn's sender is dropped, which
 //!    ends the stream. It is refused while a tool call is in flight,
 //!    so no response is left off the run.
-//! 7. A message enqueued while a turn is open is taken at once: its
-//!    parts are recorded, and it is `delivered`. With none open it is
+//! 7. A message enqueued while a turn is open — the proxy's joined
+//!    batch — is taken at once: every part is recorded under its own
+//!    message's key, and it is `delivered`. With none open it is
 //!    `missed`, and the proxy starts the next run on it.
 //! 8. The transcript is read from the database the first time the desk
 //!    is used, and kept in memory after.
@@ -172,13 +173,15 @@ impl Desk {
     }
 
     /// Rule 7.
-    pub async fn deliver(&self, key: String, content: Vec<ContentBlock>) -> Fate {
+    pub async fn deliver(&self, messages: Vec<(String, Vec<ContentBlock>)>) -> Fate {
         let mut inner = self.lock().await;
         if !self.open(&mut inner) {
             return Fate::Missed;
         }
-        for chunk in user_parts(&key, content) {
-            self.record(&mut inner, chunk).await;
+        for (key, content) in messages {
+            for chunk in user_parts(&key, content) {
+                self.record(&mut inner, chunk).await;
+            }
         }
         Fate::Delivered
     }

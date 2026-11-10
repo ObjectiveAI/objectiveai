@@ -12,8 +12,10 @@
 //!    stream. Nothing times it out: the agent waits on the person.
 //! 3. A comment goes out on the stream when it is quiet, so the
 //!    connection is never idle for long; the proxy reads only data.
-//! 4. An enqueue with no content is `400`; otherwise it is the desk's
-//!    to take, `delivered` while a turn is open and `missed` with none.
+//! 4. An enqueue with no message, or a message with no content, is
+//!    `400`; otherwise its messages — one message, as the proxy joined
+//!    them — are the desk's to take, `delivered` while a turn is open
+//!    and `missed` with none.
 //! 5. A dequeue is always `empty`: a message is taken the moment it
 //!    comes, so none is ever held to withdraw.
 
@@ -24,9 +26,8 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use diverge_sdk::container_proxy::inside::agent::dequeue::{self, Outcome};
-use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
+use diverge_sdk::container_proxy::inside::agent::enqueue::{self, Fate};
 use diverge_sdk::container_proxy::inside::agent::run;
-use diverge_sdk::shared::containers::enqueue;
 use futures_util::Stream;
 use serde_json::{Value, json};
 
@@ -62,10 +63,11 @@ pub async fn run(State(desk): State<Desk>, Json(request): Json<run::request::Req
 
 /// Rule 4.
 pub async fn enqueue(State(desk): State<Desk>, Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
-    if request.content.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, Json(json!({ "kind": "content", "error": "a message needs content" }))));
+    if request.messages.is_empty() || request.messages.iter().any(|message| message.content.is_empty()) {
+        return Err((StatusCode::BAD_REQUEST, Json(json!({ "kind": "content", "error": "an enqueue needs messages, each with content" }))));
     }
-    Ok(Json(desk.deliver(request.key, request.content).await))
+    let messages = request.messages.into_iter().map(|message| (message.key, message.content)).collect();
+    Ok(Json(desk.deliver(messages).await))
 }
 
 /// Rule 5.
