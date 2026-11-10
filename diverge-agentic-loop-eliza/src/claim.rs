@@ -13,12 +13,12 @@ enum Phase {
     Idle,
     /// A run is streaming: the next request is refused.
     Running,
-    /// A run's stream has ended and its settlement — the queue's
-    /// locks cleared, its fates decided — is on a task that has not
-    /// finished yet: the next request WAITS for it, and then takes
-    /// the lock. Never a refusal: a settlement takes microseconds,
-    /// and a request that happened to land inside them is not a
-    /// parallel run.
+    /// A run's stream has ended and its settlement — the queue
+    /// closed, so no `/enqueue` is accepted for it — is on a task
+    /// that has not finished yet: the next request WAITS for it, and
+    /// then takes the lock. Never a refusal: a settlement takes
+    /// microseconds, and a request that happened to land inside them
+    /// is not a parallel run.
     Settling,
 }
 

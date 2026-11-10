@@ -7,7 +7,7 @@
 //! a time, the lock held until the run is settled, so a run after
 //! the first resumes the same session and a run beside it is refused
 //! — and streams its chunks back as server-sent events; `POST
-//! /enqueue` and `POST /dequeue` are the running loop's one slot, taken
+//! /enqueue` is the running loop's queue, answered at once and taken
 //! at each turn's end; `--schema`, the program's one argument, prints
 //! the JSON Schema of the agent value this image accepts (see
 //! [`main`]); `POST /register` is that value, told once for the
@@ -73,8 +73,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_sdk::container_proxy::inside::Client;
-use diverge_sdk::container_proxy::inside::agent::dequeue::{self, Outcome};
-use diverge_sdk::container_proxy::inside::agent::enqueue::{self, Fate};
+use diverge_sdk::container_proxy::inside::agent::enqueue;
 use diverge_sdk::container_proxy::inside::register::response::Response;
 use diverge_sdk::container_proxy::inside::secrets::{collect, feed};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
@@ -83,7 +82,7 @@ use serde_json::Value;
 
 use crate::agent::Agent;
 use crate::claim::Claim;
-use crate::queue::QUEUE;
+use crate::queue::{Closed, QUEUE};
 use crate::run::notification;
 
 /// A refusal: the status, and a JSON reason.
@@ -156,7 +155,6 @@ async fn serve() {
         .route("/register", axum::routing::post(register))
         .route("/run", axum::routing::post(run))
         .route("/enqueue", axum::routing::post(enqueue))
-        .route("/dequeue", axum::routing::post(dequeue))
         .route("/secrets", axum::routing::post(feed_secrets))
         .route("/secrets/collect", axum::routing::post(collect_secrets))
         .with_state(Arc::new(Client::new()));
@@ -183,9 +181,10 @@ async fn serve() {
 /// lacks is `{"kind":"secrets"}`, naming it), and a run with
 /// nothing to say is `empty_run`. The queue is opened for this run
 /// right behind the claim; every refusal before the run exists closes
-/// it again, so a message waiting for a loop that will never look is
-/// missed honestly. Then the stream: the first chunk, then every
-/// chunk as it comes.
+/// it again, so an `/enqueue` meant for a run that will never look is
+/// refused `409` `closed`, and the proxy keeps the batch for the next
+/// `/run`. Then the stream: the first chunk, then every chunk as it
+/// comes.
 async fn run(
     State(client): State<Arc<Client>>,
     Json(request): Json<diverge_sdk::container_proxy::inside::agent::run::request::Request>,
@@ -374,19 +373,20 @@ async fn collect_secrets(Json(request): Json<collect::request::Request>) -> Resu
     }
 }
 
-/// `POST /enqueue`: the proxy's batch, into the running
-/// conversation's one slot.
+/// `POST /enqueue`: the proxy's batch, onto the running
+/// conversation's queue, answered at once.
 ///
-/// The batch is one message: every message in it, in order, joined
-/// into the next turn's one input, each message's user parts under
-/// its own key. A slot already full is `409` `{"kind":"occupied"}`.
-/// The response IS the fate, and it arrives when the fate is known —
-/// taken as the next turn's input, withdrawn by a dequeue, or
-/// outlived by the run. That can be long after the ask; nothing here
-/// times anything out. The one failure with no fate to report — the
-/// fate channel dying, which the run's close guard exists to prevent
-/// — answers as HTTP does, with a status.
-async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
+/// Content the program will not take is `400`, checked before
+/// anything is accepted. Otherwise the batch joins whatever already
+/// waits, and the answer is `204`: the messages are the run's, taken
+/// at the turn's end as the next turn's ONE input — with anything
+/// else waiting — each message's user parts under its own key, and
+/// the `204` is their delivery. Nothing waits on the run, and nothing
+/// withdraws a message once accepted. A run whose last look has
+/// closed the queue — or no run at all — is `409`
+/// `{"kind":"closed"}`, nothing accepted: the proxy keeps the batch
+/// and starts the next run on it.
+async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<StatusCode, Refusal> {
     if let Some(error) = request.messages.iter().find_map(|message| content::check(&message.content).err()) {
         return Err((StatusCode::BAD_REQUEST, Json(error)));
     }
@@ -399,38 +399,15 @@ async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<
             })),
         ));
     }
-    let Ok(fate) = QUEUE.enqueue(request.messages).await else {
-        return Err((
+    match QUEUE.enqueue(request.messages).await {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(Closed) => Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
-                "kind": "occupied",
-                "error": "the slot holds a message",
-            })),
-        ));
-    };
-    match fate.await {
-        Ok(fate) => Ok(Json(fate)),
-        Err(_) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "kind": "fate_lost",
-                "error": "the message's fate was never decided",
+                "kind": "closed",
+                "error": "the run has closed",
             })),
         )),
-    }
-}
-
-/// `POST /dequeue`: empty the slot.
-///
-/// Naive, deliberately: whatever the slot holds is withdrawn — its
-/// `/enqueue` answers `dequeued` — and an empty slot, closed or not,
-/// or one the loop already took, answers `empty`. The body is `{}`:
-/// the slot is one message, and there is nothing to name.
-async fn dequeue(Json(_request): Json<dequeue::request::Request>) -> Json<Outcome> {
-    if QUEUE.dequeue().await {
-        Json(Outcome::Dequeued)
-    } else {
-        Json(Outcome::Empty)
     }
 }
 

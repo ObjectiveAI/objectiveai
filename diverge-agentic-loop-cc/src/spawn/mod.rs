@@ -1,26 +1,27 @@
-//! The Claude Code subprocess: spawning it, and the queue verbs
+//! The Claude Code subprocess: spawning it, and the enqueue verb
 //! against it.
 //!
-//! One run at a time is one subprocess, behind two locks and a map:
+//! One run at a time is one subprocess, behind two locks:
 //! [`writer::WRITER`] is stdin — holding it is the sole right to
-//! write, and to register a fate; [`replies::REPLIES`] is the
-//! RECEIVER for cancel replies, whose matching sender the reader
-//! task permanently holds; and [`pending::PENDING`] is the slot —
-//! the one enqueued message's fate wire, the proxy's batch written as
-//! one user message — inserted under the writer lock, resolved —
-//! remove-and-send, lock-free — by whoever decides the fate.
+//! write, and its `None` is the run closed — and [`echoes::ECHOES`]
+//! is the batches written and not yet echoed, which the reader takes
+//! out by uuid as Claude Code echoes each one, yielding its user
+//! parts at the position the message entered the conversation.
 //!
-//! Fates are STRICT: an enqueue answers delivered, dequeued or
-//! missed when that is truly known, not when its write lands. A
-//! dequeue takes BOTH locks up front — joined, in parallel, the only
-//! holder of the two at once — and the writer's own FIFO queue is
-//! the withdrawal boundary: a message enqueued after a withdrawal
-//! joined that queue is never the one withdrawn. Each lock is held
-//! exactly as long as its job: the writer through the cancel writes,
-//! so the pending map it snapshots is the complete queue when the
-//! cancels land; the replies through the reply reads, which stay
-//! answers to the cancels written even as released enqueues flow —
-//! new messages write no control responses.
+//! The rules, in order:
+//!
+//! 1. An enqueue is answered the moment its write lands: the write
+//!    IS the delivery. Nothing waits for Claude Code to take the
+//!    message, and nothing withdraws it — Claude Code takes it from
+//!    its own queue at a seam of its choosing.
+//! 2. An enqueue checks the run open, registers its batch among the
+//!    echoes and writes, all under one writer hold; the run's close
+//!    clears the writer under the same lock, so nothing is written
+//!    into a run that has ended, and an enqueue after the close is
+//!    refused as closed.
+//! 3. The echoes' lock is held for a push, a removal or a clearing,
+//!    never across a write: the reader takes it on every replay echo
+//!    and must never wait on an enqueue blocked on a full stdin pipe.
 //!
 //! Error-typed records — a rejected rate limit, a failed auth
 //! status, an error result, a line that failed the parse — always
@@ -31,28 +32,24 @@
 //! news (a non-fatal notification); the one the stream ends ON is
 //! the run's death (the fatal final chunk).
 //!
-//! Deadlock audit: the reader never touches a lock while reading —
-//! only at end of stream, AFTER dropping the reply sender, and then
-//! one lock at a time — so a dequeue mid-wait always wakes (on
-//! `None` if the run ends under it), no lock-order cycle exists
-//! against the dequeue's joined hold, and stdout always drains while
-//! an enqueue blocks on a full stdin pipe.
+//! Deadlock audit: the reader never touches the writer while reading
+//! — only at end of stream, and then one lock at a time — and holds
+//! the echoes only for a removal, so stdout always drains while an
+//! enqueue blocks on a full stdin pipe, and no lock-order cycle
+//! exists: the one nested hold is an enqueue's, writer then echoes.
 
 mod content;
-mod dequeue;
+mod echoes;
 mod enqueue;
 mod error;
 mod install;
-mod pending;
-mod replies;
 mod session_id;
 mod spawn;
 mod stdin;
 mod writer;
 
 pub use content::blocks;
-pub use dequeue::dequeue;
-pub use enqueue::{Occupied, enqueue};
+pub use enqueue::{Closed, enqueue};
 pub use install::installed;
 pub use session_id::{remember, session_id};
 pub use spawn::spawn;

@@ -5,20 +5,13 @@ use tokio::sync::Mutex;
 
 /// The subprocess's stdin, or `None` before the run starts and after
 /// it ends. Set by [`spawn`](super::spawn()), taken out by whoever
-/// finds the process dead first — a failed write, a dequeue waking
-/// on a closed reply channel, or the reader at end of stream.
+/// finds the process dead first — a failed write, or the reader at
+/// end of stream.
 ///
-/// Holding this lock is the sole right to write stdin AND to insert
-/// into [`pending::PENDING`](super::pending::PENDING) — the pairing
-/// is the invariant: a message's write and its fate's registration
-/// happen under one hold, so a dequeue that keeps this lock sees the
-/// pending map complete for everything written before it.
-///
-/// The lock is FIFO-fair, and that queue is the module's whole
-/// ordering — the withdrawal boundary included: a dequeue's place in
-/// the queue is the moment its cancel "came in". Every enqueue ahead
-/// of it registers first and is withdrawn; every enqueue behind it
-/// registers after the snapshot and is out of the withdrawal's
-/// reach, never cancelled.
+/// Holding this lock is the sole right to write stdin, and `None`
+/// here is the run closed: an enqueue checks and writes under one
+/// hold, so nothing is ever written into a run that has ended, and
+/// an enqueue that finds it `None` is refused as closed. The lock is
+/// FIFO-fair, so enqueues write in the order they arrived.
 pub static WRITER: Mutex<Option<process::ChildStdin>> =
     Mutex::const_new(None);

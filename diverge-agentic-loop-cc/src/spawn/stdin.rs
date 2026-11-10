@@ -22,8 +22,8 @@ use tokio::process;
 /// The [`uuid`](Self::uuid) is the correlation key: with
 /// `--replay-user-messages` on, Claude Code echoes the message back
 /// on stdout at the moment it enters the conversation, carrying this
-/// uuid — which is how the drain resolves the message's fate as
-/// delivered.
+/// uuid — which is how the reader finds the batch whose user parts
+/// the echo marks.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UserMessage {
     /// Always `user`.
@@ -91,52 +91,6 @@ pub enum UserRole {
     /// The only value.
     #[default]
     User,
-}
-
-/// A control request: the wrapper every control ask rides in.
-///
-/// One inner kind, because this container asks Claude Code for
-/// exactly one thing: dropping a queued message.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ControlRequest {
-    /// Always `control_request`.
-    pub r#type: ControlRequestType,
-    /// The ask's id. Claude Code answers on stdout quoting it, and
-    /// the dequeue that wrote this waits for that answer — the id is
-    /// how the reply and the ask find each other.
-    pub request_id: String,
-    /// The ask itself.
-    pub request: CancelAsyncMessage,
-}
-
-/// The `control_request` type literal.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ControlRequestType {
-    /// The only value.
-    #[default]
-    ControlRequest,
-}
-
-/// Drop one queued message, by the uuid its enqueue minted — the
-/// source's `cancel_async_message`: "Drops a pending async user
-/// message from the command queue by uuid. No-op if already dequeued
-/// for execution."
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct CancelAsyncMessage {
-    /// Always `cancel_async_message`.
-    pub subtype: CancelAsyncMessageSubtype,
-    /// The queued message to drop.
-    pub message_uuid: String,
-}
-
-/// The `cancel_async_message` subtype literal.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CancelAsyncMessageSubtype {
-    /// The only value.
-    #[default]
-    CancelAsyncMessage,
 }
 
 /// One enqueued (or initial) message, as its NDJSON line.

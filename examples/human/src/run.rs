@@ -1,5 +1,4 @@
-//! `POST /run`, `POST /enqueue` and `POST /dequeue`: the loop, which
-//! is the person.
+//! `POST /run` and `POST /enqueue`: the loop, which is the person.
 //!
 //! The rules:
 //!
@@ -13,11 +12,11 @@
 //! 3. A comment goes out on the stream when it is quiet, so the
 //!    connection is never idle for long; the proxy reads only data.
 //! 4. An enqueue with no message, or a message with no content, is
-//!    `400`; otherwise its messages — one message, as the proxy joined
-//!    them — are the desk's to take, `delivered` while a turn is open
-//!    and `missed` with none.
-//! 5. A dequeue is always `empty`: a message is taken the moment it
-//!    comes, so none is ever held to withdraw.
+//!    `400`, checked before anything is accepted; otherwise its
+//!    messages — the proxy's joined batch — are taken onto the open
+//!    turn at once and answered `204`, their delivery, with nothing
+//!    waiting on the person; with no turn open the answer is `409`,
+//!    `closed`, and the proxy starts the next run on them.
 
 use std::convert::Infallible;
 
@@ -25,13 +24,12 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
-use diverge_sdk::container_proxy::inside::agent::dequeue::{self, Outcome};
-use diverge_sdk::container_proxy::inside::agent::enqueue::{self, Fate};
+use diverge_sdk::container_proxy::inside::agent::enqueue;
 use diverge_sdk::container_proxy::inside::agent::run;
 use futures_util::Stream;
 use serde_json::{Value, json};
 
-use crate::desk::{Busy, Desk};
+use crate::desk::{Busy, Closed, Desk};
 use crate::register::registered;
 
 /// A refusal: the status, and a JSON reason.
@@ -62,15 +60,13 @@ pub async fn run(State(desk): State<Desk>, Json(request): Json<run::request::Req
 }
 
 /// Rule 4.
-pub async fn enqueue(State(desk): State<Desk>, Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
+pub async fn enqueue(State(desk): State<Desk>, Json(request): Json<enqueue::request::Request>) -> Result<StatusCode, Refusal> {
     if request.messages.is_empty() || request.messages.iter().any(|message| message.content.is_empty()) {
         return Err((StatusCode::BAD_REQUEST, Json(json!({ "kind": "content", "error": "an enqueue needs messages, each with content" }))));
     }
     let messages = request.messages.into_iter().map(|message| (message.key, message.content)).collect();
-    Ok(Json(desk.deliver(messages).await))
-}
-
-/// Rule 5.
-pub async fn dequeue(Json(_request): Json<dequeue::request::Request>) -> Json<Outcome> {
-    Json(Outcome::Empty)
+    match desk.deliver(messages).await {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(Closed) => Err((StatusCode::CONFLICT, Json(json!({ "kind": "closed", "error": "no turn is open" })))),
+    }
 }

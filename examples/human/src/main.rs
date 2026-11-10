@@ -12,8 +12,8 @@
 //! port [`diverge_sdk::container_proxy::inside::port()`] names, and the
 //! proxy beside it is its only caller: `POST /register` once,
 //! `POST /secrets` and `POST /secrets/collect` around every activation
-//! (the agent takes no secret), `POST /run`, `POST /enqueue` and
-//! `POST /dequeue`, which are in [`run`], and the frontend beneath
+//! (the agent takes no secret), `POST /run` and `POST /enqueue`, which
+//! are in [`run`], and the frontend beneath
 //! `/frontend`, in [`frontend`]. `--schema`, the program's one
 //! argument, prints the JSON Schema of the arguments it takes, which is
 //! the `schema` of the image's `/DIVERGE.md` frontmatter.
@@ -83,7 +83,6 @@ async fn serve() {
         .route("/secrets/collect", axum::routing::post(secrets::collect))
         .route("/run", axum::routing::post(run::run))
         .route("/enqueue", axum::routing::post(run::enqueue))
-        .route("/dequeue", axum::routing::post(run::dequeue))
         .with_state(desk.clone())
         .merge(frontend::routes(desk));
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_sdk::container_proxy::inside::port())).await.expect("the port could not be bound");

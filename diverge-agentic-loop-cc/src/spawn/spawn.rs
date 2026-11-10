@@ -3,7 +3,6 @@
 use std::io;
 use std::process::Stdio;
 
-use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
 use diverge_sdk::container_proxy::inside::agent::run::request::Message;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, user_parts,
@@ -11,17 +10,15 @@ use diverge_sdk::provider::endpoints::containers::agents::run::server::response:
 use futures_util::Stream;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process;
-use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::agent::{Agent, Effort, Tools};
 use crate::claim::Claim;
 use crate::response;
 
+use super::echoes;
 use super::error;
 use super::install;
-use super::pending;
-use super::replies;
 use super::session_id;
 use super::stdin;
 use super::writer;
@@ -34,7 +31,7 @@ use super::writer;
 /// One run at a time: the caller holds the [`Claim`] and hands it
 /// over here, and the run's settlement releases it — see
 /// [`Teardown`] — so the next run can only start once this one's
-/// locks are cleared and its fates decided. Nothing here contends
+/// stdin and echoes are cleared. Nothing here contends
 /// with an earlier subprocess.
 ///
 /// The agent's knobs ride the argv: the model verbatim, thinking
@@ -130,21 +127,17 @@ pub async fn spawn(
 
     // The run's prompt: stream-json input mode's way of delivering
     // the print prompt is the same line an enqueue writes. Its uuid
-    // is NOT queued — the run's prompt is not steerable, so no
-    // dequeue may cancel it.
+    // is NOT among the echoes — its user parts are the stream's
+    // first chunks, yielded before Claude Code says a word.
     stdin::write_lines(
         &mut child_stdin,
         &stdin::user_message_line(blocks, Uuid::new_v4().to_string()),
     )
     .await?;
 
-    let (reply_sender, reply_receiver) = mpsc::unbounded_channel();
-    // Replies first, writer second: enqueue and dequeue gate on the
-    // writer, so a writer seen must imply the replies are already in
-    // place.
-    *replies::REPLIES.lock().await = Some(reply_receiver);
+    // The run open: enqueues write from here on.
     *writer::WRITER.lock().await = Some(child_stdin);
-    Ok(read(child_stdout, child, reply_sender, claim, messages))
+    Ok(read(child_stdout, child, claim, messages))
 }
 
 /// The `--effort` value for an SDK tier, 1:1.
@@ -185,23 +178,19 @@ fn effort_flag(effort: Effort) -> &'static str {
 /// reaper — driven by whoever polls it, not a task of its own.
 /// Progress therefore rides the consumer: a caller that stops
 /// reading stalls the drain, and with it Claude Code (a full stdout
-/// pipe blocks it) and the queue's fate resolution. That is the
-/// caller stalling its own run; the module's deadlock audit is about
-/// TASKS, and still holds — the consumer is the SSE response task,
-/// independent of the queue verbs' handler tasks.
+/// pipe blocks it) and every enqueue behind a full stdin pipe. That
+/// is the caller stalling its own run; the module's deadlock audit is
+/// about TASKS, and still holds — the consumer is the SSE response
+/// task, independent of the enqueue handlers' tasks.
 ///
-/// Per line: parse strictly, then two taps before conversion. A
-/// `control_response` record goes, cloned, through the reply
-/// sender — the receiver half sits behind [`replies::REPLIES`], so
-/// only that lock's holder reads it. A replay echo whose uuid is in
-/// [`pending::PENDING`] is a delivery: the fate resolves
-/// `delivered` — strict fates' third arm — and the `user` chunk
-/// carrying the prompt is yielded at exactly this position, which is
-/// the protocol's: Claude Code yields the tool-response records
-/// BEFORE the replay, so the mark lands behind the answers it
-/// followed. A replay with no pending entry — the initial prompt's
-/// echo, resumed history, a message dequeued mid-delivery — taps
-/// nothing. The first record naming the session is also captured
+/// Per line: parse strictly, then one tap before conversion. A
+/// replay echo whose uuid is among the [`echoes::ECHOES`] is the
+/// batch entering the conversation: it is taken out, and its user
+/// parts — each message's under its own key — are yielded at exactly
+/// this position, which is the protocol's: Claude Code yields the
+/// tool-response records BEFORE the replay, so the mark lands behind
+/// the answers it followed. A replay with no entry — the initial
+/// prompt's echo, resumed history — taps nothing. The first record naming the session is also captured
 /// by [`session_id::remember`], the harvest's key. Then the
 /// record converts, and every chunk is yielded; a line that failed
 /// to parse is yielded as its error.
@@ -222,29 +211,22 @@ fn effort_flag(effort: Effort) -> &'static str {
 /// error-typed: `api_retry` narration and the assistant `error`
 /// markers — Claude Code's retry in flight, whose terminal verdict
 /// arrives as the result record. Yielding an `Err` ends nothing on
-/// this side — the drain, the fates and the reaping continue.
+/// this side — the drain, the echoes and the reaping continue.
 ///
 /// # The end, graceful or not
 ///
-/// When stdout ends — EOF, or an IO error ends the same way — the
-/// ORDER is load-bearing: the reply sender drops FIRST, so a dequeue
-/// holding the locks mid-wait wakes on the closed channel and
-/// resolves; then [`close`] clears the locks ONE AT A TIME — never
-/// nested, so no cycle against the dequeue's joined hold — and
-/// misses every fate still pending, which nothing can slip behind
-/// (no writer, no registration); then the child is reaped, and the
-/// stream's end is the caller's end-of-stream. A stream DROPPED
-/// instead of drained gets the same settlement: the reply sender
-/// dies with the generator's state, the runtime kills the child
-/// (`kill_on_drop`), and the [`Teardown`] guard — constructed
+/// When stdout ends — EOF, or an IO error ends the same way —
+/// [`close`] clears the locks ONE AT A TIME — the writer first, so
+/// every enqueue from then on is refused as closed, and nothing can
+/// slip behind the echoes' clearing — then the child is reaped, and
+/// the stream's end is the caller's end-of-stream. A stream DROPPED
+/// instead of drained gets the same settlement: the runtime kills the
+/// child (`kill_on_drop`), and the [`Teardown`] guard — constructed
 /// OUTSIDE the generator, so even a never-polled stream carries
-/// it — spawns [`close`] to settle the locks and the fates.
+/// it — spawns [`close`] to settle the locks.
 fn read(
     child_stdout: process::ChildStdout,
     child: process::Child,
-    reply_sender: mpsc::UnboundedSender<
-        response::control::ControlResponse,
-    >,
     claim: Claim,
     messages: Vec<Message>,
 ) -> impl Stream<Item = Result<AgenticLoopChunk, error::Error>> + Send {
@@ -255,7 +237,6 @@ fn read(
     async_stream::stream! {
         let _teardown = teardown;
         let mut child = child;
-        let reply_sender = reply_sender;
         let mut lines = BufReader::new(child_stdout).lines();
         // One buffer for the whole stream: each record's chunks land
         // here, drain as yields, and the allocation stays.
@@ -282,32 +263,26 @@ fn read(
                     continue;
                 }
             };
-            match &record {
-                // The cancel-reply tap.
-                response::StdoutMessage::ControlResponse(reply) => {
-                    let _ = reply_sender.send(reply.clone());
-                }
-                // The delivery tap.
-                response::StdoutMessage::User(user)
-                    if user.is_replay == Some(true) =>
-                {
-                    if let Some(uuid) = &user.uuid {
-                        if let Some((_, pending)) =
-                            pending::PENDING.remove(uuid)
-                        {
-                            let _ = pending.fate.send(
-                                Fate::Delivered,
-                            );
-                            // The batch's user parts, each message's
-                            // under its own key: one user message to
-                            // Claude Code, every sender credited.
-                            for message in pending.messages {
-                                chunks.extend(user_parts(&message.key, message.content));
-                            }
-                        }
+            // The echo tap.
+            if let response::StdoutMessage::User(user) = &record
+                && user.is_replay == Some(true)
+                && let Some(uuid) = &user.uuid
+            {
+                let written = {
+                    let mut echoes = echoes::ECHOES.lock().await;
+                    echoes
+                        .iter()
+                        .position(|written| &written.uuid == uuid)
+                        .map(|index| echoes.remove(index))
+                };
+                // The batch's user parts, each message's under its
+                // own key: one user message to Claude Code, every
+                // sender credited.
+                if let Some(written) = written {
+                    for message in written.messages {
+                        chunks.extend(user_parts(&message.key, message.content));
                     }
                 }
-                _ => {}
             }
             // The harvest's key: the first record naming the session.
             if !session_seen {
@@ -366,31 +341,22 @@ fn read(
                 yield Ok(chunk);
             }
         }
-        drop(reply_sender);
         close().await;
         let _ = child.wait().await;
     }
 }
 
-/// The settlement: locks cleared one at a time, every fate still
-/// pending missed. Idempotent — the graceful end runs it inline and
-/// [`Teardown`] runs it again.
+/// The settlement: the run closed, its locks cleared one at a time.
+/// Idempotent — the graceful end runs it inline and [`Teardown`]
+/// runs it again.
+///
+/// The writer first: from then on every enqueue is refused as
+/// closed, so nothing registers behind the echoes' clearing. A batch
+/// still unechoed was written to a run that ended before taking it,
+/// and is said by nobody.
 async fn close() {
     *writer::WRITER.lock().await = None;
-    *replies::REPLIES.lock().await = None;
-    // The run is over: every fate still undecided is now decided.
-    // Nothing registers behind this — registration needs the writer.
-    let uuids: Vec<String> = pending::PENDING
-        .iter()
-        .map(|entry| entry.key().clone())
-        .collect();
-    for uuid in uuids {
-        if let Some((_, pending)) = pending::PENDING.remove(&uuid) {
-            let _ = pending.fate.send(
-                Fate::Missed,
-            );
-        }
-    }
+    echoes::ECHOES.lock().await.clear();
 }
 
 /// Settles the run when the stream drops, however it drops — and
@@ -401,8 +367,8 @@ async fn close() {
 /// and captured into it, so even a stream dropped unpolled — whose
 /// body never ran a line — still settles. The [`Claim`] rides with
 /// it and drops on that task's next line after the settlement: the
-/// next run can only open once this one's locks are cleared and its
-/// fates decided, so a settlement arriving late can never clear a
+/// next run can only open once this one's locks are cleared, so a
+/// settlement arriving late can never clear a
 /// run that came after — and a request that lands meanwhile WAITS
 /// for the settlement rather than being refused, because the claim
 /// is marked settling before the task is spawned. Nothing interleaves — this drops exactly

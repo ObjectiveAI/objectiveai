@@ -7,7 +7,7 @@
 //! a time, the lock held for exactly the stream's life, so a run
 //! after the first resumes the conversation and a run beside it is
 //! refused — and streams its chunks back as server-sent events;
-//! `POST /enqueue` and `POST /dequeue` are the running loop's one slot;
+//! `POST /enqueue` is the running loop's queue, answered at once;
 //! `--schema`, the program's one argument, prints the JSON Schema of
 //! the agent value this image accepts (see [`main`]); `POST
 //! /register` is that value, told once for the container's life
@@ -70,8 +70,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_sdk::container_proxy::inside::Client;
-use diverge_sdk::container_proxy::inside::agent::dequeue::{self, Outcome};
-use diverge_sdk::container_proxy::inside::agent::enqueue::{self, Fate};
+use diverge_sdk::container_proxy::inside::agent::enqueue;
 use diverge_sdk::container_proxy::inside::register;
 use diverge_sdk::container_proxy::inside::register::response::Response;
 use diverge_sdk::container_proxy::inside::agent::run as run_endpoint;
@@ -85,7 +84,7 @@ use serde_json::Value;
 use crate::agent::Agent;
 use crate::claim::Claim;
 use crate::continuation::Continuation;
-use crate::queue::QUEUE;
+use crate::queue::{Closed, QUEUE};
 use crate::r#loop::Item;
 
 /// A refusal: the status, and a JSON reason.
@@ -158,7 +157,6 @@ async fn serve() {
         .route("/register", axum::routing::post(register))
         .route("/run", axum::routing::post(run))
         .route("/enqueue", axum::routing::post(enqueue))
-        .route("/dequeue", axum::routing::post(dequeue))
         .route("/secrets", axum::routing::post(feed))
         .route("/secrets/collect", axum::routing::post(collect))
         .with_state(Arc::new(Client::new()));
@@ -188,12 +186,12 @@ async fn serve() {
 /// as the stream — released on every refusal below, and otherwise
 /// captured into the stream, so it drops with it, finished or
 /// abandoned. The queue is opened for this run right behind the
-/// claim; every refusal before the loop exists closes it again, so a
-/// message waiting for a loop that will never look is missed
-/// honestly. Once the loop exists its own guard closes the queue
-/// however the run ends. The history comes from the cache when this
-/// container has loaded or saved one, and from the row only the
-/// first time.
+/// claim; every refusal before the loop exists closes it again, so an
+/// `/enqueue` meant for a loop that will never look is refused `409`
+/// `closed`, and the proxy keeps the batch for the next `/run`. Once
+/// the loop exists its own guard closes the queue however the run
+/// ends. The history comes from the cache when this container has
+/// loaded or saved one, and from the row only the first time.
 async fn run(
     State(client): State<Arc<Client>>,
     Json(request): Json<run_endpoint::request::Request>,
@@ -380,19 +378,20 @@ async fn collect(Json(request): Json<collect::request::Request>) -> Result<Json<
     }
 }
 
-/// `POST /enqueue`: the proxy's batch, into the running loop's one
-/// slot.
+/// `POST /enqueue`: the proxy's batch, onto the running loop's
+/// queue, answered at once.
 ///
-/// The batch is one message: every message in it, in order, is taken
-/// at one seam as ONE user turn, each message's user parts under its
-/// own key. A slot already full is `409` `{"kind":"occupied"}`. The
-/// response IS the fate, and it arrives when the fate is known —
-/// taken into the conversation, withdrawn by a dequeue, or outlived
-/// by the run. That can be long after the ask; nothing here times
-/// anything out. The one failure with no fate to report — the fate
-/// channel dying, which the loop's close guard exists to prevent —
-/// answers as HTTP does, with a status.
-async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
+/// Content the program will not take is `400`, checked before
+/// anything is accepted. Otherwise the batch joins whatever already
+/// waits, and the answer is `204`: the messages are the loop's,
+/// taken at its next seam as ONE user turn — with anything else
+/// waiting — each message's user parts under its own key, and the
+/// `204` is their delivery. Nothing waits on the loop, and nothing
+/// withdraws a message once accepted. A run whose last look has
+/// closed the queue — or no run at all — is `409`
+/// `{"kind":"closed"}`, nothing accepted: the proxy keeps the batch
+/// and starts the next run on it.
+async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<StatusCode, Refusal> {
     if request.messages.is_empty() || request.messages.iter().any(|message| message.content.is_empty()) {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -402,38 +401,15 @@ async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<
             })),
         ));
     }
-    let Ok(fate) = QUEUE.enqueue(request.messages).await else {
-        return Err((
+    match QUEUE.enqueue(request.messages).await {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(Closed) => Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
-                "kind": "occupied",
-                "error": "the slot holds a message",
-            })),
-        ));
-    };
-    match fate.await {
-        Ok(fate) => Ok(Json(fate)),
-        Err(_) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "kind": "fate_lost",
-                "error": "the message's fate was never decided",
+                "kind": "closed",
+                "error": "the run has closed",
             })),
         )),
-    }
-}
-
-/// `POST /dequeue`: empty the slot.
-///
-/// Naive, deliberately: whatever the slot holds is withdrawn — its
-/// `/enqueue` answers `dequeued` — and an empty slot, closed or not,
-/// or one the loop already took, answers `empty`. The body is `{}`:
-/// the slot is one message, and there is nothing to name.
-async fn dequeue(Json(_request): Json<dequeue::request::Request>) -> Json<Outcome> {
-    if QUEUE.dequeue().await {
-        Json(Outcome::Dequeued)
-    } else {
-        Json(Outcome::Empty)
     }
 }
 
