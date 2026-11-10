@@ -173,7 +173,7 @@ impl Provider {
     /// another connection holds among the ways — closes the connection
     /// with nothing sent.
     pub async fn accept(&self, connection: Connection, address: IpAddr) {
-        let Ok(Handshook { connection, peer, listable }) = handshake::accept(connection, self.authenticator.as_ref(), address).await else {
+        let Ok(Handshook { connection, peer, listable }) = handshake::accept(connection, &self.authenticator.admitting(), address).await else {
             return;
         };
         self.held(connection, peer, listable, address, None).await;

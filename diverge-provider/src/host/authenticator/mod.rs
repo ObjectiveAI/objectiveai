@@ -1,21 +1,23 @@
 //! The provider's side of every handshake.
 //!
-//! [`ProviderAuthenticator`] is what the handshake asks, whichever end
-//! dialled: the provider's own token, and whether a peer's token is
-//! one the provider serves. The rules:
+//! [`ProviderAuthenticator`] holds the provider's side, and a
+//! [`Judging`] of it is what one handshake asks: the provider's own
+//! token, and whether a peer's token is one the provider serves on
+//! that connection. The rules:
 //!
 //! 1. **Presenting.** The provider presents the token of its one
 //!    `identity`, whatever issuer the peer's is from — see
 //!    [`Own`](diverge_sdk::identities::Own).
 //! 2. **Verifying.** There is no list of issuers. A peer's token is
 //!    read for whom it claims to be, unsigned; one claiming an identity
-//!    not in `accepted` is refused with nothing fetched; and only then
-//!    is the token verified, against its own issuer's keys.
-//! 3. **Admitting.** A verified peer is accepted exactly when its
-//!    `(issuer, subject)` is in `accepted` and no connection holds it
-//!    now. The rule is the same for a peer that dialled the provider
-//!    and for one the provider dialled: the provider makes no
-//!    distinction between the two.
+//!    rule 3 does not admit is refused with nothing fetched; and only
+//!    then is the token verified, against its own issuer's keys.
+//! 3. **Admitting.** A peer that dialled the provider is admitted
+//!    exactly when its `(issuer, subject)` is in `incoming`; a peer
+//!    the provider dialled, exactly when it is the identity that
+//!    `clients` entry names. Neither list has a say over the other's
+//!    connections. Either way, no connection may hold the identity
+//!    now.
 //! 4. **Holding.** Accepting a peer takes its identity, [`Peers`], for
 //!    the connection: a held identity is not a valid authentication,
 //!    so a second connection under it is closed in the handshake. A

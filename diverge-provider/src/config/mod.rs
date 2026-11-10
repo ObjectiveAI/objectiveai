@@ -8,7 +8,7 @@
 //! - `<root>/provider.yaml` is read if present; absent means the
 //!   built-in defaults, [`Config::default`]. No other name or
 //!   extension is looked for — see [`load`].
-//! - [`Config`] is the document: its own `identities`, the `accepted`
+//! - [`Config`] is the document: its own `identity`, the `incoming`
 //!   identities, and its sections [`clients`], [`containers`],
 //!   [`volumes`] and [`images`]. A
 //!   section that is absent is its defaults; a key the document does
@@ -32,13 +32,14 @@
 //! identity:
 //!   issuer: https://auth.example.com
 //!   subject: provider-1
-//! accepted:
+//! incoming:
 //!   - issuer: https://auth.example.com
 //!     subject: daemon-1
-//!   - issuer: https://auth.example.com
-//!     subject: hub
 //! clients:
 //!   - address: hub.example.com:7000
+//!     identity:
+//!       issuer: https://auth.example.com
+//!       subject: hub
 //! containers:
 //!   podman:
 //!     registries:
@@ -68,8 +69,10 @@
 //!
 //! Every handshake, whichever end dialled, presents the token of the
 //! provider's one `identity`, whatever issuer the peer's is from, and
-//! serves the peer only when its verified `(issuer, subject)` is in
-//! `accepted`. The tokens are the root's
+//! serves a peer that dialled it only when its verified
+//! `(issuer, subject)` is in `incoming`, and a peer it dialled only
+//! when it is the one that `clients` entry names. The tokens are the
+//! root's
 //! [`identities`](diverge_sdk::identities), signed in beforehand.
 //!
 //! [`Error`] is why the root or the file could not be used.

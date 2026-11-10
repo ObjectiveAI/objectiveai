@@ -55,7 +55,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     let peers = config.clients.clone();
     let key_sets = KeySets::new(KEY_SETS).map_err(Error::KeySets)?;
     let own = Own::new(&root, config.identity.clone(), key_sets).await.map_err(Error::Identities)?;
-    let authenticator = Arc::new(ProviderAuthenticator::new(own, config.accepted.clone()));
+    let authenticator = Arc::new(ProviderAuthenticator::new(own, config.incoming.clone()));
     let (stop, _) = watch::channel(false);
     let provider = Arc::new(Provider::start(config, dir, stop, authenticator).await?);
     let mut dials = JoinSet::new();

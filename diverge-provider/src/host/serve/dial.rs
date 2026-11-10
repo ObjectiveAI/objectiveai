@@ -15,12 +15,12 @@ use crate::config::clients::Client;
 use crate::protocol::keepalive;
 
 /// Dial `client` — at its address, as `ws://<address>/` when it carries
-/// no scheme — make the handshake as the connector from its issuer,
+/// no scheme — make the handshake as the connector,
 /// serve the connection under the peer's identity until it ends, wait
 /// five seconds, and dial again: whether the connection ended, the dial
 /// failed or the handshake did, and forever. It ends only when the task
-/// it runs in is ended. The peer is judged as a peer that dialled the
-/// provider is: its identity must be one `accepted` lists. The provider
+/// it runs in is ended. The peer that answers must be the identity
+/// `client` names, and no other. The provider
 /// sends the listable flag `0`, and honors the peer's, as it does for a
 /// peer that dialled it. The socket has transport keepalive on — see
 /// [`keepalive`] — so a peer that vanished without a close is a
@@ -30,7 +30,7 @@ pub async fn dial(provider: Arc<Provider>, client: Client) {
     loop {
         if let Ok(socket) = keepalive::connect(url.as_str()).await {
             let address = peer_ip(&socket);
-            let made = handshake::connect(Connection::Outgoing(socket), Listable::Hidden, provider.authenticator.as_ref(), address).await;
+            let made = handshake::connect(Connection::Outgoing(socket), Listable::Hidden, &provider.authenticator.dialling(&client.identity), address).await;
             if let Ok(Handshook { connection, peer, listable }) = made {
                 provider.held(connection, peer, listable, address, Some(client.address.clone())).await;
             }

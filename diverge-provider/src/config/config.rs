@@ -15,7 +15,7 @@ use super::volumes::Volumes;
 ///
 /// An absent file is this type's [`Default`], and the provider runs
 /// on it: the proxy's own port, no identity of its own, no peer
-/// accepted, no peer dialled, no volume, no Store, and the
+/// admitted, no peer dialled, no volume, no Store, and the
 /// [`Containers`] defaults. Every section may be absent, meaning what
 /// its doc says. An unknown key is an error, so a misspelled
 /// setting is refused rather than ignored.
@@ -39,19 +39,19 @@ pub struct Config {
     /// whatever issuer the peer's is from. It is an identity of the
     /// root's [`identities`](diverge_sdk::identities), signed in
     /// beforehand. It lists no issuer the provider trusts: whom the
-    /// provider serves is `accepted`'s to say, from whatever issuer
-    /// each is. Absent, the provider has no identity, and completes no
+    /// provider serves is `incoming`'s and `clients`' to say, from
+    /// whatever issuer each is. Absent, the provider has no identity, and completes no
     /// handshake.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identity: Option<Identity>,
-    /// The identities the provider serves: a peer whose verified
-    /// `(issuer, subject)` is not here is closed in the handshake —
-    /// whichever end dialled, with no distinction between the two.
-    /// Absent, nobody is served.
+    /// The identities that may dial the provider: a peer that dials
+    /// in and whose verified `(issuer, subject)` is not here is closed
+    /// in the handshake. It says nothing of the peers the provider
+    /// dials, each of which names its own. Absent, nobody dials in.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub accepted: Vec<Identity>,
-    /// The peers the provider dials: see [`Client`]. Absent, it dials
-    /// no one.
+    pub incoming: Vec<Identity>,
+    /// The peers the provider dials, each with the identity that must
+    /// answer: see [`Client`]. Absent, it dials no one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub clients: Vec<Client>,
     /// The runtime the provider runs containers with, and what it
@@ -78,7 +78,7 @@ pub struct Config {
 }
 
 /// What a provider runs on before it has written a line of
-/// configuration: the proxy's port, no identity, nobody accepted,
+/// configuration: the proxy's port, no identity, nobody admitted,
 /// nobody dialled,
 /// the [`Containers`] defaults, no volume, no Store, no
 /// messages.
@@ -87,7 +87,7 @@ impl Default for Config {
         Config {
             port: proxy_port(),
             identity: None,
-            accepted: Vec::new(),
+            incoming: Vec::new(),
             clients: Vec::new(),
             containers: Containers::default(),
             volumes: None,
