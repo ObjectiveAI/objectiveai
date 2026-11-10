@@ -49,6 +49,14 @@
 //! ends. So the first item decides: anything that fails before it is
 //! the status, anything after it is a chunk.
 //!
+//! And the first item is the messages' user parts, said the moment
+//! the program has taken them — handed to the harness, the turn on
+//! its way — and never after the turn's work: `/run` answers once the
+//! messages are taken, because that answer is what the proxy reports
+//! as their `delivered`. A turn one that fails after it — a model that
+//! will not answer, a script that raises — is a failure after the
+//! stream started, a fatal notification chunk like any later turn's.
+//!
 //! # The queue is the proxy's; the program holds one slot
 //!
 //! The proxy holds every message the provider enqueues, and the
