@@ -23,8 +23,8 @@ pub struct Frame {
     pub description: Option<String>,
     /// The remote daemon, by the identity it answers a handshake as.
     pub daemon: Identity,
-    /// The identity this daemon presents to it, one of the host's: its
-    /// issuer must be the remote's.
+    /// The identity this daemon presents to it, one of the host's,
+    /// from whatever issuer: it need not be the remote's.
     pub identity: Identity,
     /// The routes it may be reached by: see [`Routes`]. Its members lie
     /// beside the request's own; each absent, or empty, no filter.

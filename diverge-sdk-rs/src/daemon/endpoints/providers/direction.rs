@@ -19,8 +19,8 @@ use super::Ip;
 ///    the socket before its token is verified. Absent, any IP; empty,
 ///    none.
 /// 3. **Outgoing identity.** An outgoing provider is dialled at its
-///    `address`, presenting the daemon's token from the provider's own
-///    issuer, and the identity that answers must be the record's; any
+///    `address`, presenting the daemon's own token — its one
+///    identity's — and the identity that answers must be the record's; any
 ///    other is refused. Where the address resolves is not checked.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]

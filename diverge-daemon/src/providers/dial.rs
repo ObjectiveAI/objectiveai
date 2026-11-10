@@ -27,8 +27,8 @@ const PAUSE: Duration = Duration::from_secs(5);
 ///
 /// Each round reads the record's address, connects to its [`url`],
 /// makes the [`handshake`](diverge_sdk::wire::handshake) as the
-/// connector — the daemon's token from the provider's own issuer, the
-/// provider's from the same issuer verified, and required to be exactly
+/// connector — the daemon's own token presented, the provider's
+/// verified against its own issuer, and required to be exactly
 /// `identity`, which no other connection holds and which it then holds
 /// — sends the listable flag the record says, and [`attach`]es: a
 /// provider that answers its info is held and served until the

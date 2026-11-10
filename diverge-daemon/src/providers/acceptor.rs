@@ -27,8 +27,8 @@ pub type AcceptedFrames = Pin<Box<dyn Stream<Item = server::Owned> + Send>>;
 ///    as a [`Connection::Local`](Wire::Local) and opened by the
 ///    [`handshake`](diverge_sdk::wire::handshake) as the connectee:
 ///    the connector's token, its first frame, is verified against the
-///    address the provider saw, and the daemon's own token from the
-///    same issuer is the first frame the daemon sends.
+///    address the provider saw, and the daemon's own token — its one
+///    identity's — is the first frame the daemon sends.
 /// 2. **Admission.** The connector must be an account of this
 ///    daemon's — another daemon reaches this one through the accounts
 ///    system, and through no list — that no other daemon connector

@@ -20,9 +20,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// `Forbidden` with no `add` grant; the `Error` for our identity at
-/// another issuer than the remote's, since the handshake between the two
-/// speaks one; `Exists`, with the ID, for a record of the ID what the
+/// `Forbidden` with no `add` grant; `Exists`, with the ID, for a record of the ID what the
 /// request reaches and as whom hash to — see
 /// [`DaemonId::of`](diverge_sdk::daemon::endpoints::daemons::DaemonId::of);
 /// else the record kept under that ID, its tags sorted, the lists told,
@@ -34,9 +32,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     };
     if !judge::daemons::make(&standing, Make::Add) {
         return Ok(Frame::Forbidden);
-    }
-    if frame.identity.issuer != frame.daemon.issuer {
-        return Ok(Frame::Error(reply::failure(&"our identity must be at the remote's issuer: the handshake between the two speaks one")));
     }
     let new = store::daemons::New {
         description: frame.description.unwrap_or_default(),
