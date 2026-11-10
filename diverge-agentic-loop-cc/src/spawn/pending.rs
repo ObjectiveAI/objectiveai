@@ -4,25 +4,25 @@ use std::sync::LazyLock;
 
 use dashmap::DashMap;
 use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
-use rmcp::model::ContentBlock;
+use diverge_sdk::container_proxy::inside::agent::run::request::Message;
 use tokio::sync::oneshot;
 
-/// One enqueued message, from the write that queued it until its
-/// fate is decided: the content as enqueued — what the `user` chunk
-/// carries when the replay echo lands, since the echo carries Claude
-/// Code's blocks and not MCP's — and the wire the fate goes out on.
+/// The slot's one message, from the write that queued it until its
+/// fate is decided: the proxy's batch as enqueued — what the user
+/// parts carry, each message's under its own key, when the replay
+/// echo lands, since the echo carries Claude Code's blocks and not
+/// MCP's — and the wire the fate goes out on.
 pub struct Pending {
-    /// The caller's key, by which a dequeue withdraws it.
-    pub key: String,
-    /// The message's content, as enqueued.
-    pub content: Vec<ContentBlock>,
+    /// The batch, in enqueue order, each message under its key.
+    pub messages: Vec<Message>,
     /// Where the fate goes.
     pub fate: oneshot::Sender<Fate>,
 }
 
 /// Every enqueued message, by uuid, from the write that queued it
-/// until the fate is decided — so the map's keys ARE the queue as
-/// this container knows it.
+/// until the fate is decided — so the map's keys ARE the slot as
+/// this container knows it: one entry at most, since an enqueue that
+/// finds one is [`Occupied`](super::enqueue::Occupied).
 ///
 /// Beside the session lock, not inside it: resolving a fate is a
 /// remove-and-send that never takes the lock. Entries are inserted

@@ -8,7 +8,7 @@
 //! streams its chunks back as server-sent events — one at a time,
 //! the lock held until the run is settled, so a run after the first
 //! resumes the same session and a run beside it is refused;
-//! `POST /enqueue` and `POST /dequeue` are the running loop's queue, which Claude Code
+//! `POST /enqueue` and `POST /dequeue` are the running loop's one slot, which Claude Code
 //! holds and this container writes to; `--schema`, the program's one
 //! argument, prints the JSON Schema of the agent value this image
 //! accepts (see [`main`]); `POST /register` is that value, told once
@@ -75,12 +75,11 @@ use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_sdk::container_proxy::inside::Client;
 use diverge_sdk::container_proxy::inside::agent::dequeue::{self, Outcome};
-use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
+use diverge_sdk::container_proxy::inside::agent::enqueue::{self, Fate};
 use diverge_sdk::container_proxy::inside::register;
 use diverge_sdk::container_proxy::inside::register::response::Response;
 use diverge_sdk::container_proxy::inside::agent::run;
 use diverge_sdk::container_proxy::inside::secrets::{collect, feed};
-use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, NotificationChunk,
 };
@@ -444,9 +443,15 @@ async fn collect(Json(request): Json<collect::request::Request>) -> Result<Json<
     }
 }
 
-/// `POST /enqueue`: a message for the running conversation's queue.
+/// `POST /enqueue`: the proxy's batch, into the running
+/// conversation's one slot.
 ///
-/// The response IS the fate, and it arrives when the fate is known —
+/// The batch is one message: every message's blocks, converted, in
+/// order, written as ONE user message — one user turn — whose user
+/// parts are each message's under its own key. A message with no
+/// content, or content Claude Code cannot take, refuses the whole
+/// batch (`400`); a slot already full is `409`
+/// `{"kind":"occupied"}`. The response IS the fate, and it arrives when the fate is known —
 /// taken into the conversation, withdrawn by a dequeue, or outlived
 /// by the run. That can be long after the ask; nothing here times
 /// anything out. The one HTTP failure is the install's — everything
@@ -454,23 +459,45 @@ async fn collect(Json(request): Json<collect::request::Request>) -> Result<Json<
 /// (missed).
 async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
     installed().await?;
-    let blocks = match spawn::blocks(&request.content) {
-        Ok(blocks) => blocks,
-        Err(error) => return Err((StatusCode::BAD_REQUEST, Json(error))),
-    };
-    Ok(Json(spawn::enqueue(request.key, request.content, blocks).await))
+    if request.messages.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "kind": "content",
+                "error": "an enqueue needs a message",
+            })),
+        ));
+    }
+    let mut blocks = Vec::new();
+    for message in &request.messages {
+        match spawn::blocks(&message.content) {
+            Ok(converted) => blocks.extend(converted),
+            Err(error) => return Err((StatusCode::BAD_REQUEST, Json(error))),
+        }
+    }
+    match spawn::enqueue(request.messages, blocks).await {
+        Ok(fate) => Ok(Json(fate)),
+        Err(spawn::Occupied) => Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "kind": "occupied",
+                "error": "the slot holds a message",
+            })),
+        )),
+    }
 }
 
-/// `POST /dequeue`: withdraw the messages waiting under a key.
+/// `POST /dequeue`: empty the slot.
 ///
-/// The answer arrives once Claude Code has replied to every cancel
-/// of a message under the body's key — however long that takes —
-/// and a queue with nothing left to withdraw under it, or no run at
-/// all, answers `empty`; every other message stays. The one HTTP
-/// failure is the install's.
-async fn dequeue(Json(request): Json<dequeue::request::Request>) -> Result<Json<Outcome>, Refusal> {
+/// The answer arrives once Claude Code has replied to the cancel of
+/// the slot's message — however long that takes — and a slot with
+/// nothing left to withdraw, one Claude Code already took, or no run
+/// at all, answers `empty`. The body is `{}`: the slot is one
+/// message, and there is nothing to name. The one HTTP failure is
+/// the install's.
+async fn dequeue(Json(_request): Json<dequeue::request::Request>) -> Result<Json<Outcome>, Refusal> {
     installed().await?;
-    Ok(Json(spawn::dequeue(&request.key).await))
+    Ok(Json(spawn::dequeue().await))
 }
 
 /// The install gate every endpoint stands behind: waits out an

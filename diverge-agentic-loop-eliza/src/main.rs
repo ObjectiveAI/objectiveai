@@ -7,7 +7,7 @@
 //! a time, the lock held until the run is settled, so a run after
 //! the first resumes the same conversation and a run beside it is
 //! refused — and streams its chunks back as server-sent events;
-//! `POST /enqueue` and `POST /dequeue` are the running loop's queue,
+//! `POST /enqueue` and `POST /dequeue` are the running loop's one slot,
 //! taken at each turn's end; `--schema`, the program's one argument,
 //! prints the JSON Schema of the agent value this image accepts (see
 //! [`main`]); `POST /register` is that value, told once for the
@@ -70,10 +70,9 @@ use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_sdk::container_proxy::inside::Client;
 use diverge_sdk::container_proxy::inside::agent::dequeue::{self, Outcome};
-use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
+use diverge_sdk::container_proxy::inside::agent::enqueue::{self, Fate};
 use diverge_sdk::container_proxy::inside::register::response::Response;
 use diverge_sdk::container_proxy::inside::secrets::{collect, feed};
-use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use futures_util::{Stream, StreamExt as _};
 use serde_json::Value;
@@ -335,8 +334,12 @@ async fn register(
     }
 }
 
-/// `POST /enqueue`: a message for the running conversation's queue.
+/// `POST /enqueue`: the proxy's batch, into the running
+/// conversation's one slot.
 ///
+/// The batch is one message: every message in it, in order, joined
+/// into the next turn's one input, each message's user parts under
+/// its own key. A slot already full is `409` `{"kind":"occupied"}`.
 /// The response IS the fate, and it arrives when the fate is known —
 /// taken as the next turn's input, withdrawn by a dequeue, or
 /// outlived by the run. That can be long after the ask; nothing here
@@ -344,10 +347,27 @@ async fn register(
 /// fate channel dying, which the run's close guard exists to prevent
 /// — answers as HTTP does, with a status.
 async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
-    if let Err(error) = content::check(&request.content) {
+    if let Some(error) = request.messages.iter().find_map(|message| content::check(&message.content).err()) {
         return Err((StatusCode::BAD_REQUEST, Json(error)));
     }
-    let fate = QUEUE.enqueue(request.key, request.content).await;
+    if request.messages.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "kind": "content",
+                "error": "an enqueue needs a message",
+            })),
+        ));
+    }
+    let Ok(fate) = QUEUE.enqueue(request.messages).await else {
+        return Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "kind": "occupied",
+                "error": "the slot holds a message",
+            })),
+        ));
+    };
     match fate.await {
         Ok(fate) => Ok(Json(fate)),
         Err(_) => Err((
@@ -360,14 +380,14 @@ async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<
     }
 }
 
-/// `POST /dequeue`: withdraw the messages waiting under a key.
+/// `POST /dequeue`: empty the slot.
 ///
-/// Naive, deliberately: whatever is pending under the body's key is
-/// withdrawn — each message's own `/enqueue` answers `dequeued` —
-/// every other message stays, and a queue with nothing pending under
-/// the key, closed or not, answers `empty`.
-async fn dequeue(Json(request): Json<dequeue::request::Request>) -> Json<Outcome> {
-    if QUEUE.dequeue(&request.key).await {
+/// Naive, deliberately: whatever the slot holds is withdrawn — its
+/// `/enqueue` answers `dequeued` — and an empty slot, closed or not,
+/// or one the loop already took, answers `empty`. The body is `{}`:
+/// the slot is one message, and there is nothing to name.
+async fn dequeue(Json(_request): Json<dequeue::request::Request>) -> Json<Outcome> {
+    if QUEUE.dequeue().await {
         Json(Outcome::Dequeued)
     } else {
         Json(Outcome::Empty)

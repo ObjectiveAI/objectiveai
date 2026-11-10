@@ -16,13 +16,14 @@
 //!
 //! Hermes cannot be steered mid-turn: nothing reaches a run in flight.
 //! So a message enqueued during a turn waits, and at the turn's end
-//! the queue gets its look, atomically: an empty queue is closed in
-//! the same lock hold that proved it empty, and the run ends;
-//! messages pending are each answered `delivered`, yielded as a
-//! `user` chunk, and — joined with a blank line between, the way
-//! openrouter joins a run of prompts — become the next turn's input
-//! on the same session, resumed. Invoking Hermes again IS the
-//! delivery.
+//! the slot gets its look, atomically: an empty slot is closed in
+//! the same lock hold that proved it empty, and the run ends; the
+//! batch waiting there is answered `delivered`, yielded as each
+//! message's user parts under its own key, and — its messages'
+//! blocks joined in order, the texts with a blank line between —
+//! becomes the next turn's ONE input on the same session, resumed,
+//! exactly as the run's own messages became the first. Invoking
+//! Hermes again IS the delivery.
 //!
 //! # What ends a run, and what does not
 //!
@@ -199,20 +200,20 @@ pub fn run(
                 session = Some(tip);
             }
 
-            // The turn's end: the queue's look, atomic. Empty closes
-            // it and ends the run; pending opens another turn.
-            let taken = QUEUE.take_or_close().await;
-            if taken.is_empty() {
+            // The turn's end: the slot's look, atomic. Empty closes
+            // it and ends the run; the batch waiting opens another
+            // turn, its messages' blocks joined into the one input.
+            let Some(taken) = QUEUE.take_or_close().await else {
                 break;
-            }
+            };
             let mut blocks = Vec::new();
-            for message in taken {
+            for message in &taken.messages {
                 for chunk in user_parts(&message.key, message.content.clone()) {
                     yield Ok(chunk);
                 }
                 blocks.extend(message.content.clone());
-                message.deliver();
             }
+            taken.deliver();
             input = crate::content::render(&blocks);
         }
 

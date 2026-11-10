@@ -8,7 +8,7 @@ use diverge_sdk::provider::endpoints::containers::agents::run::server::response:
 };
 use futures_util::stream::FuturesUnordered;
 use futures_util::{Stream, StreamExt as _};
-use rmcp::model::CallToolRequestParams;
+use rmcp::model::{CallToolRequestParams, ContentBlock};
 use rmcp::{Peer, RoleClient};
 
 use super::{Error, Item};
@@ -26,8 +26,8 @@ use crate::run::Feed;
 ///
 /// # The script reads the history as it is stored
 ///
-/// The turn's message goes into the history FIRST, as its own `Prompt`
-/// item — its MCP content blocks, untouched — and the script is fed
+/// The turn's message goes into the history FIRST, as ONE `Prompt`
+/// item — every message the run or the seam took, joined in order — its MCP content blocks, untouched — and the script is fed
 /// the items whole: what the database keeps and what the script
 /// reads are the same array, the latest message its last element.
 /// There is no request to build, and nothing to convert: what a
@@ -77,15 +77,17 @@ use crate::run::Feed;
 /// # The queue is consulted at the seams
 ///
 /// The same two seams openrouter uses. After a turn's tool calls
-/// have all answered, everything pending in [`QUEUE`] is delivered —
-/// a `user` chunk per message, after the tool responses, which is
-/// the position the message actually enters the conversation — and
-/// each becomes its own `Prompt` item in the history. And when a turn
-/// ends with NO tool calls, the queue gets a last look, atomically:
-/// messages pending there open another turn, and only an empty queue
-/// — closed in the same lock hold that proved it empty — lets the
-/// loop end. Every delivery answers its `/enqueue`; everything still
-/// pending when the stream ends, however it ends, is missed.
+/// have all answered, the message in [`QUEUE`]'s one slot is
+/// delivered — the proxy's batch, its user parts under each of its
+/// keys, after the tool responses, which is the position the message
+/// actually enters the conversation — and the batch becomes ONE
+/// `Prompt` item in the history, its messages' content joined in
+/// order. And when a turn ends with NO tool calls, the slot gets a
+/// last look, atomically: a message waiting there opens another
+/// turn, and only an empty slot — closed in the same lock hold that
+/// proved it empty — lets the loop end. Every delivery answers its
+/// `/enqueue`; a message still waiting when the stream ends, however
+/// it ends, is missed.
 /// `generation` is the run's number, from
 /// [`QUEUE.open`](crate::queue::Queue::open), quoted by the close.
 pub async fn r#loop(
@@ -111,9 +113,9 @@ pub async fn r#loop(
 
     let mut items: Vec<ContinuationItem> =
         continuation.map(|history| history.0).unwrap_or_default();
-    for message in &messages {
-        items.push(ContinuationItem::Prompt(message.content.clone()));
-    }
+    // The messages the run started on are ONE user turn, joined in
+    // order — the same as a batch taken at a seam.
+    items.push(ContinuationItem::Prompt(joined(&messages)));
 
     // Turn one, run here so a failure to start is this function's
     // `Err` and never a stream's leading item.
@@ -178,24 +180,23 @@ pub async fn r#loop(
                 // something is at rest, and the rest is yielded
                 // BEFORE the last look, so a prompt delivered here
                 // stays out of it. Then the look, atomic: an empty
-                // queue is CLOSED in the same lock hold that proved
-                // it empty, and the loop ends; messages pending open
-                // another turn, each its own user parts and its own
+                // slot is CLOSED in the same lock hold that proved it
+                // empty, and the loop ends; a batch waiting opens
+                // another turn, its user parts under each key and ONE
                 // Prompt item.
                 if spoke {
                     yield Ok(Item::Rest(Continuation(items.clone())));
                 }
-                let taken = QUEUE.take_or_close().await;
-                if taken.is_empty() {
+                let Some(taken) = QUEUE.take_or_close().await else {
                     return;
-                }
-                for message in taken {
+                };
+                for message in &taken.messages {
                     for chunk in user_parts(&message.key, message.content.clone()) {
                         yield Ok(Item::Chunk(chunk));
                     }
-                    items.push(ContinuationItem::Prompt(message.content.clone()));
-                    message.deliver();
                 }
+                items.push(ContinuationItem::Prompt(joined(&taken.messages)));
+                taken.deliver();
             } else {
                 // Every answer the moment it lands.
                 while let Some(joined) = pending.next().await {
@@ -225,16 +226,18 @@ pub async fn r#loop(
                         }
                     }
                 }
-                // The tool seam: everything enqueued while the tools
-                // ran is delivered here, after the answers and before
+                // The tool seam: the batch the proxy offered while the
+                // tools ran is delivered here, as one user turn, after the answers and before
                 // the script runs again — the position it truly
                 // enters the conversation.
-                for message in QUEUE.take().await {
-                    for chunk in user_parts(&message.key, message.content.clone()) {
-                        yield Ok(Item::Chunk(chunk));
+                if let Some(taken) = QUEUE.take().await {
+                    for message in &taken.messages {
+                        for chunk in user_parts(&message.key, message.content.clone()) {
+                            yield Ok(Item::Chunk(chunk));
+                        }
                     }
-                    items.push(ContinuationItem::Prompt(message.content.clone()));
-                    message.deliver();
+                    items.push(ContinuationItem::Prompt(joined(&taken.messages)));
+                    taken.deliver();
                 }
                 // Every answer is in and the seam's deliveries with
                 // them: the history is at rest.
@@ -401,4 +404,11 @@ fn strip(chunk: &mut AgenticLoopChunk) {
             chunk.meta = None;
         }
     }
+}
+
+/// A batch as one user turn: the content of every message, in order.
+/// The keys are not here — the user parts carry them; the history
+/// keeps what was said.
+fn joined(messages: &[Message]) -> Vec<ContentBlock> {
+    messages.iter().flat_map(|message| message.content.iter().cloned()).collect()
 }

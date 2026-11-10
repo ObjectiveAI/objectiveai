@@ -298,7 +298,12 @@ fn read(
                             let _ = pending.fate.send(
                                 Fate::Delivered,
                             );
-                            chunks.extend(user_parts(&pending.key, pending.content));
+                            // The batch's user parts, each message's
+                            // under its own key: one user message to
+                            // Claude Code, every sender credited.
+                            for message in pending.messages {
+                                chunks.extend(user_parts(&message.key, message.content));
+                            }
                         }
                     }
                 }

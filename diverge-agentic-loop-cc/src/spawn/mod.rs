@@ -5,8 +5,9 @@
 //! [`writer::WRITER`] is stdin — holding it is the sole right to
 //! write, and to register a fate; [`replies::REPLIES`] is the
 //! RECEIVER for cancel replies, whose matching sender the reader
-//! task permanently holds; and [`pending::PENDING`] is each enqueued
-//! message's fate wire, inserted under the writer lock, resolved —
+//! task permanently holds; and [`pending::PENDING`] is the slot —
+//! the one enqueued message's fate wire, the proxy's batch written as
+//! one user message — inserted under the writer lock, resolved —
 //! remove-and-send, lock-free — by whoever decides the fate.
 //!
 //! Fates are STRICT: an enqueue answers delivered, dequeued or
@@ -51,7 +52,7 @@ mod writer;
 
 pub use content::blocks;
 pub use dequeue::dequeue;
-pub use enqueue::enqueue;
+pub use enqueue::{Occupied, enqueue};
 pub use install::installed;
 pub use session_id::{remember, session_id};
 pub use spawn::spawn;

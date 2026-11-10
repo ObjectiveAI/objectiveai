@@ -13,7 +13,7 @@ use super::replies;
 use super::stdin;
 use super::writer;
 
-/// Withdraw everything still queued under a key.
+/// Empty the slot: withdraw whatever is still queued.
 ///
 /// BOTH locks are taken up front — joined, acquired in parallel, the
 /// only place in the module that ever holds the two at once — and
@@ -28,8 +28,8 @@ use super::writer;
 /// reply is in. The writer's span is the correctness of the
 /// snapshot — no enqueue can interleave between the look and the
 /// cancels, so every message written before the cancels is
-/// snapshotted and cancelled — those under the key; a message under
-/// another key is not looked at. Messages enqueued during the reply
+/// snapshotted and cancelled: the slot's one, if any — no key is
+/// named, since the slot is one message. Messages enqueued during the reply
 /// wait are after the withdrawal, and none of its business: they
 /// write no control responses, so the replies read stay answers to
 /// the cancels written. No timeout; the wait is as long as Claude
@@ -42,7 +42,9 @@ use super::writer;
 /// it was already taken, and its fate is delivered. A fate already
 /// decided by someone faster, or one nobody is listening to, is
 /// skipped — the reader races this same map on every replay echo.
-pub async fn dequeue(key: &str) -> Outcome {
+/// The answer is `dequeued` only when a cancel reached a message;
+/// a slot already taken, or empty, is `empty`.
+pub async fn dequeue() -> Outcome {
     // Joined, in parallel; the writer's fair queue makes this very
     // acquisition the withdrawal boundary.
     let (mut writer, mut replies) =
@@ -60,11 +62,10 @@ pub async fn dequeue(key: &str) -> Outcome {
     // The pending map's keys ARE the queue: entries leave as fates
     // are decided, so what remains is what a cancel can still speak
     // to. Complete under the writer lock — nothing can be inserted
-    // while this holds it. Only the messages under the caller's key
-    // are spoken to; the rest stay queued.
+    // while this holds it. Every entry is spoken to: the slot holds
+    // one at most.
     let uuids: Vec<String> = pending::PENDING
         .iter()
-        .filter(|entry| entry.value().key == key)
         .map(|entry| entry.key().clone())
         .collect();
     if uuids.is_empty() {
@@ -108,6 +109,7 @@ pub async fn dequeue(key: &str) -> Outcome {
     // id. A reply quoting an unknown id is stale — a prior dequeue
     // whose HTTP caller vanished mid-wait left it unread — and is
     // skipped, not counted.
+    let mut withdrawn = false;
     while !cancels.is_empty() {
         match receiver.recv().await {
             Some(reply) => match &reply.response {
@@ -130,6 +132,7 @@ pub async fn dequeue(key: &str) -> Outcome {
                         .and_then(serde_json::Value::as_bool)
                     {
                         Some(true) => {
+                            withdrawn = true;
                             if let Some((_, pending)) =
                                 pending::PENDING.remove(&uuid)
                             {
@@ -173,5 +176,9 @@ pub async fn dequeue(key: &str) -> Outcome {
 
     // The last reply is in: the receiver's job here is done too.
     drop(replies);
-    Outcome::Dequeued
+    if withdrawn {
+        Outcome::Dequeued
+    } else {
+        Outcome::Empty
+    }
 }
