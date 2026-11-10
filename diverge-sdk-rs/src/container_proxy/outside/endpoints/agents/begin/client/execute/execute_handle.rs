@@ -1,7 +1,5 @@
 //! The begin scope, held for the connection's life.
 
-use rmcp::model::ContentBlock;
-
 use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
@@ -55,13 +53,13 @@ impl ExecuteHandle {
         unary::<Info>(&self.handle, self.scope, &payload).await
     }
 
-    /// A message for the agent — starting a loop when none runs,
-    /// handed to the program's queue when one does — answered with
-    /// its fate whenever that is known; nothing times it out. `index`
-    /// is the daemon's arrival order, which the proxy orders by: see
+    /// A batch of messages for the agent, in order — starting a loop
+    /// when none runs, handed to the program's queue when one does —
+    /// answered with its fate, every message's alike, whenever that
+    /// is known; nothing times it out. The order is the batch's: see
     /// [`enqueue::request::Request`].
-    pub async fn enqueue(&self, key: String, index: u64, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, index, content }))
+    pub async fn enqueue(&self, messages: Vec<enqueue::request::Message>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { messages }))
             .map_err(UnaryError::Request)?;
         unary::<Enqueue>(&self.handle, self.scope, &payload).await
     }

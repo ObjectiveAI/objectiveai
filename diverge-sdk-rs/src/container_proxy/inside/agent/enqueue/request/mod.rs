@@ -1,8 +1,9 @@
 //! The body: the messages, joined.
 //!
-//! Not the provider protocol's enqueue — that names one message under
-//! one key, and stays the provider wire's. This is the proxy's batch:
-//! every message it holds, in index order, each under its key, the
+//! The provider protocol's enqueue carries the same: a batch of
+//! [`Message`](crate::shared::containers::enqueue::request::Message)s,
+//! in order. This is what the proxy makes of the batches it holds:
+//! every message of every one, in order, each under its key, the
 //! same `{"key": "…", "content": […]}` pairs a
 //! [`run`](crate::container_proxy::inside::agent::run) carries.
 

@@ -7,8 +7,8 @@ use crate::container_proxy::inside::agent::run::request::Message;
 /// Take these messages onto the queue.
 ///
 /// The messages are the proxy's whole queue as it sends it — one or
-/// more, in the order they were enqueued, each under the key its
-/// enqueue carried. The program takes them, with anything else
+/// more, in the order their batches carried them, each under the key
+/// its enqueue carried. The program takes them, with anything else
 /// waiting, as one user turn at its next seam: the content of every
 /// message, in order, and the user parts of each under its own key,
 /// so every sender is still credited in the log. A program that
@@ -17,7 +17,8 @@ use crate::container_proxy::inside::agent::run::request::Message;
 /// every message in it with them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request {
-    /// What the queue takes, in index order: the daemon's arrival
-    /// order, which every enqueue on the provider's wire carries.
+    /// What the queue takes, in order: every batch the proxy holds,
+    /// in the order the batches reached it, each batch's messages in
+    /// the batch's own order.
     pub messages: Vec<Message>,
 }

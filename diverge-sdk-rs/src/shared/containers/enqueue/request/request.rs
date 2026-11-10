@@ -1,66 +1,59 @@
-//! A message for the running loop's queue.
+//! A batch of messages for the agent.
 
-use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
 
+use super::Message;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Send a message to the agent.
+/// Send a batch of messages to the agent: one or more, in order.
 ///
-/// With no loop running, the message starts one, and is its input.
-/// With one running, the verb is the mechanism's: the message is QUEUED, not injected —
+/// With no loop running, the batch starts one, and is its input.
+/// With one running, the verb is the mechanism's: the batch is QUEUED, not injected —
 /// the turn in flight always runs to completion, and the agent picks
-/// the message up at a seam of its own choosing: folded in beside the
+/// the batch up at a seam of its own choosing: folded in beside the
 /// next tool results, or opening the next turn when the assistant has
 /// already finished. Nothing about this interrupts anything, ever.
 ///
 /// # The content is MCP's
 ///
-/// A list of content blocks — text, an image, audio, an embedded
-/// resource, a link to one — in order, each as MCP's own
-/// [`ContentBlock`] states it: one vocabulary for what a caller says
-/// to an agent, what a tool answers, and what the agent says back.
+/// Each message is a list of content blocks — text, an image, audio,
+/// an embedded resource, a link to one — in order, each as MCP's own
+/// [`ContentBlock`](rmcp::model::ContentBlock) states it: one
+/// vocabulary for what a caller says to an agent, what a tool answers,
+/// and what the agent says back.
 /// What an agent's image makes of a block is its own. An image that
-/// cannot take one refuses the whole message, in its own words, and
+/// cannot take one refuses the whole batch, in its own words, and
 /// the fate carries them; nothing is reduced to its text on the
 /// caller's behalf. A message with no block is refused too. The
 /// [user parts](crate::provider::endpoints::containers::agents::run::server::response::user_parts)
-/// that mark this message's delivery carry the same blocks back, one
-/// chunk each, verbatim, under this key, at the position it landed.
+/// that mark a message's delivery carry the same blocks back, one
+/// chunk each, verbatim, under its key, at the position it landed.
 ///
 /// # The answer says what became of it
 ///
-/// One frame, then the finish: `delivered` when the agent's program
-/// has the message — the loop it started, or the program's own
-/// queue, taken at its next seam — and an error when the agent
-/// refused the message or no run could start on it. A run ending
-/// with the message still waiting does not lose it: the message
-/// starts the next run. `delivered` carries nothing — the fate is the
-/// answer — and nothing withdraws a message once sent.
+/// One frame, then the finish, for the whole batch: `delivered` when
+/// the agent's program has every message of it — the loop they
+/// started, or the program's own queue, taken at its next seam — and
+/// an error when the agent refused the batch or no run could start on
+/// it. A run ending with the batch still waiting does not lose it:
+/// the batch starts the next run. `delivered` carries nothing — the
+/// fate is the answer — and nothing withdraws a batch once sent.
 ///
-/// # The order is the index
+/// # The order is the batch's
 ///
-/// Every message carries the daemon's arrival order, its `index`: a
-/// lower index arrived before a higher one. The provider carries it
-/// and does not read it. The proxy orders by it alone, and never by
-/// when a message reached it: its queue is kept in index order, every
-/// batch it hands the agent's program — the `/run`, or one `/enqueue`
-/// — is in index order, and that is the order the program joins them
-/// in. Indices are daemon-wide, so they are not contiguous for one
-/// agent, and the proxy waits for no gap: it orders what it holds.
+/// The messages are in the order the caller means the agent to take
+/// them, and nothing reorders them: the provider carries the batch
+/// whole and does not read it, the proxy hands it to the agent's
+/// program whole — in the `/run`, or in one `/enqueue` — and the
+/// program joins its messages in that order, as one user turn. A
+/// caller that sends one batch at a time, each after the last was
+/// answered, has its messages taken in the order it sent them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request {
-    /// The caller's handle on the message: what each of its user
-    /// parts carries back, so the log credits its sender. Not unique —
-    /// two messages may share one — and not read by the provider or
-    /// the proxy, which carry it and nothing else.
-    pub key: String,
-    /// The daemon's arrival order, lower first: the proxy orders by it.
-    pub index: u64,
-    /// The message's content, in order.
-    pub content: Vec<ContentBlock>,
+    /// The batch's messages, in order, each under its key.
+    pub messages: Vec<Message>,
 }
 
 /// Its JSON, and nothing in front of it. The tag that says which

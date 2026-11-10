@@ -5,16 +5,14 @@ use std::fmt;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use futures_util::future::BoxFuture;
-use futures_util::{FutureExt as _, Stream};
-use rmcp::model::ContentBlock;
+use futures_util::Stream;
 
 use super::super::channel_request;
 use super::{Exec, ExecStream, Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::agents::run::server;
 use crate::provider::endpoints::containers::client::answered::{Enqueue, FuseMount, Info, Secrets};
-use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError, unary_answer};
+use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError};
 use crate::shared::containers::fuse::Kind;
 use crate::shared::containers::exec;
 use crate::shared::containers::terminal;
@@ -28,7 +26,7 @@ use crate::shared::containers::{enqueue, fuse_mount, read, transfer, write_path}
 ///
 /// Every channel a caller may open into an agent container is a
 /// method here: the tree watched, a file read or written, one more
-/// mount made, the image's DIVERGE.md, the queue's two verbs, the
+/// mount made, the image's DIVERGE.md, the queue's one verb, the
 /// secrets' feed, and the cancel. What the agent says
 /// is not: it is the [`ExecuteStream`](super::ExecuteStream) `execute` handed back
 /// beside this. Each opens its own channel, so several may be in flight
@@ -201,25 +199,18 @@ impl ExecuteHandle {
         self.0.unary::<Info>(&payload).await
     }
 
-    /// A message for the agent — starting a loop when none runs,
-    /// queued when one does — answered with its fate whenever that
-    /// is known, which may be long after the ask; nothing times it
-    /// out. What the agent says arrives on the scope's main stream.
-    /// `index` is the daemon's arrival order, which the proxy orders
-    /// by: see [`enqueue::request::Request`].
-    pub async fn enqueue(&self, key: String, index: u64, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        self.enqueue_sent(key, index, content).await?.await
-    }
-
-    /// The same message, handed back once its channel is out and
-    /// before its fate is known: the fate is the future, which owns
-    /// what it reads and borrows nothing. For a caller whose next ask
-    /// must follow this one on the wire.
-    pub async fn enqueue_sent(&self, key: String, index: u64, content: Vec<ContentBlock>) -> Result<BoxFuture<'static, Result<enqueue::response::Frame, UnaryError<Enqueue>>>, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, index, content }))
+    /// A batch of messages for the agent, in order — starting a loop
+    /// when none runs, queued when one does — answered with its fate,
+    /// every message's alike, whenever that is known, which may be
+    /// long after the ask; nothing times it out. What the agent says
+    /// arrives on the scope's main stream. The order is the batch's,
+    /// and a caller that sends the next only once this is answered
+    /// has its messages taken in the order it sent them: see
+    /// [`enqueue::request::Request`].
+    pub async fn enqueue(&self, messages: Vec<enqueue::request::Message>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { messages }))
             .map_err(UnaryError::Request)?;
-        let channel = self.0.sent(&payload).await.map_err(UnaryError::Send)?;
-        Ok(unary_answer::<Enqueue>(channel).boxed())
+        self.0.unary::<Enqueue>(&payload).await
     }
 
     /// One more file or directory served into the container at

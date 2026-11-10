@@ -48,13 +48,13 @@ pub enum Frame {
     /// container's root, the program never asked — or that it has
     /// none. See [`info`](crate::shared::containers::info).
     Info,
-    /// A message for the agent. Tag `2`.
+    /// A batch of messages for the agent, in order. Tag `2`.
     ///
-    /// The one way into it: a message with no loop running starts one,
-    /// on that message, and a message while one runs joins its queue.
+    /// The one way into it: a batch with no loop running starts one,
+    /// on its messages, and a batch while one runs joins its queue.
     /// Answered once — by an
     /// [`enqueue::response::Frame`](crate::shared::containers::enqueue::response::Frame)
-    /// naming the message's fate, whenever that is known — and then the
+    /// naming the batch's fate, whenever that is known — and then the
     /// finish. What the agent says in reply is the begin's main stream.
     /// See [`enqueue`](crate::shared::containers::enqueue).
     Enqueue(enqueue::request::Request),

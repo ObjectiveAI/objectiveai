@@ -1,4 +1,4 @@
-//! The answer to an enqueue: the message's fate.
+//! The answer to an enqueue: the batch's fate.
 
 use std::error;
 use std::fmt;
@@ -7,27 +7,28 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared;
 
-/// One frame, then the finish: what became of the enqueued message.
+/// One frame, then the finish: what became of the enqueued batch,
+/// every message in it alike.
 ///
 /// A payload leads with one byte saying which; only
 /// [`Error`](Self::Error) carries anything after it. The fate is
 /// data-free deliberately — the fate IS the answer, and the
-/// message's content is the client's own to remember.
+/// messages' content is the client's own to remember.
 ///
 /// # The channel stays open until there is a fate
 ///
-/// An enqueued message can wait for a loop to start — the run being
+/// An enqueued batch can wait for a loop to start — the run being
 /// activated, or the one in flight ending — so this answer can
 /// arrive long after the ask. Nothing times it out — nothing in this
-/// protocol times anything out — and every enqueued message gets
+/// protocol times anything out — and every enqueued batch gets
 /// exactly one of these eventually: handed to the agent's program,
 /// by the run it starts or onto the queue of the one in flight; or
 /// the error, when the agent refused it or no run could start on it.
-/// A run ending does not lose a message: what it left waiting starts
+/// A run ending does not lose a batch: what it left waiting starts
 /// the next.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The agent's program has the message. Tag `0`.
+    /// The agent's program has every message of the batch. Tag `0`.
     ///
     /// The loop it started took it, or the loop in flight's program
     /// accepted it onto its own queue, to take at its next seam —
@@ -35,16 +36,16 @@ pub enum Frame {
     /// it landed is visible in the scope's main stream; this says
     /// only that it is the program's. Tag `1` is retired.
     Delivered,
-    /// The agent refused the message, or no run could start on it.
+    /// The agent refused the batch, or no run could start on it.
     /// Tag `2`.
     ///
-    /// The one way a message is lost, in the agent's server's own
+    /// The one way a batch is lost, in the agent's server's own
     /// words, in the protocol's one error shape: it would not take
-    /// the message's content — at the start of a run, or at the
-    /// delivery of a queued message into the loop in flight — or it
-    /// could not be reached when the message was to start a run. A
-    /// loop that merely ends with the message waiting does not give
-    /// this; the message starts the next.
+    /// the batch's content — at the start of a run, or at the
+    /// delivery of a queued batch into the loop in flight — or it
+    /// could not be reached when the batch was to start a run. A
+    /// loop that merely ends with the batch waiting does not give
+    /// this; the batch starts the next.
     Error(shared::error::Error),
 }
 
