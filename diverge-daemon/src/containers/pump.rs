@@ -27,7 +27,9 @@ use crate::store::AgentId;
 /// [`Message`](super::Message) states, and what its program made of its rotating secrets
 /// written back and the run activated again while a message is
 /// pending, as [`inactive_agent`](super::inactive_agent) states, a
-/// failure kept as an `Error` item naming secrets and never a value —
+/// failure kept as an `Error` item naming secrets and never a value,
+/// and told to the agent's outbox pump, which feeds again for a batch
+/// behind the gate —
 /// and the stream's end or error the run over, told as the end it was
 /// unless whoever ended the run said first: the connection gone the
 /// provider lost, kept as no error; a finish the run exited; any other
@@ -60,6 +62,9 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                 run.touch();
                 run.sweep_messages().await;
                 if let Err(error) = activate::inactive_agent(&daemon, &run, values).await {
+                    // The gate is left shut: a batch that crossed this
+                    // inactive is behind it, and its sender feeds again.
+                    run.unfed.notify_one();
                     let _ = append(
                         &daemon,
                         &run,

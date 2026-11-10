@@ -10,7 +10,7 @@ use diverge_sdk::wire::server::session::Session;
 use futures_util::StreamExt as _;
 use tokio::task::JoinSet;
 
-use super::{agents, dispatch};
+use super::{Turns, dispatch};
 use crate::daemon::{Connected, Daemon};
 use crate::store::AccountId;
 use crate::judge::{Admitted, Expected, Hold, Who};
@@ -70,13 +70,13 @@ pub async fn connection(connection: Connection, address: IpAddr, daemon: Arc<Dae
 /// under the grants it declared, is no account's — and every
 /// scope the client opens is read as a request and handed to
 /// [`dispatch`] on a task of its own, so a slow answer never holds
-/// the socket; a frame that is not a request ends the connection. A
-/// message to an agent this daemon serves is stamped here first, as
-/// it is read and before its task is spawned: the daemon's next index
-/// and a count among the arriving to the agent it names — see
-/// [`Live::arriving`](crate::daemon::Live::arriving) — so the index is
-/// the order the daemon read it in, whatever its lookups make of it
-/// after. Every other request is told by its tag alone. When the
+/// the socket; a frame that is not a request ends the connection.
+/// Every request is given its [`Turn`](super::Turn) here first, as it
+/// is read and before its task is spawned — a link in the
+/// connection's chain, in the order it was read — which is what a
+/// message to an agent is admitted in, whatever order the tasks'
+/// lookups finish in; every other request lets its turn go at once.
+/// When the
 /// socket is gone it is dropped first, which tells every scope still
 /// being served that its feed has closed, and then every task still
 /// answering is waited for, since an answer composed is an answer
@@ -108,6 +108,7 @@ pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
         None => (None, tokio::sync::watch::channel(false).1),
     };
     let mut scopes = JoinSet::new();
+    let mut turns = Turns::new();
     loop {
         let received = tokio::select! {
             received = session.next() => received,
@@ -121,14 +122,11 @@ pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
         let Received::Request(payload, scope) = received else {
             break;
         };
-        let arrival = match agents::message::addressed(&payload) {
-            Some(agent) => Some(daemon.live.arriving(agent).await),
-            None => None,
-        };
+        let turn = turns.next();
         let daemon = Arc::clone(&daemon);
         let who = who.clone();
         scopes.spawn(async move {
-            dispatch(scope, &payload, arrival, who, &daemon).await;
+            dispatch(scope, &payload, turn, who, &daemon).await;
         });
     }
     drop(session);

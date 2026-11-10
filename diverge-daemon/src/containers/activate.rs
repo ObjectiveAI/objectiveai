@@ -1,6 +1,7 @@
 //! A run activated: its secrets taken and fed before work reaches it
-//! — after, for an agent, whose feed is the go; and gone inactive:
-//! what it made of them written back.
+//! — an agent's feed is the go as well, sent and answered before its
+//! batch of messages leaves; and gone inactive: what it made of them
+//! written back.
 
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
@@ -14,25 +15,51 @@ use super::secrets::{self, Secrets};
 use super::{AgentRun, Gate, ToolHandle, ToolRun};
 use crate::daemon::Daemon;
 
-/// The agent's run activated for the messages just sent to it — its
-/// proxy's gate opened, which is the go: the proxy launches the loop
-/// on the feed, with every message it holds. Under the run's gate
-/// lock, so two activations at once feed once:
+/// What an agent's activation came to, where it did not fail.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Activated {
+    /// The gate is open: the batch may be sent.
+    Open,
+    /// The daemon is ending the run — its idle clock, or a feed that
+    /// failed under a batch: nothing is to be sent to it, and the
+    /// batch is the next run's.
+    Ending,
+}
+
+/// The agent's run activated for the batch about to be sent to it —
+/// its proxy's gate opened, which is the go: the proxy launches the
+/// loop on the first batch that reaches an open gate, and hands a
+/// loop in flight every batch after. Called by the agent's outbox
+/// pump alone, with the run's `pending` held — see
+/// [`message`](super::message) — under the run's gate lock, so an
+/// activation, an inactive and the idle clock's last look are served
+/// one after the other:
 ///
-/// 1. A gate open already is left so: nothing is done, and the
-///    messages are the loop's, or the next one's.
-/// 2. Else the run is fed: its values taken and fed as rule 3 of
+/// 1. A run the daemon is ending — the gate's `ending`, set under
+///    this lock by [`idle`](super::idle)'s last look, or by the pump
+///    for a run it could not feed again — is not activated:
+///    [`Ending`](Activated::Ending), and nothing is fed. The clock
+///    looked before the pump held the run, so the pump's hold came
+///    too late to stop it; a hold it saw stops it instead, and this
+///    is then never the answer.
+/// 2. A gate open already is left so: nothing is done, and the batch
+///    is the loop's, or the next one's.
+/// 3. Else the run is fed: its values taken and fed as rule 3 of
 ///    [`activate`] says, where its program registered any secret; an
 ///    empty feed, where it registered nothing. The gate is open once
-///    the provider's `Fed` is back.
-/// 3. A take or a feed that fails leaves the gate shut, releases
+///    the provider's `Fed` is back, which is waited for: the batch
+///    leaves only after it.
+/// 4. A take or a feed that fails leaves the gate shut, releases
 ///    whatever was taken, and is the failure, kind `secrets`.
-pub async fn activate_agent(daemon: &Daemon, run: &AgentRun) -> Result<(), Error> {
+pub async fn activate_agent(daemon: &Daemon, run: &AgentRun) -> Result<Activated, Error> {
     let mut gate = run.gate.lock().await;
-    if gate.open {
-        return Ok(());
+    if gate.ending {
+        return Ok(Activated::Ending);
     }
-    open(daemon, &mut gate, run).await
+    if !gate.open {
+        open(daemon, &mut gate, run).await?;
+    }
+    Ok(Activated::Open)
 }
 
 /// The tool's run activated for an MCP exchange about to be put to
@@ -50,10 +77,16 @@ pub async fn activate_tool(daemon: &Daemon, run: &ToolRun) -> Result<(), Error> 
 /// 2. What the program made of its secrets is written back, as rule
 ///    2 of [`inactive`] says, where it registered any; a write-back
 ///    the store refused is the error, for the log.
-/// 3. Then, while any message is sent and not yet fated, the gate is
-///    opened again at once, as [`activate_agent`] does: such a message
-///    is at the proxy already, behind the gate, so the feed is all it
-///    waits for.
+/// 3. Then, while the agent's outbox pump holds the run — `pending`:
+///    a batch on its way to it, activated for and not yet answered —
+///    the gate is opened again at once, as [`activate_agent`] does:
+///    such a batch crossed this inactive, and is at the proxy behind
+///    the shut gate, or about to be, so the feed is all it waits for.
+///    A run the daemon is ending is fed nothing.
+/// 4. A failure of either leaves the gate shut, and is told: the
+///    run's pump keeps it in the log and wakes the outbox pump, which
+///    activates the run again for the batch it waits on — rule 5 of
+///    [`message`](super::message)'s pump.
 pub async fn inactive_agent(daemon: &Daemon, run: &AgentRun, values: Values) -> Result<(), Error> {
     let mut gate = run.gate.lock().await;
     gate.open = false;
@@ -62,13 +95,13 @@ pub async fn inactive_agent(daemon: &Daemon, run: &AgentRun, values: Values) -> 
             .await
             .map_err(|error| refused(&format!("the values could not be written back: {error}")))?;
     }
-    if !run.pending.is_busy() {
+    if gate.ending || !run.pending.is_busy() {
         return Ok(());
     }
     open(daemon, &mut gate, run).await
 }
 
-/// The agent's gate opened, as rules 2 and 3 of [`activate_agent`] say.
+/// The agent's gate opened, as rules 3 and 4 of [`activate_agent`] say.
 async fn open(daemon: &Daemon, gate: &mut Gate, run: &AgentRun) -> Result<(), Error> {
     let feed = Feed::Agent(&run.handle);
     match gate.secrets.as_mut() {

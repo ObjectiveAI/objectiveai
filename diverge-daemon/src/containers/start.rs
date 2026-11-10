@@ -12,7 +12,7 @@ use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::{execute 
 use diverge_sdk::daemon::endpoints::standalone_tools::templates::Mode;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::{execute as agents_run, request as agents_request};
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
-use tokio::sync::{Mutex, watch};
+use tokio::sync::{Mutex, Notify, watch};
 
 use super::answerers::Answerer;
 use super::images::Pulls;
@@ -250,12 +250,14 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             served,
             messages: Arc::new(Mutex::new(HashMap::new())),
             pending: Arc::new(Inflight::new()),
-            gate: Mutex::new(Gate { secrets: registered, open: false }),
+            gate: Mutex::new(Gate { secrets: registered, open: false, ending: false }),
+            unfed: Notify::new(),
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
             epoch: daemon.live.epoch().await,
             log: daemon.live.log(&daemon.store, agent.id).await,
             ending: Mutex::new(None),
+            ended: watch::channel(false).0,
         });
         lifecycle::deployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, identity.clone()).await;
         // From here a failure is the run's undoing: its container, its

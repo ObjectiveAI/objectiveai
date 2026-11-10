@@ -6,8 +6,8 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, connected_standalone_tools, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, relay, roles, standalone_tools, vault, volumes};
-use crate::daemon::{Arrival, Daemon};
+use super::{Turn, accounts, agents, connected_standalone_tools, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, relay, roles, standalone_tools, vault, volumes};
+use crate::daemon::Daemon;
 use crate::judge::Who;
 
 /// Read `payload` as the request that opened `scope` and hand it to
@@ -20,25 +20,34 @@ use crate::judge::Who;
 /// ([`commands::record`](crate::commands::record)), kept once the
 /// daemon decides whether to let it through.
 ///
-/// `arrival` is the read loop's stamp on a message served here — see
-/// [`client`](super::client) — and `None` for every other request.
+/// `turn` is the request's place in the order its connection sent it
+/// — see [`Turn`] — and is a message's alone: every request that is
+/// not a message to an agent lets it go here, before anything is
+/// waited on, one that cannot be read among them; a message relayed
+/// on lets it go as it is handed to the conduit, since the daemon it
+/// is relayed to admits it; and a message served here hands it to its
+/// handler, which admits the message in it.
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
 /// hundred and thirty-four has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
-pub async fn dispatch(scope: ScopeHandle, payload: &[u8], arrival: Option<Arrival>, who: Who, daemon: &Arc<Daemon>) {
+pub async fn dispatch(scope: ScopeHandle, payload: &[u8], mut turn: Turn, who: Who, daemon: &Arc<Daemon>) {
     let request = ClientRequest::decode(payload).unwrap_or_else(|never| match never {});
+    if !matches!(request, ClientRequest::AgentsMessage(_)) {
+        turn.pass();
+    }
     crate::commands::record(&scope, &request, payload, &who, daemon).await;
     if let Some((relay, bytes)) = relay::peel(payload) {
+        drop(turn);
         return relay::serve(scope, &request, bytes, relay, who, daemon).await;
     }
     match request {
         ClientRequest::AgentsCreate(frame) => agents::create::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsGet(frame) => agents::get::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsDelete(frame) => agents::delete::handle(scope, frame, who, daemon).await,
-        ClientRequest::AgentsMessage(frame) => agents::message::handle(scope, frame, arrival, who, daemon).await,
+        ClientRequest::AgentsMessage(frame) => agents::message::handle(scope, frame, turn, who, daemon).await,
         ClientRequest::AgentsList(frame) => agents::list::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsEdit(frame) => agents::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTag(frame) => agents::tag::handle(scope, frame, who, daemon).await,

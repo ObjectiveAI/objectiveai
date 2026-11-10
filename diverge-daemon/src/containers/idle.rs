@@ -8,9 +8,9 @@ use crate::daemon::Daemon;
 
 /// Run the agent's idle clock until the run ends: while the agent is
 /// active — a loop runs in it, or an MCP exchange is in flight for it
-/// or one of its dependencies — or a message enqueued for it waits for
-/// its fate (`pending`: the agent's program does not have it yet — at
-/// the proxy, behind its gate or on its way to the program), or a file
+/// or one of its dependencies — or a batch of messages is on its way
+/// to it (`pending`: held by the agent's outbox pump from the moment
+/// it has the run until the batch is answered), or a file
 /// use is in progress on it or one of its dependencies
 /// (a filetree watch, a download, an upload, a transfer), the clock
 /// does not run; otherwise,
@@ -18,6 +18,14 @@ use crate::daemon::Daemon;
 /// stopped. The countdown begins only when both are false, and begins
 /// again from the last touch whenever both become false. The pump
 /// hears the end and does the rest.
+///
+/// The clock never stops a run a batch is going to. Its last look is
+/// made under the run's gate lock, and the same step marks the gate
+/// `ending`: the outbox pump holds `pending` before it asks for that
+/// lock — see [`activate_agent`](super::activate_agent) — so either
+/// the look sees the hold and the run goes on, or the pump's
+/// activation finds the gate ending, sends the run nothing, and takes
+/// its messages to the next run.
 pub async fn idle(daemon: Arc<Daemon>, run: Arc<AgentRun>) {
     let mut active = run.loop_active.subscribe();
     let mut inflight = run.inflight.subscribe();
@@ -54,7 +62,10 @@ pub async fn idle(daemon: Arc<Daemon>, run: Arc<AgentRun>) {
         let deadline = last + daemon.idle;
         tokio::select! {
             () = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {
+                let mut gate = run.gate.lock().await;
                 if !*active.borrow() && *inflight.borrow() == 0 && *pending.borrow() == 0 && *files.borrow() == 0 && *touched.borrow() == last {
+                    gate.ending = true;
+                    drop(gate);
                     run.end_as(End::Expected).await;
                     let _ = run.handle.cancel().await;
                     return;

@@ -21,7 +21,7 @@ use rmcp::model::{
     CallToolRequestParams, CallToolResult, ListResourcesResult, ListToolsResult, MetaObject, PaginatedRequestParams,
     ReadResourceRequestParams, ReadResourceResult,
 };
-use tokio::sync::{Mutex, watch};
+use tokio::sync::{Mutex, Notify, watch};
 use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
@@ -76,13 +76,19 @@ pub struct AgentRun {
     /// each: what a user part is logged as. See [`Message`] for when
     /// one leaves.
     pub messages: Arc<Mutex<HashMap<String, Message>>>,
-    /// The messages enqueued and not yet fated: entered as each is
-    /// sent, left at its fate. What an inactive asks before it
-    /// activates the run again.
+    /// The batch of messages on its way to the run: entered by the
+    /// agent's outbox pump once it has the run, before it activates
+    /// it, and left when the batch is answered — see
+    /// [`message`](super::message). What the idle clock waits on, and
+    /// what an inactive asks before it activates the run again.
     pub pending: Arc<Inflight>,
     /// Its secrets and its proxy's gate, under one lock for every
     /// activation and inactive: see [`Gate`].
     pub gate: Mutex<Gate>,
+    /// Told each time an inactive failed, and so left the gate shut:
+    /// what the agent's outbox pump, waiting on a batch's answer,
+    /// activates the run again on — see [`message`](super::message).
+    pub unfed: Notify,
     /// The tasks that are the run's: the pump and the idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
     /// Taken for the length of one edit of the record while it runs:
@@ -97,11 +103,18 @@ pub struct AgentRun {
     /// How the run is ending, once whoever ends it first has said: what
     /// its `undeployed` carries. See [`End`].
     pub ending: Mutex<Option<End>>,
+    /// Whether the run is gone: `true` once, when it has been taken
+    /// down whole — forgotten as live, and everything
+    /// [`ended_agent`](super::ended_agent) does after done. What the
+    /// agent's outbox pump waits for before it starts the next run:
+    /// see [`gone`](Self::gone).
+    pub ended: watch::Sender<bool>,
 }
 
 /// An agent's secrets, and whether its proxy's gate is open: the
-/// proxy launches the loop on a feed, so the daemon feeds once for
-/// the messages it has sent, and again only after the gate shuts.
+/// proxy launches the loop on the first batch behind an open gate, so
+/// the daemon feeds before the batch it sends, and again only after
+/// the gate shuts.
 #[derive(Debug)]
 pub struct Gate {
     /// Its secrets, as its registration took them: the names its
@@ -112,16 +125,24 @@ pub struct Gate {
     /// Whether the gate is open: shut at the start, opened by a feed,
     /// shut again at every inactive.
     pub open: bool,
+    /// Whether the daemon is ending the run with messages to keep
+    /// from it: set once, under the gate's lock, and never unset — by
+    /// the idle clock in its last look ([`idle`](super::idle)), and by
+    /// the outbox pump for a run it could not feed again
+    /// ([`fail_agent`](super::fail_agent)). A run so marked is
+    /// activated no more and sent nothing: its messages wait for the
+    /// next run.
+    pub ending: bool,
 }
 
 /// One message enqueued on an agent's run, as its `messages` keep it.
 /// The rules, so the map holds only what can still be named:
 ///
 /// 1. **Kept from the enqueue.** An entry is made when the message is
-///    enqueued, before it goes out.
+///    taken into a batch, before the batch goes out.
 /// 2. **An undelivered one leaves at its fate.** A fate other than
-///    delivered — an error — removes the entry; so does the
-///    fate's future dropped before it was known, by its guard.
+///    delivered — an error — removes the entry, as its batch is
+///    answered.
 /// 3. **A delivered one leaves two inactives on.** A delivered entry is
 ///    marked so; every user part of a message arrives inside the loop
 ///    that took it, before that loop's `inactive`, but the pump may
@@ -176,6 +197,14 @@ impl AgentRun {
     /// How the run is ending, as said; an end nobody told is expected.
     pub async fn end(&self) -> End {
         self.ending.lock().await.unwrap_or(End::Expected)
+    }
+
+    /// Wait until the run is gone (see `ended`): at once for one that
+    /// is. The sender is the run's own, so the wait ends only on the
+    /// word.
+    pub async fn gone(&self) {
+        let mut ended = self.ended.subscribe();
+        let _ = ended.wait_for(|ended| *ended).await;
     }
 
     /// One file use begins on the run (see `files`): it holds the run

@@ -20,6 +20,18 @@ pub async fn stop_agent(daemon: &Daemon, id: AgentId) {
     }
 }
 
+/// End the agent's run as failed, for a batch at its proxy that could
+/// not be fed: the gate marked `ending` under its lock, so nothing
+/// more is activated on the run or sent to it and the messages after
+/// wait for the next — see [`activate_agent`](super::activate_agent)
+/// — and the container told to stop, which takes the batch with it.
+/// The pump hears the end.
+pub async fn fail_agent(run: &AgentRun) {
+    run.gate.lock().await.ending = true;
+    run.end_as(End::Unexpected(Reason::Failed)).await;
+    let _ = run.handle.cancel().await;
+}
+
 /// [`ended_agent`] in a task of its own. The end of a run is never
 /// taken in one of the run's own tasks — the pump, a waiter — since
 /// the end aborts every one of them: so the pump, hearing the end,
@@ -69,7 +81,10 @@ pub async fn undo_agent(daemon: &Daemon, run: Arc<AgentRun>, live: bool) {
 }
 
 /// What [`ended_agent`] does once the run is no longer live, or never
-/// was.
+/// was; and last, the word that the run is gone, which the agent's
+/// outbox pump waits for before it starts the next — see
+/// [`AgentRun::gone`] — so a run is started only once the one before
+/// it is down whole.
 async fn down_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
@@ -88,6 +103,7 @@ async fn down_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     }
     daemon.live.changed(Kind::Agents);
     daemon.live.nudge_capacity(&run.provider);
+    run.ended.send_replace(true);
 }
 
 /// Every transient dependency tool stopped at once, ending as `end`
