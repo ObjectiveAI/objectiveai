@@ -26,8 +26,9 @@ pub struct Target<'a> {
 impl Target<'_> {
     /// The daemon dialled as the account, with the SDK's [`dial`]: the
     /// handshake made as its connector by a [`Presenter`] — the
-    /// account's access token from its issuer presented, refreshed
-    /// where it must be, and the daemon's answer taken at its word,
+    /// account's ID token presented, refreshed where it must be, and
+    /// the daemon's answer taken at its word, whatever issuer it is
+    /// from,
     /// since the CLI judges no daemon — then the router reading on a
     /// task of its own, the handle every request is put on. Identities
     /// that could not be opened are [`Error::Identities`]; a socket
@@ -43,7 +44,7 @@ impl Target<'_> {
             subject: self.account.subject.clone(),
         };
         let presenter = Presenter::new(identities, name);
-        let (handle, run, _) = dial(self.address, &self.account.issuer, &presenter)
+        let (handle, run, _) = dial(self.address, &presenter)
             .await
             .map_err(|error| match error {
                 DialError::Dial(why) => Error::Dial(why),

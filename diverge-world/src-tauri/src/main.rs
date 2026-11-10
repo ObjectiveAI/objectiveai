@@ -46,9 +46,9 @@ fn main() {
             // runner, presenting the identity, taking the daemon's
             // answer at its word, and dialling again as viewer.yaml's
             // `redial` says.
-            let name = Name { issuer: daemon.issuer.clone(), subject: daemon.subject };
+            let name = Name { issuer: daemon.issuer, subject: daemon.subject };
             let presenter = Arc::new(Presenter::new(identities, name));
-            app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(daemon.address, daemon.issuer, presenter, daemon.redial));
+            app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(daemon.address, presenter, daemon.redial));
             Ok(())
         })
         // A page starting to load — a reload above all — leaves the old

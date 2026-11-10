@@ -76,9 +76,9 @@ fn main() {
             // runner, presenting the identity, taking the daemon's
             // answer at its word, and dialling again as viewer.yaml's
             // `redial` says.
-            let name = Name { issuer: daemon.issuer.clone(), subject: daemon.subject };
+            let name = Name { issuer: daemon.issuer, subject: daemon.subject };
             let presenter = Arc::new(Presenter::new(identities, name));
-            app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(daemon.address, daemon.issuer, presenter, daemon.redial));
+            app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(daemon.address, presenter, daemon.redial));
             // Every file the app keeps is in one folder: the app's own
             // under the root, beside `viewer.yaml`.
             let data = root.join(actions::FOLDER);
