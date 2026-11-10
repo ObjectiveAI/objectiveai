@@ -17,6 +17,7 @@ use crate::container_proxy::inside::agent::run::request::Message;
 /// every message in it with them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request {
-    /// What the queue takes, in enqueue order.
+    /// What the queue takes, in index order: the daemon's arrival
+    /// order, which every enqueue on the provider's wire carries.
     pub messages: Vec<Message>,
 }

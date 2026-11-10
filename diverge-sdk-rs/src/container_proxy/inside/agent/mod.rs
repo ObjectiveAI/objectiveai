@@ -62,9 +62,10 @@
 //! program has it, and the program keeps a plain queue of what it
 //! accepted, which nothing withdraws: the rules, in order.
 //!
-//! 1. The proxy sends its whole queue at once, joined in exact
-//!    enqueue order: `POST /run` when no loop runs, `POST /enqueue`
-//!    while one does — one `/enqueue` at a time, so the order holds.
+//! 1. The proxy sends its whole queue at once, joined in index
+//!    order — the daemon's arrival order, which every enqueue
+//!    carries: `POST /run` when no loop runs, `POST /enqueue` while
+//!    one does — one `/enqueue` at a time, so the order holds.
 //!    Either way the messages are one user turn, each message's user
 //!    parts under its own key, so the log credits every sender.
 //! 2. `POST /enqueue` answers at once. `204` is the messages

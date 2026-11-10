@@ -2,7 +2,7 @@
 //!
 //! The proxy sends the [`request::Request`] JSON once the arguments
 //! are registered and no loop runs: every message it holds, in
-//! enqueue order — joined by the program into the loop's first user
+//! index order — joined by the program into the loop's first user
 //! turn, exactly as an [`enqueue`](super::enqueue) is. A `2xx` is the loop as it happens:
 //! `text/event-stream`, every `data:` one `AgenticLoopChunk` JSON,
 //! which the proxy relays to the provider verbatim, and the stream's

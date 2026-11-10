@@ -205,16 +205,18 @@ impl ExecuteHandle {
     /// queued when one does — answered with its fate whenever that
     /// is known, which may be long after the ask; nothing times it
     /// out. What the agent says arrives on the scope's main stream.
-    pub async fn enqueue(&self, key: String, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        self.enqueue_sent(key, content).await?.await
+    /// `index` is the daemon's arrival order, which the proxy orders
+    /// by: see [`enqueue::request::Request`].
+    pub async fn enqueue(&self, key: String, index: u64, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        self.enqueue_sent(key, index, content).await?.await
     }
 
     /// The same message, handed back once its channel is out and
     /// before its fate is known: the fate is the future, which owns
     /// what it reads and borrows nothing. For a caller whose next ask
     /// must follow this one on the wire.
-    pub async fn enqueue_sent(&self, key: String, content: Vec<ContentBlock>) -> Result<BoxFuture<'static, Result<enqueue::response::Frame, UnaryError<Enqueue>>>, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, content }))
+    pub async fn enqueue_sent(&self, key: String, index: u64, content: Vec<ContentBlock>) -> Result<BoxFuture<'static, Result<enqueue::response::Frame, UnaryError<Enqueue>>>, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, index, content }))
             .map_err(UnaryError::Request)?;
         let channel = self.0.sent(&payload).await.map_err(UnaryError::Send)?;
         Ok(unary_answer::<Enqueue>(channel).boxed())

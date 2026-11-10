@@ -1,7 +1,7 @@
 //! `POST /enqueue`: messages for the running loop, accepted.
 //!
 //! The proxy sends the [`request::Request`] JSON — every message it
-//! holds, in enqueue order, each under its key — while a loop runs,
+//! holds, in index order, each under its key — while a loop runs,
 //! one at a time, and the program answers at once: `204`, the
 //! messages on its queue, taken at its next seam as ONE user turn —
 //! with whatever else waits there — their parts each under their own

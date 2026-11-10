@@ -20,6 +20,7 @@ use super::Message;
 /// message the loop was to take with them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request {
-    /// What the loop is asked, in enqueue order.
+    /// What the loop is asked, in index order: the daemon's arrival
+    /// order, which every enqueue on the provider's wire carries.
     pub messages: Vec<Message>,
 }

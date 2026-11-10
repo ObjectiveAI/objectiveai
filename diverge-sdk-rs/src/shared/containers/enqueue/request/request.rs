@@ -39,6 +39,17 @@ use crate::wire::encode::{Encode, Writer};
 /// with the message still waiting does not lose it: the message
 /// starts the next run. `delivered` carries nothing — the fate is the
 /// answer — and nothing withdraws a message once sent.
+///
+/// # The order is the index
+///
+/// Every message carries the daemon's arrival order, its `index`: a
+/// lower index arrived before a higher one. The provider carries it
+/// and does not read it. The proxy orders by it alone, and never by
+/// when a message reached it: its queue is kept in index order, every
+/// batch it hands the agent's program — the `/run`, or one `/enqueue`
+/// — is in index order, and that is the order the program joins them
+/// in. Indices are daemon-wide, so they are not contiguous for one
+/// agent, and the proxy waits for no gap: it orders what it holds.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request {
     /// The caller's handle on the message: what each of its user
@@ -46,6 +57,8 @@ pub struct Request {
     /// two messages may share one — and not read by the provider or
     /// the proxy, which carry it and nothing else.
     pub key: String,
+    /// The daemon's arrival order, lower first: the proxy orders by it.
+    pub index: u64,
     /// The message's content, in order.
     pub content: Vec<ContentBlock>,
 }

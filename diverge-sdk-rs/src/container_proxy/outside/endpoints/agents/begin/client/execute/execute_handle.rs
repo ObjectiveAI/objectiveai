@@ -57,9 +57,11 @@ impl ExecuteHandle {
 
     /// A message for the agent — starting a loop when none runs,
     /// handed to the program's queue when one does — answered with
-    /// its fate whenever that is known; nothing times it out.
-    pub async fn enqueue(&self, key: String, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, content }))
+    /// its fate whenever that is known; nothing times it out. `index`
+    /// is the daemon's arrival order, which the proxy orders by: see
+    /// [`enqueue::request::Request`].
+    pub async fn enqueue(&self, key: String, index: u64, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, index, content }))
             .map_err(UnaryError::Request)?;
         unary::<Enqueue>(&self.handle, self.scope, &payload).await
     }
