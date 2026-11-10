@@ -13,6 +13,10 @@ draft: false
   message carries it on the main stream of the scope. Two messages
   may share one. The server relays it verbatim and does not read it.
   No channel withdraws a message once it is sent.
+- **`index`.** A `u64`, the order in which the daemon read the
+  message: a lower index precedes a higher one. The server does not
+  read it and relays it to the proxy verbatim, which orders the
+  messages of the agent by it.
 - **`content`.** An array of MCP content blocks, in order, each as
   the `ContentBlock` of the crate's MCP dependency states one: text,
   an image, audio, an embedded resource, or a resource link. What the
