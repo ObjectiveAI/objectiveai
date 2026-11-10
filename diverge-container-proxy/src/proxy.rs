@@ -151,10 +151,11 @@ impl Proxy {
         let _ = self.declaration.set(declaration);
     }
 
-    /// Whether the program takes any secret at all: the gate is
+    /// Whether the program takes any secret at all: a tool's gate is
     /// closed at the begin, and closed again by every inactive, only
-    /// then. A program that takes none has nothing to wait for, and a
-    /// program that has not registered takes nothing yet.
+    /// then. A tool that takes none has nothing to wait for, and a
+    /// program that has not registered takes nothing yet. An agent's
+    /// gate is shut either way: it is the go, see [`agent`](crate::agent).
     pub fn gated(&self) -> bool {
         self.declaration.get().is_some_and(|declaration| !declaration.is_empty())
     }

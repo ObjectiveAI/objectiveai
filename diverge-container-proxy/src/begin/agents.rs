@@ -26,9 +26,10 @@ use crate::{agent, info, inside, program};
 /// with and the secrets it takes, by name and mode, the permissions
 /// it answered with dropped, since an agent asks the daemon nothing;
 /// the declaration
-/// is kept first, since the driver reads it when it starts, and the
-/// driver's gate is closed from here until the server's first feed
-/// when the declaration names anything. The scope is published to
+/// is kept first, since the loop's end reads it, and the
+/// driver's gate is shut from here until the server's first feed —
+/// its second when the program registered anything, since the first
+/// is then the provider's at the deploy. The scope is published to
 /// every surface inside the container, the queue's driver and the
 /// resident notifications ask are started, and every channel the
 /// server opens on the scope is served on a task of its own — the
@@ -69,6 +70,7 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
         dependencies: registered.dependencies,
         secrets: registered.secrets,
     };
+    let registering = !begun.dependencies.is_empty() || !begun.secrets.is_empty();
     if let Some(payload) = encoded(&response::Frame::Begun(begun)) {
         scope.send_response(&payload).await;
     }
@@ -76,7 +78,7 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
         scope: Arc::clone(&scope),
         family: Family::Agents,
     });
-    proxy.set_commands(agent::driver(Arc::clone(&proxy), Arc::clone(&scope)));
+    proxy.set_commands(agent::driver(Arc::clone(&proxy), Arc::clone(&scope), registering));
     let mut tasks = JoinSet::new();
     tasks.spawn(inside::mcp::notifications(Arc::clone(&proxy)));
 

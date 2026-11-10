@@ -92,11 +92,13 @@ struct Feeding {
 ///    never waits on an `/enqueue` the loop holds open — it waits on
 ///    the outcome, which the `/dequeue` sent for it hastens.
 /// 8. The gate is the driver's: a run is launched, or a batch
-///    offered, only while `fed`. The gate opens in the step that
-///    reads a feed's success — the same step that answers the
-///    server's `Fed` — and closes in the step that reads the loop's
-///    end — the same step that writes `Inactive` — so the server never
-///    hears `Fed` for a gate that then closes behind it.
+///    offered, only while `fed`. It is shut at the begin, whatever
+///    the program declared. It opens in the step that reads a feed's
+///    success — the same step that answers the server's `Fed` — save
+///    the deploy's feed, which leaves it shut; and it shuts in the
+///    step that reads the loop's end — the same step that writes
+///    `Inactive` — so the server never hears `Fed` for a gate that
+///    then shuts behind it.
 /// 9. What the driver writes on the begin scope's main stream is
 ///    `Inactive`, with the rotating secrets collected, and — when the
 ///    collect failed — the one `Error` that ends the run, after which
@@ -110,22 +112,27 @@ struct Driver {
     /// more is offered to it, and the next loop starts on the queue
     /// once it ends.
     halted: bool,
-    /// Whether the program declared any secret: the gate is closed at
-    /// the begin, and closed again by every loop's end, only then.
-    gated: bool,
-    /// The gate: whether the program holds secrets fed since the last
-    /// loop ended — or needs none.
+    /// The deploy's feed is still to come: the program registered
+    /// something, so the provider feeds once before the run's id is
+    /// out — before any message can be enqueued — and that feed
+    /// applies the values and leaves the gate shut.
+    registering: bool,
+    /// The gate: whether a feed has come since the begin, or since the
+    /// last loop ended. It is the go: the server feeds after the
+    /// messages it means for one turn.
     fed: bool,
     /// Feeds waiting behind the one on the wire, in order.
     feeds: VecDeque<Feed>,
 }
 
 /// Start the driver for an agent container that has begun, and hand
-/// back the channel the server's channels speak to it on. The
-/// declaration is read here: it is set before the driver is.
-pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>) -> mpsc::UnboundedSender<Cmd> {
+/// back the channel the server's channels speak to it on.
+/// `registering` is whether the program registered anything — a
+/// dependency or a secret — which is when the provider feeds it at
+/// the deploy.
+pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool) -> mpsc::UnboundedSender<Cmd> {
     let (sender, receiver) = mpsc::unbounded_channel();
-    tokio::spawn(drive(proxy, scope, receiver));
+    tokio::spawn(drive(proxy, scope, registering, receiver));
     sender
 }
 
@@ -158,27 +165,33 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>) -> mpsc::UnboundedSend
 ///    could not take answers the waiting dequeues with its error and
 ///    is not sent again for that batch; the keys stay recorded, so the
 ///    outcome still honours them when it comes.
+/// 5. A feed goes on the wire behind any before it. Its success opens
+///    the gate — every feed's, an empty one's too, save the deploy's
+///    while `registering`, which only clears that — and the post-step
+///    then launches `/run` on the whole queue, joined: the gate is
+///    the go, and `/run` is the last call, after every enqueue that
+///    reached the driver before it. A refusal leaves the gate as it
+///    was.
 ///
 /// The post-step runs after EVERY event, which is what closes the
 /// race between a batch and the loop's end: a loop ending before a
 /// batch's `missed` leaves the batch offered — and nothing launched —
 /// until the outcome puts it back at the front, and the next
 /// post-step launches; a `missed` before the loop's end halts, and
-/// the end's post-step launches the drain. A loop's end closes the
-/// gate, when the program takes secrets, and the post-step launches
-/// nothing until a feed opens it again. The command channel closing
+/// the end's post-step launches the drain. A loop's end shuts the
+/// gate, and the post-step launches nothing until a feed opens it
+/// again. The command channel closing
 /// is the connection gone — every channel that held a sender is over
 /// — and the driver ends with it; the calls in flight end with the
 /// process.
-async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::UnboundedReceiver<Cmd>) {
-    let gated = proxy.gated();
+async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mut commands: mpsc::UnboundedReceiver<Cmd>) {
     let mut driver = Driver {
         queue: VecDeque::new(),
         offered: None,
         run: Run::Idle,
         halted: false,
-        gated,
-        fed: !gated,
+        registering,
+        fed: false,
         feeds: VecDeque::new(),
     };
     let mut starting: Option<oneshot::Receiver<Result<reqwest::Response, Error>>> = None;
@@ -248,9 +261,9 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
                 ended = None;
                 driver.run = Run::Idle;
                 driver.halted = false;
-                // The gate closes with the word, in one step: nothing
+                // The gate shuts with the word, in one step: nothing
                 // launches until the next feed opens it.
-                driver.fed = !driver.gated;
+                driver.fed = false;
                 // Sent on a task of its own: the main stream is paced
                 // by the daemon's reading (see `credit`), and the
                 // driver waiting on it would hold every feed, enqueue
@@ -341,10 +354,15 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
                 let Some(Feeding { reply, .. }) = feeding.take() else {
                     continue;
                 };
-                // The gate opens with the word, in one step.
+                // The gate opens with the word, in one step — save at
+                // the deploy's feed (rule 5).
                 match applied {
                     Ok(Ok(())) => {
-                        driver.fed = true;
+                        if driver.registering {
+                            driver.registering = false;
+                        } else {
+                            driver.fed = true;
+                        }
                         let _ = reply.send(Ok(()));
                     }
                     Ok(Err(error)) => {

@@ -28,10 +28,16 @@
 //! carrying the rotating secrets collected from the program — which
 //! the proxy alone writes, since the proxy alone makes the `/run`
 //! call whose answer and whose end they are. The driver keeps a gate
-//! beside the queue: closed at the begin and after every `Inactive`
-//! when the program takes secrets, opened by each feed the server
+//! beside the queue: shut at the begin and after every `Inactive`,
+//! whatever the program declared, and opened by each feed the server
 //! sends on its secrets channel once the program has applied the
-//! values, and nothing is launched or delivered while it is closed.
+//! values — an empty one too, which is what a program that takes no
+//! secret is fed — save the feed the provider makes at the deploy,
+//! before any message can be enqueued, which leaves it shut. Nothing
+//! is launched or delivered while it is shut. The gate is the go: the
+//! server enqueues the messages it means for one turn and feeds after
+//! them, so `/run` is the last call, and takes every one of them,
+//! joined.
 //! The one other thing said on the main stream is the `Error` that
 //! ends the run when the rotating secrets could not be collected —
 //! naming no value — after which the begin loop finishes the scope.
