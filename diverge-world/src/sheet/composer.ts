@@ -16,13 +16,13 @@ const TALLEST = 160;
  *
  * The rules:
  *
- * 1. The pending strip (`strip`) stands at the log's bottom: one greyed
+ * 1. The pending strip (`strip`) stands at the log's bottom: one
  *    preview per message in the agent's outbox, oldest first, its
- *    blocks drawn as the log draws them (`contentElement`), each with
- *    ✕, which drops it (`outbox.drop`: a waiting message cancelled, a
- *    failed one taken out). A failed message is drawn red, with why;
- *    a taken one lighter than a waiting one, with no ✕, until the log
- *    shows it (`seen`, which the sheet hands every log item).
+ *    blocks drawn as the log draws them (`contentElement`). A waiting
+ *    message is greyed; a delivered one is drawn as plainly as the
+ *    log, until the log shows it (`seen`, which the sheet hands every
+ *    log item); a failed one is drawn red, with why, and clicking it
+ *    dismisses it (`outbox.dismiss`).
  * 2. The composer (`root`) stands under the log: the files attached,
  *    then a text box, 📎 and send.
  * 3. Each file attached is a chip: an image its thumbnail, a sound ♪
@@ -219,7 +219,7 @@ export class Composer {
     this.strip.replaceChildren(
       ...outbox.of(this.key).map((message) => {
         const el = document.createElement("div");
-        el.className = `waiting ${message.state}`;
+        el.className = `sent ${message.state}`;
         const blocks = document.createElement("div");
         blocks.className = "blocks";
         for (const block of message.content) blocks.append(contentElement(block as { type: string } & Record<string, unknown>));
@@ -230,13 +230,9 @@ export class Composer {
           blocks.append(why);
         }
         el.append(blocks);
-        if (message.state === "taken") return el;
-        const off = document.createElement("button");
-        off.type = "button";
-        off.textContent = "✕";
-        off.title = message.state === "waiting" ? "Cancel" : "Dismiss";
-        off.addEventListener("click", () => outbox.drop(this.key, message.id));
-        el.append(off);
+        if (message.state !== "failed") return el;
+        el.title = "Dismiss";
+        el.addEventListener("click", () => outbox.dismiss(this.key, message.id));
         return el;
       }),
     );

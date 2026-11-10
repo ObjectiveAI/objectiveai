@@ -562,7 +562,7 @@
 .transfers .transfer.done .said { color: #4ade80; }
 .transfers .transfer.failed .said { color: var(--sheet-error); }
 
-/* Composer, rule 1: the pending strip at the log's bottom, the log right above it however short; each message greyed, a taken one lighter, a failed one red. */
+/* Composer, rule 1: the pending strip at the log's bottom, the log right above it however short; a waiting message greyed, a delivered one as plain as the log, a failed one red and dismissed by a click. */
 .sheet .pending {
   margin-bottom: auto;
   padding: 0 16px;
@@ -572,24 +572,14 @@
 }
 .sheet .pending:not(:empty) { padding-bottom: 12px; }
 .sheet .pending ~ .log { margin-bottom: 0; }
-.sheet .pending .waiting {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  opacity: 0.45;
-}
-.sheet .pending .waiting .blocks {
-  flex: 1;
-  min-width: 0;
-}
-.sheet .pending .waiting.taken { opacity: 0.8; }
-.sheet .pending .waiting.failed {
-  opacity: 1;
+.sheet .pending .sent .blocks { min-width: 0; }
+.sheet .pending .sent.waiting { opacity: 0.45; }
+.sheet .pending .sent.failed {
   color: var(--sheet-error);
+  cursor: pointer;
 }
-.sheet .pending .waiting.failed .blocks { border-left-color: var(--sheet-error); }
+.sheet .pending .sent.failed .blocks { border-left-color: var(--sheet-error); }
 .sheet .pending .why { font-style: italic; }
-.sheet .pending button,
 .sheet .composer .chip button {
   border: none;
   background: none;
@@ -597,7 +587,6 @@
   font: inherit;
   cursor: pointer;
 }
-.sheet .pending button:hover,
 .sheet .composer .chip button:hover { color: var(--sheet-cream); }
 
 /* Composer, rules 2 to 6: under the log, the chips over the text box, 📎 and send. */
