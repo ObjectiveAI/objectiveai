@@ -94,10 +94,14 @@ pub struct Live {
     /// served one after the other, so a run is deployed once. An entry
     /// leaves once nobody holds its lock: see [`started`](Self::started).
     starting: Mutex<HashMap<Key, Arc<Mutex<()>>>>,
-    /// One [`Arrival`] per agent a message is on its way to now: the
-    /// order its messages reach the run in. An entry leaves once nobody
-    /// holds it: see [`arrived`](Self::arrived).
-    arrivals: Mutex<HashMap<AgentId, Arc<Arrival>>>,
+    /// The index the last message was stamped with: see
+    /// [`arriving`](Self::arriving). Seeded from the clock at the
+    /// start, in microseconds, so it keeps increasing across restarts.
+    last_index: Mutex<u64>,
+    /// The messages on their way now, by the agent reference each was
+    /// sent to, as sent: how many, and the run any of them was sent to.
+    /// An entry leaves with its last: see [`arrived`](Self::arrived).
+    arrivals: Mutex<HashMap<reference::Agent, Arriving>>,
     /// Every account's and configured administrator's command log being
     /// appended to or watched now; a tool's commands are in its tool
     /// log. See [`command_log`](Self::command_log).
@@ -190,25 +194,36 @@ impl Default for Log {
     }
 }
 
-/// One agent's messages on their way to its run: what makes the order
-/// they reach it in the order they arrived in, and what tells the
-/// last of a burst. See [`message::enqueue`](crate::containers::message::enqueue).
-#[derive(Debug, Default)]
+/// A message as it was read: its index, and the agent reference it is
+/// counted under among the arriving. Handed to
+/// [`arrived`](Live::arrived) once, which counts it out; not `Clone`,
+/// so it cannot be counted out twice. See
+/// [`message::enqueue`](crate::containers::message::enqueue).
+#[derive(Debug)]
 pub struct Arrival {
-    /// Taken by each message for the length of its way to the run —
-    /// the run got, the enqueue sent — first come, first served, as a
-    /// tokio lock serves its waiters.
-    pub lock: Mutex<()>,
-    /// The messages counted in and not yet sent: counted before the
-    /// lock is asked, counted out under it. The one that counts it to
-    /// zero is the last of its burst.
-    pub arriving: Mutex<usize>,
+    /// The daemon's arrival order, lower first: what the proxy orders
+    /// the agent's messages by.
+    pub index: u64,
+    /// The agent as the message named it.
+    pub agent: reference::Agent,
+}
+
+/// The messages on their way to one agent reference.
+#[derive(Default)]
+struct Arriving {
+    /// Counted in as they were read and not yet counted out. The one
+    /// that counts it to zero is the last of its burst.
+    count: usize,
+    /// The run the latest of them that got one was sent to: what the
+    /// last of the burst feeds, sent or not.
+    run: Option<Arc<AgentRun>>,
 }
 
 impl Live {
-    /// Nothing live.
+    /// Nothing live, the message index seeded from the clock.
     pub fn new() -> Self {
-        Live::default()
+        let seed = u64::try_from(Utc::now().timestamp_micros()).unwrap_or(0);
+        Live { last_index: Mutex::new(seed), ..Live::default() }
     }
 
     /// A closer for one client connection as `connected`: its key, and
@@ -660,24 +675,35 @@ impl Live {
         }
     }
 
-    /// A message for agent `id` arrived: counted among its arriving,
-    /// and the agent's [`Arrival`] handed back, whose lock it is sent
-    /// under. The caller lets it go, then calls
-    /// [`arrived`](Self::arrived).
-    pub async fn arriving(&self, id: AgentId) -> Arc<Arrival> {
-        let arrival = Arc::clone(self.arrivals.lock().await.entry(id).or_default());
-        *arrival.arriving.lock().await += 1;
-        arrival
+    /// A message for `agent` was read: stamped with the next index and
+    /// counted among the arriving to `agent`, as the read loop does
+    /// before any lookup. Its [`Arrival`] goes to
+    /// [`arrived`](Self::arrived) once, whatever becomes of it.
+    pub async fn arriving(&self, agent: reference::Agent) -> Arrival {
+        let index = {
+            let mut last = self.last_index.lock().await;
+            *last += 1;
+            *last
+        };
+        self.arrivals.lock().await.entry(agent.clone()).or_default().count += 1;
+        Arrival { index, agent }
     }
 
-    /// A message for agent `id` let its [`Arrival`] go: the entry
-    /// forgotten when nobody holds it any more. Every clone is made
-    /// under the map's lock, so one found unshared here stays unshared.
-    pub async fn arrived(&self, id: AgentId) {
+    /// A message counted out: sent to `run`, or — `None` — never sent.
+    /// The run to feed when it was the last of its burst: the one it or
+    /// another of the burst was sent to, if any was, the entry then
+    /// forgotten; `None` for any other.
+    pub async fn arrived(&self, arrival: Arrival, run: Option<Arc<AgentRun>>) -> Option<Arc<AgentRun>> {
         let mut arrivals = self.arrivals.lock().await;
-        if arrivals.get(&id).is_some_and(|arrival| Arc::strong_count(arrival) == 1) {
-            arrivals.remove(&id);
+        let arriving = arrivals.get_mut(&arrival.agent)?;
+        arriving.count -= 1;
+        if run.is_some() {
+            arriving.run = run;
         }
+        if arriving.count > 0 {
+            return None;
+        }
+        arrivals.remove(&arrival.agent).and_then(|arriving| arriving.run)
     }
 
     /// A requester's command log, live: the one every append and every

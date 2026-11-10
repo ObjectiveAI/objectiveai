@@ -7,7 +7,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use std::sync::Arc;
 
 use super::{accounts, agents, connected_standalone_tools, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, relay, roles, standalone_tools, vault, volumes};
-use crate::daemon::Daemon;
+use crate::daemon::{Arrival, Daemon};
 use crate::judge::Who;
 
 /// Read `payload` as the request that opened `scope` and hand it to
@@ -20,12 +20,15 @@ use crate::judge::Who;
 /// ([`commands::record`](crate::commands::record)), kept once the
 /// daemon decides whether to let it through.
 ///
+/// `arrival` is the read loop's stamp on a message served here — see
+/// [`client`](super::client) — and `None` for every other request.
+///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
 /// hundred and thirty-four has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
-pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
+pub async fn dispatch(scope: ScopeHandle, payload: &[u8], arrival: Option<Arrival>, who: Who, daemon: &Arc<Daemon>) {
     let request = ClientRequest::decode(payload).unwrap_or_else(|never| match never {});
     crate::commands::record(&scope, &request, payload, &who, daemon).await;
     if let Some((relay, bytes)) = relay::peel(payload) {
@@ -35,7 +38,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::AgentsCreate(frame) => agents::create::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsGet(frame) => agents::get::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsDelete(frame) => agents::delete::handle(scope, frame, who, daemon).await,
-        ClientRequest::AgentsMessage(frame) => agents::message::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsMessage(frame) => agents::message::handle(scope, frame, arrival, who, daemon).await,
         ClientRequest::AgentsList(frame) => agents::list::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsEdit(frame) => agents::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTag(frame) => agents::tag::handle(scope, frame, who, daemon).await,
