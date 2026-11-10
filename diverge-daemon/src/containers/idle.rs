@@ -8,9 +8,13 @@ use crate::daemon::Daemon;
 
 /// Run the agent's idle clock until the run ends: while the agent is
 /// active — a loop runs in it, or an MCP exchange is in flight for it
-/// or one of its dependencies — or a file use is in progress on it or
-/// one of its dependencies (a filetree watch, a download, an upload, a
-/// transfer), the clock does not run; otherwise,
+/// or one of its dependencies — or a message enqueued for it waits for
+/// its fate (`pending`: the loop has not yet taken it, which for the
+/// message a run starts on lasts the run's whole first turn, since
+/// the proxy says the loop began only once the program answers the
+/// run), or a file use is in progress on it or one of its dependencies
+/// (a filetree watch, a download, an upload, a transfer), the clock
+/// does not run; otherwise,
 /// `idle_seconds` after the last use with no use since, the run is
 /// stopped. The countdown begins only when both are false, and begins
 /// again from the last touch whenever both become false. The pump
@@ -18,10 +22,11 @@ use crate::daemon::Daemon;
 pub async fn idle(daemon: Arc<Daemon>, run: Arc<AgentRun>) {
     let mut active = run.loop_active.subscribe();
     let mut inflight = run.inflight.subscribe();
+    let mut pending = run.pending.subscribe();
     let mut files = run.files.subscribe();
     let mut touched = run.touched.subscribe();
     loop {
-        if *active.borrow() || *inflight.borrow() > 0 || *files.borrow() > 0 {
+        if *active.borrow() || *inflight.borrow() > 0 || *pending.borrow() > 0 || *files.borrow() > 0 {
             tokio::select! {
                 changed = active.changed() => {
                     if changed.is_err() {
@@ -29,6 +34,11 @@ pub async fn idle(daemon: Arc<Daemon>, run: Arc<AgentRun>) {
                     }
                 }
                 changed = inflight.changed() => {
+                    if changed.is_err() {
+                        return;
+                    }
+                }
+                changed = pending.changed() => {
                     if changed.is_err() {
                         return;
                     }
@@ -45,7 +55,7 @@ pub async fn idle(daemon: Arc<Daemon>, run: Arc<AgentRun>) {
         let deadline = last + daemon.idle;
         tokio::select! {
             () = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {
-                if !*active.borrow() && *inflight.borrow() == 0 && *files.borrow() == 0 && *touched.borrow() == last {
+                if !*active.borrow() && *inflight.borrow() == 0 && *pending.borrow() == 0 && *files.borrow() == 0 && *touched.borrow() == last {
                     run.end_as(End::Expected).await;
                     let _ = run.handle.cancel().await;
                     return;
@@ -62,6 +72,11 @@ pub async fn idle(daemon: Arc<Daemon>, run: Arc<AgentRun>) {
                 }
             }
             changed = inflight.changed() => {
+                if changed.is_err() {
+                    return;
+                }
+            }
+            changed = pending.changed() => {
                 if changed.is_err() {
                     return;
                 }
