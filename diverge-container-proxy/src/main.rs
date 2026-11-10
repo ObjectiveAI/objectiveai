@@ -45,7 +45,7 @@
 //! the `initialize` of each MCP session it opens to a tool container's
 //! server, which carries the caller the daemon named for that session. For an
 //! agent container the proxy is also the loop's keeper: it holds the
-//! queue every enqueue joins, starts a run when none runs and offers
+//! queue every enqueue joins, starts a run when none runs and hands
 //! each message to the run in flight when one does, and relays every
 //! chunk the agent says onto the begin scope's main stream. For a
 //! tool container it is the callers' MCP client — one session per

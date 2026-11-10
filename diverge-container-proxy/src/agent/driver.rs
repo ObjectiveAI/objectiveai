@@ -2,46 +2,27 @@
 //! state, the gate, and every decision about what the agent's server
 //! is asked.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 use diverge_sdk::container_proxy::outside::endpoints::agents::begin::server::response;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::containers::secrets::Values;
 use diverge_sdk::shared::error::Error;
-use diverge_sdk::container_proxy::inside::agent::dequeue;
 use diverge_sdk::container_proxy::inside::agent::run::request::Message;
 use tokio::sync::{mpsc, oneshot};
 
-use super::{Cmd, DequeueReply, Fate, Outcome, Queued, run};
+use super::{Cmd, Fate, Outcome, Queued, run};
 use crate::encode::encoded;
 use crate::proxy::Proxy;
 
-/// The batch offered to the loop in flight — the agent's server's one
-/// slot, filled — and not yet fated.
-struct Offered {
+/// The batch handed to the loop in flight — one `/enqueue` on the
+/// wire — and not yet answered.
+struct Delivering {
     /// The messages on the wire, in enqueue order.
     batch: Vec<Queued>,
     /// The `/enqueue` that carries them: its outcome, to come.
     outcome: oneshot::Receiver<Outcome>,
-    /// A `/dequeue` was sent for this batch: it is not sent twice.
-    withdrawing: bool,
-    /// The keys the server dequeued while this was on the wire: their
-    /// messages are `Dequeued` unless the loop took the batch first,
-    /// and are never offered again.
-    cancelled: HashSet<String>,
-    /// The server's dequeues of those keys, answered once the outcome
-    /// is known.
-    waiting: Vec<Waiting>,
-}
-
-/// A server's dequeue whose key the offered batch holds: its answer
-/// waits for the batch's outcome, which the withdrawal makes prompt.
-struct Waiting {
-    /// Whether the queue gave back anything under the key already.
-    drained: bool,
-    /// Where the answer goes.
-    reply: oneshot::Sender<DequeueReply>,
 }
 
 /// Whether a loop runs.
@@ -71,28 +52,26 @@ struct Feeding {
 /// What the driver owns. Invariants, kept by there being one task:
 ///
 /// 1. Only the driver reads or writes any of this.
-/// 2. A message is in exactly one place: the queue, the offered
-///    batch, or a starting run's batch.
+/// 2. A message is in exactly one place until its fate is sent: the
+///    queue, the batch being delivered, or a starting run's batch.
 /// 3. The queue is in enqueue order, always: a new message goes to
 ///    the back, and a batch that comes back goes to the FRONT, in its
 ///    own order, ahead of anything newer.
-/// 4. Everything offered is offered whole: the `/run` takes the whole
+/// 4. Everything sent is sent whole: the `/run` takes the whole
 ///    queue, and so does the `/enqueue` — one batch, joined, which the
-///    agent's server holds as its one message.
-/// 5. At most one batch is offered, and none while a `/dequeue` is on
-///    the wire: so a withdrawal can only ever land on the batch it was
-///    sent for. A batch is withdrawn at most once.
-/// 6. The fate of a batch on the wire is whatever that call to the
-///    agent's server answers, and the messages in it share it — save
-///    the ones the server dequeued while it was out, which a fate
-///    other than `Delivered` answers `Dequeued` instead of offering
-///    again.
+///    agent's server takes as one user turn.
+/// 5. At most one call carrying messages is on the wire — a `/run` or
+///    an `/enqueue` — so the agent's server receives them in enqueue
+///    order, and a batch that comes back is never overtaken by a
+///    newer one.
+/// 6. A message's fate is the answer to the call that carried it, and
+///    the messages in it share it: `Delivered` on the `/run`'s `2xx`
+///    or the `/enqueue`'s `204`, the error on a refusal. Nothing is
+///    withdrawn, and no fate waits for a turn.
 /// 7. The driver never awaits the agent's server: every call is a
-///    task of its own, reporting back on a channel, so a dequeue
-///    never waits on an `/enqueue` the loop holds open — it waits on
-///    the outcome, which the `/dequeue` sent for it hastens.
+///    task of its own, reporting back on a channel.
 /// 8. The gate is the driver's: a run is launched, or a batch
-///    offered, only while `fed`. It is shut at the begin, whatever
+///    delivered, only while `fed`. It is shut at the begin, whatever
 ///    the program declared. It opens in the step that reads a feed's
 ///    success — the same step that answers the server's `Fed` — save
 ///    the deploy's feed, which leaves it shut; and it shuts in the
@@ -106,12 +85,12 @@ struct Feeding {
 ///    are [`run::relay`]'s.
 struct Driver {
     queue: VecDeque<Queued>,
-    offered: Option<Offered>,
+    delivering: Option<Delivering>,
     run: Run,
-    /// The loop in flight refused a batch, or missed one: nothing
-    /// more is offered to it, and the next loop starts on the queue
-    /// once it ends.
-    halted: bool,
+    /// The loop in flight closed under a batch, or would not take one:
+    /// nothing more is sent to it, and the next loop starts on the
+    /// queue once it ends.
+    closed: bool,
     /// The deploy's feed is still to come: the program registered
     /// something, so the provider feeds once before the run's id is
     /// out — before any message can be enqueued — and that feed
@@ -137,34 +116,22 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool) -> 
 }
 
 /// The loop: one event, then the one post-step where runs are
-/// launched, batches offered, withdrawals sent and feeds put on the
-/// wire.
+/// launched, batches delivered and feeds put on the wire.
 ///
 /// The rules, by event:
 ///
-/// 1. An enqueue goes to the back of the queue. While a batch is
-///    offered and not yet being withdrawn, the post-step withdraws
-///    it — `/dequeue`, once — so a burst of enqueues is one
-///    withdrawal, and the batch that comes back is joined with them.
-/// 2. A dequeue of a key answers every queued message under it
-///    `Dequeued` at once. When the offered batch holds the key, the
-///    key is recorded, the batch withdrawn, and the answer waits for
-///    the batch's outcome; otherwise it is answered now.
-/// 3. The batch's outcome: `Delivered` delivers every message in it —
-///    a dequeue that came too late changes nothing. `Dequeued` answers
-///    the recorded keys' messages `Dequeued` and puts the rest back at
-///    the front, in order. `Missed` and `Failed` do the same, and halt
-///    the loop. `Refused` answers every message with the error. Then
-///    the waiting dequeues are answered.
-/// 4. A withdrawal answered `dequeued` waits for the outcome it
-///    hastens. One answered `empty` while its batch is still offered
-///    may have overtaken that batch's `/enqueue` on the loopback — two
-///    calls, two connections — or found the slot just taken: either
-///    way it is sent again, until the outcome comes, which in both
-///    cases is a loopback round trip away. One the agent's server
-///    could not take answers the waiting dequeues with its error and
-///    is not sent again for that batch; the keys stay recorded, so the
-///    outcome still honours them when it comes.
+/// 1. An enqueue goes to the back of the queue.
+/// 2. The `/run`'s answer: a `2xx` delivers every message in its
+///    batch and starts the relay; anything else answers every one
+///    with the error.
+/// 3. The `/enqueue`'s outcome: `Delivered` delivers every message in
+///    the batch. `Returned` — the run closed under it, or the agent's
+///    server could not take it — puts the batch back at the front, in
+///    its order, and closes the loop in flight to further batches, so
+///    the next `/run` starts on it. `Refused` answers every message
+///    with the error.
+/// 4. The loop's end makes the run idle and open to batches again,
+///    and shuts the gate, in the step that writes `Inactive`.
 /// 5. A feed goes on the wire behind any before it. Its success opens
 ///    the gate — every feed's, an empty one's too, save the deploy's
 ///    while `registering`, which only clears that — and the post-step
@@ -173,23 +140,25 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool) -> 
 ///    reached the driver before it. A refusal leaves the gate as it
 ///    was.
 ///
-/// The post-step runs after EVERY event, which is what closes the
-/// race between a batch and the loop's end: a loop ending before a
-/// batch's `missed` leaves the batch offered — and nothing launched —
-/// until the outcome puts it back at the front, and the next
-/// post-step launches; a `missed` before the loop's end halts, and
-/// the end's post-step launches the drain. A loop's end shuts the
-/// gate, and the post-step launches nothing until a feed opens it
-/// again. The command channel closing
-/// is the connection gone — every channel that held a sender is over
-/// — and the driver ends with it; the calls in flight end with the
-/// process.
+/// The post-step runs after EVERY event. While an `/enqueue` is on
+/// the wire it sends nothing; otherwise, behind an open gate and with
+/// a queue, it launches `/run` with the whole of it when no loop
+/// runs, and sends the whole of it as one `/enqueue` while one runs
+/// and is not closed. That is what closes the race between a batch
+/// and the loop's end: a loop ending before its batch's `409` leaves
+/// the batch on the wire — and nothing launched — until the outcome
+/// puts it back at the front, and the next post-step launches; a
+/// `409` before the loop's end closes the loop, and the drain is
+/// launched once the end has come and a feed has opened the gate.
+/// The command channel closing is the connection gone — every
+/// channel that held a sender is over — and the driver ends with it;
+/// the calls in flight end with the process.
 async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mut commands: mpsc::UnboundedReceiver<Cmd>) {
     let mut driver = Driver {
         queue: VecDeque::new(),
-        offered: None,
+        delivering: None,
         run: Run::Idle,
-        halted: false,
+        closed: false,
         registering,
         fed: false,
         feeds: VecDeque::new(),
@@ -197,9 +166,6 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
     let mut starting: Option<oneshot::Receiver<Result<reqwest::Response, Error>>> = None;
     let mut ended: Option<oneshot::Receiver<Result<Values, Error>>> = None;
     let mut feeding: Option<Feeding> = None;
-    // The `/dequeue` on the wire: nothing is offered or launched until
-    // it is answered, so it never lands on a batch it was not sent for.
-    let mut withdrawal: Option<oneshot::Receiver<Result<dequeue::Outcome, Error>>> = None;
     // The last loop's `Inactive` or `Error`, on its way: the next loop's
     // relay waits for it, so the main stream keeps its order.
     let mut word: Option<tokio::task::JoinHandle<()>> = None;
@@ -209,26 +175,6 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
             command = commands.recv() => match command {
                 None => break,
                 Some(Cmd::Enqueue(message)) => driver.queue.push_back(message),
-                Some(Cmd::Dequeue { key, reply }) => {
-                    // One pass, the messages under the key out and
-                    // answered, every other kept in its order.
-                    let (withdrawn, kept): (Vec<Queued>, Vec<Queued>) =
-                        driver.queue.drain(..).partition(|message| message.key == key);
-                    driver.queue.extend(kept);
-                    let drained = !withdrawn.is_empty();
-                    for message in withdrawn {
-                        let _ = message.fate.send(Fate::Dequeued);
-                    }
-                    match &mut driver.offered {
-                        Some(offered) if offered.batch.iter().any(|message| message.key == key) => {
-                            offered.cancelled.insert(key);
-                            offered.waiting.push(Waiting { drained, reply });
-                        }
-                        Some(_) | None => {
-                            let _ = reply.send(if drained { DequeueReply::Dequeued } else { DequeueReply::Empty });
-                        }
-                    }
-                }
                 Some(Cmd::Feed { values, reply }) => driver.feeds.push_back(Feed { values, reply }),
             },
             started = wait(starting.as_mut()), if starting.is_some() => {
@@ -260,14 +206,14 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
             collected = wait(ended.as_mut()), if ended.is_some() => {
                 ended = None;
                 driver.run = Run::Idle;
-                driver.halted = false;
+                driver.closed = false;
                 // The gate shuts with the word, in one step: nothing
                 // launches until the next feed opens it.
                 driver.fed = false;
                 // Sent on a task of its own: the main stream is paced
                 // by the daemon's reading (see `credit`), and the
-                // driver waiting on it would hold every feed, enqueue
-                // and dequeue behind it. Order holds: the relay's last
+                // driver waiting on it would hold every feed and
+                // enqueue behind it. Order holds: the relay's last
                 // frame went before `ended` fired, and the next loop's
                 // relay waits for this one (`word`).
                 let (frame, ends) = match collected {
@@ -283,15 +229,11 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
                     }
                 }));
             },
-            outcome = wait(driver.offered.as_mut().map(|offered| &mut offered.outcome)), if driver.offered.is_some() => {
-                let Some(Offered { batch, cancelled, waiting, .. }) = driver.offered.take() else {
+            outcome = wait(driver.delivering.as_mut().map(|delivering| &mut delivering.outcome)), if driver.delivering.is_some() => {
+                let Some(Delivering { batch, .. }) = driver.delivering.take() else {
                     continue;
                 };
-                // Whether the recorded keys' messages were withdrawn:
-                // every fate but `Delivered` and `Refused` gives the
-                // batch back, and they do not go back with it.
-                let mut withdrawn = false;
-                match outcome.unwrap_or(Outcome::Failed) {
+                match outcome.unwrap_or(Outcome::Returned) {
                     Outcome::Delivered => {
                         for message in batch {
                             let _ = message.fate.send(Fate::Delivered);
@@ -302,50 +244,14 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
                             let _ = message.fate.send(Fate::Error(error.clone()));
                         }
                     }
-                    given @ (Outcome::Dequeued | Outcome::Missed | Outcome::Failed) => {
-                        if !matches!(given, Outcome::Dequeued) {
-                            driver.halted = true;
-                        }
-                        let (dequeued, kept): (Vec<Queued>, Vec<Queued>) =
-                            batch.into_iter().partition(|message| cancelled.contains(&message.key));
-                        withdrawn = !dequeued.is_empty();
-                        for message in dequeued {
-                            let _ = message.fate.send(Fate::Dequeued);
-                        }
+                    Outcome::Returned => {
+                        // Nothing more for this loop: the next starts
+                        // on the batch.
+                        driver.closed = true;
                         // Back to the FRONT, in their own order, ahead
                         // of anything enqueued since.
-                        for message in kept.into_iter().rev() {
+                        for message in batch.into_iter().rev() {
                             driver.queue.push_front(message);
-                        }
-                    }
-                }
-                for Waiting { drained, reply } in waiting {
-                    let _ = reply.send(if drained || withdrawn { DequeueReply::Dequeued } else { DequeueReply::Empty });
-                }
-            },
-            withdrawn = wait(withdrawal.as_mut()), if withdrawal.is_some() => {
-                withdrawal = None;
-                // No batch: the outcome came first, and settled it —
-                // and the post-step below offers what came back, so
-                // nothing here may skip it.
-                if let Some(offered) = &mut driver.offered {
-                    match withdrawn {
-                        Ok(Ok(dequeue::Outcome::Dequeued)) => {}
-                        // Overtaken, or just taken: asked again by the
-                        // post-step, until the outcome comes.
-                        Ok(Ok(dequeue::Outcome::Empty)) => offered.withdrawing = false,
-                        // Answered now, in the server's words: the
-                        // outcome may be held for the loop's life
-                        // without it.
-                        Ok(Err(error)) => {
-                            for Waiting { reply, .. } in offered.waiting.drain(..) {
-                                let _ = reply.send(DequeueReply::Error(error.clone()));
-                            }
-                        }
-                        Err(_) => {
-                            for Waiting { reply, .. } in offered.waiting.drain(..) {
-                                let _ = reply.send(DequeueReply::Error(unwithdrawn()));
-                            }
                         }
                     }
                 }
@@ -376,32 +282,22 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
         }
 
         // The post-step: the only place a run is launched, a batch
-        // offered or withdrawn, or a feed put on the wire.
-        if let Some(offered) = &mut driver.offered {
-            // Something newer waits, or a key in it was dequeued: the
-            // slot is asked back, and what comes back is joined.
-            if !offered.withdrawing && withdrawal.is_none() && (!driver.queue.is_empty() || !offered.cancelled.is_empty()) {
-                offered.withdrawing = true;
-                withdrawal = Some(super::withdraw(Arc::clone(&proxy)));
-            }
-        } else if withdrawal.is_none() {
+        // delivered, or a feed put on the wire.
+        if driver.delivering.is_none() && driver.fed && !driver.queue.is_empty() {
             match driver.run {
-                Run::Idle if driver.fed && !driver.queue.is_empty() => {
+                Run::Idle => {
                     let batch: Vec<Queued> = driver.queue.drain(..).collect();
                     starting = Some(run::start(Arc::clone(&proxy), messages(&batch)));
                     driver.run = Run::Starting(batch);
                 }
-                Run::Active if driver.fed && !driver.halted && !driver.queue.is_empty() => {
+                Run::Active if !driver.closed => {
                     let batch: Vec<Queued> = driver.queue.drain(..).collect();
-                    driver.offered = Some(Offered {
+                    driver.delivering = Some(Delivering {
                         outcome: super::deliver(Arc::clone(&proxy), messages(&batch)),
                         batch,
-                        withdrawing: false,
-                        cancelled: HashSet::new(),
-                        waiting: Vec::new(),
                     });
                 }
-                Run::Idle | Run::Starting(_) | Run::Active => {}
+                Run::Starting(_) | Run::Active => {}
             }
         }
         if feeding.is_none() {
@@ -448,14 +344,6 @@ fn died() -> Error {
     Error(serde_json::json!({
         "kind": "agent",
         "error": "the call that was to start the run died",
-    }))
-}
-
-/// The task that was to withdraw the batch ended without saying how.
-fn unwithdrawn() -> Error {
-    Error(serde_json::json!({
-        "kind": "agent",
-        "error": "the call that was to withdraw the batch died",
     }))
 }
 

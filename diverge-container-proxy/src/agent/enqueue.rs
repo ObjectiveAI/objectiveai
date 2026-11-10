@@ -1,5 +1,5 @@
 //! A message for the agent: the server's enqueue channel, and the
-//! offer of the whole queue, joined, to the loop in flight.
+//! whole queue, joined, handed to the loop in flight.
 
 use std::sync::Arc;
 
@@ -8,6 +8,7 @@ use diverge_sdk::container_proxy::inside::agent::run::request::Message;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::containers::enqueue::response;
 use diverge_sdk::shared::error::Error;
+use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
 use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;
@@ -25,9 +26,9 @@ use crate::reply::reply;
 ///
 /// Not an `async fn`: the message goes to the driver HERE, as the
 /// channel is read, and only the wait is the task's — so the driver
-/// hears the server's enqueues and dequeues in the order the server
-/// opened them, whatever order their tasks run in, and the queue is
-/// in enqueue order exactly.
+/// hears the server's enqueues in the order the server opened them,
+/// whatever order their tasks run in, and the queue is in enqueue
+/// order exactly.
 pub fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, key: String, content: Vec<ContentBlock>) -> impl Future<Output = ()> + Send + 'static {
     let (fate, heard) = oneshot::channel();
     let sent = proxy
@@ -46,35 +47,32 @@ pub fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, key: St
     }
 }
 
-/// What one `POST /enqueue` came to: the offered batch's fate, every
-/// message in it alike.
+/// What one `POST /enqueue` came to, every message in the batch
+/// alike.
 pub enum Outcome {
-    /// The loop took the batch, as one user turn.
+    /// `204`: the program has the batch, on its own queue, to take at
+    /// its next seam as one user turn.
     Delivered,
-    /// The agent's server gave it back on a `/dequeue`: the batch is
-    /// the proxy's again, to offer again without what was withdrawn.
-    Dequeued,
-    /// The loop ended under it: the batch is the proxy's again.
-    Missed,
-    /// The agent's server refused the batch — a `4xx`, content it
-    /// will not take — in its own words: every message's fate is the
-    /// error, and none is offered again.
+    /// `409`, the run closed under the batch — the loop's last look
+    /// found the program's queue empty — or a `5xx`, a server that
+    /// could not be reached, an answer that was not `204`: the batch
+    /// is the proxy's again, for the next `/run`.
+    Returned,
+    /// Another `4xx`: the agent's server refused the batch — content
+    /// it will not take — in its own words. Every message's fate is
+    /// the error, and none is sent again.
     Refused(Error),
-    /// A `5xx`, a server that could not be reached, or a fate that
-    /// did not parse: the loop in flight did not take it, and the
-    /// batch is the proxy's again.
-    Failed,
 }
 
-/// Offer the batch to the loop in flight, on a task of its own:
-/// `POST /enqueue` with every message, in enqueue order, held until
-/// the agent's server says what became of its one slot. The driver
-/// reads the outcome when it arrives and never waits on it.
+/// Hand the batch to the loop in flight, on a task of its own:
+/// `POST /enqueue` with every message, in enqueue order, which the
+/// program answers at once. The driver reads the outcome when it
+/// arrives and never waits on it.
 pub fn deliver(proxy: Arc<Proxy>, messages: Vec<Message>) -> oneshot::Receiver<Outcome> {
     let (sender, receiver) = oneshot::channel();
     tokio::spawn(async move {
         let Ok(body) = serde_json::to_vec(&agent::enqueue::request::Request { messages }) else {
-            let _ = sender.send(Outcome::Failed);
+            let _ = sender.send(Outcome::Returned);
             return;
         };
         let response = proxy
@@ -86,14 +84,10 @@ pub fn deliver(proxy: Arc<Proxy>, messages: Vec<Message>) -> oneshot::Receiver<O
             .send()
             .await;
         let outcome = match response {
-            Ok(response) if response.status().is_success() => match response.json::<agent::enqueue::Fate>().await {
-                Ok(agent::enqueue::Fate::Delivered) => Outcome::Delivered,
-                Ok(agent::enqueue::Fate::Dequeued) => Outcome::Dequeued,
-                Ok(agent::enqueue::Fate::Missed) => Outcome::Missed,
-                Err(_) => Outcome::Failed,
-            },
+            Ok(response) if response.status() == StatusCode::NO_CONTENT => Outcome::Delivered,
+            Ok(response) if response.status() == StatusCode::CONFLICT => Outcome::Returned,
             Ok(response) if response.status().is_client_error() => Outcome::Refused(status_error(response).await),
-            Ok(_) | Err(_) => Outcome::Failed,
+            Ok(_) | Err(_) => Outcome::Returned,
         };
         let _ = sender.send(outcome);
     });

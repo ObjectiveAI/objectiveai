@@ -108,9 +108,6 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
             Ok(channel_request::Frame::Enqueue(request)) => {
                 tasks.spawn(agent::enqueue(proxy, scope, channel, request.key, request.content));
             }
-            Ok(channel_request::Frame::Dequeue(request)) => {
-                tasks.spawn(agent::dequeue(proxy, scope, channel, request.key));
-            }
             Ok(channel_request::Frame::Secrets(values)) => {
                 tasks.spawn(agent::feed(proxy, scope, channel, values));
             }
