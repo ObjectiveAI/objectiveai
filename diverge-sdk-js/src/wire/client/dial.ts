@@ -19,16 +19,16 @@ export function url(address: string): string {
 
 /**
  * The daemon at `address` dialled, the handshake made as its
- * connector — this end's token from `issuer`, the daemon's own from
- * the same issuer verified, both through `authenticator` — and the
+ * connector — this end's token presented, the daemon's own
+ * verified, both through `authenticator` — and the
  * connection split: the router reading on its own, the handle every
  * request is put on, and the daemon, verified. A socket that could
  * not be made is a `ConnectionError`; a handshake that did not
  * complete, a `HandshakeError`, the socket closed.
  */
-export async function dial(address: string, issuer: string, authenticator: Authenticator): Promise<{ handle: SocketHandle; peer: Peer }> {
+export async function dial(address: string, authenticator: Authenticator): Promise<{ handle: SocketHandle; peer: Peer }> {
   const connection = await Connection.open(url(address));
-  const peer = await authorize(connection, issuer, authenticator);
+  const peer = await authorize(connection, authenticator);
   // A credit lost to a socket that is closing is nothing: the
   // connection is over for every stream it would have paced.
   const registry = new Registry((scope, channel, credit) => {

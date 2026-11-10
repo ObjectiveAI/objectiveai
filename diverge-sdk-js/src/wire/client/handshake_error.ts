@@ -3,10 +3,10 @@
 /**
  * Which step: the daemon gone before its token; its first frame not
  * an auth frame; its token unreadable; this end with no token to
- * present; the daemon's token not accepted; an answer from another
- * issuer than the one presented; or a token that could not be sent.
+ * present; the daemon's token not accepted; or a token that could
+ * not be sent.
  */
-export type HandshakeErrorKind = "ended" | "not_auth" | "malformed" | "present" | "refused" | "issuer" | "send";
+export type HandshakeErrorKind = "ended" | "not_auth" | "malformed" | "present" | "refused" | "send";
 
 /**
  * A handshake that did not complete, and the socket closed with it.

@@ -10,20 +10,20 @@ import { HandshakeError } from "./handshake_error.js";
 /**
  * The handshake from the end that dialled:
  *
- * 1. This end's token from `issuer` goes out as the first frame, and
- *    nothing else is sent until the answer has been checked.
+ * 1. This end's token goes out as the first frame, and nothing else
+ *    is sent until the answer has been checked.
  * 2. The daemon's first frame must be its own token: an auth frame,
  *    well formed.
- * 3. That token is verified, and its issuer must be `issuer`, exactly.
+ * 3. That token is verified. Its issuer need not be this end's.
  *
  * Every failure closes the socket and throws the `HandshakeError`;
  * nothing is sent after it, since a failed handshake is a close and
  * nothing else in either direction. The router starts only once this
  * resolves, so the one lawful auth frame never reaches it.
  */
-export async function authorize(connection: Connection, issuer: string, authenticator: Authenticator): Promise<Peer> {
+export async function authorize(connection: Connection, authenticator: Authenticator): Promise<Peer> {
   try {
-    const token = await authenticator.present(issuer).catch((cause: unknown) => {
+    const token = await authenticator.present().catch((cause: unknown) => {
       throw new HandshakeError("present", cause);
     });
     connection.send(encodeClientFrame({ kind: "auth", payload: auth(token) }));
@@ -41,13 +41,9 @@ export async function authorize(connection: Connection, issuer: string, authenti
     } catch (cause) {
       throw cause instanceof HandshakeError ? cause : new HandshakeError("malformed", cause);
     }
-    const peer = await authenticator.verify(answer).catch((cause: unknown) => {
+    return await authenticator.verify(answer).catch((cause: unknown) => {
       throw new HandshakeError("refused", cause);
     });
-    if (peer.issuer !== issuer) {
-      throw new HandshakeError("issuer");
-    }
-    return peer;
   } catch (cause) {
     connection.close();
     throw cause instanceof HandshakeError ? cause : new HandshakeError("send", cause);

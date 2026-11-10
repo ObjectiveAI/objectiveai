@@ -1,7 +1,7 @@
 // The frame-level client: the half that mints scopes and channels.
 //
 // One socket, its handshake first — each end's token, the
-// connector's first, the other's from the same issuer — then split
+// connector's first, the other's in answer — then split
 // in two: `Router` is
 // the read loop — frames off the socket, forwarded WHOLE to whoever
 // registered for them — and `SocketHandle` is the write half and

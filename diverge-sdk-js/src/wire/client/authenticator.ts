@@ -15,8 +15,8 @@ export interface Peer {
  * is a close and nothing else.
  */
 export interface Authenticator {
-  /** This end's token from `issuer`, good for presenting now. */
-  present(issuer: string): Promise<string>;
+  /** This end's token, good for presenting now: the identity it connects as. */
+  present(): Promise<string>;
   /** The other end's `token`, judged: the identity it establishes. */
   verify(token: string): Promise<Peer>;
 }

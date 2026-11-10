@@ -25,10 +25,10 @@ ESM only; Node 22.18 or later, or any runtime with a global
 A handle is where requests go. There are two makers, and nothing
 above them tells the difference.
 
-**Over the wire.** `wire.client.dial(address, key)` opens a
+**Over the wire.** `wire.client.dial(address, authenticator)` opens a
 WebSocket to the daemon — `ws://<address>/` when the address carries
-no scheme, port 14980 by default — presents the account's key as the
-first frame, and returns a handle that speaks the protocol itself.
+no scheme, port 14980 by default — presents the account's token as
+the first frame, and returns a handle that speaks the protocol itself.
 This is the handle for Node, Deno, Bun and any browser allowed to
 open the socket.
 
@@ -101,7 +101,7 @@ an answer.
 ```ts
 import { daemon, shared, wire } from "@diverge/sdk";
 
-const handle = await wire.client.dial("127.0.0.1:" + daemon.DEFAULT_PORT, key);
+const handle = await wire.client.dial("127.0.0.1:" + daemon.DEFAULT_PORT, authenticator);
 
 // One answer.
 const answer = await daemon.endpoints.accounts.get.client.execute(handle, { account: { issuer: "https://auth.example.com", subject: "ci" } });

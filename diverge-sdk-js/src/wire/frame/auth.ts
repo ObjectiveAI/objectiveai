@@ -10,7 +10,7 @@ import { FrameError } from "./error.js";
  * description's byte length as a `u16`, big-endian, and its UTF-8
  * bytes; then the token, an RFC 7519 JWT, as UTF-8, every byte after
  * those, with no length. Each end sends exactly one, the connector's
- * first and the connectee's in answer, from the same issuer. Only a
+ * first and the connectee's in answer. Only a
  * provider honors the flag, listing a peer that sent `1` or `2` to its
  * `daemons.list`; this SDK dials daemons, so it sends `0` unless told
  * otherwise, and never a description.

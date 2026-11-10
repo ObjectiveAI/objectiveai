@@ -170,9 +170,9 @@ importing it, `daemon.endpoints.accounts.get.client.execute(handle, { account: {
 
 ## Two handles, one seam
 
-`wire.client.dial(address, issuer, authenticator)` makes a handle
-over a real WebSocket, after the handshake — this end's token from
-`issuer` sent, the daemon's own from the same issuer verified: it
+`wire.client.dial(address, authenticator)` makes a handle
+over a real WebSocket, after the handshake — this end's token
+sent, the daemon's own verified, whatever issuer it is from: it
 speaks the nine-byte frames, mints scopes and channels, and routes
 what comes back. `wire.proxy.handle(transport)` makes a
 handle over a Tauri app's `invoke` and `Channel`, where the Rust side
