@@ -71,6 +71,6 @@ nothing about the connector or the acceptor.
 - **The handshake is the connection's.** The relayed connection
   begins as [Authorization](/authorization/) states: the connector's
   first frame is its authorization frame, and the acceptor's first
-  frame is its own, from the same issuer. The server relays both and
+  frame is its own. The two tokens need not name the same issuer. The server relays both and
   reads neither. A party that does not accept the other's token hangs
   up, and the server ends the scope as step 6 states.

@@ -1,6 +1,6 @@
 ---
 title: 'Authorization'
-summary: 'The connector’s first frame is its listable flag and its token, and the connectee’s first frame is its own flag and token from the same issuer; a token either party does not accept closes the connection, and no frame says why.'
+summary: 'The connector’s first frame is its listable flag and its token, and the connectee’s first frame is its own flag and its own token, which need not name the connector’s issuer; a token either party does not accept closes the connection, and no frame says why.'
 order: 3
 draft: false
 ---
@@ -10,8 +10,8 @@ The party that initiated the WebSocket connection is the
 protocol role may occupy either position: a client may connect to a
 server, and a server may connect to a client. Each party sends exactly
 one authorization frame, which carries its listable flag and its
-token. The connector sends its frame first. The connectee answers with its own token, from the
-same issuer. A token that either party does not accept closes the
+token. The connector sends its frame first. The connectee answers with its own token. The
+two tokens need not name the same issuer. A token that either party does not accept closes the
 connection.
 
 ## The requirement
@@ -31,15 +31,17 @@ connection.
   connectee's listable flag and the connectee's token. The connectee sends it only after it has accepted the
   connector's token. The connectee serves no frame of the connector's
   before it has sent its own authorization frame.
-- **The same issuer.** The `iss` claim of the connectee's token is
-  exactly the `iss` claim of the connector's token. The connector
-  closes a connection whose answering token names any other issuer.
+- **No shared issuer.** The connectee's token and the connector's
+  token need not name the same issuer. The connectee answers with the
+  token of the identity it answers as, whatever issuer the connector's
+  token names. The connector does not close a connection because the
+  answering token names an issuer other than that of its own token.
 - **Exactly one each.** Each party sends exactly one authorization
   frame. An authorization frame that arrives after a party's first
   frame, in either direction, is a protocol violation; the party
   receiving it closes the connection.
 - **Each party judges.** Each party alone determines whether the
-  other party's token is acceptable. The criteria of acceptability —
+  other party's token is acceptable, and which token it presents. The criteria of acceptability —
   the issuers a party trusts, the signature, the expiry, the
   audience, and the subjects a party admits — are not part of this
   protocol.
@@ -70,8 +72,8 @@ token. The scope and channel fields of the frame are ignored.
   UTF-8. No length field precedes it, because WebSocket already
   delimits messages.
 - **The issuer.** The token's `iss` claim names the issuer of the
-  token. The connectee reads it to determine the issuer of its own
-  token.
+  token. The connectee does not determine the issuer of its own
+  token from it.
 - **Malformed.** A payload that is empty, a payload whose first byte
   is none of `0`, `1` and `2`, a payload whose description length or
   description runs past the end of the payload, a description that is
@@ -140,8 +142,8 @@ No frame states a refusal.
 - A token a party **does not accept** is followed by closure of the
   connection, and by nothing else. The party sends no frame of any
   kind before the closure.
-- A connectee that holds no token from the issuer the connector's
-  token names closes the connection, and sends nothing.
+- A party that holds no token to present closes the connection, and
+  sends nothing.
 - A connection that ends before a party's authorization frame has
   arrived carries no service.
 

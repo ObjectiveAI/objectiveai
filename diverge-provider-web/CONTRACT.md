@@ -415,18 +415,19 @@ Client's token, and shall accept no other frame before it.
 
 (b) The Provider shall judge the Client's token by its own means. On
 accepting it, the Provider shall send, as its own first frame, an
-authorization frame whose token is the Provider's own from the same
-issuer as the Client's token, and shall serve every Scope on the
+authorization frame whose token is the Provider's own, whatever
+issuer the Client's token names, and shall serve every Scope on the
 Connection under the Identity the Client's token establishes.
 
 (c) On a Connection the Provider dialed, the Provider shall send its
 own token as its first frame, shall send no other frame until the
 Client's answering authorization frame has arrived, and shall close
-the Connection when the Client's token names another issuer or is not
-accepted.
+the Connection when the Client's token is not accepted. The Provider
+shall not close the Connection because the Client's token names an
+issuer other than that of the Provider's token.
 
-(d) The Provider shall answer a token it does not accept, and a
-Client's token from an issuer at which the Provider holds no token,
+(d) The Provider shall answer a token it does not accept, and any
+Client's token while the Provider holds no token to present,
 by closing the Connection with no frame, and shall answer an
 authorization frame received after the handshake by ending the
 Connection.

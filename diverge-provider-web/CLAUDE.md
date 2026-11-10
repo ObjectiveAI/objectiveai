@@ -190,7 +190,7 @@ are not described at this layer.
 The handshake in front of everything. It states that both parties
 authenticate: the connector's first frame is its token, a JWT whose
 `iss` names its issuer, and nothing precedes it; the connectee's
-first frame is its own token, from the same issuer, sent only once it
+first frame is its own token, which need not be from the same issuer, sent only once it
 accepts the connector's; the connector sends nothing else until it
 has accepted that answer. It states that there is one kind of token
 and no mode byte, that a token a party does not accept is answered by
