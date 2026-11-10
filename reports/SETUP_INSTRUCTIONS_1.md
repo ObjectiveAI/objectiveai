@@ -580,7 +580,7 @@ diverge run --daemon b accounts create "{\"identity\":{\"issuer\":\"$ISS\",\"sub
 **On A (as admin):** check that B is visible through the provider, then record B.
 
 ```bash
-diverge run providers daemons list        # should list daemon-b (and daemon-a) with the provider as a route
+diverge run providers daemons list        # should list daemon-b with the provider as a route (a daemon is never listed to itself)
 ID_B="$(diverge run daemons add --jq '.added // .exists' \
   "{\"daemon\":{\"issuer\":\"$ISS\",\"subject\":\"daemon-b\"},\"identity\":{\"issuer\":\"$ISS\",\"subject\":\"daemon-a\"},\"description\":\"daemon B\"}" | tr -d '"')"
 echo "$ID_B"                               # base62, up to 11 characters
