@@ -1,11 +1,10 @@
-//! The agents family's own exchange: a message for the agent, a
-//! channel on the begin scope.
+//! The agents family's own exchange: a batch of messages for the
+//! agent, a channel on the begin scope.
 
 use std::sync::Arc;
 
 use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::shared::error::Error;
-use rmcp::model::ContentBlock;
 
 use super::super::begin::Begin;
 use super::super::encoded::encoded;
@@ -14,10 +13,9 @@ use super::super::run::Run;
 /// What an agent container's caller opens, past the shared six.
 #[derive(Debug)]
 pub(crate) enum Exchange {
-    /// A message for the agent: its key, its index — the daemon's
-    /// arrival order, which the proxy orders by — and its content
-    /// blocks.
-    Enqueue(String, u64, Vec<ContentBlock>),
+    /// A batch of messages for the agent, in order, carried whole and
+    /// not read.
+    Enqueue(Vec<enqueue::request::Message>),
 }
 
 /// Serve one, to the end: the proxy's one answer on the caller's
@@ -35,8 +33,8 @@ pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
         return;
     };
     let answer = match exchange {
-        Exchange::Enqueue(key, index, content) => {
-            let frame = begin.enqueue(key, index, content).await.unwrap_or_else(|error| enqueue::response::Frame::Error(failed(&error)));
+        Exchange::Enqueue(messages) => {
+            let frame = begin.enqueue(messages).await.unwrap_or_else(|error| enqueue::response::Frame::Error(failed(&error)));
             encoded(&frame)
         }
     };
