@@ -5,13 +5,17 @@ use std::future::Future;
 use std::sync::Arc;
 
 use diverge_sdk::daemon::creator::Creator;
+use diverge_sdk::provider::endpoints::containers::client::UnaryError;
+use diverge_sdk::provider::endpoints::containers::client::answered::Enqueue;
 use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::shared::error::Error;
+use futures_util::future::BoxFuture;
 use rmcp::model::ContentBlock;
 use tokio::sync::Mutex;
 
-use super::{AgentRun, Message, activate, events};
+use super::{AgentRun, Guard, Message, StartError, activate, events};
 use crate::daemon::Daemon;
+use crate::store::agents::Agent;
 
 /// What became of a message.
 pub enum Fate {
@@ -24,54 +28,93 @@ pub enum Fate {
     Error(Error),
 }
 
-/// Enqueue the message under a key the daemon mints, with who sent
-/// it kept so its user parts are logged as theirs, and wait for its
-/// fate — however long the loop takes to reach a seam. The key is
-/// what a cancel names. The message is pending — counted among the
-/// agent's enqueues not yet fated — from before the run is activated
-/// for it until its fate is known, so an inactive that crosses it
-/// activates the run again; the activation failing is its fate.
-pub async fn enqueue(daemon: &Daemon, run: &AgentRun, content: Vec<ContentBlock>, sender: Creator) -> Fate {
-    let (_, fate) = enqueue_keyed(daemon, run, content, sender).await;
-    fate.await
-}
+/// What a sent enqueue waits on: the proxy's word on the message, to
+/// come, or why the enqueue never went out.
+type Answer = Result<BoxFuture<'static, Result<enqueue::response::Frame, UnaryError<Enqueue>>>, UnaryError<Enqueue>>;
 
-/// Enqueue the message, and hand back the key before the fate is
-/// known, so that a cancel can name it: the fate is the future. The
-/// message is pending from this call's return until the future
-/// completes, however it does, and the run is activated for it when
-/// the future is first polled — see [`activate_agent`](super::activate_agent)
-/// — before the enqueue goes out; an activation that fails is the
-/// fate, kind `secrets`. The message is on the graph from this call:
-/// one event from the sender to the agent, whatever its
-/// fate, since the graph records what was sent and not what landed.
-pub async fn enqueue_keyed<'a>(daemon: &'a Daemon, run: &'a AgentRun, content: Vec<ContentBlock>, sender: Creator) -> (String, impl Future<Output = Fate> + 'a) {
+/// Send the message to the agent's run under a key the daemon mints,
+/// with who sent it kept so its user parts are logged as theirs, and
+/// hand back the run and the key before the fate is known, so that a
+/// cancel can name it: the fate is the future, however long the loop
+/// takes to reach a seam. The rules, which make the messages that
+/// arrive together one turn, in the order they arrived:
+///
+/// 1. **Counted, then in line.** The message is counted among the
+///    agent's arriving — see [`Arrival`](crate::daemon::Arrival) — and
+///    then asks the arrival lock, which serves it in arrival order.
+/// 2. **Sent under the lock.** Holding it, the message gets the run —
+///    started if it is not up, which every message behind it waits
+///    out — is put on the graph, kept in the run's messages, counted
+///    pending, and its enqueue SENT: the channel is out, its answer
+///    not awaited. Then it is counted out; the one that counts the
+///    arriving to zero is the last of its burst.
+/// 3. **The last feeds.** After the lock, the last of a burst
+///    activates the run — [`activate_agent`](super::activate_agent) —
+///    which feeds the proxy only while its gate is shut; the feed is
+///    the go, so the loop starts on every message of the burst,
+///    joined in order. Every other leaves the feed to the one behind
+///    it, which was counted before it was counted out. A message that
+///    arrives after the feed is the next turn.
+/// 4. **An activation that fails** withdraws the last message's own
+///    enqueue, and is its fate, kind `secrets` — unless a loop took
+///    it first. The burst before it waits behind the gate for the
+///    next feed.
+/// 5. **In a task of its own**, waited for: a caller cancelled midway
+///    neither breaks the order nor loses the feed its burst waits on.
+///
+/// The message is pending from its send until the future completes,
+/// however it does: what an inactive asks before it feeds again. It
+/// is on the graph from its send: one event from the sender to the
+/// agent, whatever its fate, since the graph records what was sent
+/// and not what landed. A run that could not be got is the error, and
+/// nothing was sent.
+pub async fn enqueue(daemon: &Arc<Daemon>, agent: &Agent, content: Vec<ContentBlock>, sender: Creator) -> Result<(Arc<AgentRun>, String, impl Future<Output = Fate>), StartError> {
     let key = uuid::Uuid::new_v4().to_string();
-    events::record(daemon, &sender, &run.sender).await;
-    run.messages.lock().await.insert(key.clone(), Message::new(sender));
-    run.touch();
-    let pending = run.pending.enter();
-    let mut kept = Kept { messages: Arc::clone(&run.messages), key: Some(key.clone()) };
-    let named = key.clone();
+    let (daemon, agent, named) = (Arc::clone(daemon), agent.clone(), key.clone());
+    let arrived = tokio::spawn(async move {
+        let arrival = daemon.live.arriving(agent.id).await;
+        let turn = arrival.lock.lock().await;
+        let sent = match super::agent(&daemon, &agent).await {
+            Ok(run) => {
+                let (pending, kept, answer) = send(&daemon, &run, named, content, sender).await;
+                Ok((run, pending, kept, answer))
+            }
+            Err(error) => Err(error),
+        };
+        let last = {
+            let mut arriving = arrival.arriving.lock().await;
+            *arriving -= 1;
+            *arriving == 0
+        };
+        drop(turn);
+        drop(arrival);
+        daemon.live.arrived(agent.id).await;
+        let (run, pending, kept, answer) = sent?;
+        let activated = if last { activate::activate_agent(&daemon, &run).await } else { Ok(()) };
+        Ok((run, pending, kept, answer, activated))
+    });
+    let (run, pending, mut kept, answer, activated) = arrived
+        .await
+        .unwrap_or_else(|error| Err(StartError::Unfinished(error.to_string())))?;
+    let (taken, named) = (Arc::clone(&run), key.clone());
     let fate = async move {
         let _pending = pending;
-        let fate = match activate::activate_agent(daemon, run).await {
-            Ok(()) => match run.handle.enqueue(named.clone(), content).await {
-                Ok(enqueue::response::Frame::Delivered) => Fate::Delivered,
-                Ok(enqueue::response::Frame::Dequeued) => Fate::Cancelled,
-                Ok(enqueue::response::Frame::Error(error)) => Fate::Error(error),
-                Err(error) => Fate::Error(Error(serde_json::json!({
-                    "kind": "daemon",
-                    "error": format!("the message could not be enqueued: {error}"),
-                }))),
-            },
-            Err(error) => Fate::Error(error),
+        let fate = match activated {
+            Ok(()) => fated(answer).await,
+            // Rule 4.
+            Err(error) => {
+                cancel(&taken, &named).await;
+                match fated(answer).await {
+                    Fate::Cancelled => Fate::Error(error),
+                    fate => fate,
+                }
+            }
         };
         // Rules 2 and 3 of `Message`: an undelivered entry leaves now,
         // a delivered one is the pump's to sweep.
         let key = kept.key.take();
         if let Some(key) = key {
-            let mut messages = run.messages.lock().await;
+            let mut messages = taken.messages.lock().await;
             if matches!(fate, Fate::Delivered) {
                 if let Some(message) = messages.get_mut(&key) {
                     message.delivered = true;
@@ -82,7 +125,37 @@ pub async fn enqueue_keyed<'a>(daemon: &'a Daemon, run: &'a AgentRun, content: V
         }
         fate
     };
-    (key, fate)
+    Ok((run, key, fate))
+}
+
+/// Rule 2's send, under the arrival lock: the message on the graph,
+/// kept, counted pending — the count handed back, held until the fate
+/// — and its enqueue out, the answer to come handed back with it.
+async fn send(daemon: &Daemon, run: &Arc<AgentRun>, key: String, content: Vec<ContentBlock>, sender: Creator) -> (Guard, Kept, Answer) {
+    events::record(daemon, &sender, &run.sender).await;
+    run.messages.lock().await.insert(key.clone(), Message::new(sender));
+    run.touch();
+    let pending = run.pending.enter();
+    let kept = Kept { messages: Arc::clone(&run.messages), key: Some(key.clone()) };
+    let answer = run.handle.enqueue_sent(key, content).await;
+    (pending, kept, answer)
+}
+
+/// The proxy's word on a sent enqueue, as the message's fate.
+async fn fated(answer: Answer) -> Fate {
+    let answered = match answer {
+        Ok(answer) => answer.await,
+        Err(error) => Err(error),
+    };
+    match answered {
+        Ok(enqueue::response::Frame::Delivered) => Fate::Delivered,
+        Ok(enqueue::response::Frame::Dequeued) => Fate::Cancelled,
+        Ok(enqueue::response::Frame::Error(error)) => Fate::Error(error),
+        Err(error) => Fate::Error(Error(serde_json::json!({
+            "kind": "daemon",
+            "error": format!("the message could not be enqueued: {error}"),
+        }))),
+    }
 }
 
 /// The entry of a message whose fate is not yet known: dropped still

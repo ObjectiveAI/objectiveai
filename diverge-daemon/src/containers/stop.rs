@@ -77,7 +77,7 @@ async fn down_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     let end = run.end().await;
     lifecycle::undeployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, end.reason()).await;
     run.loop_active.send_replace(false);
-    if let Some(mut held) = run.secrets.lock().await.take() {
+    if let Some(mut held) = run.gate.lock().await.secrets.take() {
         let _ = secrets::release(daemon, &mut held, &run.sender).await;
     }
     let dependencies = run.served.lock().await.transients();

@@ -11,7 +11,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use std::sync::Arc;
 
 use super::state;
-use crate::containers::{self, message};
+use crate::containers::message;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
@@ -32,13 +32,13 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `message` grant at all, or for an agent the
 /// grants do not reach; the error for an agent that is not there, or
-/// a container that could not be started; else the agent's container
-/// started if it was not up, activated for the message — its secrets
-/// taken and fed, which failing is the error — and the message
-/// enqueued under a key the daemon mints, the scope open until its
-/// fate is known: `Delivered` as the loop takes it, or the container's
-/// own error; `None` — no answer, the finish alone — when the client's
-/// one channel took it back first.
+/// a container that could not be started; else the message sent to
+/// the agent's container — started if it was not up — under a key
+/// the daemon mints, in arrival order, the run then fed for its burst
+/// as [`message::enqueue`] states, the scope open until its fate is
+/// known: `Delivered` as the loop takes it, or the container's own
+/// error, or the feed's; `None` — no answer, the finish alone — when
+/// the client's one channel took it back first.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Option<Frame>, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -55,8 +55,9 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         return Ok(Some(Frame::Forbidden));
     }
     scope.allowed().await;
-    let run = match containers::agent(daemon, &agent).await {
-        Ok(run) => run,
+    let sender = standing.creator.clone();
+    let (run, key, fate) = match message::enqueue(daemon, &agent, frame.content, sender).await {
+        Ok(sent) => sent,
         Err(error) => {
             return Ok(Some(Frame::Error(match (error.unsupported(), error.no_source()) {
                 (Some(what), _) => reply::unsupported(what),
@@ -65,8 +66,6 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
             })));
         }
     };
-    let sender = standing.creator.clone();
-    let (key, fate) = message::enqueue_keyed(daemon, &run, frame.content, sender).await;
     tokio::pin!(fate);
     let fate = tokio::select! {
         fate = &mut fate => fate,

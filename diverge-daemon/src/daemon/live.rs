@@ -94,6 +94,10 @@ pub struct Live {
     /// served one after the other, so a run is deployed once. An entry
     /// leaves once nobody holds its lock: see [`started`](Self::started).
     starting: Mutex<HashMap<Key, Arc<Mutex<()>>>>,
+    /// One [`Arrival`] per agent a message is on its way to now: the
+    /// order its messages reach the run in. An entry leaves once nobody
+    /// holds it: see [`arrived`](Self::arrived).
+    arrivals: Mutex<HashMap<AgentId, Arc<Arrival>>>,
     /// Every account's and configured administrator's command log being
     /// appended to or watched now; a tool's commands are in its tool
     /// log. See [`command_log`](Self::command_log).
@@ -184,6 +188,21 @@ impl Default for Log {
     fn default() -> Self {
         Log::new()
     }
+}
+
+/// One agent's messages on their way to its run: what makes the order
+/// they reach it in the order they arrived in, and what tells the
+/// last of a burst. See [`message::enqueue`](crate::containers::message::enqueue).
+#[derive(Debug, Default)]
+pub struct Arrival {
+    /// Taken by each message for the length of its way to the run —
+    /// the run got, the enqueue sent — first come, first served, as a
+    /// tokio lock serves its waiters.
+    pub lock: Mutex<()>,
+    /// The messages counted in and not yet sent: counted before the
+    /// lock is asked, counted out under it. The one that counts it to
+    /// zero is the last of its burst.
+    pub arriving: Mutex<usize>,
 }
 
 impl Live {
@@ -638,6 +657,26 @@ impl Live {
         let mut starting = self.starting.lock().await;
         if starting.get(&key).is_some_and(|lock| Arc::strong_count(lock) == 1) {
             starting.remove(&key);
+        }
+    }
+
+    /// A message for agent `id` arrived: counted among its arriving,
+    /// and the agent's [`Arrival`] handed back, whose lock it is sent
+    /// under. The caller lets it go, then calls
+    /// [`arrived`](Self::arrived).
+    pub async fn arriving(&self, id: AgentId) -> Arc<Arrival> {
+        let arrival = Arc::clone(self.arrivals.lock().await.entry(id).or_default());
+        *arrival.arriving.lock().await += 1;
+        arrival
+    }
+
+    /// A message for agent `id` let its [`Arrival`] go: the entry
+    /// forgotten when nobody holds it any more. Every clone is made
+    /// under the map's lock, so one found unshared here stays unshared.
+    pub async fn arrived(&self, id: AgentId) {
+        let mut arrivals = self.arrivals.lock().await;
+        if arrivals.get(&id).is_some_and(|arrival| Arc::strong_count(arrival) == 1) {
+            arrivals.remove(&id);
         }
     }
 

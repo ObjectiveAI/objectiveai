@@ -76,15 +76,13 @@ pub struct AgentRun {
     /// each: what a user part is logged as. See [`Message`] for when
     /// one leaves.
     pub messages: Arc<Mutex<HashMap<String, Message>>>,
-    /// The messages enqueued and not yet fated: entered before the run
-    /// is activated for each, left at its fate. What an inactive asks
-    /// before it activates the run again.
+    /// The messages enqueued and not yet fated: entered as each is
+    /// sent, left at its fate. What an inactive asks before it
+    /// activates the run again.
     pub pending: Arc<Inflight>,
-    /// Its secrets, as its registration took them: the names its
-    /// program takes, the keys they are bound to, and the slots held
-    /// while it is active; `None` for a program that registered
-    /// nothing. Under its lock for every activation and inactive.
-    pub secrets: Mutex<Option<Secrets>>,
+    /// Its secrets and its proxy's gate, under one lock for every
+    /// activation and inactive: see [`Gate`].
+    pub gate: Mutex<Gate>,
     /// The tasks that are the run's: the pump and the idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
     /// Taken for the length of one edit of the record while it runs:
@@ -99,6 +97,21 @@ pub struct AgentRun {
     /// How the run is ending, once whoever ends it first has said: what
     /// its `undeployed` carries. See [`End`].
     pub ending: Mutex<Option<End>>,
+}
+
+/// An agent's secrets, and whether its proxy's gate is open: the
+/// proxy launches the loop on a feed, so the daemon feeds once for
+/// the messages it has sent, and again only after the gate shuts.
+#[derive(Debug)]
+pub struct Gate {
+    /// Its secrets, as its registration took them: the names its
+    /// program takes, the keys they are bound to, and the slots held
+    /// while it is active; `None` for a program that registered
+    /// nothing, which is fed nothing but the go.
+    pub secrets: Option<Secrets>,
+    /// Whether the gate is open: shut at the start, opened by a feed,
+    /// shut again at every inactive.
+    pub open: bool,
 }
 
 /// One message enqueued on an agent's run, as its `messages` keep it.

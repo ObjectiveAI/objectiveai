@@ -20,7 +20,7 @@ use super::capable::Needs;
 use super::fuse::Mounts;
 use super::lifecycle::{self, End};
 use super::mcp::Served;
-use super::{AgentRun, Inflight, activity, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_connected, sender_of_tool, serve_name, serve_name_connected, services, stop};
+use super::{AgentRun, Gate, Inflight, activity, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_connected, sender_of_tool, serve_name, serve_name_connected, services, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::daemons;
 use crate::containers::permissions;
@@ -37,7 +37,8 @@ use crate::store::{agents, agents_templates, connected_standalone_tools as conne
 /// when that provider does not — its dependencies settled to none
 /// when its program declared none, its secrets taken at its
 /// registration as [`Registrar`](diverge_sdk::provider::client::Registrar)
-/// states and moved into the run, and its id taken, the log told
+/// states and moved into the run, the slots given back at once, and
+/// its id taken, the log told
 /// it began, the pump and the idle clock running. A start that fails
 /// keeps an `Error` item in the log, the mounts opened are let go,
 /// and what a registration took is given back; one that fails after
@@ -222,6 +223,14 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         if answerer.services.lock().await.is_none() {
             services::settle(daemon, agent.id).await;
         }
+        // The slots the registration took, given back: the provider fed
+        // their values, but the proxy's gate stays shut until the first
+        // message's feed, which takes afresh. No loop has run, so they
+        // go back as they were taken.
+        let mut registered = answerer.secrets.lock().await.take();
+        if let Some(state) = registered.as_mut() {
+            let _ = secrets::release(daemon, state, &answerer.sender).await;
+        }
         let run = Arc::new(AgentRun {
             id: agent.id,
             attestation: attestation::Caller::Agent(attestation::Agent {
@@ -241,7 +250,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             served,
             messages: Arc::new(Mutex::new(HashMap::new())),
             pending: Arc::new(Inflight::new()),
-            secrets: Mutex::new(answerer.secrets.lock().await.take()),
+            gate: Mutex::new(Gate { secrets: registered, open: false }),
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
             epoch: daemon.live.epoch().await,
