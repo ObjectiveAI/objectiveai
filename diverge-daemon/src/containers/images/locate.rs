@@ -59,11 +59,11 @@ pub struct Source {
 ///    capabilities keep a Store or list a registry, the only providers
 ///    that can hold anything; and every remote daemon's record `reach`
 ///    reaches whose remote is neither in `ignore` nor this daemon
-///    itself — one of the identities it presents.
+///    itself — the identity it is.
 /// 2. **Asked alike, all at once.** Each provider is asked by opening an
 ///    `images::oci` scope with the image, references and all; each
 ///    remote daemon by opening its own `images::oci` scope with the
-///    image and `ignore`, this daemon's identities added, on the
+///    image and `ignore`, this daemon's identity added, on the
 ///    connection [`daemons::connect`] holds or opens for the record —
 ///    the routes found as for every relay. A record that will not
 ///    connect is a no.
@@ -76,7 +76,7 @@ pub struct Source {
 ///    no scope answering held is `None`, after the last has answered.
 pub async fn locate(daemon: &Arc<Daemon>, image: &Image, reach: &Reach, ignore: &[Identity]) -> Option<Source> {
     // Rule 1.
-    let own = daemon.authenticator.presented();
+    let own = daemon.authenticator.own().cloned();
     let mut asking: FuturesUnordered<BoxFuture<'static, Option<Source>>> = FuturesUnordered::new();
     let frame = Arc::new(request::Frame(oci::has::request::Request { image: image.clone() }));
     for identity in daemon.live.connected_providers().await {
@@ -113,10 +113,10 @@ pub async fn locate(daemon: &Arc<Daemon>, image: &Image, reach: &Reach, ignore: 
         Reach::Granted { daemons, .. } => daemons.clone(),
     };
     let mut passed: Vec<Identity> = ignore.to_vec();
-    passed.extend(own.iter().cloned());
+    passed.extend(own.clone());
     let passed = Arc::new(passed);
     for record in records {
-        if ignore.contains(&record.daemon) || own.contains(&record.daemon) {
+        if ignore.contains(&record.daemon) || own.as_ref() == Some(&record.daemon) {
             continue;
         }
         let daemon = Arc::clone(daemon);

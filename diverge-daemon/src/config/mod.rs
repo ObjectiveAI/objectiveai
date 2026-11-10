@@ -18,8 +18,9 @@
 //!
 //! ```yaml
 //! port: 14980
-//! identities:
-//!   https://auth.example.com: daemon-1
+//! identity:
+//!   issuer: https://auth.example.com
+//!   subject: daemon-1
 //! admins:
 //!   - issuer: https://auth.example.com
 //!     subject: alice

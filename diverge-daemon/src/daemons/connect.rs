@@ -62,7 +62,7 @@ pub async fn connect(daemon: &Arc<Daemon>, record: &Record) -> Result<Arc<Peer>,
     let request = daemons_request::Frame { daemon: record.daemon.clone() };
     // Rule 4.
     let authenticator = daemon.authenticator.toward(record.identity.clone(), record.daemon.clone());
-    let connected = daemons_connect::execute(&handle, &request, &record.daemon.issuer, &authenticator)
+    let connected = daemons_connect::execute(&handle, &request, &authenticator)
         .await
         .map_err(|error| Fail::Refused(error.to_string()))?;
     // Rule 5.

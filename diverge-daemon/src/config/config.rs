@@ -1,7 +1,5 @@
 //! The document itself.
 
-use std::collections::BTreeMap;
-
 use diverge_sdk::daemon::DEFAULT_PORT;
 use diverge_sdk::shared::Identity;
 use diverge_sdk::shared::description::Description;
@@ -21,16 +19,17 @@ pub struct Config {
     /// [`DEFAULT_PORT`], one above the port a provider listens on, so
     /// that a daemon and a provider on one host do not contend for it.
     pub port: u16,
-    /// The daemon's own identities: for each issuer, the subject whose
-    /// token it presents there, in every handshake from that issuer —
-    /// with its clients, its providers and other daemons alike. An
-    /// issuer absent here is one the daemon trusts no token from, since
-    /// it could not answer from it: a client, a provider and a remote
-    /// daemon all present a token from an issuer listed here. Each is
-    /// an identity of the root's
+    /// Who the daemon is: the one identity whose token it presents on
+    /// every connection it accepts — to a client, a provider and
+    /// another daemon alike, whatever issuer theirs is from — and to
+    /// every provider it dials. It is an identity of the root's
     /// [`identities`](diverge_sdk::identities), signed in beforehand.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub identities: BTreeMap<String, String>,
+    /// It lists no issuer the daemon trusts: whom the daemon admits is
+    /// its accounts', its administrators' and its providers' records'
+    /// to say, from whatever issuer each is. Absent, the daemon has no
+    /// identity, and completes no handshake.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identity: Option<Identity>,
     /// The identities served as administrators: each admitted as a
     /// client whether or not it is an account, holding every grant
     /// there is. What makes a fresh daemon, which has no account,
@@ -83,7 +82,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             port: DEFAULT_PORT,
-            identities: BTreeMap::new(),
+            identity: None,
             admins: Vec::new(),
             description: None,
             postgres: Postgres::default(),

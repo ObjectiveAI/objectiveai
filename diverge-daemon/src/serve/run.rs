@@ -58,7 +58,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     let dir = root.join("daemon");
     tokio::fs::create_dir_all(&dir).await.map_err(Error::Directory)?;
     let key_sets = KeySets::new(KEY_SETS).map_err(Error::KeySets)?;
-    let own = Own::new(&root, config.identities.clone(), key_sets).await.map_err(Error::Identities)?;
+    let own = Own::new(&root, config.identity.clone(), key_sets).await.map_err(Error::Identities)?;
     let (postgres, url) = postgres::start(&config.postgres, &root).await.map_err(Error::Postgres)?;
     let store = match store::open(&url, postgres.is_local()).await {
         Ok(store) => store,

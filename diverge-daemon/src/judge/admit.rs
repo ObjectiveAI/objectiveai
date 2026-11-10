@@ -46,11 +46,16 @@ pub enum Expected {
 /// another daemon alike, accepted or dialled. The rules, the same for
 /// every connection:
 ///
-/// 1. **Presenting.** The daemon presents, at an issuer, the token of
-///    the subject its `identities` names there — see [`Own`]. The
-///    dialler chooses the issuer, and nothing else.
-/// 2. **Verifying.** The other end's token is verified against its
-///    issuer's keys, trusting exactly the issuers `identities` names.
+/// 1. **Presenting.** The daemon presents the token of its one
+///    `identity` — see [`Own`] — on every socket it accepts, to every
+///    daemon that reaches it, and to every provider it dials, whatever
+///    issuer the other end's token is from. Only [`Toward`] presents
+///    another: the account of ours a remote daemon's record names.
+/// 2. **Verifying.** There is no list of issuers. The other end's
+///    token is read for whom it claims to be, unsigned; that identity
+///    is judged by rules 3 and 5; and only one that passes has its
+///    token verified, against its own issuer's keys. A token claiming
+///    anyone else is refused with nothing fetched.
 /// 3. **The list.** The daemon has exactly one: its providers' records
 ///    — see [`ProviderBook`]. A provider that dials in must have an
 ///    enabled, incoming record whose ips contain the socket's
@@ -174,19 +179,11 @@ impl DaemonAuthenticator {
         Ok(accounts::by_identity(&mut conn, identity, false).await?.map(|account| Admitted::Client(Who::Account(account.id))))
     }
 
-    /// The identity this daemon presents at `issuer`, if it has one
-    /// there: what it answers a handshake as at every provider of that
-    /// issuer, whichever end dialled, since both answer from the
-    /// provider's issuer.
-    pub fn own_at(&self, issuer: &str) -> Option<Identity> {
-        let subject = self.own.subject(issuer)?;
-        Some(Identity { issuer: issuer.to_string(), subject: subject.to_string() })
-    }
-
-    /// Every identity this daemon presents, one per issuer: whom it
-    /// answers a handshake as, wherever it is reached.
-    pub fn presented(&self) -> Vec<Identity> {
-        self.own.presented().collect()
+    /// The identity this daemon is, if its configuration names one:
+    /// whom it answers every handshake as, and whom it dials every
+    /// provider as.
+    pub fn own(&self) -> Option<&Identity> {
+        self.own.identity()
     }
 
     /// Every identity on the host, as the daemon opened them at its
@@ -223,18 +220,18 @@ impl DaemonAuthenticator {
         }
     }
 
-    /// Rules 3 and 4 for `peer`, connected from `address`: `Ok` with it
-    /// taken, when it is a provider its record admits in this direction
-    /// and free — the one `dialled` names, for a dial — or an account a
-    /// daemon reaches this one as and free, or an account on an
-    /// accepted socket; else why not. `Ok(true)` when it was taken on a
-    /// list, held until it is [`release`](Self::release)d.
-    async fn take(&self, expected: Expected, peer: &Peer, address: IpAddr, dialled: Option<&Identity>) -> Result<bool, String> {
+    /// Rules 3 and 5 for `peer`, connected from `address`, nothing
+    /// taken: `Ok` when it is a provider its record admits in this
+    /// direction — the one `dialled` names, for a dial — or an account
+    /// a daemon reaches this one as, or an administrator or an account
+    /// on an accepted socket; else why not. Asked of whom a token
+    /// claims to be, before the token is verified — rule 2.
+    async fn admissible(&self, expected: Expected, peer: &Peer, address: IpAddr, dialled: Option<&Identity>) -> Result<(), String> {
         match expected {
             Expected::Relayed => match self.account(peer).await {
-                Ok(Some(_)) => {}
-                Ok(None) => return Err(format!("{peer} is not an account")),
-                Err(error) => return Err(error.to_string()),
+                Ok(Some(_)) => Ok(()),
+                Ok(None) => Err(format!("{peer} is not an account")),
+                Err(error) => Err(error.to_string()),
             },
             Expected::Provider => {
                 if dialled.is_some_and(|dialled| dialled != peer) {
@@ -243,25 +240,33 @@ impl DaemonAuthenticator {
                 if self.providers.dials(peer).is_none() {
                     return Err(format!("{peer} is no enabled, outgoing provider"));
                 }
-            }
-            Expected::Admitted => {
-                if self.providers.accepts(peer) && !self.providers.admits(peer, address) {
-                    return Err(format!("{peer} may not dial in from {address}"));
+                if !self.providers.accepts(peer) {
+                    return Err(format!("{peer} is no provider of this daemon's"));
                 }
+                Ok(())
             }
-        }
-        if let Some(held) = self.list(expected, peer) {
-            return if held.lock().await.insert(peer.clone()) { Ok(true) } else { Err(format!("{peer} is held by another connection")) };
-        }
-        match expected {
-            Expected::Admitted if self.admins.contains(peer) => Ok(false),
+            Expected::Admitted if self.providers.accepts(peer) => {
+                if self.providers.admits(peer, address) { Ok(()) } else { Err(format!("{peer} may not dial in from {address}")) }
+            }
+            Expected::Admitted if self.admins.contains(peer) => Ok(()),
             Expected::Admitted => match self.account(peer).await {
-                Ok(Some(_)) => Ok(false),
+                Ok(Some(_)) => Ok(()),
                 Ok(None) => Err(format!("{peer} is neither a provider, an administrator nor an account")),
                 Err(error) => Err(error.to_string()),
             },
-            Expected::Provider => Err(format!("{peer} is no provider of this daemon's")),
-            Expected::Relayed => Ok(false),
+        }
+    }
+
+    /// Rule 4 for `peer`, verified and [`admissible`](Self::admissible):
+    /// `Ok(true)` when it was taken on a list, held until it is
+    /// [`release`](Self::release)d; `Ok(false)` when it is on no list;
+    /// why not, when another connection holds it.
+    async fn take(&self, expected: Expected, peer: &Peer) -> Result<bool, String> {
+        match self.list(expected, peer) {
+            Some(held) => {
+                if held.lock().await.insert(peer.clone()) { Ok(true) } else { Err(format!("{peer} is held by another connection")) }
+            }
+            None => Ok(false),
         }
     }
 }
@@ -322,14 +327,21 @@ pub struct Judging<'a> {
 }
 
 impl Authenticator for Judging<'_> {
-    fn present<'a>(&'a self, issuer: &'a str) -> BoxFuture<'a, Result<String, String>> {
-        Box::pin(self.authenticator.own.present(issuer))
+    fn present<'a>(&'a self) -> BoxFuture<'a, Result<String, String>> {
+        Box::pin(self.authenticator.own.present())
     }
 
     fn verify<'a>(&'a self, token: &'a str, address: IpAddr) -> BoxFuture<'a, Result<Peer, String>> {
         Box::pin(async move {
-            let peer = self.authenticator.own.verify(token).await?;
-            let held = self.authenticator.take(self.expected, &peer, address, self.dialled).await?;
+            // Rule 2: whom it claims to be is judged first, and only
+            // then is its issuer trusted and its keys fetched.
+            let claimed = self.authenticator.own.claimed(token)?;
+            self.authenticator.admissible(self.expected, &claimed, address, self.dialled).await?;
+            let peer = self.authenticator.own.verify_from(token, &claimed.issuer).await?;
+            if peer != claimed {
+                return Err(format!("{peer} is not {claimed}, whom the token claimed"));
+            }
+            let held = self.authenticator.take(self.expected, &peer).await?;
             if held && let Some(took) = self.took {
                 took.send_replace(true);
             }
@@ -360,12 +372,10 @@ impl Authenticator for Judging<'_> {
 /// The daemon's authenticator for reaching one remote daemon as one
 /// account of ours there, as a record of it names the two. The rules:
 ///
-/// 1. **Presenting.** At the remote's issuer, the ID token of `ours` —
-///    whichever subject `identities` names there — and at any other
-///    issuer nothing: the handshake fails.
+/// 1. **Presenting.** The ID token of `ours`, one of the host's
+///    identities, whatever the daemon's own `identity` is.
 /// 2. **Verifying.** The answer's token is verified against the remote's
-///    issuer's keys, that issuer trusted whether or not `identities`
-///    names it.
+///    issuer's keys, that issuer trusted for this answer alone.
 /// 3. **The one answer.** The answer must be `remote`, and nothing else:
 ///    a record names the daemon it reaches.
 /// 4. **Nothing held.** Several records may reach the same remote, each
@@ -379,11 +389,8 @@ pub struct Toward<'a> {
 }
 
 impl Authenticator for Toward<'_> {
-    fn present<'a>(&'a self, issuer: &'a str) -> BoxFuture<'a, Result<String, String>> {
+    fn present<'a>(&'a self) -> BoxFuture<'a, Result<String, String>> {
         Box::pin(async move {
-            if issuer != self.ours.issuer {
-                return Err(format!("this daemon reaches {} as {} and presents nothing at `{issuer}`", self.remote, self.ours));
-            }
             let name = diverge_sdk::identities::Name { issuer: self.ours.issuer.clone(), subject: self.ours.subject.clone() };
             self.authenticator.own.present_as(&name).await
         })

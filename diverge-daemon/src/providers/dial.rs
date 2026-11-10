@@ -56,7 +56,7 @@ async fn rounds(daemon: &Arc<Daemon>, identity: &Identity, number: u64) {
             let peer = peer_ip(&socket);
             let expecting = daemon.authenticator.dialling(identity);
             let listable = if daemon.providers.listable(identity) { daemon.authenticator.listed() } else { Listable::Hidden };
-            let made = handshake::connect(Connection::Outgoing(socket), &identity.issuer, listable, &expecting, peer).await;
+            let made = handshake::connect(Connection::Outgoing(socket), listable, &expecting, peer).await;
             if let Ok(Handshook { connection, peer, .. }) = made {
                 // A dial that answers holds the identity: the hold goes
                 // with the connection, however it ends.

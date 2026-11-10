@@ -254,10 +254,10 @@ impl Listings {
                 .collect()
         };
         let mut merged: BTreeMap<Identity, (BTreeSet<Via>, BTreeSet<Description>)> = BTreeMap::new();
+        let own = daemon.authenticator.own();
         for (provider, held) in whole {
-            let own = daemon.authenticator.own_at(&provider.issuer);
             for (identity, listed) in held.lock().await.iter() {
-                if own.as_ref() == Some(identity) {
+                if own == Some(identity) {
                     continue;
                 }
                 let (providers, descriptions) = merged.entry(identity.clone()).or_default();

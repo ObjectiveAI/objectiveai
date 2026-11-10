@@ -45,9 +45,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// 6. **A cancel**, or the client's connection ending, ends the poll:
 ///    the login dropped, its lock let go, nothing written, and no
 ///    outcome sent.
-/// 7. **Not presented.** Which subject the daemon presents at an issuer
-///    stays its configuration's: a new identity is the host's, and only
-///    that.
+/// 7. **Not presented.** Which identity the daemon is stays its
+///    configuration's: a new identity is the host's, and only that.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;

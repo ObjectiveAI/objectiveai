@@ -40,8 +40,9 @@
 //! connections reach one scope of its own, the handshake the daemon's
 //! and the rest relayed unread, by [`database`]. Every connection
 //! opens with the [`handshake`](diverge_sdk::wire::handshake): each
-//! end presents a token from one issuer, and the daemon presents the
-//! subject its `identities` names there. The providers are records in
+//! end presents its own token, and the daemon presents that of its
+//! one `identity`, whatever issuer the other end's is from. The
+//! providers are records in
 //! the daemon's database, each by its identity, incoming or outgoing,
 //! enabled or not, changed through the daemon's own `providers`
 //! endpoints — and a provider is served the same whichever end
