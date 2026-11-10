@@ -23,7 +23,7 @@ pub struct Arguments {
     pub below: Option<Below>,
 }
 
-/// The request put, its answer waited for and printed.
+/// The request put, its one answer waited for and printed.
 pub async fn run(
     arguments: Arguments,
     target: &Target<'_>,
@@ -40,5 +40,5 @@ pub async fn run(
     }
     let request: request::Frame = body(arguments.body.as_deref())?;
     let handle = target.dial().await?;
-    shape::pending::<_, response::Frame, _>(&handle, &request, emitter).await
+    shape::one_shot::<_, response::Frame, _>(&handle, &request, emitter).await
 }

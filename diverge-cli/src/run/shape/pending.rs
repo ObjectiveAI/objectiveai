@@ -9,8 +9,8 @@ use serde::Serialize;
 use super::exchange;
 use crate::run::{Emitter, Error};
 
-/// The request put, its answer waited for and emitted: an agent's
-/// message, answered when it lands. A scope finished with no answer
+/// The request put, its answer waited for and emitted: a message to
+/// another daemon, answered when it lands. A scope finished with no answer
 /// before it — a cancel in time — emits nothing, as a stream that ends
 /// emits nothing.
 pub async fn pending<Q, A, E>(
