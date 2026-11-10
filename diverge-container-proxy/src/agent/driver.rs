@@ -19,7 +19,7 @@ use crate::proxy::Proxy;
 /// The batch handed to the loop in flight — one `/enqueue` on the
 /// wire — and not yet answered.
 struct Delivering {
-    /// The messages on the wire, in enqueue order.
+    /// The messages on the wire, in index order.
     batch: Vec<Queued>,
     /// The `/enqueue` that carries them: its outcome, to come.
     outcome: oneshot::Receiver<Outcome>,
@@ -54,15 +54,19 @@ struct Feeding {
 /// 1. Only the driver reads or writes any of this.
 /// 2. A message is in exactly one place until its fate is sent: the
 ///    queue, the batch being delivered, or a starting run's batch.
-/// 3. The queue is in enqueue order, always: a new message goes to
-///    the back, and a batch that comes back goes to the FRONT, in its
-///    own order, ahead of anything newer.
+/// 3. The queue is in index order, always — the daemon's arrival
+///    order, never when a message reached the proxy: a new message is
+///    inserted where its index stands, by a binary search, and a
+///    batch that comes back is put back the same way, each message by
+///    its index, ahead of everything that arrived at the daemon after
+///    it. Indices are daemon-wide, so one agent's leave gaps: the
+///    queue orders what it holds and waits for no gap.
 /// 4. Everything sent is sent whole: the `/run` takes the whole
 ///    queue, and so does the `/enqueue` — one batch, joined, which the
 ///    agent's server takes as one user turn.
 /// 5. At most one call carrying messages is on the wire — a `/run` or
-///    an `/enqueue` — so the agent's server receives them in enqueue
-///    order, and a batch that comes back is never overtaken by a
+///    an `/enqueue` — so the agent's server receives every batch in
+///    index order, and a batch that comes back is never overtaken by a
 ///    newer one.
 /// 6. A message's fate is the answer to the call that carried it, and
 ///    the messages in it share it: `Delivered` on the `/run`'s `2xx`
@@ -120,14 +124,14 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool) -> 
 ///
 /// The rules, by event:
 ///
-/// 1. An enqueue goes to the back of the queue.
+/// 1. An enqueue is inserted in the queue by its index.
 /// 2. The `/run`'s answer: a `2xx` delivers every message in its
 ///    batch and starts the relay; anything else answers every one
 ///    with the error.
 /// 3. The `/enqueue`'s outcome: `Delivered` delivers every message in
 ///    the batch. `Returned` — the run closed under it, or the agent's
-///    server could not take it — puts the batch back at the front, in
-///    its order, and closes the loop in flight to further batches, so
+///    server could not take it — puts the batch back in the queue by
+///    its indices, and closes the loop in flight to further batches, so
 ///    the next `/run` starts on it. `Refused` answers every message
 ///    with the error.
 /// 4. The loop's end makes the run idle and open to batches again,
@@ -147,7 +151,7 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool) -> 
 /// and is not closed. That is what closes the race between a batch
 /// and the loop's end: a loop ending before its batch's `409` leaves
 /// the batch on the wire — and nothing launched — until the outcome
-/// puts it back at the front, and the next post-step launches; a
+/// puts it back in the queue, and the next post-step launches; a
 /// `409` before the loop's end closes the loop, and the drain is
 /// launched once the end has come and a feed has opened the gate.
 /// The command channel closing is the connection gone — every
@@ -174,7 +178,7 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
         tokio::select! {
             command = commands.recv() => match command {
                 None => break,
-                Some(Cmd::Enqueue(message)) => driver.queue.push_back(message),
+                Some(Cmd::Enqueue(message)) => insert(&mut driver.queue, message),
                 Some(Cmd::Feed { values, reply }) => driver.feeds.push_back(Feed { values, reply }),
             },
             started = wait(starting.as_mut()), if starting.is_some() => {
@@ -248,10 +252,10 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
                         // Nothing more for this loop: the next starts
                         // on the batch.
                         driver.closed = true;
-                        // Back to the FRONT, in their own order, ahead
-                        // of anything enqueued since.
-                        for message in batch.into_iter().rev() {
-                            driver.queue.push_front(message);
+                        // Back in the queue by their indices, ahead of
+                        // anything that arrived at the daemon after them.
+                        for message in batch {
+                            insert(&mut driver.queue, message);
                         }
                     }
                 }
@@ -311,8 +315,16 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
     }
 }
 
+/// Put `message` in the queue where its index stands (invariant 3):
+/// behind every message with an index no higher, ahead of every
+/// higher one.
+fn insert(queue: &mut VecDeque<Queued>, message: Queued) {
+    let at = queue.partition_point(|queued| queued.index <= message.index);
+    queue.insert(at, message);
+}
+
 /// The batch as the loop is asked it: every message, under its key,
-/// in the order they were enqueued.
+/// in index order, as the queue held them.
 fn messages(batch: &[Queued]) -> Vec<Message> {
     batch
         .iter()

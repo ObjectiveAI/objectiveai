@@ -31,6 +31,9 @@ impl From<Fate> for enqueue::response::Frame {
 pub struct Queued {
     /// The caller's key, which its user parts carry back.
     pub key: String,
+    /// The daemon's arrival order, lower first: where the message
+    /// stands in the queue.
+    pub index: u64,
     /// The message's content, in order.
     pub content: Vec<ContentBlock>,
     /// The enqueue channel waiting for the fate. A receiver that is

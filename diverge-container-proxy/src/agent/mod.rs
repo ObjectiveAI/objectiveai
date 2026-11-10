@@ -6,7 +6,7 @@
 //! at the port [`diverge_sdk::container_proxy::inside::port()`] names, and the
 //! loop's two calls are what this module makes of it: `/run`
 //! whenever messages wait and no loop runs; `/enqueue` with every
-//! message waiting, joined in enqueue order, while one does — onto
+//! message waiting, joined in index order, while one does — onto
 //! the program's own queue, answered at once. The calls every
 //! container answers — `/register`,
 //! `/secrets`, `/secrets/collect` — are [`program`](crate::program)'s;
@@ -18,10 +18,13 @@
 //! the queue can wait on a call the loop holds open. A message is
 //! `delivered` once the program has it — the `/run` that carried it
 //! answered `2xx`, or the `/enqueue` `204` — and never waits for a
-//! turn; nothing withdraws one. The driver keeps the order: one call
-//! carrying messages at a time, and a batch that comes back — the run
-//! closed under it, `409` — goes to the front of the queue, ahead of
-//! anything newer, and starts the next loop with it, joined.
+//! turn; nothing withdraws one. The driver keeps the order, which is
+//! the index the daemon stamped every message with as it arrived and
+//! never when a message reached the proxy: the queue is kept sorted by
+//! it, one call carrying messages is on the wire at a time, and a batch
+//! that comes back — the run closed under it, `409` — is put back by
+//! its indices, ahead of anything that arrived at the daemon after it,
+//! and starts the next loop with it, joined.
 //!
 //! What the loop says rides the begin scope's main stream, chunk by
 //! chunk, verbatim, between the proxy's own word that the loop began

@@ -25,15 +25,15 @@ use crate::reply::reply;
 /// gone, or one that never was, is the finish with nothing before it.
 ///
 /// Not an `async fn`: the message goes to the driver HERE, as the
-/// channel is read, and only the wait is the task's — so the driver
-/// hears the server's enqueues in the order the server opened them,
-/// whatever order their tasks run in, and the queue is in enqueue
-/// order exactly.
-pub fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, key: String, content: Vec<ContentBlock>) -> impl Future<Output = ()> + Send + 'static {
+/// channel is read, and only the wait is the task's — so a message is
+/// in the queue before any channel the server opens after it is read,
+/// whatever order their tasks run in. Where it stands there is its
+/// `index`'s, not when it came.
+pub fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, key: String, index: u64, content: Vec<ContentBlock>) -> impl Future<Output = ()> + Send + 'static {
     let (fate, heard) = oneshot::channel();
     let sent = proxy
         .commands()
-        .is_some_and(|commands| commands.send(Cmd::Enqueue(Queued { key, content, fate })).is_ok());
+        .is_some_and(|commands| commands.send(Cmd::Enqueue(Queued { key, index, content, fate })).is_ok());
     async move {
         if !sent {
             reply(&scope, channel, None).await;
@@ -65,7 +65,7 @@ pub enum Outcome {
 }
 
 /// Hand the batch to the loop in flight, on a task of its own:
-/// `POST /enqueue` with every message, in enqueue order, which the
+/// `POST /enqueue` with every message, in index order, which the
 /// program answers at once. The driver reads the outcome when it
 /// arrives and never waits on it.
 pub fn deliver(proxy: Arc<Proxy>, messages: Vec<Message>) -> oneshot::Receiver<Outcome> {
