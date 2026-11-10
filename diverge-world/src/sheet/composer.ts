@@ -19,9 +19,9 @@ const TALLEST = 160;
  * 1. The pending strip (`strip`) stands at the log's bottom: one
  *    preview per message in the agent's outbox, oldest first, its
  *    blocks drawn as the log draws them (`contentElement`). A waiting
- *    message is greyed; a delivered one is drawn as plainly as the
- *    log, until the log shows it (`seen`, which the sheet hands every
- *    log item); a failed one is drawn red, with why, and clicking it
+ *    or delivered message is greyed alike — delivery is not shown —
+ *    until the log shows it (`seen`, which the sheet hands every log
+ *    item); a failed one is drawn red, with why, and clicking it
  *    dismisses it (`outbox.dismiss`).
  * 2. The composer (`root`) stands under the log: the files attached,
  *    then a text box, 📎 and send.

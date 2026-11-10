@@ -573,7 +573,8 @@
 .sheet .pending:not(:empty) { padding-bottom: 12px; }
 .sheet .pending ~ .log { margin-bottom: 0; }
 .sheet .pending .sent .blocks { min-width: 0; }
-.sheet .pending .sent.waiting { opacity: 0.45; }
+.sheet .pending .sent.waiting,
+.sheet .pending .sent.delivered { opacity: 0.45; }
 .sheet .pending .sent.failed {
   color: var(--sheet-error);
   cursor: pointer;

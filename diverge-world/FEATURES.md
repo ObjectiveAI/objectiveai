@@ -351,11 +351,10 @@ The log is read from the start and then followed live.
   were attached. A file is known by its bytes, not its name, and goes
   as an image, a sound, or a file.
 - **Waiting:** a message sent waits greyed at the bottom of the log
-  until it is delivered. Once sent, it cannot be taken back.
-- **Delivered:** a message the agent's program accepted turns white;
-  it stays until the log shows it — a part an account sent whose text
-  matches the message's first text (or, with no text, its first
-  block) — and is then gone from there, shown in the log itself.
+  until the log shows it — a part an account sent whose text matches
+  the message's first text (or, with no text, its first block) — and
+  is then gone from there, shown in the log itself. Delivery is not
+  shown. Once sent, it cannot be taken back.
 - **Failing:** a message the daemon refuses stays in red with why,
   until it is clicked.
 - **Kept:** closing or swapping the sheet neither withdraws nor loses a
