@@ -36,7 +36,8 @@ type Answer = Result<BoxFuture<'static, Result<enqueue::response::Frame, UnaryEr
 /// with who sent it kept so its user parts are logged as theirs, and
 /// hand back the run and the key before the fate is known, so that a
 /// cancel can name it: the fate is the future, however long the loop
-/// takes to reach a seam. The rules, which make the messages that
+/// takes to reach a seam — or `None`, the message withdrawn from its
+/// `line` before it was sent. The rules, which make the messages that
 /// arrive together one turn, in the order they arrived:
 ///
 /// 1. **Counted, then in line.** The message is counted among the
@@ -61,6 +62,14 @@ type Answer = Result<BoxFuture<'static, Result<enqueue::response::Frame, UnaryEr
 ///    next feed.
 /// 5. **In a task of its own**, waited for: a caller cancelled midway
 ///    neither breaks the order nor loses the feed its burst waits on.
+/// 6. **Withdrawn before its send** — [`Line::withdraw`] — the message
+///    keeps its place and is counted out at its turn like any other,
+///    but is never sent: no run got for it if it was withdrawn before
+///    its turn, nothing on the graph, nothing kept or pending. Its
+///    turn decides it, under the line's lock, so a withdrawal and the
+///    send never both happen. The last of a burst withdrawn still
+///    feeds, for the messages before it: the run that is up, while
+///    any message is sent and not yet fated.
 ///
 /// The message is pending from its send until the future completes,
 /// however it does: what an inactive asks before it feeds again. It
@@ -68,18 +77,20 @@ type Answer = Result<BoxFuture<'static, Result<enqueue::response::Frame, UnaryEr
 /// agent, whatever its fate, since the graph records what was sent
 /// and not what landed. A run that could not be got is the error, and
 /// nothing was sent.
-pub async fn enqueue(daemon: &Arc<Daemon>, agent: &Agent, content: Vec<ContentBlock>, sender: Creator) -> Result<(Arc<AgentRun>, String, impl Future<Output = Fate>), StartError> {
+pub async fn enqueue(daemon: &Arc<Daemon>, agent: &Agent, content: Vec<ContentBlock>, sender: Creator, line: Line) -> Result<Option<(Arc<AgentRun>, String, impl Future<Output = Fate>)>, StartError> {
     let key = uuid::Uuid::new_v4().to_string();
     let (daemon, agent, named) = (Arc::clone(daemon), agent.clone(), key.clone());
     let arrived = tokio::spawn(async move {
         let arrival = daemon.live.arriving(agent.id).await;
         let turn = arrival.lock.lock().await;
-        let sent = match super::agent(&daemon, &agent).await {
-            Ok(run) => {
-                let (pending, kept, answer) = send(&daemon, &run, named, content, sender).await;
-                Ok((run, pending, kept, answer))
+        // Rule 6: withdrawn before its turn, it gets no run.
+        let sent = if line.withdrawn().await {
+            Ok(None)
+        } else {
+            match super::agent(&daemon, &agent).await {
+                Ok(run) => Ok(send(&daemon, &run, &line, named, content, sender).await.map(|(pending, kept, answer)| (run, pending, kept, answer))),
+                Err(error) => Err(error),
             }
-            Err(error) => Err(error),
         };
         let last = {
             let mut arriving = arrival.arriving.lock().await;
@@ -89,13 +100,25 @@ pub async fn enqueue(daemon: &Arc<Daemon>, agent: &Agent, content: Vec<ContentBl
         drop(turn);
         drop(arrival);
         daemon.live.arrived(agent.id).await;
-        let (run, pending, kept, answer) = sent?;
+        let Some((run, pending, kept, answer)) = sent? else {
+            // Rule 6: the last withdrawn feeds the burst before it.
+            if last
+                && let Some(run) = daemon.live.agent_run(agent.id).await
+                && run.pending.is_busy()
+            {
+                let _ = activate::activate_agent(&daemon, &run).await;
+            }
+            return Ok(None);
+        };
         let activated = if last { activate::activate_agent(&daemon, &run).await } else { Ok(()) };
-        Ok((run, pending, kept, answer, activated))
+        Ok(Some((run, pending, kept, answer, activated)))
     });
-    let (run, pending, mut kept, answer, activated) = arrived
+    let Some((run, pending, mut kept, answer, activated)) = arrived
         .await
-        .unwrap_or_else(|error| Err(StartError::Unfinished(error.to_string())))?;
+        .unwrap_or_else(|error| Err(StartError::Unfinished(error.to_string())))?
+    else {
+        return Ok(None);
+    };
     let (taken, named) = (Arc::clone(&run), key.clone());
     let fate = async move {
         let _pending = pending;
@@ -125,20 +148,63 @@ pub async fn enqueue(daemon: &Arc<Daemon>, agent: &Agent, content: Vec<ContentBl
         }
         fate
     };
-    Ok((run, key, fate))
+    Ok(Some((run, key, fate)))
 }
 
 /// Rule 2's send, under the arrival lock: the message on the graph,
 /// kept, counted pending — the count handed back, held until the fate
 /// — and its enqueue out, the answer to come handed back with it.
-async fn send(daemon: &Daemon, run: &Arc<AgentRun>, key: String, content: Vec<ContentBlock>, sender: Creator) -> (Guard, Kept, Answer) {
+/// Rule 6 first, under the line's lock, held through the send: `None`,
+/// nothing done, for a message withdrawn.
+async fn send(daemon: &Daemon, run: &Arc<AgentRun>, line: &Line, key: String, content: Vec<ContentBlock>, sender: Creator) -> Option<(Guard, Kept, Answer)> {
+    let mut place = line.0.lock().await;
+    if *place == Place::Withdrawn {
+        return None;
+    }
     events::record(daemon, &sender, &run.sender).await;
     run.messages.lock().await.insert(key.clone(), Message::new(sender));
     run.touch();
     let pending = run.pending.enter();
     let kept = Kept { messages: Arc::clone(&run.messages), key: Some(key.clone()) };
     let answer = run.handle.enqueue_sent(key, content).await;
-    (pending, kept, answer)
+    *place = Place::Sent;
+    Some((pending, kept, answer))
+}
+
+/// A message's place on its way to the run, shared by the way and by
+/// the client's cancel: rule 6 of [`enqueue`]. Whichever decides it
+/// first, under its lock, is what happened.
+#[derive(Clone, Default)]
+pub struct Line(Arc<Mutex<Place>>);
+
+/// Where a message on its way stands.
+#[derive(Default, PartialEq)]
+enum Place {
+    /// Not yet sent, nor withdrawn.
+    #[default]
+    Waiting,
+    /// Its enqueue is out: a cancel is the provider's dequeue now.
+    Sent,
+    /// Taken out of line: it is never sent.
+    Withdrawn,
+}
+
+impl Line {
+    /// Take the message out of line, if it was not sent: `true` if it
+    /// never will be, `false` if its enqueue is out already.
+    pub async fn withdraw(&self) -> bool {
+        let mut place = self.0.lock().await;
+        if *place == Place::Sent {
+            return false;
+        }
+        *place = Place::Withdrawn;
+        true
+    }
+
+    /// Whether the message was taken out of line.
+    async fn withdrawn(&self) -> bool {
+        *self.0.lock().await == Place::Withdrawn
+    }
 }
 
 /// The proxy's word on a sent enqueue, as the message's fate.

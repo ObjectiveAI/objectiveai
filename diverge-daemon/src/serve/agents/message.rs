@@ -38,7 +38,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// as [`message::enqueue`] states, the scope open until its fate is
 /// known: `Delivered` as the loop takes it, or the container's own
 /// error, or the feed's; `None` — no answer, the finish alone — when
-/// the client's one channel took it back first.
+/// the client's one channel took it back first. The cancel races the
+/// whole way: one before the send takes the message out of its line
+/// — rule 6 of [`message::enqueue`], never sent, the finish at once —
+/// and one after it is the provider's dequeue, the fate then awaited.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Option<Frame>, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -56,8 +59,21 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
     }
     scope.allowed().await;
     let sender = standing.creator.clone();
-    let (run, key, fate) = match message::enqueue(daemon, &agent, frame.content, sender).await {
-        Ok(sent) => sent,
+    let line = message::Line::default();
+    let enqueued = message::enqueue(daemon, &agent, frame.content, sender, line.clone());
+    tokio::pin!(enqueued);
+    let (enqueued, cancelled) = tokio::select! {
+        enqueued = &mut enqueued => (enqueued, false),
+        () = cancel(scope) => {
+            if line.withdraw().await {
+                return Ok(None);
+            }
+            (enqueued.await, true)
+        }
+    };
+    let (run, key, fate) = match enqueued {
+        Ok(Some(sent)) => sent,
+        Ok(None) => return Ok(None),
         Err(error) => {
             return Ok(Some(Frame::Error(match (error.unsupported(), error.no_source()) {
                 (Some(what), _) => reply::unsupported(what),
@@ -67,18 +83,23 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         }
     };
     tokio::pin!(fate);
-    let fate = tokio::select! {
-        fate = &mut fate => fate,
-        () = cancel(scope) => {
-            message::cancel(&run, &key).await;
-            fate.await
+    if !cancelled {
+        tokio::select! {
+            fate = &mut fate => return Ok(answer(fate)),
+            () = cancel(scope) => {}
         }
-    };
-    Ok(match fate {
+    }
+    message::cancel(&run, &key).await;
+    Ok(answer(fate.await))
+}
+
+/// The fate as the answer: none for a message taken back.
+fn answer(fate: message::Fate) -> Option<Frame> {
+    match fate {
         message::Fate::Delivered => Some(Frame::Delivered),
         message::Fate::Cancelled => None,
         message::Fate::Error(error) => Some(Frame::Error(error)),
-    })
+    }
 }
 
 /// The client's one channel, read for its cancel and never answered;
