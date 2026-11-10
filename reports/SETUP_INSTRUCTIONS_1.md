@@ -40,6 +40,13 @@ Read sections 1 and 2 before running anything.
 
 ## 2. Hard rules for the agent doing this
 
+0. **Create a new branch before doing any work.** Before the first command that changes anything — an install, a
+   config edit, a commit — make and switch to a branch of your own, so nothing lands on the branch you were handed:
+   ```bash
+   git switch -c setup-$(date +%Y%m%d)
+   git branch --show-current   # expected: setup-<today's date>
+   ```
+   Keep every change, commit and push on that branch.
 1. **Never pipe `diverge … start`.** The started server inherits the pipe, and your shell hangs. Always redirect to a
    file, for example `diverge provider start >"$WORK/provider-start.out" 2>&1; cat "$WORK/provider-start.out"`.
    The server's own log is `<root>/<program>.log`.
