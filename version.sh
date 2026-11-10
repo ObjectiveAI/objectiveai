@@ -239,11 +239,11 @@ CARGO_TOMLS=(
   objectiveai-mcp-plugin-framework-rs/Cargo.toml
   objectiveai-mcp-plugin-scaffold-rs/Cargo.toml
   objectiveai-mcp-proxy/Cargo.toml
-  agents/cc/Cargo.toml
-  agents/eliza/Cargo.toml
-  agents/hermes/Cargo.toml
+  diverge-agents/cc/Cargo.toml
+  diverge-agents/eliza/Cargo.toml
+  diverge-agents/hermes/Cargo.toml
   diverge-container-proxy/Cargo.toml
-  agents/openrouter/Cargo.toml
+  diverge-agents/openrouter/Cargo.toml
   diverge-sdk-rs/Cargo.toml
   diverge-provider/Cargo.toml
   diverge-postgres/Cargo.toml
