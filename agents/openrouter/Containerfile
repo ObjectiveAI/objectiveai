@@ -7,7 +7,7 @@
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
-#     podman build -f diverge-agentic-loop-openrouter/Containerfile .
+#     podman build -f agents/openrouter/Containerfile .
 #
 # Digests pinned from Docker Hub on 2026-08-26; bump deliberately.
 
@@ -28,21 +28,21 @@ WORKDIR /build
 # hold; cargo prunes the entries the crate does not use, which is why
 # the build does not pass --locked.
 COPY diverge-sdk-rs diverge-sdk-rs
-COPY diverge-agentic-loop-openrouter diverge-agentic-loop-openrouter
-COPY Cargo.lock diverge-agentic-loop-openrouter/Cargo.lock
+COPY agents/openrouter agents/openrouter
+COPY Cargo.lock agents/openrouter/Cargo.lock
 
 RUN cargo build --release \
-    --manifest-path diverge-agentic-loop-openrouter/Cargo.toml
+    --manifest-path agents/openrouter/Cargo.toml
 
 # alpine:latest, by digest.
 FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 COPY --from=build \
-    /build/diverge-agentic-loop-openrouter/target/release/diverge-agentic-loop-openrouter \
+    /build/agents/openrouter/target/release/diverge-agentic-loop-openrouter \
     /usr/local/bin/diverge-agentic-loop-openrouter
 
 # The image's arguments schema and its description, read by the proxy.
-COPY diverge-agentic-loop-openrouter/DIVERGE.md /DIVERGE.md
+COPY agents/openrouter/DIVERGE.md /DIVERGE.md
 
 # The loop's own server, on the loopback: 8080, or whatever `PORT`
 # names. Nothing is exposed — the proxy the host injects is the only

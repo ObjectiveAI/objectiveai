@@ -26,7 +26,7 @@ Read sections 1 and 2 before running anything.
 | **Daemon** (`diverge-daemon`) | The hub clients talk to, over a WebSocket on its `port` (default 14980). It keeps all records in its own Postgres: accounts, roles, providers, remote daemons, templates, agents, tools, events, logs, vault. `diverge-postgres` is a supervisor with Postgres embedded at build time; the daemon starts it on a free loopback port, with its data under `<root>/daemon/postgres/`. |
 | **Provider** (`diverge-provider`) | Runs containers with podman for the daemons it `accepted`, and also serves volumes and an image store. Default port 14979. On Windows and macOS it drives a podman machine named **`diverge-provider`** through the rootful connection **`diverge-provider-root`**. On Linux it runs podman directly and must run as root. |
 | **Container proxy** (`diverge-container-proxy`) | A static Linux musl binary. The provider bind-mounts it into every container (`/.diverge/diverge-container-proxy`) and runs it there. It bridges the provider and the program inside the container: MCP, Postgres, secrets, the message queue. It is **never part of an image**, but the inside-container contract it speaks has to match the image's program. |
-| **Agent program / image** | An OCI image whose program speaks the inside-container contract. The six agent loops are `diverge-agentic-loop-{python,openrouter,codex,eliza,hermes,cc}`. Each image carries `/DIVERGE.md`: JSON frontmatter `{name, schema[, frontend]}` (the schema of the `arguments` the image accepts), followed by prose. |
+| **Agent program / image** | An OCI image whose program speaks the inside-container contract. The six agent loops are `agents/{python,openrouter,codex,eliza,hermes,cc}`. Each image carries `/DIVERGE.md`: JSON frontmatter `{name, schema[, frontend]}` (the schema of the `arguments` the image accepts), followed by prose. |
 | **Template** | `agents templates create` / `standalone-tools templates create`: an image (`{digest, references}`) plus `memory` and `disk` (both in bytes), `arguments`, and the names of the `secrets` it needs. Its id is a hash, so creating the same template twice gives back the same id. |
 | **Agent** | `agents create {template, name}`: one container made from a template. It runs when it is messaged (`agents message`) and is stopped after `idle_seconds` of disuse. Its record and conversation persist. |
 | **Tools** | MCP-server containers. **Standalone tools** are created by hand and attached to agents. **Dependency tools** are declared by an agent image's `dependencies` argument and deployed by the daemon. **Connected standalone tools** are another daemon's standalone tools, held under a name on this daemon. |
@@ -385,7 +385,7 @@ build() {  # build <dir with Containerfile> <short name>
   pp build --label diverge.network/keep=true -t "localhost/diverge-local/$2:dev" -f "$1/Containerfile" . \
     > "$WORK/build-$2.log" 2>&1
 }
-build diverge-agentic-loop-python python      # ~10 min; run in the background
+build agents/python python      # ~10 min; run in the background
 build examples/tools/memory memory                  # used for the daemon-to-daemon test
 pp image ls --no-trunc --format '{{.Repository}}:{{.Tag}} {{.Digest}}'
 DIGEST_PY="$(pp image inspect --format '{{.Digest}}' localhost/diverge-local/python:dev)"
@@ -405,12 +405,12 @@ The images:
 
 | Image dir | `name` | Kind | Required `arguments` | Secrets (vault-bound at create) |
 |---|---|---|---|---|
-| `diverge-agentic-loop-python` | python | agent, no model | `python` (source, run every turn); optional `requirements`, `dependencies` | none |
-| `diverge-agentic-loop-openrouter` | openrouter | agent | `model`; optional `system_prompt`, sampling fields, `dependencies` | `OPENROUTER_API_KEY` |
-| `diverge-agentic-loop-codex` | codex | agent | `model`, `auth` | exactly one, by `auth.method`: `OPENAI_API_KEY`, `CODEX_ACCESS_TOKEN`, `CODEX_AUTH` (rotating) or `OPENAI_IDENTITY_TOKEN` |
-| `diverge-agentic-loop-eliza` | eliza | agent | `character` | the names its plugins declare |
-| `diverge-agentic-loop-hermes` | hermes | agent | `provider`, `model` | depends on provider and toolsets (see its DIVERGE.md) |
-| `diverge-agentic-loop-cc` | cc | agent (Claude Code) | `model` | none declared. It installs Claude Code from npm at container start and "logs in by itself", so the container needs network. How credentials reach it is not established here. |
+| `agents/python` | python | agent, no model | `python` (source, run every turn); optional `requirements`, `dependencies` | none |
+| `agents/openrouter` | openrouter | agent | `model`; optional `system_prompt`, sampling fields, `dependencies` | `OPENROUTER_API_KEY` |
+| `agents/codex` | codex | agent | `model`, `auth` | exactly one, by `auth.method`: `OPENAI_API_KEY`, `CODEX_ACCESS_TOKEN`, `CODEX_AUTH` (rotating) or `OPENAI_IDENTITY_TOKEN` |
+| `agents/eliza` | eliza | agent | `character` | the names its plugins declare |
+| `agents/hermes` | hermes | agent | `provider`, `model` | depends on provider and toolsets (see its DIVERGE.md) |
+| `agents/cc` | cc | agent (Claude Code) | `model` | none declared. It installs Claude Code from npm at container start and "logs in by itself", so the container needs network. How credentials reach it is not established here. |
 | `examples/tools/courier` | courier | dependency tool, service, `global` | `{}` | none |
 | `examples/tools/taskboard` | taskboard | dependency tool, service, `template` | `{}` | none |
 | `examples/tools/memory` | memory | dependency tool, transient | `{}` | none |
@@ -465,7 +465,7 @@ out
 EOF
 ```
 
-How the script contract works (`diverge-agentic-loop-python/HARNESS.md`):
+How the script contract works (`agents/python/HARNESS.md`):
 
 - Each turn runs `python3 harness.py agent.py`. The globals `input`, `tools` and `resources` are supplied by the
   harness.

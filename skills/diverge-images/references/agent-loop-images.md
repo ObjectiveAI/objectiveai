@@ -74,7 +74,7 @@ Rules:
   `permissions` member on dependency templates; the current SDK type has none.
 - Only agents have dependencies. A tool container's own list is ignored.
 
-## python (`diverge-agentic-loop-python`)
+## python (`agents/python`)
 
 An agent that runs Python source instead of calling a model. Each turn runs the source against the
 conversation; nothing is sampled. Useful for deterministic agents, echo agents and tests.
@@ -87,7 +87,7 @@ conversation; nothing is sampled. Useful for deterministic agents, echo agents a
 | `requirements` | no | third-party packages: a map of distribution name to `{"operator": "==" \| "!=" \| ">=" \| ">" \| "<=" \| "<" \| "~=", "version": "<PEP 440 version>"}`. Installed once at registration with pip. One constraint per package; compound ranges and environment markers are not representable |
 | `dependencies` | no | see above |
 
-The script contract (`diverge-agentic-loop-python/HARNESS.md`): the harness supplies the globals
+The script contract (`agents/python/HARNESS.md`): the harness supplies the globals
 `input` (the conversation; the last item is the newest message, a list of content blocks, or a
 `tool_response`), `tools` and `resources`. The script's last bare expression (or else its printed
 JSON) must be a list of assistant chunks, for example
@@ -117,7 +117,7 @@ than hand-escaping Python inside JSON inside a shell string.
 With a requirement: `"requirements": {"requests": {"operator": ">=", "version": "2.31.0"}}`. A failed
 install is a registration error (`kind: "requirements"`), surfaced as the agent's start error.
 
-## openrouter (`diverge-agentic-loop-openrouter`)
+## openrouter (`agents/openrouter`)
 
 An OpenRouter chat-completions loop. Its tools are the caller's MCP servers (attached tools and
 dependencies).
@@ -163,7 +163,7 @@ diverge run vault insert '{"key":"or-key","value":"sk-or-…"}'
 diverge run agents create '{"template":"<id>","name":"helper","secrets":{"OPENROUTER_API_KEY":"or-key"}}'
 ```
 
-## codex (`diverge-agentic-loop-codex`)
+## codex (`agents/codex`)
 
 An OpenAI Codex CLI agent, pre-installed in the image: one `codex exec` per turn on a resumed thread.
 The container is the sandbox: Codex always runs with full access and never asks for approval. Its one
@@ -211,7 +211,7 @@ Minimal template body (API key):
 With a ChatGPT login instead: `"arguments":{"model":"<model>","auth":{"method":"auth_file"}}`,
 `"secrets":["CODEX_AUTH"]`, and the vault value is the `auth.json` content as a JSON object.
 
-## eliza (`diverge-agentic-loop-eliza`)
+## eliza (`agents/eliza`)
 
 An elizaOS agent: a Node entry over `@elizaos/core`, with the plugins the arguments name. Its memory
 is the agent's own database scope (reached through the proxy); its tools are the caller's MCP
@@ -280,7 +280,7 @@ Minimal template body (one OpenAI-compatible model provider):
 Not available by design: connectors (discord, telegram, slack and the like), local inference,
 sub-agent orchestration, scheduling. An agent that must act on such a service gets an MCP tool for it.
 
-## cc (`diverge-agentic-loop-cc`)
+## cc (`agents/cc`)
 
 A Claude Code agent: the harness installs the pinned Claude Code at container start (the container
 needs network), runs it as a subprocess and serves the loop. Permissions are skipped inside it; the

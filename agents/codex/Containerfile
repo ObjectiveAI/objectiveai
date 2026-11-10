@@ -12,7 +12,7 @@
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
-#     podman build -f diverge-agentic-loop-codex/Containerfile .
+#     podman build -f agents/codex/Containerfile .
 #
 # Debian, deliberately: skills carry scripts, and scripts want a real
 # distro underneath — apt, glibc, and a first-class Python — not
@@ -37,11 +37,11 @@ WORKDIR /build
 # cargo prunes what the crate does not use, which is why the build
 # does not pass --locked.
 COPY diverge-sdk-rs diverge-sdk-rs
-COPY diverge-agentic-loop-codex diverge-agentic-loop-codex
-COPY Cargo.lock diverge-agentic-loop-codex/Cargo.lock
+COPY agents/codex agents/codex
+COPY Cargo.lock agents/codex/Cargo.lock
 
 RUN cargo build --release \
-    --manifest-path diverge-agentic-loop-codex/Cargo.toml
+    --manifest-path agents/codex/Cargo.toml
 
 # debian:sid, by digest.
 FROM docker.io/library/debian:sid@sha256:c1acdb109bacb5adf0f2078892ac177ee2e2ce6f88e96c5b743998b5489d36a9
@@ -74,11 +74,11 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN npm install -g @openai/codex@0.153.4
 
 COPY --from=build \
-    /build/diverge-agentic-loop-codex/target/release/diverge-agentic-loop-codex \
+    /build/agents/codex/target/release/diverge-agentic-loop-codex \
     /usr/local/bin/diverge-agentic-loop-codex
 
 # The image's arguments schema and its description, read by the proxy.
-COPY diverge-agentic-loop-codex/DIVERGE.md /DIVERGE.md
+COPY agents/codex/DIVERGE.md /DIVERGE.md
 
 # The harness's own server, on the loopback: 8080, or whatever `PORT`
 # names. Nothing is exposed — the proxy the host injects is the only

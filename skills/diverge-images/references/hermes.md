@@ -1,4 +1,4 @@
-# hermes (`diverge-agentic-loop-hermes`)
+# hermes (`agents/hermes`)
 
 A Hermes agent (Nous Research's agent harness): `hermes gateway` laid down from the arguments and
 driven over its API. Hermes is multi-provider; the `provider` argument picks the inference source and

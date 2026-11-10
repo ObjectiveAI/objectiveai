@@ -10,7 +10,7 @@
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
-#     podman build -f diverge-agentic-loop-python/Containerfile .
+#     podman build -f agents/python/Containerfile .
 #
 # The builder is openrouter's Alpine rust image: the musl toolchain is
 # its default target, and a static musl binary runs on the Debian
@@ -34,11 +34,11 @@ WORKDIR /build
 # hold; cargo prunes the entries the crate does not use, which is why
 # the build does not pass --locked.
 COPY diverge-sdk-rs diverge-sdk-rs
-COPY diverge-agentic-loop-python diverge-agentic-loop-python
-COPY Cargo.lock diverge-agentic-loop-python/Cargo.lock
+COPY agents/python agents/python
+COPY Cargo.lock agents/python/Cargo.lock
 
 RUN cargo build --release \
-    --manifest-path diverge-agentic-loop-python/Cargo.toml
+    --manifest-path agents/python/Cargo.toml
 
 # python:3.13-slim-bookworm, by digest: CPython 3.13 with pip, on
 # Debian bookworm, and nothing else. `python3` on the path is this
@@ -55,11 +55,11 @@ RUN mkdir -p /var/lib/diverge-python
 WORKDIR /root
 
 COPY --from=build \
-    /build/diverge-agentic-loop-python/target/release/diverge-agentic-loop-python \
+    /build/agents/python/target/release/diverge-agentic-loop-python \
     /usr/local/bin/diverge-agentic-loop-python
 
 # The image's arguments schema and its description, read by the proxy.
-COPY diverge-agentic-loop-python/DIVERGE.md /DIVERGE.md
+COPY agents/python/DIVERGE.md /DIVERGE.md
 
 # The loop's own server, on the loopback: 8080, or whatever `PORT`
 # names. Nothing is exposed — the proxy the host injects is the only

@@ -96,7 +96,7 @@ pp() { XDG_DATA_HOME="$PD" XDG_CONFIG_HOME="$PD" podman --connection diverge-pro
 cd <workspace>                       # the repository root: it is the build context for every image
 pp build --label diverge.network/keep=true \
    -t localhost/diverge-local/python:dev \
-   -f diverge-agentic-loop-python/Containerfile . > build-python.log 2>&1
+   -f agents/python/Containerfile . > build-python.log 2>&1
 
 pp image inspect --format '{{.Digest}}' localhost/diverge-local/python:dev     # sha256:…
 pp image ls --no-trunc --format '{{.Repository}}:{{.Tag}} {{.Digest}}'          # every image
@@ -105,7 +105,7 @@ pp image ls --no-trunc --format '{{.Repository}}:{{.Tag}} {{.Digest}}'          
 Rules:
 
 - **Build context is the workspace root (`.`)** for every Containerfile in the repository
-  (`diverge-agentic-loop-*/Containerfile`, `examples/agents/*/Containerfile`, `examples/tools/*/Containerfile`). Each copies `diverge-sdk-rs/`,
+  (`agents/*/Containerfile`, `examples/agents/*/Containerfile`, `examples/tools/*/Containerfile`). Each copies `diverge-sdk-rs/`,
   its own crate and `Cargo.lock`.
 - **Never tag an image under `127.0.0.1:`**. The cache lookup skips those names on purpose (they are
   the provider's own per-pull registry names).
@@ -282,12 +282,12 @@ above with `-f <dir>/Containerfile .`.
 
 | image dir | `name` | kind | required `arguments` | secrets the program declares |
 |---|---|---|---|---|
-| `diverge-agentic-loop-python` | `python` | agent, no model | `python` | none |
-| `diverge-agentic-loop-openrouter` | `openrouter` | agent | `model` | `OPENROUTER_API_KEY` (fixed) |
-| `diverge-agentic-loop-codex` | `codex` | agent | `model`, `auth` | one, by `auth.method`: `OPENAI_API_KEY`, `CODEX_ACCESS_TOKEN`, `OPENAI_IDENTITY_TOKEN` (fixed) or `CODEX_AUTH` (rotating) |
-| `diverge-agentic-loop-eliza` | `eliza` | agent | `character` | every name on a plugin entry's `secrets`, fixed or rotating as the entry says |
-| `diverge-agentic-loop-hermes` | `hermes` | agent | `provider`, `model` | selected by the provider and the toolsets chosen |
-| `diverge-agentic-loop-cc` | `cc` | agent (Claude Code) | `model` | none |
+| `agents/python` | `python` | agent, no model | `python` | none |
+| `agents/openrouter` | `openrouter` | agent | `model` | `OPENROUTER_API_KEY` (fixed) |
+| `agents/codex` | `codex` | agent | `model`, `auth` | one, by `auth.method`: `OPENAI_API_KEY`, `CODEX_ACCESS_TOKEN`, `OPENAI_IDENTITY_TOKEN` (fixed) or `CODEX_AUTH` (rotating) |
+| `agents/eliza` | `eliza` | agent | `character` | every name on a plugin entry's `secrets`, fixed or rotating as the entry says |
+| `agents/hermes` | `hermes` | agent | `provider`, `model` | selected by the provider and the toolsets chosen |
+| `agents/cc` | `cc` | agent (Claude Code) | `model` | none |
 | `examples/tools/courier` | `courier` | dependency tool: service, `global` | `{}` | none |
 | `examples/tools/taskboard` | `taskboard` | dependency tool: service, `template` (or `global`) | `{}` | none |
 | `examples/tools/memory` | `memory` | dependency tool: transient | `{}` | none |
@@ -348,7 +348,7 @@ template declares. Details and lifecycle are in `diverge-tools`; the entry shape
   and `oci`). Putting an image into the Store from the CLI is therefore not covered; build into the
   provider's podman cache instead.
 - macOS and Linux build commands are from code and the setup report, not run live.
-- `diverge-agentic-loop-cc` declares no secret and says Claude Code logs in by itself; how a login
+- `agents/cc` declares no secret and says Claude Code logs in by itself; how a login
   reaches the container (for example a mount of its credential directory) was not established.
 - Suggested `memory` / `disk` values in the references are starting points, not measured minimums.
 

@@ -11,7 +11,7 @@
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
-#     podman build -f diverge-agentic-loop-eliza/Containerfile .
+#     podman build -f agents/eliza/Containerfile .
 #
 # Debian, deliberately: plugin-browser and plugin-documents want a
 # real distro underneath, and the coding tools run whatever scripts
@@ -40,12 +40,12 @@ WORKDIR /build
 # sources ride: reports/ and the pinned elizaOS tree under sources/
 # are research, not the build's.
 COPY diverge-sdk-rs diverge-sdk-rs
-COPY diverge-agentic-loop-eliza/Cargo.toml diverge-agentic-loop-eliza/Cargo.toml
-COPY diverge-agentic-loop-eliza/src diverge-agentic-loop-eliza/src
-COPY Cargo.lock diverge-agentic-loop-eliza/Cargo.lock
+COPY agents/eliza/Cargo.toml agents/eliza/Cargo.toml
+COPY agents/eliza/src agents/eliza/src
+COPY Cargo.lock agents/eliza/Cargo.lock
 
 RUN cargo build --release \
-    --manifest-path diverge-agentic-loop-eliza/Cargo.toml
+    --manifest-path agents/eliza/Cargo.toml
 
 # oven/bun:1.3.14 — the pin's own `packageManager` — by digest, for
 # its one binary.
@@ -72,7 +72,7 @@ COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 # PRE-INSTALLED and nothing more: the harness loads only the adapter
 # on its own, and any other is loaded only when the agent lists it.
 WORKDIR /opt/diverge/eliza
-COPY diverge-agentic-loop-eliza/node/ ./
+COPY agents/eliza/node/ ./
 RUN bun install
 
 # Eliza's state directory (its own vault lives under it), fixed by
@@ -81,11 +81,11 @@ RUN bun install
 RUN mkdir -p /var/lib/eliza
 
 COPY --from=build \
-    /build/diverge-agentic-loop-eliza/target/release/diverge-agentic-loop-eliza \
+    /build/agents/eliza/target/release/diverge-agentic-loop-eliza \
     /usr/local/bin/diverge-agentic-loop-eliza
 
 # The image's arguments schema and its description, read by the proxy.
-COPY diverge-agentic-loop-eliza/DIVERGE.md /DIVERGE.md
+COPY agents/eliza/DIVERGE.md /DIVERGE.md
 
 # The harness's own server, on the loopback: 8080, or whatever `PORT`
 # names. Nothing is exposed — the proxy the host injects is the only

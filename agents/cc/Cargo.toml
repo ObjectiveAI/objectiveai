@@ -24,7 +24,7 @@ futures-util = { version = "0.3.33", default-features = false }
 # version.sh would have to chase. The provider SDK is the vocabulary —
 # the chunks; the container SDK is the proxy beside this
 # program — the database URL, and the MCP URL Claude Code is handed.
-diverge-sdk = { path = "../diverge-sdk-rs" }
+diverge-sdk = { path = "../../diverge-sdk-rs" }
 # The agent's JSON Schema, derived from the agent types for
 # `--schema`.
 schemars = { version = "1.2.2" }

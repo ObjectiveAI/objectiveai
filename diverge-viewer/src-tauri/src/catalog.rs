@@ -76,12 +76,12 @@ impl Kind {
     /// The image's `/DIVERGE.md`, as its loop ships it.
     fn document(self) -> &'static str {
         match self {
-            Kind::Cc => include_str!("../../../diverge-agentic-loop-cc/DIVERGE.md"),
-            Kind::Codex => include_str!("../../../diverge-agentic-loop-codex/DIVERGE.md"),
-            Kind::Eliza => include_str!("../../../diverge-agentic-loop-eliza/DIVERGE.md"),
-            Kind::Hermes => include_str!("../../../diverge-agentic-loop-hermes/DIVERGE.md"),
-            Kind::Openrouter => include_str!("../../../diverge-agentic-loop-openrouter/DIVERGE.md"),
-            Kind::Python => include_str!("../../../diverge-agentic-loop-python/DIVERGE.md"),
+            Kind::Cc => include_str!("../../../agents/cc/DIVERGE.md"),
+            Kind::Codex => include_str!("../../../agents/codex/DIVERGE.md"),
+            Kind::Eliza => include_str!("../../../agents/eliza/DIVERGE.md"),
+            Kind::Hermes => include_str!("../../../agents/hermes/DIVERGE.md"),
+            Kind::Openrouter => include_str!("../../../agents/openrouter/DIVERGE.md"),
+            Kind::Python => include_str!("../../../agents/python/DIVERGE.md"),
         }
     }
 
