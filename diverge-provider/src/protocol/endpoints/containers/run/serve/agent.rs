@@ -1,9 +1,9 @@
-//! The agents family's own exchanges: the queue's two verbs, channels
-//! on the begin scope.
+//! The agents family's own exchange: a message for the agent, a
+//! channel on the begin scope.
 
 use std::sync::Arc;
 
-use diverge_sdk::shared::containers::{dequeue, enqueue};
+use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::shared::error::Error;
 use rmcp::model::ContentBlock;
 
@@ -16,8 +16,6 @@ use super::super::run::Run;
 pub(crate) enum Exchange {
     /// A message for the agent: its key, and its content blocks.
     Enqueue(String, Vec<ContentBlock>),
-    /// Withdraw every message waiting under a key.
-    Dequeue(String),
 }
 
 /// Serve one, to the end: the proxy's one answer on the caller's
@@ -37,10 +35,6 @@ pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
     let answer = match exchange {
         Exchange::Enqueue(key, content) => {
             let frame = begin.enqueue(key, content).await.unwrap_or_else(|error| enqueue::response::Frame::Error(failed(&error)));
-            encoded(&frame)
-        }
-        Exchange::Dequeue(key) => {
-            let frame = begin.dequeue(key).await.unwrap_or_else(|error| dequeue::response::Frame::Error(failed(&error)));
             encoded(&frame)
         }
     };

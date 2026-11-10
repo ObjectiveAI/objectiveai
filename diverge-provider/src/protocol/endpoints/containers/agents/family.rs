@@ -69,7 +69,6 @@ impl Family for Agents {
             channel_request::Frame::TerminalClose(id) => Opened::TerminalClose(id.id),
             channel_request::Frame::Frontend(request) => Opened::Frontend(request),
             channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.key, request.content)),
-            channel_request::Frame::Dequeue(request) => Opened::Exchange(agent::Exchange::Dequeue(request.key)),
         }
     }
 
