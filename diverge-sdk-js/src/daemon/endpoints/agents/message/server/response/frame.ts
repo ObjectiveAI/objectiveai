@@ -5,16 +5,11 @@ import { DecodeError, jsonOf, splitTag } from "../../../../../../wire/decode.js"
 import { Error } from "../../../../../../shared/error.js";
 
 /**
- * A message's answer: the loop took it, forbidden, or a failure. At
- * most one per scope, when the fate is known, before the finish. A
- * cancel in time is answered by none: the daemon finishes the scope
- * with no response before the finish — the message is gone and the
- * loop never saw it. A cancel after the loop took the message changes
- * nothing, and the answer is `delivered` all the same: whether an
- * answer precedes the finish, not the cancel, says which came first.
+ * A message's answer: delivered, forbidden, or a failure. Exactly one
+ * per scope, when the fate is known, before the finish.
  */
 export const Frame = z.union([
-  /** The loop took the message. Tag `0`. */
+  /** The agent's program accepted the message: it is in the program's own queue, or in the run it was started with. Tag `0`. */
   z.literal("delivered"),
   /** The account the request is served for holds no grant allowing it; nothing changed. Tag `1`. */
   z.literal("forbidden"),

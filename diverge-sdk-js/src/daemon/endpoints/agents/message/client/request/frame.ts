@@ -9,11 +9,12 @@ import { ContentBlockSchema } from "@modelcontextprotocol/core";
 /**
  * Ask the daemon to hand an agent a message: content blocks, MCP's
  * own, relayed to the container verbatim and not read. The agent's
- * container is started for it if it does not run. The answer comes
- * when the message's fate is known — taken by the loop, or none at
- * all when cancelled first — which may be long after the ask; nothing times
- * it out. An image that cannot take a block refuses the whole
- * message, and the error carries its words.
+ * container is started for it if it does not run. The one answer
+ * comes when the message's fate is known — handed to the agent's
+ * program, or refused — which may be long after the ask; nothing
+ * times it out, and nothing takes the message back. An image that
+ * cannot take a block refuses the whole message, and the error
+ * carries its words.
  */
 export const Frame = z.object({
   /** The agent: by name, or by template and index. */
