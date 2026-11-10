@@ -5,8 +5,9 @@
 use std::pin::pin;
 use std::sync::Arc;
 
-use diverge_sdk::container_proxy::inside::agent::run::request::{Message, Request};
+use diverge_sdk::container_proxy::inside::agent::run::request::Request;
 use diverge_sdk::container_proxy::outside::endpoints::agents::begin::server::response::{ACTIVE, CHUNK};
+use diverge_sdk::shared::containers::enqueue::request::Message;
 use diverge_sdk::shared::containers::secrets::Values;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;

@@ -1,13 +1,13 @@
 //! What the queue holds, and what the server's channels say to it.
 
 use diverge_sdk::shared::containers::enqueue;
+use diverge_sdk::shared::containers::enqueue::request::Message;
 use diverge_sdk::shared::containers::secrets::Values;
 use diverge_sdk::shared::error::Error;
-use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;
 
-/// What became of a message, as the server's enqueue channel is
-/// answered.
+/// What became of a batch, every message in it alike, as the server's
+/// enqueue channel is answered.
 pub enum Fate {
     /// The agent's program has it: the `/run` it started answered
     /// `2xx`, or the `/enqueue` that carried it to the loop in flight
@@ -27,15 +27,12 @@ impl From<Fate> for enqueue::response::Frame {
     }
 }
 
-/// One message in the queue, and where its fate goes.
-pub struct Queued {
-    /// The caller's key, which its user parts carry back.
-    pub key: String,
-    /// The daemon's arrival order, lower first: where the message
-    /// stands in the queue.
-    pub index: u64,
-    /// The message's content, in order.
-    pub content: Vec<ContentBlock>,
+/// One batch in the queue — one enqueue channel's messages — and
+/// where its fate goes.
+pub struct Batch {
+    /// The batch's messages, in order, each under the caller's key,
+    /// which its user parts carry back.
+    pub messages: Vec<Message>,
     /// The enqueue channel waiting for the fate. A receiver that is
     /// gone is a server that left, and a fate nobody hears.
     pub fate: oneshot::Sender<Fate>,
@@ -43,8 +40,8 @@ pub struct Queued {
 
 /// What a server's channel asks of the driver.
 pub enum Cmd {
-    /// A message for the agent.
-    Enqueue(Queued),
+    /// A batch of messages for the agent.
+    Enqueue(Batch),
     /// The secrets, fed: the server's values for the program, which
     /// open the gate once the program has applied them.
     Feed {

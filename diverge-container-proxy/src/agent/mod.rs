@@ -6,7 +6,7 @@
 //! at the port [`diverge_sdk::container_proxy::inside::port()`] names, and the
 //! loop's two calls are what this module makes of it: `/run`
 //! whenever messages wait and no loop runs; `/enqueue` with every
-//! message waiting, joined in index order, while one does — onto
+//! message waiting, joined in order, while one does — onto
 //! the program's own queue, answered at once. The calls every
 //! container answers — `/register`,
 //! `/secrets`, `/secrets/collect` — are [`program`](crate::program)'s;
@@ -15,16 +15,19 @@
 //! The queue itself is
 //! the proxy's, held by one [`driver()`] task that never
 //! awaits the agent's server directly, so nothing the server asks of
-//! the queue can wait on a call the loop holds open. A message is
-//! `delivered` once the program has it — the `/run` that carried it
-//! answered `2xx`, or the `/enqueue` `204` — and never waits for a
-//! turn; nothing withdraws one. The driver keeps the order, which is
-//! the index the daemon stamped every message with as it arrived and
-//! never when a message reached the proxy: the queue is kept sorted by
-//! it, one call carrying messages is on the wire at a time, and a batch
-//! that comes back — the run closed under it, `409` — is put back by
-//! its indices, ahead of anything that arrived at the daemon after it,
-//! and starts the next loop with it, joined.
+//! the queue can wait on a call the loop holds open. The server
+//! enqueues messages a batch at a time — one enqueue channel, one
+//! batch, its messages in order, its fate every message's alike — and
+//! a batch is `delivered` once the program has it — the `/run` that
+//! carried it answered `2xx`, or the `/enqueue` `204` — and never
+//! waits for a turn; nothing withdraws one. The driver keeps the
+//! order, which is the order the batches reached it and each batch's
+//! own: a new batch goes to the back of the queue, one call carrying
+//! messages is on the wire at a time, and batches that come back —
+//! the run closed under them, `409` — go back to the front, ahead of
+//! anything that reached the driver after them, and start the next
+//! loop, joined. The daemon sends one batch at a time, each after the
+//! last was answered, so in practice the queue holds at most one.
 //!
 //! What the loop says rides the begin scope's main stream, chunk by
 //! chunk, verbatim, between the proxy's own word that the loop began
@@ -39,9 +42,10 @@
 //! secret is fed — save the feed the provider makes at the deploy,
 //! before any message can be enqueued, which leaves it shut. Nothing
 //! is launched or sent while it is shut. The gate is the go: the
-//! server enqueues the messages it means for one turn and feeds after
-//! them, so `/run` is the last call, and takes every one of them,
-//! joined.
+//! server feeds, and once that is answered sends the messages it
+//! means for one turn as one batch, so `/run` takes every one of
+//! them, joined; a batch that reaches a shut gate waits behind it for
+//! the next feed.
 //! The one other thing said on the main stream is the `Error` that
 //! ends the run when the rotating secrets could not be collected —
 //! naming no value — after which the begin loop finishes the scope.
