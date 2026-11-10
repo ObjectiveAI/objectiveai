@@ -136,11 +136,11 @@ function subline(subject: Subject): string {
  * 11. `dispose` closes the sheet and takes it out of the page: what a
  *    board does as its tab of the window closes.
  * 12. An agent's logs tab holds its `Composer` too: the box that writes
- *    to the agent under the log, and the messages sent and not yet
- *    taken at the log's bottom. It is made on open, with the opened
- *    route and the agent, and disposed of on close or a swap; the
- *    messages stay in the outbox, and show again when the agent's
- *    sheet next opens.
+ *    to the agent under the log, and the messages sent and not yet in
+ *    the log at its bottom, handed every item the log brings (`seen`).
+ *    It is made on open, with the opened route and the agent, and
+ *    disposed of on close or a swap; the messages stay in the outbox,
+ *    and show again when the agent's sheet next opens.
  */
 export class Sheet {
   private readonly root: HTMLElement;
@@ -353,7 +353,11 @@ export class Sheet {
     if (subject.type === "agent") {
       const fold = new Fold(this.log, images, live);
       this.fold = fold;
-      this.following = follow(subject, route, (entry) => "agent" in entry && fold.push(entry.agent), (why) => {
+      this.following = follow(subject, route, (entry) => {
+        if (!("agent" in entry)) return;
+        fold.push(entry.agent);
+        this.composer?.seen(entry.agent);
+      }, (why) => {
         loaded();
         fold.note(why);
       }, loaded);

@@ -16,7 +16,8 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   log, its composer (`sheet/composer.ts`) writes to it (`agents message`): text, then files attached by 📎 or a paste,
   each known by its bytes (`file-type`, `sheet/attach.ts`) and sent as an MCP image, audio or resource block in base64;
   a message sent waits greyed at the log's bottom, ✕ cancelling it, in the page's outbox (`sheet/outbox.ts`, by route
-  and agent, outliving every sheet) until `delivered` takes it out, or a refusal leaves it red. A listed tool
+  and agent, outliving every sheet); `delivered` turns it taken — lighter, no ✕ — until the log shows an account's
+  user part matching it (first text block, else first block), which takes it out; a refusal leaves it red. A listed tool
   opens its own log the same way (folded by `sheet/tool_fold.ts`); both are read through the one root `logs` endpoint,
   each entity carrying its `Subject`. A tool's sheet also holds the commands its container put to the daemon, and
   clicking an account opens its command log — every request it put to the daemon, marked allowed or refused (an

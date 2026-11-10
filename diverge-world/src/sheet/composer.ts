@@ -1,5 +1,5 @@
 // Writing to an agent from its log: the box under the log, the files
-// attached, and the messages sent and not yet taken.
+// attached, and the messages sent and not yet in the log.
 
 import type { daemon } from "@diverge/sdk";
 import type { Route } from "../lib/wire";
@@ -20,7 +20,9 @@ const TALLEST = 160;
  *    preview per message in the agent's outbox, oldest first, its
  *    blocks drawn as the log draws them (`contentElement`), each with
  *    ✕, which drops it (`outbox.drop`: a waiting message cancelled, a
- *    failed one taken out). A failed message is drawn red, with why.
+ *    failed one taken out). A failed message is drawn red, with why;
+ *    a taken one lighter than a waiting one, with no ✕, until the log
+ *    shows it (`seen`, which the sheet hands every log item).
  * 2. The composer (`root`) stands under the log: the files attached,
  *    then a text box, 📎 and send.
  * 3. Each file attached is a chip: an image its thumbnail, a sound ♪
@@ -127,6 +129,11 @@ export class Composer {
     this.root.remove();
   }
 
+  /** Rule 1: an item of the agent's log, for the outbox to match. */
+  seen(item: daemon.agent_log.ItemWrapper): void {
+    outbox.seen(this.key, item);
+  }
+
   /** Rule 3: attach files, each read in turn, kept in the order given. */
   private attach(files: File[]): void {
     for (const file of files) {
@@ -222,12 +229,14 @@ export class Composer {
           why.textContent = message.why;
           blocks.append(why);
         }
+        el.append(blocks);
+        if (message.state === "taken") return el;
         const off = document.createElement("button");
         off.type = "button";
         off.textContent = "✕";
         off.title = message.state === "waiting" ? "Cancel" : "Dismiss";
         off.addEventListener("click", () => outbox.drop(this.key, message.id));
-        el.append(blocks, off);
+        el.append(off);
         return el;
       }),
     );

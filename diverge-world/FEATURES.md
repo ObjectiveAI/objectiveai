@@ -351,8 +351,12 @@ The log is read from the start and then followed live.
   were attached. A file is known by its bytes, not its name, and goes
   as an image, a sound, or a file.
 - **Waiting:** a message sent waits greyed at the bottom of the log
-  until the agent takes it; then it is gone from there and shows in
-  the log itself. ✕ cancels it, if the agent has not taken it yet.
+  until the agent takes it. ✕ cancels it, if the agent has not taken
+  it yet.
+- **Taken:** a message the agent took turns lighter and loses its ✕;
+  it stays until the log shows it — a part an account sent whose text
+  matches the message's first text (or, with no text, its first
+  block) — and is then gone from there, shown in the log itself.
 - **Failing:** a message the daemon refuses stays in red with why,
   until its ✕.
 - **Kept:** closing or swapping the sheet neither cancels nor loses a

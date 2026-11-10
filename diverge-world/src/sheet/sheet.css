@@ -562,7 +562,7 @@
 .transfers .transfer.done .said { color: #4ade80; }
 .transfers .transfer.failed .said { color: var(--sheet-error); }
 
-/* Composer, rule 1: the pending strip at the log's bottom, the log right above it however short; each message greyed, a failed one red. */
+/* Composer, rule 1: the pending strip at the log's bottom, the log right above it however short; each message greyed, a taken one lighter, a failed one red. */
 .sheet .pending {
   margin-bottom: auto;
   padding: 0 16px;
@@ -582,6 +582,7 @@
   flex: 1;
   min-width: 0;
 }
+.sheet .pending .waiting.taken { opacity: 0.8; }
 .sheet .pending .waiting.failed {
   opacity: 1;
   color: var(--sheet-error);
