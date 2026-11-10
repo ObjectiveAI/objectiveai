@@ -6,8 +6,7 @@ draft: false
 ---
 
 ```text
-[0]                  delivered: the loop took the message
-[1]                  dequeued: the message was withdrawn first
+[0]                  delivered: the agent's program has the message
 [2][error JSON …]    the container refused the message, or no loop could start on it
 ```
 
@@ -15,6 +14,10 @@ draft: false
   proxy sent it, followed by the channel response finish. A channel
   response finish that no channel response precedes states that the
   proxy did not serve the message.
+- **Delivered.** The byte `0` states that the program of the agent
+  holds the message: the loop the message started took it, or the
+  program accepted it into its own queue while a loop ran, and takes
+  it at its next seam. The byte `1` is not sent.
 - **A loop ending.** A loop that ends with the message still waiting
   does not lose it: the message starts the next loop. The byte `2`
   states that the container refused the message's content, at the
