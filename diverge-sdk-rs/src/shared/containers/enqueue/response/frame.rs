@@ -10,33 +10,31 @@ use crate::shared;
 /// One frame, then the finish: what became of the enqueued message.
 ///
 /// A payload leads with one byte saying which; only
-/// [`Error`](Self::Error) carries anything after it. The two fates
-/// are data-free deliberately — the fate IS the answer, and the
+/// [`Error`](Self::Error) carries anything after it. The fate is
+/// data-free deliberately — the fate IS the answer, and the
 /// message's content is the client's own to remember.
 ///
 /// # The channel stays open until there is a fate
 ///
-/// An enqueued message can sit in the queue for as long as the agent
-/// takes to reach a seam, so this answer can arrive long after the
-/// ask. Nothing times it out — nothing in this protocol times
-/// anything out — and every enqueued message gets exactly one of
-/// these eventually: taken by a run, the one in flight or the one
-/// that starts when it ends with messages still waiting; withdrawn
-/// by a dequeue; or the error, when the agent refused it or no run
-/// could start on it. A run ending does not lose a message: what it
-/// left waiting starts the next.
+/// An enqueued message can wait for a loop to start — the run being
+/// activated, or the one in flight ending — so this answer can
+/// arrive long after the ask. Nothing times it out — nothing in this
+/// protocol times anything out — and every enqueued message gets
+/// exactly one of these eventually: handed to the agent's program,
+/// by the run it starts or onto the queue of the one in flight; or
+/// the error, when the agent refused it or no run could start on it.
+/// A run ending does not lose a message: what it left waiting starts
+/// the next.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The agent took the message into the conversation. Tag `0`.
+    /// The agent's program has the message. Tag `0`.
     ///
-    /// Folded in beside tool results mid-loop, opening the next
-    /// turn, or starting a loop when none ran — WHERE it landed is
-    /// visible in the scope's main stream; this says only that it
-    /// did.
+    /// The loop it started took it, or the loop in flight's program
+    /// accepted it onto its own queue, to take at its next seam —
+    /// folded in beside tool results, or opening the next turn. WHERE
+    /// it landed is visible in the scope's main stream; this says
+    /// only that it is the program's. Tag `1` is retired.
     Delivered,
-    /// The caller withdrew the message before the agent took it, by
-    /// a dequeue of its key. Tag `1`.
-    Dequeued,
     /// The agent refused the message, or no run could start on it.
     /// Tag `2`.
     ///
@@ -53,15 +51,12 @@ pub enum Frame {
 /// Tag for [`Frame::Delivered`].
 const DELIVERED: u8 = 0;
 
-/// Tag for [`Frame::Dequeued`].
-const DEQUEUED: u8 = 1;
-
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 2;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
-    /// The ordinary JSON failure. Two variants cannot fail at all.
+    /// The ordinary JSON failure. `Delivered` cannot fail at all.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -70,10 +65,6 @@ impl Encode for Frame {
         match self {
             Frame::Delivered => {
                 out.extend_from_slice(&[DELIVERED]);
-                Ok(())
-            }
-            Frame::Dequeued => {
-                out.extend_from_slice(&[DEQUEUED]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -93,7 +84,6 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             DELIVERED => Ok(Frame::Delivered),
-            DEQUEUED => Ok(Frame::Dequeued),
             ERROR => shared::error::Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameError::Body),
@@ -107,7 +97,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's two.
     ///
     /// What a provider newer than its caller produces, which is the
     /// case the tag exists to make survivable: a reader that does not

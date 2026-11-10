@@ -13,7 +13,7 @@ use super::super::channel_request;
 use super::{Exec, ExecStream, Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::agents::run::server;
-use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, FuseMount, Info, Secrets};
+use crate::provider::endpoints::containers::client::answered::{Enqueue, FuseMount, Info, Secrets};
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError, unary_answer};
 use crate::shared::containers::fuse::Kind;
 use crate::shared::containers::exec;
@@ -22,7 +22,7 @@ use crate::provider::endpoints::containers::client::answered::{FrontendOutput, T
 use crate::shared::containers::frontend;
 use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
-use crate::shared::containers::{dequeue, enqueue, fuse_mount, read, transfer, write_path};
+use crate::shared::containers::{enqueue, fuse_mount, read, transfer, write_path};
 
 /// The scope a run opened, held for the container's life.
 ///
@@ -218,13 +218,6 @@ impl ExecuteHandle {
             .map_err(UnaryError::Request)?;
         let channel = self.0.sent(&payload).await.map_err(UnaryError::Send)?;
         Ok(unary_answer::<Enqueue>(channel).boxed())
-    }
-
-    /// Withdraw every message waiting under `key`: whether any was.
-    pub async fn dequeue(&self, key: String) -> Result<dequeue::response::Frame, UnaryError<Dequeue>> {
-        let payload = payload(&channel_request::Frame::Dequeue(dequeue::request::Request { key }))
-            .map_err(UnaryError::Request)?;
-        self.0.unary::<Dequeue>(&payload).await
     }
 
     /// One more file or directory served into the container at

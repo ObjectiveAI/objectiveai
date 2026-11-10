@@ -10,7 +10,7 @@ use crate::shared::containers::exec;
 use crate::shared::containers::frontend;
 use crate::shared::containers::terminal;
 use crate::shared::containers::secrets::Values;
-use crate::shared::containers::{dequeue, enqueue};
+use crate::shared::containers::enqueue;
 use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 
 /// What a caller asks a provider for while an agent container runs.
@@ -28,7 +28,7 @@ use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path
 /// | `5` | [`Postgres`](Self::Postgres) |
 /// | `6` | [`Info`](Self::Info) |
 /// | `7` | [`Enqueue`](Self::Enqueue) |
-/// | `8` | [`Dequeue`](Self::Dequeue) |
+/// | `8` | unused |
 /// | `9` | [`FuseMount`](Self::FuseMount) |
 /// | `10` | [`Secrets`](Self::Secrets) |
 /// | `11` | [`Exec`](Self::Exec) |
@@ -125,14 +125,6 @@ pub enum Frame {
     /// finish. What the agent says in reply is the scope's main stream.
     /// See [`enqueue`](crate::shared::containers::enqueue).
     Enqueue(enqueue::request::Request),
-    /// Withdraw every message still waiting under a key. Tag `8`.
-    ///
-    /// Carries the key, as the enqueues gave it. Answered once — by a
-    /// [`dequeue::response::Frame`](crate::shared::containers::dequeue::response::Frame)
-    /// saying whether anything waited under it — and then the finish.
-    /// Each message it withdraws is ALSO answered, on its own enqueue
-    /// channel. See [`dequeue`](crate::shared::containers::dequeue).
-    Dequeue(dequeue::request::Request),
     /// A FUSE mount made while the container runs. Tag `9`.
     ///
     /// The caller serves one more file or directory into the
@@ -208,9 +200,6 @@ const INFO: u8 = 6;
 /// Tag for [`Frame::Enqueue`].
 const ENQUEUE: u8 = 7;
 
-/// Tag for [`Frame::Dequeue`].
-const DEQUEUE: u8 = 8;
-
 /// Tag for [`Frame::FuseMount`].
 const FUSE_MOUNT: u8 = 9;
 
@@ -274,10 +263,6 @@ impl Encode for Frame {
             }
             Frame::Enqueue(request) => {
                 out.extend_from_slice(&[ENQUEUE]);
-                request.encode(out)
-            }
-            Frame::Dequeue(request) => {
-                out.extend_from_slice(&[DEQUEUE]);
                 request.encode(out)
             }
             Frame::FuseMount(request) => {
@@ -346,9 +331,6 @@ impl Decode<'_> for Frame {
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),
-            DEQUEUE => dequeue::request::Request::decode(rest)
-                .map(Frame::Dequeue)
-                .map_err(FrameError::Dequeue),
             FUSE_MOUNT => fuse_mount::request::Request::decode(rest)
                 .map(Frame::FuseMount)
                 .map_err(FrameError::FuseMount),
@@ -398,8 +380,6 @@ pub enum FrameError {
     Postgres(postgres::request::PostgresError),
     /// The enqueued message did not parse as JSON.
     Enqueue(serde_json::Error),
-    /// The dequeue's key did not parse as JSON.
-    Dequeue(serde_json::Error),
     /// The mount request did not parse.
     FuseMount(serde_json::Error),
     /// The secrets' values did not parse as JSON. The message is the
@@ -437,9 +417,6 @@ impl fmt::Display for FrameError {
             FrameError::Enqueue(error) => {
                 write!(f, "enqueue request did not parse: {error}")
             }
-            FrameError::Dequeue(error) => {
-                write!(f, "dequeue request did not parse: {error}")
-            }
             FrameError::FuseMount(error) => {
                 write!(f, "fuse mount request did not parse: {error}")
             }
@@ -467,7 +444,6 @@ impl Error for FrameError {
             | FrameError::Write(error)
             | FrameError::Transfer(error)
             | FrameError::Enqueue(error)
-            | FrameError::Dequeue(error)
             | FrameError::FuseMount(error)
             | FrameError::Secrets(error)
             | FrameError::Exec(error)

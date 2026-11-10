@@ -1,19 +1,18 @@
-//! Sending the message and waiting for its fate, or calling it off.
+//! Sending the message and reading its fate, in one call.
 
 use super::super::request;
 use super::super::super::server::response;
-use crate::daemon::client::{pending, stream, Pending};
+use crate::daemon::client::one_shot;
 use crate::wire::client::handle::Handle;
 
-/// A message that did not go out.
-pub type OpenError = stream::OpenError<serde_json::Error>;
+/// What an agents message could not do: the machinery, never the
+/// daemon's answer, which [`execute`] hands back whole.
+pub type ExecuteError = one_shot::Error<serde_json::Error, response::FrameError>;
 
-/// Send the message and hand back what waits for its fate:
-/// [`Pending::wait`] reads the one answer — delivered, forbidden, or
-/// the daemon's error, see [`response::Frame`], or `None` for the
-/// finish with no answer before it, a cancel in time — and
-/// [`Pending::cancel`] opens the cancel channel, after which whether an
-/// answer comes says which came first.
-pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<Pending<response::Frame>, OpenError> {
-    pending::execute(handle, request).await
+/// Send the message and hand back the daemon's one answer, whenever
+/// its fate is known — delivered, forbidden, or the daemon's error:
+/// see [`response::Frame`], and
+/// [`one_shot`](crate::daemon::client::one_shot) for the exchange.
+pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<response::Frame, ExecuteError> {
+    one_shot::execute(handle, request).await
 }

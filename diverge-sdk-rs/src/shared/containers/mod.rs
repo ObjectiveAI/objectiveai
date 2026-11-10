@@ -38,7 +38,6 @@
 //! container, whose own channels carry both.
 
 pub mod daemon;
-pub mod dequeue;
 pub mod enqueue;
 pub mod exec;
 pub mod filetree;

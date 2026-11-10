@@ -14,8 +14,8 @@
 //!
 //! [`templates`] holds what agents are made from; [`create`] spawns an
 //! agent under a name from one; [`delete`] removes one by name;
-//! [`edit`] changes what one mounts; [`message`] sends one a message,
-//! and may take it back — what one said and what was said to it is
+//! [`edit`] changes what one mounts; [`message`] sends one a message
+//! — what one said and what was said to it is
 //! read by [`logs`](super::logs); [`get`] answers one as a list would; [`list`] lists them,
 //! narrowed, with their tags; [`tag`] and [`untag`] change one's tags;
 //! [`filetree`] watches one's container whole; [`download`] sends the

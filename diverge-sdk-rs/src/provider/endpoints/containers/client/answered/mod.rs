@@ -2,14 +2,13 @@
 //!
 //! [`Answered`] is the trait; the rest are its implementors for the
 //! answers every scope shares — the shared `postgres`, `info`,
-//! `secrets`, `enqueue`, `dequeue`, `fuse_mount`, the five MCP
+//! `secrets`, `enqueue`, `fuse_mount`, the five MCP
 //! frames and the close of an MCP session. The three answers each family envelopes in a type of its
 //! own — `filetree`, `read`, `write_path` — have their implementors
 //! beside that family's `execute`.
 
 mod answered;
 mod daemon;
-mod dequeue;
 mod enqueue;
 mod fuse_mount;
 mod info;
@@ -25,7 +24,6 @@ mod terminal;
 
 pub use answered::*;
 pub use daemon::*;
-pub use dequeue::*;
 pub use enqueue::*;
 pub use fuse_mount::*;
 pub use info::*;

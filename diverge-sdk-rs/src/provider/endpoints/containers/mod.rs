@@ -8,7 +8,7 @@
 //! - [`agents`]: a conversation. The agent's chunks ride the scope's
 //!   own main stream after the id; an `enqueue` channel sends it a
 //!   message, starting a loop when none runs and queueing one when it
-//!   does, and `dequeue` clears what is waiting.
+//!   does.
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!

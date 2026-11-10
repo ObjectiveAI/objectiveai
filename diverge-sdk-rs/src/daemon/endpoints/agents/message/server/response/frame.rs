@@ -7,30 +7,22 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A message's answer: the agent took it, or a failure.
+/// A message's answer: the agent's program has it, or a failure.
 ///
-/// A message is one question and at most one reply, so there is at most
-/// one of these per scope, before the finish that ends it — but the
-/// reply comes when the fate is known, which may be long after the ask:
-/// a message queued behind a running loop waits for a seam of the
-/// agent's choosing, and nothing times it out. A payload leads with one
+/// A message is one question and one reply, so there is one of these
+/// per scope, before the finish that ends it — but the reply comes
+/// when the fate is known, which may be long after the ask: a message
+/// for a sleeping agent waits for its run to be activated and its
+/// loop to start, and nothing times it out. A payload leads with one
 /// byte saying which — `0` for [`Delivered`](Self::Delivered), `1` for
 /// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error) — and
 /// only the error carries anything after it.
 ///
 /// # A finish with nothing before it
 ///
-/// The client opened a
-/// [cancel](crate::daemon::endpoints::agents::message::client::channel_request::Frame::Cancel)
-/// on the scope before the agent took the message: the message is gone,
-/// the agent never saw it, and the daemon finishes the scope with no
-/// response before the finish, as every cancellable scope of the
-/// daemon's is ended. A cancel that arrives after the agent took it
-/// changes nothing, and the response is [`Delivered`](Self::Delivered)
-/// all the same: whether a response precedes the finish, not the
-/// cancel, says which was first. A request the daemon could not read is
-/// finished the same way, as
-/// [`endpoints`](crate::daemon::endpoints) states.
+/// A request the daemon could not read, as
+/// [`endpoints`](crate::daemon::endpoints) states. Nothing else ends
+/// the scope without an answer: nothing takes a message back.
 ///
 /// # Error
 ///
@@ -59,7 +51,9 @@ use crate::shared::error::Error;
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The agent took the message into its conversation. Tag `0`.
+    /// The agent's program has the message: the loop it started took
+    /// it, or the program accepted it onto its own queue, taken at its
+    /// next seam. Tag `0`.
     Delivered,
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `1`.

@@ -11,6 +11,10 @@
 //! history it cannot open, a run already in progress — and the proxy
 //! answers every message the loop was to take with its words.
 //!
+//! The `2xx` is also the messages' delivery: the proxy answers every
+//! one of them `delivered` on it, so the program answers once it has
+//! taken them, before the turn's work.
+//!
 //! One loop at a time is the program's rule, stated as its own
 //! non-`2xx`; the proxy never starts a second while one runs. A
 //! failure after output is a fatal notification chunk, part of the

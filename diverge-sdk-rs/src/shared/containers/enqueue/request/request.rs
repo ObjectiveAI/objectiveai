@@ -32,19 +32,19 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// # The answer says what became of it
 ///
-/// One frame, then the finish: `delivered` when the agent has taken
-/// the message into the conversation, `dequeued` when the caller
-/// withdrew it first by a dequeue of its key, and an error when the agent refused the
-/// message or no run could start on it. A run ending with the
-/// message still waiting does not lose it: the message starts the
-/// next run. The two fates carry nothing — the fate is the answer.
+/// One frame, then the finish: `delivered` when the agent's program
+/// has the message — the loop it started, or the program's own
+/// queue, taken at its next seam — and an error when the agent
+/// refused the message or no run could start on it. A run ending
+/// with the message still waiting does not lose it: the message
+/// starts the next run. `delivered` carries nothing — the fate is the
+/// answer — and nothing withdraws a message once sent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request {
-    /// The caller's handle on the message: what a
-    /// [`dequeue`](crate::shared::containers::dequeue) names to
-    /// withdraw it, and every other message still waiting under the
-    /// same key. Not unique — two messages may share one — and not
-    /// read: the provider and the proxy compare it, and nothing else.
+    /// The caller's handle on the message: what each of its user
+    /// parts carries back, so the log credits its sender. Not unique —
+    /// two messages may share one — and not read by the provider or
+    /// the proxy, which carry it and nothing else.
     pub key: String,
     /// The message's content, in order.
     pub content: Vec<ContentBlock>,
