@@ -56,8 +56,8 @@ before changing a field you have not changed before.
 
 | Document | Read | Holds |
 |---|---|---|
-| `daemon.yaml` | at daemon start | `port`, `identities` (issuer → the daemon's own subject), `admins`, `description`, `postgres` (`local` or `remote`), `idle_seconds`, `accept_daemons`, `capacity_poll_seconds` |
-| `provider.yaml` | at provider start | `port`, `identities`, `accepted` (who it serves), `clients` (peers it dials), `containers` (podman: `registries`, `storage_path`, `image_cache_disk`, `container_overlay_disk`, `memory`; `enabled`), `volumes` (`stores`, `fixed`), `images` (the Store: `path`, `capacity`), `messages` (rate) |
+| `daemon.yaml` | at daemon start | `port`, `identity` (`{issuer, subject}`: who the daemon is), `admins`, `description`, `postgres` (`local` or `remote`), `idle_seconds`, `accept_daemons`, `capacity_poll_seconds` |
+| `provider.yaml` | at provider start | `port`, `identity` (who the provider is), `accepted` (who it serves), `clients` (peers it dials, by `address`), `containers` (podman: `registries`, `storage_path`, `image_cache_disk`, `container_overlay_disk`, `memory`; `enabled`), `volumes` (`stores`, `fixed`), `images` (the Store: `path`, `capacity`), `messages` (rate) |
 | `issuer.yaml` | at issuer start | `port`, `issuer` (the identifier URL), `access_token_seconds`, `refresh_token_days` |
 | `cli.yaml` | by every CLI command | `default` daemon; `daemons.<name>`: `address`, `default` account, `accounts.<name>`: `issuer`, `subject` |
 | `viewer.yaml` | at viewer start | `daemon`: `address`, `issuer`, `subject`, `redial` |
@@ -68,8 +68,8 @@ Rules common to all five:
 - **An unknown key is refused**, with the path to it. A typo never passes silently.
 - No document holds a token. The only secrets in any of them are `postgres.password` (daemon, remote kind) and
   registry `credential`s (provider). Do not print those documents into logs or chat without need.
-- The `issuer` string must be identical everywhere it appears — in `issuer.yaml`, in logins, in `identities`
-  maps, `admins`, `accepted`, `cli.yaml`, `viewer.yaml`. `http://127.0.0.1:14981` and
+- The `issuer` string must be identical everywhere it appears — in `issuer.yaml`, in logins, in `identity`,
+  `admins`, `accepted`, `cli.yaml`, `viewer.yaml`. `http://127.0.0.1:14981` and
   `http://localhost:14981` are different issuers.
 
 ## Reading and changing a document: `config get | set | patch`
@@ -87,7 +87,7 @@ diverge cli config get '.daemons | keys[]'   # one line per value the filter yie
 diverge provider config get '.accepted[]?'
 ```
 
-The document is shown as JSON. Empty optional members are left out (`identities`, `admins`, `accepted`,
+The document is shown as JSON. Empty optional members are left out (`identity`, `admins`, `accepted`,
 `volumes`, …), so a filter over one may see `null`.
 
 ### set — rewrite the whole document with a jq program
@@ -98,12 +98,13 @@ document.
 ```bash
 diverge daemon config set '.idle_seconds = 120'
 diverge daemon config set '.admins = (.admins // []) + [{issuer:"http://127.0.0.1:14981", subject:"admin"}]'
-diverge daemon config set '.identities = (.identities // {}) + {"http://127.0.0.1:14981": "daemon-a"}'
+diverge daemon config set '.identity = {issuer:"http://127.0.0.1:14981", subject:"daemon-a"}'
 diverge viewer config set '.daemon = {address:"ws://127.0.0.1:14980/", issuer:"http://127.0.0.1:14981", subject:"admin"}'
 ```
 
-Pitfall: assigning *into* a member that is absent fails (`.identities["…"] = "x"` on a document with no
-`identities` gives `cannot use null as iterable`). Default it first with `(.identities // {})`, as above.
+Pitfall: a member left out of the document is `null` to the program. Default a list before adding to it
+(`(.admins // [])`, as above), and set `identity` whole: it is one `{issuer, subject}` object, and one member
+of it alone is not a valid document.
 
 ### patch — change places with a JSON Patch (RFC 6902)
 
@@ -115,7 +116,7 @@ a key, `/` is written `~1` and `~` is `~0`. Operations apply in order, **all or 
 diverge daemon config patch '[{op: replace, path: /idle_seconds, value: 120}]'
 diverge provider config patch '[{op: add, path: /accepted/-, value: {issuer: "http://127.0.0.1:14981", subject: daemon-b}}]'
 diverge provider config patch '[{op: add, path: /messages, value: {messages: 60, seconds: 60}}]'
-diverge daemon config patch '[{op: add, path: "/identities/https:~1~1auth.example.com", value: daemon-1}]'
+diverge daemon config patch '[{op: add, path: /identity, value: {issuer: "https://auth.example.com", subject: daemon-1}}]'
 diverge daemon config patch '[{op: test, path: /port, value: 14980}, {op: remove, path: /admins/0}]'
 diverge cli config patch '[{op: add, path: /daemons/b, value: {address: "ws://127.0.0.1:14982/", default: admin, accounts: {admin: {issuer: "http://127.0.0.1:14981", subject: admin}}}}]'
 ```
@@ -185,8 +186,8 @@ diverge identities remove --issuer http://127.0.0.1:14981 --subject old
 # {"removed":{"issuer":"…","subject":"old"}}
 ```
 
-Removing an identity a running daemon or provider presents (its `identities` map) breaks every later handshake
-of that program at that issuer. Removing one that `cli.yaml` or `viewer.yaml` names breaks that account.
+Removing the identity a running daemon or provider presents (its `identity`) breaks every later handshake
+of that program. Removing one that `cli.yaml` or `viewer.yaml` names breaks that account.
 
 ## Identities on the daemon's host: `diverge run identities`
 
@@ -215,8 +216,8 @@ printf '%s' "$PASSWORD" | diverge run identities login \
   `"held"` (another login or reader holds that identity's lock right now; try again); `"forbidden"`;
   `{"error":…}` (issuer unreachable, or the identity could not be written). Ending the
   command ends the login and writes nothing.
-- Signing an identity in does not make the daemon present it: which subject the daemon presents at an issuer is
-  still `daemon.yaml` `identities`, read at start.
+- Signing an identity in does not make the daemon present it: which identity the daemon presents is
+  still `daemon.yaml` `identity`, read at start.
 
 ## The issuer: `diverge issuer`
 
@@ -306,7 +307,7 @@ No server watches its document. A change takes effect as follows.
 | `cli.yaml` | The next CLI command. Nothing to restart. |
 | `viewer.yaml` | The next start of the viewer app. |
 | `diverge identities login` of an identity a running program already uses | No restart: programs read the identity's file whenever they need a token. |
-| A *new* entry in a program's `identities` map, `admins`, or `accepted` | Sign the identity in first, then restart that program. |
+| A program's `identity` changed, or a *new* entry in `admins` or `accepted` | Restart that program. Its own `identity` must be signed in under its root first. |
 | `diverge issuer identities …`, `diverge issuer rotate` | Immediate; no restart. |
 | Records in the daemon (providers, accounts, roles, agents, …) | Immediate; those are `diverge run` requests, not configuration. |
 
@@ -344,13 +345,13 @@ then restart the provider. (Volumes themselves: skill `diverge-storage`.)
 | `no account was named, and the daemon … has no default` | `cli.yaml` has no default account for that daemon (this stops even `request-schema`) | Add an account and `default`, or pass `--account` |
 | `no daemon is named …` / `the daemon … has no account named …` | `--daemon` / `--account` name nothing in `cli.yaml` | `diverge cli config get` |
 | `the daemon could not be dialled: …` | Daemon down, or wrong `address` in `cli.yaml` | `diverge daemon start`, or fix the address |
-| `the handshake did not complete: …` | The account's identity is not signed in under this root, is signed out, the issuer is unreachable, or the daemon's `identities` has no entry for that issuer | `diverge identities list`; log in again; check `daemon.yaml` `identities` |
+| `the handshake did not complete: …` | The account's identity is not signed in under this root, is signed out, the issuer is unreachable, or the daemon has no `identity` or its identity is not signed in under the daemon's root | `diverge identities list`; log in again; check `daemon.yaml` `identity` |
 | `the daemon closed the connection without answering: the account may be none of the daemon's` | The identity is neither in `admins` nor an account on that daemon | Add it to `admins` and restart, or have an admin create the account |
 | `the document is not one its program takes: <path>: …` | A `set`/`patch` result the type refuses | Fix the key or value at that path; nothing was written |
 | `the patch could not be applied: #<n> <op>: nothing is at …` | The path, or its parent, does not exist | Add the parent member whole |
 | `the jq program: …` | The filter does not parse, or failed on a missing member | Default absent members with `//` |
 | `` `…yaml` could not be read: … `` | The file on disk does not parse as its type (hand edit) | Fix the file by hand; `config set` cannot run on it |
-| A provider record stays `disconnected` | Daemon's identity missing from `provider.yaml` `accepted`; no `identities` entry for that issuer on either side; provider down | Fix, restart the provider; the daemon redials by itself |
+| A provider record stays `disconnected` | Daemon's identity missing from `provider.yaml` `accepted`; no `identity` in `daemon.yaml` or `provider.yaml`, or it is not signed in; the provider's `identity` is not the one the record names; provider down | Fix, restart the provider; the daemon redials by itself |
 | Wrong documents are being read | A `./.diverge` in the working directory, or `DIVERGE_CONFIG` set | `--config <root>` explicitly |
 
 ## Not verified
@@ -360,8 +361,8 @@ then restart the provider. (Volumes themselves: skill `diverge-storage`.)
 - `diverge issuer identities …` and an offline `issuer rotate` writing `issuer.sqlite` while the issuer runs is
   how the setup guide uses them and how the code is written (the CLI opens the same database), but concurrent
   behaviour under load was not exercised.
-- What a daemon or provider does when an identity named in its `identities` map is not signed in, or is signed
-  out — whether it refuses to start or starts and fails each handshake at that issuer — was not traced. Either
+- What a daemon or provider does when the identity its `identity` names is not signed in, or is signed
+  out — whether it refuses to start or starts and fails each handshake — was not traced. Either
   way the fix is a login under that root (and a restart if the program did not start).
 - Whether a `remote` Postgres needs anything prepared in it before the daemon's first start was not checked.
 

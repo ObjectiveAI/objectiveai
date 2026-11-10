@@ -15,8 +15,9 @@ Read once, when the daemon starts.
 
 ```yaml
 port: 14980
-identities:
-  http://127.0.0.1:14981: daemon-a
+identity:
+  issuer: http://127.0.0.1:14981
+  subject: daemon-a
 admins:
   - issuer: http://127.0.0.1:14981
     subject: admin
@@ -32,7 +33,7 @@ capacity_poll_seconds: 10
 | Field | Default | Meaning |
 |---|---|---|
 | `port` | `14980` | TCP port the daemon accepts clients on: a WebSocket upgrade at any path, on every interface. |
-| `identities` | none | Map of issuer → subject: the daemon's own identity at each issuer, whose token it presents in every handshake from that issuer (with clients, providers and other daemons). **An issuer absent here is one the daemon trusts no token from**: a client, a provider or a remote daemon presenting a token from an unlisted issuer cannot connect. Each entry must be signed in under this root first (`diverge identities login`). |
+| `identity` | none | `{issuer, subject}`: who the daemon is. The one identity whose token it presents on every connection it accepts (to a client, a provider or another daemon, whatever issuer theirs is from) and to every provider it dials. It must be signed in under this root first (`diverge identities login`). **Absent, the daemon has no identity and completes no handshake.** It is not a list of trusted issuers, and there is none: an account, an administrator or a provider from any issuer can connect once a record names it. (To a remote daemon the daemon presents the account that remote-daemon record names, not this.) |
 | `admins` | none | List of `{issuer, subject}`. Each is admitted as a client whether or not it is an account, and holds every grant. This is what makes a fresh daemon, which has no account, reachable: the first account is made by an admin. With no admin and no account, the daemon admits nobody. Admins do **not** count for a connection arriving from another daemon: that needs an account. |
 | `description` | none | One line of plain text, at most 132 characters, that the daemon says of itself to every provider it is listable to. Other daemons see it when they list daemons through that provider. |
 | `postgres` | `{kind: local, max_connections: 1024}` | Which database the daemon keeps its records in and serves to its containers. Never changed while the daemon runs. See below. |
@@ -61,14 +62,14 @@ holds `provider.yaml`), never the working directory.
 
 ```yaml
 port: 14979
-identities:
-  http://127.0.0.1:14981: provider
+identity:
+  issuer: http://127.0.0.1:14981
+  subject: provider
 accepted:
   - issuer: http://127.0.0.1:14981
     subject: daemon-a
 clients:
   - address: hub.example.com:7000
-    issuer: https://auth.example.com
 containers:
   enabled: true
   podman:
@@ -105,9 +106,9 @@ messages:
 | Field | Default | Meaning |
 |---|---|---|
 | `port` | `14979` | TCP port the provider accepts peers on: a WebSocket upgrade at any path, on every interface. |
-| `identities` | none | Map of issuer → subject: the provider's own identity at each issuer. An issuer absent here is one the provider trusts no token from. Each must be signed in under this root. |
+| `identity` | none | `{issuer, subject}`: who the provider is. The one identity whose token it presents in every handshake, those it answers and those it makes, whatever issuer the peer's is from. It must be signed in under this root. **Absent, the provider has no identity and completes no handshake.** It is not a list of trusted issuers, and there is none: whom the provider serves is `accepted`, from whatever issuer each is. |
 | `accepted` | none | List of `{issuer, subject}`: the identities the provider serves. A peer whose verified identity is not listed is closed in the handshake, whichever end dialled. **Absent, nobody is served.** A daemon that should use this provider must be here. One connection per identity: two daemons need two subjects. |
-| `clients` | none | Peers the provider dials itself (and redials whenever the connection ends), for a provider that cannot be dialled. Each: `address` (`host:port`, dialled as `ws://<address>/`, or a URL with its own scheme) and `issuer` (the issuer the provider presents its token from; `identities` must name a subject there, and the peer's identity must be in `accepted`). |
+| `clients` | none | Peers the provider dials itself (and redials whenever the connection ends), for a provider that cannot be dialled. Each has exactly one member: `address` (`host:port`, dialled as `ws://<address>/`, or a URL with its own scheme). The provider presents its `identity` to the peer, and the peer's identity must be in `accepted`. |
 | `containers` | the defaults below | The container runtime. |
 | `volumes` | none | Where volumes may be created and which exist already. Absent: no volume can be created and none exists. |
 | `images` | none | The image Store: where images clients build or push on the provider are kept. Absent: a build or push is refused, a listing is empty, and an image comes only from the provider's podman cache, a listed registry, or the caller. |

@@ -50,8 +50,8 @@ Rules:
 - The mutual handshake establishes the provider's identity; an outgoing dial is refused unless the
   identity that answers is the record's.
 - The other side must agree: the provider's own `provider.yaml` must accept this daemon's identity (and,
-  for an incoming provider, dial this daemon), and both must present tokens from an issuer the other
-  trusts. See `diverge-config`.
+  for an incoming provider, dial this daemon), and each must have its own `identity` in its document, signed in
+  under its root. The two need not be at the same issuer. See `diverge-config`.
 - The daemon holds at most one connection per provider identity.
 
 ### Read: status, capabilities, capacity
@@ -83,7 +83,7 @@ A provider item: `identity`, `direction` (+ `address` or `ips`), `listable`, `en
   the list open: a status or capacity change arrives as `{"changed":{…}}`.
 
 If a record stays `disconnected`: the provider is down or unreachable at `address`; the daemon's identity
-is not in the provider's `accepted`; the provider has no identity at the issuer; or the record is disabled.
+is not in the provider's `accepted`; the daemon or the provider has no `identity` in its document, or it is not signed in; or the record is disabled.
 The daemon keeps redialling an enabled outgoing provider, so fix the cause and list again.
 
 ### Change
@@ -181,7 +181,7 @@ diverge run providers daemons message \
 ## 3. Remote daemon records (`diverge run daemons …`)
 
 A record says: *that* daemon (`daemon`, the identity it answers as), reached as *this* account of ours
-(`identity`, one of this host's signed-in identities, at the same issuer), by *these* routes. It is known by
+(`identity`, one of this host's signed-in identities, from any issuer), by *these* routes. It is known by
 its **DaemonId**: a base62 string of 1 to 11 characters that is the hash of `daemon`, `identity` and the
 three route filters. There are no names.
 
@@ -216,8 +216,8 @@ Rules:
   any other member fails to parse.
 - Adding the same `daemon` + `identity` + routes again answers `exists` with the same ID. Several records
   may name the same remote (another account of ours there, or other routes).
-- `identity.issuer` must equal `daemon.issuer` (else `error`): the handshake between the two speaks one
-  issuer. `identity` must be signed in on this daemon's host (`diverge run identities list`).
+- `identity` and `daemon` may be from different issuers. `identity` must be signed in on this daemon's
+  host (`diverge run identities list`).
 - **Nothing connects at `add`**, and nothing is checked: a provider named in `providers` need not be
   connected. The first relay or connected tool naming the record connects; `connected` in a list says
   whether a connection is held now. One connection per record, reused.
@@ -242,7 +242,8 @@ Rules:
    exactly what A should be able to do on B.
 5. That account is not already in use by another daemon connection: an account has at most one daemon
    connecting as it at a time, and a second is refused.
-6. A's host holds the `identity` signed in, and B trusts its issuer (B's `daemon.yaml` `identities`).
+6. A's host holds the `identity` signed in. B keeps no list of trusted issuers: its account (item 4) is what
+   admits that identity.
 
 ## 4. `relay`: serving a request on another daemon
 
@@ -411,11 +412,10 @@ Template and tool bodies are covered in `diverge-tools`; image digests in `diver
 
 | Symptom | Likely cause |
 |---|---|
-| Provider record stays `disconnected` | Provider down or wrong `address`; daemon not in the provider's `accepted`; no shared issuer; record disabled. |
+| Provider record stays `disconnected` | Provider down or wrong `address`; daemon not in the provider's `accepted`; no `identity` in `daemon.yaml` or `provider.yaml`, or it is not signed in; record disabled. |
 | Provider is `different_version` | Daemon and provider builds differ; the provider is held but unused. Reinstall so both match. |
 | Containers died after a provider edit | `direction` or `listable` changed: the connection was closed (`undeployed` with `provider_edited`). They start again on next use. |
 | `providers daemons list` is empty on A | B's record of the shared provider is not `listable: true`; A and B share no connected provider; A's grant reaches no provider. A never lists itself. |
-| `daemons add` answers `error` | `identity.issuer` differs from `daemon.issuer`. |
 | Relayed request answers `{"error":…}` | No record of that ID; B not listable on a provider A is connected to by a route the record allows; B has no **account** for the identity presented (admins do not count); B has `accept_daemons: false`; the account is already held by another daemon connection; the identity is not signed in on A's host. |
 | Relayed request answers `"forbidden"` | Caller lacks `relay` over the record on A, or the account on B lacks the grant for the request itself. |
 | Connected tool never `deployed`, agent's calls fail | Wrong tool name on B; B's account lacks `connect` over that tool; B unreachable. Check with a relayed `standalone-tools get`. |

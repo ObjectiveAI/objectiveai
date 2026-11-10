@@ -18,8 +18,8 @@ Every body may also carry `relay` (see the `diverge-daemons` skill).
 ## The model in six rules
 
 1. **An identity is `(issuer, subject)`**, written `{"issuer":"http://127.0.0.1:14981","subject":"alice"}`.
-   It is what a client's OpenID Connect ID token establishes in the handshake. The daemon trusts only the
-   issuers its own `daemon.yaml` `identities` names.
+   It is what a client's OpenID Connect ID token establishes in the handshake. The daemon keeps no list of
+   trusted issuers: an identity from any issuer connects once a record (account, administrator, provider) names it.
 2. **An account is one identity the daemon admits**, with a description, roles and tags. One account per
    identity; the identity is the account's name and never changes. An identity that is no account, no
    administrator and no provider is refused in the handshake: the connection closes with no frame.
@@ -195,8 +195,8 @@ What to know:
 
 - **Creating an account does not create the identity.** The subject must exist at its issuer and sign in
   there to get a token (`diverge-config`: the issuer's `identities add`, and `diverge identities login`).
-  The issuer string must match the token's `iss` exactly, and the daemon must list that issuer in its own
-  `daemon.yaml` `identities`, or it trusts no token from it.
+  The issuer string must match the token's `iss` exactly. The daemon needs no entry for that
+  issuer in `daemon.yaml`, and need not be signed in there: the account record alone admits the identity.
 - To use the new account from the CLI, add it under the daemon in `cli.yaml` and pass `--account <name>`
   (`diverge-config`).
 - `no_role` (a role the daemon does not have) is answered before `forbidden` (no `grant` over a role named).
@@ -218,8 +218,8 @@ What to know:
 ## The host's identities (`diverge run identities …`)
 
 These are the OIDC identities signed in **on the daemon's host** (files under `<root>/identities/`), as
-opposed to accounts, which are identities the daemon *admits*. The daemon presents one of them per issuer
-(its `daemon.yaml` `identities`) and uses others as "our account" on remote daemons (`diverge-daemons`). No
+opposed to accounts, which are identities the daemon *admits*. The daemon presents exactly one of them
+(its `daemon.yaml` `identity`) on every connection it accepts and to every provider it dials, and uses others as "our account" on remote daemons (`diverge-daemons`). No
 request ever answers a token.
 
 ```bash
@@ -244,8 +244,8 @@ diverge run identities login --no-browser --issuer http://127.0.0.1:14981 --subj
   daemon's command log keeps it redacted. The built-in public client of Diverge's own issuer is `diverge`.
 - A login replaces an identity already on the host. `held` means another login or a reader holds the
   identity's lock; nothing was asked of the issuer. Ending the command ends the login and writes nothing.
-- Signing an identity in does not make the daemon present it: which subject the daemon presents at an
-  issuer stays `daemon.yaml`'s.
+- Signing an identity in does not make the daemon present it: which identity the daemon presents
+  stays `daemon.yaml`'s `identity`.
 - Grants: `{"identities":["login"]}` for an identity not yet on the host;
   `{"identities":{"actions":["list","login"],"within":…}}` for those there (filter members `issuers`,
   `subjects`, `all_tags`, `any_tags`); the tagging shape for `tag`/`untag`.

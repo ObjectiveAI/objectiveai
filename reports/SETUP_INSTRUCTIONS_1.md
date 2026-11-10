@@ -118,6 +118,8 @@ On Windows, run everything below in **Git Bash**. The install scripts are bash.
 
 The two daemons share **one issuer and one provider**. The code allows this: the provider's `accepted` list holds
 both daemon identities, and it allows one connection per identity, so the two daemons need different subjects.
+Sharing an issuer is this guide's choice, not a requirement: a handshake's two tokens need not be from the same
+issuer, and no program keeps a list of trusted issuers.
 Sharing a provider is also *required* for daemon-to-daemon traffic, because A reaches B only through a provider
 both are connected to. On Windows and macOS a second provider would not work anyway, since the machine name
 `diverge-provider` is fixed.
@@ -213,8 +215,9 @@ All documents refuse unknown keys. A typo is an error at start, not ignored.
 ```bash
 cat > "$A/provider.yaml" <<EOF
 port: 14979
-identities:
-  $ISS: provider
+identity:
+  issuer: $ISS
+  subject: provider
 accepted:
   - issuer: $ISS
     subject: daemon-a
@@ -239,8 +242,9 @@ Optional sections:
 ```bash
 cat > "$A/daemon.yaml" <<EOF
 port: 14980
-identities:
-  $ISS: daemon-a
+identity:
+  issuer: $ISS
+  subject: daemon-a
 admins:
   - issuer: $ISS
     subject: admin
@@ -249,8 +253,9 @@ EOF
 mkdir -p "$B"
 cat > "$B/daemon.yaml" <<EOF
 port: 14982
-identities:
-  $ISS: daemon-b
+identity:
+  issuer: $ISS
+  subject: daemon-b
 admins:
   - issuer: $ISS
     subject: admin
@@ -588,7 +593,7 @@ echo "$ID_B"                               # base62, up to 11 characters
 
 The record:
 
-- `identity.issuer` must equal `daemon.issuer`.
+- `identity` and `daemon` may be from different issuers; here both are from the one local issuer.
 - The route filters `providers`, `ips` and `addresses` are optional; leaving them out allows any route.
 - The ID hashes `{daemon, identity, routes}`, so changing any of them means deleting the record and adding a new
   one.
@@ -702,7 +707,7 @@ cleanly at the next start.
 | `install.sh` fails with "Access is denied" or the move fails | The program is running. Stop it, then reinstall. |
 | `daemon stop` targets the wrong daemon or says NotLocal | It uses the default daemon of `<root>/cli.yaml`. Fix that root's `cli.yaml`. |
 | The first message to a fresh agent fails with "connection ended before the channel answered" | Its dependency tools may still be deploying. Send it again. |
-| `providers add` record stays `disconnected` | The daemon identity is missing from `provider.yaml` `accepted`, or the provider's `identities` is missing an entry for the issuer, or the provider is down. |
+| `providers add` record stays `disconnected` | The daemon identity is missing from `provider.yaml` `accepted`, or either program has no `identity` in its document or that identity is not signed in under its root, or the provider's `identity` is not the one the record names, or the provider is down. |
 | `daemons add` works but relayed requests error | B is not listable (`listable: true` on B's provider record), B has no **account** for the presented identity (admins don't count), `accept_daemons` is false on B, or A and B are not on a common provider. |
 | `pnpm tauri dev` page breaks after `pnpm typecheck` / an SDK rebuild | The SDK `dist` was rebuilt under the running Vite. Restart the dev server, or reload the window. |
 | Second `pnpm tauri dev` exits at once | Port 1440 is taken (`strictPort`). Use §5 step 11 (a) or (b). |
