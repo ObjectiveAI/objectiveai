@@ -10,7 +10,7 @@ use futures_util::future::BoxFuture;
 
 use super::Peers;
 
-/// The provider's own identities, the identities it serves, and which
+/// The provider's own identity, the identities it serves, and which
 /// of them a connection holds now — see the [rules](super).
 #[derive(Debug)]
 pub struct ProviderAuthenticator {
@@ -33,15 +33,21 @@ impl ProviderAuthenticator {
 }
 
 impl Authenticator for ProviderAuthenticator {
-    fn present<'a>(&'a self, issuer: &'a str) -> BoxFuture<'a, Result<String, String>> {
-        Box::pin(self.own.present(issuer))
+    fn present<'a>(&'a self) -> BoxFuture<'a, Result<String, String>> {
+        Box::pin(self.own.present())
     }
 
     fn verify<'a>(&'a self, token: &'a str, _address: IpAddr) -> BoxFuture<'a, Result<Peer, String>> {
         Box::pin(async move {
-            let peer = self.own.verify(token).await?;
-            if !self.accepted.contains(&peer) {
-                return Err(format!("{peer} is not an identity this provider serves"));
+            // Rule 2: whom it claims to be is judged first, and only
+            // then is its issuer trusted and its keys fetched.
+            let claimed = self.own.claimed(token)?;
+            if !self.accepted.contains(&claimed) {
+                return Err(format!("{claimed} is not an identity this provider serves"));
+            }
+            let peer = self.own.verify_from(token, &claimed.issuer).await?;
+            if peer != claimed {
+                return Err(format!("{peer} is not {claimed}, whom the token claimed"));
             }
             if !self.peers.take(&peer).await {
                 return Err(format!("{peer} is held by another connection"));

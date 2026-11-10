@@ -1,6 +1,5 @@
 //! The document itself.
 
-use std::collections::BTreeMap;
 
 use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
 use diverge_sdk::shared::Identity;
@@ -35,14 +34,16 @@ pub struct Config {
     /// published to a loopback port podman picks.
     #[serde(default = "proxy_port")]
     pub port: u16,
-    /// The provider's own identities: for each issuer, the subject
-    /// whose token it presents there, in every handshake from that
-    /// issuer — those it answers and those it makes. An issuer absent
-    /// here is one the provider trusts no token from, since it could not
-    /// answer from it. Each is an identity of the root's
-    /// [`identities`](diverge_sdk::identities), signed in beforehand.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub identities: BTreeMap<String, String>,
+    /// Who the provider is: the one identity whose token it presents
+    /// in every handshake — those it answers and those it makes —
+    /// whatever issuer the peer's is from. It is an identity of the
+    /// root's [`identities`](diverge_sdk::identities), signed in
+    /// beforehand. It lists no issuer the provider trusts: whom the
+    /// provider serves is `accepted`'s to say, from whatever issuer
+    /// each is. Absent, the provider has no identity, and completes no
+    /// handshake.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity: Option<Identity>,
     /// The identities the provider serves: a peer whose verified
     /// `(issuer, subject)` is not here is closed in the handshake —
     /// whichever end dialled, with no distinction between the two.
@@ -85,7 +86,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             port: proxy_port(),
-            identities: BTreeMap::new(),
+            identity: None,
             accepted: Vec::new(),
             clients: Vec::new(),
             containers: Containers::default(),

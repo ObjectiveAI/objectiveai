@@ -30,7 +30,7 @@ pub async fn dial(provider: Arc<Provider>, client: Client) {
     loop {
         if let Ok(socket) = keepalive::connect(url.as_str()).await {
             let address = peer_ip(&socket);
-            let made = handshake::connect(Connection::Outgoing(socket), &client.issuer, Listable::Hidden, provider.authenticator.as_ref(), address).await;
+            let made = handshake::connect(Connection::Outgoing(socket), Listable::Hidden, provider.authenticator.as_ref(), address).await;
             if let Ok(Handshook { connection, peer, listable }) = made {
                 provider.held(connection, peer, listable, address, Some(client.address.clone())).await;
             }

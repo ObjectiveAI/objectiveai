@@ -29,8 +29,9 @@
 //!
 //! ```yaml
 //! port: 14979
-//! identities:
-//!   https://auth.example.com: provider-1
+//! identity:
+//!   issuer: https://auth.example.com
+//!   subject: provider-1
 //! accepted:
 //!   - issuer: https://auth.example.com
 //!     subject: daemon-1
@@ -38,7 +39,6 @@
 //!     subject: hub
 //! clients:
 //!   - address: hub.example.com:7000
-//!     issuer: https://auth.example.com
 //! containers:
 //!   podman:
 //!     registries:
@@ -67,7 +67,7 @@
 //! ```
 //!
 //! Every handshake, whichever end dialled, presents the token of the
-//! provider's own identity at the peer's issuer — `identities` — and
+//! provider's one `identity`, whatever issuer the peer's is from, and
 //! serves the peer only when its verified `(issuer, subject)` is in
 //! `accepted`. The tokens are the root's
 //! [`identities`](diverge_sdk::identities), signed in beforehand.
