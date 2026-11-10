@@ -83,7 +83,7 @@ A provider item: `identity`, `direction` (+ `address` or `ips`), `listable`, `en
   the list open: a status or capacity change arrives as `{"changed":{…}}`.
 
 If a record stays `disconnected`: the provider is down or unreachable at `address`; the daemon's identity
-is not in the provider's `accepted`; the daemon or the provider has no `identity` in its document, or it is not signed in; or the record is disabled.
+is not in the provider's `incoming`; the daemon or the provider has no `identity` in its document, or it is not signed in; or the record is disabled.
 The daemon keeps redialling an enabled outgoing provider, so fix the cause and list again.
 
 ### Change
@@ -412,7 +412,7 @@ Template and tool bodies are covered in `diverge-tools`; image digests in `diver
 
 | Symptom | Likely cause |
 |---|---|
-| Provider record stays `disconnected` | Provider down or wrong `address`; daemon not in the provider's `accepted`; no `identity` in `daemon.yaml` or `provider.yaml`, or it is not signed in; record disabled. |
+| Provider record stays `disconnected` | Provider down or wrong `address`; daemon not in the provider's `incoming`; no `identity` in `daemon.yaml` or `provider.yaml`, or it is not signed in; record disabled. |
 | Provider is `different_version` | Daemon and provider builds differ; the provider is held but unused. Reinstall so both match. |
 | Containers died after a provider edit | `direction` or `listable` changed: the connection was closed (`undeployed` with `provider_edited`). They start again on next use. |
 | `providers daemons list` is empty on A | B's record of the shared provider is not `listable: true`; A and B share no connected provider; A's grant reaches no provider. A never lists itself. |

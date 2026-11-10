@@ -24,7 +24,7 @@ Read sections 1 and 2 before running anything.
 | **Issuer** (`diverge-issuer`) | Diverge's own OpenID Connect provider over plain HTTP. Default port 14981, issuer URL `http://127.0.0.1:14981`. It has one built-in public client, `diverge`. Subjects (users) and their passwords live in `<root>/issuer.sqlite`. Every program proves who it is with an ID token from an issuer. |
 | **Identity** | One `(issuer, subject)` pair, signed in once with `diverge identities login` and stored at `<root>/identities/<pct-encoded issuer>/<subject>.json`. Programs on a root use the identities stored under **that root**. Handshakes are mutual: both ends present an ID token. |
 | **Daemon** (`diverge-daemon`) | The hub clients talk to, over a WebSocket on its `port` (default 14980). It keeps all records in its own Postgres: accounts, roles, providers, remote daemons, templates, agents, tools, events, logs, vault. `diverge-postgres` is a supervisor with Postgres embedded at build time; the daemon starts it on a free loopback port, with its data under `<root>/daemon/postgres/`. |
-| **Provider** (`diverge-provider`) | Runs containers with podman for the daemons it `accepted`, and also serves volumes and an image store. Default port 14979. On Windows and macOS it drives a podman machine named **`diverge-provider`** through the rootful connection **`diverge-provider-root`**. On Linux it runs podman directly and must run as root. |
+| **Provider** (`diverge-provider`) | Runs containers with podman for the daemons it `incoming`, and also serves volumes and an image store. Default port 14979. On Windows and macOS it drives a podman machine named **`diverge-provider`** through the rootful connection **`diverge-provider-root`**. On Linux it runs podman directly and must run as root. |
 | **Container proxy** (`diverge-container-proxy`) | A static Linux musl binary. The provider bind-mounts it into every container (`/.diverge/diverge-container-proxy`) and runs it there. It bridges the provider and the program inside the container: MCP, Postgres, secrets, the message queue. It is **never part of an image**, but the inside-container contract it speaks has to match the image's program. |
 | **Agent program / image** | An OCI image whose program speaks the inside-container contract. The six agent loops are `diverge-agents/{python,openrouter,codex,eliza,hermes,cc}`. Each image carries `/DIVERGE.md`: JSON frontmatter `{name, schema[, frontend]}` (the schema of the `arguments` the image accepts), followed by prose. |
 | **Template** | `agents templates create` / `standalone-tools templates create`: an image (`{digest, references}`) plus `memory` and `disk` (both in bytes), `arguments`, and the names of the `secrets` it needs. Its id is a hash, so creating the same template twice gives back the same id. |
@@ -116,7 +116,7 @@ On Windows, run everything below in **Git Bash**. The install scripts are bash.
 | `<root>/provider/podman_data/` | `containers.podman.storage_path` (default). On Windows and macOS **this directory is the podman machine**: its disk and SSH key live here. |
 | `<root>/{issuer,provider,daemon}.log` | server output |
 
-The two daemons share **one issuer and one provider**. The code allows this: the provider's `accepted` list holds
+The two daemons share **one issuer and one provider**. The code allows this: the provider's `incoming` list holds
 both daemon identities, and it allows one connection per identity, so the two daemons need different subjects.
 Sharing an issuer is this guide's choice, not a requirement: a handshake's two tokens need not be from the same
 issuer, and no program keeps a list of trusted issuers.
@@ -218,7 +218,7 @@ port: 14979
 identity:
   issuer: $ISS
   subject: provider
-accepted:
+incoming:
   - issuer: $ISS
     subject: daemon-a
   - issuer: $ISS
@@ -359,7 +359,7 @@ diverge run --daemon b providers list
 
 A record that stays `disconnected` usually has one of two causes:
 
-- The daemon identity is missing from `provider.yaml` `accepted`.
+- The daemon identity is missing from `provider.yaml` `incoming`.
 - The provider is not running.
 
 The daemon redials every 5 s, so fix the cause and list again.
@@ -707,7 +707,7 @@ cleanly at the next start.
 | `install.sh` fails with "Access is denied" or the move fails | The program is running. Stop it, then reinstall. |
 | `daemon stop` targets the wrong daemon or says NotLocal | It uses the default daemon of `<root>/cli.yaml`. Fix that root's `cli.yaml`. |
 | The first message to a fresh agent fails with "connection ended before the channel answered" | Its dependency tools may still be deploying. Send it again. |
-| `providers add` record stays `disconnected` | The daemon identity is missing from `provider.yaml` `accepted`, or either program has no `identity` in its document or that identity is not signed in under its root, or the provider's `identity` is not the one the record names, or the provider is down. |
+| `providers add` record stays `disconnected` | The daemon identity is missing from `provider.yaml` `incoming`, or either program has no `identity` in its document or that identity is not signed in under its root, or the provider's `identity` is not the one the record names, or the provider is down. |
 | `daemons add` works but relayed requests error | B is not listable (`listable: true` on B's provider record), B has no **account** for the presented identity (admins don't count), `accept_daemons` is false on B, or A and B are not on a common provider. |
 | `pnpm tauri dev` page breaks after `pnpm typecheck` / an SDK rebuild | The SDK `dist` was rebuilt under the running Vite. Restart the dev server, or reload the window. |
 | Second `pnpm tauri dev` exits at once | Port 1440 is taken (`strictPort`). Use §5 step 11 (a) or (b). |

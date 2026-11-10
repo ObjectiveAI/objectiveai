@@ -57,7 +57,7 @@ before changing a field you have not changed before.
 | Document | Read | Holds |
 |---|---|---|
 | `daemon.yaml` | at daemon start | `port`, `identity` (`{issuer, subject}`: who the daemon is), `admins`, `description`, `postgres` (`local` or `remote`), `idle_seconds`, `accept_daemons`, `capacity_poll_seconds` |
-| `provider.yaml` | at provider start | `port`, `identity` (who the provider is), `accepted` (who it serves), `clients` (peers it dials, by `address`), `containers` (podman: `registries`, `storage_path`, `image_cache_disk`, `container_overlay_disk`, `memory`; `enabled`), `volumes` (`stores`, `fixed`), `images` (the Store: `path`, `capacity`), `messages` (rate) |
+| `provider.yaml` | at provider start | `port`, `identity` (who the provider is), `incoming` (who may dial it), `clients` (peers it dials, each an `address` and the `identity` that must answer), `containers` (podman: `registries`, `storage_path`, `image_cache_disk`, `container_overlay_disk`, `memory`; `enabled`), `volumes` (`stores`, `fixed`), `images` (the Store: `path`, `capacity`), `messages` (rate) |
 | `issuer.yaml` | at issuer start | `port`, `issuer` (the identifier URL), `access_token_seconds`, `refresh_token_days` |
 | `cli.yaml` | by every CLI command | `default` daemon; `daemons.<name>`: `address`, `default` account, `accounts.<name>`: `issuer`, `subject` |
 | `viewer.yaml` | at viewer start | `daemon`: `address`, `issuer`, `subject`, `redial` |
@@ -69,7 +69,7 @@ Rules common to all five:
 - No document holds a token. The only secrets in any of them are `postgres.password` (daemon, remote kind) and
   registry `credential`s (provider). Do not print those documents into logs or chat without need.
 - The `issuer` string must be identical everywhere it appears — in `issuer.yaml`, in logins, in `identity`,
-  `admins`, `accepted`, `cli.yaml`, `viewer.yaml`. `http://127.0.0.1:14981` and
+  `admins`, `incoming`, `cli.yaml`, `viewer.yaml`. `http://127.0.0.1:14981` and
   `http://localhost:14981` are different issuers.
 
 ## Reading and changing a document: `config get | set | patch`
@@ -84,10 +84,10 @@ never contact a running program.
 diverge daemon config get                    # the whole document, one compact JSON line
 diverge daemon config get .idle_seconds      # 10
 diverge cli config get '.daemons | keys[]'   # one line per value the filter yields
-diverge provider config get '.accepted[]?'
+diverge provider config get '.incoming[]?'
 ```
 
-The document is shown as JSON. Empty optional members are left out (`identity`, `admins`, `accepted`,
+The document is shown as JSON. Empty optional members are left out (`identity`, `admins`, `incoming`,
 `volumes`, …), so a filter over one may see `null`.
 
 ### set — rewrite the whole document with a jq program
@@ -114,7 +114,7 @@ a key, `/` is written `~1` and `~` is `~0`. Operations apply in order, **all or 
 
 ```bash
 diverge daemon config patch '[{op: replace, path: /idle_seconds, value: 120}]'
-diverge provider config patch '[{op: add, path: /accepted/-, value: {issuer: "http://127.0.0.1:14981", subject: daemon-b}}]'
+diverge provider config patch '[{op: add, path: /incoming/-, value: {issuer: "http://127.0.0.1:14981", subject: daemon-b}}]'
 diverge provider config patch '[{op: add, path: /messages, value: {messages: 60, seconds: 60}}]'
 diverge daemon config patch '[{op: add, path: /identity, value: {issuer: "https://auth.example.com", subject: daemon-1}}]'
 diverge daemon config patch '[{op: test, path: /port, value: 14980}, {op: remove, path: /admins/0}]'
@@ -123,8 +123,8 @@ diverge cli config patch '[{op: add, path: /daemons/b, value: {address: "ws://12
 
 - `add` to an object makes or replaces the member; `add` to a list inserts at the index. `replace` and `remove`
   need the place to exist already.
-- The parent must exist: `/accepted/-` fails with `nothing is at …` when the document has no `accepted` yet.
-  Add the whole member instead: `[{op: add, path: /accepted, value: [{…}]}]`.
+- The parent must exist: `/incoming/-` fails with `nothing is at …` when the document has no `incoming` yet.
+  Add the whole member instead: `[{op: add, path: /incoming, value: [{…}]}]`.
 - Use `test` first when a patch depends on a list index, so a document that changed underneath fails the patch
   rather than removing the wrong element.
 
@@ -307,7 +307,7 @@ No server watches its document. A change takes effect as follows.
 | `cli.yaml` | The next CLI command. Nothing to restart. |
 | `viewer.yaml` | The next start of the viewer app. |
 | `diverge identities login` of an identity a running program already uses | No restart: programs read the identity's file whenever they need a token. |
-| A program's `identity` changed, or a *new* entry in `admins` or `accepted` | Restart that program. Its own `identity` must be signed in under its root first. |
+| A program's `identity` changed, or a *new* entry in `admins` or `incoming` | Restart that program. Its own `identity` must be signed in under its root first. |
 | `diverge issuer identities …`, `diverge issuer rotate` | Immediate; no restart. |
 | Records in the daemon (providers, accounts, roles, agents, …) | Immediate; those are `diverge run` requests, not configuration. |
 
@@ -327,7 +327,7 @@ diverge run info        # {"info":{"version":"…"}}
 **Add a second daemon to the CLI** — the `cli config patch` example with `/daemons/b` above — then
 `diverge run --daemon b info`.
 
-**Let a daemon use a provider.** In the provider's root: the daemon's identity goes into `accepted`, then the
+**Let a daemon use a provider.** In the provider's root: the daemon's identity goes into `incoming`, then the
 provider restarts. In the daemon's root nothing changes; the provider record is added with
 `diverge run providers add` (skill `diverge-daemons`).
 
@@ -351,7 +351,7 @@ then restart the provider. (Volumes themselves: skill `diverge-storage`.)
 | `the patch could not be applied: #<n> <op>: nothing is at …` | The path, or its parent, does not exist | Add the parent member whole |
 | `the jq program: …` | The filter does not parse, or failed on a missing member | Default absent members with `//` |
 | `` `…yaml` could not be read: … `` | The file on disk does not parse as its type (hand edit) | Fix the file by hand; `config set` cannot run on it |
-| A provider record stays `disconnected` | Daemon's identity missing from `provider.yaml` `accepted`; no `identity` in `daemon.yaml` or `provider.yaml`, or it is not signed in; the provider's `identity` is not the one the record names; provider down | Fix, restart the provider; the daemon redials by itself |
+| A provider record stays `disconnected` | Daemon's identity missing from `provider.yaml` `incoming`; no `identity` in `daemon.yaml` or `provider.yaml`, or it is not signed in; the provider's `identity` is not the one the record names; provider down | Fix, restart the provider; the daemon redials by itself |
 | Wrong documents are being read | A `./.diverge` in the working directory, or `DIVERGE_CONFIG` set | `--config <root>` explicitly |
 
 ## Not verified
