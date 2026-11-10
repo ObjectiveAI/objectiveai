@@ -1,18 +1,19 @@
-# The courier tool image: an inbox between agents, a musl binary on
-# Alpine.
+# The human agent image: an agent with no model, whose every word and
+# tool call is a person's, given on its live web frontend, a musl
+# binary on Alpine.
 #
 # The container proxy is NOT in this image. The host injects it at
 # runtime, and it may not be up at all until a request comes, which is
-# why the courier touches nothing of the proxy's (the database, the
-# daemon) until a tool is called.
+# why the agent touches nothing of the proxy's (the database, the
+# MCP session) until it is first used.
 #
 # Build from the WORKSPACE ROOT, since the crate rides a path
 # dependency on the SDK:
 #
-#     podman build -f examples/courier/Containerfile .
+#     podman build -f examples/agents/human/Containerfile .
 #
 # A provider builds from one volume directory, the context; the same
-# layout uploaded to a volume (`diverge-sdk-rs/`, `examples/courier/`
+# layout uploaded to a volume (`diverge-sdk-rs/`, `examples/agents/human/`
 # and `Cargo.lock` at its root) is that context.
 #
 # Digests pinned from Docker Hub on 2026-08-26, as the agent images'
@@ -35,21 +36,22 @@ WORKDIR /build
 # prunes the entries the crate does not use, which is why the build
 # does not pass --locked.
 COPY diverge-sdk-rs diverge-sdk-rs
-COPY examples/courier examples/courier
-COPY Cargo.lock examples/courier/Cargo.lock
+COPY examples/agents/human examples/agents/human
+COPY Cargo.lock examples/agents/human/Cargo.lock
 
-RUN cargo build --release --manifest-path examples/courier/Cargo.toml
+RUN cargo build --release --manifest-path examples/agents/human/Cargo.toml
 
 # alpine:latest, by digest.
 FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
-COPY --from=build /build/examples/courier/target/release/courier /usr/local/bin/courier
+COPY --from=build /build/examples/agents/human/target/release/human /usr/local/bin/human
 
-# The image's arguments schema and its description, read by the proxy.
-COPY examples/courier/DIVERGE.md /DIVERGE.md
+# The image's arguments schema, its frontend, and its description, read
+# by the proxy.
+COPY examples/agents/human/DIVERGE.md /DIVERGE.md
 
-# The courier's own server, on the loopback: 8080, or whatever `PORT`
+# The agent's own server, on the loopback: 8080, or whatever `PORT`
 # names. Nothing is exposed: the proxy the host injects is the only
 # thing that dials it, and it is beside it.
 
-ENTRYPOINT ["/usr/local/bin/courier"]
+ENTRYPOINT ["/usr/local/bin/human"]

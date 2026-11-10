@@ -2,7 +2,7 @@
 
 Six small images that show what a tool or an agent container can be. All take `arguments` `{}`
 (any member is refused, so a misspelled setting is never silently ignored) and declare **no secrets**.
-Build each from the workspace root: `-f examples/<name>/Containerfile .` (see the main file).
+Build each from the workspace root: `-f examples/tools/<name>/Containerfile .` (`examples/agents/human/Containerfile` for `human`) (see the main file).
 
 Four are **dependency tools**: an agent declares them in its own `arguments.dependencies`, and the
 daemon deploys them. One is a **standalone tool** made by hand. One is an **agent**.

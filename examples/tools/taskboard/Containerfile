@@ -1,18 +1,18 @@
-# The alarm tool image: agents' own wake-ups, a musl binary on
+# The taskboard image: a board of tasks, a musl binary on
 # Alpine.
 #
 # The container proxy is NOT in this image. The host injects it at
 # runtime, and it may not be up at all until a request comes, which is
-# why the alarm tool touches nothing of the proxy's (the database, the
-# daemon) until it has to, and retries until the proxy answers.
+# why the taskboard touches nothing of the proxy's (the database)
+# until a tool is called.
 #
 # Build from the WORKSPACE ROOT, since the crate rides a path
 # dependency on the SDK:
 #
-#     podman build -f examples/alarm/Containerfile .
+#     podman build -f examples/tools/taskboard/Containerfile .
 #
 # A provider builds from one volume directory, the context; the same
-# layout uploaded to a volume (`diverge-sdk-rs/`, `examples/alarm/`
+# layout uploaded to a volume (`diverge-sdk-rs/`, `examples/tools/taskboard/`
 # and `Cargo.lock` at its root) is that context.
 #
 # Digests pinned from Docker Hub on 2026-08-26, as the agent images'
@@ -35,21 +35,21 @@ WORKDIR /build
 # prunes the entries the crate does not use, which is why the build
 # does not pass --locked.
 COPY diverge-sdk-rs diverge-sdk-rs
-COPY examples/alarm examples/alarm
-COPY Cargo.lock examples/alarm/Cargo.lock
+COPY examples/tools/taskboard examples/tools/taskboard
+COPY Cargo.lock examples/tools/taskboard/Cargo.lock
 
-RUN cargo build --release --manifest-path examples/alarm/Cargo.toml
+RUN cargo build --release --manifest-path examples/tools/taskboard/Cargo.toml
 
 # alpine:latest, by digest.
 FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
-COPY --from=build /build/examples/alarm/target/release/alarm /usr/local/bin/alarm
+COPY --from=build /build/examples/tools/taskboard/target/release/taskboard /usr/local/bin/taskboard
 
 # The image's arguments schema and its description, read by the proxy.
-COPY examples/alarm/DIVERGE.md /DIVERGE.md
+COPY examples/tools/taskboard/DIVERGE.md /DIVERGE.md
 
-# The alarm tool's own server, on the loopback: 8080, or whatever `PORT`
+# The taskboard's own server, on the loopback: 8080, or whatever `PORT`
 # names. Nothing is exposed: the proxy the host injects is the only
 # thing that dials it, and it is beside it.
 
-ENTRYPOINT ["/usr/local/bin/alarm"]
+ENTRYPOINT ["/usr/local/bin/taskboard"]

@@ -16,7 +16,7 @@ path = "src/main.rs"
 [dependencies]
 # The SDK, by path: the container's contract with the proxy beside it
 # (registration, secrets, Postgres).
-diverge-sdk = { path = "../../diverge-sdk-rs" }
+diverge-sdk = { path = "../../../diverge-sdk-rs" }
 # The program's door: an HTTP server on the loopback the proxy dials,
 # `/register`, the secrets' two paths, and the MCP server at `/mcp`.
 axum = { version = "0.8.9" }

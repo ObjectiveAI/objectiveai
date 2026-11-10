@@ -481,7 +481,7 @@ refused. An administrator's log is the daemon's own admin log.
   website.
 - **Which ones.** An agent, a standalone tool or a dependency tool
   whose image's `DIVERGE.md` says `"frontend": true`. Others have no
-  frontend tab. The example agent `examples/human` is one: its
+  frontend tab. The example agent `examples/agents/human` is one: its
   frontend is where you play the agent yourself.
 - **How it reaches the program.** The app's Rust serves the frame from
   an address of its own on this machine (`127.0.0.1`, a new port for

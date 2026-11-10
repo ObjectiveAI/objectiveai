@@ -105,7 +105,7 @@ pp image ls --no-trunc --format '{{.Repository}}:{{.Tag}} {{.Digest}}'          
 Rules:
 
 - **Build context is the workspace root (`.`)** for every Containerfile in the repository
-  (`diverge-agentic-loop-*/Containerfile`, `examples/*/Containerfile`). Each copies `diverge-sdk-rs/`,
+  (`diverge-agentic-loop-*/Containerfile`, `examples/agents/*/Containerfile`, `examples/tools/*/Containerfile`). Each copies `diverge-sdk-rs/`,
   its own crate and `Cargo.lock`.
 - **Never tag an image under `127.0.0.1:`**. The cache lookup skips those names on purpose (they are
   the provider's own per-pull registry names).
@@ -288,12 +288,12 @@ above with `-f <dir>/Containerfile .`.
 | `diverge-agentic-loop-eliza` | `eliza` | agent | `character` | every name on a plugin entry's `secrets`, fixed or rotating as the entry says |
 | `diverge-agentic-loop-hermes` | `hermes` | agent | `provider`, `model` | selected by the provider and the toolsets chosen |
 | `diverge-agentic-loop-cc` | `cc` | agent (Claude Code) | `model` | none |
-| `examples/courier` | `courier` | dependency tool: service, `global` | `{}` | none |
-| `examples/taskboard` | `taskboard` | dependency tool: service, `template` (or `global`) | `{}` | none |
-| `examples/memory` | `memory` | dependency tool: transient | `{}` | none |
-| `examples/alarm` | `alarm` | dependency tool: service, any scope | `{}` | none |
-| `examples/chat` | `chat` | standalone tool: service, has a frontend | `{}` | none |
-| `examples/human` | `human` | agent, no model, has a frontend | `{}` | none |
+| `examples/tools/courier` | `courier` | dependency tool: service, `global` | `{}` | none |
+| `examples/tools/taskboard` | `taskboard` | dependency tool: service, `template` (or `global`) | `{}` | none |
+| `examples/tools/memory` | `memory` | dependency tool: transient | `{}` | none |
+| `examples/tools/alarm` | `alarm` | dependency tool: service, any scope | `{}` | none |
+| `examples/tools/chat` | `chat` | standalone tool: service, has a frontend | `{}` | none |
+| `examples/agents/human` | `human` | agent, no model, has a frontend | `{}` | none |
 
 Full per-image detail — every argument, every secret with its mode and value shape, dependencies and
 a minimal working template body:

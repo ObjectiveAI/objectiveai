@@ -386,7 +386,7 @@ build() {  # build <dir with Containerfile> <short name>
     > "$WORK/build-$2.log" 2>&1
 }
 build diverge-agentic-loop-python python      # ~10 min; run in the background
-build examples/memory memory                  # used for the daemon-to-daemon test
+build examples/tools/memory memory                  # used for the daemon-to-daemon test
 pp image ls --no-trunc --format '{{.Repository}}:{{.Tag}} {{.Digest}}'
 DIGEST_PY="$(pp image inspect --format '{{.Digest}}' localhost/diverge-local/python:dev)"
 DIGEST_MEM="$(pp image inspect --format '{{.Digest}}' localhost/diverge-local/memory:dev)"
@@ -411,12 +411,12 @@ The images:
 | `diverge-agentic-loop-eliza` | eliza | agent | `character` | the names its plugins declare |
 | `diverge-agentic-loop-hermes` | hermes | agent | `provider`, `model` | depends on provider and toolsets (see its DIVERGE.md) |
 | `diverge-agentic-loop-cc` | cc | agent (Claude Code) | `model` | none declared. It installs Claude Code from npm at container start and "logs in by itself", so the container needs network. How credentials reach it is not established here. |
-| `examples/courier` | courier | dependency tool, service, `global` | `{}` | none |
-| `examples/taskboard` | taskboard | dependency tool, service, `template` | `{}` | none |
-| `examples/memory` | memory | dependency tool, transient | `{}` | none |
-| `examples/alarm` | alarm | dependency tool, service, `global` | `{}` | none |
-| `examples/chat` | chat | standalone tool, service, has a frontend | `{}` | none |
-| `examples/human` | human | agent, no model, has a frontend | `{}` | none |
+| `examples/tools/courier` | courier | dependency tool, service, `global` | `{}` | none |
+| `examples/tools/taskboard` | taskboard | dependency tool, service, `template` | `{}` | none |
+| `examples/tools/memory` | memory | dependency tool, transient | `{}` | none |
+| `examples/tools/alarm` | alarm | dependency tool, service, `global` | `{}` | none |
+| `examples/tools/chat` | chat | standalone tool, service, has a frontend | `{}` | none |
+| `examples/agents/human` | human | agent, no model, has a frontend | `{}` | none |
 
 Each image's full argument schema is the frontmatter of its `DIVERGE.md`. Running the image's program with
 `--schema` prints the same schema, and `diverge run images info` returns the DIVERGE.md of a deployed image.

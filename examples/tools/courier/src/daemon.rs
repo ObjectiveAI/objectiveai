@@ -1,6 +1,8 @@
 //! The daemon, as the courier reaches it: looking an agent up, and
 //! notifying one.
 
+use std::sync::Arc;
+
 use diverge_sdk::container_proxy::inside::Client;
 use diverge_sdk::daemon::endpoints::agents::{get, list, message};
 use diverge_sdk::daemon::reference;
@@ -22,7 +24,7 @@ pub const NOTIFICATION: &str = "<courier>\nYou have a new message\n</courier>";
 /// dialled again when an ask finds it gone.
 #[derive(Default)]
 pub struct Daemon {
-    handle: Mutex<Option<Handle>>,
+    handle: Arc<Mutex<Option<Handle>>>,
 }
 
 impl Daemon {
@@ -95,23 +97,20 @@ impl Daemon {
     }
 
     /// Send `to` the [`NOTIFICATION`]. Succeeds once the message's
-    /// scope is open: the daemon's answer comes only when the agent
-    /// takes the message, which may be long after, and a send cannot
-    /// wait for it — two agents writing to each other mid-loop would
-    /// each wait on the other. That answer is read on a task of its
-    /// own, and dropped: the mail is kept whatever it says.
+    /// connection to the daemon is in hand: the daemon's answer comes
+    /// only when the agent's program accepts the message, which may
+    /// be a whole start away, and a send cannot wait for it. The
+    /// message is sent and its answer read on a task of its own, and
+    /// dropped: the mail is kept whatever it says.
     pub async fn notify(&self, client: &Client, to: &Participant) -> Result<(), Failure> {
         let request = message::client::request::Frame { agent: to.reference(), content: vec![ContentBlock::text(NOTIFICATION)], relay: None };
         let handle = self.handle(client).await?;
-        let pending = match message::client::execute::execute(&handle, &request).await {
-            Ok(pending) => pending,
-            Err(error) => {
-                self.drop_handle().await;
-                return Err(Failure::Daemon(error.to_string()));
-            }
-        };
+        let held = self.handle.clone();
         tokio::spawn(async move {
-            let _ = pending.wait().await;
+            // A send that failed forgets the held connection, so the next ask dials again.
+            if message::client::execute::execute(&handle, &request).await.is_err() {
+                *held.lock().await = None;
+            }
         });
         Ok(())
     }

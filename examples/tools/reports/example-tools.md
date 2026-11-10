@@ -59,7 +59,7 @@ daemon's `standalone_tools` family.
 
 ## `courier`: an inbox between agents
 
-**Built:** `examples/courier/` (crate `diverge-example-courier`, binary `courier`), with its `Containerfile` and `DIVERGE.md`. It is a **dependency tool** declared by agents' images (a `service` with `scope: global`; at its own registration it declares `attached` and `never_active` over agents), keeps mail per template, has a fifth tool `list_agents` listing whom the caller can write to (attached, then never-run), and a send whose notification cannot be sent fails and keeps nothing.
+**Built:** `examples/tools/courier/` (crate `diverge-example-courier`, binary `courier`), with its `Containerfile` and `DIVERGE.md`. It is a **dependency tool** declared by agents' images (a `service` with `scope: global`; at its own registration it declares `attached` and `never_active` over agents), keeps mail per template, has a fifth tool `list_agents` listing whom the caller can write to (attached, then never-run), and a send whose notification cannot be sent fails and keeps nothing.
 
 Mail between agents. Every agent that uses the courier has an inbox
 of conversations; an agent opens a conversation with another agent on
@@ -136,7 +136,7 @@ A shared board of tasks. Every agent that reaches the tool's database
 works from the same board, and the attested caller is what tells the
 agents apart.
 
-**Built:** `examples/taskboard/` (crate `diverge-example-taskboard`,
+**Built:** `examples/tools/taskboard/` (crate `diverge-example-taskboard`,
 binary `taskboard`), with its `Containerfile` and `DIVERGE.md`. It is
 a **dependency tool** declared by agents' images, a `service` (shown
 with `scope: template`; `global` is legal), with no arguments, no
@@ -173,7 +173,7 @@ notebook is that database and nothing narrower: the tool tells no
 caller apart and records no owner, so every agent that reaches the
 same database shares the same notes.
 
-**Built:** `examples/memory/` (crate `diverge-example-memory`, binary
+**Built:** `examples/tools/memory/` (crate `diverge-example-memory`, binary
 `memory`), with its `Containerfile` and `DIVERGE.md`. It is a
 **dependency tool** declared by agents' images, `transient`, with no
 arguments, no secrets and no permissions. Intended per agent;
@@ -227,7 +227,7 @@ calls. An agent sets an alarm with a note, and when it is due the tool
 messages that agent exactly `<alarm>\n{note}\n</alarm>` through the
 daemon, which starts the agent if it is not running.
 
-**Built:** `examples/alarm/` (crate `diverge-example-alarm`, binary
+**Built:** `examples/tools/alarm/` (crate `diverge-example-alarm`, binary
 `alarm`), with its `Containerfile` and `DIVERGE.md`. It is a
 **dependency tool** declared by agents' images, a `service` (shown
 with `scope: global`; any scope works, since every alarm names its

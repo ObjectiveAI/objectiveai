@@ -1,27 +1,28 @@
 [package]
-name = "diverge-example-courier"
+name = "diverge-example-chat"
 version = "0.1.0"
 edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
-description = "An example Diverge tool container: an inbox between agents, pulled and never pushed"
+description = "An example Diverge tool container: a chat between a person and the agents attached to it, with a live web frontend"
 license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 homepage = "https://diverge.network"
 publish = false
 
 [[bin]]
-name = "courier"
+name = "chat"
 path = "src/main.rs"
 
 [dependencies]
 # The SDK, by path: the container's contract with the proxy beside it
 # (registration, secrets, the daemon, Postgres), the caller the daemon
-# attests on every MCP request, and the daemon's endpoints the courier
-# notifies through.
-diverge-sdk = { path = "../../diverge-sdk-rs" }
+# attests on every MCP request and every frontend request, and the
+# daemon's endpoints the chat reads agents and images through.
+diverge-sdk = { path = "../../../diverge-sdk-rs" }
 # The program's door: an HTTP server on the loopback the proxy dials,
-# `/register`, the secrets' two paths, and the MCP server at `/mcp`.
-axum = { version = "0.8.9" }
+# `/register`, the secrets' two paths, the MCP server at `/mcp`, and
+# the frontend beneath `/frontend`, its live sockets included.
+axum = { version = "0.8.9", features = ["ws"] }
 # The MCP server, over Streamable HTTP; the same version the SDK's
 # content blocks and attestation are written against.
 rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
@@ -30,12 +31,13 @@ rmcp = { version = "3.1.2", default-features = false, features = ["server", "tra
 schemars = { version = "1.2.2" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
-# The mail: the caller's database, through the proxy's loopback pgwire.
-# `chrono` for the times each message and conversation keep.
+# The messages: the tool's database, through the proxy's loopback
+# pgwire. `chrono` for when each was written.
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
 chrono = { version = "0.4.39", default-features = false, features = ["std", "serde", "clock"] }
-# The list stream the `agents` tool reads to its `listed`.
-futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# The list stream read to its `listed`, and a socket's two halves.
+futures-util = { version = "0.3.33", default-features = false, features = ["std", "sink"] }
 # The runtime under the listener, the lazily made pool and daemon
-# connection, and the task each notification's answer is read on.
-tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }
+# connection, the fan-out to open sockets, and the task each
+# notification's answer is read on.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync", "macros"] }

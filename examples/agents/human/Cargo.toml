@@ -18,7 +18,7 @@ path = "src/main.rs"
 # (registration, secrets, the run, the queue, Postgres, the MCP
 # session), the chunks a run is made of, and the caller the daemon
 # stamps on every frontend request.
-diverge-sdk = { path = "../../diverge-sdk-rs" }
+diverge-sdk = { path = "../../../diverge-sdk-rs" }
 # The run as a generator of events.
 async-stream = { version = "0.3.6" }
 # The program's door: an HTTP server on the loopback the proxy dials,
