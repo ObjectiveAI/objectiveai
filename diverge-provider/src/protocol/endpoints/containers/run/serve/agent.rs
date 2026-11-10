@@ -14,8 +14,10 @@ use super::super::run::Run;
 /// What an agent container's caller opens, past the shared six.
 #[derive(Debug)]
 pub(crate) enum Exchange {
-    /// A message for the agent: its key, and its content blocks.
-    Enqueue(String, Vec<ContentBlock>),
+    /// A message for the agent: its key, its index — the daemon's
+    /// arrival order, which the proxy orders by — and its content
+    /// blocks.
+    Enqueue(String, u64, Vec<ContentBlock>),
 }
 
 /// Serve one, to the end: the proxy's one answer on the caller's
@@ -33,8 +35,8 @@ pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
         return;
     };
     let answer = match exchange {
-        Exchange::Enqueue(key, content) => {
-            let frame = begin.enqueue(key, content).await.unwrap_or_else(|error| enqueue::response::Frame::Error(failed(&error)));
+        Exchange::Enqueue(key, index, content) => {
+            let frame = begin.enqueue(key, index, content).await.unwrap_or_else(|error| enqueue::response::Frame::Error(failed(&error)));
             encoded(&frame)
         }
     };
