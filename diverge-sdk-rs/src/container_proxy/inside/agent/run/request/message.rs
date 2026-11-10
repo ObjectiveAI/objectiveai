@@ -4,6 +4,8 @@ use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 
 /// One message, as its enqueue carried it: the key and the content.
+/// A [`run`](crate::container_proxy::inside::agent::run) carries these,
+/// and so does an [`enqueue`](crate::container_proxy::inside::agent::enqueue).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Message {
     /// The caller's key, as the enqueue gave it; what each of the

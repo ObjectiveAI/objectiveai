@@ -18,8 +18,8 @@
 //! | `POST /secrets` | the [`secrets::feed::request::Request`](crate::container_proxy::inside::secrets::feed::request::Request) JSON | `2xx` once the values are held, its body unread; or a non-`2xx` |
 //! | `POST /secrets/collect` | the [`secrets::collect::request::Request`](crate::container_proxy::inside::secrets::collect::request::Request) JSON | `2xx` with the [`secrets::collect::response::Response`](crate::container_proxy::inside::secrets::collect::response::Response) JSON, every name asked for with its value; or a non-`2xx` |
 //! | `POST /run` | the [`run::request::Request`] JSON | `2xx` as `text/event-stream`, every `data:` one `AgenticLoopChunk` JSON — the messages' user parts first — the stream's end the loop ended; or a non-`2xx` |
-//! | `POST /enqueue` | the [`enqueue::request::Request`] JSON | `2xx` with one [`enqueue::Fate`], held until the fate is known; or a non-`2xx` |
-//! | `POST /dequeue` | the [`dequeue::request::Request`] JSON | `2xx` with one [`dequeue::Outcome`]; or a non-`2xx` |
+//! | `POST /enqueue` | the [`enqueue::request::Request`] JSON, the proxy's queue joined | `2xx` with one [`enqueue::Fate`], the slot's, held until the fate is known; `409` `{"kind":"occupied"}` while the slot is full; or another non-`2xx` |
+//! | `POST /dequeue` | the [`dequeue::request::Request`] JSON, `{}` | `2xx` with one [`dequeue::Outcome`], the slot emptied; or a non-`2xx` |
 //!
 //! # Registration comes first, and once
 //!
@@ -49,21 +49,32 @@
 //! ends. So the first item decides: anything that fails before it is
 //! the status, anything after it is a chunk.
 //!
-//! # The queue is the proxy's, and the program's
+//! # The queue is the proxy's; the program holds one slot
 //!
-//! The proxy holds every message the provider enqueues and offers
-//! them to the program one at a time: `POST /enqueue` while a loop
-//! runs, held until the program says what became of it; `POST /run`
-//! when none does, with the waiting messages, each under its key, in
-//! enqueue order. The program's own queue is what a loop holds between seams,
-//! and a `POST /dequeue` names a key: every message under it and not
-//! yet taken is withdrawn, on the proxy's side and the program's, and
-//! every other left waiting. A `missed` from the program, a `5xx`, or no answer hands the
-//! message back to the proxy, which waits for the loop to end and
-//! starts the next on it — so no message the provider enqueued is
-//! lost to a loop ending. A `4xx` is the message refused: content
-//! the program will not take, and its fate is the error, in the
-//! program's words.
+//! The proxy holds every message the provider enqueues, and the
+//! program holds at most ONE: the rules, in order.
+//!
+//! 1. The proxy offers its whole queue at once, joined in exact
+//!    enqueue order: `POST /run` when no loop runs, `POST /enqueue`
+//!    while one does. Either way the messages are one user turn, each
+//!    message's user parts under its own key, so the log credits every
+//!    sender.
+//! 2. `POST /enqueue` fills the slot and is held until the slot's
+//!    fate is known. A second while it is full is `409`
+//!    `{"kind":"occupied"}`; the proxy never sends one.
+//! 3. `POST /dequeue` names no key and empties the slot — its
+//!    `/enqueue` answers `dequeued` — or finds it empty. A slot the
+//!    loop already took stays taken.
+//! 4. A new message for a busy loop, or the provider withdrawing a key
+//!    the slot holds, makes the proxy withdraw the slot, then offer
+//!    its queue again, joined: what came back first, in its order,
+//!    then what is newer — without the withdrawn key's messages.
+//! 5. A `missed` from the program, a `5xx`, or no answer hands the
+//!    batch back to the proxy, which waits for the loop to end and
+//!    starts the next on it — so no message the provider enqueued is
+//!    lost to a loop ending. A `4xx` is the batch refused: content the
+//!    program will not take, and every message's fate is the error, in
+//!    the program's words.
 
 pub mod dequeue;
 pub mod enqueue;

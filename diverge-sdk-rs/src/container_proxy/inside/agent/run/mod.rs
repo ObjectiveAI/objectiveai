@@ -1,7 +1,9 @@
-//! `POST /run`: one loop, on one or more messages.
+//! `POST /run`: one loop, on one or more messages, as one user turn.
 //!
 //! The proxy sends the [`request::Request`] JSON once the arguments
-//! are registered and no loop runs. A `2xx` is the loop as it happens:
+//! are registered and no loop runs: every message it holds, in
+//! enqueue order — joined by the program into the loop's first user
+//! turn, exactly as an [`enqueue`](super::enqueue) is. A `2xx` is the loop as it happens:
 //! `text/event-stream`, every `data:` one `AgenticLoopChunk` JSON,
 //! which the proxy relays to the provider verbatim, and the stream's
 //! end is the loop ended. A non-`2xx` is a loop that never ran —

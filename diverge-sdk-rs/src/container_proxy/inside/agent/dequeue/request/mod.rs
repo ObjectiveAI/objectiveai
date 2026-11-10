@@ -1,6 +1,9 @@
-//! The body: the key.
+//! The body: nothing.
 //!
-//! The same JSON the provider protocol carries for a dequeue —
-//! `{"key": "…"}` — so the proxy forwards it as it came.
+//! Not the provider protocol's dequeue — that names a key, and stays
+//! the provider wire's. The program holds one message, so there is
+//! nothing to name: `{}` empties the slot, whatever it holds.
 
-pub use crate::shared::containers::dequeue::request::Request;
+mod request;
+
+pub use request::*;

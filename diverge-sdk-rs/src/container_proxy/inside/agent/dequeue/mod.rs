@@ -1,13 +1,13 @@
-//! `POST /dequeue`: the messages waiting under a key, withdrawn.
+//! `POST /dequeue`: the program's one slot, emptied.
 //!
-//! The proxy sends the [`request::Request`] JSON — a key, as the
-//! enqueues gave it — while a loop runs, after withdrawing every
-//! message under that key it still held itself. The program
-//! withdraws every message it holds under the key — each held
-//! `/enqueue` answers `dequeued` — leaves every other alone, and
-//! answers a `2xx` with one [`Outcome`], whether it held any. A
-//! message the loop already took stays taken: dequeuing is not
-//! un-delivery.
+//! The proxy sends the [`request::Request`] JSON — `{}`, no key —
+//! while a batch it offered is held: when a new message is to be
+//! joined to it, or a key in it withdrawn. The program empties the
+//! slot — the held `/enqueue` answers `dequeued` — and answers a
+//! `2xx` with one [`Outcome`], whether it held anything. A slot the
+//! loop already took stays taken: dequeuing is not un-delivery. The
+//! proxy reads the slot's fate from the `/enqueue`'s answer, not from
+//! this one, and offers its queue again, joined.
 
 mod outcome;
 

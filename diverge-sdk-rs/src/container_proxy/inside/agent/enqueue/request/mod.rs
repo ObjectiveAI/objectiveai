@@ -1,8 +1,11 @@
-//! The body: the message.
+//! The body: the messages, joined.
 //!
-//! The same JSON the provider protocol carries for an enqueue —
-//! `{"key": "…", "content": [{"type": "text", "text": "…"}, …]}`,
-//! the caller's key and MCP's content blocks — so the proxy forwards
-//! it as it came.
+//! Not the provider protocol's enqueue — that names one message under
+//! one key, and stays the provider wire's. This is the proxy's batch:
+//! every message it holds, in enqueue order, each under its key, the
+//! same `{"key": "…", "content": […]}` pairs a
+//! [`run`](crate::container_proxy::inside::agent::run) carries.
 
-pub use crate::shared::containers::enqueue::request::Request;
+mod request;
+
+pub use request::*;
