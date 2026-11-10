@@ -40,13 +40,16 @@
 //! real error — a non-`2xx`, with a JSON reason, and no stream:
 //! arguments that are not a Python agent, requirements that will
 //! not install, a database that will not answer, a history that will
-//! not open, the first run of the script — raising, breaking the
-//! harness, answering the wrong shape, saying a chunk it may not,
-//! calling a tool that does not exist — and the first item of the
-//! loop itself, which is pulled before the response is decided. A
-//! failure AFTER output is a fatal `notification` chunk, the loop's
-//! own last word, then the stream's end. The stream never carries an
-//! error of its own: it is chunks, and only chunks.
+//! not open, an MCP session that will not connect — and the first
+//! item of the loop itself, which is pulled before the response is
+//! decided. That first item is the run's messages' user parts, said
+//! before the script runs: `/run` answers once the messages are
+//! taken, never after turn one. A failure AFTER output — the first
+//! run of the script among them: raising, breaking the harness,
+//! answering the wrong shape, saying a chunk it may not, calling a
+//! tool that does not exist — is a fatal `notification` chunk, the
+//! loop's own last word, then the stream's end. The stream never
+//! carries an error of its own: it is chunks, and only chunks.
 
 mod agent;
 mod claim;
@@ -171,8 +174,10 @@ async fn serve() {
 /// `POST /run`: the loop.
 ///
 /// Prepares everything the loop needs, starts it, and pulls its FIRST
-/// item before answering: an error there is a real error, the status
-/// and the reason, with no stream begun. Then the stream — the first
+/// item before answering — the messages' user parts, said before the
+/// script runs, so the answer comes once the messages are taken: an
+/// error there is a real error, the status and the reason, with no
+/// stream begun. Then the stream — the first
 /// chunk, then every chunk as it comes, each history at rest saved as
 /// it is reached, and a failure after the first chunk a fatal
 /// notification.

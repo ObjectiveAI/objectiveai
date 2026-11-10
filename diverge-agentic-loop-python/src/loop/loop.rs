@@ -117,10 +117,6 @@ pub async fn r#loop(
     // order — the same as a batch taken at a seam.
     items.push(ContinuationItem::Prompt(joined(&messages)));
 
-    // Turn one, run here so a failure to start is this function's
-    // `Err` and never a stream's leading item.
-    let turn = turn(&peer, &items).await?;
-
     // The guard moves INTO the stream — but as a captured local, not
     // a body-created one: a generator's body runs on first poll, so
     // a guard born inside it would not exist in the window where the
@@ -132,17 +128,24 @@ pub async fn r#loop(
         let _close = close;
         let peer = peer;
         let mut items = items;
-        let mut turn = turn;
 
         // The messages the run started on, as the stream's first
         // chunks: their parts, each under its key, before the script
-        // says a word — the first run is already made, so a start
-        // that failed was this function's `Err` and never got here.
+        // runs at all — the messages are taken, and the caller answers
+        // on the first of them. Turn one runs after, so a failure in
+        // it is a yielded error like any later turn's.
         for message in messages {
             for chunk in user_parts(&message.key, message.content) {
                 yield Ok(Item::Chunk(chunk));
             }
         }
+        let mut turn = match self::turn(&peer, &items).await {
+            Ok(turn) => turn,
+            Err(error) => {
+                yield Err(error);
+                return;
+            }
+        };
 
         loop {
             let Turn { chunks, calls } = turn;

@@ -105,24 +105,8 @@ pub async fn r#loop(
     // first time it is asked and held for the program's life.
     let peer = client.mcp_peer().await.map_err(Error::Connect)?.clone();
 
-    let mut items: Vec<ContinuationItem> =
+    let items: Vec<ContinuationItem> =
         continuation.map(|history| history.0).unwrap_or_default();
-
-    // Turn one, started here so a failure to start is this function's
-    // `Err` and never a stream's leading item.
-    let tools = list(&peer).await?;
-    // The messages the run started on are ONE user turn, joined in
-    // order — the same as a batch taken at a seam.
-    let content = joined(&messages);
-    let stream = fetch::fetch(
-        api_key,
-        agent.clone(),
-        Some(Continuation(items.clone())),
-        content.clone(),
-        Some(tools),
-    )
-    .await?;
-    items.push(ContinuationItem::Prompt(content));
 
     let api_key = api_key.to_string();
     // The guard moves INTO the stream — but as a captured local, not
@@ -135,18 +119,44 @@ pub async fn r#loop(
     Ok(Box::pin(async_stream::stream! {
         let _close = close;
         let peer = peer;
-        let mut stream = stream;
         let mut items = items;
 
         // The messages the run started on, as the stream's first
-        // chunks: their parts, each under its key, before the model
-        // says a word — the turn is already on the wire, so a start
-        // that failed was this function's `Err` and never got here.
-        for message in messages {
-            for chunk in user_parts(&message.key, message.content) {
+        // chunks: their parts, each under its key, before turn one is
+        // even fetched — the messages are taken, and the caller
+        // answers on the first of them. Turn one starts after, so a
+        // failure to start is a yielded error like any later turn's.
+        for message in &messages {
+            for chunk in user_parts(&message.key, message.content.clone()) {
                 yield Ok(Item::Chunk(chunk));
             }
         }
+        let tools = match list(&peer).await {
+            Ok(tools) => tools,
+            Err(error) => {
+                yield Err(error);
+                return;
+            }
+        };
+        // The messages the run started on are ONE user turn, joined in
+        // order — the same as a batch taken at a seam.
+        let content = joined(&messages);
+        let mut stream = match fetch::fetch(
+            &api_key,
+            agent.clone(),
+            Some(Continuation(items.clone())),
+            content.clone(),
+            Some(tools),
+        )
+        .await
+        {
+            Ok(stream) => stream,
+            Err(error) => {
+                yield Err(Error::Fetch(error));
+                return;
+            }
+        };
+        items.push(ContinuationItem::Prompt(content));
 
         loop {
             // Drain the turn: yield everything immediately, keep what

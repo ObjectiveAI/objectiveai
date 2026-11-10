@@ -37,10 +37,13 @@
 //! real error — a non-`2xx`, with a JSON reason, and no stream:
 //! arguments that are not an openrouter agent, a feed that has not
 //! come or carries no string under `OPENROUTER_API_KEY`, a database
-//! that will not answer, a history that will not open, the first
-//! fetch, and the first item of the loop itself, which is pulled
-//! before the response is decided. A
-//! failure AFTER output is a fatal `notification` chunk, the loop's
+//! that will not answer, a history that will not open, an MCP
+//! session that will not connect, and the first item of the loop
+//! itself, which is pulled before the response is decided. That
+//! first item is the run's messages' user parts, said before turn one
+//! is fetched: `/run` answers once the messages are taken, never
+//! after the model's first token. A failure AFTER output — the first
+//! fetch among them — is a fatal `notification` chunk, the loop's
 //! own last word, then the stream's end. The stream never carries an
 //! error of its own: it is chunks, and only chunks.
 
@@ -178,8 +181,10 @@ async fn serve() {
 /// `POST /run`: the loop.
 ///
 /// Prepares everything the loop needs, starts it, and pulls its FIRST
-/// item before answering: an error there is a real error, the status
-/// and the reason, with no stream begun. Then the stream — the first
+/// item before answering — the messages' user parts, said before turn
+/// one is fetched, so the answer comes once the messages are taken:
+/// an error there is a real error, the status and the reason, with no
+/// stream begun. Then the stream — the first
 /// chunk, then every chunk as it comes, each history at rest saved as
 /// it is reached, and a failure after the first chunk a fatal
 /// notification.
