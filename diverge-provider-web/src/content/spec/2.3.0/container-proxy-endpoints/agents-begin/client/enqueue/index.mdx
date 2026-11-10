@@ -1,34 +1,44 @@
 ---
 title: 'Enqueue'
-summary: 'Tag 2: the client sends a message to the agent, which starts a loop when none runs and joins the queue when one does; the server answers with exactly one channel response, the fate of the message, when the fate is known.'
+summary: 'Tag 2: the client sends a batch of one or more messages to the agent, in order, which starts a loop when none runs and joins the queue when one does; the server answers with exactly one channel response, the fate of the batch, when the fate is known.'
 order: 2
 draft: false
 ---
 
-The client opens this channel to send a message to the agent. A
-message sent while no loop runs starts one, as its input; a message
-sent while one runs is placed in its queue, and the agent takes it at
-a seam of its own choosing. Nothing interrupts a loop. What the agent
+The client opens this channel to send a batch of one or more messages
+to the agent, in order. A batch sent while no loop runs starts one,
+as its input; a batch sent while one runs is placed in its queue, and
+the agent takes it at a seam of its own choosing. Nothing interrupts
+a loop. What the agent
 says in reply is the main stream of the scope, as
 [Response](/container-proxy-endpoints/agents-begin/response/) states.
 
-- **The request.** The tag byte `2` followed by the message as JSON.
+- **The request.** The tag byte `2` followed by the batch as JSON.
   [Request](/container-proxy-endpoints/agents-begin/client/enqueue/request/) states its form.
 - **The response.** Exactly one channel response, sent when the fate
-  of the message is known, however long that takes, and the channel
-  response finish. [Response](/container-proxy-endpoints/agents-begin/client/enqueue/response/) states the
+  of the batch is known, however long that takes, and the channel
+  response finish. The fate is the fate of every message of the
+  batch. [Response](/container-proxy-endpoints/agents-begin/client/enqueue/response/) states the
   sequence.
-- **Order.** The server keeps the messages it holds in the order of
-  their indices, lowest first, and every call that carries messages
-  to the program carries them in that order. A message that arrives
-  is inserted at the place its index determines. A batch that the
-  program does not take returns to the queue, each message at the
-  place its index determines. The proxy has at most one call carrying
-  messages to the program at a time.
-- **A loop ending.** A loop that ends with a message still waiting
-  does not lose it: the server starts the next loop on every message
-  still waiting, their content concatenated into one, in the order
-  of their indices. A container that refuses that content refuses every message
-  of it.
+- **Order.** The server keeps the batches it holds in the order in
+  which their channel requests reached it, and keeps the messages of
+  each batch in the order the batch states. The server never splits a
+  batch and never reorders its messages. Every call that carries
+  messages to the program carries every batch the server holds, in
+  that order. A batch that arrives is placed behind every batch the
+  server holds. The batches of a call that the program does not take
+  return to the front of the queue, in the order they held, ahead of
+  every batch that arrived after them. The server has at most one
+  call carrying messages to the program at a time.
+- **One batch at a time.** A client that opens the next enqueue
+  channel only when the one before it is answered has its messages
+  taken by the program in the order it sent them. The server states
+  no order between two batches whose channels are open at once other
+  than the order in which their channel requests reached it.
+- **A loop ending.** A loop that ends with a batch still waiting
+  does not lose it: the server starts the next loop on every batch
+  still waiting, the content of their messages concatenated into one,
+  in the order stated above. A container that refuses that content
+  refuses every batch of it.
 - **No timeout.** The server holds the channel open until the fate is
   known.

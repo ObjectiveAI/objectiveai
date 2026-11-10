@@ -9,22 +9,21 @@ draft: false
 [2][request JSON …]
 ```
 
-- **`key`.** A string the client chooses. Every user part of the
-  message carries it on the main stream of the scope. Two messages
-  may share one. The server relays it verbatim and does not read it.
-  No channel withdraws a message once it is sent.
-- **`index`.** A `u64`, the order in which the daemon read the
-  message: a lower index precedes a higher one. The server orders the
-  messages it holds by their indices alone and never by the order in
-  which their channels reached it. The indices of one agent's
-  messages are not contiguous, and the server waits for no missing
-  index.
+- **`messages`.** An array of one or more messages, the batch. The
+  order of the array is the order in which the program takes the
+  messages. The request carries no other member: it carries no index
+  and no count. Each message is an object with exactly the two
+  members `key` and `content`.
+- **`key`.** A string the client chooses, one for each message. Every
+  user part of the message carries it on the main stream of the
+  scope. Two messages may share one. The server relays it verbatim
+  and does not read it. No channel withdraws a batch once it is sent.
 - **`content`.** An array of MCP content blocks, in order, each as
   the `ContentBlock` of the crate's MCP dependency states one: text,
   an image, audio, an embedded resource, or a resource link. What the
-  container makes of a block is its own, and a container that cannot
-  take one refuses the whole message, and the fate is the error, in
-  the container's words. A message with no block is refused too.
+  container makes of a block is its own. A container that cannot take
+  a block refuses the whole batch, and the fate is the error, in the
+  container's words. A message with no block is refused too.
 - **Malformed.** A channel request whose payload does not decode as
   stated is answered by a channel response finish that no channel
   response precedes, and the server does nothing else for it.
@@ -37,4 +36,9 @@ The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/en
 and by `diverge-sdk-rs/src/shared/containers/enqueue/request/request.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/containers/enqueue/request/request.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/enqueue/request/message.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/enqueue/request/message.rs
 ```
