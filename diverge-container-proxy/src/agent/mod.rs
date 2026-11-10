@@ -5,16 +5,22 @@
 //! An agent container's entrypoint is an HTTP server on the loopback,
 //! at the port [`diverge_sdk::container_proxy::inside::port()`] names, and the
 //! loop's three calls are what this module makes of it: `/run`
-//! whenever messages wait and no loop runs; `/enqueue` for each
-//! message while one does; `/dequeue` when the server clears the
-//! queue. The calls every container answers — `/register`,
+//! whenever messages wait and no loop runs; `/enqueue` with every
+//! message waiting, joined in enqueue order, while one does — the
+//! program's one slot, filled; `/dequeue`, naming nothing, to take
+//! that slot back when a newer message is to be joined to it or a
+//! key in it is withdrawn. The calls every container answers — `/register`,
 //! `/secrets`, `/secrets/collect` — are [`program`](crate::program)'s;
 //! what the arguments may be is the image's `/DIVERGE.md`, which
 //! [`info`](crate::info) reads from the root and asks of no program.
 //! The queue itself is
 //! the proxy's, held by one [`driver()`] task that never
 //! awaits the agent's server directly, so nothing the server asks of
-//! the queue can wait on a call the loop holds open.
+//! the queue can wait on a call the loop holds open. The program
+//! holds at most one message — the batch the driver offered — and
+//! the driver keeps the order: a batch that comes back goes to the
+//! front of the queue, ahead of anything newer, and is offered again
+//! with it, joined.
 //!
 //! What the loop says rides the begin scope's main stream, chunk by
 //! chunk, verbatim, between the proxy's own word that the loop began
