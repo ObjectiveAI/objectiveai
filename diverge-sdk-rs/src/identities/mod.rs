@@ -87,8 +87,8 @@
 //!    they expire — an access token refused by its `typ`, the audience
 //!    never asked — see [`verify`] for its own rules.
 //!
-//! 10. **A program's own side.** [`Own`] is a program's identities —
-//!     one subject per issuer — and its verifying cache: what a
+//! 10. **A program's own side.** [`Own`] is a program's one identity
+//!     — the one it answers as — and its verifying cache: what a
 //!     daemon's or a provider's handshake is built on.
 //!
 //! 11. **A client's side.** [`Presenter`] is one identity presented,

@@ -19,10 +19,10 @@ use crate::shared::listable::Listable;
 /// An `Err` is a reason for the caller's log. It never reaches the
 /// wire: a failed handshake is a close, and nothing else.
 pub trait Authenticator: Send + Sync {
-    /// This end's token from `issuer`, good for presenting now. `Err`
-    /// when this end holds no identity at that issuer, or cannot get a
-    /// token from it.
-    fn present<'a>(&'a self, issuer: &'a str) -> BoxFuture<'a, Result<String, String>>;
+    /// This end's token, good for presenting now: the token of the
+    /// identity it connects as or answers as. `Err` when this end
+    /// holds no such identity, or cannot get a token for it.
+    fn present<'a>(&'a self) -> BoxFuture<'a, Result<String, String>>;
 
     /// The other end's `token`, presented from `address`, judged:
     /// `Ok` with the identity it establishes, or `Err` with why it is

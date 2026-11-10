@@ -31,17 +31,12 @@ use crate::wire::handshake::{self, Authenticator, Handshook};
 /// frame the handle writes is a channel response on the one channel
 /// the provider opens, the first of which is waited for. Before the
 /// split, the connection's [`handshake`](crate::wire::handshake) is
-/// made as its connector — this end's token from `issuer`, the
-/// acceptor's from the same issuer verified, both through
-/// `authenticator`; the acceptor's address is not known here, so it is
+/// made as its connector — this end's token presented, the
+/// acceptor's verified, both through `authenticator`; the acceptor's
+/// address is not known here, so it is
 /// judged as the unspecified address. What comes back is the
 /// [`Connected`]: the handle, the acceptor, and the end.
-pub async fn execute(
-    handle: &Handle,
-    request: &request::Frame,
-    issuer: &str,
-    authenticator: &dyn Authenticator,
-) -> Result<Connected, ExecuteError> {
+pub async fn execute(handle: &Handle, request: &request::Frame, authenticator: &dyn Authenticator) -> Result<Connected, ExecuteError> {
     let mut payload = Vec::new();
     request.encode(&mut Writer::new(&mut payload)).map_err(ExecuteError::Request)?;
     let mut scope = handle.send_request(&payload).await.map_err(ExecuteError::Send)?;
@@ -63,7 +58,7 @@ pub async fn execute(
     tokio::spawn(outward(scope.request_receiver, from_handle, handle.clone(), scope.scope));
     let unknown = std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED);
     let Handshook { connection, peer, .. } =
-        handshake::connect(Connection::Local { incoming, outgoing }, issuer, Listable::Hidden, authenticator, unknown).await.map_err(ExecuteError::Handshake)?;
+        handshake::connect(Connection::Local { incoming, outgoing }, Listable::Hidden, authenticator, unknown).await.map_err(ExecuteError::Handshake)?;
     let (daemon, router) = Handle::open(connection);
     let (ended, ended_receiver) = watch::channel(false);
     tokio::spawn(async move {

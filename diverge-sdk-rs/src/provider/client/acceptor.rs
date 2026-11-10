@@ -35,8 +35,8 @@ use crate::shared::daemons::{Connection, client, server};
 /// The relayed connection begins as one on a socket does, with the
 /// [`handshake`](crate::wire::handshake): the first frame on
 /// `from_connector` is the connector's token, and the first frame the
-/// stream sends must be this daemon's own, from the same issuer — the
-/// connectee's half, judged by whoever implements this against the
+/// stream sends must be this daemon's own, whatever issuer the
+/// connector's is from — the connectee's half, judged by whoever implements this against the
 /// address the provider saw. A connector not accepted is one the stream
 /// ends on, sending nothing. Nothing is retried.
 pub trait Acceptor: Send + Sync {

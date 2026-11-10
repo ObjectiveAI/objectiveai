@@ -14,9 +14,8 @@ use crate::wire::proxy::{Link, Redial};
 pub struct TauriProxy(Link, Arc<Mutex<HashMap<u32, Arc<Semaphore>>>>);
 
 impl TauriProxy {
-    /// The daemon at `address`, its handshake made from `issuer`
-    /// through `authenticator` — the app's identity at that issuer,
-    /// from the host's [`identities`](crate::identities), and its
+    /// The daemon at `address`, its handshake made through
+    /// `authenticator` — the app's identity, from the host's [`identities`](crate::identities), and its
     /// judgment of the daemon's — dialled again as `redial` says. An
     /// address with no scheme is dialled as `ws://<address>/`.
     ///
@@ -25,8 +24,8 @@ impl TauriProxy {
     /// once; with [`Redial::Never`] nothing is, and the page's first
     /// use dials. Made inside the app's `setup`, where that runtime
     /// runs.
-    pub fn new(address: impl Into<String>, issuer: impl Into<String>, authenticator: Arc<dyn Authenticator>, redial: Redial) -> TauriProxy {
-        let link = Link::new(address, issuer, authenticator, redial);
+    pub fn new(address: impl Into<String>, authenticator: Arc<dyn Authenticator>, redial: Redial) -> TauriProxy {
+        let link = Link::new(address, authenticator, redial);
         if let Redial::Every(_) = redial {
             tauri::async_runtime::spawn(link.redial());
         }

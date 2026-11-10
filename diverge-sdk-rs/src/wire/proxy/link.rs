@@ -35,7 +35,6 @@ struct Inner {
 /// What the link and its redial share.
 struct Shared {
     address: String,
-    issuer: String,
     authenticator: Arc<dyn Authenticator>,
     redial: Redial,
     inner: Mutex<Inner>,
@@ -44,8 +43,8 @@ struct Shared {
     changed: Notify,
 }
 
-/// A daemon's address, the issuer and the authenticator its handshake
-/// is made with, and the one connection to it, as a native side holds
+/// A daemon's address, the authenticator its handshake is made
+/// with, and the one connection to it, as a native side holds
 /// it for a page that speaks through the proxy. Every dial presents a
 /// token the authenticator gives it then, so a redial never presents
 /// a token that expired.
@@ -79,13 +78,12 @@ struct Shared {
 pub struct Link(Arc<Shared>);
 
 impl Link {
-    /// A link to the daemon at `address`, its handshake made from
-    /// `issuer` through `authenticator`, not yet dialled, redialling as
+    /// A link to the daemon at `address`, its handshake made through
+    /// `authenticator`, not yet dialled, redialling as
     /// `redial` says. See [`dial`] for what an address may be.
-    pub fn new(address: impl Into<String>, issuer: impl Into<String>, authenticator: Arc<dyn Authenticator>, redial: Redial) -> Link {
+    pub fn new(address: impl Into<String>, authenticator: Arc<dyn Authenticator>, redial: Redial) -> Link {
         Link(Arc::new(Shared {
             address: address.into(),
-            issuer: issuer.into(),
             authenticator,
             redial,
             inner: Mutex::new(Inner { state: State::Idle, dials: 0 }),
@@ -201,7 +199,7 @@ impl Link {
 /// the link down and tells the redial; or down with the reason, which
 /// is the refusal.
 async fn dial_locked(shared: &Arc<Shared>, inner: &mut Inner) -> Result<Handle, Refusal> {
-    match dial(&shared.address, &shared.issuer, shared.authenticator.as_ref()).await {
+    match dial(&shared.address, shared.authenticator.as_ref()).await {
         Ok((handle, run, _)) => {
             inner.dials += 1;
             let dialled = inner.dials;

@@ -32,9 +32,7 @@ use crate::wire::encode::{Encode, Writer};
 ///    malformed.
 /// 3. **The token.** Every byte after those: an RFC 7519 JWT as UTF-8,
 ///    and nothing else — no length, since WebSocket delimits the
-///    message. Its `iss` names the issuer it is from, which is how the
-///    connectee knows which issuer to answer from. An empty token is
-///    malformed.
+///    message. An empty token is malformed.
 ///
 /// What else is in the token is not this layer's business: it is not
 /// parsed here, not checked beyond being UTF-8 and not empty, and not

@@ -14,7 +14,7 @@
 //! finishes it to hang up. The connection begins, as one on a socket
 //! does, with the [`handshake`](crate::wire::handshake): the
 //! connector's first frame is its token and the acceptor's its own,
-//! from the same issuer, both relayed unread.
+//! both relayed unread.
 //!
 //! Split by who SENDS: [`client`] is the connector's traffic,
 //! [`server`] the provider's.

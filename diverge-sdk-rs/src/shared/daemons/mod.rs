@@ -18,7 +18,7 @@
 //! relayed connection is a connection like any on a socket, so it
 //! begins with the [`handshake`](crate::wire::handshake): the
 //! connector's first frame is its token, and the acceptor's first
-//! frame is its own, from the same issuer. The provider relays both
+//! frame is its own. The provider relays both
 //! unread; a connection either end does not accept is one that end
 //! hangs up.
 //!

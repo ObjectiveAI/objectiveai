@@ -193,7 +193,7 @@
 //!
 //! Each end sends exactly one auth frame, its token, and it is the
 //! first frame it sends: the connector — the end that dialled — first,
-//! and the connectee in answer, from the same issuer. See the
+//! and the connectee in answer. See the
 //! [`handshake`](crate::wire::handshake) for the rules.
 //!
 //! A token one end does not accept is followed by a close, and by

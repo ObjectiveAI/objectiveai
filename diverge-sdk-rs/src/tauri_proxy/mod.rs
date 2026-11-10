@@ -21,7 +21,7 @@
 //! ```ignore
 //! tauri::Builder::default()
 //!     .setup(|app| {
-//!         app.manage(TauriProxy::new("ws://127.0.0.1:14980/", issuer, presenter, Redial::default()));
+//!         app.manage(TauriProxy::new("ws://127.0.0.1:14980/", presenter, Redial::default()));
 //!         Ok(())
 //!     })
 //!     .invoke_handler(tauri::generate_handler![

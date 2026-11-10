@@ -15,18 +15,10 @@ pub enum Error {
     NotAuth,
     /// The other end's token could not be read.
     Malformed(AuthError),
-    /// This end has no token to present from the issuer: why.
+    /// This end has no token to present: why.
     Present(String),
     /// This end does not accept the other end's token: why.
     Refused(String),
-    /// The connectee answered from another issuer than the one the
-    /// connector presented.
-    Issuer {
-        /// The issuer the connector presented.
-        sent: String,
-        /// The issuer the connectee answered from.
-        answered: String,
-    },
     /// A token could not be sent: the connection is already over.
     Send(String),
 }
@@ -39,9 +31,6 @@ impl fmt::Display for Error {
             Error::Malformed(error) => write!(f, "the other end's token could not be read: {error}"),
             Error::Present(why) => write!(f, "this end has no token to present: {why}"),
             Error::Refused(why) => write!(f, "the other end's token is not accepted: {why}"),
-            Error::Issuer { sent, answered } => {
-                write!(f, "the connectee answered from `{answered}`, not `{sent}`, the issuer presented")
-            }
             Error::Send(why) => write!(f, "the token could not be sent: {why}"),
         }
     }

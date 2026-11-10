@@ -17,24 +17,24 @@
 //!    [`Auth`](crate::wire::frame::auth::Auth). An empty payload, a
 //!    flag of any other byte, a description that is not one, an empty
 //!    token, or a token that is not UTF-8 is malformed.
-//! 2. **The connector speaks first.** Its first frame is its token from
-//!    the issuer of its choice, and it sends nothing else until the
-//!    connectee has answered.
+//! 2. **The connector speaks first.** Its first frame is its token —
+//!    the identity it connects as — and it sends nothing else until
+//!    the connectee has answered.
 //! 3. **The connectee answers.** It reads the connector's token,
-//!    verifies it, and sends its own token as its first frame — one
-//!    from the SAME issuer: the `iss` of the token it received,
-//!    exactly. It serves nothing before it has answered.
+//!    verifies it, and sends its own token as its first frame: the
+//!    token of the one identity it answers as, whatever issuer the
+//!    connector's token is from. It serves nothing before it has
+//!    answered.
 //! 4. **The connector checks the answer.** It verifies the connectee's
-//!    token, and its `iss` must be the issuer it presented.
-//! 5. **Judgment is each end's own.** Which issuers an end trusts, the
-//!    signature, the expiry, the audience, and whether the token's
-//!    `(iss, sub)` is one it admits are the [`Authenticator`]'s, not
-//!    the protocol's.
+//!    token. The two tokens need not share an issuer.
+//! 5. **Judgment is each end's own.** Which token an end presents,
+//!    which issuers it trusts, the signature, the expiry, the
+//!    audience, and whether the token's `(iss, sub)` is one it admits
+//!    are the [`Authenticator`]'s, not the protocol's.
 //! 6. **Failure is a close.** A first frame that is not type `0`, a
-//!    malformed token, a token an end does not accept, a connectee with
-//!    no token from the connector's issuer, and an answer from another
-//!    issuer each end the connection, and no frame says why — in either
-//!    direction.
+//!    malformed token, a token an end does not accept, and an end with
+//!    no token to present each end the connection, and no frame says
+//!    why — in either direction.
 //! 7. **Exactly one each.** A type `0` frame after the handshake, in
 //!    either direction, ends the connection.
 //! 8. **What it establishes.** Each end holds the other's [`Peer`] —

@@ -11,14 +11,13 @@ use crate::wire::handshake::{Authenticator, Peer};
 /// The handshake's side of a program that dials as one identity and
 /// judges nobody — see the [rules](super), rule 11:
 ///
-/// 1. **Presenting.** At the identity's issuer, its ID token, good
-///    for at least [`VALID_FOR`], refreshed as rule 4 says. At any
-///    other issuer, nothing: the handshake fails.
+/// 1. **Presenting.** The identity's ID token, good for at least
+///    [`VALID_FOR`], refreshed as rule 4 says.
 /// 2. **Taking the answer at its word.** The other end's token is read
 ///    for its `iss` and its `sub`, and neither its signature nor who it
-///    names is judged. A token that is no JWT, or names no `iss` or no
-///    `sub`, fails the handshake; the handshake itself still requires
-///    the answer's issuer to be the one presented.
+///    names is judged — its issuer need not be the identity's. A token
+///    that is no JWT, or names no `iss` or no `sub`, fails the
+///    handshake.
 #[derive(Debug, Clone)]
 pub struct Presenter {
     identities: Identities,
@@ -33,11 +32,8 @@ impl Presenter {
 }
 
 impl Authenticator for Presenter {
-    fn present<'a>(&'a self, issuer: &'a str) -> BoxFuture<'a, Result<String, String>> {
+    fn present<'a>(&'a self) -> BoxFuture<'a, Result<String, String>> {
         Box::pin(async move {
-            if issuer != self.name.issuer {
-                return Err(format!("this end presents {} and holds no identity at `{issuer}`", self.name));
-            }
             let token = self.identities.id_token(&self.name, VALID_FOR).await.map_err(|error| error.to_string())?;
             Ok(token.expose().to_string())
         })

@@ -13,9 +13,9 @@ use crate::wire::connection::Connection;
 use crate::wire::handshake::{Authenticator, Handshook, Peer, connect};
 
 /// The daemon at `address` dialled, the [`handshake`](crate::wire::handshake)
-/// done as its connector — this end's token from `issuer` presented,
-/// the daemon's own from the same issuer verified, both through
-/// `authenticator` — and the connection split: the handle every request
+/// done as its connector — this end's token presented, the daemon's
+/// own verified, both through `authenticator` — and the connection
+/// split: the handle every request
 /// is put on, the router's run — the read loop, not yet running — and
 /// the daemon, verified. The caller spawns the run on its own runtime,
 /// and its completion is the connection's end, however it ended.
@@ -25,15 +25,11 @@ use crate::wire::handshake::{Authenticator, Handshook, Peer, connect};
 /// socket that could not be made is [`DialError::Dial`]; a handshake
 /// that did not complete, on either end's word, is
 /// [`DialError::Handshake`].
-pub async fn dial(
-    address: &str,
-    issuer: &str,
-    authenticator: &dyn Authenticator,
-) -> Result<(Handle, impl Future<Output = ()> + Send + 'static, Peer), DialError> {
+pub async fn dial(address: &str, authenticator: &dyn Authenticator) -> Result<(Handle, impl Future<Output = ()> + Send + 'static, Peer), DialError> {
     let (socket, _) = connect_async(url(address)).await.map_err(|error| DialError::Dial(error.to_string()))?;
     let at = peer_ip(&socket);
     let Handshook { connection, peer, .. } =
-        connect(Connection::Outgoing(socket), issuer, Listable::Hidden, authenticator, at).await.map_err(|error| DialError::Handshake(error.to_string()))?;
+        connect(Connection::Outgoing(socket), Listable::Hidden, authenticator, at).await.map_err(|error| DialError::Handshake(error.to_string()))?;
     let (handle, router) = Handle::open(connection);
     let run = async move {
         let _ = router.run().await;
