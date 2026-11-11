@@ -1,6 +1,6 @@
 ---
 title: 'Endpoints'
-summary: 'A request’s payload begins with one tag byte designating the endpoint; twenty-nine endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
+summary: 'A request’s payload begins with one tag byte designating the endpoint; thirty endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
 order: 7
 draft: false
 ---
@@ -41,6 +41,7 @@ endpoint's request content, in the form the endpoint defines.
 | `26` | [daemons::list](/endpoints/daemons-list/) |
 | `27` | [daemons::listen](/endpoints/daemons-listen/) |
 | `28` | [daemons::message](/endpoints/daemons-message/) |
+| `29` | [daemons::announce](/endpoints/daemons-announce/) |
 
 The tag values are normative as tabulated. Each endpoint has its own
 section. Every section of this layer states requirements of the
@@ -65,32 +66,33 @@ input the server serves, and imposes no requirement on the client.
 
 ## One open at a time
 
-Six endpoints are held at most once each per connection:
+Seven endpoints are held at most once each per connection:
 [volumes::list](/endpoints/volumes-list/),
 [images::list](/endpoints/images-list/),
 [daemons::list](/endpoints/daemons-list/),
 [daemons::accept](/endpoints/daemons-accept/),
-[daemons::listen](/endpoints/daemons-listen/) and
-[daemons::message](/endpoints/daemons-message/).
+[daemons::listen](/endpoints/daemons-listen/),
+[daemons::message](/endpoints/daemons-message/) and
+[daemons::announce](/endpoints/daemons-announce/).
 
 - **One at a time.** On one connection, at most one scope of each of
-  the six endpoints is open at a time.
-- **Open until its finish.** A scope of one of the six is open from
+  the seven endpoints is open at a time.
+- **Open until its finish.** A scope of one of the seven is open from
   the moment the server reads its request until the server sends its
   response finish.
 - **Refused, not queued.** The server answers a request for one of
-  the six endpoints, on a connection on which a scope of that
+  the seven endpoints, on a connection on which a scope of that
   endpoint is open, with exactly one response, the endpoint's
   already-open response, which its response page defines. The
   response finish follows it, and no other frame bearing the scope
   precedes or follows it. The server lists nothing and accepts nothing
-  for the refused request, sends no message for it, and the open
-  scope is unaffected.
+  for the refused request, sends no message for it, announces nothing
+  for it, and the open scope is unaffected.
 - **Free before the finish.** The server ceases to hold a scope of
-  one of the six open before it sends that scope's response finish.
+  one of the seven open before it sends that scope's response finish.
   A request for the same endpoint that the server reads after it has
   sent that finish is not refused under this section.
-- **Per endpoint, per connection.** The six endpoints are
+- **Per endpoint, per connection.** The seven endpoints are
   independent of one another. A scope open on one connection has no
   bearing on a request read on another connection, except as
   [daemons::accept](/endpoints/daemons-accept/) and

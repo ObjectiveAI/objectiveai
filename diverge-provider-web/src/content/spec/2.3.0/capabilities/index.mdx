@@ -201,10 +201,10 @@ it, at most at the rate the object states, as the pages of
   [daemons::message](/endpoints/daemons-message/#the-window) page defines.
 - **Not held out.** The server relays no message. The server answers:
   - a [daemons::listen](/endpoints/daemons-listen/) request with
-    exactly one response, the byte `2` and nothing else, and the
+    exactly one response, the byte `1` and nothing else, and the
     response finish; it opens no mailbox;
   - a [daemons::message](/endpoints/daemons-message/) request with exactly
-    one response, the byte `4` and nothing else, and the response
+    one response, the byte `3` and nothing else, and the response
     finish; it queues nothing and counts nothing.
 
 The object is defined by

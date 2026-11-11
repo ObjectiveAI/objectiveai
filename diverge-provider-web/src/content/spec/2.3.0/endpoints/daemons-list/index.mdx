@@ -1,19 +1,19 @@
 ---
 title: 'daemons::list'
-summary: 'Tag 26: a client asks which connected identities are listable; the server sends every such identity, with its description, its IP and its address, as added, says when the listing is whole, keeps sending as listable identities connect and disconnect, and finishes when the client cancels.'
+summary: 'Tag 26: a client asks which connected identities are announced; the server sends every such identity, with its announcement, its IP and its address, as added, says when the listing is whole, keeps sending as identities open and end their announce scopes, and finishes when the client cancels.'
 order: 26
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
 `26` and nothing more. The server sends every identity connected to
-it whose [listable flag](/authorization/#the-listable-flag) is `1` or
-`2`, one response each with the description its flag `2` carried and
-the IP and the address of its connection, then the word that the
-listing is whole, and keeps the scope open: an
-identity whose connection opens with the flag `1` or `2` is sent as
-added, and an identity whose connection ends is sent as
-removed, for as long as the scope lives. The scope ends at the
+it that holds a [daemons::announce](/endpoints/daemons-announce/)
+scope open, one response each with the announcement that scope
+carries and the IP and the address of its connection. The server
+sends the word that the listing is whole after them, and keeps the
+scope open: an identity whose announce scope opens is sent as added,
+and an identity whose announce scope ends is sent as removed, for as
+long as the scope lives. The scope ends at the
 client's cancel or at the client's connection ending; the response
 finish follows, and no frame follows the finish. A connection holds
 at most one daemons::list scope open at a time, as
@@ -28,19 +28,20 @@ at most one daemons::list scope open at a time, as
   [Client Channels](/endpoints/daemons-list/client/), the cancel. The server
   opens no channel on a daemons::list scope.
 - **The listing.** The listing is zero or more identities. An
-  identity is in the listing exactly when a connection authorized
-  under it is open to the server and that connection's client sent
-  the listable flag `1` or `2`, whether the client was the connector
-  or the connectee. Each identity is listed with the description that
-  connection's flag `2` carried, or with none under the flag `1`; with
-  the IP of the connection's other end; and, when the server is the
-  connection's connector, with the dial target the server dialled the
-  client at. An identity whose connection carried the flag `0` is not
-  in the listing. An identity with no open connection is not in the
-  listing.
+  identity is in the listing exactly while a connection authorized
+  under it is open to the server and a
+  [daemons::announce](/endpoints/daemons-announce/) scope is open on
+  that connection, whether the client was the connector or the
+  connectee. Each identity is listed with the announcement that scope
+  carries; with the IP of the connection's other end; and, when the
+  server is the connection's connector, with the dial target the
+  server dialled the client at. An identity whose connection holds no
+  announce scope open is not in the listing. An identity with no open
+  connection is not in the listing.
 - **The asking client.** The server serves the request for every
-  client it serves. The asking client's own identity is in the listing
-  when its own connection carried the flag `1` or `2`.
+  client it serves, whether or not the client holds an announce scope
+  open. The asking client's own identity is in the listing exactly
+  while its own connection holds an announce scope open.
 
 ## The order
 
@@ -49,16 +50,17 @@ at most one daemons::list scope open at a time, as
    provides.
 2. **The server sends the listing.** The server sends every identity
    in the listing, one response each, the byte `0` followed by the
-   identity, its description, its IP and its address. A server with no identity in the listing sends none.
+   identity, its announcement, its IP, its address and whether it
+   listens. A server with no identity in the listing sends none.
 3. **The server says the listing is whole.** The server sends exactly
    one response whose payload is the byte `2` and nothing else. The
    server sends it exactly once on a scope, after every response of
    step 2 and before any other response.
 4. **The server keeps the listing.** For the life of the scope: when
-   a connection whose client sent the flag `1` or `2` completes its
-   authorization, the server sends that connection's identity as
-   added; when such a connection ends, the server sends its identity
-   as removed.
+   an announce scope opens on a connection, the server sends that
+   connection's identity as added; when that announce scope ends, at
+   its client's cancel or at its connection ending, the server sends
+   the identity as removed.
 5. **The server ends the scope.** When the server receives the
    client's [cancel](/endpoints/daemons-list/client/cancel/), or the client's
    connection ends, the server sends the response finish.
@@ -70,13 +72,14 @@ at most one daemons::list scope open at a time, as
   removed. The client's cancel and the client's connection ending are
   the only ends.
 - **Once per identity.** An identity holds at most one connection to
-  the server at a time. The server sends an identity as added exactly
+  the server at a time, and a connection holds at most one announce
+  scope open at a time. The server sends an identity as added exactly
   once while it is listed, and as removed exactly once, only after it
-  was sent as added. An identity whose connection ends and whose
-  identity connects again with the flag `1` or `2` is sent as removed
-  and then as added. The server sends no identity as changed: a
-  description, an IP and an address are the connection's, and do not
-  change while the identity is listed.
+  was sent as added. An identity whose announce scope ends and which
+  opens another is sent as removed and, after that, as added. The
+  server sends no identity as changed: an IP and an address are the
+  connection's, an announcement is the announce scope's, and none of
+  the three changes while the identity is listed.
 - **An empty listing.** The byte `2` with no response before it
   states that no identity is in the listing. An empty listing is not
   an error.

@@ -1,0 +1,81 @@
+---
+title: 'daemons::announce'
+summary: 'Tag 29: a client asks to be listed with one announcement; the server lists the client’s identity in every daemons::list listing for exactly as long as the scope is open, sends no response while it is, and finishes when the client cancels.'
+order: 29
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`29` followed by the announcement. The server lists the identity of
+the connection, with that announcement, in every
+[daemons::list](/endpoints/daemons-list/) listing it keeps, for
+exactly as long as the scope is open, and sends no response while the
+scope is open. The scope ends at the client's cancel or at the
+client's connection ending; the response finish follows the cancel,
+and no frame follows the finish. A connection holds at most one
+daemons::announce scope open at a time, as
+[One open at a time](/endpoints/#one-open-at-a-time) provides.
+
+- **The request.** The request carries exactly one announcement.
+  [Request](/endpoints/daemons-announce/request/) states its form.
+- **The response.** [Response](/endpoints/daemons-announce/response/)
+  states the one response and the sequence of the main stream.
+- **The channels.** The client opens the one channel of
+  [Client Channels](/endpoints/daemons-announce/client/), the cancel.
+  The server opens no channel on a daemons::announce scope.
+- **No capability.** Every server serves this endpoint, and no
+  capability governs it.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode, a request whose announcement is malformed among them, is
+   answered by a response finish that no response precedes, as
+   [Endpoints](/endpoints/) provides; the server lists nothing for it.
+   A request read while a daemons::announce scope is open on the same
+   connection is answered by exactly one response, the byte `0`, and
+   the response finish; the scope open already and its announcement
+   are unchanged.
+2. **The server lists the identity.** The server enters the identity
+   of the connection, as the [authorization](/authorization/)
+   established it, in the listing, with the announcement of the
+   request, the IP of the connection's other end, and the dial target
+   when the server dialled the client. The server sends the identity
+   as added on every daemons::list scope open at that moment, on any
+   connection, and sends it among the identities of every
+   daemons::list scope opened while the announce scope is open, as
+   [daemons::list](/endpoints/daemons-list/) provides. An identity
+   that holds a [daemons::listen](/endpoints/daemons-listen/) mailbox
+   open when it is entered is listed as listening.
+3. **The server holds the scope open.** The server sends no response
+   on the scope while the scope is open.
+4. **The server ends the scope.** When it receives the client's
+   [cancel](/endpoints/daemons-announce/client/cancel/), the server
+   removes the identity from the listing, sends the identity as
+   removed on every daemons::list scope on which it was sent as
+   added, and sends the response finish. When the client's connection
+   ends, the server removes the identity from the listing and sends
+   it as removed in the same way.
+
+## The rules that hold throughout
+
+- **Listed exactly while open.** The identity is in the listing from
+  step 2 to step 4, and at no other time. No other request, no frame
+  of the [Authorization](/authorization/) layer, and no configuration
+  of the server enters an identity in the listing.
+- **No end of its own.** The server does not end the scope. The
+  client's cancel and the client's connection ending are the only
+  ends.
+- **No timeout.** The server times nothing out.
+- **The announcement is fixed.** The announcement of an open scope
+  does not change. A client that changes its announcement cancels the
+  scope and opens another; every daemons::list scope is sent the
+  identity as removed and, after that, as added.
+- **Independent.** The opening and the ending of a daemons::announce
+  scope neither open nor end a
+  [daemons::accept](/endpoints/daemons-accept/) scope, a
+  [daemons::listen](/endpoints/daemons-listen/) scope or a
+  [daemons::message](/endpoints/daemons-message/) scope, and none of
+  the three requires a daemons::announce scope to be open. A client
+  holds any of the four without the others.
+- **No error.** No response of this endpoint states a failure.

@@ -1,6 +1,6 @@
 ---
 title: 'Authorization'
-summary: 'The connector’s first frame is its listable flag and its token, and the connectee’s first frame is its own flag and its own token, which need not name the connector’s issuer; a token either party does not accept closes the connection, and no frame says why.'
+summary: 'The connector’s first frame is its token, and the connectee’s first frame is its own token, which need not name the connector’s issuer; a token either party does not accept closes the connection, and no frame says why.'
 order: 3
 draft: false
 ---
@@ -9,8 +9,8 @@ The party that initiated the WebSocket connection is the
 **connector**; the party that accepted it is the **connectee**. Either
 protocol role may occupy either position: a client may connect to a
 server, and a server may connect to a client. Each party sends exactly
-one authorization frame, which carries its listable flag and its
-token. The connector sends its frame first. The connectee answers with its own token. The
+one authorization frame, whose payload is its token and nothing
+else. The connector sends its frame first. The connectee answers with its own token. The
 two tokens need not name the same issuer. A token that either party does not accept closes the
 connection.
 
@@ -22,13 +22,13 @@ connection.
   Protocol is not governed by this layer, and carries no authorization
   frame.
 - **The connector's first frame.** The first frame the connector
-  sends is an authorization frame (type `0`), whose payload carries
-  the connector's listable flag and the connector's token. No frame precedes it. The connector sends no
+  sends is an authorization frame (type `0`), whose payload is the
+  connector's token. No frame precedes it. The connector sends no
   other frame until the connectee's authorization frame has arrived
   and the connector has accepted it.
 - **The connectee's first frame.** The first frame the connectee
-  sends is an authorization frame, whose payload carries the
-  connectee's listable flag and the connectee's token. The connectee sends it only after it has accepted the
+  sends is an authorization frame, whose payload is the connectee's
+  token. The connectee sends it only after it has accepted the
   connector's token. The connectee serves no frame of the connector's
   before it has sent its own authorization frame.
 - **No shared issuer.** The connectee's token and the connector's
@@ -48,88 +48,33 @@ connection.
 
 ## The payload
 
-The authorization frame's payload is one byte, the listable flag,
-followed by the description when the flag is `2`, followed by the
-token. The scope and channel fields of the frame are ignored.
+The authorization frame's payload is the token, and nothing else.
+The scope and channel fields of the frame are ignored.
 
 ```text
-[0][token …]                                  not listable
-[1][token …]                                  listable, no description
-[2][length, u16][description …][token …]      listable, described
+[token …]
 ```
 
-- **The listable flag.** The first byte of the payload. The byte `0`
-  states that the sender is not listable. The byte `1` states that
-  the sender is listable and gives no description. The byte `2`
-  states that the sender is listable and gives a description.
-  [The listable flag](#the-listable-flag) states what the flag binds.
-- **The description.** After the byte `2` only: the description's
-  length in bytes, a `u16`, big-endian, followed by exactly that many
-  bytes, the description encoded as UTF-8.
-  [The description](#the-description) states what a description is.
-- **The token.** Every byte of the payload after the flag and the
-  description: a JSON Web Token, as RFC 7519 defines one, encoded as
-  UTF-8. No length field precedes it, because WebSocket already
-  delimits messages.
+- **The token.** Every byte of the payload: a JSON Web Token, as
+  RFC 7519 defines one, encoded as UTF-8. No byte precedes the token
+  and no byte follows it. No length field precedes it, because
+  WebSocket already delimits messages.
 - **The issuer.** The token's `iss` claim names the issuer of the
   token. The connectee does not determine the issuer of its own
   token from it.
-- **Malformed.** A payload that is empty, a payload whose first byte
-  is none of `0`, `1` and `2`, a payload whose description length or
-  description runs past the end of the payload, a description that is
-  not valid UTF-8 or breaks a rule of
-  [The description](#the-description), a payload with no byte after
-  the flag and the description, and a payload whose token is not
-  valid UTF-8 are malformed. A party that receives a malformed payload
-  closes the connection.
+- **Nothing else.** The payload states nothing but the token. It
+  carries no flag, no description, and no statement of what the
+  sender asks of the connection. Whether the server lists the
+  client's identity is the matter of
+  [daemons::announce](/endpoints/daemons-announce/), and of no frame
+  of this layer.
+- **Malformed.** A payload that is empty and a payload that is not
+  valid UTF-8 are malformed. A party that receives a malformed
+  payload closes the connection.
 
-## The listable flag
+The payload is defined by `diverge-sdk-rs/src/wire/frame/auth.rs`:
 
-The listable flag states whether the server lists the client's
-identity in its [daemons::list](/endpoints/daemons-list/) listings.
-
-- **The client's flag binds the server.** The server honors the flag
-  of the client's authorization frame, whether the client is the
-  connector or the connectee. A client whose flag is `1` or `2` is in
-  every `daemons::list` listing the server keeps, on any connection, for as
-  long as the connection that carried the flag remains open, with the
-  description the flag `2` carried: it is sent as added when that
-  connection completes its authorization, and as removed when that
-  connection ends. A client whose flag is `0` is not listed on account
-  of that connection.
-- **The server's flag.** The server sends the byte `0`. The client
-  reads the server's flag and ignores it.
-- **For the connection's life.** A flag and its description hold for
-  the connection that carried them. No frame changes them. A client
-  changes its flag or its description only by opening another
-  connection.
-- **Malformed.** A flag that is none of `0`, `1` and `2` is malformed,
-  and the party that receives it closes the connection, as
-  [The payload](#the-payload) provides.
-
-The flag is defined by `diverge-sdk-rs/src/shared/listable.rs`:
-
-```rust include=diverge-sdk-rs/src/shared/listable.rs
-```
-
-## The description
-
-A description is what a listable client says of itself. The
-server lists it beside the client's identity. Its rules are the
-limit and the plain-text rule of the `description` of a Chrome
-extension's manifest.
-
-- **Plain text.** A description is one line. It holds no control
-  character: no newline and no tab.
-- **Short.** A description holds at least one character and at most
-  `132`, counted as Unicode scalar values.
-- **Trimmed.** A description neither begins nor ends with whitespace.
-- **Equal is the same.** Two descriptions are the same description
-  exactly when their bytes are equal.
-
-The description is defined by `diverge-sdk-rs/src/shared/description.rs`:
-
-```rust include=diverge-sdk-rs/src/shared/description.rs
+```rust include=diverge-sdk-rs/src/wire/frame/auth.rs
 ```
 
 ## Refusal is a close
@@ -163,7 +108,3 @@ transmit it on the wire, does not derive a value it sends from it, and
 does not serve a scope under any identity other than that of the
 connection the scope was opened on. The layers at which the identity
 bears on an exchange name it where it applies.
-
-Acceptance also establishes, at the server, the client's listable
-flag, which the server holds for the life of the connection, as
-[The listable flag](#the-listable-flag) provides.

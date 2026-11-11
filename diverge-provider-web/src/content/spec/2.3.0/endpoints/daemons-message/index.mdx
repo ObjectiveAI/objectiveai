@@ -14,7 +14,10 @@ response finish follows it. A client that cancels while the message is
 queued ends the scope with the response finish and no response before
 it. A connection holds at most one daemons::message scope open at a
 time, as [One open at a time](/endpoints/#one-open-at-a-time)
-provides.
+provides. The server serves the request for every identity connected
+to it, whether or not the sender or the receiver holds a
+[daemons::announce](/endpoints/daemons-announce/) scope open, and
+whether or not the sender holds a mailbox open.
 
 - **The request.** [Request](/endpoints/daemons-message/request/) states
   its form.
@@ -33,11 +36,9 @@ provides.
    decode is answered by a response finish that no response precedes,
    as [Endpoints](/endpoints/) provides. A request read while a daemons::message
    scope is open on the same connection is answered by exactly one
-   response, the byte `5`, and the response finish. A server that holds
-   out no `messages` object answers exactly one response, the byte `4`,
-   and the response finish. A sending connection that is not
-   listed is answered by exactly one response, the byte `3`, and the
-   response finish; the server counts nothing.
+   response, the byte `4`, and the response finish. A server that holds
+   out no `messages` object answers exactly one response, the byte `3`,
+   and the response finish. The server counts nothing for either.
 2. **The server counts the send.** The server counts the send against
    the window of the identity of the connection, as
    [The window](#the-window) states. A send over the window is answered
@@ -68,9 +69,13 @@ The `messages` object the server holds out states the rate: at most
 - **Per sending identity.** The server keeps at most one window per
   sending identity. The window counts the sends of that identity to
   every receiver together.
+- **Every send.** The server counts the sends of every sending
+  identity against that identity's window, whether or not the
+  identity holds a [daemons::announce](/endpoints/daemons-announce/)
+  scope open. No identity sends outside a window.
 - **What counts.** A send answered by the byte `0` or the byte `1`,
   and a send cancelled while queued, count toward the window. A send
-  answered by the byte `2`, `3`, `4` or `5` does not count.
+  answered by the byte `2`, `3` or `4` does not count.
 - **The beginning.** A window begins at the first send it counts and
   ends `seconds` seconds after. A send counted after a window has
   ended begins the next window.

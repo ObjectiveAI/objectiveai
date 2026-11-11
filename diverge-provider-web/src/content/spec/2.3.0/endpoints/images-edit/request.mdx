@@ -21,7 +21,7 @@ the postcard wire format, as the postcard reading of
 - **`description`.** One byte: `0`, the image is to have no
   description; or `1`, followed by the description, UTF-8, preceded by
   its byte length as a varint. The description is a description as
-  [The description](/authorization/#the-description) defines it. A
+  [The description](/endpoints/daemons-announce/request/#the-description) defines it. A
   description that does not conform to that definition does not
   decode.
 - **Bytes after the request.** A server ignores every byte that

@@ -1,0 +1,41 @@
+---
+title: 'Response'
+summary: 'The server sends no response while the announce is open; the byte 0, alone and first, when an announce is open on the connection already; and the response finish.'
+order: 2
+draft: false
+---
+
+```text
+[0]   once, alone: an announce is open on the connection already
+```
+
+- **The sequence.** No response, and the response finish when the
+  client cancels. Or: exactly one response of the byte `0` and
+  nothing else, and the response finish.
+- **No response while open.** The server sends no response on a
+  scope it serves. The scope being open is the server's whole answer:
+  from the moment the server reads the request until the scope ends,
+  the client's identity is in every
+  [daemons::list](/endpoints/daemons-list/) listing, as
+  [daemons::announce](/endpoints/daemons-announce/) provides.
+- **Already open.** A payload that is the byte `0` and nothing else
+  states that a daemons::announce scope is open on the connection
+  already, as [One open at a time](/endpoints/#one-open-at-a-time)
+  provides. It is the only response of the scope, sent before
+  anything is listed; bytes after it are not read. The server lists
+  nothing for the refused request, and the scope open already and its
+  announcement are unchanged. It is the only response this endpoint
+  defines.
+- **No error.** No response of this endpoint states a failure. Every
+  server serves the endpoint, and no capability governs it.
+- **A finish with nothing before it.** The client cancelled, or the
+  request was not served, as [Endpoints](/endpoints/) provides: a
+  request whose announcement is malformed is not served. The server
+  does not say which.
+- **Malformed.** A payload with no byte, and a payload whose first
+  byte is not `0`, are malformed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/announce/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/announce/server/response/frame.rs
+```

@@ -14,7 +14,10 @@ client's cancel or at the client's connection ending; the response
 finish follows, and no frame follows the finish. A connection holds at
 most one daemons::listen scope open at a time, as
 [One open at a time](/endpoints/#one-open-at-a-time) provides, and an
-identity holds at most one on the server as a whole.
+identity holds at most one on the server as a whole. The server
+serves the request for every identity connected to it, whether or not
+the identity holds a [daemons::announce](/endpoints/daemons-announce/)
+scope open.
 
 - **The request.** The request carries no parameter; the tag is the
   whole of it. [Request](/endpoints/daemons-listen/request/) states
@@ -34,19 +37,19 @@ identity holds at most one on the server as a whole.
    decode is answered by a response finish that no response precedes,
    as [Endpoints](/endpoints/) provides. A request read while a listen
    scope is open on the same connection is answered by exactly one
-   response, the byte `3`, and the response finish. A server that holds
-   out no `messages` object answers exactly one response, the byte `2`,
-   and the response finish. A connection that is not listed is
-   answered by exactly one response, the byte `1`, and the response
-   finish.
+   response, the byte `2`, and the response finish. A server that holds
+   out no `messages` object answers exactly one response, the byte `1`,
+   and the response finish.
 2. **The server opens the mailbox.** The mailbox is held under the
    identity of the connection, as the
    [authorization](/authorization/) established it. A listen scope open
    under that identity already, on any connection, is answered by
-   exactly one response, the byte `3`, and the response finish. From
+   exactly one response, the byte `2`, and the response finish. From
    the opening of the mailbox to its closing, every daemons::list listing
-   states the identity as listening, as
-   [daemons::list](/endpoints/daemons-list/response/) provides.
+   that holds the identity states it as listening, as
+   [daemons::list](/endpoints/daemons-list/response/) provides. An
+   identity that is in no listing holds its mailbox open all the
+   same.
 3. **The server sends each message.** The server sends the oldest
    message queued in the mailbox as one response of the byte `0`. The
    server sends the next message only after the client has taken the
@@ -71,3 +74,7 @@ identity holds at most one on the server as a whole.
   queued them.
 - **No store.** The server keeps no message for an identity whose
   mailbox is not open.
+- **Independent of the announce.** The opening and the ending of a
+  [daemons::announce](/endpoints/daemons-announce/) scope neither open
+  nor close a mailbox, and the opening and the closing of a mailbox
+  neither open nor end an announce scope.
