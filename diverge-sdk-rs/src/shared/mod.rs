@@ -34,9 +34,9 @@
 //! provider is made of: how it authenticates, and what the acceptor is
 //! told of it.
 //!
-//! [`listable`] is what a party's authorization frame says of listing
-//! it to a provider's `daemons::list`; [`description`] is the one line
-//! it is listed with, which an image is described by too.
+//! [`description`] is one short line of plain text: what a daemon's
+//! announcement to a provider's `daemons::list` is, and what an image
+//! is described by.
 //!
 //! [`canonical`] is the one form a value is hashed in — compact JSON
 //! with every object key sorted at every depth — which every id that
@@ -61,7 +61,6 @@ pub mod daemons;
 pub mod description;
 pub mod error;
 pub mod filetree;
-pub mod listable;
 pub mod listing;
 pub mod mcp;
 pub mod nullable;

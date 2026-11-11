@@ -1,21 +1,20 @@
-//! Listing a provider's listable connected identities, and keeping
+//! Listing a provider's announced connected identities, and keeping
 //! the listing.
 //!
 //! One question with no parameters, and a stream kept open, shaped as
 //! [`images::list`](super::images::list): every identity connected to
-//! the provider whose [listable flag](crate::wire::frame::auth::Auth)
-//! was `1` or `2`, with the description its flag `2` carried, the word
-//! that the listing is whole, then every such identity that connects
-//! or disconnects after, until the caller cancels.
+//! the provider that holds a [`daemons::announce`](super::announce)
+//! open, with the announcement that scope carries, the word that the
+//! listing is whole, then every identity that comes to announce or
+//! stops after, until the caller cancels.
 //!
-//! # The flag is the peer's, and the handshake carries it
+//! # Listed is announced
 //!
-//! Each end of a connection sends the flag in its authorization frame.
-//! A provider honors the one it receives — whichever end dialled — and
-//! lists that identity, with the description that frame carried, for
-//! exactly as long as that connection lasts. An identity connected with
-//! the flag `0` is never listed, and an identity that is not connected
-//! is never listed.
+//! An identity is listed for exactly as long as it holds a
+//! [`daemons::announce`](super::announce) open — whichever end dialled
+//! the connection — with the announcement that scope carries. An
+//! identity connected without one is never listed, and an identity
+//! that is not connected is never listed.
 //!
 //! Split by who SENDS, as everywhere else: the question and the cancel
 //! are in [`client`], the answer in [`server`].

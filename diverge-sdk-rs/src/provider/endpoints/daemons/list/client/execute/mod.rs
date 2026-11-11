@@ -1,9 +1,9 @@
 //! Performing a daemons list, rather than describing it.
 //!
 //! [`execute`] opens the scope and hands back an [`ExecuteStream`] of
-//! what the provider sends — every listable connected identity as
+//! what the provider sends — every announced connected identity as
 //! added, the word that the listing is whole, then identities added
-//! and removed as they connect and disconnect — with the [`Cancel`] that
+//! and removed as they announce and stop announcing — with the [`Cancel`] that
 //! ends it. A listing has no end of its own, so the cancel is how a
 //! caller that has read what it wanted lets the scope go.
 //!

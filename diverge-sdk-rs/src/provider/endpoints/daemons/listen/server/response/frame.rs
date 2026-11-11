@@ -12,8 +12,7 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// A listen is a stream kept open. A payload leads with one byte
 /// saying which — `0` for [`Message`](Self::Message), `1` for
-/// [`NotListed`](Self::NotListed), `2` for
-/// [`Unsupported`](Self::Unsupported), `3` for
+/// [`Unsupported`](Self::Unsupported), `2` for
 /// [`AlreadyOpen`](Self::AlreadyOpen) — and the rest is that variant's
 /// own bytes. The rules:
 ///
@@ -28,15 +27,16 @@ use crate::wire::encode::{Encode, Writer};
 ///    the caller's connection ending, and nothing else.
 /// 4. **The refusals.** A provider that relays no messages sends
 ///    `Unsupported` first and alone, and the finish follows it. A
-///    connection that is not listed — its listable flag `0` — is
-///    sent `NotListed` first and alone, and the finish follows
-///    it: only a listable identity listens. A
 ///    connection with a listen open already, or an identity with a
 ///    listen open on another connection, is sent `AlreadyOpen` first
 ///    and alone, and the finish follows it — see
 ///    [the endpoints](crate::provider::endpoints#one-open-at-a-time).
 /// 5. **No error.** A provider always knows who is listening, so no
 ///    response fails.
+/// 6. **Any connected identity.** Every connected identity may listen,
+///    whether or not it holds a
+///    [`daemons::announce`](crate::provider::endpoints::daemons::announce)
+///    open: listening does not require being listed.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -53,20 +53,14 @@ pub enum Frame {
     /// There is no length before the body, because the payload already
     /// ends where the body does.
     Message(Message),
-    /// The caller's connection is not listed: its listable flag
-    /// was `0`, see [`daemons::list`](crate::provider::endpoints::daemons::list).
-    /// Tag `1`.
-    ///
-    /// Carries nothing. Sent first and alone (rule 4).
-    NotListed,
     /// The provider relays no messages: no `messages` object is among
     /// its capabilities, see [`info`](crate::provider::endpoints::info).
-    /// Tag `2`.
+    /// Tag `1`.
     ///
     /// Carries nothing. Sent first and alone (rule 4).
     Unsupported,
     /// Refused: a listen is open on this connection already, or under
-    /// the caller's identity on another. Tag `3`.
+    /// the caller's identity on another. Tag `2`.
     ///
     /// Carries nothing. Sent first and alone (rule 4).
     AlreadyOpen,
@@ -75,14 +69,11 @@ pub enum Frame {
 /// Tag for [`Frame::Message`].
 const MESSAGE: u8 = 0;
 
-/// Tag for [`Frame::NotListed`].
-const NOT_LISTED: u8 = 1;
-
 /// Tag for [`Frame::Unsupported`].
-const UNSUPPORTED: u8 = 2;
+const UNSUPPORTED: u8 = 1;
 
 /// Tag for [`Frame::AlreadyOpen`].
-const ALREADY_OPEN: u8 = 3;
+const ALREADY_OPEN: u8 = 2;
 
 impl Frame {
     /// Write a message's payload from its parts, as
@@ -106,10 +97,6 @@ impl Encode for Frame {
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), FrameEncodeError> {
         match self {
             Frame::Message(message) => Frame::encode_message(&message.from, &message.body, out),
-            Frame::NotListed => {
-                out.extend_from_slice(&[NOT_LISTED]);
-                Ok(())
-            }
             Frame::Unsupported => {
                 out.extend_from_slice(&[UNSUPPORTED]);
                 Ok(())
@@ -133,7 +120,6 @@ impl Decode<'_> for Frame {
                 let (from, body) = postcard::take_from_bytes(rest).map_err(FrameDecodeError::Identity)?;
                 Ok(Frame::Message(Message { from, body: Bytes::copy_from_slice(body) }))
             }
-            NOT_LISTED => Ok(Frame::NotListed),
             UNSUPPORTED => Ok(Frame::Unsupported),
             ALREADY_OPEN => Ok(Frame::AlreadyOpen),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
@@ -169,7 +155,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The sender's identity did not parse.
     Identity(postcard::Error),

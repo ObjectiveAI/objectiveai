@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::shared::relay::Relay;
 
-/// Ask the daemon for every identity listable through its
+/// Ask the daemon for every identity announced on its
 /// connected providers, each as a
 /// [`Listed`](crate::daemon::endpoints::providers::daemons::list::server::response::Listed).
 ///

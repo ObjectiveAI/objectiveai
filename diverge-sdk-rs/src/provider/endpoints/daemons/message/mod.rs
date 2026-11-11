@@ -8,7 +8,9 @@
 //! over its rate — and the scope finishes after it. The caller may
 //! cancel while the message waits; a cancel in time ends the scope with
 //! the finish and nothing before it. A connection holds at most one
-//! message open.
+//! message open. Any connected identity may send, announced or not and
+//! listening or not, and the provider's rate limit applies to every
+//! send.
 //!
 //! Split by who SENDS, as everywhere else: the question and the cancel
 //! are in [`client`], the answer in [`server`].

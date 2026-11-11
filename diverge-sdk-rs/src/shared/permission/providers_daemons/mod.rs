@@ -4,7 +4,7 @@
 //! What a grant may ask through the daemon's providers of the daemons
 //! connected to them, in the shape
 //! [`permission`](crate::shared::permission) states for actions over
-//! what exists: [`Over`], the actions — listing the listable identities,
+//! what exists: [`Over`], the actions — listing the announced identities,
 //! listening for messages, sending one — reaching the providers by their
 //! tags, as a grant over [`providers`](super::providers) does; and
 //! [`Permission`], one grant's worth of them. Nothing is made and

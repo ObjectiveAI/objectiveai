@@ -1,13 +1,18 @@
 //! Listening for the direct messages sent to the daemon. A client asks,
 //! and the daemon sends every message sent to its identity through any
-//! provider it is connected to, one response each, until the client
-//! cancels, the one channel it opens on the scope.
+//! messageable provider it is connected to, one response each, until
+//! the client cancels, the one channel it opens on the scope.
 //!
 //! The rules:
 //!
-//! 1. **Every connected provider.** The messages are those of every
-//!    connected provider's own `daemons::listen`, merged: at most one
-//!    listen per provider, however many clients listen.
+//! 1. **Every messageable provider.** The messages are those of every
+//!    connected provider's own `daemons::listen` that the daemon holds
+//!    open, merged. The daemon holds exactly one on each connected
+//!    provider whose record is `messageable`, for as long as the
+//!    connection lasts and the record says so, whether or not any
+//!    client listens; it holds none on a provider whose record is not.
+//!    The daemon need not announce itself on a provider to listen
+//!    there.
 //! 2. **Every listener hears every message.** Each client listening
 //!    reads the same merged messages, at its own pace; none waits for
 //!    another.

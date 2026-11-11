@@ -6,7 +6,10 @@
 //! [`message`](super::message) names the caller's identity in, one response
 //! each, in the order the provider queued them, until the caller
 //! cancels. A connection holds at most one listen scope open, and an
-//! identity at most one on the provider as a whole.
+//! identity at most one on the provider as a whole. Any connected
+//! identity may listen: a listen does not require the caller to be
+//! listed, and is independent of its
+//! [`announce`](super::announce).
 //!
 //! Split by who SENDS, as everywhere else: the question and the cancel
 //! are in [`client`], the messages in [`server`].

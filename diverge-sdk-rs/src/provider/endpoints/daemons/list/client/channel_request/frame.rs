@@ -21,7 +21,7 @@ pub enum Frame {
     /// [`ResponseFinish`](crate::wire::frame::server::ServerFrame::ResponseFinish),
     /// which already means nothing bearing this scope follows on any
     /// channel. The listing has no end of its own — a provider with
-    /// nothing listable is still watched — so this and the
+    /// nothing announced is still watched — so this and the
     /// caller's connection ending are the only ends it has; this is
     /// the one that says the caller is finished rather than
     /// gone.

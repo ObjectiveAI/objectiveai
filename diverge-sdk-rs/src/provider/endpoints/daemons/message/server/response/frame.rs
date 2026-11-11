@@ -15,8 +15,7 @@ use crate::wire::encode::{Encode, Writer};
 /// which — `0` for [`Delivered`](Self::Delivered), `1` for
 /// [`NotListening`](Self::NotListening), `2` for
 /// [`RateLimited`](Self::RateLimited), `3` for
-/// [`NotListed`](Self::NotListed), `4` for
-/// [`Unsupported`](Self::Unsupported), `5` for
+/// [`Unsupported`](Self::Unsupported), `4` for
 /// [`AlreadyOpen`](Self::AlreadyOpen) — and only `RateLimited` carries
 /// anything after it. The rules:
 ///
@@ -31,23 +30,27 @@ use crate::wire::encode::{Encode, Writer};
 ///    the receiver's queue — takes it out, and the scope finishes with
 ///    no response before the finish. A cancel after the provider sent
 ///    the message to the receiver changes nothing.
-/// 4. **The rate.** A send over its identity's window is
-///    `RateLimited`, and nothing is queued. What counts toward the
-///    window: every send answered `Delivered` or `NotListening`, and
-///    every send cancelled in time. What does not: `RateLimited`,
-///    `NotListed`, `Unsupported` and `AlreadyOpen`. A window begins at the first
-///    send it counts, and lasts the provider's `seconds`.
-/// 5. **The refusals.** `NotListening`, `RateLimited`,
-///    `NotListed`, `Unsupported` and `AlreadyOpen` are each sent
-///    before anything is queued, when their condition holds at the
-///    opening. `NotListed` is a caller whose connection is not
-///    listed — its listable flag `0` — since only a listable
-///    identity sends; `Unsupported` is a provider that relays no
-///    messages; `AlreadyOpen` is a connection with a
-///    message open already — see
+/// 4. **The rate.** The rate limit applies to every send, whoever
+///    sends it. A send over its identity's window is `RateLimited`,
+///    and nothing is queued. What counts toward the window: every send
+///    answered `Delivered` or `NotListening`, and every send cancelled
+///    in time. What does not: `RateLimited`, `Unsupported` and
+///    `AlreadyOpen`. A window begins at the first send it counts, and
+///    lasts the provider's `seconds`.
+/// 5. **The refusals.** `NotListening`, `RateLimited`, `Unsupported`
+///    and `AlreadyOpen` are each sent before anything is queued, when
+///    their condition holds at the opening. `Unsupported` is a
+///    provider that relays no messages; `AlreadyOpen` is a connection
+///    with a message open already — see
 ///    [the endpoints](crate::provider::endpoints#one-open-at-a-time).
 /// 6. **No error.** A provider always knows who is listening, so no
 ///    response fails.
+/// 7. **Any connected identity.** Every connected identity may send,
+///    whether or not it holds a
+///    [`daemons::announce`](crate::provider::endpoints::daemons::announce)
+///    open and whether or not it listens itself: sending requires
+///    neither being listed nor listening. The receiver need not be
+///    listed either; it need only be listening (rule 2).
 ///
 /// # A finish with nothing is an answer
 ///
@@ -70,15 +73,11 @@ pub enum Frame {
         /// The seconds until the window ends, rounded up.
         retry_after: u32,
     },
-    /// The caller's connection is not listed: its listable flag
-    /// was `0`, see [`daemons::list`](crate::provider::endpoints::daemons::list).
-    /// Tag `3`.
-    NotListed,
     /// The provider relays no messages: no `messages` object is among
     /// its capabilities, see [`info`](crate::provider::endpoints::info).
-    /// Tag `4`.
+    /// Tag `3`.
     Unsupported,
-    /// Refused: this connection has a message open already. Tag `5`.
+    /// Refused: this connection has a message open already. Tag `4`.
     AlreadyOpen,
 }
 
@@ -91,14 +90,11 @@ const NOT_LISTENING: u8 = 1;
 /// Tag for [`Frame::RateLimited`].
 const RATE_LIMITED: u8 = 2;
 
-/// Tag for [`Frame::NotListed`].
-const NOT_LISTED: u8 = 3;
-
 /// Tag for [`Frame::Unsupported`].
-const UNSUPPORTED: u8 = 4;
+const UNSUPPORTED: u8 = 3;
 
 /// Tag for [`Frame::AlreadyOpen`].
-const ALREADY_OPEN: u8 = 5;
+const ALREADY_OPEN: u8 = 4;
 
 /// The tag, and `RateLimited`'s varint after it.
 impl Encode for Frame {
@@ -118,7 +114,6 @@ impl Encode for Frame {
                     out.extend_from_slice(written);
                 }
             }
-            Frame::NotListed => out.extend_from_slice(&[NOT_LISTED]),
             Frame::Unsupported => out.extend_from_slice(&[UNSUPPORTED]),
             Frame::AlreadyOpen => out.extend_from_slice(&[ALREADY_OPEN]),
         }
@@ -136,7 +131,6 @@ impl Decode<'_> for Frame {
             DELIVERED => Ok(Frame::Delivered),
             NOT_LISTENING => Ok(Frame::NotListening),
             RATE_LIMITED => postcard::from_bytes(rest).map(|retry_after| Frame::RateLimited { retry_after }).map_err(FrameError::RetryAfter),
-            NOT_LISTED => Ok(Frame::NotListed),
             UNSUPPORTED => Ok(Frame::Unsupported),
             ALREADY_OPEN => Ok(Frame::AlreadyOpen),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -149,7 +143,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's six.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// `RateLimited`'s seconds did not parse.
     RetryAfter(postcard::Error),

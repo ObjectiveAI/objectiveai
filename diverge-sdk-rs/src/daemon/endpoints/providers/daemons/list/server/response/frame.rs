@@ -13,13 +13,13 @@ use super::Listed;
 /// A providers daemons list's answer: an identity added, changed or removed, the word
 /// that the listing is whole, forbidden, or a failure.
 ///
-/// A providers daemons list is a stream kept open. First every identity listable
-/// through a connected provider when the scope opened, in order — every
+/// A providers daemons list is a stream kept open. First every identity announced
+/// on a connected provider when the scope opened, in order — every
 /// connected provider's own listing read whole before it — the first
 /// `count` of them, each as [`Added`](Self::Added); then exactly one
 /// [`Listed`](Self::Listed); then, for the scope's life, an identity
-/// come to be listable as `Added`, one whose providers grew or
-/// shrank as [`Changed`](Self::Changed), one listable on no
+/// come to be announced as `Added`, one whose providers or
+/// announcements grew or shrank as [`Changed`](Self::Changed), one announced on no
 /// connected provider any more as [`Removed`](Self::Removed) — the
 /// listing kept as the first `count`, so one leaving that window is
 /// removed and one entering it added. The finish follows the client's cancel, the
@@ -67,10 +67,10 @@ pub enum Frame {
     /// One identity listed already, its providers as they are now,
     /// differing from what was last sent. Tag `1`.
     Changed(Listed),
-    /// One identity listed already, listable on no connected
+    /// One identity listed already, announced on no connected
     /// provider any more: as it was last sent. Tag `2`.
     Removed(Listed),
-    /// Every identity listable when the scope opened has been sent.
+    /// Every identity announced when the scope opened has been sent.
     /// Tag `3`.
     ///
     /// Carries nothing — the variant is bare. A client that wants the

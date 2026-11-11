@@ -1,5 +1,5 @@
 //! Listing peers through the daemon's providers. A client asks,
-//! and the daemon sends every identity listable on any provider it
+//! and the daemon sends every identity announced on any provider it
 //! is connected to — one response each, every provider it was seen on
 //! with it — then the word that the listing is whole, and keeps the
 //! scope open until the client cancels, the one channel it opens on
@@ -9,8 +9,8 @@
 //!
 //! 1. **Every connected provider.** The listing is the union of every
 //!    connected provider's own `daemons::list`: the identities
-//!    connected to it whose authorization frame carried the listable
-//!    flag `1`.
+//!    connected to it that hold its `daemons::announce` open, each with
+//!    the announcement it holds it with.
 //! 2. **One item per identity.** An identity seen on several providers
 //!    is one item, its providers all listed with it, and is
 //!    [`Changed`](server::response::Frame::Changed) as that list grows
@@ -19,7 +19,7 @@
 //!    disconnects, an identity seen only through it is removed, and one
 //!    seen elsewhere too is changed.
 //! 4. **Never this daemon.** The daemon's own identity at a provider
-//!    is not listed.
+//!    is not listed, whether or not the daemon announces itself there.
 //! 5. **What it is for.** An item is what a `daemons.connect` remote
 //!    of the daemon's configuration is made from: its `issuer`, and one
 //!    link per provider — that provider, and the item's identity as the

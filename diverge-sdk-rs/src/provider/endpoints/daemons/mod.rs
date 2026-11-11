@@ -1,7 +1,7 @@
 //! Daemons reaching one another through the provider: connecting,
-//! listing, and messaging.
+//! announcing, listing, and messaging.
 //!
-//! Five scopes. Two are one per end of a daemon connection. A daemon
+//! Six scopes. Two are one per end of a daemon connection. A daemon
 //! that will take connections from other daemons holds an [`accept`] on
 //! the provider; a daemon that wants one opens a [`connect`] naming the
 //! acceptor by the identity the provider knows it by, and the provider
@@ -12,11 +12,13 @@
 //! protocol, whole, and the provider is the one thing both ends happen
 //! to be connected to.
 //!
-//! [`list`] lists the identities connected to the provider that are
-//! listable — whose [listable flag](crate::wire::frame::auth::Auth) was
-//! `1` or `2` — and keeps the listing: what a daemon finds another by.
+//! [`announce`] is how an identity comes to be listed: a scope it
+//! holds open, carrying its announcement, for as long as it wants to be
+//! found. [`list`] lists the identities connected to the provider that
+//! hold an announce open, each with its announcement, and keeps the
+//! listing: what a daemon finds another by.
 //!
-//! The last two are direct messages between the listable identities.
+//! Two more are direct messages between connected identities.
 //! [`listen`] is a stream kept open: every message sent to the caller's
 //! identity, one response each, until the caller cancels. [`message`]
 //! is one message to one identity, and its one answer: delivered — the
@@ -38,14 +40,24 @@
 //!    a fixed-window rate in its
 //!    [capabilities](crate::provider::endpoints::info::server::response::MessagesCapabilities);
 //!    a provider that states none answers both scopes `Unsupported`.
+//!    The rate applies to every send.
+//! 5. **Any connected identity.** Every connected identity may listen,
+//!    and every connected identity may send, announced or not and
+//!    listening or not. Neither scope requires the caller, or the
+//!    receiver, to be listed.
+//! 6. **Independent.** Announcing, accepting, listening and sending
+//!    are independent of one another: an identity holds any of the
+//!    four scopes without the others, and opening or ending one changes
+//!    none of the others.
 //!
-//! [`list`], [`accept`], [`listen`] and [`message`] are each held at
-//! most once per connection — see
+//! [`list`], [`accept`], [`announce`], [`listen`] and [`message`] are
+//! each held at most once per connection — see
 //! [the endpoints](super#one-open-at-a-time).
 //!
 //! Split by who SENDS, as everywhere else.
 
 pub mod accept;
+pub mod announce;
 pub mod connect;
 pub mod list;
 pub mod listen;

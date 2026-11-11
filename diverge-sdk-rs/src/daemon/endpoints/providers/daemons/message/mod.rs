@@ -8,6 +8,10 @@
 //!    daemon sends through a provider whose daemons list holds the
 //!    identity listening, that the account's providers grant reaches
 //!    with `message`, choosing the one with the most of its rate left.
+//! 1a. **Whatever the daemon's own record says.** The daemon sends
+//!    through a provider whether or not it announces itself there and
+//!    whether or not it listens there: neither its `announcement` nor
+//!    its `messageable` is needed to send.
 //! 2. **Never refused for another send.** A provider holds one send
 //!    per connection; the daemon queues its own sends, and a message is
 //!    never refused because another is being sent.

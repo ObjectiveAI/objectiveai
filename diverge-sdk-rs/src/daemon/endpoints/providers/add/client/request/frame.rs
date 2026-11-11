@@ -6,10 +6,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::providers::Direction;
 use crate::shared::Identity;
+use crate::shared::description::Description;
 use crate::shared::relay::Relay;
 
 /// Ask the daemon to keep a provider's record, and to work with it from
 /// now on: dial it when it is outgoing, admit it when it is incoming.
+/// What the daemon holds open on the provider while it is connected is
+/// three members' word, each independent of the other two:
+///
+/// 1. **`announcement`.** Present, the daemon announces itself on the
+///    provider with that text — it holds the provider's
+///    `daemons::announce` open, and is in its `daemons::list`. Absent,
+///    it does not announce itself there.
+/// 2. **`accept_daemons`.** `true`, the daemon accepts connections from
+///    other daemons through the provider — it holds the provider's
+///    `daemons::accept` open. Absent, `true`.
+/// 3. **`messageable`.** `true`, the daemon listens for messages on the
+///    provider — it holds the provider's `daemons::listen` open.
+///    Absent, `false`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
@@ -19,14 +33,23 @@ pub struct Frame {
     /// beside the request's own, under `direction`.
     #[serde(flatten)]
     pub direction: Direction,
-    /// Whether the daemon is listable to the provider: listed by its
-    /// `daemons::list`, with the daemon's description. Absent, `false`.
+    /// What the daemon announces itself with on the provider: rule 1.
+    /// Absent, the daemon does not announce itself there.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub announcement: Option<Description>,
+    /// Whether the daemon accepts connections from other daemons
+    /// through the provider: rule 2. Absent, `true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accept_daemons: Option<bool>,
+    /// Whether the daemon listens for messages on the provider: rule 3.
+    /// Absent, `false`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub listable: bool,
+    pub messageable: bool,
     /// Whether the daemon works with it from now on. Absent, `true`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
-    /// What it is, in the caller's words. Absent, none.
+    /// What it is, in the caller's words: the operator's note, which
+    /// the provider never sees. Absent, none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// The tags to put on it. Absent, none.

@@ -25,7 +25,7 @@
 //!    [`Via`](crate::daemon::endpoints::providers::daemons::list::server::response::Via)
 //!    — and holds those listings open while it is reaching remotes, as
 //!    [`providers::daemons::list`](crate::daemon::endpoints::providers::daemons::list)
-//!    holds them while watched. A remote that is listable on no
+//!    holds them while watched. A remote that is announced on no
 //!    connected provider is not reached.
 //! 2a. **Through the routes its record lets through.** Of those routes,
 //!    only the ones the record's [`Routes`] let through are candidates,

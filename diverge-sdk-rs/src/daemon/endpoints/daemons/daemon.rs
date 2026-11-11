@@ -23,7 +23,7 @@ use crate::shared::listing::Keyed;
 ///    handshake between the two speaks.
 /// 4. **Reached** through any connected provider whose daemons list
 ///    holds `daemon` by a route its [`Routes`] let through: the remote is
-///    reachable exactly while it is listable so on one of them.
+///    reachable exactly while it is announced so on one of them.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Daemon {

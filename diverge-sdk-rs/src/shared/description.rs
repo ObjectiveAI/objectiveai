@@ -1,5 +1,5 @@
-//! What a party says of itself, in one short line: as a provider's
-//! `daemons::list` lists it, and as an image is described.
+//! One short line of plain text: a daemon's announcement, as a
+//! provider's `daemons::list` lists it, and an image's description.
 
 use std::borrow::Cow;
 use std::fmt;
@@ -12,9 +12,11 @@ use serde::{Deserialize, Serialize};
 /// manifest — "no more than 132 characters".
 pub const DESCRIPTION_CHARACTERS: usize = 132;
 
-/// What a party says of itself, in one short line: as a provider's
-/// `daemons::list` lists a listable party beside its identity, and as
-/// an image is described. The rules:
+/// One short line of plain text. It is what a daemon's announcement
+/// is made of — the text of its
+/// [`daemons::announce`](crate::provider::endpoints::daemons::announce),
+/// which a provider's `daemons::list` lists beside its identity — and
+/// what an image's description is made of. The rules:
 ///
 /// 1. **Plain text.** One line: no control character — no newline, no
 ///    tab — anywhere in it.

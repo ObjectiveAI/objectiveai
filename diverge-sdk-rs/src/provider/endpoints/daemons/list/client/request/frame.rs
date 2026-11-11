@@ -3,7 +3,7 @@
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask a provider which connected identities are listable.
+/// Ask a provider which connected identities are announced.
 ///
 /// Carries nothing. The tag is the whole request — there is no
 /// parameter because there is nothing to ask about beyond the asking,

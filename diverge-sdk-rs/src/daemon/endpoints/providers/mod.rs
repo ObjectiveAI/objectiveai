@@ -4,8 +4,9 @@
 //! the daemon works with is its records', kept in its database: one per
 //! provider [`Identity`](crate::shared::Identity), each with the
 //! [`Direction`] its connection is made in — the provider dials the
-//! daemon, from the IPs it may, or the daemon dials it — whether
-//! the daemon is listable to it, and whether it is enabled. The
+//! daemon, from the IPs it may, or the daemon dials it — what the
+//! daemon announces itself with there, whether it accepts other daemons
+//! and hears messages through it, and whether it is enabled. The
 //! rules:
 //!
 //! 1. **By identity.** Whichever end dialled, the mutual handshake
@@ -15,15 +16,22 @@
 //! 2. **One connection.** The daemon holds at most one connection per
 //!    provider identity at a time.
 //! 3. **Changes take effect at once.** [`add`] dials an outgoing
-//!    provider; [`edit`] closes the connection when the direction or
-//!    the listable flag changes, and the provider is reached again as
-//!    the record now stands; [`enable`] dials or admits it again;
-//!    [`disable`] stops the dial, refuses a dial in, closes the
-//!    connection, and takes down every run on it, each run's log
-//!    keeping the reason.
+//!    provider; [`edit`] changes what the daemon holds open on the
+//!    connection as it stands, and closes the connection only when the
+//!    record's `ips` no longer admit its source address; [`enable`]
+//!    dials or admits it again; [`disable`] stops the dial, refuses a
+//!    dial in, closes the connection, and takes down every run on it,
+//!    each run's log keeping the reason.
 //! 4. **A delete stops nothing.** [`delete`] forgets only a disabled
 //!    provider that no agent or tool is pinned to or mounts the volumes
 //!    of; its volumes' tags go with it.
+//! 5. **Three scopes, per record.** While a provider is connected, the
+//!    daemon holds open on it exactly what its record says, each
+//!    independent of the other two: the provider's `daemons::announce`,
+//!    with the record's `announcement`, when the record has one; its
+//!    `daemons::accept` when `accept_daemons` is `true`; and its
+//!    `daemons::listen` when `messageable` is `true`. The daemon sends
+//!    a message through a provider whatever the three are.
 //!
 //! [`get`] answers one provider by its identity, and [`list`] lists
 //! them, each with where the daemon stands with it; [`tag`] and
@@ -46,10 +54,10 @@
 //!
 //! [`daemons`] holds the three requests over the daemons reached
 //! through the providers: [`daemons::list`] lists the identities
-//! listable through the connected providers, what a
+//! announced on the connected providers, what a
 //! [`daemons`](crate::daemon::endpoints::daemons) record names a remote
 //! by; [`daemons::listen`] hears the messages sent to the daemon through
-//! them; [`daemons::message`] sends one through them.
+//! the messageable ones; [`daemons::message`] sends one through them.
 
 mod direction;
 mod ip;

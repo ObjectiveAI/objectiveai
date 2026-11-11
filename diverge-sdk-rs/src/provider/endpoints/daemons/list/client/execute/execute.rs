@@ -5,7 +5,7 @@ use super::{Cancel, ExecuteError, ExecuteStream};
 use crate::wire::client::handle::Handle;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the provider which connected identities are listable, and
+/// Ask the provider which connected identities are announced, and
 /// keep asking.
 ///
 /// Reads nothing before returning: the provider's first frame is the

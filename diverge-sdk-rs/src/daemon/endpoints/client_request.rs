@@ -234,7 +234,7 @@ pub enum ClientRequest<'a> {
     AgentsFrontend(agents::frontend::client::request::Frame),
     /// Tag `124`. MCP exchanges as an agent's own.
     AgentsConnect(agents::connect::client::request::Frame),
-    /// Tag `125`. Every identity listable through the connected
+    /// Tag `125`. Every identity announced on the connected
     /// providers, kept.
     ProvidersDaemonsList(providers::daemons::list::client::request::Frame),
     /// Tag `126`. The host's identities, each with its tags.

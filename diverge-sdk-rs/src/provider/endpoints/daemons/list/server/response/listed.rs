@@ -1,5 +1,5 @@
-//! One listable connected identity, what it says of itself, and
-//! where its connection is.
+//! One announced connected identity, its announcement, and where its
+//! connection is.
 
 use std::net::IpAddr;
 
@@ -9,13 +9,16 @@ use crate::shared::Identity;
 use crate::shared::description::Description;
 use crate::shared::listing::Keyed;
 
-/// An identity connected to the provider whose listable flag was `1`
-/// or `2`, the description its authorization frame carried — none
-/// under the flag `1` — and where its connection is. The rules:
+/// An identity connected to the provider that holds a
+/// [`daemons::announce`](crate::provider::endpoints::daemons::announce)
+/// open, the announcement that scope carries, and where its connection
+/// is. The rules:
 ///
-/// 1. **The connection's.** Every member but `listening` is the
-///    connection's, so none changes while the identity is listed: an
-///    identity that connects again is listed again.
+/// 1. **Fixed while listed.** Every member but `listening` is fixed
+///    for as long as the identity is listed: `ip` and `address` are
+///    the connection's, and `announcement` is the announce scope's. An
+///    identity that announces again — on the same connection or on a
+///    new one — is listed again.
 /// 2. **The IP.** `ip` is the other end of the connection's socket:
 ///    the IP a peer that dialled the provider dialled from, or the IP
 ///    the provider reached a peer it dialled at.
@@ -29,12 +32,16 @@ use crate::shared::listing::Keyed;
 ///    open as the item is sent. It is the one member that changes while
 ///    the identity is listed, and a listing tells its change by the
 ///    identity alone — see [`Frame`](super::Frame).
+/// 5. **The announcement.** `announcement` is the text of the
+///    identity's open announce scope, exactly as its request carried
+///    it. An identity is listed only while it holds that scope, so an
+///    item always has one.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Listed {
     /// The identity, `(iss, sub)`.
     pub identity: Identity,
-    /// What it says of itself, if anything.
-    pub description: Option<Description>,
+    /// The text it announced itself with: rule 5.
+    pub announcement: Description,
     /// The other end of its connection's socket: rule 2.
     pub ip: IpAddr,
     /// Where the provider dialled it, when it did: rule 3.
@@ -44,7 +51,8 @@ pub struct Listed {
 }
 
 /// Keyed by the identity: an identity holds at most one connection to
-/// a provider, so it is listed at most once.
+/// a provider, and a connection at most one announce scope, so it is
+/// listed at most once.
 impl Keyed for Listed {
     type Key = Identity;
 

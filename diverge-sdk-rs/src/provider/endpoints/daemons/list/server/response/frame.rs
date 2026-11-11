@@ -8,7 +8,7 @@ use crate::shared::listing::Change;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// A listable connected identity and its description, as it comes
+/// An announced connected identity and its announcement, as it comes
 /// to be listed or goes; the word that the listing is whole; the word
 /// that one listed came to listen for messages, or stopped; or the
 /// refusal of a second listing on one connection.
@@ -23,20 +23,25 @@ use crate::wire::encode::{Encode, Writer};
 /// postcard, or nothing. The rules:
 ///
 /// 1. **The snapshot.** First every identity connected to the provider
-///    whose listable flag was `1` or `2`, each as `Added` with the
-///    description its flag `2` carried — whichever end dialled, the
-///    asking identity among them when its own flag was `1` or `2`.
+///    that holds a
+///    [`daemons::announce`](crate::provider::endpoints::daemons::announce)
+///    open, each as `Added` with the announcement that scope carries —
+///    whichever end dialled, the asking identity among them when it
+///    holds one itself.
 /// 2. **Listed, once.** Then exactly one `Listed`, before any other
 ///    response.
-/// 3. **Kept.** Then, for the scope's life, an identity whose
-///    connection opens with the flag `1` or `2` as `Added`, and one
-///    whose connection ends as `Removed`, as it was added.
+/// 3. **Kept.** Then, for the scope's life, an identity whose announce
+///    scope opens as `Added`, and one whose announce scope ends — on
+///    its cancel, or with its connection — as `Removed`, as it was
+///    added.
 /// 4. **Once per identity.** An identity holds at most one connection
-///    to a provider, so it is sent as added once while it is listed,
-///    and as removed only after it was added. An identity that
-///    disconnects and connects again is sent `Removed`, then `Added`.
-///    Nothing is told as changed: a description is its connection's,
-///    and does not change while it is listed.
+///    to a provider, and a connection at most one announce scope, so
+///    an identity is sent as added once while it is listed, and as
+///    removed only after it was added. An identity that stops
+///    announcing and announces again is sent `Removed`, then `Added`.
+///    Nothing is told as changed: an announcement is its scope's, and
+///    an identity that changes its announcement cancels the scope and
+///    opens another, which is `Removed`, then `Added`.
 /// 8. **Listening, by the key alone.** An identity listed already whose
 ///    [`daemons::listen`](crate::provider::endpoints::daemons::listen)
 ///    opens is sent `Listening`, and one whose listen closes is sent
@@ -47,7 +52,7 @@ use crate::wire::encode::{Encode, Writer};
 ///    `listening` as the events left it.
 /// 5. **No end of its own.** The finish follows the caller's cancel or
 ///    the caller's connection ending, and nothing else: a provider with
-///    nothing listable sends `Listed` at once, and is watched.
+///    nothing announced sends `Listed` at once, and is watched.
 /// 6. **No error.** A provider always knows what is connected to it,
 ///    and every provider serves this listing, so no response fails.
 /// 7. **One at a time.** A connection with a daemons list open
@@ -63,14 +68,14 @@ use crate::wire::encode::{Encode, Writer};
 /// that, not a failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Frame {
-    /// A listable identity, listed. Tag `0`.
+    /// An announced identity, listed. Tag `0`.
     ///
     /// Nothing promises an order.
     Added(Listed),
-    /// An identity listed already, as it was added, whose connection
-    /// ended. Tag `1`.
+    /// An identity listed already, as it was added, whose announce
+    /// scope ended. Tag `1`.
     Removed(Listed),
-    /// Every identity listable when the scope opened has been
+    /// Every identity announced when the scope opened has been
     /// listed. Tag `2`.
     ///
     /// Carries nothing — the variant is bare. A caller that wants the

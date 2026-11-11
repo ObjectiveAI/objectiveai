@@ -11,10 +11,10 @@ use crate::wire::decode::Decode as _;
 use crate::wire::frame;
 
 /// The provider's responses on a daemons list scope, decoded, in the
-/// order the provider sends them: every listable connected
+/// order the provider sends them: every announced connected
 /// identity as added, the word that the listing is whole, and from
-/// then on identities added and removed as they connect and
-/// disconnect.
+/// then on identities added and removed as they announce and stop
+/// announcing.
 ///
 /// It ends — `None` — at the provider's finish. A failure of the
 /// machinery underneath is the stream's last item, and `None` follows
