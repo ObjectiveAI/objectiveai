@@ -16,6 +16,8 @@ pub enum Error {
     },
     /// An item would not serialize, or a line would not parse.
     Json(serde_json::Error),
+    /// The task an append ran in did not finish: it panicked.
+    Task(String),
 }
 
 impl fmt::Display for Error {
@@ -23,6 +25,7 @@ impl fmt::Display for Error {
         match self {
             Error::Io { path, source } => write!(f, "{}: {source}", path.display()),
             Error::Json(error) => write!(f, "a log item did not serialize: {error}"),
+            Error::Task(why) => write!(f, "a log append did not finish: {why}"),
         }
     }
 }
@@ -38,6 +41,7 @@ impl std::error::Error for Error {
         match self {
             Error::Io { source, .. } => Some(source),
             Error::Json(error) => Some(error),
+            Error::Task(_) => None,
         }
     }
 }

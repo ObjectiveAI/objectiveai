@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::agents::logs::server::response::Provider;
+use crate::daemon::agent_log::Provider;
 
 /// The tool's container, while it runs: where, and under what id. A
 /// tool has at most one run — a transient tool's for its agent's run,

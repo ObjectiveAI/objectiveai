@@ -16,7 +16,7 @@ import { Destination } from "../../../../../../daemon/transfer/destination.js";
  * on its own connections, holding the volume for the length of it;
  * an agent's or a created tool's container the destination names
  * that is not running is started for the operation and stopped when
- * it finishes, and a connected tool is joined for it and left.
+ * it finishes.
  */
 export const Frame = z.object({
   /** The volume: its provider and its name. */
@@ -25,7 +25,7 @@ export const Frame = z.object({
   path: z.array(z.string()),
   /** Where it lands. */
   to: Destination,
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

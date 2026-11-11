@@ -5,7 +5,6 @@ use std::time::Instant;
 use bytes::{Bytes, BytesMut};
 use postgres_protocol::message::frontend;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::watch;
 
 use super::Server;
@@ -20,7 +19,7 @@ const READ_CHUNK: usize = 16 * 1024;
 /// stream was at a boundary and the socket closed otherwise; what the
 /// database says to the container as it comes, its end the container
 /// socket closed. Every piece either way is a use of the container.
-pub async fn relay(server: Server, mut from_container: UnboundedReceiver<Bytes>, to_container: UnboundedSender<Bytes>, touched: watch::Sender<Instant>) {
+pub async fn relay(server: Server, mut from_container: tokio::sync::mpsc::Receiver<Bytes>, to_container: tokio::sync::mpsc::Sender<Bytes>, touched: watch::Sender<Instant>) {
     let (mut reading, mut writing) = tokio::io::split(server);
     let touching = touched.clone();
     let outbound = async move {
@@ -47,7 +46,7 @@ pub async fn relay(server: Server, mut from_container: UnboundedReceiver<Bytes>,
                 Ok(0) | Err(_) => return,
                 Ok(read) => {
                     touched.send_replace(Instant::now());
-                    if to_container.send(Bytes::copy_from_slice(&buffer[..read])).is_err() {
+                    if to_container.send(Bytes::copy_from_slice(&buffer[..read])).await.is_err() {
                         return;
                     }
                 }

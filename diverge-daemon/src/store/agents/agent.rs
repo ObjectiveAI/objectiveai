@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use diverge_sdk::daemon::endpoints::agents::list::server::response;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as logs, Identity};
+use diverge_sdk::daemon::agent_log::{self as logs, Identity};
 use diverge_sdk::daemon::key;
 use indexmap::IndexMap;
 
@@ -32,7 +32,9 @@ pub struct Agent {
     pub secrets: IndexMap<String, String>,
     /// The provider it last ran on, if it ever ran.
     pub last_provider: Option<Identity>,
-    /// When it last began or ceased running.
+    /// When its container last came up or went down.
+    pub last_deployed: Option<DateTime<Utc>>,
+    /// When its loop last began or ended.
     pub last_active: Option<DateTime<Utc>>,
     /// Its tags, sorted bytewise.
     pub tags: Vec<String>,
@@ -40,6 +42,10 @@ pub struct Agent {
     pub created: DateTime<Utc>,
     /// Who made it.
     pub creator: Creator,
+    /// The dependency templates its last registration declared, by
+    /// id, each once, in the order first declared: read with the row
+    /// from the dependency attachments, never stored on it.
+    pub dependencies: Vec<String>,
 }
 
 impl Agent {
@@ -63,9 +69,9 @@ impl Agent {
     }
 
     /// The agent as a list reports it, given whether a loop runs in it
-    /// now, the tools attached to it in attach order, and how long its
-    /// log is.
-    pub fn report(&self, active: bool, tools: Vec<key::Tool>, logs_index: u64) -> response::Agent {
+    /// now, whether its container is up, the tools attached to it in
+    /// attach order, and how long its log is.
+    pub fn report(&self, active: bool, deployed: bool, tools: Vec<key::Tool>, logs_index: u64) -> response::Agent {
         response::Agent {
             name: self.name.clone(),
             template: self.template.clone(),
@@ -74,9 +80,12 @@ impl Agent {
             created: self.created,
             active,
             last_active: self.last_active,
+            deployed,
+            last_deployed: self.last_deployed,
             provider: self.last_provider.clone().map(|identity| logs::Provider { identity }),
             logs_index,
             tools,
+            dependencies: self.dependencies.clone(),
             tags: self.tags.clone(),
         }
     }

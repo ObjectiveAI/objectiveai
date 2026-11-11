@@ -6,9 +6,8 @@ import { Error } from "../../../../../../shared/error.js";
 
 /**
  * An edit's answer: the tool is as the request states, no tool is
- * the one named, a running tool refused a change it cannot take, a
- * connected tool refused one that is not its name, the new name is
- * held, no account is the one named, forbidden, or a failure.
+ * the one named, a running tool refused a change it cannot take, the
+ * new name is held, forbidden, or a failure.
  */
 export const Frame = z.union([
   /** The tool is as the request states. Tag `0`. */
@@ -17,15 +16,11 @@ export const Frame = z.union([
   z.literal("not_found"),
   /** The tool runs, and the patch changes more than appending FUSE mounts; nothing changed. Tag `2`. */
   z.literal("active"),
-  /** The tool is another daemon's, and the patch changes more than its name; nothing changed. Tag `3`. */
-  z.literal("not_owned"),
-  /** The name the patch gives is another tool's; nothing changed. Tag `4`. */
+  /** The name the patch gives is another tool's; nothing changed. Tag `3`. */
   z.literal("in_use"),
-  /** No named account is the one the patch gives; nothing changed. Tag `5`. */
-  z.literal("no_account"),
-  /** The account the request is served for holds no grant allowing it; nothing changed. Tag `6`. */
+  /** The account the request is served for holds no grant allowing it; nothing changed. Tag `4`. */
   z.literal("forbidden"),
-  /** A failure. See `shared.error.Error` for why it says so little. Tag `7`. */
+  /** A failure. See `shared.error.Error` for why it says so little. Tag `5`. */
   z.strictObject({ error: Error }),
 ]);
 export type Frame = z.infer<typeof Frame>;
@@ -33,11 +28,9 @@ export type Frame = z.infer<typeof Frame>;
 const EDITED = 0;
 const NOT_FOUND = 1;
 const ACTIVE = 2;
-const NOT_OWNED = 3;
-const IN_USE = 4;
-const NO_ACCOUNT = 5;
-const FORBIDDEN = 6;
-const ERROR = 7;
+const IN_USE = 3;
+const FORBIDDEN = 4;
+const ERROR = 5;
 
 /**
  * A frame out of its payload: the tag byte, then the variant's own
@@ -54,12 +47,8 @@ export function decode(bytes: Uint8Array): Frame {
       return "not_found";
     case ACTIVE:
       return "active";
-    case NOT_OWNED:
-      return "not_owned";
     case IN_USE:
       return "in_use";
-    case NO_ACCOUNT:
-      return "no_account";
     case FORBIDDEN:
       return "forbidden";
     case ERROR:

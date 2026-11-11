@@ -1,6 +1,6 @@
 //! Loading accounts.
 
-use diverge_sdk::daemon::endpoints::accounts::Reference;
+use diverge_sdk::shared::Identity;
 use sqlx::{PgConnection, Row as _};
 
 use super::row::{self, GROUP, SELECT};
@@ -22,19 +22,15 @@ pub async fn by_id(conn: &mut PgConnection, id: AccountId) -> Result<Option<Acco
     row.as_ref().map(row::account).transpose()
 }
 
-/// The account the reference names, if any — by name, or by its
-/// credential's identity. With `lock`, its row is locked for the
+/// The account `identity` is, if any. With `lock`, its row is locked for the
 /// transaction first, so that two edits of one account take turns;
 /// locking and grouping cannot share a statement, so the lock is its
 /// own.
-pub async fn by_reference(conn: &mut PgConnection, reference: &Reference, lock: bool) -> Result<Option<Account>, Error> {
-    let (column, value) = match reference {
-        Reference::Name { name } => ("name", name),
-        Reference::Identity { identity } => ("identity", identity),
-    };
+pub async fn by_identity(conn: &mut PgConnection, identity: &Identity, lock: bool) -> Result<Option<Account>, Error> {
     if lock {
-        let locked = sqlx::query(&format!("SELECT id FROM diverge.accounts WHERE {column} = $1 FOR UPDATE"))
-            .bind(value)
+        let locked = sqlx::query("SELECT id FROM diverge.accounts WHERE issuer = $1 AND subject = $2 FOR UPDATE")
+            .bind(&identity.issuer)
+            .bind(&identity.subject)
             .fetch_optional(&mut *conn)
             .await?;
         let Some(locked) = locked else {
@@ -42,18 +38,9 @@ pub async fn by_reference(conn: &mut PgConnection, reference: &Reference, lock: 
         };
         return by_id(conn, AccountId(locked.try_get("id")?)).await;
     }
-    let row = sqlx::query(&format!("{SELECT} WHERE a.{column} = $1 {GROUP}"))
-        .bind(value)
-        .fetch_optional(&mut *conn)
-        .await?;
-    row.as_ref().map(row::account).transpose()
-}
-
-/// The account whose credential's key has the hash, if any: how a
-/// presented credential is judged.
-pub async fn by_key_hash(conn: &mut PgConnection, key_hash: &str) -> Result<Option<Account>, Error> {
-    let row = sqlx::query(&format!("{SELECT} WHERE a.key_hash = $1 {GROUP}"))
-        .bind(key_hash)
+    let row = sqlx::query(&format!("{SELECT} WHERE a.issuer = $1 AND a.subject = $2 {GROUP}"))
+        .bind(&identity.issuer)
+        .bind(&identity.subject)
         .fetch_optional(&mut *conn)
         .await?;
     row.as_ref().map(row::account).transpose()

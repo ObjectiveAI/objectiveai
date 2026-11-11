@@ -14,8 +14,11 @@ use crate::wire::encode::{Encode, Writer};
 /// limits, the arguments, the secrets it needs by name — is the
 /// [`template`](Inner::template), named by its id; what is this
 /// tool's own is here: the provider it runs on with the volumes it
-/// mounts there, its FUSE mounts of providers' volumes, the account
-/// it runs under, and the name the tool is held under from then on.
+/// mounts there, its FUSE mounts of providers' volumes, and the name
+/// the tool is held under from then on. What the tool may ask of the
+/// daemon is not here: its container declares it at its registration,
+/// every time it starts — see the `permissions` of the
+/// [`register`](crate::container_proxy::inside::register) answer.
 /// The agents create's shape — the one [`Inner`] flattened into both
 /// — because a tool
 /// container is made of what an agent container is
@@ -28,10 +31,11 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// # The name
 ///
-/// Optional. A string of the caller's choosing, unique among the
-/// caller's TOOLS — a namespace of its own beside the agents', so a
-/// tool and an agent may share a name: the daemon refuses a request
-/// whose name is a tool's already, and says so with a variant of its
+/// Optional. A string of the caller's choosing, unique across the
+/// daemon's standalone and connected tools together — one namespace
+/// for both families, of its own beside the agents', so a tool and an
+/// agent may share a name: the daemon refuses a request whose name is
+/// a standalone or a connected tool's already, and says so with a variant of its
 /// own, because a caller acts on it differently from a failure — use
 /// the tool it has, or choose another name. A request with no name
 /// is never refused for one: the tool is reached by its template and
@@ -45,28 +49,14 @@ pub struct Frame {
     /// Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub inner: Inner,
-    /// The account the tool runs under, if any — a NAMED
-    /// [account](crate::daemon::endpoints::accounts), by its name: the
-    /// identity it acts as toward the daemon, and what the daemon
-    /// judges everything it asks of the daemon by, through the roles
-    /// the account holds. One the daemon does not have is the create's
-    /// `NoAccount`; one the caller holds no `assign` grant over is its
-    /// `Forbidden`; in either case nothing is made. Absent, the tool
-    /// runs under no account and holds no grant: everything it asks of
-    /// the daemon is answered `Forbidden`. The account is the tool's
-    /// for its life unless an edit replaces or deletes it. A tool's
-    /// alone: an agent container holds no account and asks the daemon
-    /// nothing.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub account: Option<String>,
     /// The name, if any: a string of the caller's choosing, unique
-    /// among the caller's tools, by which the tool is reached
+    /// across the daemon's standalone and connected tools together, by
+    /// which the tool is reached
     /// afterwards beside its template and its index. Absent, the
     /// tool has none, and is reached once and for all only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

@@ -1,5 +1,5 @@
 //! The channels the server opens on the proxy during a serve: the
-//! nine asks, the stop, and the tree. See [`Frame`].
+//! nine asks, the cancel, and the tree. See [`Frame`].
 //!
 //! The asks are the proxy's own frames — the ones a mount opens on
 //! its scope, going the other way — and the frame is the

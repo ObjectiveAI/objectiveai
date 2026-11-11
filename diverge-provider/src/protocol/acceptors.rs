@@ -1,6 +1,7 @@
 //! The daemons accepting connections through this provider, by
 //! identity.
 
+use diverge_sdk::shared::Identity;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -19,7 +20,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 /// on another socket entirely. One accept scope per identity: a second
 /// under an identity that holds one is refused.
 pub struct Acceptors {
-    accepting: Mutex<HashMap<Arc<str>, Arc<Accepting>>>,
+    accepting: Mutex<HashMap<Identity, Arc<Accepting>>>,
 }
 
 /// One daemon's accept scope, and the connections being paired on it.
@@ -48,7 +49,7 @@ impl Acceptors {
     /// The identity is accepting on `scope` from now until
     /// [`release`](Self::release): `None` when it accepts already, and
     /// nothing changed.
-    pub(crate) async fn take(&self, identity: &str, scope: Arc<ScopeHandle>) -> Option<Arc<Accepting>> {
+    pub(crate) async fn take(&self, identity: &Identity, scope: Arc<ScopeHandle>) -> Option<Arc<Accepting>> {
         let mut accepting = self.accepting.lock().await;
         if accepting.contains_key(identity) {
             return None;
@@ -59,20 +60,20 @@ impl Acceptors {
             waiting: Mutex::new(HashMap::new()),
             ended: watch::channel(false).0,
         });
-        accepting.insert(Arc::from(identity), Arc::clone(&entry));
+        accepting.insert(identity.clone(), Arc::clone(&entry));
         Some(entry)
     }
 
     /// The identity's accept scope is over: nothing finds it any more,
     /// and every connection relayed on it hears so.
-    pub(crate) async fn release(&self, identity: &str) {
+    pub(crate) async fn release(&self, identity: &Identity) {
         if let Some(entry) = self.accepting.lock().await.remove(identity) {
             entry.ended.send_replace(true);
         }
     }
 
     /// The daemon accepting under `identity`, if one is.
-    pub(crate) async fn lookup(&self, identity: &str) -> Option<Arc<Accepting>> {
+    pub(crate) async fn lookup(&self, identity: &Identity) -> Option<Arc<Accepting>> {
         self.accepting.lock().await.get(identity).cloned()
     }
 }

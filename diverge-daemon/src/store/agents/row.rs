@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use indexmap::IndexMap;
 use sqlx::Row as _;
 use sqlx::postgres::PgRow;
@@ -12,9 +12,15 @@ use sqlx::types::Json;
 use super::Agent;
 use crate::store::{AgentId, Error};
 
-/// The columns every agent query selects.
+/// The columns every agent query selects, and the dependency
+/// templates its last registration declared: each template once, in
+/// the order of its first attachment, read off the attachments and the
+/// tools that exist rather than kept twice.
 pub(super) const SELECT: &str = "SELECT id, template, index, name, provider, fuse_file_mounts, fuse_directory_mounts, \
-     secrets, last_provider, last_active, tags, created, creator FROM diverge.agents";
+     secrets, last_provider, last_deployed, last_active, tags, created, creator, \
+     ARRAY(SELECT t.template FROM diverge.dependency_attachments a JOIN diverge.dependency_tools t ON t.id = a.tool \
+           WHERE a.agent = diverge.agents.id GROUP BY t.template ORDER BY min(a.seq)) AS dependencies \
+     FROM diverge.agents";
 
 /// The order: oldest first.
 pub(super) const ORDER: &str = "ORDER BY created, id";
@@ -39,9 +45,11 @@ pub(super) fn agent(row: &PgRow) -> Result<Agent, Error> {
         fuse_directory_mounts,
         secrets,
         last_provider: last_provider.map(|Json(identity)| identity),
+        last_deployed: row.try_get("last_deployed")?,
         last_active: row.try_get("last_active")?,
         tags: row.try_get("tags")?,
         created,
         creator,
+        dependencies: row.try_get("dependencies")?,
     })
 }

@@ -1,89 +1,100 @@
-//! The images a caller builds on this provider: the protocol's
-//! `ImageManager`, supplied here over a pool per identity, kept as a
-//! registry keeps images and served by the provider's own.
+//! The Store: the images callers own on this provider, the protocol's
+//! `ImageManager`, supplied here over one set of blobs for every
+//! owner.
 //!
-//! # What a client image is on disk
+//! # What the Store is on disk
 //!
-//! The `images` section names a directory, and under it the store
-//! keeps one POOL per identity, `<hash>/`, the identity as sixteen
-//! hexadecimal characters of its SHA-256: `blobs/<algorithm>/<hex>`,
-//! every blob of every image the identity built — manifests, configs
-//! and layers, content-addressed, a blob two of its images share
-//! stored once — and `images/<name>.json`, one record per image:
-//! the manifest digest it is known by, its size, when the build
-//! ended, the Containerfile, and every blob of its. A build runs
-//! `podman build` in the cache the deployer trims, with the
-//! Containerfile the request carried written under `run/builds/` and,
-//! as the context, a directory of one of the caller's volumes
-//! loop-mounted as a run would mount it — or an empty directory,
-//! when the request named none — tagged `127.0.0.1:<port>/<hash>/<name>`,
-//! the name it is pulled by; then exports it once as an OCI layout
-//! and moves the layout's blobs into the pool, where they are the
-//! bytes a pull serves, byte for byte, and the manifest's digest is
-//! the digest the image is known by from then on: what is listed,
-//! checked, run and served is one set of bytes, fixed at the build.
-//! The listing is the records read; a stat is one record; a delete
-//! is the record removed, the pool pruned of what no other record
-//! names, and the cache's copy removed.
+//! The `images` section names a directory; see [`Store`] for its
+//! layout, its reachability rules and its capacity. In short:
+//! `blobs/<algorithm>/<hex>` holds every blob ONCE, however many
+//! owners' images reach it; `owners/<path_name(issuer)>/<path_name(subject)>/<algorithm>-<hex>.json`
+//! is one identity's ownership of one image, by its manifest digest,
+//! with its description, its size, when it was gained and — for an
+//! image built here — its Containerfile; `cache/<algorithm>-<hex>.json`
+//! is an image a caller supplied to a run and proved, which nobody
+//! owns; `tmp/` is a blob on its way in. A blob is kept while an
+//! ownership, a cache record or an attempt in flight reaches it, and
+//! a prune removes every other.
 //!
-//! # The registry serves the pool
+//! # How an image is owned
 //!
-//! A pool is a repository of the provider's own registry — see
-//! [`image_registry`](crate::host::image_registry) — under the
-//! identity's hash, so a run of a client image is a `podman pull` of
-//! `127.0.0.1:<port>/<hash>/<name>@<digest>` over the loopback, or
-//! through the tunnel into the machine on the hosts with one: the
-//! way a caller's own image reaches podman, and the way this one
-//! does, with the disk in place of the caller. The copy that pull
-//! leaves in the cache is named under `127.0.0.1:` and nothing else,
-//! which is how the cache's lookup by digest passes it over: another
-//! identity's run never sees it, and a check never asks the cache at
-//! all. The `images::oci` scope serves the same pool to the caller,
-//! blob for blob.
+//! 1. **Build.** `podman build` in the cache, exported once as an OCI
+//!    layout and gathered into `blobs/` — see [`build`]. The
+//!    manifest's digest is the image's from then on. A digest the
+//!    caller owns already is `Exists`.
+//! 2. **Push.** From a registry the provider uses, through the
+//!    [`RegistryClient`](crate::host::registry_client::RegistryClient),
+//!    or from the caller, ending with the nonce check — see [`push`].
+//!    Only what the Store lacks moves.
 //!
-//! # The capacity, and what is evicted
+//! Ownership is the record; nothing else is. A delete removes the
+//! caller's record and prunes; an edit rewrites its description.
 //!
-//! Every pool together holds at most `capacity` bytes, every blob
-//! counted once, measured after a build, since an image's size is
-//! not known before it is built: a build that leaves the pools over
-//! the capacity is undone — its blobs pruned, its copy removed — and
-//! answered insufficient capacity. Nothing else removes anything
-//! from a pool: an image stays until the identity that built it
-//! deletes it. The cache's copy is another matter: it is an image in
-//! the cache like any the provider pulled, trimmed when the cache is
-//! over its own cap, and pulled again from the pool for the next run.
+//! # How an image is served
 //!
-//! # Names
+//! An `images::oci` scope resolves the image once, as it opens — see
+//! [`resolve`]: the caller's own Store when it owns the digest, else
+//! the first reference whose registry the configuration lists and
+//! that has the manifest, else nowhere; never another identity's
+//! Store, never the cache. A pull from a registry is fetched through
+//! the blob store, part by part as it is asked for, under one attempt
+//! for the scope's life — see [`Served`]; a proof asked on the scope
+//! brings in, under the same attempt, the image's plan at the platform
+//! asked for. An image whole at the scope's end is written a cache
+//! record and the cache trimmed. A proof is [`Store::prove`] over the
+//! blob store's own bytes, the function the nonce check of a run and
+//! of a push uses.
 //!
-//! A client image's name is one segment of a repository path: lower
-//! case letters and digits with single `.`, `_`, `__` or `-` runs
-//! between them, and no `/`, since it is a segment of the reference
-//! the image is pulled by and the file its record is kept in. The
-//! identity is joined onto the path as the volume store joins it:
-//! whatever authenticated the connection, in the operator's trust,
-//! hashed so that it is a path segment and is written nowhere a pull
-//! could read it.
+//! # The nonce check
 //!
-//! [`ImageManager`] is the manager, [`Store`] the store it, the
-//! registry, the deployer, the OCI store and the checker share,
-//! [`Meta`] an image's record, [`pool`] a pool read — a manifest and
-//! a blob by digest — [`Pieces`] a file's bytes piece by piece, and
-//! [`Error`] what the manager fails with. With no `images` section
-//! there is no store: a build is [`Error::Absent`], a listing is
-//! empty, and nothing is held for anyone.
+//! [`fetch::check`] draws 32 bytes from the operating system's
+//! cryptographic source for one check, asks the caller — on the
+//! scope of the run or the push, whose image it is, naming the
+//! platform — for `SHA-256(nonce ‖ D)` — `D` the manifest, the platform manifest when
+//! the manifest is an index, the config, then every layer in order,
+//! duplicates included — and compares it with [`Store::prove`] over
+//! the provider's own copy. Only two equal values pass. The platform
+//! of an index is the one [`manifest::select`] takes: `linux` on this
+//! host's architecture, the manifest podman pulls on the same host.
+//!
+//! # Capacity
+//!
+//! Every blob together holds at most `capacity` bytes, each counted
+//! once. A push is refused before any blob moves, from the sizes the
+//! manifest declares; a build is measured after, since its size is
+//! not known before. Room is made by trimming cache records, oldest
+//! first; an ownership is never trimmed.
+//!
+//! [`ImageManager`] is the manager — the OCI store too — [`Store`] the Store the manager, the registry and the
+//! deployer share, [`Meta`] an ownership's record and [`Cached`] a
+//! cache record, [`resolve`] where an image is served from and
+//! [`Served`] the image one pull serves, [`manifest`] a manifest read,
+//! [`fetch`] an image brought in from a supplier, [`Pieces`] a file's
+//! bytes piece by piece, and [`Error`] what the manager fails with.
+//! With no `images` section there is no Store for callers: a build or
+//! a push is [`Error::Absent`], a listing is empty, and nothing is
+//! owned by anyone; the deployer keeps a Store of its own under the
+//! provider's `run/` with no room — the blobs a run takes from the
+//! caller, and those a pull fetches through from a
+//! registry.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
 mod build;
 mod error;
+pub mod fetch;
 mod image_manager;
+pub mod manifest;
 mod pieces;
-pub mod pool;
+mod push;
+mod serve;
 mod store;
 
 pub use build::*;
 pub use error::*;
 pub use image_manager::*;
 pub use pieces::*;
+pub use push::*;
+pub use serve::*;
 pub use store::*;

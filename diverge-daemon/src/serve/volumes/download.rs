@@ -54,14 +54,15 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
+    scope.allowed().await;
     if content::inside(&frame.path).is_err() {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     }
-    if !daemon.live.take_volume(&frame.volume).await {
+    let Some(hold) = daemon.live.take_volume(&frame.volume).await else {
         reply::reply(scope, &Frame::Held).await;
         return Ok(());
-    }
+    };
     let source = Source::Volume(frame.volume.clone());
     let outcome = files::download(scope, daemon, &source, &frame.path, &|scope, path, body| {
         Box::pin(async move {
@@ -69,7 +70,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         })
     })
     .await;
-    daemon.live.release_volume(&frame.volume).await;
+    hold.release().await;
     match outcome {
         Ok(()) => {}
         Err(Fail::NotFound) => reply::reply(scope, &Frame::NotFound).await,

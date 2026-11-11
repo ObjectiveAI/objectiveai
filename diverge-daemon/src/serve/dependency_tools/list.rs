@@ -93,9 +93,10 @@ impl Source for Tools<'_> {
                 .into_iter()
                 .filter_map(|run| match run.id {
                     ToolKey::Dependency(id) => Some((id, run_of(&run))),
-                    ToolKey::Record(_) => None,
+                    ToolKey::Record(_) | ToolKey::Connected(_) => None,
                 })
                 .collect();
+            let busy = self.daemon.live.busy_tools().await;
             let mut listed = Vec::new();
             for tool in &all {
                 let Some(owner) = tool.owner(tool.owner_agent.and_then(|id| rows.get(&id))) else {
@@ -105,6 +106,7 @@ impl Source for Tools<'_> {
                     owner,
                     attached: attached.get(&tool.id).cloned().unwrap_or_default(),
                     run: runs.get(&tool.id).cloned(),
+                    active: busy.contains(&ToolKey::Dependency(tool.id)),
                 };
                 let facts = loaded.facts(tool);
                 if !judge::dependency_tools::over(self.standing, Over::List, &facts) || !filter::dependency_tools::test(self.filter, &facts) {

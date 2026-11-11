@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+
 use crate::config;
 
 use super::{Error, Local};
@@ -19,14 +20,19 @@ pub enum Postgres {
 /// Start, or name, the database `postgres` says, under `root`, and
 /// hand back what is held and the URL the store opens:
 /// the local cluster's, which names no database, or the remote URL
-/// exactly as configured.
+/// as configured, with its password set into it.
 pub async fn start(postgres: &config::Postgres, root: &Path) -> Result<(Postgres, String), Error> {
     match postgres {
         config::Postgres::Local { max_connections } => {
             let (local, url) = super::spawn(root, *max_connections).await?;
             Ok((Postgres::Local(local), url))
         }
-        config::Postgres::Remote { url } => Ok((Postgres::Remote, url.clone())),
+        config::Postgres::Remote { url, password: None } => Ok((Postgres::Remote, url.clone())),
+        config::Postgres::Remote { url, password: Some(password) } => {
+            let mut url = url::Url::parse(url).map_err(Error::Url)?;
+            url.set_password(Some(password)).map_err(|()| Error::NoUser)?;
+            Ok((Postgres::Remote, url.into()))
+        }
     }
 }
 

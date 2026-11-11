@@ -26,6 +26,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bytes::Bytes;
+use diverge_sdk::CHUNK_SIZE;
 use diverge_sdk::provider::endpoints::volumes::Mode;
 use crate::protocol::served;
 use diverge_sdk::shared::containers::fuse::ack::Refused;
@@ -222,7 +223,7 @@ impl served::Served for Served {
                         return Ok(Some(Bytes::new()));
                     }
                     handle.seek(SeekFrom::Start(offset))?;
-                    let want = usize::try_from(u64::from(length).min(handle.len() - offset)).unwrap_or(usize::MAX);
+                    let want = usize::try_from(u64::from(length).min(handle.len() - offset)).unwrap_or(usize::MAX).min(CHUNK_SIZE);
                     let mut buffer = vec![0u8; want];
                     let mut filled = 0;
                     while filled < want {
@@ -507,7 +508,7 @@ mod host {
             Err(error) => return Err(io(error)),
         };
         file.seek(SeekFrom::Start(offset)).await.map_err(io)?;
-        let mut buffer = vec![0u8; length as usize];
+        let mut buffer = vec![0u8; (length as usize).min(diverge_sdk::CHUNK_SIZE)];
         let mut filled = 0;
         while filled < buffer.len() {
             let n = file.read(&mut buffer[filled..]).await.map_err(io)?;

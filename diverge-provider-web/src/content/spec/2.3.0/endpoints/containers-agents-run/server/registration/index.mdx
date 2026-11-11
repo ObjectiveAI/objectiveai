@@ -46,8 +46,7 @@ the run goes on, and carries the first values of the secrets.
 - **Verbatim.** The server relays the list and the declaration as the
   proxy sent them and the values as the client sent them, and reads
   none of them: not the kind, not the scope, not the mounts, not the
-  secrets' names, not their modes, not their values, not the
-  permissions.
+  secrets' names, not their modes, not their values.
 - **Two kinds.** A template's `type` is `transient` or `service`. A
   transient tool is deployed for the one run of the one agent that
   declared it and stopped with that run; its database scope is that
@@ -71,10 +70,9 @@ the run goes on, and carries the first values of the secrets.
   the agent container's paths the template's mounts name into the
   tool container live, as [containers::fuse_serve](/endpoints/containers-fuse-serve/)
   serves them and a FUSE mount of the tools run mounts them; gives
-  the tool the database scope its kind names and an account holding
-  the template's `permissions`, within which the word `self` reaches
-  the agent a transient tool was deployed for and every agent
-  attached to a service; and serves the tool to the container under
+  the tool the database scope its kind names; holds the tool to the
+  permissions its own program declares at the tool's own
+  registration; and serves the tool to the container under
   the template's id among the MCP servers the client answers the
   container's tool calls with. For the container's own secrets the
   client answers, under every name the declaration carries, one

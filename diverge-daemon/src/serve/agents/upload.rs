@@ -7,7 +7,7 @@ use diverge_sdk::daemon::endpoints::agents::upload::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::active;
+use super::state;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::files::{Into, What};
@@ -48,9 +48,10 @@ async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon:
         return Ok(Frame::NotFound);
     };
     drop(conn);
-    if !judge::agents::over(&standing, Over::Upload, &agent, active(daemon, agent.id).await) {
+    if !judge::agents::over(&standing, Over::Upload, &agent, state(daemon, agent.id).await) {
         return Ok(Frame::Forbidden);
     }
+    scope.allowed().await;
     let opened = match files::open_agent(daemon, &agent).await {
         Ok(opened) => opened,
         Err(error) => return Ok(Frame::Error(reply::failure(&error))),

@@ -31,8 +31,13 @@ pub enum Error {
         /// The holder's process id, as it wrote it.
         holder: Option<String>,
     },
-    /// The local Postgres could not be started.
+    /// The local Postgres could not be started, or the remote's
+    /// password could not be read.
     Postgres(postgres::Error),
+    /// The root's identities could not be opened.
+    Identities(diverge_sdk::identities::Error),
+    /// The key-set cache could not be made.
+    KeySets(diverge_sdk::identities::VerifyError),
     /// The store could not be opened, or its schema applied.
     Store(store::Error),
     /// The database URL could not be read for where and how to dial.
@@ -55,7 +60,9 @@ impl fmt::Display for Error {
                 Some(holder) => write!(f, "another daemon holds {}: process {holder}", root.display()),
                 None => write!(f, "another daemon holds {}", root.display()),
             },
-            Error::Postgres(error) => write!(f, "the local Postgres could not be started: {error}"),
+            Error::Postgres(error) => write!(f, "the Postgres could not be started or named: {error}"),
+            Error::Identities(error) => write!(f, "the identities could not be opened: {error}"),
+            Error::KeySets(error) => write!(f, "the key-set cache could not be made: {error}"),
             Error::Store(error) => write!(f, "the store could not be opened: {error}"),
             Error::Database(error) => write!(f, "{error}"),
             Error::Directory(error) => write!(f, "the daemon's directory could not be made: {error}"),
@@ -79,6 +86,8 @@ impl std::error::Error for Error {
             Error::Lock(error) => Some(error),
             Error::Locked { .. } => None,
             Error::Postgres(error) => Some(error),
+            Error::Identities(error) => Some(error),
+            Error::KeySets(error) => Some(error),
             Error::Store(error) => Some(error),
             Error::Database(error) => Some(error),
         }

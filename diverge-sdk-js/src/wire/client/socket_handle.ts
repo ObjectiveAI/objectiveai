@@ -73,6 +73,15 @@ export class SocketHandle implements Handle {
   }
 
   async sendChannelRequest(scope: number, payload: Uint8Array): Promise<Channel> {
+    const asked = this.#registry.get(scope)?.asked;
+    if (asked === undefined) {
+      throw new SendError("scope");
+    }
+    // The room first (see `window.ts`); a server that reads no more
+    // channel requests answers none.
+    if ((await asked.take()) === "skip") {
+      throw new SendError("scope");
+    }
     const entry = this.#registry.get(scope);
     if (entry === undefined) {
       throw new SendError("scope");
@@ -92,10 +101,20 @@ export class SocketHandle implements Handle {
   }
 
   async sendChannelResponse(scope: number, channel: number, payload: Uint8Array): Promise<void> {
+    const window = this.#registry.get(scope)?.answers.get(channel);
+    if (window === undefined) {
+      throw new SendError("scope");
+    }
+    // The room first; a server that reads no more of this answer
+    // makes sending it nothing.
+    if ((await window.take()) === "skip") {
+      return;
+    }
     this.#write(encodeClientFrame({ kind: "channel_response", scope, channel, payload }));
   }
 
   async sendChannelResponseFinish(scope: number, channel: number): Promise<void> {
+    this.#registry.get(scope)?.answers.delete(channel);
     this.#write(encodeClientFrame({ kind: "channel_response_finish", scope, channel }));
   }
 

@@ -1,5 +1,6 @@
 //! What tools the container's server offers.
 
+use diverge_sdk::shared::mcp::session::Sessioned;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::mcp::list_tools::{request, response};
 
@@ -11,11 +12,11 @@ use crate::reply::reply;
 /// One exchange, entered and left as the container's activity: the
 /// result — the container's image under `_meta`, on it and on each
 /// tool — or the error, then the finish.
-pub async fn list_tools(proxy: &Proxy, scope: &ScopeHandle, channel: u32, request: request::Request) {
+pub async fn list_tools(proxy: &Proxy, scope: &ScopeHandle, channel: u32, request: Sessioned<request::Request>) {
     proxy.activity.enter(scope).await;
-    let frame = match proxy.tool.client().await {
+    let frame = match proxy.sessions.get(&request.session).await.client().await {
         Err(error) => response::Frame::Error(error),
-        Ok(client) => match outcome(client.list_tools(request.0).await) {
+        Ok(client) => match outcome(client.list_tools(request.request.0).await) {
             Ok(result) => response::Frame::Result(result),
             Err(error) => response::Frame::Error(error),
         },

@@ -1,25 +1,24 @@
 //! One run of a service's container.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
 use diverge_sdk::shared::mcp::attestation;
 use diverge_sdk::daemon::creator::{self, Creator};
-use diverge_sdk::daemon::grant::Converted;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
 use diverge_sdk::shared::containers::dependencies::Scope;
 use indexmap::IndexMap;
 use tokio::sync::{Mutex, watch};
 
 use crate::containers::answerers::Answerer;
-use crate::containers::deploy::short;
+use crate::containers::images::Pulls;
 use crate::containers::fuse::Mounts;
 use crate::containers::capable::Needs;
 use crate::containers::mcp::Served;
-use crate::containers::{Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, provider, pump_tool, secrets};
+use crate::containers::{Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, permissions, provider, pump_tool, secrets, undo_tool};
 use crate::daemon::{Daemon, Kind};
-use crate::judge::{Dependent, Fixed};
+use crate::judge::ToolRef;
 use crate::store::agents;
 use crate::store::dependency_tools::{DependencyTool, attachments};
 
@@ -29,8 +28,8 @@ use crate::store::dependency_tools::{DependencyTool, attachments};
 /// secrets bound by name through the agent that spawns the run, taken
 /// at the service's own registration and held under the dependency
 /// tool as holder — run on the first candidate provider that will,
-/// under its template's grants with every attached agent as its
-/// `self`, its run entered as live under its row with its pump. The
+/// under the grants its program declared at its registration, kept on
+/// its row, with every attached agent as its `attached`, its run entered as live under its row with its pump. The
 /// agent that spawns the run is the service's owner, for an
 /// `instance` scope, and otherwise the attached agent whose
 /// registration declared the template last — so the binding may
@@ -39,8 +38,17 @@ use crate::store::dependency_tools::{DependencyTool, attachments};
 /// is not started; a service that declares secrets with no agent
 /// attached is not started either, and the supervisor tries again; a
 /// provider that refuses after the registration gives back what it
-/// took.
+/// took, and a failure once the run is made undoes it as
+/// [`undo_tool`](crate::containers::undo_tool) states. The start runs
+/// in a task of its own, waited for: a caller cancelled midway neither
+/// tears it nor orphans what it opened.
 pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<ToolRun>, StartError> {
+    let (daemon, tool) = (Arc::clone(daemon), tool.clone());
+    let started = tokio::spawn(async move { start_service(&daemon, &tool).await });
+    started.await.unwrap_or_else(|error| Err(StartError::Unfinished(error.to_string())))
+}
+
+async fn start_service(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<ToolRun>, StartError> {
     let key = ToolKey::Dependency(tool.id);
     if let Some(run) = daemon.live.tool_run(key).await {
         return Ok(run);
@@ -89,13 +97,6 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
         template: tool.template.clone(),
         owner,
     };
-    let dependent = Dependent {
-        fixed: Arc::new(Fixed::new(
-            format!("service/{}", short(&tool.template)),
-            Converted::from(tool.declared.permissions.clone()),
-        )),
-        tool: tool.id,
-    };
     let touched = watch::channel(Instant::now()).0;
     let mounts = Arc::new(Mounts::empty());
     let mut last = String::new();
@@ -105,19 +106,24 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
             key: Key::Tool(key),
             caller: None,
             sender: sender.clone(),
-            account: None,
-            dependent: Some(dependent.clone()),
+            tool: Some(ToolRef::Dependency(tool.id)),
+            permissions: Mutex::new(Vec::new()),
             provider: identity.clone(),
             mounts: Arc::clone(&mounts),
             served: Arc::new(Mutex::new(Served::new())),
+            pulls: Arc::new(Pulls::new()),
             touched: touched.clone(),
             inflight: Arc::new(Inflight::new()),
+            files: Arc::new(Inflight::new()),
             services: Mutex::new(None),
             declared: tool.declared.secrets.clone(),
             binding: binding.clone(),
             secrets: Mutex::new(None),
         });
-        let (id, handle, stream) = match tools_run::execute(&handle, &tools_request::Frame(container.clone()), answerer.set()).await {
+        let started = tools_run::execute(&handle, &tools_request::Frame(container.clone()), answerer.set()).await;
+        // The run is answered: its pull is over either way.
+        answerer.pulls.release().await;
+        let (id, handle, stream) = match started {
             Ok(opened) => opened,
             Err(error) => {
                 secrets::abandon(daemon, &answerer).await;
@@ -125,11 +131,11 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
                 continue;
             }
         };
+        let permissions = answerer.permissions.lock().await.clone();
         let run = Arc::new(ToolRun {
             id: key,
             attestation: attestation.clone(),
             sender: sender.clone(),
-            account: None,
             provider: identity,
             container: Some(id.id),
             handle: ToolHandle::Run(handle),
@@ -137,6 +143,7 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
             connections: Mutex::new(HashSet::new()),
             held: watch::channel(false).0,
             inflight: Arc::new(Inflight::new()),
+            files: Arc::new(Inflight::new()),
             touched: touched.clone(),
             mounts: Arc::clone(&mounts),
             volumes: Vec::new(),
@@ -144,13 +151,32 @@ pub async fn start(daemon: &Arc<Daemon>, tool: &DependencyTool) -> Result<Arc<To
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
             dependency: Some(tool.clone()),
+            sessions: Mutex::new(HashMap::new()),
             secrets: Mutex::new(answerer.secrets.lock().await.take()),
+            epoch: daemon.live.epoch().await,
+            log: daemon.live.tool_log(&daemon.store, key).await,
+            ending: Mutex::new(None),
         });
+        // From here a failure is the run's undoing.
+        if let Err(error) = permissions::record(daemon, ToolRef::Dependency(tool.id), &permissions).await {
+            undo_tool(daemon, run, false).await;
+            return Err(error.into());
+        }
+        crate::containers::lifecycle::deployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, run.provider.clone()).await;
+        if let Ok(mut conn) = daemon.store.acquire().await {
+            let _ = crate::store::dependency_tools::set_deployed(&mut conn, tool.id, chrono::Utc::now()).await;
+        }
         daemon.live.insert_tool(Arc::clone(&run)).await;
         daemon.live.changed(Kind::DependencyTools);
         daemon.live.nudge_capacity(&run.provider);
-        let pumping = tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream));
-        run.tasks.lock().await.push(pumping.abort_handle());
+        // Spawned and kept under the tasks' lock, while the run is still
+        // the live one: an end meanwhile drains it after.
+        {
+            let mut tasks = run.tasks.lock().await;
+            if daemon.live.is_tool_run(&run).await {
+                tasks.push(tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream)).abort_handle());
+            }
+        }
         return Ok(run);
     }
     Err(StartError::Run(last))

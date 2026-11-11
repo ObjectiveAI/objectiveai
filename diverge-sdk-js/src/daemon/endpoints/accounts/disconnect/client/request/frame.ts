@@ -1,0 +1,28 @@
+// Closing every connection a client has as an account.
+
+import { z } from "zod";
+import { json, tagged } from "../../../../../../wire/encode.js";
+import { Relay } from "../../../../../../shared/relay.js";
+import { Reference } from "../../../../../../daemon/endpoints/accounts/reference.js";
+
+/**
+ * Ask the daemon to close every connection a client has as an account,
+ * or as an administrator with none: one dialled to the daemon, and one
+ * another daemon made as it. The daemon answers without waiting for them
+ * to end, so an account may disconnect itself; nothing else changes.
+ */
+export const Frame = z.object({
+  /** The account. */
+  account: Reference,
+  /** Served by another daemon: see `Relay`. Absent, served here. */
+  relay: Relay.optional(),
+});
+export type Frame = z.infer<typeof Frame>;
+
+/** This frame's tag among the scope-opening requests: one byte at the front of the payload. */
+const TAG = 135;
+
+/** The payload: the tag, then the frame as JSON, as every request of the daemon's is. */
+export function encode(frame: Frame): Uint8Array {
+  return tagged(TAG, json(frame));
+}

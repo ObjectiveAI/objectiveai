@@ -1,4 +1,4 @@
-//! What a server's response frame carries for list.
+//! What a server's response frame carries for a providers daemons list.
 
 use serde::Serialize;
 use std::fmt;
@@ -8,42 +8,44 @@ use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 use crate::shared::listing::Change;
 
-use super::Daemon;
+use super::Listed;
 
-/// A list's answer: a daemon added, changed or removed, the word that
-/// the list is whole, forbidden, or a failure.
+/// A providers daemons list's answer: an identity added, changed or removed, the word
+/// that the listing is whole, forbidden, or a failure.
 ///
-/// A list is a stream kept open. First every daemon that matches as the
-/// daemon holds it, oldest first, the first `count` of them, each as
-/// [`Added`](Self::Added); then exactly one [`Listed`](Self::Listed);
-/// then, for the scope's life, a daemon come to match as `Added`, one
-/// that matches still and differs from what was last sent as
-/// [`Changed`](Self::Changed), one that matches no more as
-/// [`Removed`](Self::Removed) — the listing kept as the first `count`
-/// that match, so one leaving that window is removed and one entering
-/// it added. The finish follows the client's cancel, the client's
-/// connection ending, or exactly one [`Error`](Self::Error); or the
-/// scope is exactly one [`Forbidden`](Self::Forbidden), then the
-/// finish. A payload leads with one byte saying which — `0` for
-/// `Added`, `1` for `Changed`, `2` for `Removed`, `3` for `Listed`, `4`
-/// for `Forbidden`, `5` for `Error` — and the rest is that variant's
-/// own JSON: one [`Daemon`](super::Daemon) for the first three, the
-/// error for the last, nothing for the others.
+/// A providers daemons list is a stream kept open. First every identity announced
+/// on a connected provider when the scope opened, in order — every
+/// connected provider's own listing read whole before it — the first
+/// `count` of them, each as [`Added`](Self::Added); then exactly one
+/// [`Listed`](Self::Listed); then, for the scope's life, an identity
+/// come to be announced as `Added`, one whose providers or
+/// announcements grew or shrank as [`Changed`](Self::Changed), one announced on no
+/// connected provider any more as [`Removed`](Self::Removed) — the
+/// listing kept as the first `count`, so one leaving that window is
+/// removed and one entering it added. The finish follows the client's cancel, the
+/// client's connection ending, or exactly one [`Error`](Self::Error);
+/// or the scope is exactly one [`Forbidden`](Self::Forbidden), then
+/// the finish. A payload leads with one byte saying which — `0` for
+/// `Added`, `1` for `Changed`, `2` for `Removed`, `3` for `Listed`,
+/// `4` for `Forbidden`, `5` for `Error` — and the rest is that
+/// variant's own JSON: one [`Listed`](super::Listed) for the first three,
+/// the error for the last, nothing for the others.
 ///
 /// # A finish with nothing is an answer
 ///
 /// The client cancelled before anything was sent, or the request was
 /// not served: a scope that finishes with no response before it is
-/// that, not a failure; a listing with nothing that matches is `Listed`
-/// at once, and watched. An [`Error`](Self::Error) is a failure: the
-/// daemon could not list, for whatever reason it knows. What was sent
-/// before the failure precedes the error; nothing follows it.
+/// that, not a failure; a listing with nothing in it is `Listed` at
+/// once, and watched. An [`Error`](Self::Error) is a
+/// failure: the daemon could not list, for whatever reason it knows.
+/// What was sent before the failure precedes the error; nothing
+/// follows it.
 ///
 /// # Forbidden
 ///
 /// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
-/// account the request is served for — the connection's, or the
-/// `account` of the container it came from — holds no grant allowing
+/// account the request is served for — the connection's — or the tool
+/// the request came from holds no grant allowing
 /// what the request asks over what it names, and nothing changed. Where
 /// the answer is a stream it comes as an error does: exactly one, with
 /// nothing before it, then the finish. Nothing is retried. See
@@ -59,20 +61,20 @@ use super::Daemon;
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// One daemon that matches, as the daemon holds it, listed now and
-    /// not before. Tag `0`.
-    Added(Daemon),
-    /// One daemon listed already, as it is now, differing from what was
-    /// last sent. Tag `1`.
-    Changed(Daemon),
-    /// One daemon listed already, matching no more: as it was last
-    /// sent. Tag `2`.
-    Removed(Daemon),
-    /// Every daemon that matched when the scope opened has been sent.
+    /// One identity, with its providers, listed now and not before. Tag
+    /// `0`.
+    Added(Listed),
+    /// One identity listed already, its providers as they are now,
+    /// differing from what was last sent. Tag `1`.
+    Changed(Listed),
+    /// One identity listed already, announced on no connected
+    /// provider any more: as it was last sent. Tag `2`.
+    Removed(Listed),
+    /// Every identity announced when the scope opened has been sent.
     /// Tag `3`.
     ///
     /// Carries nothing — the variant is bare. A client that wants the
-    /// list once cancels here; one that watches reads on.
+    /// listing once cancels here; one that watches reads on.
     Listed,
     /// The account the request is served for holds no grant allowing
     /// it; nothing was sent. Tag `4`.
@@ -147,9 +149,9 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            ADDED => serde_json::from_slice(rest).map(Frame::Added).map_err(FrameError::Daemon),
-            CHANGED => serde_json::from_slice(rest).map(Frame::Changed).map_err(FrameError::Daemon),
-            REMOVED => serde_json::from_slice(rest).map(Frame::Removed).map_err(FrameError::Daemon),
+            ADDED => serde_json::from_slice(rest).map(Frame::Added).map_err(FrameError::Listed),
+            CHANGED => serde_json::from_slice(rest).map(Frame::Changed).map_err(FrameError::Listed),
+            REMOVED => serde_json::from_slice(rest).map(Frame::Removed).map_err(FrameError::Listed),
             LISTED => Ok(Frame::Listed),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
@@ -163,7 +165,7 @@ impl Frame {
     /// [`Listing::push`](crate::shared::listing::Listing::push) — or
     /// the frame itself where it tells a listing nothing: forbidden, or a failure,
     /// the answers that end the scope.
-    pub fn change(self) -> Result<Change<Daemon>, Frame> {
+    pub fn change(self) -> Result<Change<Listed>, Frame> {
         match self {
             Frame::Added(item) => Ok(Change::Added(item)),
             Frame::Changed(item) => Ok(Change::Changed(item)),
@@ -176,8 +178,8 @@ impl Frame {
 
 /// Every change has a frame: what a server sends for what its
 /// listing tells.
-impl From<Change<Daemon>> for Frame {
-    fn from(change: Change<Daemon>) -> Frame {
+impl From<Change<Listed>> for Frame {
+    fn from(change: Change<Listed>) -> Frame {
         match change {
             Change::Added(item) => Frame::Added(item),
             Change::Changed(item) => Frame::Changed(item),
@@ -187,15 +189,15 @@ impl From<Change<Daemon>> for Frame {
     }
 }
 
-/// A list response frame that could not be read.
+/// A providers daemons list response frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
     /// A tag that is none of this frame's six.
     UnknownTag(u8),
-    /// The daemon, added, changed or removed, did not parse.
-    Daemon(serde_json::Error),
+    /// The identity, added, changed or removed, did not parse.
+    Listed(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -205,7 +207,7 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("providers daemons list response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown providers daemons list response frame tag {tag}"),
-            FrameError::Daemon(error) => write!(f, "providers daemons list daemon did not parse: {error}"),
+            FrameError::Listed(error) => write!(f, "providers daemons list identity did not parse: {error}"),
             FrameError::Error(error) => write!(f, "providers daemons list error did not parse: {error}"),
         }
     }
@@ -214,7 +216,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Daemon(error) | FrameError::Error(error) => Some(error),
+            FrameError::Listed(error) | FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

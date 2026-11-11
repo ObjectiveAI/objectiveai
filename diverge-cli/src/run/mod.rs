@@ -3,7 +3,8 @@
 //! `diverge run <family> [<family>…] <request> [BODY]`: the tree of
 //! subcommands is the daemon's own tree of families and requests —
 //! `agents create`, `standalone-tools templates list`,
-//! `providers daemons add`, `events list` — and the tree of files
+//! `connected-standalone-tools create`, `daemons add`, `events list`
+//! — and the tree of files
 //! under this module is the same tree, one folder per family and one
 //! file per request, each file holding the request's arguments and its
 //! run. What a request alone takes is on its own leaf: the eight that
@@ -21,7 +22,8 @@
 //! daemon as that account, a conduit, and the answers come back as
 //! the request's own.
 //!
-//! The selected daemon is the [`Target`], [`dial`]ed as the selected
+//! The selected daemon is the [`Target`], dialled with the SDK's
+//! [`dial`](diverge_sdk::wire::client::dial::dial) as the selected
 //! account by the leaf that puts a request; the leaf decodes its
 //! [`body`] as the SDK's own request type and puts it
 //! through the [`shape`] its exchange has, printing every answer
@@ -39,6 +41,7 @@
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
+use std::path::Path;
 use std::time::Duration;
 
 use clap::{Args, Subcommand};
@@ -47,10 +50,8 @@ use crate::config::Selected;
 
 mod below;
 mod body;
-mod dial;
 mod emit;
 mod error;
-mod refusing;
 mod request_schema;
 mod response_schema;
 mod target;
@@ -59,8 +60,14 @@ pub mod shape;
 
 pub mod accounts;
 pub mod agents;
+pub mod connected_standalone_tools;
+pub mod daemons;
 pub mod dependency_tools;
 pub mod events;
+pub mod identities;
+pub mod images;
+pub mod info;
+pub mod logs;
 pub mod postgres;
 pub mod providers;
 pub mod roles;
@@ -70,10 +77,8 @@ pub mod volumes;
 
 pub use below::*;
 pub use body::*;
-pub use dial::*;
 pub use emit::*;
 pub use error::*;
-pub use refusing::*;
 pub use request_schema::*;
 pub use response_schema::*;
 pub use target::*;
@@ -114,6 +119,15 @@ pub enum Command {
     /// The requests over agents, and their templates.
     #[command(subcommand)]
     Agents(agents::Agents),
+    /// The requests over connected standalone tools: another daemon's
+    /// standalone tools, held here under names, for this daemon's
+    /// agents.
+    #[command(subcommand)]
+    ConnectedStandaloneTools(connected_standalone_tools::ConnectedStandaloneTools),
+    /// The requests over the remote daemons' records: relays and
+    /// connected standalone tools name them.
+    #[command(subcommand)]
+    Daemons(daemons::Daemons),
     /// The requests over dependency tools.
     #[command(subcommand)]
     DependencyTools(dependency_tools::DependencyTools),
@@ -121,11 +135,23 @@ pub enum Command {
     /// through the daemon.
     #[command(subcommand)]
     Events(events::Events),
+    /// The requests over images: an image's DIVERGE.md.
+    #[command(subcommand)]
+    Images(images::Images),
+    /// The requests over the daemon's host's identities: its issuers,
+    /// and the subjects at one.
+    #[command(subcommand)]
+    Identities(identities::Identities),
+    /// Asking what the daemon is: its version.
+    Info(info::Arguments),
+    /// Reading a log: an agent's or a tool's, the subject named.
+    Logs(logs::Arguments),
     /// The requests over the database.
     #[command(subcommand)]
     Postgres(postgres::Postgres),
-    /// The requests over providers: those dialled, those that dial in,
-    /// and daemons reached through them.
+    /// The requests over providers: their records — added, edited,
+    /// deleted, enabled, disabled, tagged — and the identities
+    /// announced on them.
     #[command(subcommand)]
     Providers(providers::Providers),
     /// The requests over roles.
@@ -146,11 +172,12 @@ pub enum Command {
 /// its account: the leaf run — within `--timeout`, when one is given
 /// — dialling the daemon if its command line puts a request, and
 /// every answer printed.
-pub async fn run(selected: &Selected<'_>, run: Run) -> Result<(), Error> {
+pub async fn run(root: &Path, selected: &Selected<'_>, run: Run) -> Result<(), Error> {
     let mut emitter = Emitter::new(run.jq)?;
     let target = Target {
         address: &selected.daemon.address,
-        key: &selected.account.key,
+        root,
+        account: selected.account,
     };
     let exchange = async { dispatch(run.command, &target, &mut emitter).await };
     match run.timeout {
@@ -171,8 +198,16 @@ async fn dispatch(
     match command {
         Command::Accounts(command) => accounts::run(command, target, emitter).await,
         Command::Agents(command) => agents::run(command, target, emitter).await,
+        Command::ConnectedStandaloneTools(command) => {
+            connected_standalone_tools::run(command, target, emitter).await
+        }
+        Command::Daemons(command) => daemons::run(command, target, emitter).await,
         Command::DependencyTools(command) => dependency_tools::run(command, target, emitter).await,
         Command::Events(command) => events::run(command, target, emitter).await,
+        Command::Images(command) => images::run(command, target, emitter).await,
+        Command::Identities(command) => identities::run(command, target, emitter).await,
+        Command::Info(arguments) => info::run(arguments, target, emitter).await,
+        Command::Logs(arguments) => logs::run(arguments, target, emitter).await,
         Command::Postgres(command) => postgres::run(command, target, emitter).await,
         Command::Providers(command) => providers::run(command, target, emitter).await,
         Command::Roles(command) => roles::run(command, target, emitter).await,

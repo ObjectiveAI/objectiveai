@@ -15,7 +15,7 @@
 //! daemon has running anyway — a loop in it — is used as it runs, and
 //! nothing else about the agent changes. An agent or a created tool the
 //! destination names that is not running is started and stopped the
-//! same way; a connected tool is joined and left.
+//! same way.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

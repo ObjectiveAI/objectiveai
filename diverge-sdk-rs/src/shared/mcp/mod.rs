@@ -1,10 +1,13 @@
-//! The five things an agent asks of an MCP server.
+//! The five things an agent asks of an MCP server, and the one its
+//! side says when it is done with one.
 //!
 //! [`list_tools`], [`list_resources`], [`call_tool`] and
 //! [`read_resource`] are one exchange each: a request opens a channel
 //! and one frame answers it. [`notifications`] is the fifth and the
 //! odd one — nothing is asked, and frames arrive for as long as the
-//! channel lives.
+//! channel lives. [`close_session`] is the sixth, and is not MCP's: it
+//! travels only toward a tool container, and ends the caller's
+//! session there — see [`session`].
 //!
 //! # Why five, and why these five
 //!
@@ -43,8 +46,8 @@
 //! params before it forwards the call, so a tool container that
 //! receives it knows which agent is calling; and on the four an
 //! outside client puts over a connect, the serving daemon sets the
-//! caller too — `kind` `unbrokered`: the identity it authorized the
-//! connection as, and nothing the client said of itself — before the
+//! caller too — `kind` `client`: the identity it established at the
+//! handshake, and nothing the client said of itself — before the
 //! exchange reaches the tool. On what
 //! a tool container's own server answers — the result of each of the
 //! four, each tool and each resource of a list, and each notification
@@ -57,9 +60,12 @@
 //! which is not MCP but has the same `_meta` at its top level, the
 //! daemon sets the agent as it keeps the chunk, so a reader of the
 //! log knows which agent spoke. The daemon replaces a value set under
-//! the key and leaves every other key as it was sent; the proxy and
-//! the provider's server set nothing under `_meta` and relay all of
-//! it as sent. The key's form is MCP's own rule for `_meta` names: a
+//! the key and leaves every other key as it was sent; the provider's
+//! server sets nothing under `_meta` and relays all of it as sent, and
+//! so does the proxy, but for one thing: the proxy inside a tool
+//! container opens one MCP session to its server per caller, and sets
+//! the caller under the key on that session's `initialize` — see
+//! [`session`]. The key's form is MCP's own rule for `_meta` names: a
 //! prefix of dotted labels — here the prefix alone. The side that
 //! receives it reads it back as its type through [`attestation`]: a
 //! tool reads a request's caller, an agent an answer's tool.
@@ -82,7 +88,9 @@ pub use meta::*;
 
 pub mod attestation;
 pub mod call_tool;
+pub mod close_session;
 pub mod list_resources;
 pub mod list_tools;
 pub mod notifications;
 pub mod read_resource;
+pub mod session;

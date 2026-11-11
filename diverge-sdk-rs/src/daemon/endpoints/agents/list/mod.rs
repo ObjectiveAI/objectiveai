@@ -15,7 +15,7 @@
 //! the agent's last change of state — a run starting or ending, a loop
 //! beginning or ending — and not of its last line: a line appended
 //! changes nothing here, and a caller that wants the log as it grows
-//! reads its [`logs`](super::logs). A count keeps the list to the
+//! reads its [`logs`](super::super::logs). A count keeps the list to the
 //! first that many that match. A request that says nothing is every
 //! agent. A caller with no agent that matches is told the list is
 //! whole at once, and watched.

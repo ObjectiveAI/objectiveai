@@ -1,7 +1,7 @@
 //! The server side of a serve: what the proxy sends.
 //!
 //! [`response`] is what comes back on channel `0`: that the subtree
-//! is served, or why not, and the finish when the server stops.
+//! is served, or why not, and the finish when the server cancels.
 //! [`channel_response`] answers each ask the server opens, with that
 //! ask's own frame from the shared vocabulary, and each tree the
 //! server opens with a filetree stream.

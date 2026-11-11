@@ -14,9 +14,12 @@
 //! the scope. The finish follows the disconnect, the tool's run
 //! ending, however it ends, or the client's connection ending. Or the
 //! daemon answers that no tool of the caller's is the one named,
-//! forbidden, or that it failed, and finishes: a connected tool is
-//! another daemon's, and naming one is a failure. A tool is connected
-//! to by its name or by its template and index, a created tool only.
+//! forbidden, or that it failed, and finishes. A tool is connected
+//! to by its name or by its template and index. A connected tool —
+//! another daemon's, held here by a
+//! [`connected_standalone_tools::create`](crate::daemon::endpoints::connected_standalone_tools::create)
+//! — is no tool of this family, and is not served on: it is served by
+//! its own daemon, whose connect this daemon opens.
 //!
 //! # The scope holds the tool
 //!

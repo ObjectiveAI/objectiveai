@@ -16,7 +16,7 @@ export const Frame = z.object({
   ...Filter.shape,
   /** How many events the initial listing is kept to: the latest that many by id. `0` is a listing of nothing. Absent, every event that matches. */
   count: z.number().int().nonnegative().optional(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

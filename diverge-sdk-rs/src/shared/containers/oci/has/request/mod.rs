@@ -1,4 +1,4 @@
-//! The ask: a digest.
+//! The ask: an image.
 
 mod request;
 

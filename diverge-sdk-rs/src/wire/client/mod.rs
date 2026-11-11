@@ -12,16 +12,11 @@
 //!
 //! # What is here
 //!
-//! One socket: authenticated first, then split in two.
-//!
-//! [`authorize`] is the step in front. Whichever side dialled presents
-//! the connection's one credential before anything else — this end's
-//! going out, or the far end's being judged by the
-//! [`unbrokered_authorizer`] this end supplies — and the
-//! [`Connection`](crate::wire::connection::Connection) comes back out
-//! ready to be split, as an [`authorized`] that names the far end
-//! beside it. See [`authorization`] for which side does which, and
-//! where the name comes from.
+//! One socket: its [`handshake`](crate::wire::handshake) first, then
+//! split in two. The handshake is the connection's, not this half's —
+//! either end may be the connector — and the
+//! [`Connection`](crate::wire::connection::Connection) it hands back is
+//! what is split.
 //!
 //! [`router`] is the read loop: frames off the socket, forwarded to
 //! whoever is waiting. [`handle`] is the write half and what a caller
@@ -33,6 +28,10 @@
 //! saying where frames should go before the request that causes them;
 //! closures come back, saying an entry is gone.
 //!
+//! [`dial`] is the whole of it for a daemon: the socket, the
+//! handshake as its connector, the split, and the router's run handed
+//! back for the caller to spawn.
+//!
 //! [`scope`] and [`channel`] are what a [`handle`] hands back — the
 //! two things a caller opens, each with the receivers its frames
 //! arrive on. Those three are data and nothing else, which is why
@@ -40,30 +39,23 @@
 //! either: what makes one is the writer's business, what routes by
 //! one is the reader's, and what to do with one is a caller's.
 //!
-//! # Every queue here is unbounded
+//! # Every queue here is one frame ahead
 //!
-//! So nothing this half does ever waits on a consumer. A [`router`]
-//! forwarding a frame pushes it and moves on; one scope that has
-//! stopped reading cannot stall another, and cannot stall the socket.
+//! Each stream is paced by its reader (see [`credit`](crate::wire::credit)):
+//! the far end sends a frame only into room this end's reader gave it
+//! by taking the last. So a [`router`] filing a frame never waits on a
+//! consumer — the room was there before the frame was sent — and one
+//! scope that has stopped reading stalls its own sender, on the far
+//! side, and nothing else. What any stream holds here is one frame and
+//! its finish.
 //!
-//! Which is the same trade [`server`](crate::wire::server) makes, and
-//! it is a trade. Dropping a frame was never on the table — a stream
-//! has no way to say it lost one — so what a bound would have bought
-//! is a stall, and what its absence costs is memory. An unread queue
-//! grows at whatever rate the far end is sending, and nothing in this
-//! crate bounds it.
-//!
-//! So the obligation on a caller is sharper than a depth would have
-//! made it, not softer: read what you asked for, or drop it. Dropping
-//! frees the queue and makes the router's sends fail, which it
-//! ignores.
+//! The obligation on a caller is the same as ever: read what you
+//! asked for, or drop it. Dropping tells the far end, whose sends on
+//! that stream then cost nothing.
 
-pub mod authorization;
-pub mod authorize;
-pub mod authorized;
 pub mod channel;
+pub mod dial;
 pub mod handle;
 pub mod registration;
 pub mod router;
 pub mod scope;
-pub mod unbrokered_authorizer;

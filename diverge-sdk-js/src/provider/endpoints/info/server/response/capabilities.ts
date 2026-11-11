@@ -2,20 +2,23 @@
 // provider do.
 
 import { z } from "zod";
+import { MessagesCapabilities } from "./messages_capabilities.js";
 import { VolumeCapabilities, kept } from "./volume_capabilities.js";
 
 /**
  * Which of the specification's optional parts this provider serves.
  * Every provider serves every endpoint's wire, but not every
- * provider does everything a request may ask: one has no image
- * store, one pulls from no registry, one keeps volumes of some modes
- * only. Each such part is one member here, and a request past it is
+ * provider does everything a request may ask: one runs no
+ * containers, one has no Store, one pulls from no registry, one
+ * keeps volumes of some modes only, one relays no messages. Each such part is one member here, and a request past it is
  * not a failure but a refusal the endpoint has a variant of its own
  * for. Flat, and tolerant: a member absent is the capability absent;
  * a member a reader does not know is ignored.
  */
 export const Capabilities = z.looseObject({
-  /** The provider keeps an image store for its callers. Absent, `false`. */
+  /** The provider runs containers: it answers the agents run and the tools run. Absent, `false`, and each answers `Unsupported`. */
+  containers: z.boolean().optional(),
+  /** The provider keeps the Store for its callers: their images, by digest. Absent, `false`. */
   images_store: z.boolean().optional(),
   /** The registries the provider pulls from, each a host. Absent, none. */
   images_registries: z.array(z.string()).optional(),
@@ -25,6 +28,8 @@ export const Capabilities = z.looseObject({
   volumes_ephemeral: VolumeCapabilities.optional(),
   /** What may be done with a volume in the `read_only` mode. */
   volumes_read_only: VolumeCapabilities.optional(),
+  /** The provider relays messages between the identities connected to it, at no more than this rate. Absent, it relays none, and messages::listen and messages::send each answer `Unsupported`. */
+  messages: MessagesCapabilities.optional(),
 });
 export type Capabilities = z.infer<typeof Capabilities>;
 

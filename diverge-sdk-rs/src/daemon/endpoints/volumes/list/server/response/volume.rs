@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 use crate::shared::listing::Keyed;
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
+use crate::daemon::agent_log::Identity;
 use crate::daemon::key;
 use crate::provider::endpoints::volumes::Mode;
 
@@ -38,7 +38,8 @@ pub struct Volume {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<key::Agent>,
     /// The tools that name it in their mounts, the same way: see
-    /// [`key::Tool`]. Absent when empty.
+    /// [`key::Tool`]. A connected tool mounts nothing of this daemon's,
+    /// and is never among them. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<key::Tool>,
     /// The tags on it, as [`tag`](crate::daemon::endpoints::volumes::tag)

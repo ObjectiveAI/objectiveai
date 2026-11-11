@@ -15,7 +15,8 @@ use crate::reply::reply;
 
 /// Serve one secrets channel: the values go to the driver, which
 /// feeds them to the program and opens the gate when the program has
-/// applied them, and the channel is answered `Fed` then — or `Error`,
+/// applied them — save at the deploy's feed, which leaves it shut —
+/// and the channel is answered `Fed` then — or `Error`,
 /// the program's refusal in its own words, the gate as it was — one
 /// frame, then the finish. Nothing times it out: the program holds
 /// the feed until the values are its own. A driver that is gone, or

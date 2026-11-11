@@ -1,4 +1,4 @@
-//! What a client's channel request frame carries on an image pull.
+//! What a client's channel request frame carries on an oci scope.
 
 use std::fmt;
 
@@ -6,49 +6,50 @@ use crate::shared::containers::oci;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// What a caller asks a provider for on an image pull: the three asks
-/// of [`oci`](crate::shared::containers::oci), byte for byte as the
-/// provider asks them of a caller on a run scope — the same tags, the
-/// same request bodies, the same answers — and the disconnect that
-/// ends the scope.
+/// What a caller asks a provider for on an oci scope the provider
+/// answered held: three of the asks of
+/// [`oci`](crate::shared::containers::oci) — the same request bodies
+/// and the same answers as on a run, each over the scope's image —
+/// and the cancel that ends the scope.
 ///
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`OciManifest`](Self::OciManifest) |
 /// | `1` | [`OciBlob`](Self::OciBlob) |
-/// | `2` | [`OciHas`](Self::OciHas) |
-/// | `3` | [`Disconnect`](Self::Disconnect) |
+/// | `2` | [`OciProve`](Self::OciProve) |
+/// | `3` | [`Cancel`](Self::Cancel) |
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Frame {
-    /// A manifest of an image the provider holds for the caller, by
-    /// digest. Tag `0`.
+    /// A manifest the scope's image reaches, by digest. Tag `0`.
     ///
     /// Answered with at most one frame, the media type and the bytes,
-    /// then the finish; the empty finish for a digest the provider
-    /// does not hold for the caller. See
+    /// then the finish; the empty finish for a digest the image does
+    /// not reach. See
     /// [`oci::manifest`](crate::shared::containers::oci::manifest).
     OciManifest(oci::manifest::request::Request),
-    /// A blob of such an image, by digest. Tag `1`.
+    /// A blob the scope's image reaches, by digest. Tag `1`.
     ///
     /// Answered with the blob's bytes as zero or more frames, each
-    /// appending, then the finish; zero frames is a digest the
-    /// provider does not hold for the caller. See
+    /// appending, then the finish; zero frames is a digest the image
+    /// does not reach. See
     /// [`oci::blob`](crate::shared::containers::oci::blob).
     OciBlob(oci::blob::request::Request),
-    /// Whether the provider holds an image for the caller, by digest,
-    /// and under what name. Tag `2`.
+    /// The proof over the scope's image, under the ask's platform and
+    /// nonce. Tag `2`.
     ///
-    /// Answered with one frame, the byte `0` or the byte `1` and a
-    /// repository path, then the finish. See
-    /// [`oci::has`](crate::shared::containers::oci::has).
-    OciHas(oci::has::request::Request),
-    /// Leave the scope. Tag `3`.
+    /// Answered with at most one frame, the 32 bytes of the proof,
+    /// then the finish; the empty finish for a platform that breaks
+    /// the rule of
+    /// [`oci::prove`](crate::shared::containers::oci::prove). See
+    /// there.
+    OciProve(oci::prove::request::Request),
+    /// End the scope. Tag `3`.
     ///
     /// Carries nothing — the variant is bare — and nothing comes back
     /// on this channel: the provider sends no channel response and no
     /// channel response finish on it. What comes back is the scope's
     /// finish, after every ask still being answered has been.
-    Disconnect,
+    Cancel,
 }
 
 /// Tag for [`Frame::OciManifest`].
@@ -57,13 +58,13 @@ const OCI_MANIFEST: u8 = 0;
 /// Tag for [`Frame::OciBlob`].
 const OCI_BLOB: u8 = 1;
 
-/// Tag for [`Frame::OciHas`].
-const OCI_HAS: u8 = 2;
+/// Tag for [`Frame::OciProve`].
+const OCI_PROVE: u8 = 2;
 
-/// Tag for [`Frame::Disconnect`].
-const DISCONNECT: u8 = 3;
+/// Tag for [`Frame::Cancel`].
+const CANCEL: u8 = 3;
 
-/// A tag, then the ask's own JSON; the disconnect is the tag alone.
+/// A tag, then the ask's own JSON; the cancel is the tag alone.
 impl Encode for Frame {
     /// The ordinary JSON failure, from the three variants that have
     /// one. A lone tag byte cannot fail.
@@ -79,12 +80,12 @@ impl Encode for Frame {
                 out.extend_from_slice(&[OCI_BLOB]);
                 request.encode(out)
             }
-            Frame::OciHas(request) => {
-                out.extend_from_slice(&[OCI_HAS]);
+            Frame::OciProve(request) => {
+                out.extend_from_slice(&[OCI_PROVE]);
                 request.encode(out)
             }
-            Frame::Disconnect => {
-                out.extend_from_slice(&[DISCONNECT]);
+            Frame::Cancel => {
+                out.extend_from_slice(&[CANCEL]);
                 Ok(())
             }
         }
@@ -101,14 +102,14 @@ impl Decode<'_> for Frame {
         match *tag {
             OCI_MANIFEST => oci::manifest::request::Request::decode(rest).map(Frame::OciManifest).map_err(FrameError::Oci),
             OCI_BLOB => oci::blob::request::Request::decode(rest).map(Frame::OciBlob).map_err(FrameError::Oci),
-            OCI_HAS => oci::has::request::Request::decode(rest).map(Frame::OciHas).map_err(FrameError::Oci),
-            DISCONNECT => Ok(Frame::Disconnect),
+            OCI_PROVE => oci::prove::request::Request::decode(rest).map(Frame::OciProve).map_err(FrameError::Oci),
+            CANCEL => Ok(Frame::Cancel),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
 }
 
-/// An image pull channel request that could not be read.
+/// An oci scope's channel request that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -122,9 +123,9 @@ pub enum FrameError {
 impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("image pull channel request frame is empty"),
-            FrameError::UnknownTag(tag) => write!(f, "unknown image pull channel request tag {tag}"),
-            FrameError::Oci(error) => write!(f, "image pull ask did not parse: {error}"),
+            FrameError::Empty => f.write_str("image oci channel request frame is empty"),
+            FrameError::UnknownTag(tag) => write!(f, "unknown image oci channel request tag {tag}"),
+            FrameError::Oci(error) => write!(f, "image oci ask did not parse: {error}"),
         }
     }
 }

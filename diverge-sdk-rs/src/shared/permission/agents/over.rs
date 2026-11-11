@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// The actions over agents that exist, which a grant reaches as far as
 /// its `within` says. Snake case on the wire: `"get"`, `"delete"`,
 /// `"edit"`, `"message"`, `"logs"`, `"list"`, `"download"`, `"upload"`,
-/// `"transfer"`, `"filetree"`.
+/// `"transfer"`, `"filetree"`, `"exec"`, `"frontend"`, `"connect"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -25,7 +25,7 @@ pub enum Over {
     /// does.
     Message,
     /// Read one's log, as
-    /// [`agents::logs`](crate::daemon::endpoints::agents::logs) does.
+    /// [`logs`](crate::daemon::endpoints::logs) does.
     Logs,
     /// List them, as
     /// [`agents::list`](crate::daemon::endpoints::agents::list) does;
@@ -47,4 +47,16 @@ pub enum Over {
     /// [`agents::filetree`](crate::daemon::endpoints::agents::filetree)
     /// does.
     Filetree,
+    /// Run a command in one's container — any program it holds, as
+    /// the container's own user — as
+    /// [`agents::exec`](crate::daemon::endpoints::agents::exec) does.
+    Exec,
+    /// Send HTTP requests to the frontend its program serves, as
+    /// [`agents::frontend`](crate::daemon::endpoints::agents::frontend) does.
+    Frontend,
+    /// Run MCP exchanges as one — list and call its tools, list and
+    /// read its resources, as its own container would — as
+    /// [`agents::connect`](crate::daemon::endpoints::agents::connect)
+    /// does.
+    Connect,
 }

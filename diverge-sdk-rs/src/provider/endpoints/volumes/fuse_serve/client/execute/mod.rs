@@ -3,7 +3,7 @@
 //! [`execute`] opens the scope naming the volume, waits for the
 //! provider to say it is serving, and hands back an
 //! [`ExecuteHandle`]: one [`ask`](ExecuteHandle::ask) at a time, each
-//! its own channel and its own one answer, and [`stop`](ExecuteHandle::stop)
+//! its own channel and its own one answer, and [`cancel`](ExecuteHandle::cancel)
 //! to end the scope.
 //!
 //! Its own files are flattened into it, so everything is named

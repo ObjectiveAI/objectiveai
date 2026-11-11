@@ -34,9 +34,12 @@ and the stream of responses that answers it.
   request — answers with zero or more channel responses (type `5`) and
   ends the channel with exactly one channel response finish (type
   `6`), each quoting the opener's channel number. The responses form
-  one ordered stream, and the finish is its end.
+  one ordered stream, paced as [Credits](/frames/credits/) states, and
+  the finish is its end.
 - **Only the responder ends a channel.** The opener has no frame with
-  which to stop asking, cancel, or abandon the exchange. A channel is
+  which to end or cancel the exchange. An opener that reads no more of
+  the responses abandons them with a [credit](/frames/credits/), and
+  the responder still ends the channel with its finish. A channel is
   open from its request until its finish.
 - **A finish with no response before it is meaningful.** It states
   that the request was received and could not be served, exactly as a

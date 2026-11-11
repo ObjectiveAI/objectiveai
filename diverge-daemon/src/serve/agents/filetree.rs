@@ -7,7 +7,7 @@ use diverge_sdk::daemon::endpoints::agents::filetree::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::active;
+use super::state;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::{files, reply};
@@ -26,8 +26,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// started if it was not up, which failing is the `Error`; else a
 /// snapshot of the whole tree, the daemon's mounts spliced in, then
 /// every change until the client cancels, the run ends, or the stream
-/// fails. The watch touches nothing: it never keeps the container
-/// up.
+/// fails. The watch is a file use for its whole length: it holds the
+/// container up, and the idle clock counts from its end.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -43,10 +43,11 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         return Ok(());
     };
     drop(conn);
-    if !judge::agents::over(&standing, Over::Filetree, &agent, active(daemon, agent.id).await) {
+    if !judge::agents::over(&standing, Over::Filetree, &agent, state(daemon, agent.id).await) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
+    scope.allowed().await;
     let opened = match files::open_agent(daemon, &agent).await {
         Ok(opened) => opened,
         Err(error) => {

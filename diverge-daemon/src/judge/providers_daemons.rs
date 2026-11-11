@@ -1,101 +1,53 @@
-//! Judging requests over daemon records.
+//! Judging requests through providers, over the daemons connected to
+//! them.
 //!
-//! The shape of [`accounts`](super::accounts): a making action is held
-//! or it is not; an action over a daemon record is allowed by a grant
-//! that holds it and whose `within` reaches the record — `any`, or the
-//! daemons list filter as [`filter::providers_daemons::test`] reads it,
-//! with whether this daemon holds a connection to the daemon now, which
-//! the caller knows; an action done AS one of the record's accounts —
-//! `connect`, `relay` — by a grant that holds it, reaches the record,
-//! and names the account among its `accounts` or says `any`; a tagging
-//! action by a grant that holds it, reaches the record, and covers
-//! every tag named.
+//! The shape of [`providers`](super::providers)'s actions over records:
+//! an action — listing the announced identities, listening for messages,
+//! sending one — is allowed through a provider by a grant that holds it
+//! and whose `within` reaches the provider's record — `any`, or the
+//! shared [`Tags`](diverge_sdk::shared::permission::Tags) test over the
+//! record's tags. The rules:
+//!
+//! 1. **Admin.** An administrator's standing is allowed everything, and
+//!    reaches every provider.
+//! 2. **Over.** An action through a provider is allowed by one grant
+//!    holding it whose `within` reaches the provider's record, as the
+//!    providers judge reads a `within`.
+//! 3. **Reached.** What a standing reaches with an action is the
+//!    identities of the records rule 2 allows it through, read from
+//!    records handed in — the judge loads nothing.
 
-use diverge_sdk::daemon::endpoints::providers::daemons::list::client::request::Filter;
-use diverge_sdk::daemon::grant::providers_daemons::{Make, Over, Permission};
-use diverge_sdk::daemon::grant::{Tagging, Within};
+use std::collections::HashSet;
+
+use diverge_sdk::daemon::grant::providers_daemons::{Over, Permission};
+use diverge_sdk::shared::Identity;
 
 use super::Standing;
-use super::filter;
-use crate::store::providers_daemons::Record;
+use crate::store::providers::Record;
 
-/// Whether the standing may add a daemon record.
-pub fn create(standing: &Standing) -> bool {
-    standing
-        .providers_daemons()
-        .any(|permission| matches!(permission, Permission::Make(makes) if makes.contains(&Make::Add)))
-}
-
-/// Whether the standing holds `action` over any daemon record at all.
+/// Whether the standing holds `action` through any provider at all —
+/// rule 1.
 pub fn holds(standing: &Standing, action: Over) -> bool {
+    if standing.admin() {
+        return true;
+    }
+    standing.providers_daemons().any(|Permission::Over { actions, .. }| actions.contains(&action))
+}
+
+/// Whether the standing may do `action` through the provider of the
+/// record — rules 1 and 2.
+pub fn over(standing: &Standing, action: Over, record: &Record) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .providers_daemons()
-        .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
+        .any(|Permission::Over { actions, within }| actions.contains(&action) && super::providers::reaches(within, &record.tags))
 }
 
-/// Whether the standing may do `action` to `record`, given whether this
-/// daemon holds a connection to it now.
-pub fn over(standing: &Standing, action: Over, record: &Record, connected: bool) -> bool {
-    standing.providers_daemons().any(|permission| match permission {
-        Permission::Over { actions, within, .. } => actions.contains(&action) && reaches(within, record, connected),
-        _ => false,
-    })
-}
-
-/// Whether the standing may do `action` to `record` AS its account
-/// `account` — `connect` and `relay`, the two actions done as one —
-/// given whether this daemon holds a connection to the record now: one
-/// grant must hold the action, reach the record, and name the account
-/// among its `accounts` or say `any`.
-pub fn through(standing: &Standing, action: Over, record: &Record, connected: bool, account: &str) -> bool {
-    standing.providers_daemons().any(|permission| match permission {
-        Permission::Over { actions, within, accounts } => actions.contains(&action) && reaches(within, record, connected) && names(accounts, account),
-        _ => false,
-    })
-}
-
-/// Whether the standing holds the tagging `action` over any daemon
-/// record at all.
-pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
-    standing
-        .providers_daemons()
-        .any(|permission| matches!(permission, Permission::Tags { actions, .. } if actions.contains(&action)))
-}
-
-/// Whether the standing may put `tags` on the record, or take them off,
-/// as `action` says: one grant must hold the action, reach the
-/// provider, and name every one of the tags or `any`.
-pub fn tagging(standing: &Standing, action: Tagging, record: &Record, connected: bool, tags: &[String]) -> bool {
-    standing.providers_daemons().any(|permission| match permission {
-        Permission::Tags {
-            actions,
-            within,
-            tags: scope,
-        } => actions.contains(&action) && reaches(within, record, connected) && covers(scope, tags),
-        _ => false,
-    })
-}
-
-/// Whether a grant's `within` reaches the record.
-fn reaches(within: &Within<Filter>, record: &Record, connected: bool) -> bool {
-    match within {
-        Within::Any => true,
-        Within::Only(filter) => filter::providers_daemons::test(filter, record, connected),
-    }
-}
-
-/// Whether a grant's `accounts` names the account, or says `any`.
-fn names(accounts: &Within<Vec<String>>, account: &str) -> bool {
-    match accounts {
-        Within::Any => true,
-        Within::Only(names) => names.iter().any(|named| named == account),
-    }
-}
-
-/// Whether a grant's tag scope names every one of `tags`.
-fn covers(scope: &Within<Vec<String>>, tags: &[String]) -> bool {
-    match scope {
-        Within::Any => true,
-        Within::Only(allowed) => tags.iter().all(|tag| allowed.contains(tag)),
-    }
+/// The identities of every one of `records` the standing may do
+/// `action` through — rule 3: every one of them for an administrator,
+/// none without a grant of `action`.
+pub fn reached(standing: &Standing, action: Over, records: &[Record]) -> HashSet<Identity> {
+    records.iter().filter(|record| over(standing, action, record)).map(|record| record.identity.clone()).collect()
 }

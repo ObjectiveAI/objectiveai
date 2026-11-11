@@ -1,6 +1,7 @@
 //! Answering a build, from a scope, the image manager and the volume
 //! manager.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use futures_util::StreamExt as _;
@@ -13,6 +14,7 @@ use crate::protocol::changes::Changes;
 use crate::protocol::context::Context;
 use crate::protocol::image_manager::ImageManager;
 use crate::protocol::progress::Progress;
+use crate::protocol::release::Release;
 use crate::protocol::volume::Volume as _;
 use crate::protocol::volume_manager::VolumeManager;
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
@@ -26,7 +28,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 /// In order:
 ///
 /// 0. [`Unsupported`](response::Frame::Unsupported), then the finish,
-///    on a provider whose capabilities keep no image store; nothing
+///    on a provider whose capabilities keep no Store; nothing
 ///    is looked at.
 /// 1. The context, when the request names one, held: its path
 ///    checked to be one of names ([`volumes::path`] otherwise), the
@@ -40,13 +42,20 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///    finishes with nothing built.
 /// 2. The manager asked to build, with the context as a
 ///    [`Context`] — the request's two fields and the caller's
-///    identity — and its stream read to the end: every
-///    [`Output`](Progress::Output) sent as it comes; the first of
-///    [`Built`](Progress::Built), told to every listing open by name,
+///    identity — and the description, and its stream read to the end:
+///    every [`Output`](Progress::Output) sent as it comes; the first
+///    of [`Built`](Progress::Built), told to every listing open by
+///    digest, [`Exists`](Progress::Exists), told to nobody since
+///    nothing changed,
 ///    [`InsufficientCapacity`](Progress::InsufficientCapacity) and the
 ///    stream's error, flattened, sent and the stream left. A stream
-///    that ends with none of them is [`refusal::unfinished`].
-/// 3. The hold given back, and the finish.
+///    that ends with none of them is [`refusal::unfinished`]. A caller
+///    that reads no more of the scope leaves the stream too, with
+///    nothing sent: the stream is dropped, which the build hears as
+///    nobody listening, and its tool is killed.
+/// 3. The hold given back, and the finish. The giving back is a
+///    [`Release`], so a build that panics or is cancelled gives the
+///    hold back at the drop.
 ///
 /// A response that will not encode is the one failure with nowhere to
 /// go, and is not sent. The request arrives decoded, as every
@@ -54,7 +63,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 pub async fn handle<M, V>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     volume_manager: &V,
     changes: Arc<Changes>,
@@ -73,7 +82,12 @@ pub async fn handle<M, V>(
     let held = match &request.context {
         None => None,
         Some(context) => match hold(volume_manager, client_identity, context, capabilities).await {
-            Ok(volume) => Some(volume),
+            Ok(volume) => {
+                let volume = Arc::new(volume);
+                Some(Release::new(async move {
+                    volume.unmount(Holder::Run).await;
+                }))
+            }
             Err(frame) => {
                 send(&scope, &frame).await;
                 scope.send_response_finish().await;
@@ -82,22 +96,36 @@ pub async fn handle<M, V>(
         },
     };
     let context = request.context.as_ref().map(|context| Context {
-        client_identity: client_identity.to_string(),
+        client_identity: client_identity.clone(),
         volume_name: context.volume_name.clone(),
         volume_relative_path: context.volume_relative_path.clone(),
     });
     let build = manager
-        .build(client_identity, &request.name, &request.containerfile, context.as_ref())
+        .build(client_identity, request.description.as_ref(), &request.containerfile, context.as_ref())
         .await;
-    let mut build = std::pin::pin!(build);
+    let mut build = Box::pin(build);
     let mut ended = false;
-    while let Some(item) = build.next().await {
+    loop {
+        let item = tokio::select! {
+            item = build.next() => item,
+            () = scope.responses_gone() => {
+                ended = true;
+                break;
+            }
+        };
+        let Some(item) = item else {
+            break;
+        };
         let frame = match item {
             Ok(Progress::Output(line)) => response::Frame::Output(line),
             Ok(Progress::Built(built)) => {
-                changes.changed(client_identity, &request.name);
+                changes.changed(client_identity, &built.digest);
                 ended = true;
                 response::Frame::Built(built)
+            }
+            Ok(Progress::Exists(exists)) => {
+                ended = true;
+                response::Frame::Exists(exists)
             }
             Ok(Progress::InsufficientCapacity) => {
                 ended = true;
@@ -113,11 +141,12 @@ pub async fn handle<M, V>(
             break;
         }
     }
+    drop(build);
     if !ended {
         send(&scope, &response::Frame::Error(refusal::unfinished())).await;
     }
-    if let Some(volume) = held {
-        volume.unmount(Holder::Run).await;
+    if let Some(held) = held {
+        held.now().await;
     }
     scope.send_response_finish().await;
 }
@@ -130,7 +159,7 @@ pub async fn handle<M, V>(
 /// the volume.
 async fn hold<V>(
     volume_manager: &V,
-    client_identity: &str,
+    client_identity: &Identity,
     context: &request::Context,
     capabilities: &Capabilities,
 ) -> Result<V::Volume, response::Frame>

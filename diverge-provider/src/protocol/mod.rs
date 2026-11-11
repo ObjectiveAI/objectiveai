@@ -24,12 +24,12 @@
 //! connection is a provider's whole loop.
 //!
 //! Ten of the [`volumes`](diverge_sdk::provider::endpoints::volumes),
-//! [`images::check`](diverge_sdk::provider::endpoints::images::check),
 //! the image store's stat and delete,
 //! [`info`](diverge_sdk::provider::endpoints::info) and
 //! [`capacity`](diverge_sdk::provider::endpoints::capacity) answer and
 //! finish, which is the whole of what those endpoints do; the two listings stay open
-//! until the caller stops, and a build until the build ends. The two
+//! until the caller cancels, as a pull does, and a build until the
+//! build ends. The two
 //! [`containers`](diverge_sdk::provider::endpoints::containers) runs serve for as
 //! long as their containers run: each brings its container up,
 //! answers its id, and then carries the container's asks out and the
@@ -38,7 +38,7 @@
 //!
 //! # And what a provider supplies
 //!
-//! Nine traits and three types, which are what this half asks FOR
+//! Eight traits and three types, which are what this half asks FOR
 //! rather than provides. They mirror the ones [`client`](diverge_sdk::wire::client)
 //! supplies: something a provider implements, so that the parts this
 //! crate cannot know are somebody else's.
@@ -86,47 +86,45 @@
 //! the directory is the deployer's, the way publishing a port already
 //! is.
 //!
-//! [`image_checker`] is the third, and it is the smallest: would you
-//! supply this image, to this caller. It is not a
-//! [`container_deployer`] method because a check creates nothing and
-//! pulls nothing, and because no is an ANSWER here where it would be an
-//! error there.
+//! [`Authenticator`](diverge_sdk::wire::handshake::Authenticator) is
+//! the third, and lives with the wire, being the wire's own handshake
+//! rather than this protocol's: every other trait is asked things on
+//! behalf of a caller, and this is the one that decides who the caller
+//! IS. The handshake is made before [`handle`], by the host, because a
+//! token belongs to the connection and not to any scope on it; what
+//! [`handle`] receives is the caller's verified identity.
 //!
-//! [`UnbrokeredAuthorizer`](diverge_sdk::wire::server::unbrokered_authorizer::UnbrokeredAuthorizer)
-//! is the fourth, and lives with the wire, being the wire's own
-//! handshake rather than this protocol's: every other trait is asked
-//! things on behalf of a caller, and this is the one that decides who
-//! the caller IS. It is consumed by [`handle`]
-//! itself rather than by any endpoint's handler, because a credential
-//! belongs to the connection and not to any scope on it.
+//! [`image_source`] is no trait but what a provider takes an image
+//! FROM the caller with: the run scope's channels to the caller — or a
+//! push's — asking by digest for a manifest, a blob, and the proof of
+//! possession of
+//! [`prove`](diverge_sdk::shared::containers::oci::prove), which is
+//! the one thing only this crate can be. [`caller`] is what a run hands
+//! the deployer beside the image: whether the caller holds it, asked on
+//! the scope, and its source. Where a provider keeps what it takes, and
+//! how its runtime pulls it, are the provider's: this crate serves no
+//! HTTP.
 //!
-//! [`image_registry`] is the fifth: the OCI registry a provider runs
-//! on its loopback for an image it takes from the CALLER, fed by
-//! digest through an [`image_source`] — the run scope's channels to
-//! the caller, which is the one thing only this crate can be. The
-//! registry's HTTP is the provider's, for the reason above: this
-//! crate serves none. [`caller`] is what a run hands the deployer
-//! beside the image: whether the caller holds it, asked on the
-//! scope, under what path, and where the registry serves it.
-//!
-//! [`image_manager`] is the sixth: the images a caller BUILDS on the
-//! provider, from a Containerfile, under names of its own — listed,
-//! examined, built and destroyed by the four store endpoints of
+//! [`image_manager`] is the fourth: the Store, the images a caller OWNS
+//! on the provider, each by its digest — listed, examined, built,
+//! pushed, described, proven and destroyed by the store endpoints of
 //! [`images`](diverge_sdk::provider::endpoints::images). It is the
 //! [`volume_manager`]'s twin for a thing that is never acted on in
 //! place, so it has no second trait: a [`context`] is a volume
 //! directory a build reads from, with the identity attached as a
 //! [`mount`] has it, and a [`progress`] is one thing a build says.
-//! An image an identity built is one the provider holds for that
-//! identity and for nobody else, which the checker and the deployer
-//! a provider supplies beside this are bound to.
+//! An image an identity owns is one the provider holds for that
+//! identity and for nobody else, which the OCI store and the deployer a provider supplies beside this are bound to.
 //!
-//! [`oci_store`] is the seventh: what the provider holds of an image
-//! for a caller, served to the caller's own asks on an `images::oci`
-//! scope — the run's three OCI asks the other way round, so a caller
-//! can carry an image from one provider to a run on another. The
-//! mirror of the caller half's `OciStore`, and like it without an
-//! error vocabulary.
+//! [`oci_store`] is the fifth: the one image an `images::oci` scope
+//! names, opened for the caller — from its Store, or from a registry
+//! the provider uses that one of the image's references names — its
+//! opening the answer to whether the image is held, and then served
+//! to the caller's own asks for its manifests, its blobs and its proof
+//! of possession until the scope ends: the run's OCI asks the other
+//! way round, so a caller can carry an image from one provider to a
+//! run on another, or answer another provider's nonce check with no
+//! image byte moving. The mirror of the caller half's `OciStore`.
 //!
 //! [`directory`] is a type: every container the provider is running,
 //! by id, shared across connections — because a FUSE serve names a
@@ -134,18 +132,20 @@
 //! to find the connection to its proxy.
 //! [`acceptors`] is its twin for daemons: every daemon accepting
 //! connections through the provider, by identity, which a
-//! `daemons::connect` on any connection finds. [`changes`] is the
+//! `daemons::connect` on any connection finds. [`listables`] is
+//! one more: every connected identity that holds a `daemons::announce`
+//! open, which a `daemons::list` on any connection lists. [`changes`] is the
 //! third, twice over: the word that a caller's volume, or image,
 //! changed, which the listings open on any connection hear.
 //!
 //! Nothing implements any of them, and all are consumed:
 //! [`volume_manager`] and [`volume`] by the eleven
 //! [`volumes`](diverge_sdk::provider::endpoints::volumes) endpoints' handlers,
-//! [`image_checker`] by
-//! [`images::check`](diverge_sdk::provider::endpoints::images::check)'s,
-//! [`image_manager`] by the four store endpoints' — the build's
+//! [`oci_store`] by
+//! [`images::oci`](diverge_sdk::provider::endpoints::images::oci)'s,
+//! [`image_manager`] by the store endpoints' — the build's
 //! taking the [`volume_manager`] too, for the volume it reads — and
-//! [`container_deployer`], [`image_registry`] and
+//! [`container_deployer`] and
 //! — for the volumes a request mounts, locked for the run — the
 //! [`volume_manager`] again by the two run handlers of
 //! [`containers`](diverge_sdk::provider::endpoints::containers)
@@ -159,7 +159,8 @@
 //! [`Capabilities`](diverge_sdk::provider::endpoints::info::server::response::Capabilities)
 //! the provider holds out, which it answers beside a compile-time
 //! version and which every handler of an optional part of the
-//! protocol enforces — the image store's five and the check, the
+//! protocol enforces — the image store's own; the pull, which a
+//! Store or a registry listed enables; the
 //! runs' FUSE mounts, the container FUSE serve, and the eleven volume
 //! endpoints, each answering the refusal the wire defines where the
 //! capability is absent and judging every hold on a volume by what
@@ -196,18 +197,22 @@ pub mod container_deployer;
 pub mod context;
 pub mod deployment;
 pub mod directory;
+pub mod listables;
 pub mod endpoints;
 pub mod handle;
 pub mod hold;
 pub mod holders;
-pub mod image_checker;
+pub mod image_info;
 pub mod image_manager;
-pub mod image_registry;
 pub mod image_source;
+pub mod keepalive;
+pub mod mailboxes;
 pub mod mount;
 pub mod oci_store;
 pub mod progress;
 pub mod proxy;
+pub mod release;
 pub mod served;
+pub mod singles;
 pub mod volume;
 pub mod volume_manager;

@@ -1,10 +1,9 @@
-//! The seven requests over daemon records, served.
+//! The requests over the daemons reached through the providers,
+//! served: [`list`] lists the identities announced on
+//! them, [`listen`] hears the messages sent to the daemon through
+//! them, and [`message`] sends one through them. Each is judged by the
+//! providers grant, and reaches only the providers that grant reaches.
 
-pub mod accounts;
-pub mod add;
-pub mod delete;
-pub mod edit;
-pub mod get;
 pub mod list;
-pub mod tag;
-pub mod untag;
+pub mod listen;
+pub mod message;

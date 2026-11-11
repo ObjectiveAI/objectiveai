@@ -1,63 +1,111 @@
 ---
 title: 'images::oci'
-summary: 'Tag 19: a client opens a scope to pull what the server holds for it; the server sends nothing on the main stream and, for as long as the scope lives, answers on channels the client opens whether it holds an image for the client and under what name, a manifest by digest, and a blob by digest; the client disconnects, or its connection ends, and the response finish follows.'
-order: 19
+summary: 'Tag 21: a client names exactly one image by digest and by zero or more references and asks whether the server can supply it; the server sends exactly one response stating that it holds the image, that it does not, that it has neither a Store nor any registry, or an error; after the held answer the scope stays open, and the server answers on channels the client opens the manifests and blobs the image reaches and the proof of Possession over it, until the client cancels or its connection ends and the response finish follows.'
+order: 21
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`19` and nothing more. The server sends no response on the scope,
-unless it keeps no client image, in which case it sends exactly one.
-The scope stays open: the client opens on it, as channels, the three asks
-the server makes of a client on a run scope — whether an image is
-held, a manifest, a blob — and the server answers each from what it
-holds for the client. The client ends the scope by opening the
-disconnect channel, or by its connection ending; the response finish
-follows the last answer, and no frame follows the finish.
+`21` followed by exactly one image, named by its digest and by zero or
+more references. The request is the question whether the server can
+supply that image. The server sends exactly one response on the main
+stream, which states that the server holds the image, that it does
+not, that it has no source, or an error. After any response but the
+held answer, the response finish follows the response. After the held
+answer, the scope stays open: the client opens on the scope, as
+channels, asks for the manifests and the blobs of the image and for
+the proof of Possession over it, which the server answers, and ends
+the scope by opening the cancel channel or by its connection ending.
+No frame follows the response finish.
 
-- **The request.** The request carries no parameter; the tag is the
-  whole of it. [Request](/endpoints/images-oci/request/) states its
-  form.
+- **The request.** The request is the image: a manifest digest, which
+  identifies the image, and zero or more references, each a registry
+  host and a repository path, which locate it.
+  [Request](/endpoints/images-oci/request/) states its form.
 - **The response.** [Response](/endpoints/images-oci/response/)
-  states that the main stream carries nothing but the finish on a
-  server that keeps client images, the one response a server that
-  keeps none sends, and when the finish comes.
+  states the sequence of the main stream: exactly one response, first,
+  followed by the response finish at once, or, after the held answer,
+  when the scope ends.
 - **The channels.** The client opens the channels that
-  [Client Channels](/endpoints/images-oci/client/) defines: the three
-  asks, byte for byte the asks of
-  [containers::agents::run](/endpoints/containers-agents-run/) and
-  [containers::tools::run](/endpoints/containers-tools-run/) with the
-  client and the server exchanged, and the disconnect. The server
-  opens no channel on a pull scope.
-- **What is held for the client.** The server holds, for the client,
-  every image the client built on it by
-  [images::build](/endpoints/images-build/) and has not deleted — the
-  `client` source of [images::check](/endpoints/images-check/) — and
-  serves each byte for byte as it was at the end of its build. An
-  image another client built is not held for the client, however
-  alike the digest, and the server does not serve it. An image the
-  server holds on its own account is not served on a pull: the
-  server obtains nothing for a pull, an image not held for the
-  client is answered as not held, and no registry is asked.
+  [Client Channels](/endpoints/images-oci/client/) defines: the
+  oci-manifest and oci-blob asks, byte for byte the asks of tags `0`
+  and `1` of
+  [containers::agents::run](/endpoints/containers-agents-run/server/)
+  and [containers::tools::run](/endpoints/containers-tools-run/server/)
+  with the client and the server exchanged; the oci-prove ask; and the
+  cancel. The server opens no channel on the scope.
+- **The sources.** The server supplies the image from exactly the
+  following sources, in the following order. The first is the
+  client's Store, as [Image sources](/endpoints/#image-sources)
+  defines it: the server holds the image when the client owns the
+  digest. The second is the registries the server is configured with,
+  its [`images_registries`](/capabilities/#images_registries): where
+  the client's Store does not supply the image, the server holds the
+  image when it can obtain it, as `<registry>/<name>@<digest>`, from a
+  registry in its `images_registries` that a reference of the request
+  names. The server ignores a reference that names a registry not in
+  its `images_registries`, and a reference whose `name` is not a
+  repository path by the grammar of the OCI Distribution
+  Specification. A request with no reference is answered from the
+  client's Store alone. Where the source is the client's Store, the
+  server serves each manifest and each blob byte for byte as it was
+  when the image entered the Store.
+- **Never another's.** The server never supplies the image from
+  another identity's Store. An image in another identity's Store and
+  not in the client's Store is not held on that account.
+- **Never the client-sourced cache.** The server never supplies the
+  image from an image it holds only because a client supplied it to a
+  [containers::agents::run](/endpoints/containers-agents-run/) or a
+  [containers::tools::run](/endpoints/containers-tools-run/), the
+  source `Client` of [Image sources](/endpoints/#image-sources). An
+  image held only on that account is not held.
+- **Held.** The byte `0` states that the server can supply the image
+  the digest names from one of the two sources, as determined at the
+  time of the answer. The answer names no source. The answer reserves
+  nothing: a channel the client opens after it may be answered with a
+  channel response finish that no channel response precedes, where the
+  server can no longer supply the bytes it asks for.
+- **Not found.** The byte `1` states that neither source supplies the
+  image, as determined at the time of the answer. The answer states no
+  reason: an image the server cannot obtain and an image the server
+  could obtain and will not serve to this client receive the same
+  answer.
+- **Unsupported.** A server that holds out no
+  [`images_store`](/capabilities/#images_store) capability and whose
+  [`images_registries`](/capabilities/#images_registries) is empty has
+  no source. It answers every request of this endpoint with exactly
+  one response on the main stream, the byte `2` alone, before anything
+  is looked up, and the response finish. A server that has exactly
+  one of the two sources supplies the image from that source alone.
+- **The error.** An error states that the server did not answer the
+  question, and that nothing was determined about the image. An error
+  is not a not-found answer.
+- **No channel after a refusal.** After the byte `1`, the byte `2` or
+  an error, the server answers no channel the client opens on the
+  scope.
+- **What the image reaches.** The server answers an oci-manifest or
+  an oci-blob ask only for a digest the image of the scope reaches. The
+  image reaches exactly the following digests: the digest of the
+  request, which names a manifest; where that manifest is an image
+  index, the digest of every manifest the index lists; and the digest
+  of the config and of every layer of each image manifest so reached.
+  The server answers an ask for any other digest with a channel
+  response finish that no channel response precedes.
+- **The proof.** The server answers an oci-prove ask with the proof
+  that [Possession](/shared/possession/) defines over the image of the
+  scope, with the platform and the nonce of the ask, as
+  [oci-prove](/endpoints/images-oci/client/oci-prove/) states.
 - **The client.** The client is the identity under which the
   connection was authorized, as [Authorization](/authorization/)
-  provides. What is held for the client is held for that identity.
+  provides. The client's Store is that identity's Store.
 - **Asks in flight at once.** A client may have any number of asks
   open at once. The server answers each on its own channel, in
   whatever order it answers them.
-- **The disconnect.** The client ends the scope by opening the
-  disconnect channel. The server answers every ask still open, sends
-  nothing on the disconnect's own channel, and sends the response
-  finish. A connection that closes with a pull scope open ends the
-  scope the same way.
-- **Not served.** A server that will not serve the pull sends the
-  response finish with no response before it and serves no channel.
-  A client cannot tell this from its own disconnect but by having
-  sent none.
-- **No image store.** A server that holds out no
-  [`images_store`](/capabilities/#images_store) capability holds no
-  image for any client and answers every request of this endpoint
-  with exactly one response on the main stream, the byte `0` alone,
-  and the response finish; it answers no channel the client opens on
-  the scope. Every other requirement of this page holds for a server
-  that holds the capability out.
+- **The cancel.** The client ends the scope by opening the cancel
+  channel. The server answers every ask still open, sends nothing on
+  the cancel's own channel, and sends the response finish. A
+  connection that closes with the scope open ends the scope the same
+  way.
+- **Not served.** A server that will not serve the request sends the
+  response finish with no response before it and serves no channel,
+  as [Endpoints](/endpoints/) provides for a request not served.

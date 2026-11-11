@@ -1,17 +1,19 @@
 //! One scope, and everything a provider does inside it.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::SinkExt as _;
 use futures_util::stream::SplitSink;
 use tokio::sync::Mutex;
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use super::channel::Channel;
 use super::notice::Notice;
+use super::verdict::{Hook, Verdict};
 use crate::wire::connection::Connection;
+use crate::wire::credit::{Credit, Go, Receiver, Window};
 use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame::server::ServerFrame;
 
@@ -74,7 +76,6 @@ use crate::wire::frame::server::ServerFrame;
 /// client opens inside the scope, which is where the two
 /// `channel_response` calls get the channel number they have to
 /// quote.
-#[derive(Debug)]
 pub struct ScopeHandle {
     /// The scope's number, chosen by the CLIENT.
     ///
@@ -102,7 +103,16 @@ pub struct ScopeHandle {
     /// reads it, so the lock is never contended — it is what makes
     /// [`recv_channel_request`](Self::recv_channel_request) take
     /// `&self` like the rest, not a way of arbitrating anything.
-    channel_request_receiver: Mutex<UnboundedReceiver<Bytes>>,
+    channel_request_receiver: Mutex<Receiver>,
+    /// This end's room for responses in the scope.
+    responses: Window,
+    /// This end's room for channel requests in the scope.
+    asked: Window,
+    /// This end's room on each channel the client opened, as the
+    /// session hands them over, by the client's number.
+    answers: Mutex<(HashMap<u32, Window>, UnboundedReceiver<(u32, Window)>)>,
+    /// Where this end's readers post the credits they owe.
+    outbox: UnboundedSender<Credit>,
     /// Everything it takes to hand out a channel number.
     ///
     /// One lock rather than three fields, because minting reads all of
@@ -154,6 +164,21 @@ pub struct ScopeHandle {
     /// taken afterwards and separately, which is the whole point of the
     /// buffer being per scope.
     buffer: Mutex<Vec<u8>>,
+    /// Who is told the scope's [`Verdict`], once, if anyone is: taken
+    /// out before it is called.
+    verdict: Mutex<Option<Hook>>,
+    /// Whether [`send_response_finish`](Self::send_response_finish) has
+    /// run: a handle dropped without it finishes its scope from the
+    /// drop.
+    finished: Mutex<bool>,
+}
+
+/// By hand, since the hook is a closure: everything but it, and
+/// whether it is still waiting.
+impl std::fmt::Debug for ScopeHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ScopeHandle").field("scope", &self.scope).finish_non_exhaustive()
+    }
 }
 
 impl ScopeHandle {
@@ -167,16 +192,24 @@ impl ScopeHandle {
     /// The bookkeeping is not among them. A scope starts having opened
     /// nothing and written nothing, its first channel at `1`, and there
     /// is no other answer a caller could give.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         scope: u32,
-        channel_request_receiver: UnboundedReceiver<Bytes>,
+        channel_request_receiver: Receiver,
         finished_channel_receiver: UnboundedReceiver<u32>,
         notice_sender: UnboundedSender<Notice>,
         sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
+        (responses, asked): (Window, Window),
+        answers_receiver: UnboundedReceiver<(u32, Window)>,
+        outbox: UnboundedSender<Credit>,
     ) -> Self {
         ScopeHandle {
             scope,
             channel_request_receiver: Mutex::new(channel_request_receiver),
+            responses,
+            asked,
+            answers: Mutex::new((HashMap::new(), answers_receiver)),
+            outbox,
             minter: Mutex::new(Minter {
                 counter: 0,
                 channels: HashSet::new(),
@@ -185,6 +218,25 @@ impl ScopeHandle {
             notice_sender,
             sink,
             buffer: Mutex::new(Vec::new()),
+            verdict: Mutex::new(None),
+            finished: Mutex::new(false),
+        }
+    }
+
+    /// Have `hook` told this scope's [`Verdict`]: whichever comes first
+    /// of [`allowed`](Self::allowed), the first response, and the scope
+    /// ending with none. A second hook replaces the first, untold.
+    pub async fn on_verdict(&self, hook: Hook) {
+        *self.verdict.lock().await = Some(hook);
+    }
+
+    /// Say the request was let through, before any answer: for a scope
+    /// whose first response is long in coming. Tells the hook
+    /// [`Verdict::Allowed`] if it has not been told yet.
+    pub async fn allowed(&self) {
+        let hook = self.verdict.lock().await.take();
+        if let Some(hook) = hook {
+            hook(Verdict::Allowed);
         }
     }
 
@@ -213,7 +265,19 @@ impl ScopeHandle {
     /// serving a filetree channel races this against the tree it is
     /// relaying, and one of the two loses every time round.
     pub async fn recv_channel_request(&self) -> Option<Bytes> {
-        self.channel_request_receiver.lock().await.recv().await
+        let request = self.channel_request_receiver.lock().await.recv().await;
+        self.take_handed().await;
+        request
+    }
+
+    /// Take in every room the session has handed over: what keeps the
+    /// queue they arrive on from growing between answers.
+    async fn take_handed(&self) {
+        let mut answers = self.answers.lock().await;
+        let (windows, handed) = &mut *answers;
+        while let Ok((number, window)) = handed.try_recv() {
+            windows.insert(number, window);
+        }
     }
 
     /// Answer, on the scope's own stream.
@@ -234,6 +298,15 @@ impl ScopeHandle {
     /// handle serves every scope on the connection; here the handle IS
     /// the scope, and a misdirected response is not expressible.
     pub async fn send_response(&self, payload: &[u8]) {
+        let hook = self.verdict.lock().await.take();
+        if let Some(hook) = hook {
+            hook(Verdict::Response(payload));
+        }
+        // Without room this waits; with no reader, or no scope, it is
+        // nothing (see `credit`).
+        if self.responses.take().await != Ok(Go::Send) {
+            return;
+        }
         self.send_frame(ServerFrame::Response {
             scope: self.scope,
             payload,
@@ -288,7 +361,22 @@ impl ScopeHandle {
     /// begun. Closing before the frame goes out means the number reads
     /// as free from the moment the client could possibly act on it.
     pub async fn send_response_finish(&self) {
+        let hook = self.verdict.lock().await.take();
+        if let Some(hook) = hook {
+            hook(Verdict::Nothing);
+        }
         self.channel_request_receiver.lock().await.close();
+        *self.finished.lock().await = true;
+        // Every room on the client's channels goes with the scope, and
+        // the session is told now rather than at the drop: a handle
+        // kept after its finish holds nothing of it.
+        {
+            let mut answers = self.answers.lock().await;
+            let (windows, handed) = &mut *answers;
+            while handed.try_recv().is_ok() {}
+            windows.clear();
+        }
+        let _ = self.notice_sender.send(Notice::Closed(self.scope, None));
         self.send_frame(ServerFrame::ResponseFinish { scope: self.scope })
             .await;
     }
@@ -323,12 +411,18 @@ impl ScopeHandle {
     /// makes a session's drain-on-miss enough to close the race rather
     /// than merely narrow it.
     pub async fn send_channel_request(&self, payload: &[u8]) -> Channel {
+        // A client that reads no more channel requests, or a scope that
+        // is over, answers nothing: a channel that ends at once.
+        if self.asked.take().await != Ok(Go::Send) {
+            let (_, response_receiver) = Receiver::new(self.outbox.clone(), self.scope, 0, false);
+            return Channel { channel: 0, response_receiver, scope: self.scope, notice_sender: self.notice_sender.clone() };
+        }
         let channel = self.mint().await;
-        let (response_sender, response_receiver) = mpsc::unbounded_channel();
+        let (response_filer, response_receiver) = Receiver::new(self.outbox.clone(), self.scope, channel, false);
         let _ = self.notice_sender.send(Notice::Register {
             scope: self.scope,
             channel,
-            response_sender,
+            response_filer,
         });
         self.send_frame(ServerFrame::ChannelRequest {
             scope: self.scope,
@@ -374,6 +468,10 @@ impl ScopeHandle {
         channel: u32,
         payload: &[u8],
     ) {
+        let Some(window) = self.answer(channel).await else { return };
+        if window.take().await != Ok(Go::Send) {
+            return;
+        }
         self.send_frame(ServerFrame::ChannelResponse {
             scope: self.scope,
             channel,
@@ -397,8 +495,20 @@ impl ScopeHandle {
     /// do. Compare
     /// [`Session`](super::session::Session), which hands a number back
     /// to this handle when the client finishes a channel THIS end
-    /// opened.
+    /// opened. Its room is let go: every room the session handed over
+    /// is taken in first, as [`answer`](Self::answer) takes them, so a
+    /// channel finished with no response before it leaves nothing
+    /// behind in the queue the rooms arrive on.
     pub async fn send_channel_response_finish(&self, channel: u32) {
+        {
+            let mut answers = self.answers.lock().await;
+            let (windows, handed) = &mut *answers;
+            while let Ok((number, window)) = handed.try_recv() {
+                windows.insert(number, window);
+            }
+            windows.remove(&channel);
+        }
+        let _ = self.notice_sender.send(Notice::Answered(self.scope, channel));
         self.send_frame(ServerFrame::ChannelResponseFinish {
             scope: self.scope,
             channel,
@@ -415,6 +525,46 @@ impl ScopeHandle {
     /// another task choose the same number in between.
     async fn mint(&self) -> u32 {
         self.minter.lock().await.mint()
+    }
+
+    /// Resolves once the client reads no more of the scope's responses
+    /// — it abandoned them, or the scope or connection ended — see
+    /// [`Window::gone`]. What a scope whose work costs something waits
+    /// on to stop it.
+    pub async fn responses_gone(&self) {
+        self.responses.gone().await;
+    }
+
+    /// Whether the client took every response sent on the scope: `true`
+    /// once the scope's response stream has room again — the last
+    /// response taken off the client's queue — and `false` once the
+    /// client reads no more of it, or the scope or connection ended.
+    /// See [`Window::ready`]. What a scope that answers only once its
+    /// response is received waits on.
+    pub async fn response_taken(&self) -> bool {
+        self.responses.ready().await
+    }
+
+    /// Resolves once the client reads no more of this end's answer on
+    /// its channel `channel`, or the answer is over: as
+    /// [`responses_gone`](Self::responses_gone), one level down. A
+    /// channel never opened resolves at once.
+    pub async fn answer_gone(&self, channel: u32) {
+        match self.answer(channel).await {
+            Some(window) => window.gone().await,
+            None => {}
+        }
+    }
+
+    /// The room on a channel the client opened: `None` for one it never
+    /// opened, or one already answered.
+    async fn answer(&self, channel: u32) -> Option<Window> {
+        let mut answers = self.answers.lock().await;
+        let (windows, handed) = &mut *answers;
+        while let Ok((number, window)) = handed.try_recv() {
+            windows.insert(number, window);
+        }
+        windows.get(&channel).cloned()
     }
 
     /// Build one frame and write it.
@@ -469,8 +619,17 @@ impl ScopeHandle {
 /// would still look live, and would never be removed at all.
 impl Drop for ScopeHandle {
     fn drop(&mut self) {
+        if let Some(hook) = self.verdict.get_mut().take() {
+            hook(Verdict::Nothing);
+        }
         self.channel_request_receiver.get_mut().close();
         let _ = self.notice_sender.send(Notice::Closed(self.scope, None));
+        // A handle dropped unfinished — its task aborted, or panicked —
+        // still ends its scope for the client, which would otherwise keep
+        // it, and wait on it, for the connection's life.
+        if !*self.finished.get_mut() {
+            super::session::post(&self.sink, ServerFrame::ResponseFinish { scope: self.scope });
+        }
     }
 }
 

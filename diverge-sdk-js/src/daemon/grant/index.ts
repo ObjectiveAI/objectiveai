@@ -8,7 +8,7 @@
 // kind's making actions; OVER WHAT EXISTS, `actions` and `within` —
 // `"any"`, or the kind's own list filter read as a test; TAGGING,
 // `actions`, `within` and `tags`; and OVER THE ONE THING, the
-// database and the events, a bare array of actions. The actions are
+// database, the events and images, a bare array of actions. The actions are
 // the shared ones, defined once in `shared.permission` and
 // re-exported here.
 
@@ -19,14 +19,17 @@ export type { Within } from "../../shared/permission/index.js";
 export * as accounts from "./accounts/index.js";
 export * as agents from "./agents/index.js";
 export * as agents_templates from "./agents_templates/index.js";
+export * as connected_standalone_tools from "./connected_standalone_tools/index.js";
 export * as dependency_tools from "./dependency_tools/index.js";
-export * as providers_daemons from "./providers_daemons/index.js";
-export * as providers_incoming from "./providers_incoming/index.js";
-export * as providers_outgoing from "./providers_outgoing/index.js";
 export * as roles from "./roles/index.js";
 export * as standalone_tools from "./standalone_tools/index.js";
 export * as standalone_tools_templates from "./standalone_tools_templates/index.js";
 export * as vault from "./vault/index.js";
 export * as volumes from "./volumes/index.js";
 export * as postgres from "../../shared/permission/postgres/index.js";
+export * as providers from "../../shared/permission/providers/index.js";
+export * as providers_daemons from "../../shared/permission/providers_daemons/index.js";
+export * as daemons from "./daemons/index.js";
 export * as events from "../../shared/permission/events/index.js";
+export * as images from "../../shared/permission/images/index.js";
+export * as identities from "./identities/index.js";

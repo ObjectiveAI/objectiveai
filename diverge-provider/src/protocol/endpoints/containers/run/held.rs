@@ -1,11 +1,13 @@
 //! The volumes a run holds, shared, and the giving back.
 
+use diverge_sdk::shared::Identity;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use futures_util::future;
 
 use crate::protocol::hold::{self, Allow, Holder};
+use crate::protocol::release::Release;
 use crate::protocol::volume::Volume;
 use crate::protocol::volume_manager::VolumeManager;
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
@@ -27,19 +29,21 @@ use diverge_sdk::shared::error::Error;
 /// once is mounted at two paths of one container while a second
 /// container is refused, and a count of holders counts containers.
 ///
-/// # Giving back is explicit
+/// # Giving back is explicit, and the drop is the backstop
 ///
 /// [`give_back`](Self::give_back) unmounts every volume, in the
 /// order they were taken, and the handler calls it at every ending
 /// it writes — the preparation failing before the id is out, and the
 /// teardown every finished run reaches whether it was stopped, its
 /// container left, or its caller went away — after the container is
-/// stopped, which is where the teardown wants it. It is a call and
-/// not a `Drop` because giving back is a future, and the handler's
-/// futures are never dropped mid-await: the session drains every
-/// scope before it goes. Nothing is ever taken twice for one name
-/// and nothing is ever given back twice.
-pub(crate) struct Held<V: Volume> {
+/// stopped, which is where the teardown wants it. A run that never
+/// gets there — a panic, a task aborted, a future dropped mid-await —
+/// gives the holds back at the drop instead, on a task of its own,
+/// since a drop cannot await; both are one [`Release`], so a give
+/// back cancelled part way is carried on by the drop and not started
+/// over. Nothing is ever taken twice for one name and nothing is
+/// ever given back twice.
+pub(crate) struct Held<V: Volume + 'static> {
     /// One per distinct name, in the order first named: the holds.
     held: Vec<Arc<V>>,
     /// One per entry of the request's mounts, in request order, a
@@ -75,7 +79,7 @@ pub(crate) enum Refused {
     Error(Error),
 }
 
-impl<V: Volume> Held<V> {
+impl<V: Volume + 'static> Held<V> {
     /// Hold every volume `mounts` names, once each, or none of them,
     /// each in the mode its mounts mean and as the provider's
     /// `capabilities` for that mode allow.
@@ -101,7 +105,7 @@ impl<V: Volume> Held<V> {
     /// holds taken before it given back.
     pub async fn take<'a, M>(
         manager: &M,
-        client_identity: &str,
+        client_identity: &Identity,
         mounts: impl IntoIterator<Item = (&'a str, Mode)>,
         capabilities: &Capabilities,
     ) -> Result<Self, Refused>
@@ -197,9 +201,28 @@ impl<V: Volume> Held<V> {
     }
 
     /// Every hold given back, in the order taken: the run is over.
-    pub(crate) async fn give_back(self) {
-        for volume in &self.held {
-            volume.unmount(Holder::Run).await;
+    pub(crate) async fn give_back(mut self) {
+        self.release().now().await;
+    }
+
+    /// The holds still held, taken out of this as the one [`Release`]
+    /// that gives them back in the order taken.
+    fn release(&mut self) -> Release {
+        let held = std::mem::take(&mut self.held);
+        Release::new(async move {
+            for volume in &held {
+                volume.unmount(Holder::Run).await;
+            }
+        })
+    }
+}
+
+impl<V: Volume + 'static> Drop for Held<V> {
+    /// The holds a run never gave back, given back on a task of their
+    /// own: a [`Release`] dropped spawns itself.
+    fn drop(&mut self) {
+        if !self.held.is_empty() {
+            drop(self.release());
         }
     }
 }

@@ -1,6 +1,0 @@
-{
-  "description": "Responds in instruction format with 6 logprobs for fine-grained confidence.",
-  "upstream": "mock",
-  "output_mode": "instruction",
-  "top_logprobs": 6
-}

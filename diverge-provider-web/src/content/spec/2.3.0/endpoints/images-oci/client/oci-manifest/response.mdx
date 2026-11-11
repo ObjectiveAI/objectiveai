@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server answers with at most one channel response, the media type and the manifest verbatim, and the channel response finish; a finish with nothing before it states that the server does not hold the digest for the client.'
+summary: 'The server answers with at most one channel response, the media type and the manifest verbatim, and the channel response finish; a finish with nothing before it states that the server does not answer the digest on the scope.'
 order: 2
 draft: false
 ---
@@ -11,8 +11,10 @@ draft: false
 
 - **The sequence.** At most one channel response, followed by the
   channel response finish. A channel response finish that no channel
-  response precedes states that the server does not hold the digest
-  for the client.
+  response precedes states that the server does not answer the digest
+  on the scope: the image of the scope does not reach the digest, as
+  [images::oci](/endpoints/images-oci/) states, or the server cannot
+  supply its bytes.
 - **The frame.** A `u16`, big-endian, the byte length of the media
   type; the media type, UTF-8; the bytes of the manifest, verbatim,
   running to the end of the payload. The bytes are those the digest

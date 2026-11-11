@@ -5,10 +5,11 @@ use std::future::Future;
 use crate::shared::containers::dependencies::Template;
 use crate::shared::containers::secrets::{Declaration, Values};
 use crate::shared::error::Error;
+use crate::shared::permission::Grant;
 
 /// The caller's answer to a provider asking it to register a
-/// container: deploy the dependencies its program declared, and
-/// resolve the secrets it takes.
+/// container: deploy the dependencies its program declared, resolve
+/// the secrets it takes, and hold it to the permissions it declared.
 ///
 /// Each dependency is a tool container the caller runs — a
 /// `containers::tools::run` from the template's image, limits and
@@ -21,9 +22,11 @@ use crate::shared::error::Error;
 /// the template declares, locks a free value of the key for a
 /// `rotating` one and reads one for a `fixed` one, and answers every
 /// name with its value — the container's first feed, which the
-/// provider hands it before the id goes out. The provider asks once
-/// per run, before the id, and only when the container declared at
-/// least one of either; the run goes on to its id on `Ok` and ends
+/// provider hands it before the id goes out. Each permission is a
+/// grant the container's program holds over the caller for the run, a
+/// tool's alone, and the whole of what it may ask. The provider asks
+/// once per run, before the id, and only when the container declared
+/// at least one of any; the run goes on to its id on `Ok` and ends
 /// on `Err`, the container stopped, with the error carried to the
 /// caller as the caller's policy and never a value in it.
 pub trait Registrar: Send + Sync {
@@ -31,12 +34,13 @@ pub trait Registrar: Send + Sync {
     /// the provider that asks — the id its run will answer, told
     /// first so the caller can serve the container's paths into the
     /// dependencies — resolve every secret in `secrets` through the
-    /// container's binding, and answer their first values; or say
-    /// why not.
+    /// container's binding, hold the container to `permissions`, and
+    /// answer the secrets' first values; or say why not.
     fn register(
         &self,
         id: String,
         dependencies: Vec<Template>,
         secrets: Declaration,
+        permissions: Vec<Grant>,
     ) -> impl Future<Output = Result<Values, Error>> + Send;
 }

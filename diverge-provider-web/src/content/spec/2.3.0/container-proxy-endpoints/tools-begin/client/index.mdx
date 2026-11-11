@@ -1,6 +1,6 @@
 ---
 title: 'Client Channels'
-summary: 'The channels the client opens on a tool container’s begin scope, by tag: its half of a database connection, the image’s /DIVERGE.md, its half of a daemon connection, the five MCP exchanges into the container’s own MCP server, and the feed of the secrets’ values.'
+summary: 'The channels the client opens on a tool container’s begin scope, by tag: its half of a database connection, the image’s /DIVERGE.md, its half of a daemon connection, the five MCP exchanges into the container’s own MCP server, the feed of the secrets’ values, and the close of a caller’s MCP session.'
 order: 3
 draft: false
 ---
@@ -9,6 +9,14 @@ The client opens each of these channels on the scope, as
 [Channels](/frames/channels/) provides. The payload of the channel request begins with one tag byte designating the channel; the remainder is the channel's request. The client opens no channel on the scope before the `Begun` response. The server serves each as
 its section states, and answers a channel request that does not decode
 by a channel response finish that no channel response precedes.
+
+Each of the five MCP channels names the caller whose MCP session it
+belongs to. The proxy holds one MCP session to the container's server
+per caller, opened by an `initialize` that carries the caller under
+`_meta`; it sends each exchange on its caller's session, and a
+notifications channel carries what the server sends on its own session
+alone. The mcp-close-session channel names a caller, and the server
+removes and closes that caller's MCP session.
 
 | Tag | Channel |
 |-----|---------|
@@ -21,6 +29,7 @@ by a channel response finish that no channel response precedes.
 | `6` | [mcp-read-resource](/container-proxy-endpoints/tools-begin/client/mcp-read-resource/) |
 | `7` | [mcp-notifications](/container-proxy-endpoints/tools-begin/client/mcp-notifications/) |
 | `8` | [secrets](/container-proxy-endpoints/tools-begin/client/secrets/) |
+| `9` | [mcp-close-session](/container-proxy-endpoints/tools-begin/client/mcp-close-session/) |
 
 The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/tools/begin/client/channel_request/frame.rs`:
 

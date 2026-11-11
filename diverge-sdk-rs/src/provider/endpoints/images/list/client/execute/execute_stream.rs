@@ -4,9 +4,7 @@ use std::fmt;
 use std::pin::Pin;
 use std::task::{Context, Poll, ready};
 
-use bytes::Bytes;
 use futures_util::Stream;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::super::super::server::response;
 use crate::shared::error::Error;
@@ -14,22 +12,23 @@ use crate::wire::decode::Decode as _;
 use crate::wire::frame;
 
 /// The listing, one [`response::Frame`] per item, in the order the
-/// provider sends them: every image the caller built as added, the
-/// word that the listing is whole, and from then on images added and
-/// removed as the caller builds and deletes them. Ends at the
-/// provider's finish — after the stop, or the connection ending — and
+/// provider sends them: every image in the caller's Store as added,
+/// the word that the listing is whole, and from then on images added,
+/// changed and removed as the caller builds, pushes, edits and deletes
+/// them. Ends at the
+/// provider's finish — after the cancel, or the connection ending — and
 /// an error from the provider is the last item, with nothing after
 /// it.
 #[must_use = "a scope that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct ExecuteStream {
     /// The scope's responses, until the finish or an ending.
-    receiver: Option<UnboundedReceiver<Bytes>>,
+    receiver: Option<crate::wire::credit::Receiver>,
 }
 
 impl ExecuteStream {
     /// Over the scope's responses.
-    pub(super) fn new(receiver: UnboundedReceiver<Bytes>) -> Self {
+    pub(super) fn new(receiver: crate::wire::credit::Receiver) -> Self {
         ExecuteStream {
             receiver: Some(receiver),
         }
@@ -67,6 +66,7 @@ impl Stream for ExecuteStream {
         match response::Frame::decode(payload) {
             Ok(response::Frame::Unsupported) => self.end(ExecuteStreamError::Unsupported),
             Ok(response::Frame::Error(error)) => self.end(ExecuteStreamError::Refused(error)),
+            Ok(response::Frame::AlreadyOpen) => self.end(ExecuteStreamError::AlreadyOpen),
             Ok(frame) => Poll::Ready(Some(Ok(frame))),
             Err(error) => self.end(ExecuteStreamError::Response(error)),
         }
@@ -84,9 +84,13 @@ pub enum ExecuteStreamError {
     Misrouted,
     /// A response that is not this scope's.
     Response(response::FrameDecodeError),
-    /// The provider has no image store, and nothing is listed. The
+    /// The provider has no Store, and nothing is listed. The
     /// protocol's defined refusal, not a failure.
     Unsupported,
+    /// This connection has an image listing open already, and nothing
+    /// is listed: one connection holds at most one at a time. The
+    /// protocol's defined refusal, not a failure.
+    AlreadyOpen,
     /// The provider ended the listing with an error, in its own words.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -102,7 +106,8 @@ impl fmt::Display for ExecuteStreamError {
             ExecuteStreamError::Frame(error) => write!(f, "frame did not decode: {error}"),
             ExecuteStreamError::Misrouted => f.write_str("a frame that cannot be on a main stream arrived"),
             ExecuteStreamError::Response(error) => write!(f, "{error}"),
-            ExecuteStreamError::Unsupported => f.write_str("the provider has no image store"),
+            ExecuteStreamError::Unsupported => f.write_str("the provider has no Store"),
+            ExecuteStreamError::AlreadyOpen => f.write_str("this connection has an image listing open already"),
             ExecuteStreamError::Refused(_) => f.write_str("the provider ended the image listing with an error"),
         }
     }
@@ -116,6 +121,7 @@ impl std::error::Error for ExecuteStreamError {
             ExecuteStreamError::Closed
             | ExecuteStreamError::Misrouted
             | ExecuteStreamError::Unsupported
+            | ExecuteStreamError::AlreadyOpen
             | ExecuteStreamError::Refused(_) => None,
         }
     }

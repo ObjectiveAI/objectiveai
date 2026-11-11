@@ -9,34 +9,28 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// Ask the daemon to change a tool: a patch to its editable members —
-/// its name, its account, its mounts.
+/// its name, its mounts, its secrets.
 ///
-/// The tool is named by its name, by its template and its index, or
-/// by the daemon and tool it joined, as
-/// [`reference`](crate::daemon::reference) states. The patch is
+/// The tool is named by its name, or by its template and its index,
+/// as [`reference`](crate::daemon::reference) states. The patch is
 /// applied to the tool's [`Editable`](super::Editable) document, whole or not at all,
 /// and the result is the tool from then on. A tool whose container is
 /// running takes one kind of change: FUSE mounts appended to either
 /// list, each mounted into the running container before the edit
 /// persists — the edit answers once the provider has mounted them,
 /// and what the provider mounted is what persists; a result differing
-/// in anything else is answered `Active`, and nothing changed. A
-/// [`connect`](crate::daemon::endpoints::standalone_tools::connect)ed tool has
-/// no mounts of this caller's and runs under no account, since it
-/// runs nothing of the caller's: a result differing in anything but
-/// its name is answered `NotOwned`.
+/// in anything else is answered `Active`, and nothing changed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The tool: by its name, as its create or its connect gave it,
-    /// or by its template and its index, which name a created tool
-    /// once and for all. See [`reference::Tool`].
+    /// The tool: by its name, as its create gave it, or by its
+    /// template and its index, which name it once and for all. See
+    /// [`reference::Tool`].
     pub tool: reference::Tool,
     /// The patch: see [`Patch`], and [`Editable`](super::Editable) for the document it
     /// is applied to. Empty, nothing changes.
     pub patch: Patch,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

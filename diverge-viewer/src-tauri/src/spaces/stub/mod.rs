@@ -24,25 +24,26 @@ use diverge_viewer_room::room::META_HOST_ONLY;
 use diverge_viewer_room::account::Proof;
 use diverge_viewer_room::envelope::{self, OpenKey};
 use diverge_viewer_room::{Args, Host, Key, Keypair, Kind, Move, Record, Room, Statement, account_room_id, room_id, seal_call, tether};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::shared::error::Error as WireError;
 use diverge_sdk::shared::filetree::response::Node;
 
 use super::{Answer, Authorize, Container, HostCall, Id, Invite, InviteVerb, Joined, Knock, Knocking, SpaceEntry, Spaces};
 use crate::daemon::Frames;
 use crate::identity::{Actor, AgentId, Identity as Keys};
+use crate::view::ProviderView;
 
 /// Your own provider, as the stand-in daemon names it.
 pub fn mine() -> Identity {
-    Identity::Outgoing { address: "127.0.0.1:4640".into() }
+    (&ProviderView::Outgoing { address: "127.0.0.1:4640".into() }).into()
 }
 
 fn ada_machine() -> Identity {
-    Identity::IncomingUnbrokered { identity: "studio-pc".into() }
+    (&ProviderView::IncomingUnbrokered { identity: "studio-pc".into() }).into()
 }
 
 fn ren_machine() -> Identity {
-    Identity::Outgoing { address: "ren-laptop.local:4640".into() }
+    (&ProviderView::Outgoing { address: "ren-laptop.local:4640".into() }).into()
 }
 
 fn wire_error(message: impl Into<String>) -> WireError {
@@ -525,7 +526,7 @@ impl StubSpaces {
         self.put(&idea, "map-sketch.txt", "north: the bakery, the bridge, the school\nsouth: the park, the pond, the bus stop\n");
 
         // A room ada hosted on her old laptop, gone quiet. You hold a copy of its record.
-        let cafe = self.open(inner, "board-cafe", "Tuesday repair café", Kind::Board, (&ada, "ada"), Identity::Outgoing { address: "ada-old-laptop.local:4640".into() }, CAFE_CHARTER, "cafe", false, Some("ada"), since);
+        let cafe = self.open(inner, "board-cafe", "Tuesday repair café", Kind::Board, (&ada, "ada"), Identity::from(&ProviderView::Outgoing { address: "ada-old-laptop.local:4640".into() }), CAFE_CHARTER, "cafe", false, Some("ada"), since);
         let _ = self.act(inner, "ada", &cafe, "admit", json!({ "key": usual.key, "name": usual.name }), ago(400, 0));
         self.me.set_room(&cafe, "usual");
         let _ = self.act(inner, "ada", &cafe, "post_task", json!({ "title": "Fix the café's toaster", "spec": "Both slots heat. Done = two slices, evenly brown.", "pledge": "free coffee for a month" }), ago(390, 0));

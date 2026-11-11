@@ -3,20 +3,22 @@
 use serde::{Deserialize, Serialize};
 
 use super::Context;
+use crate::shared::description::Description;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Build an image on the provider, from a Containerfile, under a
-/// name.
+/// Build an image on the provider, from a Containerfile, into the
+/// caller's Store.
 ///
-/// # The name is the caller's, and has to stay unique
+/// # The digest is the image's only name
 ///
-/// Nothing derives it from anything and nothing constrains it here.
-/// What a provider will accept as a name is the provider's to state,
-/// and a caller learns it by being refused. A name the caller already
-/// has an image by is refused; a caller that wants the name again
-/// deletes the image first.
+/// What the build produces is named by its manifest digest, and by
+/// nothing the caller chose. A build that produces a digest the
+/// caller already owns adds nothing, and answers
+/// [`Exists`](crate::provider::endpoints::images::build::server::response::Frame::Exists).
+/// The [`description`](Self::description) is what the caller says of
+/// the image, kept with it and shown in the listing.
 ///
 /// # The Containerfile is the whole recipe
 ///
@@ -34,14 +36,19 @@ use crate::wire::encode::{Encode, Writer};
 /// [`Output`](crate::provider::endpoints::images::build::server::response::Frame::Output)
 /// lines, then exactly one of
 /// [`Built`](crate::provider::endpoints::images::build::server::response::Frame::Built),
-/// [`InsufficientCapacity`](crate::provider::endpoints::images::build::server::response::Frame::InsufficientCapacity)
+/// [`Exists`](crate::provider::endpoints::images::build::server::response::Frame::Exists),
+/// [`InsufficientCapacity`](crate::provider::endpoints::images::build::server::response::Frame::InsufficientCapacity),
+/// [`ContextHeld`](crate::provider::endpoints::images::build::server::response::Frame::ContextHeld),
+/// [`Unsupported`](crate::provider::endpoints::images::build::server::response::Frame::Unsupported)
 /// and [`Error`](crate::provider::endpoints::images::build::server::response::Frame::Error).
 /// A build that fails says why in its output, and the error after it
 /// says only that it failed.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Frame {
-    /// What to call the image, once built.
-    pub name: String,
+    /// What the caller says of the image, at most 132 characters, or
+    /// `None` for nothing. One postcard byte, `0` for none and `1`
+    /// followed by the text.
+    pub description: Option<Description>,
     /// The Containerfile, verbatim.
     pub containerfile: String,
     /// The directory of one of the caller's volumes that is the

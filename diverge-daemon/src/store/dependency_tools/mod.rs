@@ -16,22 +16,28 @@
 //! or finds the one there is; [`delete_of_template`],
 //! [`delete_of_owner_agent`] and [`delete_of_owner_template`] remove,
 //! each answering the rows removed so their scopes can be dropped and
-//! their states retired; [`set_tags`] writes the tags.
+//! their states retired; [`set_tags`] writes the tags;
+//! [`set_permissions`] keeps what its container last declared it may
+//! ask of the daemon.
 //!
 //! Its own files are flattened into it, so everything is named through
 //! this module and not through the file it lives in.
 
+mod activity;
 mod create;
 mod delete;
 mod load;
+mod permissions;
 mod row;
 mod tags;
 mod tool;
 
 pub mod attachments;
 
+pub use activity::*;
 pub use create::*;
 pub use delete::*;
 pub use load::*;
+pub use permissions::*;
 pub use tags::*;
 pub use tool::*;

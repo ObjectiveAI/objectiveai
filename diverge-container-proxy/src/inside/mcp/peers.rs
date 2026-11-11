@@ -9,11 +9,22 @@ use tokio::sync::Mutex;
 
 /// The live sessions' peers, keyed by an id minted at registration.
 ///
-/// A session enters when it initializes and leaves only by failing a
-/// send — the proxy never closes a session's stream, it merely stops
-/// addressing one that is provably gone. There is nothing else here:
-/// no per-session state, no queue, no replay. A notification is
-/// shipped to whoever is registered at the moment it arrives, once.
+/// The proxy never closes a session's stream, it merely stops
+/// addressing one that is provably gone. The rules:
+///
+/// 1. A session enters when it initializes.
+/// 2. Every registration first drops each peer whose transport has
+///    closed — its session ended, rmcp's own table having let it go
+///    (see `main`) — so what is held is the live sessions and those
+///    that ended since the last registration or round, never every
+///    session ever seen.
+/// 3. Every broadcast round addresses only peers whose transport is
+///    open, and drops the rest.
+/// 4. A peer whose send failed is dropped after the round.
+///
+/// There is nothing else here: no per-session state, no queue, no
+/// replay. A notification is shipped to whoever is registered at the
+/// moment it arrives, once.
 pub struct Peers {
     inner: Mutex<Registry>,
 }
@@ -34,10 +45,12 @@ impl Peers {
         }
     }
 
-    /// Register a session's peer. From here on it receives every
-    /// broadcast until a send to it fails.
+    /// Register a session's peer, the ended ones dropped first (rule
+    /// 2). From here on it receives every broadcast until its session
+    /// ends or a send to it fails.
     pub async fn insert(&self, peer: Peer<RoleServer>) {
         let mut registry = self.inner.lock().await;
+        registry.peers.retain(|_, held| !held.is_transport_closed());
         let id = registry.next;
         registry.next += 1;
         registry.peers.insert(id, peer);
@@ -53,12 +66,15 @@ impl Peers {
     /// serving one agent is a corner accepted rather than a queue
     /// grown.
     ///
-    /// A peer whose send failed is removed: its session is gone, and
-    /// there is nobody behind it to address. Removal is by id, so a
-    /// registration that happened during the round is untouched.
+    /// A peer whose transport closed is dropped before the round (rule
+    /// 3), and one whose send failed is removed after it (rule 4):
+    /// either way its session is gone, and there is nobody behind it
+    /// to address. Removal after the round is by id, so a registration
+    /// that happened during the round is untouched.
     pub async fn broadcast(&self, notification: ServerNotification) {
         let snapshot: Vec<(u64, Peer<RoleServer>)> = {
-            let registry = self.inner.lock().await;
+            let mut registry = self.inner.lock().await;
+            registry.peers.retain(|_, held| !held.is_transport_closed());
             registry
                 .peers
                 .iter()

@@ -5,7 +5,7 @@ use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
 
 /// A running tree: the handle and the scope's number, which is all
-/// that stopping it needs.
+/// that cancelling it needs.
 #[derive(Debug, Clone)]
 pub struct ExecuteHandle {
     handle: Handle,
@@ -22,9 +22,9 @@ impl ExecuteHandle {
         self.scope
     }
 
-    /// Stop watching. Nothing answers on the channel this opens; what
+    /// Cancel the watch. Nothing answers on the channel this opens; what
     /// answers is the scope's own finish, which ends the stream.
-    pub async fn stop(&self) -> Result<(), SendError> {
+    pub async fn cancel(&self) -> Result<(), SendError> {
         let mut payload = Vec::new();
         channel_request::Frame
             .encode(&mut Writer::new(&mut payload))

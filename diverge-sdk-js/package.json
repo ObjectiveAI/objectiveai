@@ -35,12 +35,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ObjectiveAI/objectiveai.git",
+    "url": "git+https://github.com/divergenetwork/Diverge.git",
     "directory": "diverge-sdk-js"
   },
   "homepage": "https://diverge.network",
   "bugs": {
-    "url": "https://github.com/ObjectiveAI/objectiveai/issues"
+    "url": "https://github.com/divergenetwork/Diverge/issues"
   },
   "author": {
     "name": "Diverge",

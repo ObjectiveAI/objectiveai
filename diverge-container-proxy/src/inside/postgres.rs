@@ -16,6 +16,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::containers::postgres;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::oneshot;
 
 use crate::answer::{self, Answer};
 use crate::ask;
@@ -69,10 +70,12 @@ pub async fn accept(listener: TcpListener, proxy: Arc<Proxy>) {
 /// ask carries and shuts it when the ask ends, and this task reads
 /// the driver's bytes onto the server's half until the driver closes
 /// or the read fails, and finishes the half — how the server learns
-/// the driver hung up. The writer is dropped rather than awaited:
-/// awaiting it would block on a driver that stopped reading, and a
-/// dropped writer still shuts the socket, since it owns the write
-/// half and ends with the ask.
+/// the driver hung up. The writer is never awaited: awaiting it would
+/// block on a driver that stopped reading. It ends on its own when the
+/// ask ends, when a write fails, or when this task returns —
+/// whichever comes first — and shuts the socket as it goes, so a
+/// connection either side gave up on leaves no task behind waiting on
+/// the other.
 async fn connection(stream: TcpStream, proxy: Arc<Proxy>) {
     // pgwire is chatty in small messages; Nagle would only add
     // latency to each one.
@@ -113,7 +116,10 @@ async fn connection(stream: TcpStream, proxy: Arc<Proxy>) {
     };
 
     let (mut read, mut write) = stream.into_split();
-    let writer = tokio::spawn(async move {
+    // Dropped when this task returns, whichever way: the writer sees
+    // the connection is over without being awaited, and shuts.
+    let (reading, mut done) = oneshot::channel::<()>();
+    tokio::spawn(async move {
         for bytes in early {
             if write.write_all(&bytes).await.is_err() {
                 let _ = write.shutdown().await;
@@ -121,13 +127,16 @@ async fn connection(stream: TcpStream, proxy: Arc<Proxy>) {
             }
         }
         loop {
-            match answer::next(&mut channel).await {
-                Some(Answer::Frame(bytes)) => {
-                    if write.write_all(&bytes).await.is_err() {
-                        break;
+            tokio::select! {
+                next = answer::next(&mut channel) => match next {
+                    Some(Answer::Frame(bytes)) => {
+                        if write.write_all(&bytes).await.is_err() {
+                            break;
+                        }
                     }
-                }
-                Some(Answer::Finish) | None => break,
+                    Some(Answer::Finish) | None => break,
+                },
+                _ = &mut done => break,
             }
         }
         let _ = write.shutdown().await;
@@ -145,6 +154,5 @@ async fn connection(stream: TcpStream, proxy: Arc<Proxy>) {
         }
     }
     begun.scope.send_channel_response_finish(server_channel).await;
-
-    drop(writer);
+    drop(reading);
 }

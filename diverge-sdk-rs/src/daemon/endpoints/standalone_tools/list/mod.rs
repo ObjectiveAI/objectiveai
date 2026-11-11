@@ -2,20 +2,22 @@
 //!
 //! A client asks for its tools, narrowed, and the daemon sends every
 //! one it holds under the caller's identity that the request's filter
-//! lets through — by name, by template, by creator, by origin, by
+//! lets through — by name, by template, by creator, by mode, by
 //! activity, by the agents it is attached to, by tags, all or any, by
 //! when it was created — one response each, oldest created first,
 //! then the word that the list is whole, and keeps the scope open:
 //! each tool added, changed or removed, as the records, the
 //! attachments and the runs change — until the client cancels, the
 //! one channel it opens on the scope. Each is
-//! what the tool is called, where it comes from — the template it was
-//! made from, or the tool of another daemon's it joins — whether
-//! it is active now, when that last changed, which agents it is
-//! attached to, and its tags. A count
+//! what the tool is called, the template it was made from and its
+//! index, whether it is active now, when that last changed, which
+//! agents it is attached to, and its tags. A count
 //! keeps the list to the first that many that match. A request that
 //! says nothing is every tool. A caller with no tool that matches is
-//! told the list is whole at once, and watched.
+//! told the list is whole at once, and watched. A connected tool —
+//! another daemon's, held here — is listed by the
+//! [`connected_standalone_tools`](crate::daemon::endpoints::connected_standalone_tools)
+//! list, and never here.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

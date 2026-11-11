@@ -1,5 +1,5 @@
 //! `diverge run accounts edit`: changing an account: a patch to its
-//! name, its credential, its description, its roles, as
+//! description and its roles, as
 //! [`edit`](diverge_sdk::daemon::endpoints::accounts::edit) states it.
 
 use clap::Args;
@@ -7,14 +7,13 @@ use diverge_sdk::daemon::endpoints::accounts::edit::{client::request, server::re
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Changing an account: a patch to its name, its credential, its
-/// description, its roles.
+/// Changing an account: a patch to its description and its roles.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]; `relay` among its members has another daemon
-    /// serve it, as an account held there. Absent, `{}`.
+    /// serve it. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
     /// What is beneath the request: `request-schema`, the JSON Schema

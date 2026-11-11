@@ -5,7 +5,6 @@ use serde_json::Value;
 
 use super::Mode;
 use super::super::request::Image;
-use crate::shared::permission::Grant;
 
 /// One tool container an agent's program depends on: everything the
 /// caller needs to deploy it, as fields and not as words. A tool
@@ -27,15 +26,14 @@ use crate::shared::permission::Grant;
 /// and mounts the tool, a `fuse::mount` answered from it.
 /// [`mode`](Self::mode) says which of the two modes the dependency is —
 /// a transient tool of the agent's run, with those mounts, or a service
-/// the caller keeps, with a scope — see [`Mode`]; and
-/// [`permissions`](Self::permissions) what its account may do — grants
-/// that name nothing, so the template is the same on every daemon it
-/// reaches, and among them the word `self`, which reaches the agent a
-/// transient tool is the dependency of and every agent attached to a
-/// service.
+/// the caller keeps, with a scope — see [`Mode`]. What the tool may ask
+/// of the caller is not here: the tool's own program declares it at its
+/// registration, every time it starts, as a standalone tool's does —
+/// see the `permissions` of the
+/// [`register`](crate::container_proxy::inside::register) answer.
 ///
 /// There are no instructions. What a template cannot say — the provider
-/// the tool runs on, the volumes it is given, the account's name — is
+/// the tool runs on, the volumes it is given — is
 /// the caller's, and the caller needs no prose to choose it. The
 /// daemon's own tool templates are another thing: a record the daemon
 /// keeps, named by a hash, made by a request; this is what an image
@@ -87,12 +85,6 @@ pub struct Template {
     /// or a service's scope. See [`Mode`].
     #[serde(flatten)]
     pub mode: Mode,
-    /// What the tool's account may do, as grants that name nothing: see
-    /// [`Grant`]. The caller gives the tool an account holding exactly
-    /// these. Absent when empty, and then the tool may do nothing
-    /// through the daemon.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub permissions: Vec<Grant>,
 }
 
 impl Template {

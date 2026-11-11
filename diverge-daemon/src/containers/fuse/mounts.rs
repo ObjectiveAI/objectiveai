@@ -6,7 +6,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::server::channel_request::Frame as Ask;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::FuseMount as VolumeFuseMount;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::client::Listed;
 use diverge_sdk::provider::endpoints::containers::fuse_serve::client::execute::{self as container_serve, ExecuteHandle as ContainerServe};
 use diverge_sdk::provider::endpoints::containers::fuse_serve::client::request::Frame as ContainerServeRequest;
@@ -57,8 +57,8 @@ impl Serve {
     /// The scope stopped.
     pub async fn stop(self) {
         match self {
-            Serve::Volume(serve) => serve.stop().await,
-            Serve::Container(serve) => serve.stop().await,
+            Serve::Volume(serve) => serve.cancel().await,
+            Serve::Container(serve) => serve.cancel().await,
         }
     }
 }
@@ -322,7 +322,7 @@ impl Mounts {
             let tree = match serve.filetree().await {
                 Ok(tree) => tree,
                 Err(error) => {
-                    serve.stop().await;
+                    serve.cancel().await;
                     mounts.stop().await;
                     return Err(MountsError::Failed(format!("the agent's path {} could not be watched: {error:?}", mount.agent_path.join("/"))));
                 }

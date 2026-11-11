@@ -1,9 +1,10 @@
-//! The agents family's own exchanges: the queue's two verbs, channels
-//! on the begin scope.
+//! The agents family's own exchange: a batch of messages for the
+//! agent, a channel on the begin scope.
 
 use std::sync::Arc;
 
-use rmcp::model::ContentBlock;
+use diverge_sdk::shared::containers::enqueue;
+use diverge_sdk::shared::error::Error;
 
 use super::super::begin::Begin;
 use super::super::encoded::encoded;
@@ -12,16 +13,18 @@ use super::super::run::Run;
 /// What an agent container's caller opens, past the shared six.
 #[derive(Debug)]
 pub(crate) enum Exchange {
-    /// A message for the agent: its key, and its content blocks.
-    Enqueue(String, Vec<ContentBlock>),
-    /// Withdraw every message waiting under a key.
-    Dequeue(String),
+    /// A batch of messages for the agent, in order, carried whole and
+    /// not read.
+    Enqueue(Vec<enqueue::request::Message>),
 }
 
 /// Serve one, to the end: the proxy's one answer on the caller's
-/// channel, then the finish — or the finish alone where the proxy
-/// could not serve it. What the agent says in reply is not here: it
-/// rides the main stream, relayed by `relay::chunks`.
+/// channel, then the finish. Where the exchange with the proxy failed
+/// — the proxy finished without an answer, the connection to it ended,
+/// its answer did not parse — the answer is the `Error` saying so,
+/// kind `proxy`, so the caller learns why and not only that. What the
+/// agent says in reply is not here: it rides the main stream, relayed
+/// by `relay::chunks`.
 pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
     let Begin::Agents(begin) = &run.begin else {
         // A tool container has no queue; nothing classifies into this
@@ -30,9 +33,19 @@ pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
         return;
     };
     let answer = match exchange {
-        Exchange::Enqueue(key, content) => begin.enqueue(key, content).await.ok().and_then(|frame| encoded(&frame)),
-        Exchange::Dequeue(key) => begin.dequeue(key).await.ok().and_then(|frame| encoded(&frame)),
+        Exchange::Enqueue(messages) => {
+            let frame = begin.enqueue(messages).await.unwrap_or_else(|error| enqueue::response::Frame::Error(failed(&error)));
+            encoded(&frame)
+        }
     };
     run.respond(channel, answer).await;
     run.finish(channel).await;
+}
+
+/// The exchange with the proxy that failed, as the caller is told it.
+fn failed(error: &dyn std::fmt::Display) -> Error {
+    Error(serde_json::json!({
+        "kind": "proxy",
+        "error": error.to_string(),
+    }))
 }

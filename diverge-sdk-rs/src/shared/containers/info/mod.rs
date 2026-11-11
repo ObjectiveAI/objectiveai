@@ -3,10 +3,11 @@
 //!
 //! Every container image ships one file at the root of its
 //! filesystem, `/DIVERGE.md`: a frontmatter between two `---` lines
-//! that IS the JSON Schema of the
+//! that is one JSON object of two members — `name`, what the image
+//! calls itself, and `schema`, the JSON Schema of the
 //! [`arguments`](crate::shared::containers::request::Container::arguments)
-//! the image's program accepts, as raw JSON, and then a short markdown
-//! body — what the image runs, and the secrets it declares.
+//! the image's program accepts — and then a short markdown body: what
+//! the image runs, and the secrets it declares.
 //! [`Document`] is that file parsed, and [`Document::parse`] states
 //! the rules; [`Document::render`] writes one back, so that one shape
 //! is written and read.

@@ -1,0 +1,124 @@
+---
+title: 'Response'
+summary: 'Zero or more responses of the byte 0 followed by a blob taken from the client; then exactly one response that is the byte 1 followed by the digest, the size and the source of the image, the byte 2 followed by the digest the client owned already, the byte 3, 4, 5, 6 or 7 alone, or the byte 8 followed by an error as one JSON value; and the response finish.'
+order: 2
+draft: false
+---
+
+```text
+[0][blob, postcard …]     per blob taken from the client
+[1][pushed, postcard …]   once: the image is in the client's Store
+[2][exists, postcard …]   once: the client owned the digest already
+[3]                       once: insufficient capacity
+[4]                       once: unavailable
+[5]                       once: the nonce check failed
+[6]                       once: the image is malformed
+[7]                       once, alone: the server keeps no Store
+[8][error JSON …]         once: an error
+```
+
+- **The sequence.** Zero or more responses of the byte `0`, each
+  followed by one blob; then exactly one response whose first byte is
+  one of `1` to `8`; then the response finish. No response follows
+  that response. No response of the byte `0` precedes a response of
+  the byte `2` or `7`: each is the only response of its scope. A
+  response finish that no response of the byte `1` to `8` precedes
+  states that the request was not served, as
+  [Endpoints](/endpoints/) provides; whether the image entered the
+  client's Store is then not stated, and the client learns it from an
+  [images::list](/endpoints/images-list/) scope.
+- **Blob.** A payload whose first byte is `0` carries one blob after
+  that byte, the `Blob` defined below, encoded as the postcard
+  reading of [Notation](/endpoints/#notation) provides: its `digest`
+  as a varint byte length followed by that many bytes of UTF-8, of the
+  form `<algorithm>:<hex>`, followed by `bytes` as a varint, the size
+  of the blob in bytes. The server sends it exactly once for every
+  blob it asked the client for on an
+  [oci-blob](/endpoints/images-push/server/oci-blob/) channel, after
+  the blob's bytes arrived whole and matched its digest. The server
+  sends none for a blob it already held and none for a blob it took
+  from a registry.
+- **Pushed.** A payload whose first byte is `1` states that the image
+  is in the client's Store, and carries the `Pushed` defined below,
+  encoded as the postcard reading of [Notation](/endpoints/#notation)
+  provides: its `digest` as a varint byte length followed by that
+  many bytes of UTF-8, the manifest digest of the request; followed by
+  `bytes` as a varint, the size of the image in bytes as the server
+  counts it against the Store; followed by `source`, the source that
+  [Image sources](/endpoints/#image-sources) defines, encoded as that
+  section states: the varint `0` followed by `reference` for
+  `Registry`, or the varint `1` for `Client`. The `source` of a push
+  is never `Store`. The server sends it after the image is in the
+  Store; an `images::list` scope the client opens after receiving it
+  lists the image, and a list scope the client holds open is sent the
+  image as added.
+- **Exists.** A payload whose first byte is `2` states that the
+  digest of the request is the digest of an image already in the
+  client's Store, and carries the `Exists` defined below: its
+  `digest` as a varint byte length followed by that many bytes of
+  UTF-8. Nothing entered the client's Store as a result of the
+  request, and the image in the Store keeps its description.
+- **Insufficient capacity.** A payload that is the byte `3` and
+  nothing else states that the Store has no room for the image, by
+  the sizes its manifest declares, and that the server took no blob
+  of the image after it so determined.
+- **Unavailable.** A payload that is the byte `4` and nothing else
+  states that no registry the server consults serves the digest and
+  that the client did not supply a manifest or a blob of the image
+  that the server asked it for. A registry that states that it serves
+  the digest, and from which the server then fails to obtain the
+  image, or obtains bytes that do not match their digests, causes the
+  error, the byte `8`, and not this response.
+- **Proof failed.** A payload that is the byte `5` and nothing else
+  states that the server obtained the image from the client and that
+  the nonce check that [Possession](/shared/possession/) defines
+  failed. The server sends it after the
+  [oci-prove](/endpoints/images-push/server/oci-prove/) channel of the
+  check has ended, and has removed what
+  [Image sources](/endpoints/#image-sources) states.
+- **Malformed.** A payload that is the byte `6` and nothing else
+  states that a manifest the client supplied does not parse or is of
+  a media type the server does not take, or that a manifest or a blob
+  the client supplied does not match its digest or its declared
+  size.
+- **Unsupported.** A payload that is the byte `7` and nothing else
+  states that the server holds out no
+  [`images_store`](/capabilities/#images_store) capability and keeps
+  no Store, as [Capabilities](/capabilities/) provides. It is the only
+  response of the scope, sent before anything is looked up.
+- **No image.** After a response of the byte `3`, `4`, `5`, `6` or
+  `7`, no image entered the client's Store as a result of the
+  request. The server sends nothing after any of those bytes, and a
+  client ignores every byte that follows it.
+- **The error.** A payload whose first byte is `8` carries an error
+  after that byte, running to the end of the payload. The error is
+  exactly one JSON value, in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  This revision prescribes nothing about its content. The error
+  states that no image entered the client's Store as a result of the
+  request, and that the reason is none of the refusals.
+- **Malformed payloads.** A payload with no byte, a payload whose
+  first byte is none of `0` to `8`, a payload whose bytes after `0`,
+  `1` or `2` do not decode as the blob, the pushed image or the
+  digest, and a payload whose bytes after `8` are not one JSON value
+  are malformed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/images/push/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/push/server/response/frame.rs
+```
+
+the blob by `diverge-sdk-rs/src/provider/endpoints/images/push/server/response/blob.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/push/server/response/blob.rs
+```
+
+the image pushed by `diverge-sdk-rs/src/provider/endpoints/images/push/server/response/pushed.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/push/server/response/pushed.rs
+```
+
+and the digest owned already by `diverge-sdk-rs/src/provider/endpoints/images/push/server/response/exists.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/push/server/response/exists.rs
+```

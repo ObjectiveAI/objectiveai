@@ -1,7 +1,7 @@
 // The tool's run, while its container is up.
 
 import { z } from "zod";
-import { Provider } from "../../../../../../daemon/endpoints/agents/logs/server/response/provider.js";
+import { Provider } from "../../../../../agent_log/provider.js";
 
 /**
  * The tool's container, while it runs: where, and under what id. A tool

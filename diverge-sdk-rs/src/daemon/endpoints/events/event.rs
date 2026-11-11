@@ -1,17 +1,15 @@
-//! One edge of the graph: who sent, who received, what, how often.
+//! One edge of the graph: who sent, who received, how often.
 
 use serde::{Deserialize, Serialize};
 
 use crate::shared::listing::Keyed;
-use super::Action;
-use crate::daemon::creator::Creator;
+use super::Party;
 
-/// One event, as a list reports it: the sender, the receiver, the
-/// [`Action`] between them, and how many times it has passed. One
-/// per sender, receiver and action, as [`events`](super) states; the
-/// id is the daemon's, given once when the edge is added and never
-/// again, so the latest edges are the highest, and a list's window
-/// is cut by it.
+/// One event, as a list reports it: the sender, the receiver, and how
+/// many times something has passed between them. One per sender and
+/// receiver, as [`events`](super) states; the id is the daemon's,
+/// given once when the edge is added and never again, so the latest
+/// edges are the highest, and a list's window is cut by it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Event {
@@ -19,16 +17,12 @@ pub struct Event {
     /// a later edge has a higher id, and nothing else is read into
     /// it.
     pub id: u64,
-    /// Who sent: the client over an endpoint, or the agent or the
-    /// tool that acted. One
-    /// [`Creator`](crate::daemon::creator::Creator).
-    pub sender: Creator,
+    /// Who sent: the account over an endpoint, or the agent or the
+    /// tool that acted. One [`Party`].
+    pub sender: Party,
     /// Who received: the agent a message was enqueued to, or the
-    /// tool an MCP call or read went into. One
-    /// [`Creator`](crate::daemon::creator::Creator).
-    pub receiver: Creator,
-    /// What passed: see [`Action`].
-    pub action: Action,
+    /// tool an MCP call or read went into. One [`Party`].
+    pub receiver: Party,
     /// How many times it has passed: `1` when the edge is added, and
     /// one more at every occurrence since. Never `0`, and never less
     /// than it was.
@@ -36,7 +30,8 @@ pub struct Event {
 }
 
 /// Keyed by the id: a `Changed` event is the whole record with its
-/// count raised, and lands on the one with its id.
+/// count raised, and a `Removed` one the record as it was last sent;
+/// each lands on the one with its id.
 impl Keyed for Event {
     type Key = u64;
 

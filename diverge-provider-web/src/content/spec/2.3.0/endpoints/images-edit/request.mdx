@@ -1,0 +1,38 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 19 followed by the digest of the image and the optional description, in the postcard wire format.'
+order: 1
+draft: false
+---
+
+The payload of the request is the tag byte followed by the request in
+the postcard wire format, as the postcard reading of
+[Notation](/endpoints/#notation) provides:
+
+```text
+[19][digest_len: varint][digest: utf8 …][0]
+[19][digest_len: varint][digest: utf8 …][1][description_len: varint][description: utf8 …]
+```
+
+- **`digest`.** The manifest digest of the image, UTF-8, of the form
+  `<algorithm>:<hex>`, preceded by its byte length as a varint. It is
+  the `digest` of an image in the client's
+  [images::list](/endpoints/images-list/) listing.
+- **`description`.** One byte: `0`, the image is to have no
+  description; or `1`, followed by the description, UTF-8, preceded by
+  its byte length as a varint. The description is a description as
+  [The description](/endpoints/daemons-announce/request/#the-description) defines it. A
+  description that does not conform to that definition does not
+  decode.
+- **Bytes after the request.** A server ignores every byte that
+  follows the `description` field. A request whose payload extends
+  past the request is not malformed.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is not `19`, and a payload whose bytes after the tag do not decode
+  as the request are malformed. [Endpoints](/endpoints/) states how a
+  server answers a request it cannot read.
+
+The request is defined by `diverge-sdk-rs/src/provider/endpoints/images/edit/client/request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/edit/client/request/frame.rs
+```

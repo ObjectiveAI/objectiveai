@@ -5,24 +5,20 @@ use serde::{Deserialize, Serialize};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Examine one image the caller built: what it was built from.
+/// Examine one image in the caller's Store: what it was built from.
 ///
-/// # A name, and the same access model as everything else
+/// # A digest, and the same access model as everything else
 ///
 /// The one field is an
-/// [`Image::name`](crate::provider::endpoints::images::list::server::response::Image::name)
-/// from a listing. A caller cannot examine an image it did not build,
+/// [`Image::digest`](crate::provider::endpoints::images::list::server::response::Image::digest)
+/// from a listing. A caller cannot examine an image it does not own,
 /// and cannot probe for what exists by asking and reading the error —
-/// the provider resolves a name against the caller that built it, and
+/// the provider resolves a digest against the caller's own Store, and
 /// nothing else.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Frame {
-    /// Which image, by the name its build gave it.
-    ///
-    /// Names come from
-    /// [`Image::name`](crate::provider::endpoints::images::list::server::response::Image::name)
-    /// and mean nothing outside the caller that chose them.
-    pub name: String,
+    /// Which image, by its manifest digest, `<algorithm>:<hex>`.
+    pub digest: String,
 }
 
 /// This frame's tag among the scope-opening requests.

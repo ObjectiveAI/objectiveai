@@ -5,7 +5,7 @@ use std::process::{ExitStatus, Stdio};
 
 use tokio::io::{AsyncBufReadExt as _, AsyncRead, BufReader};
 use tokio::process::{Child, Command};
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use super::Error;
 
@@ -115,8 +115,9 @@ pub fn start(program: &str, mut command: Command) -> Result<Child, Error> {
 /// [`Lines`]; then its status, on the [`Pending`]. For the tools that
 /// narrate at length — a build — where a caller shows the lines as
 /// they come. Stdin is closed, and the child is killed when the
-/// [`Pending`] is dropped before it ends. Only the start can fail
-/// here.
+/// [`Pending`] is dropped before it ends. One line waits to be read
+/// at a time: a reader that falls behind fills the child's pipe, and
+/// the child waits. Only the start can fail here.
 pub fn stream(program: &str, mut command: Command) -> Result<(Lines, Pending), Error> {
     let mut child = command
         .stdin(Stdio::null())
@@ -128,7 +129,7 @@ pub fn stream(program: &str, mut command: Command) -> Result<(Lines, Pending), E
             program: program.to_string(),
             source,
         })?;
-    let (sender, receiver) = mpsc::unbounded_channel();
+    let (sender, receiver) = mpsc::channel(1);
     if let Some(stdout) = child.stdout.take() {
         tokio::spawn(forward(stdout, sender.clone()));
     }
@@ -146,13 +147,13 @@ pub fn stream(program: &str, mut command: Command) -> Result<(Lines, Pending), E
 
 /// Every line of `reader`, sent as it is read, until the reader ends
 /// or nobody listens.
-async fn forward<R>(reader: R, sender: UnboundedSender<String>)
+async fn forward<R>(reader: R, sender: Sender<String>)
 where
     R: AsyncRead + Unpin + Send + 'static,
 {
     let mut lines = BufReader::new(reader).lines();
     while let Ok(Some(line)) = lines.next_line().await {
-        if sender.send(line).is_err() {
+        if sender.send(line).await.is_err() {
             break;
         }
     }
@@ -164,7 +165,7 @@ where
 #[derive(Debug)]
 pub struct Lines {
     /// The lines, as the two readers send them.
-    receiver: UnboundedReceiver<String>,
+    receiver: Receiver<String>,
 }
 
 impl Lines {

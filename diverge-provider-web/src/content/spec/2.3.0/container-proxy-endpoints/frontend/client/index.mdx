@@ -1,0 +1,24 @@
+---
+title: 'Client Channels'
+summary: 'The channels the client opens on a frontend scope, by tag: body, end and cancel, each answered by the channel response finish.'
+order: 3
+draft: false
+---
+
+The client opens each of these channels on the scope, as
+[Channels](/frames/channels/) provides. The payload of the channel
+request begins with one tag byte designating the channel; the remainder
+is the channel's request. The server serves the channels in the order
+it receives them, and answers a channel request that does not decode by
+a channel response finish that no channel response precedes.
+
+| Tag | Channel |
+|-----|---------|
+| `0` | [body](/container-proxy-endpoints/frontend/client/body/) |
+| `1` | [end](/container-proxy-endpoints/frontend/client/end/) |
+| `2` | [cancel](/container-proxy-endpoints/frontend/client/cancel/) |
+
+The channel request is defined by `diverge-sdk-rs/src/shared/containers/frontend/input.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/frontend/input.rs
+```

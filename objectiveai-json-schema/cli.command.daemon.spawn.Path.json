@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.daemon.spawn.Path",
-  "type": "string",
-  "enum": [
-    "daemon/spawn"
-  ]
-}

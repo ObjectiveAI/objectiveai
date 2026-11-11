@@ -14,7 +14,7 @@ use crate::wire::encode::{Encode, Writer};
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Connection`](Self::Connection) |
-/// | `1` | [`Stop`](Self::Stop) |
+/// | `1` | [`Cancel`](Self::Cancel) |
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Frame {
     /// The daemon's half of a connection the provider announced,
@@ -25,18 +25,18 @@ pub enum Frame {
     /// the connector gone. Opening it is taking the connection; the
     /// provider's half, finished with nothing, is declining it.
     Connection(daemon::request::Daemon),
-    /// Stop accepting. Tag `1`.
+    /// Cancel the accept: stop accepting. Tag `1`.
     ///
     /// Carries nothing. Nothing answers on the channel; the scope
     /// finishes, and every connection relayed on it ends.
-    Stop,
+    Cancel,
 }
 
 /// Tag for [`Frame::Connection`].
 const CONNECTION: u8 = 0;
 
-/// Tag for [`Frame::Stop`].
-const STOP: u8 = 1;
+/// Tag for [`Frame::Cancel`].
+const CANCEL: u8 = 1;
 
 impl Encode for Frame {
     /// [`Infallible`](std::convert::Infallible): known bytes.
@@ -48,8 +48,8 @@ impl Encode for Frame {
                 out.extend_from_slice(&[CONNECTION]);
                 connection.encode(out)
             }
-            Frame::Stop => {
-                out.extend_from_slice(&[STOP]);
+            Frame::Cancel => {
+                out.extend_from_slice(&[CANCEL]);
                 Ok(())
             }
         }
@@ -64,7 +64,7 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             CONNECTION => daemon::request::Daemon::decode(rest).map(Frame::Connection).map_err(FrameError::Connection),
-            STOP => Ok(Frame::Stop),
+            CANCEL => Ok(Frame::Cancel),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }

@@ -1,8 +1,7 @@
 // What narrows a list of events.
 
 import { z } from "zod";
-import { Creator } from "../../../../../../daemon/creator/creator.js";
-import { Action } from "../../../../../../daemon/endpoints/events/action.js";
+import { Party } from "../../../../../../daemon/endpoints/events/party.js";
 
 /**
  * The filter over events: every member optional, and every one given
@@ -12,13 +11,11 @@ import { Action } from "../../../../../../daemon/endpoints/events/action.js";
  * range.
  */
 export const Filter = z.object({
-  /** Any one of these actions. Absent when empty, and then any action. */
-  actions: z.array(Action).optional(),
   /** Any one of these on either side, as the sender or as the receiver. */
-  parties: z.array(Creator).optional(),
+  parties: z.array(Party).optional(),
   /** Sent by any one of these. */
-  senders: z.array(Creator).optional(),
+  senders: z.array(Party).optional(),
   /** Received by any one of these. */
-  receivers: z.array(Creator).optional(),
+  receivers: z.array(Party).optional(),
 });
 export type Filter = z.infer<typeof Filter>;

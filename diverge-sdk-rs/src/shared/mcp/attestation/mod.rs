@@ -10,7 +10,7 @@
 //! says: from inside the harness, the [`Agent`] whose container sent
 //! the call, with its image and its key (`agent`); from outside, a
 //! client reaching the tool over a connect, by nothing but the
-//! identity the daemon authorized its connection as (`unbrokered`) —
+//! identity the daemon established at its handshake (`client`) —
 //! stamped by the serving daemon on every exchange before it reaches
 //! the tool, in place of whatever the connector stamped. The tool is
 //! this daemon's own word on everything the tool answers: every kind

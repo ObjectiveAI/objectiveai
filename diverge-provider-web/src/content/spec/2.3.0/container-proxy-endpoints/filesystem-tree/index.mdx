@@ -1,6 +1,6 @@
 ---
 title: 'filesystem::tree'
-summary: 'Tag 3: the client names the paths to leave out; the server sends the filesystem of the container from its root as a snapshot and one response per change, until the client stops it or the server ends.'
+summary: 'Tag 3: the client names the paths to leave out; the server sends the filesystem of the container from its root as a snapshot and one response per change, until the client cancels it or the server ends.'
 order: 3
 draft: false
 ---
@@ -9,7 +9,7 @@ The client opens the scope with a request whose payload is the tag
 byte `3` followed by the paths to leave out, as JSON. The server sends
 the tree as a snapshot, one response, and after it one response per
 change, for as long as the scope lives; the client asks for the end
-by opening one channel on it, the stop, and the server ends the scope
+by opening one channel on it, the cancel, and the server ends the scope
 by the response finish.
 
 - **The request.** [Request](/container-proxy-endpoints/filesystem-tree/request/) states its form.
@@ -36,8 +36,8 @@ by the response finish.
    watch is present in the tree with `changes` false, and no change
    under it is sent. Lost events — an overflowed queue — are answered
    by a fresh snapshot on the same scope, not by an error.
-5. **The server answers the stop.** It sends the response finish after
-   it receives the stop, and drops the watch.
+5. **The server answers the cancel.** It sends the response finish after
+   it receives the cancel, and drops the watch.
 
 ## The rules that hold throughout
 

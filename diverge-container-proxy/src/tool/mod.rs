@@ -9,11 +9,26 @@
 //! the root and asks of no program —
 //! and each channel the server opens on a tool container's begin
 //! scope is one exchange with it, answered in the wire's own frame.
-//! One MCP client, dialled on the first exchange and kept while its
-//! transport lives; the notifications it hears are fanned out to
-//! every notifications channel open at the time. Nothing else of the
-//! server's is kept. The proxy opens this client only for a tool
-//! container's begin, which is the server's to open.
+//! The proxy opens these sessions only for a tool container's begin,
+//! which is the server's to open. The rules:
+//!
+//! 1. Every exchange names its caller's session
+//!    ([`session`](diverge_sdk::shared::mcp::session)), and goes to
+//!    that session's client ([`Sessions`]). A session is made on its
+//!    caller's first exchange of any kind, notifications included, and
+//!    its client dialled then: an `initialize` carrying the caller
+//!    under `_meta`, so the server knows from the session's first
+//!    message who is on the other end.
+//! 2. A notifications channel hears what the server sends on its own
+//!    session, and nothing sent on another.
+//! 3. A session lives until it is closed, or until nothing holds it
+//!    and its client is gone ([`Sessions`]' rules); its client is
+//!    re-dialled, with the same `initialize`, when its transport dies,
+//!    and a closed session is dialled no more. Nothing else of the
+//!    server's is kept.
+//! 4. A session is closed by its caller's side, on a channel of its
+//!    own ([`close_session()`]): removed under its caller's key and
+//!    answered `Closed`, a key with no session `Closed` as well.
 //!
 //! The four exchanges that reach the server — list-tools,
 //! list-resources, call-tool, read-resource — are the container's
@@ -22,22 +37,29 @@
 //! collected from the program, and between an `Inactive` and the
 //! next feed on the server's secrets channel an exchange waits
 //! behind [`Activity`]'s gate — when the program takes any secret.
-//! Notifications are not activity: a nudge, not an exchange.
+//! Notifications are not activity: a nudge, not an exchange; nor is a
+//! close, which reaches no server.
 
 mod activity;
 mod call_tool;
 mod client;
+mod close_session;
 mod feed;
 mod list_resources;
 mod list_tools;
 mod notifications;
 mod read_resource;
+mod session;
+mod sessions;
 
 pub use activity::*;
 pub use call_tool::*;
 pub use client::*;
+pub use close_session::*;
 pub use feed::*;
 pub use list_resources::*;
 pub use list_tools::*;
 pub use notifications::*;
 pub use read_resource::*;
+pub use session::*;
+pub use sessions::*;

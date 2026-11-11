@@ -4,20 +4,22 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::provider::client::Answerers;
 use indexmap::IndexMap;
 use tokio::sync::{Mutex, watch};
 
 use crate::containers::fuse::Mounts;
+use crate::containers::images::Pulls;
 use crate::containers::mcp::Served;
 use crate::containers::secrets::Secrets;
 use diverge_sdk::shared::mcp::attestation;
 
 use crate::containers::{Inflight, Key};
 use crate::daemon::Daemon;
-use crate::judge::Dependent;
-use crate::store::{AccountId, DependencyToolId};
+use crate::judge::ToolRef;
+use crate::store::DependencyToolId;
+use diverge_sdk::shared::permission::Grant;
 
 /// One run's answerer: the seven traits on one value.
 pub struct Answerer {
@@ -32,17 +34,17 @@ pub struct Answerer {
     pub caller: Option<attestation::Caller>,
     /// The container as a sender.
     pub sender: Creator,
-    /// The account it runs under, if any: who its `/daemon`
-    /// connections are served for, for a tool record's container.
-    /// None for an agent, which holds no account and asks the daemon
-    /// nothing, and for a dependency.
-    pub account: Option<AccountId>,
-    /// What its `/daemon` connections are served under, for a
-    /// dependency: its template's grants, fixed for its life, and
-    /// whose `self` it is. None for a record's container, whose
-    /// account is read fresh, and for a dependency whose template
-    /// grants nothing.
-    pub dependent: Option<Dependent>,
+    /// Which tool the run is, standalone or dependency: whose attached
+    /// agents its `attached` grants reach. None for an agent, which
+    /// asks the daemon nothing, and whose `/daemon` connections are
+    /// declined.
+    pub tool: Option<ToolRef>,
+    /// What the tool's container declared at its registration it may
+    /// ask of the daemon: empty until it registers, and still empty for
+    /// a program that declared none, every request of which is refused.
+    /// What its `/daemon` connections are served under, and what the
+    /// start records on the tool's row once the run is up.
+    pub permissions: Mutex<Vec<Grant>>,
     /// The provider the run is on: where the container's own paths
     /// are served from, for its dependencies.
     pub provider: Identity,
@@ -50,11 +52,18 @@ pub struct Answerer {
     pub mounts: Arc<Mounts>,
     /// The tools the run is served.
     pub served: Arc<Mutex<Served>>,
+    /// The `images::oci` scopes the run's pull opened: released by the
+    /// start once the run is answered.
+    pub pulls: Arc<Pulls>,
     /// Where a use is noted.
     pub touched: watch::Sender<Instant>,
     /// The MCP exchanges in flight: the agent's own, which a transient
     /// dependency shares with its agent.
     pub inflight: Arc<Inflight>,
+    /// The file uses in progress: the agent's own, which a dependency
+    /// deployed for it shares, so that a use on the dependency holds
+    /// the agent — with which the dependency stops — up.
+    pub files: Arc<Inflight>,
     /// The services an agent's registration declared, once its
     /// dependencies were deployed: `None` until then, and still
     /// `None` for a program that declared nothing, which is never

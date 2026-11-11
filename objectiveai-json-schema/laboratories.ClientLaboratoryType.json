@@ -1,8 +1,0 @@
-{
-  "title": "laboratories.ClientLaboratoryType",
-  "description": "Serializes to `\"client\"`.",
-  "type": "string",
-  "enum": [
-    "client"
-  ]
-}

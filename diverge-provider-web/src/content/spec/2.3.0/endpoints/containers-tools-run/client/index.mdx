@@ -7,9 +7,17 @@ draft: false
 
 The client opens each of these channels on the scope, as [Channels](/frames/channels/) provides. The payload of the channel request begins with one tag byte designating the channel; the remainder is the channel's request. The server serves each as its section states, and answers a channel request that does not decode by a channel response finish that no channel response precedes.
 
+Each of the five MCP channels names the caller whose MCP session it
+belongs to. The proxy holds one MCP session to the container's server
+per caller, opened by an `initialize` that carries the caller under
+`_meta`; it sends each exchange on its caller's session, and a
+notifications channel carries what the server sends on its own session
+alone. The mcp-close-session channel names a caller, and the proxy
+removes and closes that caller's MCP session.
+
 | Tag | Channel |
 |-----|---------|
-| `0` | [stop](/endpoints/containers-tools-run/client/stop/) |
+| `0` | [cancel](/endpoints/containers-tools-run/client/cancel/) |
 | `1` | [filetree](/endpoints/containers-tools-run/client/filetree/) |
 | `2` | [read](/endpoints/containers-tools-run/client/read/) |
 | `3` | [write](/endpoints/containers-tools-run/client/write/) |
@@ -24,6 +32,14 @@ The client opens each of these channels on the scope, as [Channels](/frames/chan
 | `12` | [mcp-notifications](/endpoints/containers-tools-run/client/mcp-notifications/) |
 | `13` | [fuse-mount](/endpoints/containers-tools-run/client/fuse-mount/) |
 | `14` | [secrets](/endpoints/containers-tools-run/client/secrets/) |
+| `15` | [exec](/endpoints/containers-tools-run/client/exec/) |
+| `16` | [terminal-open](/endpoints/containers-tools-run/client/terminal-open/) |
+| `17` | [terminal-attach](/endpoints/containers-tools-run/client/terminal-attach/) |
+| `18` | [terminal-stdin](/endpoints/containers-tools-run/client/terminal-stdin/) |
+| `19` | [terminal-resize](/endpoints/containers-tools-run/client/terminal-resize/) |
+| `20` | [terminal-close](/endpoints/containers-tools-run/client/terminal-close/) |
+| `21` | [frontend](/endpoints/containers-tools-run/client/frontend/) |
+| `22` | [mcp-close-session](/endpoints/containers-tools-run/client/mcp-close-session/) |
 
 The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/run/client/channel_request/frame.rs`:
 

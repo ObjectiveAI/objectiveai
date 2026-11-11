@@ -1,26 +1,35 @@
-//! What a client's request frame carries for an image pull.
+//! What a client's request frame carries for an oci scope.
 
-use std::convert::Infallible;
-
+use crate::shared::containers::oci;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Open a pull on a provider: a scope to ask, on channels, what the
-/// provider holds for the caller.
+/// Open an oci scope on a provider: the question whether it can
+/// supply the ONE image this request names — the
+/// [`Image`](crate::shared::containers::request::Image), its digest
+/// and the references under which its bytes may be fetched, as the
+/// shared [`oci::has`](crate::shared::containers::oci::has) request
+/// carries it — and, where it can, a scope to ask on channels for
+/// that image's manifests, blobs and proof.
 ///
-/// A unit struct, because the scope has no parameters: what is
-/// asked about is said on each channel, by digest, and the scope
-/// itself names nothing.
+/// The digest is the image's identity and a reference is only a
+/// locator — any registry serving these bytes serves the same image,
+/// because a client recomputes the hash on pull and rejects a
+/// mismatch. The references are where the client knows the bytes to
+/// be, and a client that knows of none sends none; a provider asks a
+/// referenced registry only where it is configured with it. Where it
+/// looks, and in what order, is stated on [`oci`](super::super::super).
 ///
-/// # A frame that is only a tag
+/// # On the wire
 ///
-/// It still has to go on the wire, because
-/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
-/// carries one type of frame and the payload's leading byte is what
-/// says which request it is. So this encodes to exactly one byte and
-/// decodes by reading exactly one byte — the tag and nothing after it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct Frame;
+/// The tag, then the shared request's JSON, which is exactly the
+/// image's: `{"digest":…,"references":[…]}`, `references` absent when
+/// there are none.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Frame(
+    /// The image asked about, and served where held.
+    pub oci::has::request::Request,
+);
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -34,33 +43,33 @@ pub struct Frame;
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 19;
+const TAG: u8 = 21;
 
 impl Encode for Frame {
-    /// [`Infallible`]: writing one known byte has no failure mode.
-    type Error = Infallible;
+    /// The ordinary JSON failure. The tag cannot fail.
+    type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
-        Ok(())
+        self.0.encode(out)
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Only the tag can be wrong, because only the tag is read.
+    /// Three ways to fail, and only one of them is JSON.
     type Error = FrameError;
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
-        match bytes.first() {
-            Some(&TAG) => Ok(Frame),
-            Some(&tag) => Err(FrameError::UnexpectedTag(tag)),
-            None => Err(FrameError::Empty),
+        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
+        if *tag != TAG {
+            return Err(FrameError::UnexpectedTag(*tag));
         }
+        oci::has::request::Request::decode(rest).map(Frame).map_err(FrameError::Body)
     }
 }
 
-/// An image pull request that could not be read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// An oci scope's request that could not be read.
+#[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
@@ -70,15 +79,25 @@ pub enum FrameError {
     /// assumed which request it held, and was wrong, will — which is
     /// the point of checking a tag rather than skipping it.
     UnexpectedTag(u8),
+    /// The request did not parse.
+    Body(serde_json::Error),
 }
 
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("image pull request frame is empty"),
-            FrameError::UnexpectedTag(tag) => write!(f, "expected image pull request tag {TAG}, found {tag}"),
+            FrameError::Empty => f.write_str("image oci request frame is empty"),
+            FrameError::UnexpectedTag(tag) => write!(f, "expected image oci request tag {TAG}, found {tag}"),
+            FrameError::Body(error) => write!(f, "image oci request did not parse: {error}"),
         }
     }
 }
 
-impl std::error::Error for FrameError {}
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Body(error) => Some(error),
+            FrameError::Empty | FrameError::UnexpectedTag(_) => None,
+        }
+    }
+}

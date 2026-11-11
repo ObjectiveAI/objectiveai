@@ -9,7 +9,7 @@ The client opens each of these channels on the scope, as [Channels](/frames/chan
 
 | Tag | Channel |
 |-----|---------|
-| `0` | [stop](/endpoints/containers-agents-run/client/stop/) |
+| `0` | [cancel](/endpoints/containers-agents-run/client/cancel/) |
 | `1` | [filetree](/endpoints/containers-agents-run/client/filetree/) |
 | `2` | [read](/endpoints/containers-agents-run/client/read/) |
 | `3` | [write](/endpoints/containers-agents-run/client/write/) |
@@ -17,9 +17,16 @@ The client opens each of these channels on the scope, as [Channels](/frames/chan
 | `5` | [postgres](/endpoints/containers-agents-run/client/postgres/) |
 | `6` | [info](/endpoints/containers-agents-run/client/info/) |
 | `7` | [enqueue](/endpoints/containers-agents-run/client/enqueue/) |
-| `8` | [dequeue](/endpoints/containers-agents-run/client/dequeue/) |
+| `8` | unused |
 | `9` | [fuse-mount](/endpoints/containers-agents-run/client/fuse-mount/) |
 | `10` | [secrets](/endpoints/containers-agents-run/client/secrets/) |
+| `11` | [exec](/endpoints/containers-agents-run/client/exec/) |
+| `12` | [terminal-open](/endpoints/containers-agents-run/client/terminal-open/) |
+| `13` | [terminal-attach](/endpoints/containers-agents-run/client/terminal-attach/) |
+| `14` | [terminal-stdin](/endpoints/containers-agents-run/client/terminal-stdin/) |
+| `15` | [terminal-resize](/endpoints/containers-agents-run/client/terminal-resize/) |
+| `16` | [terminal-close](/endpoints/containers-agents-run/client/terminal-close/) |
+| `17` | [frontend](/endpoints/containers-agents-run/client/frontend/) |
 
 The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/client/channel_request/frame.rs`:
 

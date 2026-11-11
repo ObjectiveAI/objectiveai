@@ -29,15 +29,23 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// every one when `count` is absent, none when it is `0` — in id
 /// order, one `Added` each, then the word that the list is whole; and
 /// from then on, with no cap, every event the filter lets through
-/// that is added or whose count is raised, until the client cancels.
+/// that is added, whose count is raised, or that was sent and is gone
+/// with an end of it, until the client cancels.
 ///
 /// Its own loop rather than [`stream::listing`], whose cap bounds the
 /// listing throughout where this one's bounds the initial listing
 /// alone. The word is subscribed to before the store is read, so a
 /// change between the reading and the hearing is in one or the
-/// other. The rules, at every `Events` word and whenever the listing
-/// fell behind the words, for each difference between what was last
-/// read and what is read now:
+/// other. The rules:
+///
+/// 0. The store is read again at every `Events` word, at every word
+///    of the records an edge's end can be — `Accounts`, `Agents`,
+///    `AgentsTemplates`, `StandaloneTools`, `DependencyTools`, each
+///    said by every delete of its kind, whose cascade may have taken
+///    edges — and whenever the listing fell behind the words.
+///
+/// Then, for each difference between what was last read and what is
+/// read now:
 ///
 /// 1. An edge not read before: `Added`, and remembered as sent.
 /// 2. An edge read before whose count differs, sent already:
@@ -45,9 +53,12 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// 3. An edge read before whose count differs, never sent — the
 ///    window left it out: `Added`, and remembered as sent, since the
 ///    client has not seen it.
-/// 4. An edge removed cannot occur — nothing takes an edge away, and
-///    the filter is fixed for the scope's life — so nothing is told
-///    of one.
+/// 4. An edge read before and gone now — an end of it deleted, since
+///    nothing else takes an edge away and the filter is fixed for the
+///    scope's life — sent already: `Removed`, the edge as last read,
+///    and forgotten as sent.
+/// 5. An edge gone, never sent: nothing, since the client never saw
+///    it.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;
@@ -76,7 +87,10 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         tokio::select! {
             word = words.recv() => {
                 let again = match word {
-                    Ok(kind) => kind == Kind::Events,
+                    Ok(kind) => matches!(
+                        kind,
+                        Kind::Events | Kind::Accounts | Kind::Agents | Kind::AgentsTemplates | Kind::StandaloneTools | Kind::DependencyTools
+                    ),
                     Err(broadcast::error::RecvError::Lagged(_)) => true,
                     Err(broadcast::error::RecvError::Closed) => return Ok(()),
                 };
@@ -95,7 +109,12 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
                                 sent.insert(event.id);
                                 reply::reply(scope, &Frame::Added(event)).await;
                             }
-                            Change::Removed(_) | Change::Listed => {}
+                            Change::Removed(event) => {
+                                if sent.remove(&event.id) {
+                                    reply::reply(scope, &Frame::Removed(event)).await;
+                                }
+                            }
+                            Change::Listed => {}
                         }
                     }
                     known = now;

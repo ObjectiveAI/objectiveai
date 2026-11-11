@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::standalone_tools::tag::server::response::Fra
 use diverge_sdk::daemon::grant::Tagging;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{active, agents_of, resolve, templates_of};
+use super::{active, deployed, agents_of, resolve, templates_of};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::filter::standalone_tools::Facts;
 use crate::judge::{self, Standing, Who};
@@ -39,7 +39,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let attached = agents_of(&mut tx, tool.id).await?;
     let templates = templates_of(&mut tx, tool.id).await?;
     let mode = tools::mode(&mut tx, &tool).await?;
-    if !judge::standalone_tools::tagging(&standing, Tagging::Tag, &Facts::record(&tool, active(daemon, tool.id).await, &attached, &templates, mode), &frame.tags) {
+    if !judge::standalone_tools::tagging(&standing, Tagging::Tag, &Facts::record(&tool, active(daemon, tool.id).await, deployed(daemon, tool.id).await, &attached, &templates, mode), &frame.tags) {
         return Ok(Frame::Forbidden);
     }
     tools::set_tags(&mut tx, tool.id, &tags::with(&tool.tags, &frame.tags)).await?;

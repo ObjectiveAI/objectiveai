@@ -6,8 +6,11 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
+use crate::shared::containers::exec;
+use crate::shared::containers::frontend;
+use crate::shared::containers::terminal;
 use crate::shared::containers::secrets::Values;
-use crate::shared::containers::{dequeue, enqueue};
+use crate::shared::containers::enqueue;
 use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 
 /// What a caller asks a provider for while an agent container runs.
@@ -17,7 +20,7 @@ use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path
 ///
 /// | tag | asks for |
 /// |-----|----------|
-/// | `0` | [`Stop`](Self::Stop) |
+/// | `0` | [`Cancel`](Self::Cancel) |
 /// | `1` | [`Filetree`](Self::Filetree) |
 /// | `2` | [`Read`](Self::Read) |
 /// | `3` | [`Write`](Self::Write) |
@@ -25,9 +28,16 @@ use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path
 /// | `5` | [`Postgres`](Self::Postgres) |
 /// | `6` | [`Info`](Self::Info) |
 /// | `7` | [`Enqueue`](Self::Enqueue) |
-/// | `8` | [`Dequeue`](Self::Dequeue) |
+/// | `8` | unused |
 /// | `9` | [`FuseMount`](Self::FuseMount) |
 /// | `10` | [`Secrets`](Self::Secrets) |
+/// | `11` | [`Exec`](Self::Exec) |
+/// | `12` | [`TerminalOpen`](Self::TerminalOpen) |
+/// | `13` | [`TerminalAttach`](Self::TerminalAttach) |
+/// | `14` | [`TerminalStdin`](Self::TerminalStdin) |
+/// | `15` | [`TerminalResize`](Self::TerminalResize) |
+/// | `16` | [`TerminalClose`](Self::TerminalClose) |
+/// | `17` | [`Frontend`](Self::Frontend) |
 ///
 /// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
@@ -42,7 +52,7 @@ use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path
 /// main stream.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// Stop the container. Tag `0`.
+    /// Cancel the run: stop the container. Tag `0`.
     ///
     /// # It has no answer, and does not need one
     ///
@@ -61,7 +71,7 @@ pub enum Frame {
     /// to wait to find out. This is unambiguous and immediate: a
     /// caller that says so is not gone, it is finished.
     ///
-    Stop,
+    Cancel,
     /// The container's filesystem, watched. Tag `1`.
     ///
     /// Carries nothing — the variant is bare — and the provider answers
@@ -105,24 +115,16 @@ pub enum Frame {
     /// with the image's DIVERGE.md, parsed, or that it has none. See
     /// [`info`](crate::shared::containers::info).
     Info,
-    /// A message for the agent. Tag `7`.
+    /// A batch of messages for the agent, in order. Tag `7`.
     ///
-    /// The one way into it: a message with no loop running starts one,
-    /// on that message, and a message while one runs joins its queue.
+    /// The one way into it: a batch with no loop running starts one,
+    /// on its messages, and a batch while one runs joins its queue.
     /// Answered once — by an
     /// [`enqueue::response::Frame`](crate::shared::containers::enqueue::response::Frame)
-    /// naming the message's fate, whenever that is known — and then the
+    /// naming the batch's fate, whenever that is known — and then the
     /// finish. What the agent says in reply is the scope's main stream.
     /// See [`enqueue`](crate::shared::containers::enqueue).
     Enqueue(enqueue::request::Request),
-    /// Withdraw every message still waiting under a key. Tag `8`.
-    ///
-    /// Carries the key, as the enqueues gave it. Answered once — by a
-    /// [`dequeue::response::Frame`](crate::shared::containers::dequeue::response::Frame)
-    /// saying whether anything waited under it — and then the finish.
-    /// Each message it withdraws is ALSO answered, on its own enqueue
-    /// channel. See [`dequeue`](crate::shared::containers::dequeue).
-    Dequeue(dequeue::request::Request),
     /// A FUSE mount made while the container runs. Tag `9`.
     ///
     /// The caller serves one more file or directory into the
@@ -147,10 +149,35 @@ pub enum Frame {
     /// `Fed` or the program's refusal — and then the finish. See
     /// [`secrets`](crate::shared::containers::secrets).
     Secrets(Values),
+    /// Run one command in the container, its output streamed: the
+    /// provider opens an exec scope on the proxy and relays the stream,
+    /// as [`exec`](crate::shared::containers::exec) states it. The
+    /// caller abandoning the channel kills the command.
+    Exec(exec::request::Request),
+    /// Start a terminal the provider holds, answered by its id (see
+    /// [`session`](crate::shared::containers::terminal::session)).
+    TerminalOpen(terminal::open::Open),
+    /// Stream a held terminal's output: its scrollback, then live.
+    TerminalAttach(terminal::session::Id),
+    /// Write bytes to a held terminal's stdin.
+    TerminalStdin {
+        /// The terminal.
+        id: u32,
+        /// What is written.
+        bytes: Vec<u8>,
+    },
+    /// Set a held terminal's size.
+    TerminalResize(terminal::session::Resize),
+    /// Kill a held terminal's shell.
+    TerminalClose(terminal::session::Id),
+    /// One HTTP request to the program's frontend, its body asked for
+    /// by its write id as a write's content is (see
+    /// [`frontend`](crate::shared::containers::frontend)).
+    Frontend(frontend::request::Request),
 }
 
-/// Tag for [`Frame::Stop`].
-const STOP: u8 = 0;
+/// Tag for [`Frame::Cancel`].
+const CANCEL: u8 = 0;
 
 /// Tag for [`Frame::Filetree`].
 const FILETREE: u8 = 1;
@@ -173,14 +200,32 @@ const INFO: u8 = 6;
 /// Tag for [`Frame::Enqueue`].
 const ENQUEUE: u8 = 7;
 
-/// Tag for [`Frame::Dequeue`].
-const DEQUEUE: u8 = 8;
-
 /// Tag for [`Frame::FuseMount`].
 const FUSE_MOUNT: u8 = 9;
 
 /// Tag for [`Frame::Secrets`].
 const SECRETS: u8 = 10;
+
+/// Tag for [`Frame::Exec`].
+const EXEC: u8 = 11;
+
+/// Tag for [`Frame::TerminalOpen`].
+const TERMINAL_OPEN: u8 = 12;
+
+/// Tag for [`Frame::TerminalAttach`].
+const TERMINAL_ATTACH: u8 = 13;
+
+/// Tag for [`Frame::TerminalStdin`].
+const TERMINAL_STDIN: u8 = 14;
+
+/// Tag for [`Frame::TerminalResize`].
+const TERMINAL_RESIZE: u8 = 15;
+
+/// Tag for [`Frame::TerminalClose`].
+const TERMINAL_CLOSE: u8 = 16;
+
+/// Tag for [`Frame::Frontend`].
+const FRONTEND: u8 = 17;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -188,8 +233,8 @@ impl Encode for Frame {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         match self {
-            Frame::Stop => {
-                out.extend_from_slice(&[STOP]);
+            Frame::Cancel => {
+                out.extend_from_slice(&[CANCEL]);
                 Ok(())
             }
             Frame::Filetree => {
@@ -220,10 +265,6 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ENQUEUE]);
                 request.encode(out)
             }
-            Frame::Dequeue(request) => {
-                out.extend_from_slice(&[DEQUEUE]);
-                request.encode(out)
-            }
             Frame::FuseMount(request) => {
                 out.extend_from_slice(&[FUSE_MOUNT]);
                 request.encode(out)
@@ -231,6 +272,35 @@ impl Encode for Frame {
             Frame::Secrets(values) => {
                 out.extend_from_slice(&[SECRETS]);
                 serde_json::to_writer(out, values)
+            }
+            Frame::Exec(request) => {
+                out.extend_from_slice(&[EXEC]);
+                request.encode(out)
+            }
+            Frame::TerminalOpen(size) => {
+                out.extend_from_slice(&[TERMINAL_OPEN]);
+                size.encode(out)
+            }
+            Frame::TerminalAttach(id) => {
+                out.extend_from_slice(&[TERMINAL_ATTACH]);
+                serde_json::to_writer(out, id)
+            }
+            Frame::TerminalStdin { id, bytes } => {
+                out.extend_from_slice(&[TERMINAL_STDIN]);
+                terminal::session::Stdin { id: *id, bytes }.encode(out).unwrap_or_else(|never| match never {});
+                Ok(())
+            }
+            Frame::TerminalResize(resize) => {
+                out.extend_from_slice(&[TERMINAL_RESIZE]);
+                serde_json::to_writer(out, resize)
+            }
+            Frame::TerminalClose(id) => {
+                out.extend_from_slice(&[TERMINAL_CLOSE]);
+                serde_json::to_writer(out, id)
+            }
+            Frame::Frontend(request) => {
+                out.extend_from_slice(&[FRONTEND]);
+                serde_json::to_writer(out, request)
             }
         }
     }
@@ -243,7 +313,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            STOP => Ok(Frame::Stop),
+            CANCEL => Ok(Frame::Cancel),
             FILETREE => Ok(Frame::Filetree),
             READ => read::request::Request::decode(rest)
                 .map(Frame::Read)
@@ -261,15 +331,33 @@ impl Decode<'_> for Frame {
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),
-            DEQUEUE => dequeue::request::Request::decode(rest)
-                .map(Frame::Dequeue)
-                .map_err(FrameError::Dequeue),
             FUSE_MOUNT => fuse_mount::request::Request::decode(rest)
                 .map(Frame::FuseMount)
                 .map_err(FrameError::FuseMount),
             SECRETS => serde_json::from_slice(rest)
                 .map(Frame::Secrets)
                 .map_err(FrameError::Secrets),
+            EXEC => exec::request::Request::decode(rest)
+                .map(Frame::Exec)
+                .map_err(FrameError::Exec),
+            TERMINAL_OPEN => terminal::open::Open::decode(rest)
+                .map(Frame::TerminalOpen)
+                .map_err(FrameError::Terminal),
+            TERMINAL_ATTACH => serde_json::from_slice(rest)
+                .map(Frame::TerminalAttach)
+                .map_err(FrameError::Terminal),
+            TERMINAL_STDIN => terminal::session::Stdin::decode(rest)
+                .map(|stdin| Frame::TerminalStdin { id: stdin.id, bytes: stdin.bytes.to_vec() })
+                .map_err(|_| FrameError::TerminalStdin),
+            TERMINAL_RESIZE => serde_json::from_slice(rest)
+                .map(Frame::TerminalResize)
+                .map_err(FrameError::Terminal),
+            TERMINAL_CLOSE => serde_json::from_slice(rest)
+                .map(Frame::TerminalClose)
+                .map_err(FrameError::Terminal),
+            FRONTEND => serde_json::from_slice(rest)
+                .map(Frame::Frontend)
+                .map_err(FrameError::Frontend),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -292,13 +380,19 @@ pub enum FrameError {
     Postgres(postgres::request::PostgresError),
     /// The enqueued message did not parse as JSON.
     Enqueue(serde_json::Error),
-    /// The dequeue's key did not parse as JSON.
-    Dequeue(serde_json::Error),
     /// The mount request did not parse.
     FuseMount(serde_json::Error),
     /// The secrets' values did not parse as JSON. The message is the
     /// parser's, which quotes no value.
     Secrets(serde_json::Error),
+    /// The exec request did not parse.
+    Exec(serde_json::Error),
+    /// A terminal request did not parse.
+    Terminal(serde_json::Error),
+    /// A terminal's stdin held no id.
+    TerminalStdin,
+    /// The frontend request did not parse.
+    Frontend(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -323,14 +417,21 @@ impl fmt::Display for FrameError {
             FrameError::Enqueue(error) => {
                 write!(f, "enqueue request did not parse: {error}")
             }
-            FrameError::Dequeue(error) => {
-                write!(f, "dequeue request did not parse: {error}")
-            }
             FrameError::FuseMount(error) => {
                 write!(f, "fuse mount request did not parse: {error}")
             }
             FrameError::Secrets(error) => {
                 write!(f, "secrets feed did not parse: {error}")
+            }
+            FrameError::Exec(error) => {
+                write!(f, "exec request did not parse: {error}")
+            }
+            FrameError::Terminal(error) => {
+                write!(f, "terminal request did not parse: {error}")
+            }
+            FrameError::TerminalStdin => f.write_str("terminal stdin held no id"),
+            FrameError::Frontend(error) => {
+                write!(f, "frontend request did not parse: {error}")
             }
         }
     }
@@ -343,11 +444,13 @@ impl Error for FrameError {
             | FrameError::Write(error)
             | FrameError::Transfer(error)
             | FrameError::Enqueue(error)
-            | FrameError::Dequeue(error)
             | FrameError::FuseMount(error)
-            | FrameError::Secrets(error) => Some(error),
+            | FrameError::Secrets(error)
+            | FrameError::Exec(error)
+            | FrameError::Terminal(error)
+            | FrameError::Frontend(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
-            FrameError::Empty | FrameError::UnknownTag(_) => None,
+            FrameError::Empty | FrameError::UnknownTag(_) | FrameError::TerminalStdin => None,
         }
     }
 }

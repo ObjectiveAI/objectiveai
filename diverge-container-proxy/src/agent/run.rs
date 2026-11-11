@@ -5,8 +5,9 @@
 use std::pin::pin;
 use std::sync::Arc;
 
-use diverge_sdk::container_proxy::inside::agent::run::request::{Message, Request};
+use diverge_sdk::container_proxy::inside::agent::run::request::Request;
 use diverge_sdk::container_proxy::outside::endpoints::agents::begin::server::response::{ACTIVE, CHUNK};
+use diverge_sdk::shared::containers::enqueue::request::Message;
 use diverge_sdk::shared::containers::secrets::Values;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
@@ -81,10 +82,14 @@ pub fn feed(proxy: Arc<Proxy>, values: Values) -> oneshot::Receiver<Result<(), E
 /// loop began is the proxy's alone: the agent's server produces
 /// chunks, every one under the chunk's tag, so nothing it writes is
 /// read as it. Nothing is said about HOW the loop ended: a loop that
-/// failed already said so in a fatal notification chunk.
-pub fn relay(proxy: Arc<Proxy>, response: reqwest::Response, scope: Arc<ScopeHandle>) -> oneshot::Receiver<Result<Values, Error>> {
+/// failed already said so in a fatal notification chunk. `after` is
+/// the last loop's word still on its way, which goes first.
+pub fn relay(proxy: Arc<Proxy>, response: reqwest::Response, scope: Arc<ScopeHandle>, after: Option<tokio::task::JoinHandle<()>>) -> oneshot::Receiver<Result<Values, Error>> {
     let (sender, receiver) = oneshot::channel();
     tokio::spawn(async move {
+        if let Some(after) = after {
+            let _ = after.await;
+        }
         scope.send_response(&[ACTIVE]).await;
         let mut events = pin!(response.bytes_stream().eventsource());
         while let Some(Ok(event)) = events.next().await {

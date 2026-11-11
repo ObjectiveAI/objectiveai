@@ -1,12 +1,15 @@
 //! What this provider holds out, read off its configuration.
 
-use diverge_sdk::provider::endpoints::info::server::response::{Capabilities, VolumeCapabilities};
+use diverge_sdk::provider::endpoints::info::server::response::{Capabilities, MessagesCapabilities, VolumeCapabilities};
 
 use crate::config::Config;
 
 /// The host's capabilities, each a fact of the host:
 ///
-/// - `images_store`: the `images` section names a client image store,
+/// - `containers`: `containers.enabled`, the configuration's word on
+///   whether the host runs containers at all; `false` is every agents
+///   run and tools run answered `Unsupported`.
+/// - `images_store`: the `images` section names a Store,
 ///   which is the only way the host has one.
 /// - `images_registries`: every host of `containers.podman.registries`,
 ///   the registries the host pulls from with the credentials it holds.
@@ -17,8 +20,12 @@ use crate::config::Config;
 ///   container, since a serve opens the image in userspace and the
 ///   image bears one writer; an ephemeral or a read-only one by any
 ///   number of either at once.
+/// - `messages`: the `messages` section's rate, as it is written; the
+///   section absent, no object, and every listen and send answered
+///   `Unsupported`.
 pub fn capabilities(config: &Config) -> Capabilities {
     Capabilities {
+        containers: config.containers.enabled,
         images_store: config.images.is_some(),
         images_registries: config
             .containers
@@ -36,6 +43,7 @@ pub fn capabilities(config: &Config) -> Capabilities {
         },
         volumes_ephemeral: ANY,
         volumes_read_only: ANY,
+        messages: config.messages.map(|messages| MessagesCapabilities { messages: messages.messages, seconds: messages.seconds }),
     }
 }
 

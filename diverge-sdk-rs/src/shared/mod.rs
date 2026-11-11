@@ -34,6 +34,10 @@
 //! provider is made of: how it authenticates, and what the acceptor is
 //! told of it.
 //!
+//! [`description`] is one short line of plain text: what a daemon's
+//! announcement to a provider's `daemons::list` is, and what an image
+//! is described by.
+//!
 //! [`canonical`] is the one form a value is hashed in — compact JSON
 //! with every object key sorted at every depth — which every id that
 //! is a hash is computed over.
@@ -50,12 +54,19 @@
 //! [`Listing::push`](listing::Listing::push) are exactly the kind of
 //! thing that would stop agreeing quietly.
 
+pub mod base64;
 pub mod canonical;
 pub mod containers;
 pub mod daemons;
+pub mod description;
 pub mod error;
 pub mod filetree;
 pub mod listing;
 pub mod mcp;
+pub mod nullable;
 pub mod permission;
 pub mod relay;
+
+mod identity;
+
+pub use identity::*;

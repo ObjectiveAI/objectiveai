@@ -25,7 +25,7 @@ export const Frame = z.discriminatedUnion("kind", [
     dependency: Dependency,
     /** The file's destination, as components from the container's root; at least one, each a name: not empty, not `.` or `..`, holding no `/` and no NUL. */
     path: z.array(z.string()),
-    /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+    /** Served by another daemon: see `Relay`. Absent, served here. */
     relay: Relay.optional(),
   }),
   /** One directory of files. */
@@ -37,7 +37,7 @@ export const Frame = z.discriminatedUnion("kind", [
     path: z.array(z.string()),
     /** The paths of its files, from the directory's root. */
     files: z.array(z.string()),
-    /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+    /** Served by another daemon: see `Relay`. Absent, served here. */
     relay: Relay.optional(),
   }),
 ]);

@@ -1,5 +1,6 @@
 //! What every task of a run shares.
 
+use diverge_sdk::shared::Identity;
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
@@ -28,7 +29,7 @@ pub(crate) struct Run {
     pub scope: Arc<ScopeHandle>,
     /// Whose scope this is: the identity of the caller that opened it,
     /// which a transfer's rule is checked against.
-    pub identity: Arc<str>,
+    pub identity: Arc<Identity>,
     /// Every container the provider is running, for a transfer to
     /// find the other one and to ask who may reach it.
     pub directory: Arc<Directory>,
@@ -39,17 +40,15 @@ pub(crate) struct Run {
     /// The begin scope on it: where the proxy's asks arrive and where
     /// the family's own exchanges go.
     pub begin: Begin,
-    /// Every path the proxy's tree leaves out: every FUSE mount's —
-    /// the request's, and each made since, as it is made — and every
-    /// mount's of a volume the provider watches itself. Read when a
-    /// tree scope is opened; a tree already open was opened with the
-    /// list as it was.
-    pub ignore: Mutex<Vec<Vec<String>>>,
     /// Every mount the provider watches itself, for a filetree to
     /// open beside the proxy's tree and merge in.
     pub watched: Arc<[Watched]>,
     /// Every mount the container holds, for a mount asked for while
-    /// it runs to be refused as overlapping or under a taken id.
+    /// it runs to be refused as overlapping or under a taken id; a
+    /// FUSE mount is let go when its relay ends. What the proxy's tree
+    /// leaves out is read off it when a tree scope is opened — see
+    /// [`ignored`](Self::ignored) — so the list is never kept twice
+    /// and never outlives a mount.
     pub mounts: Mutex<Ledger>,
     /// Database connections whose caller half has not opened.
     /// The daemon connections announced to the caller and not yet
@@ -65,17 +64,20 @@ pub(crate) struct Run {
     /// by itself, stopped by [`shutdown`](Self::shutdown) before the
     /// task serving it is aborted.
     pub trees: Mutex<HashMap<u32, tree::ExecuteHandle>>,
+    /// Every terminal the caller holds open on this run, by id: each
+    /// one's shell killed by [`shutdown`](Self::shutdown) as the trees
+    /// are stopped.
+    pub terminals: super::serve::terminal::Terminals,
     tasks: Mutex<JoinSet<()>>,
 }
 
 impl Run {
     pub(crate) fn new(
         scope: Arc<ScopeHandle>,
-        identity: Arc<str>,
+        identity: Arc<Identity>,
         directory: Arc<Directory>,
         proxy: Handle,
         begin: Begin,
-        ignore: Vec<Vec<String>>,
         watched: Arc<[Watched]>,
         mounts: Ledger,
     ) -> Self {
@@ -85,20 +87,36 @@ impl Run {
             directory,
             proxy,
             begin,
-            ignore: Mutex::new(ignore),
             watched,
             mounts: Mutex::new(mounts),
             daemons: Pairs::new(),
             pairs: Pairs::new(),
             over: Notify::new(),
             trees: Mutex::new(HashMap::new()),
+            terminals: Default::default(),
             tasks: Mutex::new(JoinSet::new()),
         }
     }
 
-    /// One more task of this run.
+    /// One more task of this run, and every task already done reaped
+    /// first, under the same lock: so the set holds the tasks still
+    /// running, however many the run has spawned over its life.
     pub(crate) async fn spawn(&self, task: impl Future<Output = ()> + Send + 'static) {
-        self.tasks.lock().await.spawn(task);
+        let mut tasks = self.tasks.lock().await;
+        while tasks.try_join_next().is_some() {}
+        tasks.spawn(task);
+    }
+
+    /// Every path the proxy's tree leaves out, as of now: every FUSE
+    /// mount's the container holds — the request's, and each made or
+    /// being made since — since a FUSE mount is the caller's own
+    /// answers and a tree over it would report them back to the
+    /// caller; and every mount's of a volume the provider watches
+    /// itself. A tree already open was opened with the list as it was.
+    pub(crate) async fn ignored(&self) -> Vec<Vec<String>> {
+        let mut ignored = self.mounts.lock().await.fuse_paths();
+        ignored.extend(self.watched.iter().map(|watched| watched.container_path.clone()));
+        ignored
     }
 
     /// End every task: stop every tree scope still open on the
@@ -109,12 +127,13 @@ impl Run {
     /// would otherwise hold the finish hostage. The trees are stopped
     /// here, on the way out, rather than by the tasks on a signal: a
     /// task woken and then aborted before it runs would never have
-    /// sent the stop, and would leave its trees watching a container
+    /// sent the cancel, and would leave its trees watching a container
     /// that goes on.
     pub(crate) async fn shutdown(&self) {
         for (_, handle) in self.trees.lock().await.drain() {
-            let _ = handle.stop().await;
+            let _ = handle.cancel().await;
         }
+        self.terminals.stop_all().await;
         let mut tasks = self.tasks.lock().await;
         tasks.abort_all();
         while tasks.join_next().await.is_some() {}

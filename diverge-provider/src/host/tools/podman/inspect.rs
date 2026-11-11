@@ -21,13 +21,12 @@ pub const KEEP_LABEL: &str = "diverge.network/keep";
 /// The names an image pulled from the provider's own registry
 /// carries in the cache: every name under this prefix is one, since
 /// the registry listens on the loopback and nowhere else, and no
-/// image the provider holds on its own account is named so. A
-/// client image is built and pulled under
-/// `127.0.0.1:<port>/<hash>/<name>`, and a caller's image for a run
-/// under `127.0.0.1:<port>/<repository>/…`, which is how the cache's
-/// lookup by digest tells the provider's own images from what it
-/// holds for one identity and never answers one identity's image to
-/// another.
+/// image the provider holds on its own account is named so. A build
+/// is tagged `127.0.0.1:<port>/build/<uuid>`, and every pull from the
+/// Store or from a caller names `127.0.0.1:<port>/<token>/…`, which is
+/// how the cache's lookup by digest tells the provider's own images
+/// from what it holds for one identity and never answers one
+/// identity's image to another.
 pub const CLIENT_PREFIX: &str = "127.0.0.1:";
 
 /// One image in podman's storage, as `podman image ls` lists it.
@@ -105,10 +104,31 @@ fn once(rows: Vec<ListedRow>) -> Vec<Listed> {
 /// [`CLIENT_PREFIX`] and nothing else — is not matched either, nor
 /// one with no name: it is held for the identity it was pulled for,
 /// and the deployer finds it by that identity, not here.
-pub async fn image_by_digest(digest: &str) -> Result<Option<String>, Error> {
+///
+/// The answer is the id and the first name the image is held under
+/// that is not under [`CLIENT_PREFIX`]: the registry it was pulled
+/// from, which a run's source names.
+pub async fn image_by_digest(digest: &str) -> Result<Option<(String, String)>, Error> {
     let filter = format!("digest={digest}");
     let rows = listed(command(["image", "ls", "--no-trunc", "--filter", &filter, "--format", "json"])).await?;
-    Ok(rows.into_iter().find(ListedRow::own).map(|row| row.id))
+    Ok(rows.into_iter().find(ListedRow::own).and_then(|row| {
+        let name = row.names?.into_iter().find(|name| !name.starts_with(CLIENT_PREFIX))?;
+        Some((row.id, name))
+    }))
+}
+
+/// The image in the store with `digest` among its manifest digests,
+/// under any name or none: its id, and whether it is the provider's
+/// own as [`image_by_digest`] means it — held under a name that is
+/// not under [`CLIENT_PREFIX`]. What a delete of a Store image asks
+/// of the cache's copy.
+pub async fn image_by_digest_any(digest: &str) -> Result<Option<(String, bool)>, Error> {
+    let filter = format!("digest={digest}");
+    let rows = listed(command(["image", "ls", "--no-trunc", "--filter", &filter, "--format", "json"])).await?;
+    Ok(rows.into_iter().next().map(|row| {
+        let own = row.own();
+        (row.id, own)
+    }))
 }
 
 /// A listing of images, as podman answers `command`, its rows read.

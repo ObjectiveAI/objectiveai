@@ -23,7 +23,10 @@
 //! kernel looks them up, kept while the kernel holds a lookup count
 //! and freed when it forgets; a rename re-keys every number under
 //! the moved entry, so a handle or an inode taken before the move
-//! still names the entry after it.
+//! still names the entry after it. A listing hands out none: an entry
+//! the kernel holds no number for is listed under [`UNKNOWN_INO`],
+//! since a number made there would be one the kernel never looked
+//! up, and so never forgets.
 
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
@@ -46,6 +49,12 @@ use super::handles::Handles;
 /// Every inode's generation: this filesystem never reuses a number
 /// for a different entry within one mount, so one generation serves.
 const GENERATION: Generation = Generation(0);
+
+/// The `d_ino` of a listed entry the kernel holds no number for: the
+/// number libfuse lists such an entry under. The kernel addresses an
+/// entry by what `lookup` answers, never by a listing's `d_ino`, and
+/// the mount is made without `use_ino`, so nothing resolves this.
+const UNKNOWN_INO: u64 = 0xffff_ffff;
 
 /// The tree.
 pub struct MountedDirectory {
@@ -95,9 +104,17 @@ impl Inodes {
         self.nodes.get(&ino).map(|node| node.path.clone())
     }
 
-    /// The path's number, allocated if it has none; `lookup` adds one
-    /// to the count the kernel will forget.
-    fn number(&mut self, path: &str, lookup: bool) -> u64 {
+    /// The path's number if it has one, else [`UNKNOWN_INO`]: what a
+    /// listing says, allocating nothing.
+    fn listed(&self, path: &str) -> u64 {
+        self.numbers.get(path).copied().unwrap_or(UNKNOWN_INO)
+    }
+
+    /// The path's number, allocated if it has none, and one more
+    /// lookup on it for the kernel to forget: what every entry the
+    /// kernel is handed — a lookup's, a create's, a mkdir's — takes,
+    /// and nothing else allocates.
+    fn number(&mut self, path: &str) -> u64 {
         let ino = match self.numbers.get(path) {
             Some(ino) => *ino,
             None => {
@@ -114,10 +131,8 @@ impl Inodes {
                 ino
             }
         };
-        if lookup {
-            if let Some(node) = self.nodes.get_mut(&ino) {
-                node.lookups += 1;
-            }
+        if let Some(node) = self.nodes.get_mut(&ino) {
+            node.lookups += 1;
         }
         ino
     }
@@ -136,7 +151,11 @@ impl Inodes {
             None => false,
         };
         if freed {
-            if let Some(node) = self.nodes.remove(&ino) {
+            // The path's number is removed only if it is still this
+            // one: a rename onto the path may have given it another.
+            if let Some(node) = self.nodes.remove(&ino)
+                && self.numbers.get(&node.path) == Some(&ino)
+            {
                 self.numbers.remove(&node.path);
             }
         }
@@ -202,9 +221,9 @@ impl MountedDirectory {
         self.inodes().path(ino.0).ok_or(Errno::ENOENT)
     }
 
-    /// The path's number, allocated if it has none.
-    fn number(&self, path: &str, lookup: bool) -> u64 {
-        self.inodes().number(path, lookup)
+    /// The path's number, allocated if it has none, looked up once.
+    fn number(&self, path: &str) -> u64 {
+        self.inodes().number(path)
     }
 
     /// An entry's attributes, as the caller says now: the root the
@@ -234,7 +253,7 @@ impl Filesystem for MountedDirectory {
         let result = self.path(parent).and_then(|parent| {
             let path = child(&parent, name)?;
             let stat = self.asks.stat(&path)?.ok_or(Errno::ENOENT)?;
-            let ino = self.number(&path, true);
+            let ino = self.number(&path);
             Ok(attrs::attr(INodeNo(ino), &stat))
         });
         match result {
@@ -375,10 +394,13 @@ impl Filesystem for MountedDirectory {
     fn readdir(&self, _req: &fuser::Request, ino: INodeNo, _fh: FileHandle, offset: u64, mut reply: ReplyDirectory) {
         let listed = match self.path(ino).and_then(|path| {
             let listed = self.asks.list(&path)?.ok_or(Errno::ENOENT)?;
+            // Numbers read, never made — see the module's doc — and the
+            // table taken once, after the ask, for the whole listing.
+            let inodes = self.inodes();
             let parent = if path.is_empty() {
                 INodeNo::ROOT.0
             } else {
-                self.number(split(&path).0, false)
+                inodes.listed(split(&path).0)
             };
             let mut entries: Vec<(u64, FileType, String)> = Vec::with_capacity(listed.len() + 2);
             entries.push((ino.0, FileType::Directory, ".".to_string()));
@@ -389,7 +411,7 @@ impl Filesystem for MountedDirectory {
                 } else {
                     FileType::RegularFile
                 };
-                let number = self.number(&child(&path, OsStr::new(&entry.name))?, false);
+                let number = inodes.listed(&child(&path, OsStr::new(&entry.name))?);
                 entries.push((number, kind, entry.name));
             }
             Ok(entries)
@@ -436,7 +458,7 @@ impl Filesystem for MountedDirectory {
             // or a `stat`, sees it. Then given the mode asked.
             self.asks.write(&path, 0, &[])?;
             self.asks.setattr(&path, attrs::attrs(Some(mode), None, None, None, None))?;
-            let ino = self.number(&path, true);
+            let ino = self.number(&path);
             let attr = self.attr(ino, &path)?;
             let fh = self.handles.open(path, writable);
             Ok((attr, fh))
@@ -452,7 +474,7 @@ impl Filesystem for MountedDirectory {
             let path = child(&parent, name)?;
             self.asks.mkdir(&path)?;
             self.asks.setattr(&path, attrs::attrs(Some(mode), None, None, None, None))?;
-            let ino = self.number(&path, true);
+            let ino = self.number(&path);
             self.attr(ino, &path)
         });
         match result {

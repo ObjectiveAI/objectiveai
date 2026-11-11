@@ -15,7 +15,7 @@ export const Frame = z.object({
   key: z.string(),
   /** The tags to take tags off, one by one. Empty changes nothing and is not a failure. */
   tags: z.array(z.string()),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

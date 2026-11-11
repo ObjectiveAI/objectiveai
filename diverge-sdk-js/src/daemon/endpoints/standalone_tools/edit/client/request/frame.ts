@@ -10,16 +10,14 @@ import { Patch } from "../../../../../../daemon/patch/operation.js";
  * Ask the daemon to change a tool: a JSON Patch over its `Editable`,
  * applied whole or not at all. A running container takes only FUSE
  * mounts appended to either list, mounted live before the edit
- * persists; any other difference is `active`. A connected tool's
- * document is its name and nothing else: anything but the name
- * differing is `not_owned`. Empty changes nothing.
+ * persists; any other difference is `active`. Empty changes nothing.
  */
 export const Frame = z.object({
   /** The tool: by name, by template and index, or another daemon's by the daemon, the account and its reference there. */
   tool: Tool,
   /** The operations, in order: see `daemon.patch`. Empty changes nothing. */
   patch: Patch,
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

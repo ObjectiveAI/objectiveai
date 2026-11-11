@@ -95,6 +95,17 @@ export async function execute<Q, A>(
   } catch (error) {
     throw new UploadError(error instanceof OpenError ? error.kind : "send", error);
   }
+  try {
+    return await exchange(handle, scope, decodeAsk, decode, source);
+  } finally {
+    // The answer is in, or the exchange failed: nothing more is read.
+    scope.requestReceiver.abandon();
+    scope.responseReceiver.abandon();
+  }
+}
+
+/** The asks answered as they come, until the answer. */
+async function exchange<A>(handle: Handle, scope: Scope, decodeAsk: AskDecoder, decode: Decode<A>, source: Source): Promise<A> {
   let asks = scope.requestReceiver.next();
   let answers = scope.responseReceiver.next();
   for (;;) {

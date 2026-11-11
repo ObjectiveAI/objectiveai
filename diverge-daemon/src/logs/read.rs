@@ -1,19 +1,17 @@
-//! Reading an agent's log: its length, and a span of it.
+//! Reading a log: its length, and a span of it.
 
 use std::io::SeekFrom;
 use std::path::Path;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::ItemWrapper;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt as _, AsyncSeekExt as _};
 
-use super::{ENTRY, Error, dir};
-use crate::store::AgentId;
+use super::{Book, ENTRY, Error};
 
-/// How many items the agent's log holds: the `logs_index` of its
+/// How many items `book`'s log holds: the `logs_index` of its
 /// latest, `0` for a log never appended to.
-pub async fn count(root: &Path, id: AgentId) -> Result<u64, Error> {
-    let index_path = dir(root, id).join("index");
+pub async fn count<B: Book>(root: &Path, book: B) -> Result<u64, Error> {
+    let index_path = book.dir(root).join("index");
     match tokio::fs::metadata(&index_path).await {
         Ok(meta) => Ok(meta.len() / ENTRY),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(0),
@@ -24,14 +22,14 @@ pub async fn count(root: &Path, id: AgentId) -> Result<u64, Error> {
 /// The items numbered `from` through `to`, inclusive, in order —
 /// clipped to the log, so a span past its end is what there is, and
 /// an empty span is nothing.
-pub async fn read(root: &Path, id: AgentId, from: u64, to: u64) -> Result<Vec<ItemWrapper>, Error> {
-    let count = count(root, id).await?;
+pub async fn read<B: Book>(root: &Path, book: B, from: u64, to: u64) -> Result<Vec<B::Entry>, Error> {
+    let count = count(root, book).await?;
     let from = from.max(1);
     let to = to.min(count);
     if from > to {
         return Ok(Vec::new());
     }
-    let dir = dir(root, id);
+    let dir = book.dir(root);
     let index_path = dir.join("index");
     let log_path = dir.join("log");
     let mut index = File::open(&index_path).await.map_err(|source| Error::io(&index_path, source))?;

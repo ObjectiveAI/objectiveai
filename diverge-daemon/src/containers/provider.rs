@@ -3,14 +3,13 @@
 use std::cmp::Reverse;
 use std::sync::Arc;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::wire::client::handle::Handle;
 use tokio::task::JoinHandle;
 
 use super::capable::{self, Needs};
 use super::images;
 use crate::daemon::Daemon;
-use crate::store::{self, providers_incoming, providers_outgoing};
 
 /// Why no provider could be had.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,28 +62,11 @@ impl NoProvider {
 impl std::fmt::Display for NoProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NoProvider::NotConnected(Identity::Outgoing { address }) => {
-                write!(f, "the outgoing provider at {address} is not connected now")
-            }
-            NoProvider::NotConnected(Identity::IncomingUnbrokered { identity }) => {
-                write!(f, "the incoming provider {identity} is not connected now")
-            }
-            NoProvider::Unsupported(Identity::Outgoing { address }, what) => {
-                write!(f, "the outgoing provider at {address} cannot run it: {what}")
-            }
-            NoProvider::Unsupported(Identity::IncomingUnbrokered { identity }, what) => {
-                write!(f, "the incoming provider {identity} cannot run it: {what}")
-            }
+            NoProvider::NotConnected(identity) => write!(f, "the provider {identity} is not connected now"),
+            NoProvider::Unsupported(identity, what) => write!(f, "the provider {identity} cannot run it: {what}"),
             NoProvider::None => f.write_str("no provider is connected"),
             NoProvider::NoneCapable(what) => write!(f, "no connected provider can run it: {what}"),
-            NoProvider::NoSource {
-                pinned: Some(Identity::Outgoing { address }),
-                what,
-            } => write!(f, "the outgoing provider at {address} cannot source the image: {what}"),
-            NoProvider::NoSource {
-                pinned: Some(Identity::IncomingUnbrokered { identity }),
-                what,
-            } => write!(f, "the incoming provider {identity} cannot source the image: {what}"),
+            NoProvider::NoSource { pinned: Some(identity), what } => write!(f, "the provider {identity} cannot source the image: {what}"),
             NoProvider::NoSource { pinned: None, what } => write!(f, "no connected provider can source the image: {what}"),
         }
     }
@@ -94,7 +76,7 @@ impl std::fmt::Display for NoProvider {
 /// the one its record pins it to, which must be connected now, whose
 /// capabilities must hold out what the run `needs`, and which must be
 /// able to source the run's image, and no other; or, pinned to none,
-/// every provider on record that is connected now and passes the
+/// every provider with a record that is connected now and passes the
 /// same judgements, the one with the most room for the run first —
 /// see below — and a start that fails on one goes on to the next.
 ///
@@ -133,7 +115,8 @@ impl std::fmt::Display for NoProvider {
 /// # What is refused, and why
 ///
 /// A pinned provider is judged the same way, since it is asked
-/// nothing it cannot do: failing its capabilities is
+/// nothing it cannot do: failing its capabilities — among them one
+/// that runs no containers, see [`capable::check`] — is
 /// [`NoProvider::Unsupported`]; listing no registry, and the ask
 /// finding no store with the image, [`NoProvider::NoSource`].
 /// Unpinned, nothing connected is [`NoProvider::None`]; nothing left
@@ -142,8 +125,16 @@ impl std::fmt::Display for NoProvider {
 pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: &Needs) -> Result<Vec<(Identity, Handle)>, NoProvider> {
     let asked = needs.image.as_ref().map(|image| {
         let daemon = Arc::clone(daemon);
-        let digest = image.digest.clone();
-        tokio::spawn(async move { images::locate(&daemon, &digest, None).await.is_some() })
+        let image = image.clone();
+        tokio::spawn(async move {
+            let reach = images::Reach::Full { except: None };
+            let Some(source) = images::locate(&daemon, &image, &reach, &[]).await else {
+                return false;
+            };
+            // Only the answer was wanted: no scope is pulled through.
+            let _ = source.scope.cancel().await;
+            true
+        })
     });
     if let Some(identity) = pinned {
         let Some(handle) = daemon.live.provider(identity).await else {
@@ -163,15 +154,12 @@ pub async fn candidates(daemon: &Arc<Daemon>, pinned: Option<&Identity>, needs: 
         }
         return Ok(vec![(identity.clone(), handle)]);
     }
-    let on_record = match on_record(daemon).await {
-        Ok(on_record) => on_record,
-        Err(_) => Vec::new(),
-    };
+    let on_record = daemon.providers.identities();
     let mut listed = Vec::with_capacity(on_record.len());
     let mut unlisted = Vec::new();
     let mut lacked = None;
     let mut reason = None;
-    for identity in on_record {
+    for identity in on_record.iter().cloned() {
         let Some(handle) = daemon.live.provider(&identity).await else {
             continue;
         };
@@ -229,8 +217,9 @@ enum Judged {
     Unlisted(String),
 }
 
-/// One provider judged, capabilities first and the registry second,
-/// from its cached info; a provider whose info the daemon has not
+/// One provider judged, capabilities first — whether it runs
+/// containers at all, then its volume modes, see [`capable::check`]
+/// — and the registry second, from its cached info; a provider whose info the daemon has not
 /// cached — not connected, read between two looks — is judged fit
 /// and refused by the run instead.
 async fn judge(daemon: &Daemon, identity: &Identity, needs: &Needs) -> Judged {
@@ -248,7 +237,7 @@ async fn judge(daemon: &Daemon, identity: &Identity, needs: &Needs) -> Judged {
     Judged::Fit
 }
 
-/// Whether some connected provider's client image store holds the
+/// Whether some connected provider or remote daemon can supply the
 /// image: the ask spawned at the chooser's start, waited for here
 /// and nowhere else. No ask — the run names no image — and an ask
 /// whose task ended without answering are both no.
@@ -263,17 +252,5 @@ async fn held(asked: Option<JoinHandle<bool>>) -> bool {
 /// that no store holds it.
 fn no_source(reason: &str, needs: &Needs) -> String {
     let digest = needs.image.as_ref().map(|image| image.digest.as_str()).unwrap_or_default();
-    format!("{reason}, and no connected provider holds the image {digest}")
-}
-
-/// Every provider on record, outgoing first, each oldest first.
-async fn on_record(daemon: &Daemon) -> Result<Vec<Identity>, store::Error> {
-    let mut conn = daemon.store.acquire().await?;
-    let mut identities: Vec<Identity> = providers_outgoing::all(&mut conn)
-        .await?
-        .into_iter()
-        .map(|outgoing| outgoing.identity())
-        .collect();
-    identities.extend(providers_incoming::all(&mut conn).await?.into_iter().map(|incoming| incoming.provider()));
-    Ok(identities)
+    format!("{reason}, and no connected provider or remote daemon holds the image {digest}")
 }

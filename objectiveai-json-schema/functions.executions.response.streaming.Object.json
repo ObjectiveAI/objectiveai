@@ -1,8 +1,0 @@
-{
-  "title": "functions.executions.response.streaming.Object",
-  "type": "string",
-  "enum": [
-    "scalar.function.execution.chunk",
-    "vector.function.execution.chunk"
-  ]
-}

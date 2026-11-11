@@ -1,5 +1,6 @@
 //! Answering a deletion, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use diverge_sdk::provider::endpoints::images::delete::client::request;
@@ -14,19 +15,19 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 /// Remove the image and end the scope.
 ///
-/// A provider whose capabilities keep no image store answers
+/// A provider whose capabilities keep no Store answers
 /// [`Unsupported`](response::Frame::Unsupported) and asks nothing.
 /// Otherwise the manager says what happened:
-/// [`Deleted`](response::Deletion::Deleted) is the image gone, told to
-/// every listing open by name; [`InUse`](response::Deletion::InUse)
-/// is a running container of the caller running it, and the wire's
-/// own word for that; a name the caller has no image by is
+/// [`Deleted`](response::Deletion::Deleted) is the ownership gone,
+/// told to every listing open by digest; [`InUse`](response::Deletion::InUse)
+/// is a running container running it, and the wire's own word for
+/// that; a digest the caller owns no image by is
 /// [`refusal::unknown`]; a manager that will not answer is its error,
 /// flattened. The request arrives decoded, as every handler's does.
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     changes: Arc<Changes>,
     capabilities: &Capabilities,
@@ -37,13 +38,13 @@ pub async fn handle<M>(
     let frame = if !capabilities.images_store {
         response::Frame::Unsupported
     } else {
-        match manager.delete(client_identity, &request.name).await {
+        match manager.delete(client_identity, &request.digest).await {
             Ok(Some(response::Deletion::Deleted)) => {
-                changes.changed(client_identity, &request.name);
+                changes.changed(client_identity, &request.digest);
                 response::Frame::Deleted
             }
             Ok(Some(response::Deletion::InUse)) => response::Frame::InUse,
-            Ok(None) => response::Frame::Error(refusal::unknown(&request.name)),
+            Ok(None) => response::Frame::Error(refusal::unknown(&request.digest)),
             Err(error) => response::Frame::Error(error.into()),
         }
     };

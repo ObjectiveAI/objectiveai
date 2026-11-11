@@ -7,7 +7,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::containers::secrets::Values;
-use crate::shared::containers::{dequeue, enqueue, postgres};
+use crate::shared::containers::{enqueue, postgres};
 
 /// What the server asks the proxy for once an agent container has
 /// begun.
@@ -20,7 +20,7 @@ use crate::shared::containers::{dequeue, enqueue, postgres};
 /// | `0` | [`Postgres`](Self::Postgres) |
 /// | `1` | [`Info`](Self::Info) |
 /// | `2` | [`Enqueue`](Self::Enqueue) |
-/// | `3` | [`Dequeue`](Self::Dequeue) |
+/// | `3` | unused |
 /// | `4` | [`Secrets`](Self::Secrets) |
 ///
 /// The first two are the same in both begin scopes, so a reader of
@@ -48,24 +48,16 @@ pub enum Frame {
     /// container's root, the program never asked — or that it has
     /// none. See [`info`](crate::shared::containers::info).
     Info,
-    /// A message for the agent. Tag `2`.
+    /// A batch of messages for the agent, in order. Tag `2`.
     ///
-    /// The one way into it: a message with no loop running starts one,
-    /// on that message, and a message while one runs joins its queue.
+    /// The one way into it: a batch with no loop running starts one,
+    /// on its messages, and a batch while one runs joins its queue.
     /// Answered once — by an
     /// [`enqueue::response::Frame`](crate::shared::containers::enqueue::response::Frame)
-    /// naming the message's fate, whenever that is known — and then the
+    /// naming the batch's fate, whenever that is known — and then the
     /// finish. What the agent says in reply is the begin's main stream.
     /// See [`enqueue`](crate::shared::containers::enqueue).
     Enqueue(enqueue::request::Request),
-    /// Withdraw every message still waiting under a key. Tag `3`.
-    ///
-    /// Carries the key, as the enqueues gave it. Answered once — by a
-    /// [`dequeue::response::Frame`](crate::shared::containers::dequeue::response::Frame)
-    /// saying whether anything waited under it — and then the finish.
-    /// Each message it withdraws is ALSO answered, on its own enqueue
-    /// channel. See [`dequeue`](crate::shared::containers::dequeue).
-    Dequeue(dequeue::request::Request),
     /// The secrets' values, fed to the program. Tag `4`.
     ///
     /// Carries the [`Values`] as JSON — every name the program
@@ -90,9 +82,6 @@ const INFO: u8 = 1;
 /// Tag for [`Frame::Enqueue`].
 const ENQUEUE: u8 = 2;
 
-/// Tag for [`Frame::Dequeue`].
-const DEQUEUE: u8 = 3;
-
 /// Tag for [`Frame::Secrets`].
 const SECRETS: u8 = 4;
 
@@ -114,10 +103,6 @@ impl Encode for Frame {
             }
             Frame::Enqueue(request) => {
                 out.extend_from_slice(&[ENQUEUE]);
-                request.encode(out)
-            }
-            Frame::Dequeue(request) => {
-                out.extend_from_slice(&[DEQUEUE]);
                 request.encode(out)
             }
             Frame::Secrets(values) => {
@@ -142,9 +127,6 @@ impl Decode<'_> for Frame {
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),
-            DEQUEUE => dequeue::request::Request::decode(rest)
-                .map(Frame::Dequeue)
-                .map_err(FrameError::Dequeue),
             SECRETS => serde_json::from_slice(rest)
                 .map(Frame::Secrets)
                 .map_err(FrameError::Secrets),
@@ -164,8 +146,6 @@ pub enum FrameError {
     Postgres(postgres::request::PostgresError),
     /// The enqueued message did not parse as JSON.
     Enqueue(serde_json::Error),
-    /// The dequeue's key did not parse as JSON.
-    Dequeue(serde_json::Error),
     /// The secrets' values did not parse as JSON. The message is the
     /// parser's, which quotes no value.
     Secrets(serde_json::Error),
@@ -184,9 +164,6 @@ impl fmt::Display for FrameError {
             FrameError::Enqueue(error) => {
                 write!(f, "enqueue request did not parse: {error}")
             }
-            FrameError::Dequeue(error) => {
-                write!(f, "dequeue request did not parse: {error}")
-            }
             FrameError::Secrets(error) => {
                 write!(f, "secrets feed did not parse: {error}")
             }
@@ -197,7 +174,7 @@ impl fmt::Display for FrameError {
 impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FrameError::Enqueue(error) | FrameError::Dequeue(error) | FrameError::Secrets(error) => Some(error),
+            FrameError::Enqueue(error) | FrameError::Secrets(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }

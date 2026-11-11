@@ -7,6 +7,10 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::mcp;
+use crate::shared::mcp::session::Sessioned;
+use crate::shared::containers::exec;
+use crate::shared::containers::frontend;
+use crate::shared::containers::terminal;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{fuse_mount, postgres, read, transfer, write_path};
 use crate::shared::containers::daemon;
@@ -18,7 +22,7 @@ use crate::shared::containers::daemon;
 ///
 /// | tag | asks for |
 /// |-----|----------|
-/// | `0` | [`Stop`](Self::Stop) |
+/// | `0` | [`Cancel`](Self::Cancel) |
 /// | `1` | [`Filetree`](Self::Filetree) |
 /// | `2` | [`Read`](Self::Read) |
 /// | `3` | [`Write`](Self::Write) |
@@ -33,6 +37,14 @@ use crate::shared::containers::daemon;
 /// | `12` | [`McpNotifications`](Self::McpNotifications) |
 /// | `13` | [`FuseMount`](Self::FuseMount) |
 /// | `14` | [`Secrets`](Self::Secrets) |
+/// | `15` | [`Exec`](Self::Exec) |
+/// | `16` | [`TerminalOpen`](Self::TerminalOpen) |
+/// | `17` | [`TerminalAttach`](Self::TerminalAttach) |
+/// | `18` | [`TerminalStdin`](Self::TerminalStdin) |
+/// | `19` | [`TerminalResize`](Self::TerminalResize) |
+/// | `20` | [`TerminalClose`](Self::TerminalClose) |
+/// | `21` | [`Frontend`](Self::Frontend) |
+/// | `22` | [`McpCloseSession`](Self::McpCloseSession) |
 ///
 /// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
@@ -43,7 +55,7 @@ use crate::shared::containers::daemon;
 /// channels open outward from the client rather than the other way.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// Stop the container. Tag `0`.
+    /// Cancel the run: stop the container. Tag `0`.
     ///
     /// # It has no answer, and does not need one
     ///
@@ -62,7 +74,7 @@ pub enum Frame {
     /// to wait to find out. This is unambiguous and immediate: a
     /// caller that says so is not gone, it is finished.
     ///
-    Stop,
+    Cancel,
     /// The container's filesystem, watched. Tag `1`.
     ///
     /// Carries nothing — the variant is bare — and the provider answers
@@ -117,36 +129,38 @@ pub enum Frame {
     /// What tools are there. Tag `8`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
-    /// defines. See [`mcp::list_tools`](crate::shared::mcp::list_tools)
+    /// defines, each [`Sessioned`]: the caller whose MCP session it
+    /// belongs to, carried through to the container's proxy, as
+    /// [`session`](crate::shared::mcp::session) states. See [`mcp::list_tools`](crate::shared::mcp::list_tools)
     /// for what it asks and what answers it.
-    McpListTools(mcp::list_tools::request::Request),
+    McpListTools(Sessioned<mcp::list_tools::request::Request>),
     /// What resources are there. Tag `9`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::list_resources`](crate::shared::mcp::list_resources) for
     /// what it asks and what answers it.
-    McpListResources(mcp::list_resources::request::Request),
+    McpListResources(Sessioned<mcp::list_resources::request::Request>),
     /// Run one tool. Tag `10`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See [`mcp::call_tool`](crate::shared::mcp::call_tool)
     /// for what it asks and what answers it.
-    McpCallTool(mcp::call_tool::request::Request),
+    McpCallTool(Sessioned<mcp::call_tool::request::Request>),
     /// Read one resource. Tag `11`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::read_resource`](crate::shared::mcp::read_resource) for
     /// what it asks and what answers it.
-    McpReadResource(mcp::read_resource::request::Request),
+    McpReadResource(Sessioned<mcp::read_resource::request::Request>),
     /// Everything the server says on its own account. Tag `12`.
     ///
     /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
     /// defines. See
     /// [`mcp::notifications`](crate::shared::mcp::notifications) for
     /// what it asks and what answers it.
-    McpNotifications(mcp::notifications::request::Request),
+    McpNotifications(Sessioned<mcp::notifications::request::Request>),
     /// A FUSE mount made while the container runs. Tag `13`.
     ///
     /// The caller serves one more file or directory into the
@@ -172,10 +186,54 @@ pub enum Frame {
     /// `Fed` or the program's refusal — and then the finish. See
     /// [`secrets`](crate::shared::containers::secrets).
     Secrets(Values),
+    /// Run one command in the container, its output streamed: the
+    /// provider opens an exec scope on the proxy and relays the stream,
+    /// as [`exec`](crate::shared::containers::exec) states it. The
+    /// caller abandoning the channel kills the command.
+    Exec(exec::request::Request),
+    /// Start a terminal the provider holds, answered by its id (see
+    /// [`session`](crate::shared::containers::terminal::session)).
+    TerminalOpen(terminal::open::Open),
+    /// Stream a held terminal's output: its scrollback, then live.
+    TerminalAttach(terminal::session::Id),
+    /// Write bytes to a held terminal's stdin.
+    TerminalStdin {
+        /// The terminal.
+        id: u32,
+        /// What is written.
+        bytes: Vec<u8>,
+    },
+    /// Set a held terminal's size.
+    TerminalResize(terminal::session::Resize),
+    /// Kill a held terminal's shell.
+    TerminalClose(terminal::session::Id),
+    /// One HTTP request to the program's frontend, its body asked for
+    /// by its write id as a write's content is (see
+    /// [`frontend`](crate::shared::containers::frontend)).
+    Frontend(frontend::request::Request),
+    /// The caller's MCP session, closed. Tag `22`.
+    ///
+    /// Not one of the five: the caller's side says it is done with the
+    /// session it names. The rules:
+    ///
+    /// 1. The session closed is the one the [`Sessioned`] caller names,
+    ///    by its [`key`](crate::shared::mcp::session::key); the request
+    ///    carries nothing else.
+    /// 2. The provider relays it to the container's proxy as it came,
+    ///    and the proxy's answer back, as it does the five.
+    /// 3. It is answered once — by a
+    ///    [`close_session::response::Frame`](crate::shared::mcp::close_session::response::Frame),
+    ///    `Closed` or the error — and then the finish; a session that is
+    ///    not open is `Closed` all the same.
+    /// 4. It is not the container's activity: it activates nothing and
+    ///    feeds no secret.
+    ///
+    /// See [`mcp::close_session`](crate::shared::mcp::close_session).
+    McpCloseSession(Sessioned<mcp::close_session::request::Request>),
 }
 
-/// Tag for [`Frame::Stop`].
-const STOP: u8 = 0;
+/// Tag for [`Frame::Cancel`].
+const CANCEL: u8 = 0;
 
 /// Tag for [`Frame::Filetree`].
 const FILETREE: u8 = 1;
@@ -219,14 +277,38 @@ const FUSE_MOUNT: u8 = 13;
 /// Tag for [`Frame::Secrets`].
 const SECRETS: u8 = 14;
 
+/// Tag for [`Frame::Exec`].
+const EXEC: u8 = 15;
+
+/// Tag for [`Frame::TerminalOpen`].
+const TERMINAL_OPEN: u8 = 16;
+
+/// Tag for [`Frame::TerminalAttach`].
+const TERMINAL_ATTACH: u8 = 17;
+
+/// Tag for [`Frame::TerminalStdin`].
+const TERMINAL_STDIN: u8 = 18;
+
+/// Tag for [`Frame::TerminalResize`].
+const TERMINAL_RESIZE: u8 = 19;
+
+/// Tag for [`Frame::TerminalClose`].
+const TERMINAL_CLOSE: u8 = 20;
+
+/// Tag for [`Frame::Frontend`].
+const FRONTEND: u8 = 21;
+
+/// Tag for [`Frame::McpCloseSession`].
+const MCP_CLOSE_SESSION: u8 = 22;
+
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         match self {
-            Frame::Stop => {
-                out.extend_from_slice(&[STOP]);
+            Frame::Cancel => {
+                out.extend_from_slice(&[CANCEL]);
                 Ok(())
             }
             Frame::Filetree => {
@@ -275,9 +357,7 @@ impl Encode for Frame {
             }
             Frame::McpNotifications(request) => {
                 out.extend_from_slice(&[MCP_NOTIFICATIONS]);
-                // Its error is `Infallible`, and an empty match on one
-                // is how you say so: there is no value to handle.
-                request.encode(out).map_err(|error| match error {})
+                request.encode(out)
             }
             Frame::FuseMount(request) => {
                 out.extend_from_slice(&[FUSE_MOUNT]);
@@ -286,6 +366,39 @@ impl Encode for Frame {
             Frame::Secrets(values) => {
                 out.extend_from_slice(&[SECRETS]);
                 serde_json::to_writer(out, values)
+            }
+            Frame::Exec(request) => {
+                out.extend_from_slice(&[EXEC]);
+                request.encode(out)
+            }
+            Frame::TerminalOpen(size) => {
+                out.extend_from_slice(&[TERMINAL_OPEN]);
+                size.encode(out)
+            }
+            Frame::TerminalAttach(id) => {
+                out.extend_from_slice(&[TERMINAL_ATTACH]);
+                serde_json::to_writer(out, id)
+            }
+            Frame::TerminalStdin { id, bytes } => {
+                out.extend_from_slice(&[TERMINAL_STDIN]);
+                terminal::session::Stdin { id: *id, bytes }.encode(out).unwrap_or_else(|never| match never {});
+                Ok(())
+            }
+            Frame::TerminalResize(resize) => {
+                out.extend_from_slice(&[TERMINAL_RESIZE]);
+                serde_json::to_writer(out, resize)
+            }
+            Frame::TerminalClose(id) => {
+                out.extend_from_slice(&[TERMINAL_CLOSE]);
+                serde_json::to_writer(out, id)
+            }
+            Frame::Frontend(request) => {
+                out.extend_from_slice(&[FRONTEND]);
+                serde_json::to_writer(out, request)
+            }
+            Frame::McpCloseSession(request) => {
+                out.extend_from_slice(&[MCP_CLOSE_SESSION]);
+                request.encode(out)
             }
         }
     }
@@ -298,7 +411,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            STOP => Ok(Frame::Stop),
+            CANCEL => Ok(Frame::Cancel),
             FILETREE => Ok(Frame::Filetree),
             READ => read::request::Request::decode(rest)
                 .map(Frame::Read)
@@ -316,32 +429,55 @@ impl Decode<'_> for Frame {
             DAEMON => daemon::request::Daemon::decode(rest)
                 .map(Frame::Daemon)
                 .map_err(FrameError::Daemon),
-            MCP_LIST_TOOLS => mcp::list_tools::request::Request::decode(rest)
+            MCP_LIST_TOOLS => Sessioned::<mcp::list_tools::request::Request>::decode(rest)
                 .map(Frame::McpListTools)
                 .map_err(FrameError::McpParams),
             MCP_LIST_RESOURCES => {
-                mcp::list_resources::request::Request::decode(rest)
+                Sessioned::<mcp::list_resources::request::Request>::decode(rest)
                     .map(Frame::McpListResources)
                     .map_err(FrameError::McpParams)
             }
-            MCP_CALL_TOOL => mcp::call_tool::request::Request::decode(rest)
+            MCP_CALL_TOOL => Sessioned::<mcp::call_tool::request::Request>::decode(rest)
                 .map(Frame::McpCallTool)
                 .map_err(FrameError::McpParams),
             MCP_READ_RESOURCE => {
-                mcp::read_resource::request::Request::decode(rest)
+                Sessioned::<mcp::read_resource::request::Request>::decode(rest)
                     .map(Frame::McpReadResource)
                     .map_err(FrameError::McpParams)
             }
-            MCP_NOTIFICATIONS => Ok(Frame::McpNotifications(
-                mcp::notifications::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
+            MCP_NOTIFICATIONS => Sessioned::<mcp::notifications::request::Request>::decode(rest)
+                .map(Frame::McpNotifications)
+                .map_err(FrameError::McpParams),
             FUSE_MOUNT => fuse_mount::request::Request::decode(rest)
                 .map(Frame::FuseMount)
                 .map_err(FrameError::FuseMount),
             SECRETS => serde_json::from_slice(rest)
                 .map(Frame::Secrets)
                 .map_err(FrameError::Secrets),
+            EXEC => exec::request::Request::decode(rest)
+                .map(Frame::Exec)
+                .map_err(FrameError::Exec),
+            TERMINAL_OPEN => terminal::open::Open::decode(rest)
+                .map(Frame::TerminalOpen)
+                .map_err(FrameError::Terminal),
+            TERMINAL_ATTACH => serde_json::from_slice(rest)
+                .map(Frame::TerminalAttach)
+                .map_err(FrameError::Terminal),
+            TERMINAL_STDIN => terminal::session::Stdin::decode(rest)
+                .map(|stdin| Frame::TerminalStdin { id: stdin.id, bytes: stdin.bytes.to_vec() })
+                .map_err(|_| FrameError::TerminalStdin),
+            TERMINAL_RESIZE => serde_json::from_slice(rest)
+                .map(Frame::TerminalResize)
+                .map_err(FrameError::Terminal),
+            TERMINAL_CLOSE => serde_json::from_slice(rest)
+                .map(Frame::TerminalClose)
+                .map_err(FrameError::Terminal),
+            FRONTEND => serde_json::from_slice(rest)
+                .map(Frame::Frontend)
+                .map_err(FrameError::Frontend),
+            MCP_CLOSE_SESSION => Sessioned::<mcp::close_session::request::Request>::decode(rest)
+                .map(Frame::McpCloseSession)
+                .map_err(FrameError::McpParams),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -364,9 +500,10 @@ pub enum FrameError {
     Postgres(postgres::request::PostgresError),
     /// The daemon connection's id was not four bytes.
     Daemon(daemon::request::DaemonError),
-    /// One of the five MCP exchanges' params did not parse.
+    /// One of the five MCP exchanges' params, or a close's session,
+    /// did not parse.
     ///
-    /// One variant for five tags, because they fail the same way and
+    /// One variant for six tags, because they fail the same way and
     /// the tag already said which was meant. Naming each would be five
     /// cases every reader matches and none of them distinguishes
     /// anything a caller could act on.
@@ -376,6 +513,14 @@ pub enum FrameError {
     /// The secrets' values did not parse as JSON. The message is the
     /// parser's, which quotes no value.
     Secrets(serde_json::Error),
+    /// The exec request did not parse.
+    Exec(serde_json::Error),
+    /// A terminal request did not parse.
+    Terminal(serde_json::Error),
+    /// A terminal's stdin held no id.
+    TerminalStdin,
+    /// The frontend request did not parse.
+    Frontend(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -407,6 +552,16 @@ impl fmt::Display for FrameError {
             FrameError::Secrets(error) => {
                 write!(f, "secrets feed did not parse: {error}")
             }
+            FrameError::Exec(error) => {
+                write!(f, "exec request did not parse: {error}")
+            }
+            FrameError::Terminal(error) => {
+                write!(f, "terminal request did not parse: {error}")
+            }
+            FrameError::TerminalStdin => f.write_str("terminal stdin held no id"),
+            FrameError::Frontend(error) => {
+                write!(f, "frontend request did not parse: {error}")
+            }
         }
     }
 }
@@ -419,10 +574,13 @@ impl Error for FrameError {
             | FrameError::Transfer(error)
             | FrameError::McpParams(error)
             | FrameError::FuseMount(error)
-            | FrameError::Secrets(error) => Some(error),
+            | FrameError::Secrets(error)
+            | FrameError::Exec(error)
+            | FrameError::Terminal(error)
+            | FrameError::Frontend(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Daemon(error) => Some(error),
-            FrameError::Empty | FrameError::UnknownTag(_) => None,
+            FrameError::Empty | FrameError::UnknownTag(_) | FrameError::TerminalStdin => None,
         }
     }
 }

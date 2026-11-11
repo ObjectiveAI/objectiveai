@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You, the agent</title>
+<style>
+  :root {
+    --ink: #101418;
+    --raised: #182028;
+    --line: #2a3540;
+    --text: #e4e9ee;
+    --dim: #8c98a4;
+    --user: #f2b84b;
+    --agent: #4fd1c5;
+    --tool: #a78bfa;
+    --error: #e0604f;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex;
+    flex-direction: column;
+    background: var(--ink);
+    color: var(--text);
+    font: 14px/1.5 system-ui, sans-serif;
+  }
+  header.top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  header.top h1 { margin: 0; font-size: 16px; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    font: 12px/1.6 ui-monospace, Consolas, monospace;
+    white-space: nowrap;
+  }
+  .badge.user { color: var(--user); }
+  .badge.agent { color: var(--agent); }
+  .badge.dim { color: var(--dim); }
+  .badge.waiting { color: var(--user); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.45; } }
+  .spacer { flex: 1; }
+  #log {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #log .empty { color: var(--dim); margin: auto; text-align: center; }
+  .bubble {
+    max-width: min(760px, 92%);
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--raised);
+    border: 1px solid var(--line);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .bubble .who { display: block; margin-bottom: 4px; }
+  .bubble.in { align-self: flex-start; border-color: color-mix(in srgb, var(--user) 40%, var(--line)); }
+  .bubble.out { align-self: flex-end; border-color: color-mix(in srgb, var(--agent) 40%, var(--line)); }
+  .call {
+    align-self: flex-end;
+    width: min(760px, 92%);
+    border: 1px solid color-mix(in srgb, var(--tool) 45%, var(--line));
+    border-radius: 10px;
+    background: var(--raised);
+  }
+  .call summary { padding: 6px 12px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
+  .call summary .name { color: var(--tool); font-family: ui-monospace, Consolas, monospace; }
+  .call summary .status { color: var(--dim); font-size: 12px; }
+  .call summary .status.error { color: var(--error); }
+  .call pre {
+    margin: 0;
+    padding: 8px 12px;
+    border-top: 1px solid var(--line);
+    font: 12px/1.45 ui-monospace, Consolas, monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .call pre.error { color: var(--error); }
+  .notice { align-self: center; color: var(--dim); font-size: 12px; }
+  footer.desk {
+    border-top: 1px solid var(--line);
+    padding: 10px 16px 12px;
+    display: grid;
+    gap: 8px;
+  }
+  footer.desk.idle .act { opacity: 0.45; pointer-events: none; }
+  .row { display: flex; gap: 8px; align-items: flex-start; }
+  textarea, select, button {
+    font: inherit;
+    color: var(--text);
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  textarea { flex: 1; min-width: 0; padding: 8px 10px; resize: vertical; }
+  textarea.code { font: 12px/1.45 ui-monospace, Consolas, monospace; }
+  select { padding: 6px 8px; max-width: 100%; }
+  button { padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+  button:hover { border-color: var(--dim); }
+  button.go { color: var(--agent); border-color: color-mix(in srgb, var(--agent) 50%, var(--line)); }
+  button.tool { color: var(--tool); border-color: color-mix(in srgb, var(--tool) 50%, var(--line)); }
+  button.end { color: var(--user); border-color: color-mix(in srgb, var(--user) 50%, var(--line)); }
+  .description { color: var(--dim); font-size: 12px; white-space: pre-wrap; }
+  #said { color: var(--error); font-size: 12px; min-height: 1em; }
+  .hint { color: var(--dim); font-size: 12px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>You are the agent</h1>
+  <span id="me" class="badge dim">…</span>
+  <span class="spacer"></span>
+  <span id="state" class="badge dim">connecting…</span>
+</header>
+<div id="log"><p class="empty">Nothing has happened yet. When someone messages this agent, the message appears here and waits for you.</p></div>
+<footer id="desk" class="desk idle">
+  <div class="row act">
+    <textarea id="reply" rows="2" placeholder="Reply as the agent… (Ctrl+Enter sends)"></textarea>
+    <button id="send" class="go" type="button">Send</button>
+  </div>
+  <div class="row act">
+    <select id="tool"><option value="">no tools</option></select>
+    <button id="refresh" type="button" title="List the tools again">↻</button>
+    <span class="spacer"></span>
+    <button id="end" class="end" type="button">End turn</button>
+  </div>
+  <div id="about" class="description act"></div>
+  <div class="row act">
+    <textarea id="arguments" class="code" rows="3" spellcheck="false" placeholder="{}"></textarea>
+    <button id="call" class="tool" type="button">Call</button>
+  </div>
+  <div id="said"></div>
+  <div class="hint">Nothing reaches whoever messaged the agent until you end the turn: then everything you did goes back as the agent's turn.</div>
+</footer>
+<script>
+"use strict";
+const log = document.getElementById("log");
+const desk = document.getElementById("desk");
+const stateBadge = document.getElementById("state");
+const meBadge = document.getElementById("me");
+const reply = document.getElementById("reply");
+const toolSelect = document.getElementById("tool");
+const about = document.getElementById("about");
+const argumentsBox = document.getElementById("arguments");
+const said = document.getElementById("said");
+
+let socket = null;
+let tools = [];
+let waiting = false;
+// The open user bubble, to which further parts of the same message go.
+let lastIn = null;
+// Each call's card, by id, so its response lands in it.
+const calls = new Map();
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function scrolled(fn) {
+  const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  fn();
+  if (atBottom) log.scrollTop = log.scrollHeight;
+}
+
+function setWaiting(value) {
+  waiting = value;
+  desk.classList.toggle("idle", !waiting);
+  stateBadge.className = "badge " + (waiting ? "waiting" : "dim");
+  stateBadge.textContent = waiting ? "a message is waiting on you" : "idle";
+  if (waiting) reply.focus();
+}
+
+function partText(chunk) {
+  switch (chunk.type) {
+    case "user_text_content": return chunk.text;
+    case "user_image_content": return "[image " + (chunk.mimeType || "") + "]";
+    case "user_audio_content": return "[audio " + (chunk.mimeType || "") + "]";
+    case "user_resource": return "[resource " + ((chunk.resource && chunk.resource.uri) || "") + "]";
+    case "user_resource_link": return "[link " + (chunk.uri || "") + "]";
+    default: return null;
+  }
+}
+
+function resultText(result) {
+  const parts = (result.content || []).map((block) => block.type === "text" ? block.text : JSON.stringify(block, null, 2));
+  if (result.structuredContent !== undefined && parts.length === 0) parts.push(JSON.stringify(result.structuredContent, null, 2));
+  return parts.join("\n") || "(no content)";
+}
+
+function pretty(text) {
+  try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text || ""; }
+}
+
+function show(entry) {
+  const chunk = entry.chunk;
+  const text = partText(chunk);
+  if (text !== null) {
+    if (lastIn && lastIn.dataset.key === chunk.key) {
+      lastIn.querySelector(".body").textContent += "\n" + text;
+      return;
+    }
+    const bubble = el("div", "bubble in");
+    bubble.dataset.key = chunk.key;
+    bubble.append(el("span", "who badge user", "message"), el("span", "body", text));
+    log.append(bubble);
+    lastIn = bubble;
+    return;
+  }
+  lastIn = null;
+  switch (chunk.type) {
+    case "assistant_text_content": {
+      const bubble = el("div", "bubble out");
+      bubble.append(el("span", "who badge agent", "you, as the agent"), el("span", "body", chunk.text));
+      log.append(bubble);
+      return;
+    }
+    case "assistant_tool_call": {
+      const card = el("details", "call");
+      const summary = el("summary");
+      summary.append(el("span", "name", chunk.name), el("span", "status", "running…"));
+      card.append(summary, el("pre", "", pretty(chunk.arguments)));
+      calls.set(chunk.id, card);
+      log.append(card);
+      return;
+    }
+    case "tool_response": {
+      const card = calls.get(chunk.id);
+      const body = el("pre", chunk.isError ? "error" : "", resultText(chunk));
+      if (!card) { log.append(body); return; }
+      const status = card.querySelector(".status");
+      status.textContent = chunk.isError ? "error" : "done";
+      status.classList.toggle("error", Boolean(chunk.isError));
+      card.append(body);
+      return;
+    }
+    case "notification":
+      log.append(el("div", "notice", JSON.stringify(chunk.message)));
+      return;
+    default:
+      return;
+  }
+}
+
+function resetLog() {
+  log.replaceChildren();
+  lastIn = null;
+  calls.clear();
+}
+
+function skeleton(schema) {
+  if (!schema || typeof schema !== "object") return {};
+  const out = {};
+  const properties = schema.properties || {};
+  for (const [name, property] of Object.entries(properties)) {
+    if (property && "default" in property) { out[name] = property.default; continue; }
+    const type = Array.isArray(property && property.type) ? property.type[0] : property && property.type;
+    out[name] = type === "string" ? "" : type === "integer" || type === "number" ? 0 : type === "boolean" ? false : type === "array" ? [] : type === "object" ? {} : null;
+  }
+  return out;
+}
+
+function chooseTool() {
+  const tool = tools.find((candidate) => candidate.name === toolSelect.value);
+  about.textContent = tool ? (tool.description || "") : "";
+  argumentsBox.value = tool ? JSON.stringify(skeleton(tool.inputSchema), null, 2) : "";
+}
+
+function setTools(list, error) {
+  const previous = toolSelect.value;
+  tools = list;
+  toolSelect.replaceChildren();
+  if (tools.length === 0) toolSelect.append(el("option", "", error ? "tools could not be listed" : "no tools"));
+  for (const tool of tools) {
+    const option = el("option", "", tool.name);
+    option.value = tool.name;
+    toolSelect.append(option);
+  }
+  if (tools.some((tool) => tool.name === previous)) toolSelect.value = previous;
+  chooseTool();
+  said.textContent = error ? "Tools: " + error : "";
+}
+
+function act(value) {
+  said.textContent = "";
+  if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value));
+}
+
+document.getElementById("send").addEventListener("click", () => {
+  const text = reply.value;
+  if (!text.trim()) return;
+  act({ type: "reply", text });
+  reply.value = "";
+});
+reply.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    document.getElementById("send").click();
+  }
+});
+document.getElementById("call").addEventListener("click", () => {
+  if (!toolSelect.value) return;
+  let parsed;
+  try { parsed = JSON.parse(argumentsBox.value || "{}"); } catch (error) { said.textContent = "The arguments are not JSON: " + error.message; return; }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) { said.textContent = "The arguments must be a JSON object."; return; }
+  act({ type: "call", name: toolSelect.value, arguments: parsed });
+});
+document.getElementById("end").addEventListener("click", () => act({ type: "end" }));
+document.getElementById("refresh").addEventListener("click", () => act({ type: "tools" }));
+toolSelect.addEventListener("change", chooseTool);
+
+function connect() {
+  const url = new URL("ws", location.href);
+  url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  url.search = "";
+  socket = new WebSocket(url);
+  socket.addEventListener("message", (event) => {
+    const told = JSON.parse(event.data);
+    switch (told.type) {
+      case "me":
+        meBadge.textContent = told.identity.subject + " @ " + told.identity.issuer;
+        meBadge.className = "badge user";
+        return;
+      case "hello":
+        resetLog();
+        if (told.transcript.length === 0) log.append(el("p", "empty", "Nothing has happened yet. When someone messages this agent, the message appears here and waits for you."));
+        for (const entry of told.transcript) show(entry);
+        log.scrollTop = log.scrollHeight;
+        setWaiting(told.waiting);
+        return;
+      case "entry":
+        scrolled(() => {
+          const empty = log.querySelector(".empty");
+          if (empty) empty.remove();
+          show(told.entry);
+        });
+        return;
+      case "state":
+        setWaiting(told.waiting);
+        return;
+      case "tools":
+        setTools(told.tools || [], told.error);
+        return;
+      case "refused":
+        said.textContent = told.error;
+        return;
+      case "trouble":
+        said.textContent = told.error;
+        return;
+      default:
+        return;
+    }
+  });
+  socket.addEventListener("close", () => {
+    stateBadge.className = "badge dim";
+    stateBadge.textContent = "reconnecting…";
+    desk.classList.add("idle");
+    setTimeout(connect, 1500);
+  });
+}
+connect();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 1 and what follows it.'
+order: 1
+draft: false
+---
+
+```text
+[1][size JSON …]
+```
+
+- **`cols`, `rows`.** The terminal's new size, as the
+  [request](/container-proxy-endpoints/terminal/request/) states them.
+
+The channel request is defined by `diverge-sdk-rs/src/shared/containers/terminal/input.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/terminal/input.rs
+```

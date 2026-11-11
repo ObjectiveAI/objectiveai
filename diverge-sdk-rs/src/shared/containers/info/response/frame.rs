@@ -16,7 +16,7 @@ use crate::shared::error::Error;
 /// # The layout
 ///
 /// ```text
-/// [0][document JSON …]   the image's /DIVERGE.md, parsed: its schema and its body
+/// [0][document JSON …]   the image's /DIVERGE.md, parsed: its name, its schema and its body
 /// [1]                    the image ships no /DIVERGE.md
 /// [2][error JSON …]      the file could not be read, or is not a document, and why
 /// ```

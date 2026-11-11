@@ -3,16 +3,17 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::VolumeCapabilities;
+use super::{MessagesCapabilities, VolumeCapabilities};
 use crate::provider::endpoints::volumes::Mode;
 
 /// Which of the specification's optional parts this provider serves.
 ///
 /// Every provider serves every endpoint's wire — it reads every
 /// request and answers it — but not every provider does everything a
-/// request may ask: one has no image store, one pulls from no
-/// registry, one has no FUSE on its host, one keeps volumes of some
-/// modes only, and keeps them more narrowly than the mode allows.
+/// request may ask: one runs no containers, one has no Store,
+/// one pulls from no registry, one has no FUSE on its host, one keeps
+/// volumes of some modes only, and keeps them more narrowly than the
+/// mode allows.
 /// Each such part is one member here, and a request past it is not
 /// a failure but a refusal the endpoint has a variant of its own for,
 /// named below member by member. A caller that read these composes
@@ -20,12 +21,13 @@ use crate::provider::endpoints::volumes::Mode;
 ///
 /// # Flat, and tolerant
 ///
-/// One object, every member at the top, each a boolean, a list or an
-/// object of booleans; no member nests a capability inside another
-/// but the three volume modes, whose object says what may be done
-/// with a volume of the mode. A member absent is the capability
+/// One object, every member at the top, each a boolean, a list, an
+/// object of booleans, or an object of numbers; no member nests a
+/// capability inside another but the three volume modes, whose object
+/// says what may be done with a volume of the mode, and `messages`,
+/// whose object is its rate. A member absent is the capability
 /// absent — `false`, the empty list, the object of every member
-/// `false` — so a provider states only what it does. A member a
+/// `false`, no object — so a provider states only what it does. A member a
 /// reader does not know is ignored: see [`Frame`](super::Frame).
 ///
 /// # No mode is no volumes
@@ -48,29 +50,40 @@ use crate::provider::endpoints::volumes::Mode;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Capabilities {
-    /// The provider keeps an image store for its callers: it answers
+    /// The provider runs containers: it answers
+    /// [`containers::agents::run`](crate::provider::endpoints::containers::agents::run)
+    /// and
+    /// [`containers::tools::run`](crate::provider::endpoints::containers::tools::run).
+    /// Absent — `false` — each answers `Unsupported`, the first and
+    /// only response of its scope, and nothing is fetched and nothing
+    /// is deployed.
+    #[serde(default)]
+    pub containers: bool,
+    /// The provider keeps the Store for its callers: it answers
     /// [`images::list`](crate::provider::endpoints::images::list),
     /// [`stat`](crate::provider::endpoints::images::stat),
     /// [`build`](crate::provider::endpoints::images::build),
-    /// [`delete`](crate::provider::endpoints::images::delete) and
-    /// [`oci`](crate::provider::endpoints::images::oci), and an
-    /// [`images::check`](crate::provider::endpoints::images::check)
-    /// asking the `client` source looks in it. Absent — `false` —
-    /// each of the five answers `Unsupported`, and a check asking only
-    /// `client` answers `NoSource`.
+    /// [`push`](crate::provider::endpoints::images::push),
+    /// [`edit`](crate::provider::endpoints::images::edit) and
+    /// [`delete`](crate::provider::endpoints::images::delete), and
+    /// [`images::oci`](crate::provider::endpoints::images::oci) looks
+    /// in it first. Absent — `false` — each of the six answers
+    /// `Unsupported`, and `oci` answers `Unsupported` when
+    /// [`images_registries`](Self::images_registries) is empty as
+    /// well.
     #[serde(default)]
     pub images_store: bool,
     /// The registries the provider pulls from: each a host as a
     /// [`Reference`](crate::shared::containers::request::Reference)
     /// names it — `docker.io`, `ghcr.io`, `registry.example.com:5000`
     /// — and the whole of them. An
-    /// [`images::check`](crate::provider::endpoints::images::check)
-    /// asking the `registries` source consults exactly these, and a
-    /// reference naming any other is ignored; a run's image whose
-    /// references name none of these, and that no store the provider
-    /// has holds, cannot be supplied. Absent — empty — the provider
-    /// pulls from no registry, and a check asking only `registries`
-    /// answers `NoSource`.
+    /// [`images::oci`](crate::provider::endpoints::images::oci)
+    /// consults exactly these after the caller's Store, and a reference
+    /// naming any other is ignored; a run's image whose references
+    /// name none of these, and that neither the caller's Store nor the
+    /// caller holds, cannot be supplied. Absent — empty — the provider
+    /// pulls from no registry, and `oci` answers `Unsupported` when
+    /// [`images_store`](Self::images_store) is `false` as well.
     #[serde(default)]
     pub images_registries: Vec<String>,
     /// What may be done with a volume in the
@@ -93,6 +106,15 @@ pub struct Capabilities {
     /// for [`volumes_persistent`](Self::volumes_persistent).
     #[serde(default)]
     pub volumes_read_only: VolumeCapabilities,
+    /// The provider relays messages between the identities connected
+    /// to it: it answers
+    /// [`daemons::listen`](crate::provider::endpoints::daemons::listen)
+    /// and [`daemons::message`](crate::provider::endpoints::daemons::message),
+    /// at no more than this rate. Absent, it relays none, and each of
+    /// the two answers `Unsupported`, the first and only response of
+    /// its scope. See [`MessagesCapabilities`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messages: Option<MessagesCapabilities>,
 }
 
 impl Capabilities {

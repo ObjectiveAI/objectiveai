@@ -14,6 +14,6 @@ use serde::{Deserialize, Serialize};
 pub struct Credential {
     /// The username.
     pub username: String,
-    /// The password, or the token standing as one.
+    /// The password, or the token standing as one, as written.
     pub password: String,
 }

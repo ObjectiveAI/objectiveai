@@ -5,8 +5,11 @@ use rmcp::model::{CallToolRequestParams, PaginatedRequestParams, ReadResourceReq
 
 use crate::provider::endpoints::containers::{agents, tools};
 use crate::shared::containers::fuse::Attrs;
+use crate::shared::containers::oci;
+use crate::shared::containers::request::Image;
 use crate::shared::containers::dependencies::Template;
 use crate::shared::containers::secrets::Declaration;
+use crate::shared::permission::Grant;
 
 /// A server-opened channel request on a run scope, with nothing
 /// borrowed: what the serving loop hands to a task.
@@ -23,15 +26,19 @@ use crate::shared::containers::secrets::Declaration;
 /// and dialer are the same behind either.
 #[derive(Debug, Clone)]
 pub enum Ask {
-    /// The manifest of an image the caller holds, by digest.
+    /// A manifest of the scope's image, by digest.
     OciManifest(String),
-    /// A blob of an image the caller holds, by digest.
+    /// A blob of the scope's image, by digest.
     OciBlob(String),
-    /// Whether the caller holds an image: its digest.
-    OciHas(String),
+    /// Whether the caller holds an image: the image the ask names.
+    OciHas(Image),
+    /// The proof that the caller holds the scope's image: the platform
+    /// manifest's digest when its digest names an index, and the
+    /// nonce.
+    OciProve(oci::prove::request::Request),
     /// The container's registration: the dependencies it declared, to
-    /// deploy, and the secrets it takes, to resolve, with the run's
-    /// id.
+    /// deploy, the secrets it takes, to resolve, and the permissions it
+    /// holds, with the run's id.
     Registration {
         /// The run's id, told before the id response.
         id: String,
@@ -41,6 +48,9 @@ pub enum Ask {
         /// The secrets the program takes, each by name to its mode,
         /// in the order declared.
         secrets: Declaration,
+        /// The grants the program holds over the caller, in the order
+        /// declared; empty for an agent container.
+        permissions: Vec<Grant>,
     },
     /// The content of a write this caller started, by its id.
     Write(u32),
@@ -88,11 +98,13 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
         match frame {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
-            Frame::OciHas(request) => Ask::OciHas(request.digest),
+            Frame::OciHas(request) => Ask::OciHas(request.image),
+            Frame::OciProve(request) => Ask::OciProve(request),
             Frame::Registration(request) => Ask::Registration {
                 id: request.id.into_owned(),
                 dependencies: request.dependencies.into_owned(),
                 secrets: request.secrets.into_owned(),
+                permissions: request.permissions.into_owned(),
             },
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
@@ -140,11 +152,13 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
         match frame {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
-            Frame::OciHas(request) => Ask::OciHas(request.digest),
+            Frame::OciHas(request) => Ask::OciHas(request.image),
+            Frame::OciProve(request) => Ask::OciProve(request),
             Frame::Registration(request) => Ask::Registration {
                 id: request.id.into_owned(),
                 dependencies: request.dependencies.into_owned(),
                 secrets: request.secrets.into_owned(),
+                permissions: request.permissions.into_owned(),
             },
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),

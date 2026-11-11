@@ -17,13 +17,16 @@ pub enum Error {
     /// `--arguments` is not a JSON object: where in it, and what was
     /// wrong.
     Arguments(serde_path_to_error::Error<serde_json::Error>),
+    /// The root's identities could not be opened: what they said.
+    Identities(String),
     /// The daemon could not be dialled.
     Dial(String),
-    /// The credential could not be presented.
-    Authorize(String),
+    /// The handshake did not complete: the account's token could not
+    /// be had, or the daemon closed on it.
+    Handshake(String),
     /// The daemon closed the connection with no answer, which is what
-    /// it does to a credential it refuses — and to nothing else it
-    /// says: the account's key may have been rejected.
+    /// it does to an identity it does not admit — and to nothing else
+    /// it says: the account may be none of the daemon's.
     Rejected,
     /// The exchange failed: the scope could not be opened, a frame
     /// could not be read.
@@ -41,6 +44,10 @@ pub enum Error {
     Jq(jq::Error),
     /// Stdout could not be written.
     Stdout(io::Error),
+    /// Stdin could not be read.
+    Stdin(io::Error),
+    /// The password on stdin was empty.
+    EmptyPassword,
     /// The request was not complete within the seconds given, and
     /// was abandoned.
     Timeout(u64),
@@ -56,11 +63,12 @@ impl fmt::Display for Error {
         match self {
             Error::Body(error) => write!(f, "the body is not what the request takes: {error}"),
             Error::Arguments(error) => write!(f, "`--arguments` is not a JSON object: {error}"),
+            Error::Identities(error) => write!(f, "the identities could not be opened: {error}"),
             Error::Dial(error) => write!(f, "the daemon could not be dialled: {error}"),
-            Error::Authorize(error) => write!(f, "the credential could not be presented: {error}"),
+            Error::Handshake(error) => write!(f, "the handshake did not complete: {error}"),
             Error::Rejected => write!(
                 f,
-                "the daemon closed the connection without answering: the account's key may have been rejected"
+                "the daemon closed the connection without answering: the account may be none of the daemon's"
             ),
             Error::Exchange(error) => write!(f, "the exchange failed: {error}"),
             Error::Io { path, source } => {
@@ -69,6 +77,8 @@ impl fmt::Display for Error {
             Error::Json(error) => write!(f, "a frame could not be written as JSON: {error}"),
             Error::Jq(error) => write!(f, "{error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
+            Error::Stdin(error) => write!(f, "stdin could not be read: {error}"),
+            Error::EmptyPassword => f.write_str("the password on stdin was empty"),
             Error::Timeout(seconds) => {
                 write!(f, "the request was not complete within {seconds} seconds")
             }
@@ -84,10 +94,12 @@ impl std::error::Error for Error {
             Error::Json(error) => Some(error),
             Error::Io { source, .. } => Some(source),
             Error::Jq(error) => Some(error),
-            Error::Stdout(error) => Some(error),
+            Error::Stdout(error) | Error::Stdin(error) => Some(error),
             Error::Rejected
+            | Error::EmptyPassword
+            | Error::Identities(_)
             | Error::Dial(_)
-            | Error::Authorize(_)
+            | Error::Handshake(_)
             | Error::Exchange(_)
             | Error::Timeout(_)
             | Error::NoRequest => None,

@@ -1,0 +1,29 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: the tag byte 16 and the prove ask.'
+order: 1
+draft: false
+---
+
+```text
+[16][request JSON …]
+```
+
+- **The ask.** The `prove` ask that [Possession](/shared/possession/#the-ask)
+  defines: `nonce`, the 32 bytes of a nonce the server generated for
+  this check alone, as 64 lowercase hexadecimal characters; and
+  `platform`, absent where the manifest the digest of the image of the
+  run names is not an image index, and otherwise the digest of the
+  manifest of the platform the server obtained. The ask names no
+  image: the proof is over the image of the run, as
+  [Possession](/shared/possession/#the-image-bytes) states.
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/run/server/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/tools/run/server/channel_request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/oci/prove/request/request.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/prove/request/request.rs
+```

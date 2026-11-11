@@ -1,11 +1,11 @@
-//! What a client's channel request frame carries on a list scope.
+//! What a client's channel request frame carries on a providers daemons list scope.
 
 use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// What a client asks the daemon for while a list is open.
+/// What a client asks the daemon for while a providers daemons list is open.
 ///
 /// A payload leads with one byte saying which, and the rest is that
 /// variant's own bytes.
@@ -21,13 +21,13 @@ pub enum Frame {
     /// Stop listing. Tag `0`.
     ///
     /// Carries nothing — the variant is bare; the daemon knows which
-    /// list, since the channel is on its scope — and nothing comes back
-    /// on this channel: the daemon sends no channel response and no
-    /// channel response finish on it. What comes back is the scope's
+    /// list, since the channel is on its scope — and nothing comes
+    /// back on this channel: the daemon sends no channel response and
+    /// no channel response finish on it. What comes back is the scope's
     /// finish: the daemon stops listing and finishes the scope, and
     /// frames it had already sent precede the finish, since a cancel is
-    /// a request and not a recall. This is how a list, which never ends
-    /// on its own, is ended. A cancel of a list that has already
+    /// a request and not a recall. This is how a providers daemons list, which never ends
+    /// on its own, is ended. A cancel of a providers daemons list that has already
     /// finished, or is finishing, changes nothing; a second cancel
     /// changes nothing either.
     Cancel,
@@ -63,7 +63,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A list channel request that could not be read.
+/// A providers daemons list channel request that could not be read.
 ///
 /// Anything after the tag is ignored rather than refused: nothing is
 /// defined to follow one, and leaving room for it is cheaper than

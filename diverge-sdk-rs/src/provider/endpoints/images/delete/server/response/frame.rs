@@ -20,7 +20,7 @@ use crate::shared::error::Error;
 /// |----------------------|-------|
 /// | [`Deleted`](Self::Deleted), then a finish | the image is gone and a listing will not show it |
 /// | [`InUse`](Self::InUse), then a finish | a running container of the caller runs it, and nothing was changed |
-/// | [`Unsupported`](Self::Unsupported), then a finish | the provider has no image store, and there was nothing to delete |
+/// | [`Unsupported`](Self::Unsupported), then a finish | the provider has no Store, and there was nothing to delete |
 /// | an [`Error`](Self::Error), then a finish | it is not gone, for some other reason, and a caller should assume it is intact |
 ///
 /// # In use is an answer, not an error
@@ -34,9 +34,9 @@ use crate::shared::error::Error;
 ///
 /// # Gone means gone
 ///
-/// The image no longer exists, and the room it took is the store's
-/// again. A caller that wants the name back with new content deletes
-/// and builds — two asks, because they are two things.
+/// The caller no longer owns the image, a listing will not show it,
+/// and the room it took is the Store's again, less whatever other
+/// owners still reach.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The image is gone. Tag `0`.
@@ -47,7 +47,7 @@ pub enum Frame {
     /// Nothing was changed: the image and the listing are as they
     /// were.
     InUse,
-    /// The provider has no image store — its `images_store` is `false`,
+    /// The provider has no Store — its `images_store` is `false`,
     /// see [`info`](crate::provider::endpoints::info) — and there was
     /// nothing to delete. Tag `2`.
     ///

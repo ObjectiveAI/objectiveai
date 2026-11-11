@@ -1,0 +1,54 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 29 followed by the announcement, one description as UTF-8 running to the end of the payload; a payload whose announcement is not a description is malformed.'
+order: 1
+draft: false
+---
+
+The payload of the request is the tag byte `29` followed by the
+announcement:
+
+```text
+[29][announcement …]
+```
+
+- **The announcement.** Every byte of the payload after the tag: one
+  description, as [The description](#the-description) defines one,
+  encoded as UTF-8. No length precedes it, because the payload ends
+  where the announcement ends. The server lists the client's identity
+  with it, byte for byte.
+- **The identity.** The request names no identity. The identity
+  announced is the identity of the connection, as its
+  [authorization](/authorization/) established it, and nothing else
+  names it.
+- **Malformed.** A payload with no byte is not a request of any
+  endpoint. A payload with no byte after the tag, a payload whose
+  bytes after the tag are not valid UTF-8, and a payload whose bytes
+  after the tag break a rule of
+  [The description](#the-description) are malformed.
+  [Endpoints](/endpoints/) states how a server answers a request it
+  cannot read.
+
+The request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/announce/client/request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/announce/client/request/frame.rs
+```
+
+## The description
+
+A description is one short line of plain text. An announcement is a
+description. Its rules are the limit and the plain-text rule of the
+`description` of a Chrome extension's manifest.
+
+- **Plain text.** A description is one line. It holds no control
+  character: no newline and no tab.
+- **Short.** A description holds at least one character and at most
+  `132`, counted as Unicode scalar values.
+- **Trimmed.** A description neither begins nor ends with whitespace.
+- **Equal is the same.** Two descriptions are the same description
+  exactly when their bytes are equal.
+
+The description is defined by `diverge-sdk-rs/src/shared/description.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/description.rs
+```

@@ -1,7 +1,6 @@
 //! Somewhere for a scope's frames to go, arranged before they arrive.
 
-use bytes::Bytes;
-use tokio::sync::mpsc::UnboundedSender;
+use crate::wire::credit::{Filer, Window};
 
 /// Somewhere to put frames, arranged before any of them arrive.
 ///
@@ -29,10 +28,13 @@ pub enum Registration {
         /// The scope, chosen by whoever is about to request it.
         scope: u32,
         /// Where the answers on channel `0` go.
-        response_sender: UnboundedSender<Bytes>,
+        response_filer: Filer,
         /// Where the server's own channel requests go, whatever it
         /// numbers them.
-        request_sender: UnboundedSender<Bytes>,
+        request_filer: Filer,
+        /// This end's room for channel requests in the scope, which the
+        /// server's credits fill.
+        asked: Window,
     },
     /// Open a channel inside a scope that is already registered.
     ///
@@ -45,6 +47,22 @@ pub enum Registration {
         /// The channel, chosen by whoever is about to request it.
         channel: u32,
         /// Where the server's answers on it go.
-        response_sender: UnboundedSender<Bytes>,
+        response_filer: Filer,
+    },
+    /// This end finished its answer on a channel the server opened, so
+    /// that answer's window is done with.
+    Answered {
+        /// The scope it is inside.
+        scope: u32,
+        /// The channel, in the SERVER's numbering.
+        channel: u32,
+    },
+    /// A scope, or a channel of this end's in it, whose request never
+    /// went out: nothing will come for it, so its entry goes.
+    Forget {
+        /// The scope.
+        scope: u32,
+        /// The channel inside it, or `None` for the scope itself.
+        channel: Option<u32>,
     },
 }

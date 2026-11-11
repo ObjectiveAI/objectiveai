@@ -1,7 +1,0 @@
-# Each api test process spawns its own api server (LazyLock in
-# tests/common/server.rs); a burst of parallel server processes
-# occasionally surfaces transient ConnectionRefused panics on Windows
-# under heavy load. `retries` papers over the residual flake.
-[profile.default]
-test-threads = "num-cpus"
-retries = { backoff = "exponential", count = 3, delay = "2s", max-delay = "10s" }

@@ -6,6 +6,7 @@ use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::
     self, ExecuteError, ExecuteHandle,
 };
 use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::request;
+use diverge_sdk::daemon::endpoints::agents::connect::client::{execute as agent_execute, request as agent_request};
 use diverge_sdk::wire::client::handle::Handle;
 use serde::Serialize;
 
@@ -59,6 +60,40 @@ where
     let outcome = exchange(&tool).await;
     let _ = tool.disconnect().await;
     tool.wait().await;
+    let result = outcome.map_err(|error| Error::Exchange(error.to_string()))?;
+    emit(emitter, Line::Result(result)).await
+}
+
+/// [`mcp()`], the agent connected to in place of a tool: the same
+/// lines, the same refusals, the exchange run as the agent.
+pub async fn agent<F, T, E>(
+    handle: &Handle,
+    connect: &agent_request::Frame,
+    exchange: F,
+    emitter: &mut Emitter,
+) -> Result<(), Error>
+where
+    F: AsyncFnOnce(&agent_execute::ExecuteHandle) -> Result<T, E>,
+    T: Serialize,
+    E: Display,
+{
+    let agent = match agent_execute::execute(handle, connect).await {
+        Ok(agent) => agent,
+        Err(agent_execute::ExecuteError::NotFound) => {
+            return emit(emitter, Line::<T>::Answer(Answer::NotFound)).await;
+        }
+        Err(agent_execute::ExecuteError::Forbidden) => {
+            return emit(emitter, Line::<T>::Answer(Answer::Forbidden)).await;
+        }
+        Err(agent_execute::ExecuteError::Daemon(error)) => {
+            return emit(emitter, Line::<T>::Answer(Answer::Error(error))).await;
+        }
+        Err(agent_execute::ExecuteError::Closed | agent_execute::ExecuteError::Send(_)) => return Err(Error::Rejected),
+        Err(error) => return Err(Error::Exchange(error.to_string())),
+    };
+    let outcome = exchange(&agent).await;
+    let _ = agent.disconnect().await;
+    agent.wait().await;
     let result = outcome.map_err(|error| Error::Exchange(error.to_string()))?;
     emit(emitter, Line::Result(result)).await
 }

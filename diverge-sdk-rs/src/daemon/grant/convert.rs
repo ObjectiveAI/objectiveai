@@ -1,24 +1,26 @@
-//! A dependency tool template's grants, as grants of the daemon's.
+//! A tool's declared grants, as grants of the daemon's.
 
-use super::{Grant, accounts, agents, agents_templates, dependency_tools, providers_daemons, providers_incoming, providers_outgoing, roles, standalone_tools, standalone_tools_templates, vault, volumes};
+use super::{Grant, accounts, agents, agents_templates, connected_standalone_tools, daemons, dependency_tools, identities, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
-/// A dependency tool template's grants, as the daemon judges them:
-/// the daemon's grants, each the same actions reaching by the kind's
-/// own filter carrying the tags alone, and — apart from them, since
-/// no grant of the daemon's own can say it — the actions over agents
-/// that reach `self`, which the daemon judges by the dependency's own
-/// agents: the one a transient tool was deployed for, every one
-/// attached to a service. Nothing is widened: a filter of tags alone
-/// reaches what the tags test reaches and nothing else, and `self`
-/// reaches the dependency's agents and nothing else.
+/// A tool's grants, as its container declared them at registration and
+/// as the daemon judges them: the daemon's grants, each the same
+/// actions reaching by the kind's own filter carrying the tags alone,
+/// and — apart from them, since no grant of the daemon's own can say it
+/// — the actions over agents that reach `attached`, which the daemon
+/// judges by the agents attached to the tool. `never_active` is a
+/// daemon grant of its own, its filter `{"active": "never"}`. Nothing is
+/// widened: a filter of tags alone reaches what the tags test reaches
+/// and nothing else, `attached` reaches the tool's attached agents and
+/// nothing else, and `never_active` the agents that have never run and
+/// nothing else.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Converted {
     /// The grants a role could hold, judged as a role's are.
     pub grants: Vec<Grant>,
-    /// The actions over agents held within `self`, judged against the
-    /// dependency's own agents.
-    pub self_actions: Vec<agents::Over>,
+    /// The actions over agents held within `attached`, judged against
+    /// the agents attached to the tool.
+    pub attached_actions: Vec<agents::Over>,
 }
 
 impl From<Vec<permission::Grant>> for Converted {
@@ -27,7 +29,7 @@ impl From<Vec<permission::Grant>> for Converted {
         for grant in grants {
             match daemon_grant(grant) {
                 Ok(grant) => converted.grants.push(grant),
-                Err(actions) => converted.self_actions.extend(actions),
+                Err(actions) => converted.attached_actions.extend(actions),
             }
         }
         converted
@@ -35,7 +37,7 @@ impl From<Vec<permission::Grant>> for Converted {
 }
 
 /// The daemon's grant a shared grant is, or — for a grant over agents
-/// within `self`, which no daemon grant can say — the actions it
+/// within `attached`, which no daemon grant can say — the actions it
 /// holds, to be judged apart.
 fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
     Ok(match grant {
@@ -44,7 +46,8 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
             permission::agents::Permission::Over { actions, within } => {
                 let within = match within {
                     permission::agents::Within::Any => Within::Any,
-                    permission::agents::Within::Self_ => return Err(actions),
+                    permission::agents::Within::Attached => return Err(actions),
+                    permission::agents::Within::NeverActive => Within::Only(never_active()),
                     permission::agents::Within::Only(tags) => Within::Only(agents_filter(tags)),
                 };
                 agents::Permission::Over { actions, within }
@@ -91,6 +94,18 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
                 tags,
             },
         }),
+        permission::Grant::ConnectedStandaloneTools(permission) => Grant::ConnectedStandaloneTools(match permission {
+            permission::connected_standalone_tools::Permission::Make(makes) => connected_standalone_tools::Permission::Make(makes),
+            permission::connected_standalone_tools::Permission::Over { actions, within } => connected_standalone_tools::Permission::Over {
+                actions,
+                within: within.map(connected_standalone_tools_filter),
+            },
+            permission::connected_standalone_tools::Permission::Tags { actions, within, tags } => connected_standalone_tools::Permission::Tags {
+                actions,
+                within: within.map(connected_standalone_tools_filter),
+                tags,
+            },
+        }),
         permission::Grant::DependencyTools(permission) => Grant::DependencyTools(match permission {
             permission::dependency_tools::Permission::Over { actions, within } => dependency_tools::Permission::Over {
                 actions,
@@ -102,40 +117,17 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
                 tags,
             },
         }),
-        permission::Grant::ProvidersOutgoing(permission) => Grant::ProvidersOutgoing(match permission {
-            permission::providers_outgoing::Permission::Make(makes) => providers_outgoing::Permission::Make(makes),
-            permission::providers_outgoing::Permission::Over { actions, within } => providers_outgoing::Permission::Over {
+        permission::Grant::Providers(permission) => Grant::Providers(permission),
+        permission::Grant::ProvidersDaemons(permission) => Grant::ProvidersDaemons(permission),
+        permission::Grant::Daemons(permission) => Grant::Daemons(match permission {
+            permission::daemons::Permission::Make(makes) => daemons::Permission::Make(makes),
+            permission::daemons::Permission::Over { actions, within } => daemons::Permission::Over {
                 actions,
-                within: within.map(providers_outgoing_filter),
+                within: within.map(daemons_filter),
             },
-            permission::providers_outgoing::Permission::Tags { actions, within, tags } => providers_outgoing::Permission::Tags {
+            permission::daemons::Permission::Tags { actions, within, tags } => daemons::Permission::Tags {
                 actions,
-                within: within.map(providers_outgoing_filter),
-                tags,
-            },
-        }),
-        permission::Grant::ProvidersIncoming(permission) => Grant::ProvidersIncoming(match permission {
-            permission::providers_incoming::Permission::Make(makes) => providers_incoming::Permission::Make(makes),
-            permission::providers_incoming::Permission::Over { actions, within } => providers_incoming::Permission::Over {
-                actions,
-                within: within.map(providers_incoming_filter),
-            },
-            permission::providers_incoming::Permission::Tags { actions, within, tags } => providers_incoming::Permission::Tags {
-                actions,
-                within: within.map(providers_incoming_filter),
-                tags,
-            },
-        }),
-        permission::Grant::ProvidersDaemons(permission) => Grant::ProvidersDaemons(match permission {
-            permission::providers_daemons::Permission::Make(makes) => providers_daemons::Permission::Make(makes),
-            permission::providers_daemons::Permission::Over { actions, within, accounts } => providers_daemons::Permission::Over {
-                actions,
-                within: within.map(providers_daemons_filter),
-                accounts,
-            },
-            permission::providers_daemons::Permission::Tags { actions, within, tags } => providers_daemons::Permission::Tags {
-                actions,
-                within: within.map(providers_daemons_filter),
+                within: within.map(daemons_filter),
                 tags,
             },
         }),
@@ -189,6 +181,19 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
         }),
         permission::Grant::Postgres(permission) => Grant::Postgres(permission),
         permission::Grant::Events(permission) => Grant::Events(permission),
+        permission::Grant::Images(permission) => Grant::Images(permission),
+        permission::Grant::Identities(permission) => Grant::Identities(match permission {
+            permission::identities::Permission::Make(makes) => identities::Permission::Make(makes),
+            permission::identities::Permission::Over { actions, within } => identities::Permission::Over {
+                actions,
+                within: within.map(identities_filter),
+            },
+            permission::identities::Permission::Tags { actions, within, tags } => identities::Permission::Tags {
+                actions,
+                within: within.map(identities_filter),
+                tags,
+            },
+        }),
     })
 }
 
@@ -199,6 +204,16 @@ impl<T> Within<T> {
             Within::Any => Within::Any,
             Within::Only(only) => Within::Only(f(only)),
         }
+    }
+}
+
+/// The agents that have never been active, as the daemon's own agents
+/// filter states them: what `never_active` reaches.
+fn never_active() -> crate::daemon::endpoints::agents::list::client::request::Filter {
+    use crate::daemon::endpoints::agents::list::client::request::{Active, Filter, History};
+    Filter {
+        active: Some(Active::History(History::Never)),
+        ..Default::default()
     }
 }
 
@@ -234,32 +249,16 @@ fn standalone_tools_templates_filter(tags: Tags) -> crate::daemon::endpoints::st
     }
 }
 
+fn connected_standalone_tools_filter(tags: Tags) -> crate::daemon::endpoints::connected_standalone_tools::list::client::request::Filter {
+    crate::daemon::endpoints::connected_standalone_tools::list::client::request::Filter {
+        all_tags: tags.all_tags,
+        any_tags: tags.any_tags,
+        ..Default::default()
+    }
+}
+
 fn dependency_tools_filter(tags: Tags) -> crate::daemon::endpoints::dependency_tools::list::client::request::Filter {
     crate::daemon::endpoints::dependency_tools::list::client::request::Filter {
-        all_tags: tags.all_tags,
-        any_tags: tags.any_tags,
-        ..Default::default()
-    }
-}
-
-fn providers_outgoing_filter(tags: Tags) -> crate::daemon::endpoints::providers::outgoing::list::client::request::Filter {
-    crate::daemon::endpoints::providers::outgoing::list::client::request::Filter {
-        all_tags: tags.all_tags,
-        any_tags: tags.any_tags,
-        ..Default::default()
-    }
-}
-
-fn providers_incoming_filter(tags: Tags) -> crate::daemon::endpoints::providers::incoming::list::client::request::Filter {
-    crate::daemon::endpoints::providers::incoming::list::client::request::Filter {
-        all_tags: tags.all_tags,
-        any_tags: tags.any_tags,
-        ..Default::default()
-    }
-}
-
-fn providers_daemons_filter(tags: Tags) -> crate::daemon::endpoints::providers::daemons::list::client::request::Filter {
-    crate::daemon::endpoints::providers::daemons::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()
@@ -276,6 +275,22 @@ fn accounts_filter(tags: Tags) -> crate::daemon::endpoints::accounts::list::clie
 
 fn roles_filter(tags: Tags) -> crate::daemon::endpoints::roles::list::client::request::Filter {
     crate::daemon::endpoints::roles::list::client::request::Filter {
+        all_tags: tags.all_tags,
+        any_tags: tags.any_tags,
+        ..Default::default()
+    }
+}
+
+fn daemons_filter(tags: Tags) -> crate::daemon::endpoints::daemons::list::client::request::Filter {
+    crate::daemon::endpoints::daemons::list::client::request::Filter {
+        all_tags: tags.all_tags,
+        any_tags: tags.any_tags,
+        ..Default::default()
+    }
+}
+
+fn identities_filter(tags: Tags) -> crate::daemon::endpoints::identities::list::client::request::Filter {
+    crate::daemon::endpoints::identities::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()

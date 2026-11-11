@@ -13,7 +13,7 @@ use ts_rs::TS;
 
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::endpoints::{agents, standalone_tools};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Identity, Item, ItemWrapper};
+use diverge_sdk::daemon::agent_log::{Identity, Item, ItemWrapper};
 use diverge_sdk::daemon::endpoints::agents::templates::{AgentType, Template as AgentTemplate};
 use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::patch::Operation;
@@ -27,7 +27,8 @@ const OUT: &str = "../../src/bindings/";
 
 // --- shared ------------------------------------------------------------
 
-/// A provider, only as the daemon names it.
+/// A provider, only as the daemon names it: a machine this app dials, or
+/// one that dials in.
 #[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(export, export_to = "../../src/bindings/")]
@@ -36,11 +37,24 @@ pub enum ProviderView {
     IncomingUnbrokered { identity: String },
 }
 
+/// The issuer a machine this app dials is named under, its address the
+/// subject.
+pub const DIAL_ISSUER: &str = "dial";
+
+/// The issuer a machine that dials in is named under, its name the
+/// subject.
+pub const ACCEPT_ISSUER: &str = "accept";
+
+/// The daemon names a provider by an OIDC identity and nothing more; the
+/// screens tell a machine they dial from one that dials in. The two are
+/// kept apart by issuer: [`ACCEPT_ISSUER`] is one that dials in, every
+/// other a machine dialled at its subject.
 impl From<&Identity> for ProviderView {
     fn from(identity: &Identity) -> Self {
-        match identity {
-            Identity::Outgoing { address } => ProviderView::Outgoing { address: address.clone() },
-            Identity::IncomingUnbrokered { identity } => ProviderView::IncomingUnbrokered { identity: identity.clone() },
+        if identity.issuer == ACCEPT_ISSUER {
+            ProviderView::IncomingUnbrokered { identity: identity.subject.clone() }
+        } else {
+            ProviderView::Outgoing { address: identity.subject.clone() }
         }
     }
 }
@@ -48,8 +62,8 @@ impl From<&Identity> for ProviderView {
 impl From<&ProviderView> for Identity {
     fn from(view: &ProviderView) -> Self {
         match view {
-            ProviderView::Outgoing { address } => Identity::Outgoing { address: address.clone() },
-            ProviderView::IncomingUnbrokered { identity } => Identity::IncomingUnbrokered { identity: identity.clone() },
+            ProviderView::Outgoing { address } => Identity { issuer: DIAL_ISSUER.into(), subject: address.clone() },
+            ProviderView::IncomingUnbrokered { identity } => Identity { issuer: ACCEPT_ISSUER.into(), subject: identity.clone() },
         }
     }
 }
@@ -150,7 +164,7 @@ pub enum OwnerView {
 impl From<&Creator> for CreatorView {
     fn from(creator: &Creator) -> Self {
         match creator {
-            Creator::Client(creator::Client { identity }) => CreatorView::Client { identity: identity.clone() },
+            Creator::Client(creator::Client { identity }) => CreatorView::Client { identity: identity.subject.clone() },
             Creator::Agent(creator::Agent { template, index, name }) => CreatorView::Agent { template: template.clone(), index: *index, name: name.clone() },
             Creator::Tool(creator::Tool::Record { template, index, name }) => CreatorView::Tool { template: template.clone(), index: *index, name: name.clone() },
             Creator::Tool(creator::Tool::Dependency { template, owner }) => {
@@ -170,7 +184,7 @@ fn tool_words(tool: &key::Tool) -> String {
     match tool {
         key::Tool::Record { origin: _, index: _, name: Some(name) } => name.clone(),
         key::Tool::Record { origin: key::Origin::Created { template }, index, name: None } => format!("{template}#{index}"),
-        key::Tool::Record { origin: key::Origin::Connected { daemon, account, tool: _ }, index, name: None } => format!("{account}@{daemon}#{index}"),
+        key::Tool::Record { origin: key::Origin::Connected { daemon, tool: _ }, index, name: None } => format!("{daemon}#{index}"),
         key::Tool::Dependency { template, owner: _ } => template.clone(),
     }
 }
@@ -675,7 +689,7 @@ pub fn tool_item_words(tool: &standalone_tools::list::server::response::Tool) ->
     match (&tool.name, &tool.origin) {
         (Some(name), _) => name.clone(),
         (None, Origin::Created { template, index, mode: _, provider: _, id: _ }) => format!("{template}#{index}"),
-        (None, Origin::Connected { daemon, account, tool: _, index }) => format!("{account}@{daemon}#{index}"),
+        (None, Origin::Connected { daemon, tool: _, index }) => format!("{daemon}#{index}"),
     }
 }
 
@@ -686,7 +700,7 @@ pub fn tool_reference(tool: &standalone_tools::list::server::response::Tool) -> 
     match (&tool.name, &tool.origin) {
         (Some(name), _) => Reference::Name { name: name.clone() },
         (None, Origin::Created { template, index, mode: _, provider: _, id: _ }) => Reference::TemplateIndex { template: template.clone(), index: *index },
-        (None, Origin::Connected { daemon, account, tool, index: _ }) => Reference::Connected { daemon: daemon.clone(), account: account.clone(), tool: Box::new(tool.clone()) },
+        (None, Origin::Connected { daemon, tool, index: _ }) => Reference::Connected { daemon: daemon.clone(), tool: Box::new(tool.clone()) },
     }
 }
 
@@ -700,7 +714,7 @@ impl From<&standalone_tools::list::server::response::Tool> for ToolItemView {
                 Origin::Created { .. } => false,
                 Origin::Connected { .. } => true,
             },
-            active: tool.active,
+            active: tool.deployed,
             agents: tool.attached_agent_instances.iter().map(|a| crate::daemon::agent_key(a.name.as_deref(), &a.template, a.index)).collect(),
             templates: tool.attached_agent_templates.clone(),
         }
@@ -822,14 +836,16 @@ pub enum MessageOutcome {
     Error { message: String },
 }
 
-impl From<agents::message::server::response::Frame> for MessageOutcome {
-    fn from(frame: agents::message::server::response::Frame) -> Self {
+/// The scope's one answer, or none: `None` is the bare finish — the
+/// cancel came in time — and is `Cancelled` here.
+impl From<Option<agents::message::server::response::Frame>> for MessageOutcome {
+    fn from(frame: Option<agents::message::server::response::Frame>) -> Self {
         use agents::message::server::response::Frame;
         match frame {
-            Frame::Delivered => MessageOutcome::Delivered,
-            Frame::Cancelled => MessageOutcome::Cancelled,
-            Frame::Forbidden => MessageOutcome::Forbidden,
-            Frame::Error(error) => MessageOutcome::Error { message: error_text(&error) },
+            Some(Frame::Delivered) => MessageOutcome::Delivered,
+            None => MessageOutcome::Cancelled,
+            Some(Frame::Forbidden) => MessageOutcome::Forbidden,
+            Some(Frame::Error(error)) => MessageOutcome::Error { message: error_text(&error) },
         }
     }
 }
@@ -972,13 +988,16 @@ pub enum LogEvent {
     End,
 }
 
-impl From<agents::logs::server::response::Frame> for LogEvent {
-    fn from(frame: agents::logs::server::response::Frame) -> Self {
-        use agents::logs::server::response::Frame;
+impl LogEvent {
+    /// What the screen hears of one logs frame; nothing for the mark that the read went live.
+    pub fn of(frame: diverge_sdk::daemon::endpoints::logs::server::response::Frame) -> Option<Self> {
+        use diverge_sdk::daemon::endpoints::logs::server::response::{Entry, Frame};
         match frame {
-            Frame::Item(wrapper) => LogEvent::Entry { entry: (&wrapper).into() },
-            Frame::Forbidden => LogEvent::Forbidden,
-            Frame::Error(error) => LogEvent::Error { message: error_text(&error) },
+            Frame::Item(Entry::Agent(wrapper)) => Some(LogEvent::Entry { entry: (&wrapper).into() }),
+            Frame::Item(Entry::StandaloneTool(_) | Entry::DependencyTool(_) | Entry::Account(_) | Entry::Admin(_)) => Some(LogEvent::Error { message: "not an agent's log".into() }),
+            Frame::Forbidden => Some(LogEvent::Forbidden),
+            Frame::Error(error) => Some(LogEvent::Error { message: error_text(&error) }),
+            Frame::Watch => None,
         }
     }
 }
@@ -1003,7 +1022,7 @@ pub struct LogsQuery {
 }
 
 impl LogsQuery {
-    pub fn into_request(self) -> Result<agents::logs::client::request::Frame, String> {
+    pub fn into_request(self) -> Result<diverge_sdk::daemon::endpoints::logs::client::request::Frame, String> {
         let time = |s: Option<String>| -> Result<_, String> {
             s.filter(|s| !s.trim().is_empty())
                 .map(|s| chrono::DateTime::parse_from_rfc3339(&s).map(|t| t.to_utc()).map_err(|e| format!("\"{s}\" is not a time: {e}")))
@@ -1014,8 +1033,8 @@ impl LogsQuery {
             .filter(|t| !t.is_empty())
             .map(|t| serde_json::from_value(Value::String(t.clone())).map_err(|_| format!("no kind of item called \"{t}\"")))
             .transpose()?;
-        Ok(agents::logs::client::request::Frame {
-            agent: crate::daemon::reference_of(&self.name),
+        Ok(diverge_sdk::daemon::endpoints::logs::client::request::Frame {
+            of: diverge_sdk::daemon::endpoints::logs::client::request::Subject::Agent(crate::daemon::reference_of(&self.name)),
             logs_index_from: self.logs_index_from,
             logs_index_to: self.logs_index_to,
             created_from: time(self.created_from)?,

@@ -13,29 +13,30 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::shared::containers::oci;
 
-/// The caller's manifests and blobs, by digest, asked for on the run
-/// scope — what an [`ImageRegistry`](super::image_registry::ImageRegistry)
-/// is handed to serve a repository from.
+/// The caller's manifests and blobs, by digest, and its proof of
+/// possession, asked for on the scope of a run or of an
+/// [`images::push`](diverge_sdk::provider::endpoints::images::push):
+/// what a provider takes an image from the caller with.
 ///
 /// Each ask is one channel this end opens on the scope:
 /// [`OciManifest`](diverge_sdk::provider::endpoints::containers::agents::run::server::channel_request::Frame::OciManifest)
 /// answered by one frame, [`OciBlob`](diverge_sdk::provider::endpoints::containers::agents::run::server::channel_request::Frame::OciBlob)
-/// by the blob's pieces until the finish; an empty finish on either
-/// is a digest the caller does not hold, which is `None` here. The
-/// registry verifies what it gets; this fetches.
+/// by the blob's pieces until the finish, `OciProve` by one frame of
+/// 32 bytes; an empty finish on any is a digest the caller does not
+/// hold, which is `None` here. The provider verifies what it gets;
+/// this fetches.
 ///
 /// # Clone is a second handle to the same scope
 ///
-/// Held by the registry for as long as the repository is served, and
-/// the scope outlives that: a source is released before its run
-/// ends. A source asked after the run is over gets `None` — the
-/// channel's receiver closes without a finish — which the registry
-/// answers as not held, the honest answer for a caller that is gone.
+/// A source asked after its scope is over gets `None` — the channel's
+/// receiver closes without a finish — the honest answer for a caller
+/// that is gone.
 #[derive(Clone)]
 pub struct ImageSource {
     scope: Arc<ScopeHandle>,
     manifest: fn(&str) -> Vec<u8>,
     blob: fn(&str) -> Vec<u8>,
+    prove: fn(&oci::prove::request::Request) -> Vec<u8>,
 }
 
 /// A manifest the caller holds: its media type, for the registry's
@@ -47,11 +48,40 @@ pub struct Manifest {
 }
 
 impl ImageSource {
-    /// From the scope and the family's encodings of its two asks:
-    /// both families carry the same two, under the same tags, but as
-    /// their own frame types.
-    pub(crate) fn new(scope: Arc<ScopeHandle>, manifest: fn(&str) -> Vec<u8>, blob: fn(&str) -> Vec<u8>) -> Self {
-        ImageSource { scope, manifest, blob }
+    /// From the scope and the endpoint's encodings of its three asks:
+    /// both run families and a push carry the same three, as their own
+    /// frame types.
+    pub(crate) fn new(
+        scope: Arc<ScopeHandle>,
+        manifest: fn(&str) -> Vec<u8>,
+        blob: fn(&str) -> Vec<u8>,
+        prove: fn(&oci::prove::request::Request) -> Vec<u8>,
+    ) -> Self {
+        ImageSource { scope, manifest, blob, prove }
+    }
+
+    /// The caller's proof that it holds the scope's image, at the
+    /// request's platform and keyed by its nonce:
+    /// exactly one frame of 32 bytes, then the finish. `None` for the
+    /// empty finish, a frame of any other length, more than one frame,
+    /// and a caller that is gone — each a failed check.
+    pub async fn prove(&self, request: &oci::prove::request::Request) -> Option<[u8; 32]> {
+        let mut channel = self.scope.send_channel_request(&(self.prove)(request)).await;
+        let mut frames = 0usize;
+        let mut proof = None;
+        while let Some(bytes) = channel.response_receiver.recv().await {
+            match answer(&bytes) {
+                Some(Answer::Frame(payload)) => {
+                    frames += 1;
+                    proof = oci::prove::response::Frame::decode(&payload).ok().map(|frame| frame.proof);
+                }
+                // Read to the finish: a channel left mid-way keeps its
+                // number for the connection's life.
+                Some(Answer::Finish) => break,
+                None => {}
+            }
+        }
+        if frames == 1 { proof } else { None }
     }
 
     /// The manifest under `digest`, or `None` for one the caller does

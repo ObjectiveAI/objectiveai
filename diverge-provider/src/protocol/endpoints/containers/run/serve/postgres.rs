@@ -10,14 +10,22 @@ use super::super::run::Run;
 /// The caller opened its half quoting `caller_id`. Take the proxy's
 /// id from under it, open this end's half on the begin scope with
 /// that, and put everything the driver wrote on the caller's channel
-/// until the proxy finishes — the driver's socket ended. An id this
-/// end did not mint, or a half already taken, is the finish with
-/// nothing.
+/// until the proxy finishes — the driver's socket ended — or the
+/// caller reads no more of its channel, which drops this end's half
+/// and so tells the proxy it is abandoned. An id this end did not
+/// mint, or a half already taken, is the finish with nothing.
 pub(crate) async fn postgres(run: Arc<Run>, channel: u32, caller_id: u32) {
     if let Some(proxy_id) = run.pairs.take(caller_id).await
         && let Ok(mut driver) = run.begin.postgres(proxy_id).await
     {
-        while let Some(Ok(bytes)) = driver.next().await {
+        loop {
+            let bytes = tokio::select! {
+                bytes = driver.next() => bytes,
+                () = run.scope.answer_gone(channel) => break,
+            };
+            let Some(Ok(bytes)) = bytes else {
+                break;
+            };
             run.scope.send_channel_response(channel, &bytes).await;
         }
     }

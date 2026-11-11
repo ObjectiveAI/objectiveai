@@ -14,7 +14,7 @@
 //! implementation per endpoint, since those endpoints' executors are
 //! not one function. A failure is the executor's own, in its words,
 //! but for the one every shape tells apart: the connection closing
-//! with no answer, which is how the daemon refuses a credential —
+//! with no answer, which is how the daemon refuses an identity —
 //! [`exchange`] names it.
 //!
 //! Its own files are flattened into it, so everything is named
@@ -24,11 +24,14 @@ mod answer;
 mod one_shot;
 mod pending;
 mod stream;
+pub mod exec;
 mod upload;
 
 pub mod download;
 pub mod exchange;
+pub mod frontend;
 pub mod mcp;
+pub mod terminal;
 
 pub use answer::*;
 pub use download::{Download, Downloaded, download};

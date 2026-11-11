@@ -1,10 +1,13 @@
 //! Bringing a container up, in order.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use futures_util::future;
 use indexmap::IndexMap;
 use serde_json::Value;
+use tokio::sync::oneshot;
+use tokio::task::JoinHandle;
 
 use super::begin::Begun;
 use super::encoded::encoded;
@@ -21,40 +24,44 @@ use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::server::answer::{Answer, answer};
 use crate::protocol::caller::Caller;
 use crate::protocol::container::{self, Container as _};
-use crate::protocol::container_deployer::ContainerDeployer;
+use crate::protocol::release::Release;
+use crate::protocol::container_deployer::{ContainerDeployer, Deployed, Refused};
 use crate::protocol::deployment::Deployment;
 use crate::protocol::directory::Directory;
-use crate::protocol::image_registry::ImageRegistry;
 use crate::protocol::image_source::ImageSource;
 use crate::protocol::mount::Mount as DeployedMount;
 use crate::protocol::proxy;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume::Volume;
 use diverge_sdk::shared::containers::fuse::Kind;
-use diverge_sdk::shared::containers::request::{Container, FuseMount};
+use diverge_sdk::shared::containers::oci;
+use diverge_sdk::shared::containers::response::Source;
+use diverge_sdk::shared::containers::request::{Container, FuseMount, Image};
 use diverge_sdk::shared::containers::registration;
 use diverge_sdk::shared::containers::secrets::Values;
 use diverge_sdk::shared::error::Error;
 
 /// A container brought up and ready to serve.
-pub(crate) struct Prepared<C> {
+pub(crate) struct Prepared {
+    /// Where the container's image was taken from: what the run
+    /// answers beside the id.
+    pub source: Source,
     /// The id, minted here and entered in the directory before the
     /// registration was asked for: what the run answers.
     pub id: String,
-    /// The container, to stop when the run is over.
-    pub container: C,
+    /// The directory entry under [`id`](Self::id) taken out: the
+    /// teardown's first step, and the drop's if it never gets there.
+    pub removal: Release,
+    /// The container stopped and then the task routing its proxy's
+    /// connection aborted: the teardown's second step, and the drop's
+    /// if it never gets there.
+    pub stop: Release,
     /// The one connection to its proxy.
     pub proxy: Handle,
     /// The begin scope on it, and what rides it.
     pub begun: Begun,
     /// Every FUSE mount, made, with the asks each will make.
     pub mounts: Vec<Mount>,
-    /// The registry repository serving the caller's manifests and
-    /// blobs for this run, to release.
-    pub repository: String,
-    /// Every path the proxy's tree leaves out: every FUSE mount's,
-    /// and every mount's of a volume the provider watches itself.
-    pub ignore: Vec<Vec<String>>,
     /// Every mount of a volume the provider watches itself, with the
     /// way to, for a filetree to merge in.
     pub watched: Arc<[Watched]>,
@@ -71,15 +78,34 @@ pub(crate) struct Mount {
     pub asks: Asks<MountAsk>,
 }
 
+/// Why a container was not brought up: the caller's proof of
+/// possession failed, which the run answers as `ProofFailed`, or any
+/// other failure, which it answers as its `Error`.
+pub(crate) enum Failed {
+    /// The nonce check failed.
+    ProofFailed,
+    /// Anything else.
+    Error(Error),
+}
+
+impl From<Error> for Failed {
+    fn from(error: Error) -> Self {
+        Failed::Error(error)
+    }
+}
+
 /// Bring the container up, in the order the specification states.
 ///
-/// 1. The registry is told to serve the caller's manifests and blobs
-///    under a fresh repository, and the deployer is asked for the
-///    image, with the caller's help at hand — whether the caller holds
-///    it, under what path, and where the registry serves it.
-///    Where the deployer gets the image is its own.
-/// 2. The container is deployed, its proxy listening.
-/// 3. The proxy is dialled: one WebSocket, for the container's life.
+/// 1. The deployer is asked for the image, with the caller's help at
+///    hand — whether the caller holds it, and its manifests, its blobs
+///    and its proof of possession over the run scope. Where the
+///    deployer gets the image is its own, in the order the protocol
+///    sets: the caller's Store, a registry, the caller.
+/// 2. The container is deployed, its proxy listening, and the source
+///    of its image kept for the run's answer; a failed nonce check is
+///    [`Failed::ProofFailed`].
+/// 3. The proxy is dialled: one WebSocket, for the container's life,
+///    its router's task kept to abort once the container is stopped.
 /// 4. The family's `begin` is opened on it — carrying the arguments
 ///    and the template — and its `Begun` awaited, with what the
 ///    container declared: the dependencies, for an agent container,
@@ -101,104 +127,111 @@ pub(crate) struct Mount {
 ///    each answered before the next. Both are awaited to their end
 ///    before either's failure is acted on.
 ///
-/// Every failure after the deploy stops the container, takes it out
-/// of the directory and releases the repository; the error is the
+/// Every failure after the deploy takes the container out of the
+/// directory, when it was entered, and stops it; the error is the
 /// run's. Nothing the caller opened has been read yet, and the id is
 /// not out.
-pub(crate) async fn prepare<R, D, G, L>(
+///
+/// # Every release is a [`Release`]
+///
+/// The container and the directory entry are each
+/// given back by a [`Release`] made as it is taken: run in place on
+/// every failure above and by the run's teardown, and spawned by its
+/// drop when a panic or a cancel means neither gets there. So nothing
+/// taken here outlives its run, however the run ends.
+pub(crate) async fn prepare<R, D, L>(
     scope: &Arc<ScopeHandle>,
-    client_identity: &Arc<str>,
+    client_identity: &Arc<Identity>,
     request: &Container,
     arguments: Value,
     deployer: &D,
-    registry: &G,
     held: &Held<L>,
-    directory: &Directory,
-) -> Result<Prepared<D::Container>, Error>
+    directory: &Arc<Directory>,
+) -> Result<Prepared, Failed>
 where
     R: Runs,
     D: ContainerDeployer,
     D::Error: Into<Error>,
-    G: ImageRegistry,
-    G::Error: Into<Error>,
     L: Volume + 'static,
     L::Error: Into<Error>,
 {
     let deployment = deployment(client_identity, request);
-    let (ignore, watched) = excluded(request, held.volumes());
-    let watched: Arc<[Watched]> = Arc::from(watched);
+    let watched: Arc<[Watched]> = Arc::from(watched(request, held.volumes()));
 
-    let repository = uuid::Uuid::new_v4().to_string();
-    let source = ImageSource::new(Arc::clone(scope), manifest_ask::<R>, blob_ask::<R>);
-    registry.serve(&repository, source).await.map_err(Into::into)?;
-    let caller = Caller::new(
-        Arc::clone(scope),
-        has_ask::<R>,
-        request.image.digest.clone(),
-        registry.address(),
-        repository.clone(),
-    );
-    let container = match deployer
-        .deploy(client_identity, &deployment, &request.image, &caller)
-        .await
-    {
-        Ok(container) => container,
-        Err(error) => {
-            registry.release(&repository).await;
-            return Err(error.into());
-        }
+    let source = ImageSource::new(Arc::clone(scope), manifest_ask::<R>, blob_ask::<R>, prove_ask::<R>);
+    let caller = Caller::new(Arc::clone(scope), has_ask::<R>, request.image.clone(), source);
+    let Deployed { container, source } = match deployer.deploy(client_identity, &deployment, &request.image, &caller).await {
+        Ok(deployed) => deployed,
+        Err(Refused::ProofFailed) => return Err(Failed::ProofFailed),
+        Err(Refused::Error(error)) => return Err(Failed::Error(error.into())),
     };
+    let container = Arc::new(container);
+    let (route, routed) = oneshot::channel();
+    let stop = stopping(Arc::clone(&container), routed);
 
     let proxy = match proxy::dial(container.address()).await {
-        Ok(proxy) => proxy,
+        Ok((proxy, router)) => {
+            let _ = route.send(router);
+            proxy
+        }
         Err(error) => {
-            undo(&container, &repository, registry).await;
-            return Err(render::proxy(error));
+            stop.now().await;
+            return Err(render::proxy(error).into());
         }
     };
 
     let begun = match R::begin(&proxy, arguments, request.template.clone()).await {
         Ok(begun) => begun,
         Err(error) => {
-            undo(&container, &repository, registry).await;
-            return Err(error);
+            stop.now().await;
+            return Err(error.into());
         }
     };
 
     let id = Directory::mint();
     directory.insert(id.clone(), Arc::clone(client_identity), proxy.clone()).await;
+    let removal = Release::new({
+        let directory = Arc::clone(directory);
+        let id = id.clone();
+        async move { directory.remove(&id).await }
+    });
 
     let (fed, mounts) = future::join(fed::<R>(scope, &id, &begun), mounts(&proxy, request)).await;
     let mounts = match (fed, mounts) {
         (Ok(()), Ok(mounts)) => mounts,
         (Err(error), _) | (Ok(()), Err(error)) => {
-            directory.remove(&id).await;
-            undo(&container, &repository, registry).await;
-            return Err(error);
+            removal.now().await;
+            stop.now().await;
+            return Err(error.into());
         }
     };
 
     Ok(Prepared {
+        source,
         id,
-        container,
+        removal,
+        stop,
         proxy,
         begun,
         mounts,
-        repository,
-        ignore,
         watched,
     })
 }
 
-/// A failure after the deploy: the container stopped, the repository
-/// released.
-async fn undo<C, G>(container: &C, repository: &str, registry: &G)
+/// The container's [`Release`]: the container stopped, and then the
+/// task routing its proxy's connection aborted, when the dial got as
+/// far as making one — which `routed` says, holding the task once the
+/// dial made it and nothing when the dial failed or never answered.
+fn stopping<C>(container: Arc<C>, mut routed: oneshot::Receiver<JoinHandle<()>>) -> Release
 where
-    C: container::Container,
-    G: ImageRegistry,
+    C: container::Container + 'static,
 {
-    container.stop().await;
-    registry.release(repository).await;
+    Release::new(async move {
+        container.stop().await;
+        if let Ok(router) = routed.try_recv() {
+            router.abort();
+        }
+    })
 }
 
 /// The container registered with the caller and fed its first
@@ -210,7 +243,7 @@ where
 /// error too. Nothing is delivered to the container by its proxy
 /// until this feed, which is why it precedes the id.
 async fn fed<R: Runs>(scope: &ScopeHandle, id: &str, begun: &Begun) -> Result<(), Error> {
-    let Some(values) = R::register(scope, id, &begun.dependencies, &begun.secrets).await? else {
+    let Some(values) = R::register(scope, id, &begun.dependencies, &begun.secrets, &begun.permissions).await? else {
         return Ok(());
     };
     match begun.begin.secrets(values).await {
@@ -274,7 +307,7 @@ async fn one_mount(proxy: &Handle, fuse_mount: &FuseMount, kind: Kind) -> Result
 }
 
 /// The deployment, from the request: what the deployer is handed.
-fn deployment(client_identity: &str, request: &Container) -> Deployment {
+fn deployment(client_identity: &Identity, request: &Container) -> Deployment {
     Deployment {
         memory: request.memory,
         disk: request.disk,
@@ -285,7 +318,7 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
             .volume_mounts
             .iter()
             .map(|mount| DeployedMount {
-                client_identity: client_identity.to_string(),
+                client_identity: client_identity.clone(),
                 volume_name: mount.volume_name.clone(),
                 volume_relative_path: mount.volume_relative_path.clone(),
                 container_path: mount.container_path.clone(),
@@ -294,33 +327,25 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
     }
 }
 
-/// What the proxy's tree leaves out, and what is watched instead.
-/// Left out: every FUSE mount's path, since a FUSE mount is the
-/// caller's own answers and a tree over it would report them back to
-/// the caller; and the path of every mount of a volume the provider
-/// watches itself, which [`Volume::tree`] says. Watched instead: each
-/// of those volume mounts, by the volume at the mount's relative
-/// path, re-rooted at the mount's container path when a filetree
-/// merges it in. Every other volume mount is content the proxy walks
-/// and watches, and seeing it change is what a filetree is for.
-/// `held` holds the volumes in the order the request names them.
-fn excluded<L>(request: &Container, held: &[Arc<L>]) -> (Vec<Vec<String>>, Vec<Watched>)
+/// What is watched beside the proxy's tree: the mount of every volume
+/// the provider watches itself, which [`Volume::tree`] says, by the
+/// volume at the mount's relative path, re-rooted at the mount's
+/// container path when a filetree merges it in. The proxy's tree
+/// leaves each of those mounts out, and every FUSE mount — see
+/// [`Run::ignored`](super::run::Run::ignored). Every other volume
+/// mount is content the proxy walks and watches, and seeing it change
+/// is what a filetree is for. `held` holds the volumes in the order
+/// the request names them.
+fn watched<L>(request: &Container, held: &[Arc<L>]) -> Vec<Watched>
 where
     L: Volume + 'static,
     L::Error: Into<Error>,
 {
-    let mut ignore: Vec<Vec<String>> = request
-        .fuse_file_mounts
-        .iter()
-        .map(|mount| mount.container_path.clone())
-        .chain(request.fuse_directory_mounts.iter().map(|mount| mount.container_path.clone()))
-        .collect();
     let mut watched = Vec::new();
     for (mount, volume) in request.volume_mounts.iter().zip(held) {
         if volume.tree() {
             continue;
         }
-        ignore.push(mount.container_path.clone());
         watched.push(Watched {
             container_path: mount.container_path.clone(),
             watcher: Arc::new(Watching {
@@ -329,23 +354,28 @@ where
             }),
         });
     }
-    (ignore, watched)
+    watched
 }
 
 /// The ask whether the caller holds the image, as this family's
 /// frame.
-fn has_ask<R: Runs>(digest: &str) -> Vec<u8> {
-    R::Ask::try_from(Own::OciHas(digest)).ok().and_then(|ask| encoded(&ask)).unwrap_or_default()
+fn has_ask<R: Runs>(image: &Image) -> Vec<u8> {
+    R::Ask::try_from(Own::OciHas(image)).ok().and_then(|ask| encoded(&ask)).unwrap_or_default()
 }
 
-/// The ask for a manifest the registry does not hold, as this
+/// The ask for a manifest the provider does not hold, as this
 /// family's frame.
 fn manifest_ask<R: Runs>(digest: &str) -> Vec<u8> {
     R::Ask::try_from(Own::OciManifest(digest)).ok().and_then(|ask| encoded(&ask)).unwrap_or_default()
 }
 
-/// The ask for a blob the registry does not hold, as this family's
+/// The ask for a blob the provider does not hold, as this family's
 /// frame.
 fn blob_ask<R: Runs>(digest: &str) -> Vec<u8> {
     R::Ask::try_from(Own::OciBlob(digest)).ok().and_then(|ask| encoded(&ask)).unwrap_or_default()
+}
+
+/// The nonce check's ask, as this family's frame.
+fn prove_ask<R: Runs>(request: &oci::prove::request::Request) -> Vec<u8> {
+    R::Ask::try_from(Own::OciProve(request)).ok().and_then(|ask| encoded(&ask)).unwrap_or_default()
 }

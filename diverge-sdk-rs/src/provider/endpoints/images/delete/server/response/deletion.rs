@@ -9,7 +9,7 @@
 /// and an error carries no vocabulary for the difference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Deletion {
-    /// The image is gone, and the room it took is the store's again.
+    /// The image is gone, and the room it took is the Store's again.
     Deleted,
     /// A running container of the caller runs the image. Nothing
     /// changed.

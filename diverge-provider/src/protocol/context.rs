@@ -1,4 +1,6 @@
 //! The directory a build reads from, and whose it is.
+use diverge_sdk::shared::Identity;
+
 
 /// A build's [`Context`](diverge_sdk::provider::endpoints::images::build::client::request::Context)
 /// with the one thing a caller could not say: whose volume
@@ -26,7 +28,7 @@
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Context {
     /// Whose volume [`volume_name`](Self::volume_name) is.
-    pub client_identity: String,
+    pub client_identity: Identity,
     /// Which volume, by the name a listing gave it.
     pub volume_name: String,
     /// How far into that volume the context is, as path components

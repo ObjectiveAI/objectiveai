@@ -1,7 +1,7 @@
 // Naming a volume: its provider, and its name there.
 
 import { z } from "zod";
-import { Identity } from "../endpoints/agents/logs/server/response/identity.js";
+import { Identity } from "../agent_log/identity.js";
 
 /**
  * One volume: the provider that holds it, by the daemon's `Identity`
@@ -11,7 +11,7 @@ import { Identity } from "../endpoints/agents/logs/server/response/identity.js";
  * `{"provider":…,"name":…}`.
  */
 export const Volume = z.object({
-  /** The provider: `kind: "outgoing"` and the address, or `kind: "incoming_unbrokered"` and the identity. */
+  /** The provider, by its identity: `{"issuer":…,"subject":…}`. */
   provider: Identity,
   /** The name the provider lists the volume under. */
   name: z.string(),

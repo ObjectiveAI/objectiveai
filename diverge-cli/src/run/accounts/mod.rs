@@ -9,6 +9,7 @@ use crate::run::{Emitter, Error, Target};
 
 pub mod create;
 pub mod delete;
+pub mod disconnect;
 pub mod edit;
 pub mod get;
 pub mod list;
@@ -22,6 +23,8 @@ pub enum Accounts {
     Create(create::Arguments),
     /// Deleting an account.
     Delete(delete::Arguments),
+    /// Closing every connection a client has as an account.
+    Disconnect(disconnect::Arguments),
     /// Changing an account.
     Edit(edit::Arguments),
     /// Getting one account.
@@ -43,6 +46,7 @@ pub async fn run(
     match command {
         Accounts::Create(arguments) => create::run(arguments, target, emitter).await,
         Accounts::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        Accounts::Disconnect(arguments) => disconnect::run(arguments, target, emitter).await,
         Accounts::Edit(arguments) => edit::run(arguments, target, emitter).await,
         Accounts::Get(arguments) => get::run(arguments, target, emitter).await,
         Accounts::List(arguments) => list::run(arguments, target, emitter).await,

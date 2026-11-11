@@ -7,10 +7,11 @@
 //! with no member passes everything. A member that lists candidates
 //! passes a record that is any one of them; `all_tags` a record that
 //! carries every one; `any_tags` any one; an empty list is absent.
-//! [`accounts`], [`roles`], [`providers_outgoing`],
-//! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
+//! [`accounts`], [`roles`], [`providers`],
+//! [`daemons`], [`agents_templates`],
 //! [`standalone_tools_templates`], [`dependency_tools`], [`agents`],
-//! [`standalone_tools`], [`vault`], [`events`] and
+//! [`standalone_tools`], [`connected_standalone_tools`], [`vault`],
+//! [`events`] and
 //! [`volumes`] are the tests.
 //!
 //! Evaluated here, in the daemon, against records loaded whole, and
@@ -22,11 +23,12 @@
 pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
+pub mod connected_standalone_tools;
 pub mod dependency_tools;
 pub mod events;
-pub mod providers_daemons;
-pub mod providers_incoming;
-pub mod providers_outgoing;
+pub mod identities;
+pub mod daemons;
+pub mod providers;
 pub mod roles;
 pub mod standalone_tools;
 pub mod standalone_tools_templates;

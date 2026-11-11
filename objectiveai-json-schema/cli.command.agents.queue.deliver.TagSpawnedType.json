@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.queue.deliver.TagSpawnedType",
-  "type": "string",
-  "enum": [
-    "TagSpawned"
-  ]
-}

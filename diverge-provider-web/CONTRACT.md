@@ -62,7 +62,7 @@ includes a file of it; the Reference Crate does not otherwise bind the
 Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
-the WebSocket transport, the nine-byte frame header and seven frame
+the WebSocket transport, the nine-byte frame header and eight frame
 types, the authorization handshake, the twenty-four endpoints and their
 channels, and the payload forms the Specification states for each.
 
@@ -82,10 +82,11 @@ Provider or with Diverge.
 Provider and a Client, from the completion of the WebSocket opening
 handshake to its close.
 
-1.7 **"Identity"** means the opaque value the Provider derives from a
-Client's authorization credential on a Connection, as the
-Specification's Authorization layer provides. Every scope on a
-Connection is served under the Identity of that Connection.
+1.7 **"Identity"** means the pair of the `iss` and `sub` claims of the
+token a Client presents in its authorization frame on a Connection,
+once the Provider has accepted the token, as the Specification's
+Authorization layer provides. Every scope on a Connection is served
+under the Identity of that Connection.
 
 1.8 **"Scope"**, **"Channel"**, **"Request"**, **"Response"**,
 **"Response Finish"**, **"Channel Request"**, **"Channel Response"**
@@ -374,7 +375,7 @@ big-endian, and a channel number as a `u32` big-endian, followed by
 the payload.
 
 (b) The Provider shall treat a frame whose type byte is not one of the
-seven defined values as malformed, shall disregard it, and shall not
+eight defined values as malformed, shall disregard it, and shall not
 end the Connection on account of it.
 
 (c) The Provider shall ignore every header field the Specification
@@ -383,7 +384,12 @@ value for it.
 
 (d) The Provider shall acknowledge nothing at the frame layer, shall
 impose no timeout at the frame layer, and shall treat a stream as
-ended at its finish frame and nowhere else.
+ended at its finish frame and nowhere else. The Provider shall pace
+every stream by credits as the Specification states: it shall send no
+response, channel request or channel response on a stream without room
+on it, shall return room on every stream it reads when it takes a
+frame off that stream, and shall close the Connection on a frame that
+arrives without room.
 
 (e) The Provider shall send exactly one Response Finish on each
 Scope, and only the Provider shall send it. The Provider shall finish
@@ -404,19 +410,30 @@ Specification requires a Response.
 ### 5.3 Authorization
 
 (a) On a Connection the Client dialed, the Provider shall treat the
-first frame as the Client's authorization credential and shall accept
-no other frame before it.
+first frame as the Client's authorization frame, whose payload is the
+Client's token, and shall accept no other frame before it.
 
-(b) The Provider shall judge an unbrokered credential by its own
-means, derive the Identity from an accepted credential, and serve
-every Scope on the Connection under that Identity.
+(b) The Provider shall judge the Client's token by its own means. On
+accepting it, the Provider shall send, as its own first frame, an
+authorization frame whose token is the Provider's own, whatever
+issuer the Client's token names, and shall serve every Scope on the
+Connection under the Identity the Client's token establishes.
 
-(c) The Provider shall answer a rejected credential by closing the
-Connection with no frame, and shall answer a credential frame received
-after the handshake by ending the Connection.
+(c) On a Connection the Provider dialed, the Provider shall send its
+own token as its first frame, shall send no other frame until the
+Client's answering authorization frame has arrived, and shall close
+the Connection when the Client's token is not accepted. The Provider
+shall not close the Connection because the Client's token names an
+issuer other than that of the Provider's token.
 
-(d) The Provider shall treat the Identity as opaque: it shall not
-transmit it on the wire, and it shall not derive a volume name, a
+(d) The Provider shall answer a token it does not accept, and any
+Client's token while the Provider holds no token to present,
+by closing the Connection with no frame, and shall answer an
+authorization frame received after the handshake by ending the
+Connection.
+
+(e) The Provider shall treat the Identity as its own value: it shall
+not transmit it on the wire, and it shall not derive a volume name, a
 container id, or any other Protocol value from it in a manner that
 discloses it.
 
@@ -585,7 +602,7 @@ the byte `1` followed by the Volume, and a Volume that ceases to be
 available as the byte `2` followed by the Volume as the Provider last
 sent it, each sent after the Provider has sent the byte `0` of the
 request that made the change; and the Response Finish when the
-Provider receives the Identity's `stop` Channel request or the
+Provider receives the Identity's `cancel` Channel request or the
 Identity's Connection ends, or the byte `5` followed by an error and
 the Response Finish when the Provider cannot list. The listing shall
 contain every Volume the Identity created by `volumes::create` and
@@ -716,11 +733,11 @@ shall discard the layer at the Response Finish, leaving the Volume as
 it was before the FUSE serve. For a `read_only` Volume the Provider
 shall answer every write, truncate, setattr, removal, rename and mkdir
 with the byte `2` and shall not change the Volume, and shall answer
-every stat, read and listing as for any Volume. On the Client's stop
+every stat, read and listing as for any Volume. On the Client's cancel
 the Provider shall answer every ask still open, send the Response
 Finish, and release the Volume; on the close of the Connection it
 shall release the Volume. The Provider shall send nothing on the
-stop's Channel.
+cancel's Channel.
 
 (h) **Capacity.** The Provider shall answer every
 `volumes::create_capacity` request with the largest size in bytes of a
@@ -803,7 +820,7 @@ the Scope, exactly one Response of the byte `0` followed by each
 Client Image the Identity builds, and exactly one Response of the
 byte `1` followed by each Client Image the Identity deletes, each
 after the Provider has answered the build or the deletion; and the
-Response Finish when the Identity's stop arrives, the Connection
+Response Finish when the Identity's cancel arrives, the Connection
 ends, or exactly one Response of the byte `4` followed by an error
 has been sent. The Provider shall not end the Scope because the
 Identity has no Client Image, and shall send no Response of the byte
@@ -1026,8 +1043,8 @@ the Proxy's answer to the begin Scope carries one or more dependency
 tool templates or one or more declared secrets, the Provider shall
 open exactly one `registration` Channel on the run Scope carrying the
 id, the templates and the declaration verbatim — every template
-whole, its image, limits, arguments, type, scope, mounts, secrets and
-permissions unread; every declared secret's name and mode unread —
+whole, its image, limits, arguments, type, scope, mounts and secrets
+unread; every declared secret's name and mode unread —
 before the id is sent and beside the FUSE Mounts, and shall read the
 Client's answer to its finish. Where the answer is the byte `0`
 followed by the secrets' values, the Provider shall open exactly one
@@ -1037,10 +1054,13 @@ Proxy's `Fed` lets the run go on. The Provider shall treat the byte
 `1` on either Channel, a Bare Finish on either, and a Client that is
 gone as the run's error and shall stop the Container. The Provider
 shall open no `registration` Channel and feed nothing when the
-templates and the declaration are both empty. On a
+templates, the declaration and the permissions are all empty. On a
 `containers::tools::run` Scope the templates are always empty — a tool
 Container declares no dependencies, and its begin's answer carries
-none — and the `registration` Channel carries the declaration alone.
+none — and the `registration` Channel carries the declaration and the
+permissions the tool Container's program declared, verbatim and
+unread. On a `containers::agents::run` Scope the permissions are always
+empty.
 
 (i) **Send the id.** The id the Provider chose in (h) shall be unique
 among the Containers it is running and not derivable from the
@@ -1102,7 +1122,7 @@ Section and of Section 5.11, lives until the run ends, and is
 unmounted by nothing; every tree Scope the Provider opens after the
 mount shall name the mount's path among those the tree leaves out.
 
-(l) **End the run.** When the Provider receives the Client's stop
+(l) **End the run.** When the Provider receives the Client's cancel
 channel request, when the Proxy's connection ends, or when the
 Client's Connection ends, the Provider shall stop the Container, end
 every Channel task, and send the Response Finish with no error. After the
@@ -1196,7 +1216,7 @@ Proxy on that Channel as a Channel Response on the Client's Channel,
 byte for byte, in order, and the Proxy's Channel Response Finish as
 the Client's Channel Response Finish, answering a Channel Request that
 does not decode by a Bare Finish; (f) end the Scope by the Response
-Finish, after the last answer, when it receives the Client's `stop`
+Finish, after the last answer, when it receives the Client's `cancel`
 Channel request, when the Client's Connection ends, and when the run
 of the Container ends, stopping the `filesystem::fuse_serve` Scope on
 the Proxy and holding and releasing nothing of the Container. The
@@ -1215,7 +1235,7 @@ Connection, on any Connection, by exactly one Response, the byte `1`
 followed by exactly `{"kind":"held"}`, and the Response Finish; hold
 the Identity for the Scope; answer exactly one Response, the byte `0`
 followed by the Identity as JSON; and hold the Scope open until the
-Acceptor's `stop` Channel request or the Acceptor's Connection ending,
+Acceptor's `cancel` Channel request or the Acceptor's Connection ending,
 on which it shall finish every half of every connection open on the
 Scope, finish every connect Scope relayed to it, release the Identity,
 and send the Response Finish.

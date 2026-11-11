@@ -1,0 +1,84 @@
+//! Diverge World.
+//!
+//! Empty up-front. Rust holds the daemon's address, the identity it is
+//! dialled as, and the one connection to it; the page speaks the
+//! daemon's protocol through the TypeScript SDK over the SDK's
+//! `tauri_proxy` runner, and holds nothing else. See
+//! `diverge-world/CLAUDE.md`.
+//!
+//! The root — `--config <dir>`, else `DIVERGE_CONFIG`, else `~/.diverge`
+//! — is the one directory every Diverge program on the host shares, and
+//! the app reads the viewer's document in it: `<root>/viewer.yaml` says
+//! which daemon, as which of `<root>/identities/`, and how the daemon is
+//! dialled again when the connection ends (`diverge_viewer_config`). The
+//! app keeps no files of its own; it moves the person's between their
+//! disk and an entity's when asked (`transfer`).
+
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use std::sync::Arc;
+
+use diverge_sdk::identities::{Identities, Name, Presenter};
+use tauri::Manager;
+
+mod frontend;
+mod transfer;
+
+fn main() {
+    tauri::Builder::default()
+        .manage(transfer::Transfers::default())
+        .manage(frontend::Frontends::default())
+        .setup(|app| {
+            // The root, as the daemon and the provider find theirs; the
+            // document in it, which must name the daemon and the
+            // identity it is dialled as; the root's identities. A
+            // document naming no daemon stops the start, saying so.
+            let (daemon, identities) = tauri::async_runtime::block_on(async {
+                let root = diverge_viewer_config::root(std::env::args_os().skip(1)).await?;
+                let config = diverge_viewer_config::load(&root).await?;
+                let daemon = config.daemon.ok_or(
+                    "viewer.yaml names no daemon identity (daemon: {address, issuer, subject}); sign one in with `diverge identities login`",
+                )?;
+                let identities = Identities::open(&root).await?;
+                Ok::<_, Box<dyn std::error::Error>>((daemon, identities))
+            })?;
+            // The daemon's connection, held for the page: the SDK's
+            // runner, presenting the identity, taking the daemon's
+            // answer at its word, and dialling again as viewer.yaml's
+            // `redial` says.
+            let name = Name { issuer: daemon.issuer, subject: daemon.subject };
+            let presenter = Arc::new(Presenter::new(identities, name));
+            app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(daemon.address, presenter, daemon.redial));
+            Ok(())
+        })
+        // A page starting to load — a reload above all — leaves the old
+        // page's streams with nobody to take them: the proxy lets them
+        // go and resets the connection, so the daemon ends what the old
+        // page had open.
+        .on_page_load(|webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Started {
+                let app = webview.app_handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    frontend::page_loading(&app).await;
+                    app.state::<diverge_sdk::tauri_proxy::TauriProxy>().page_loading().await;
+                });
+            }
+        })
+        .invoke_handler(tauri::generate_handler![
+            diverge_sdk::tauri_proxy::wire_request,
+            diverge_sdk::tauri_proxy::wire_channel_request,
+            diverge_sdk::tauri_proxy::wire_channel_response,
+            diverge_sdk::tauri_proxy::wire_channel_response_finish,
+            diverge_sdk::tauri_proxy::wire_took,
+            diverge_sdk::tauri_proxy::wire_dropped,
+            diverge_sdk::tauri_proxy::wire_status,
+            diverge_sdk::tauri_proxy::wire_reset,
+            transfer::files_download,
+            transfer::files_upload,
+            transfer::files_cancel,
+            frontend::frontend_open,
+            frontend::frontend_close,
+        ])
+        .run(tauri::generate_context!())
+        .expect("the app could not start");
+}

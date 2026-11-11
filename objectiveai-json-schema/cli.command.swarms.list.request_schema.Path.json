@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.swarms.list.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "swarms/list/request_schema"
-  ]
-}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.laboratories.detach.Path",
-  "type": "string",
-  "enum": [
-    "laboratories/detach"
-  ]
-}

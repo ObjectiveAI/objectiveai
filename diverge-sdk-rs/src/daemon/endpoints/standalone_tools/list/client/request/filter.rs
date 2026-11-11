@@ -3,7 +3,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::Kind;
 use crate::daemon::creator::Creator;
 use crate::daemon::endpoints::standalone_tools::templates::Mode;
 
@@ -22,11 +21,10 @@ use crate::daemon::endpoints::standalone_tools::templates::Mode;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Filter {
-    /// Any one of these names, as a create or a connect gave them.
+    /// Any one of these names, as a create gave them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub names: Vec<String>,
-    /// A created tool made from any one of these templates, by id;
-    /// a connected tool matches none of them.
+    /// Made from any one of these templates, by id.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<String>,
     /// Made by any one of these, directly: see
@@ -34,22 +32,19 @@ pub struct Filter {
     /// and then made by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
-    /// Created by the daemon or connected to somebody else's: the
-    /// `kind` an
-    /// [`Origin`](crate::daemon::endpoints::standalone_tools::list::server::response::Origin)
-    /// is tagged with, see [`Kind`]; absent, either.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub kind: Option<Kind>,
     /// Made from a template whose `mode` is any one of these,
-    /// transient or a service: see [`Mode`]. A connected tool has no
-    /// mode here — it runs by another daemon's template — and passes
-    /// none. Absent when empty, and then either.
+    /// transient or a service: see [`Mode`]. Absent when empty, and
+    /// then either.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modes: Vec<Mode>,
-    /// Whether active — its container running, or its connect scope
-    /// held — `true`, or not, `false`; absent, either.
+    /// Whether active — working, a call or a read in flight — `true`,
+    /// or not, `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active: Option<bool>,
+    /// Whether deployed — its container up — `true`, or not, `false`;
+    /// absent, either.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployed: Option<bool>,
     /// Attached directly to every one of these agents, by name. Absent
     /// when empty, and then any attachments.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

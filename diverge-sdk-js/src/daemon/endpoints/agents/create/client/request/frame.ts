@@ -19,7 +19,7 @@ export const Frame = z.object({
   ...Inner.shape,
   /** The name, if the agent is to have one; unique among the caller's agents. Absent, none. */
   name: z.string().optional(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

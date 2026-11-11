@@ -13,9 +13,9 @@ use crate::wire::encode::{Encode, Writer};
 /// A payload leads with one byte saying which — `0` for
 /// [`Connected`](Self::Connected), `1` for [`Error`](Self::Error),
 /// `2` for [`Frame`](Self::Frame) — and the rest is that variant's
-/// own bytes: nothing, the error's JSON, or one
-/// [`daemon::server::Frame`](crate::shared::containers::daemon::server::Frame)
-/// as the acceptor sent it, forwarded whole.
+/// own bytes: nothing, the error's JSON, or one server frame of any
+/// type as the acceptor sent it — its token, first, in the handshake —
+/// forwarded whole.
 ///
 /// | the scope | means |
 /// |-----------|-------|

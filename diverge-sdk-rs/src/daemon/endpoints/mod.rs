@@ -6,16 +6,21 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
-//! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; register another daemon's under a name; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`agents`] | create an agent under a name; get one; delete one; send one a message; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`standalone_tools`] | create a tool under a name; get one; change what one mounts; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one; serve one to another daemon; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`connected_standalone_tools`] | hold another daemon's standalone tool under a name; get one; change its name; attach one to an agent, or to every agent of a template; detach one from either; delete one; list them, narrowed; tag one and untag one |
 //! | [`dependency_tools`] | list the dependency tools agents' programs declare, one per template and owner, narrowed, each with the agents that depend on it and its run; get one; delete every tool of a template none of which runs; tag one and untag one; watch a running one's container whole; download files out of one, upload files into one, transfer files out of one |
-//! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a credential of providers that dial in, get one, list them, take one out, replace one; add a daemon to connect to, get one, list them, forget one, replace its mode or its links, tag one and untag one |
+//! | [`providers`] | add a provider's record, get one, list them, edit one, delete a disabled one, enable one, disable one, tag one and untag one; list the identities their listings hold, listen for the messages sent to the daemon through them, and send one through them |
+//! | [`daemons`] | record a remote daemon, get one, list them, edit one, delete one, tag one and untag one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`vault`] | insert a value into a key — making the key, appending the value or replacing a slot's; get one key with every value and who holds each; list them by name, narrowed, never by value; delete one no agent or tool binds, or one free value of it; tag one and untag one |
 //! | [`volumes`] | create a volume on a provider; get one; list them across providers, narrowed; delete one; change its size or mode; walk one for its use and its hash; download files out of one, upload files into one, transfer files out of one; see one's tree |
 //! | [`postgres`] | see which database containers are served, the daemon's own or a remote one, as the daemon is configured; list the container connections open through it |
 //! | [`events`] | list the events — who sent what to whom through the daemon, a message, an MCP call or an MCP read, and how often — narrowed, the latest so many, and keep the list |
+//! | [`images`] | read an image's DIVERGE.md, from a container of it running or from a provider that can obtain it |
+//! | [`info`] | say what the daemon is: its version |
+//! | [`logs`] | read an agent's or a tool's log, narrowed, and watch it |
 //!
 //! # The tags
 //!
@@ -30,7 +35,7 @@
 //! | `1` | [`agents::get`] |
 //! | `2` | [`agents::delete`] |
 //! | `3` | [`agents::message`] |
-//! | `4` | [`agents::logs`] |
+//! | `4` | unused |
 //! | `5` | [`agents::list`] |
 //! | `6` | [`agents::edit`] |
 //! | `7` | [`agents::tag`] |
@@ -44,7 +49,7 @@
 //! | `15` | [`standalone_tools::create`] |
 //! | `16` | [`standalone_tools::get`] |
 //! | `17` | [`standalone_tools::edit`] |
-//! | `18` | [`standalone_tools::register`] |
+//! | `18` | unused |
 //! | `19` | [`standalone_tools::attach_agent_instance`] |
 //! | `20` | [`standalone_tools::detach_agent_instance`] |
 //! | `21` | [`standalone_tools::delete`] |
@@ -57,20 +62,20 @@
 //! | `28` | [`standalone_tools::templates::delete`] |
 //! | `29` | [`standalone_tools::templates::tag`] |
 //! | `30` | [`standalone_tools::templates::untag`] |
-//! | `31` | [`providers::outgoing::add`] |
-//! | `32` | [`providers::outgoing::get`] |
-//! | `33` | [`providers::outgoing::list`] |
-//! | `34` | [`providers::outgoing::delete`] |
-//! | `35` | [`providers::outgoing::edit`] |
-//! | `36` | [`providers::outgoing::tag`] |
-//! | `37` | [`providers::outgoing::untag`] |
-//! | `38` | [`providers::incoming::add`] |
-//! | `39` | [`providers::incoming::get`] |
-//! | `40` | [`providers::incoming::list`] |
-//! | `41` | [`providers::incoming::delete`] |
-//! | `42` | [`providers::incoming::edit`] |
-//! | `43` | [`providers::incoming::tag`] |
-//! | `44` | [`providers::incoming::untag`] |
+//! | `31` | unused |
+//! | `32` | [`providers::get`] |
+//! | `33` | [`providers::list`] |
+//! | `34` | unused |
+//! | `35` | unused |
+//! | `36` | unused |
+//! | `37` | unused |
+//! | `38` | unused |
+//! | `39` | unused |
+//! | `40` | unused |
+//! | `41` | unused |
+//! | `42` | unused |
+//! | `43` | unused |
+//! | `44` | unused |
 //! | `45` | [`accounts::create`] |
 //! | `46` | [`accounts::get`] |
 //! | `47` | [`accounts::list`] |
@@ -108,13 +113,13 @@
 //! | `79` | [`postgres::get`] |
 //! | `80` | [`postgres::list`] |
 //! | `81` | [`standalone_tools::connect`] |
-//! | `82` | [`providers::daemons::add`] |
-//! | `83` | [`providers::daemons::get`] |
-//! | `84` | [`providers::daemons::list`] |
-//! | `85` | [`providers::daemons::delete`] |
-//! | `86` | [`providers::daemons::edit`] |
-//! | `87` | [`providers::daemons::tag`] |
-//! | `88` | [`providers::daemons::untag`] |
+//! | `82` | unused |
+//! | `83` | [`daemons::get`] |
+//! | `84` | [`daemons::list`] |
+//! | `85` | unused |
+//! | `86` | unused |
+//! | `87` | unused |
+//! | `88` | unused |
 //! | `89` | [`dependency_tools::list`] |
 //! | `90` | [`dependency_tools::get`] |
 //! | `91` | [`dependency_tools::delete`] |
@@ -124,9 +129,9 @@
 //! | `95` | [`dependency_tools::download`] |
 //! | `96` | [`dependency_tools::upload`] |
 //! | `97` | [`dependency_tools::transfer`] |
-//! | `98` | [`providers::daemons::accounts::add`] |
-//! | `99` | [`providers::daemons::accounts::edit`] |
-//! | `100` | [`providers::daemons::accounts::delete`] |
+//! | `98` | unused |
+//! | `99` | unused |
+//! | `100` | unused |
 //! | `101` | [`standalone_tools::attach_agent_template`] |
 //! | `102` | [`standalone_tools::detach_agent_template`] |
 //! | `103` | [`vault::get`] |
@@ -136,8 +141,55 @@
 //! | `107` | [`vault::tag`] |
 //! | `108` | [`vault::untag`] |
 //! | `109` | [`events::list`] |
+//! | `110` | [`images::info`] |
+//! | `111` | [`info`] |
+//! | `112` | unused |
+//! | `113` | unused |
+//! | `114` | [`logs`] |
+//! | `115` | [`agents::exec`] |
+//! | `116` | [`standalone_tools::exec`] |
+//! | `117` | [`dependency_tools::exec`] |
+//! | `118` | [`agents::terminal`] |
+//! | `119` | [`standalone_tools::terminal`] |
+//! | `120` | [`dependency_tools::terminal`] |
+//! | `121` | [`standalone_tools::frontend`] |
+//! | `122` | [`dependency_tools::frontend`] |
+//! | `123` | [`agents::frontend`] |
+//! | `124` | [`agents::connect`] |
+//! | `125` | [`providers::daemons::list`] |
+//! | `126` | [`identities::list`] |
+//! | `127` | [`identities::tag`] |
+//! | `128` | [`identities::login`] |
+//! | `129` | [`identities::untag`] |
+//! | `130` | [`daemons::add`] |
+//! | `131` | [`daemons::edit`] |
+//! | `132` | [`daemons::delete`] |
+//! | `133` | [`daemons::tag`] |
+//! | `134` | [`daemons::untag`] |
+//! | `135` | [`accounts::disconnect`] |
+//! | `136` | [`providers::add`] |
+//! | `137` | [`providers::edit`] |
+//! | `138` | [`providers::delete`] |
+//! | `139` | [`providers::enable`] |
+//! | `140` | [`providers::disable`] |
+//! | `141` | [`providers::tag`] |
+//! | `142` | [`providers::untag`] |
+//! | `143` | [`providers::daemons::listen`] |
+//! | `144` | [`providers::daemons::message`] |
+//! | `145` | [`images::oci`] |
+//! | `146` | [`connected_standalone_tools::create`] |
+//! | `147` | [`connected_standalone_tools::get`] |
+//! | `148` | [`connected_standalone_tools::list`] |
+//! | `149` | [`connected_standalone_tools::edit`] |
+//! | `150` | [`connected_standalone_tools::delete`] |
+//! | `151` | [`connected_standalone_tools::tag`] |
+//! | `152` | [`connected_standalone_tools::untag`] |
+//! | `153` | [`connected_standalone_tools::attach_agent_instance`] |
+//! | `154` | [`connected_standalone_tools::detach_agent_instance`] |
+//! | `155` | [`connected_standalone_tools::attach_agent_template`] |
+//! | `156` | [`connected_standalone_tools::detach_agent_template`] |
 //!
-//! One hundred and ten, so far. Every one of them carries the optional
+//! One hundred and fifty-seven, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request
@@ -187,8 +239,14 @@ pub use client_request::*;
 
 pub mod accounts;
 pub mod agents;
+pub mod connected_standalone_tools;
+pub mod daemons;
 pub mod dependency_tools;
 pub mod events;
+pub mod identities;
+pub mod images;
+pub mod info;
+pub mod logs;
 pub mod postgres;
 pub mod providers;
 pub mod roles;

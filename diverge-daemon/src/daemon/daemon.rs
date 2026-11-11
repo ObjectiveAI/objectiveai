@@ -1,12 +1,15 @@
 //! The daemon's pieces, built once.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::watch;
 
 use super::Live;
 use crate::database::Target;
+use crate::judge::DaemonAuthenticator;
+use crate::providers::ProviderBook;
 use crate::store::Store;
 
 /// The daemon: its records, what is live, and where the logs are.
@@ -16,10 +19,15 @@ use crate::store::Store;
 pub struct Daemon {
     /// The records.
     pub store: Store,
+    /// The daemon's side of every handshake: its own tokens, and whom
+    /// it admits.
+    pub authenticator: Arc<DaemonAuthenticator>,
+    /// The providers it works with: their records, as they stand.
+    pub providers: Arc<ProviderBook>,
     /// What is nobody's record.
     pub live: Live,
-    /// `<dir>/agents/`, where every agent's log is: see
-    /// [`logs`](crate::logs).
+    /// `<dir>`, under which every log is — `agents/`, `tools/` and
+    /// `dependency_tools/`: see [`logs`](crate::logs).
     pub logs: PathBuf,
     /// How long a container may go unused before its run is ended:
     /// `idle_seconds` of the configuration.
@@ -27,14 +35,6 @@ pub struct Daemon {
     /// The database the daemon serves, as the daemon reaches it: see
     /// [`database`](crate::database).
     pub database: Target,
-    /// Whether the daemon accepts connections from other daemons
-    /// through every provider it is connected to: `accept_daemons` of
-    /// the configuration.
-    pub accept_daemons: bool,
-    /// How long a provider's capacity poller waits, once it has
-    /// cached an answer, before it asks again: `capacity_poll_seconds`
-    /// of the configuration.
-    pub capacity_poll: Duration,
     /// The daemon's stop: sent `true` by a loopback `POST /stop` (see
     /// [`stop`](crate::serve::stop)), or by the signal, and read by
     /// the listener, which drains on it. Made by [`run`](crate::serve::run)
@@ -43,20 +43,19 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    /// A daemon on an open store, holding its agents' logs under
-    /// `logs`, ending a run unused for `idle`, serving the database
-    /// `database`, accepting other daemons when `accept_daemons`,
-    /// asking every provider's capacity again after `capacity_poll`,
-    /// stopped through `stop`, with nothing live yet.
-    pub fn new(store: Store, logs: PathBuf, idle: Duration, database: Target, accept_daemons: bool, capacity_poll: Duration, stop: watch::Sender<bool>) -> Self {
+    /// A daemon on an open store, admitting by `authenticator`,
+    /// working with the providers whose records `providers` holds,
+    /// holding its agents' logs under `logs`, ending a run unused for `idle`, serving the database
+    /// `database`, stopped through `stop`, with nothing live yet.
+    pub fn new(store: Store, authenticator: Arc<DaemonAuthenticator>, providers: Arc<ProviderBook>, logs: PathBuf, idle: Duration, database: Target, stop: watch::Sender<bool>) -> Self {
         Daemon {
             store,
+            authenticator,
+            providers,
             live: Live::new(),
             logs,
             idle,
             database,
-            accept_daemons,
-            capacity_poll,
             stop,
         }
     }

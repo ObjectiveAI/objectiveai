@@ -11,15 +11,19 @@
 // download sends, `download`.
 
 export * as client from "./client/index.js";
+export * as agent_log from "./agent_log/index.js";
+export * as command_log from "./command_log/index.js";
 export * as create from "./create/index.js";
 export * as creator from "./creator/index.js";
 export * as download from "./download/index.js";
 export * as endpoints from "./endpoints/index.js";
 export * as grant from "./grant/index.js";
 export * as key from "./key/index.js";
+export * as lifecycle from "./lifecycle/index.js";
 export * as patch from "./patch/index.js";
 export * as reference from "./reference/index.js";
 export * as template from "./template/index.js";
+export * as tool_log from "./tool_log/index.js";
 export * as transfer from "./transfer/index.js";
 
 /**

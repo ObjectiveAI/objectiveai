@@ -1,16 +1,21 @@
-//! Grants over daemons that name none of them.
+//! Grants over the daemons reached through providers, naming no
+//! provider.
 //!
-//! What a dependency tool template may ask over daemons, in the shapes
-//! [`permission`](crate::shared::permission) states: [`Make`], the
-//! actions that bring one into being; [`Over`], the actions over those
-//! that exist, reaching by tags; and [`Permission`], one grant's worth
-//! of either, or of tagging. The daemon's grants over daemons are made
-//! of the same [`Make`] and [`Over`].
+//! What a grant may ask through the daemon's providers of the daemons
+//! connected to them, in the shape
+//! [`permission`](crate::shared::permission) states for actions over
+//! what exists: [`Over`], the actions — listing the announced identities,
+//! listening for messages, sending one — reaching the providers by their
+//! tags, as a grant over [`providers`](super::providers) does; and
+//! [`Permission`], one grant's worth of them. Nothing is made and
+//! nothing is tagged here: the records are the providers', and the
+//! providers grant makes and tags them.
+//!
+//! Its own files are flattened into it, so everything is named
+//! through this module and not through the file it lives in.
 
-mod make;
 mod over;
 mod permission;
 
-pub use make::*;
 pub use over::*;
 pub use permission::*;

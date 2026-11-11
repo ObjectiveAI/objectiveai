@@ -7,7 +7,7 @@ use diverge_sdk::daemon::endpoints::agents::transfer::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::active;
+use super::state;
 use crate::content;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
@@ -18,7 +18,7 @@ use crate::transfers::{self, Fail, Source};
 
 /// Answer the transfer and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
-    let answer = match serve(frame, who, daemon).await {
+    let answer = match serve(&scope, frame, who, daemon).await {
         Ok(answer) => answer,
         Err(error) => Frame::Error(reply::failure(&error)),
     };
@@ -33,7 +33,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// nothing is; `Held` for a destination volume that is held; else the
 /// copy — through the provider when both ends run on it — and
 /// `Transferred`.
-async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
+async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
         return Ok(Frame::Forbidden);
@@ -44,7 +44,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     let Some(agent) = agents::by_reference(&mut conn, &frame.agent, false).await? else {
         return Ok(Frame::NotFound);
     };
-    if !judge::agents::over(&standing, Over::Transfer, &agent, active(daemon, agent.id).await) {
+    if !judge::agents::over(&standing, Over::Transfer, &agent, state(daemon, agent.id).await) {
         return Ok(Frame::Forbidden);
     }
     if content::inside(&frame.path).is_err() {
@@ -56,6 +56,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         Judged::NoDestination => return Ok(Frame::NoDestination),
         Judged::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
+    scope.allowed().await;
     drop(conn);
     let opened = match files::open_agent(daemon, &agent).await {
         Ok(opened) => opened,

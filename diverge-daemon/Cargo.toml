@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
 description = "The Diverge daemon — the server of the daemon protocol: its records in the Postgres it serves, its accounts and roles, and the judgment of every request"
 license = "MIT"
-repository = "https://github.com/ObjectiveAI/objectiveai"
+repository = "https://github.com/divergenetwork/Diverge"
 homepage = "https://diverge.network"
 publish = false
 
@@ -20,7 +20,7 @@ path = "src/main.rs"
 # Path-only: this crate rides the workspace and is never published, so
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase.
-diverge-sdk = { path = "../diverge-sdk-rs" }
+diverge-sdk = { path = "../diverge-sdk-rs", features = ["identities"] }
 # The MCP types a container's tool calls carry: what the served
 # tools answer, merged.
 rmcp = { version = "3.1.2", default-features = false }

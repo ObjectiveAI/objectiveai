@@ -52,11 +52,13 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
+    scope.allowed().await;
     if content::inside(&frame.path).is_err() {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     }
-    let opened = Opened::Tool(run, None);
+    let using = run.file_use();
+    let opened = Opened::Tool(run, Some(using));
     opened.touch();
     let source = Source::Opened(opened);
     let outcome = files::download(scope, daemon, &source, &frame.path, &|scope, path, body| {

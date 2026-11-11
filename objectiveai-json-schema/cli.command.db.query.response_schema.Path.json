@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.db.query.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "db/query/response_schema"
-  ]
-}

@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::reference;
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};

@@ -2,18 +2,19 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{agents, agents_templates, standalone_tools, standalone_tools_templates, dependency_tools, providers_outgoing, providers_incoming, providers_daemons, accounts, roles, vault, volumes, postgres, events};
+use super::{agents, agents_templates, standalone_tools, standalone_tools_templates, connected_standalone_tools, dependency_tools, providers, providers_daemons, daemons, accounts, roles, vault, volumes, postgres, events, images, identities};
 
 /// One grant: a permission over one kind of thing the daemon holds.
 /// Externally tagged by the kind's name — one object with one member,
-/// `{"agents":…}`, `{"providers_incoming":…}` — whose value is that
+/// `{"agents":…}`, `{"providers":…}` — whose value is that
 /// kind's [`Permission`](agents::Permission), in one of the shapes
 /// [`grant`](crate::daemon::grant) states. Snake case on the wire:
 /// `"agents"`, `"agents_templates"`, `"standalone_tools"`,
-/// `"standalone_tools_templates"`, `"dependency_tools"`,
-/// `"providers_outgoing"`, `"providers_incoming"`,
-/// `"providers_daemons"`, `"accounts"`, `"roles"`, `"volumes"`,
-/// `"vault"`, `"postgres"`, `"events"` — the kinds of
+/// `"standalone_tools_templates"`, `"connected_standalone_tools"`,
+/// `"dependency_tools"`,
+/// `"providers"`, `"providers_daemons"`, `"daemons"`, `"accounts"`,
+/// `"roles"`, `"volumes"`,
+/// `"vault"`, `"postgres"`, `"events"`, `"images"`, `"identities"` — the kinds of
 /// [`shared::permission::Grant`](crate::shared::permission::Grant),
 /// which this is built of.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -29,14 +30,18 @@ pub enum Grant {
     /// Over standalone tool templates: see
     /// [`standalone_tools_templates::Permission`].
     StandaloneToolsTemplates(standalone_tools_templates::Permission),
+    /// Over connected tools, other daemons' standalone tools held here:
+    /// see [`connected_standalone_tools::Permission`].
+    ConnectedStandaloneTools(connected_standalone_tools::Permission),
     /// Over dependency tools: see [`dependency_tools::Permission`].
     DependencyTools(dependency_tools::Permission),
-    /// Over outgoing providers: see [`providers_outgoing::Permission`].
-    ProvidersOutgoing(providers_outgoing::Permission),
-    /// Over incoming credentials: see [`providers_incoming::Permission`].
-    ProvidersIncoming(providers_incoming::Permission),
-    /// Over daemons: see [`providers_daemons::Permission`].
+    /// Over the daemon's providers: see [`providers::Permission`].
+    Providers(providers::Permission),
+    /// Through the daemon's providers, over the daemons connected to
+    /// them: see [`providers_daemons::Permission`].
     ProvidersDaemons(providers_daemons::Permission),
+    /// Over the remote daemons it reaches: see [`daemons::Permission`].
+    Daemons(daemons::Permission),
     /// Over accounts: see [`accounts::Permission`].
     Accounts(accounts::Permission),
     /// Over roles: see [`roles::Permission`].
@@ -49,4 +54,8 @@ pub enum Grant {
     Postgres(postgres::Permission),
     /// Over the events: see [`events::Permission`].
     Events(events::Permission),
+    /// Over images: see [`images::Permission`].
+    Images(images::Permission),
+    /// Over the host's identities: see [`identities::Permission`].
+    Identities(identities::Permission),
 }

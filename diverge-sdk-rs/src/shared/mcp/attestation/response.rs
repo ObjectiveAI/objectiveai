@@ -14,8 +14,8 @@ use super::{Error, Tool, read};
 /// nothing a tool container receives does. A `_meta` without
 /// [`KEY`](crate::shared::mcp::KEY) is [`Error::Missing`]; one whose value is not a tool — the agent's
 /// kind, or not the type — is [`Error::Invalid`]. A connected tool is
-/// no error: it is the one kind without an image, and the type says
-/// so.
+/// no error: it carries the image and the template the daemon that
+/// runs it told, as [`Tool::Connected`] states.
 pub fn response(meta: &MetaObject) -> Result<Tool, Error> {
     read(meta)
 }

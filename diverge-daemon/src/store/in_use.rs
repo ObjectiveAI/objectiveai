@@ -1,66 +1,36 @@
-//! What containers hold: the templates they were made from, the
-//! accounts their tools run under, the daemons their tools are on;
-//! and what daemon records hold: the providers their links name.
+//! What containers hold: the templates they were made from, the remote
+//! daemons their tools are on.
 //!
-//! A template is in use while a container made from it exists; an
-//! account while a tool names it; a daemon record, and an account on
-//! it, while a connected tool names it; a provider while a daemon
-//! record links through it; a vault key while an agent or a tool
-//! binds it in its `secrets`. All are facts of the records, not of
+//! A template is in use while a container made from it exists; a
+//! remote daemon while a connected
+//! tool names it; a vault key while an agent or a tool binds it in its
+//! `secrets`. All are facts of the records, not of
 //! what runs, so they survive a restart as the records do.
 
 use std::collections::HashSet;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
-use sqlx::types::Json;
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
 use sqlx::{PgConnection, Row as _};
 
-use crate::store::{AccountId, Error};
+use crate::store::{Error, daemons};
 
 /// The ids of every agent template some agent was made from.
 pub async fn agents_templates(conn: &mut PgConnection) -> Result<HashSet<String>, Error> {
     ids(conn, "SELECT DISTINCT template AS id FROM diverge.agents").await
 }
 
-/// The ids of every tool template some created tool was made from.
+/// The ids of every tool template some standalone tool was made from.
 pub async fn tools_templates(conn: &mut PgConnection) -> Result<HashSet<String>, Error> {
-    ids(conn, "SELECT DISTINCT template AS id FROM diverge.tools WHERE kind = 'created'").await
+    ids(conn, "SELECT DISTINCT template AS id FROM diverge.tools").await
 }
 
-/// Whether some tool runs under the account. An agent holds none.
-pub async fn account(conn: &mut PgConnection, id: AccountId) -> Result<bool, Error> {
-    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.tools WHERE account = $1) AS held")
-    .bind(id.0)
-    .fetch_one(&mut *conn)
-    .await?;
-    Ok(row.try_get("held")?)
-}
-
-/// Whether some connected tool names the daemon record, as any of its
-/// accounts.
-pub async fn daemon(conn: &mut PgConnection, name: &str) -> Result<bool, Error> {
-    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1) AS held")
-        .bind(name)
-        .fetch_one(&mut *conn)
-        .await?;
-    Ok(row.try_get("held")?)
-}
-
-/// Whether some connected tool names the account on the daemon record.
-pub async fn daemon_account(conn: &mut PgConnection, daemon: &str, account: &str) -> Result<bool, Error> {
-    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1 AND connected_account = $2) AS held")
-        .bind(daemon)
-        .bind(account)
-        .fetch_one(&mut *conn)
-        .await?;
-    Ok(row.try_get("held")?)
-}
-
-/// Whether some daemon record links through the provider: a link
-/// naming it, by JSON containment of one element.
-pub async fn provider_linked(conn: &mut PgConnection, identity: &Identity) -> Result<bool, Error> {
-    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.providers_daemons WHERE links @> $1) AS held")
-        .bind(Json(serde_json::json!([{ "provider": identity }])))
+/// Whether some connected tool names the remote daemon's record of the
+/// ID as the daemon it is on: what refuses the record's delete. A
+/// record named only further along a connected tool's route is not
+/// held by it — that record is the other daemon's to keep.
+pub async fn daemon(conn: &mut PgConnection, id: DaemonId) -> Result<bool, Error> {
+    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.connected_standalone_tools WHERE daemon = $1) AS held")
+        .bind(daemons::to_column(id))
         .fetch_one(&mut *conn)
         .await?;
     Ok(row.try_get("held")?)

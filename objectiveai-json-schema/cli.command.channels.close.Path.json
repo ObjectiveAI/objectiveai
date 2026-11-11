@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.channels.close.Path",
-  "type": "string",
-  "enum": [
-    "channels/close"
-  ]
-}

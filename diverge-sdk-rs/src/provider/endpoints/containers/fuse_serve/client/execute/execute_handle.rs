@@ -1,5 +1,5 @@
 //! The container FUSE serve scope, held: asks one at a time, the tree,
-//! and the stop.
+//! and the cancel.
 
 use bytes::Bytes;
 
@@ -14,7 +14,7 @@ use crate::wire::frame;
 
 /// A served container, as the caller holds it: every
 /// [`ask`](Self::ask) is one channel, one answer, and
-/// [`stop`](Self::stop) is the end.
+/// [`cancel`](Self::cancel) is the end.
 #[derive(Debug)]
 pub struct ExecuteHandle {
     handle: Handle,
@@ -83,13 +83,13 @@ impl ExecuteHandle {
             .map_err(AskError::Send)
     }
 
-    /// Stop serving: the stop goes out, and this waits for the scope's
+    /// Cancel the serve: the cancel goes out, and this waits for the scope's
     /// finish — the provider's, after the asks still in flight are
     /// answered — or the connection's end. Nothing is answered on the
-    /// stop's own channel.
-    pub async fn stop(mut self) {
+    /// cancel's own channel.
+    pub async fn cancel(mut self) {
         let mut payload = Vec::new();
-        channel_request::Frame::Stop
+        channel_request::Frame::Cancel
             .encode(&mut Writer::new(&mut payload))
             .unwrap_or_else(|error| match error {
                 mount::FrameEncodeError::PathLength(_) => {}

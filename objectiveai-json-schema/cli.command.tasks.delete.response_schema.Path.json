@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.tasks.delete.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "tasks/delete/response_schema"
-  ]
-}

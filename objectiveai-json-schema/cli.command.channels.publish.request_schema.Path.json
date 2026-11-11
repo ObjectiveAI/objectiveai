@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.channels.publish.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "channels/publish/request_schema"
-  ]
-}

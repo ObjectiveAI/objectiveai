@@ -25,8 +25,8 @@ use std::sync::Arc;
 /// answer: `None`, a denial, an empty stream, an error.
 #[derive(Debug)]
 pub struct Answerers<O, T, P, D, M, F> {
-    /// Whether the caller holds an image, and under what name, and its
-    /// manifests and blobs
+    /// Whether the caller holds an image, and under what name, its
+    /// manifests and blobs, and the proof that it holds it
     /// ([`OciStore`](super::OciStore)).
     pub oci: Arc<O>,
     /// The container's registration: its dependencies run, its

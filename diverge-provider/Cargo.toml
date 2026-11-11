@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
 description = "The reference provider of the Diverge provider protocol — the server half for any provider, and one provider built on it"
 license = "MIT"
-repository = "https://github.com/ObjectiveAI/objectiveai"
+repository = "https://github.com/divergenetwork/Diverge"
 homepage = "https://diverge.network"
 publish = false
 
@@ -21,7 +21,7 @@ path = "src/main.rs"
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase. The wire, the frames and the clients;
 # the server half is this crate's `protocol`.
-diverge-sdk = { path = "../diverge-sdk-rs" }
+diverge-sdk = { path = "../diverge-sdk-rs", features = ["identities"] }
 # The volume cache: one lock per identity and per name, so callers
 # of different volumes never wait on each other.
 dashmap = "6.2.1"
@@ -83,10 +83,25 @@ fstool = { version = "=0.4.33", default-features = false, features = ["ext"] }
 # ReadDirectoryChangesW on Windows behind one API, which is the whole
 # of the platform difference this crate has to carry.
 notify = "8.2.0"
+# Transport keepalive on every socket the provider accepts or dials,
+# so that a peer gone without a close is a socket the kernel resets
+# rather than one held open for the provider's life; the version the
+# workspace already locks.
+socket2 = "0.6.3"
 # A container's name in podman and a loop mount's directory, each
 # minted fresh per deploy; `v4` alone, since nothing here needs a
 # UUID parsed or timed.
 uuid = { version = "1.26.1", default-features = false, features = ["v4"] }
+# The nonce of every proof of possession and every registry token: 32
+# and 16 bytes from the operating system's cryptographic source, with
+# nothing in between; the version uuid already locks.
+getrandom = "0.4.2"
+# The minimal OCI Distribution client a push from a registry fetches
+# with: a manifest and its blobs by digest, over TLS, with the
+# credential the configuration lists — anonymous, Basic, or the
+# Bearer challenge. The version the SDK locks; `rustls-tls` for the
+# TLS with no system library, `stream` for a blob read piece by piece.
+reqwest = { version = "0.12.28", default-features = false, features = ["rustls-tls", "stream"] }
 
 [target.'cfg(windows)'.dependencies]
 # The image file is sparse, so a volume reserves its size without

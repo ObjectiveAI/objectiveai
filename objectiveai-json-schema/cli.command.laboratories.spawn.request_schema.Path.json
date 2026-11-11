@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.laboratories.spawn.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "laboratories/spawn/request_schema"
-  ]
-}

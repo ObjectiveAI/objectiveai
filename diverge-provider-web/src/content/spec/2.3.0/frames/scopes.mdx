@@ -14,10 +14,13 @@ A **scope** is one client request and everything that follows from it.
 - **Answering.** The server answers with zero or more responses (type
   `2`) and ends the scope with exactly one response finish (type `3`).
   The responses to a scope's request form one stream: their order is
-  significant, and the finish is its end.
+  significant, they are paced as [Credits](/frames/credits/) states,
+  and the finish is its end.
 - **Only the server ends a scope.** The client has no frame that
-  closes, cancels, or abandons one. A scope is open from its request
-  until its finish.
+  closes or cancels one. A client that reads no more of the responses
+  abandons them with a [credit](/frames/credits/), and the server
+  still ends the scope with its finish. A scope is open from its
+  request until its finish.
 - **A finish with no response before it is meaningful.** It states
   that the request was received and could not be served. It is not an
   error frame, and no reason accompanies it at this layer.

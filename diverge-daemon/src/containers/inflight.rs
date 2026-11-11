@@ -2,6 +2,7 @@
 //! tools'.
 
 use std::sync::Arc;
+use std::time::Instant;
 
 use tokio::sync::watch;
 
@@ -44,6 +45,14 @@ impl Inflight {
         }
     }
 
+    /// One file use begins — a watch, a download, an upload, a
+    /// transfer on the container — counted in until the [`Use`] is
+    /// dropped, which first touches the run through `touched`, so that
+    /// its idle clock counts from the use's end.
+    pub fn enter_use(self: &Arc<Self>, touched: watch::Sender<Instant>) -> Use {
+        Use { touched, _guard: self.enter() }
+    }
+
     /// Whether anything is in flight now.
     pub fn is_busy(&self) -> bool {
         *self.count.borrow() > 0
@@ -59,6 +68,21 @@ impl Inflight {
 #[derive(Debug)]
 pub struct Guard {
     inflight: Arc<Inflight>,
+}
+
+/// One file use in progress. Dropping it touches the run, and only
+/// then counts the use out: the idle clock reads the touch when it
+/// sees the count change, so its countdown begins at the use's end.
+#[derive(Debug)]
+pub struct Use {
+    touched: watch::Sender<Instant>,
+    _guard: Guard,
+}
+
+impl Drop for Use {
+    fn drop(&mut self) {
+        self.touched.send_replace(Instant::now());
+    }
 }
 
 impl Drop for Guard {

@@ -3,7 +3,7 @@
 //! An agent container's program is an HTTP server on the container's
 //! loopback, at [`port()`](crate::container_proxy::inside::port), and the proxy beside it is
 //! its only caller. This module is that server's contract — the
-//! loop's three calls, their bodies, their answers — stated once,
+//! loop's two calls, their bodies, their answers — stated once,
 //! for the program that answers them and the proxy that makes them,
 //! beside the calls every container answers:
 //! [`register`](crate::container_proxy::inside::register) and the
@@ -18,8 +18,7 @@
 //! | `POST /secrets` | the [`secrets::feed::request::Request`](crate::container_proxy::inside::secrets::feed::request::Request) JSON | `2xx` once the values are held, its body unread; or a non-`2xx` |
 //! | `POST /secrets/collect` | the [`secrets::collect::request::Request`](crate::container_proxy::inside::secrets::collect::request::Request) JSON | `2xx` with the [`secrets::collect::response::Response`](crate::container_proxy::inside::secrets::collect::response::Response) JSON, every name asked for with its value; or a non-`2xx` |
 //! | `POST /run` | the [`run::request::Request`] JSON | `2xx` as `text/event-stream`, every `data:` one `AgenticLoopChunk` JSON — the messages' user parts first — the stream's end the loop ended; or a non-`2xx` |
-//! | `POST /enqueue` | the [`enqueue::request::Request`] JSON | `2xx` with one [`enqueue::Fate`], held until the fate is known; or a non-`2xx` |
-//! | `POST /dequeue` | the [`dequeue::request::Request`] JSON | `2xx` with one [`dequeue::Outcome`]; or a non-`2xx` |
+//! | `POST /enqueue` | the [`enqueue::request::Request`] JSON, the proxy's queue joined | `204` at once, the messages accepted; `409` `{"kind":"closed"}` once the loop's last look has closed the run; or another `4xx`, content the program will not take, checked before accepting |
 //!
 //! # Registration comes first, and once
 //!
@@ -49,22 +48,44 @@
 //! ends. So the first item decides: anything that fails before it is
 //! the status, anything after it is a chunk.
 //!
-//! # The queue is the proxy's, and the program's
+//! And the first item is the messages' user parts, said the moment
+//! the program has taken them — handed to the harness, the turn on
+//! its way — and never after the turn's work: `/run` answers once the
+//! messages are taken, because its `2xx` is what the proxy reports as
+//! their `delivered`. A turn one that fails after it — a model that
+//! will not answer, a script that raises — is a failure after the
+//! stream started, a fatal notification chunk like any later turn's.
 //!
-//! The proxy holds every message the provider enqueues and offers
-//! them to the program one at a time: `POST /enqueue` while a loop
-//! runs, held until the program says what became of it; `POST /run`
-//! when none does, with the waiting messages, each under its key, in
-//! enqueue order. The program's own queue is what a loop holds between seams,
-//! and a `POST /dequeue` names a key: every message under it and not
-//! yet taken is withdrawn, on the proxy's side and the program's, and
-//! every other left waiting. A `missed` from the program, a `5xx`, or no answer hands the
-//! message back to the proxy, which waits for the loop to end and
-//! starts the next on it — so no message the provider enqueued is
-//! lost to a loop ending. A `4xx` is the message refused: content
-//! the program will not take, and its fate is the error, in the
-//! program's words.
+//! # Delivered means handed to the program
+//!
+//! The proxy holds every message the provider enqueues until the
+//! program has it, and the program keeps a plain queue of what it
+//! accepted, which nothing withdraws: the rules, in order.
+//!
+//! 1. The proxy sends its whole queue at once, joined in order —
+//!    the batches as they reached it, each batch's messages as the
+//!    batch carried them: `POST /run` when no loop runs, `POST
+//!    /enqueue` while one does — one `/enqueue` at a time, so the
+//!    order holds.
+//!    Either way the messages are one user turn, each message's user
+//!    parts under its own key, so the log credits every sender.
+//! 2. `POST /enqueue` answers at once. `204` is the messages
+//!    accepted: on the program's queue, taken at its next seam, and
+//!    every one of them `delivered` on the provider's wire — as is a
+//!    `2xx` from the `/run` that carried them. Nothing waits for a
+//!    turn.
+//! 3. The program takes everything queued at each seam as ONE user
+//!    turn — however many `/enqueue`s brought it — each message's
+//!    user parts under its own key.
+//! 4. The loop's last look takes what is queued or, finding nothing,
+//!    closes the run in the same breath; an `/enqueue` after it is
+//!    `409` `{"kind":"closed"}`, the one `409` it answers, and the
+//!    batch goes back to the front of the proxy's queue to start the
+//!    next loop — so no message the provider enqueued is lost to a
+//!    loop ending. A `5xx` or no answer does the same.
+//! 5. Another `4xx` is the batch refused: content the program will
+//!    not take, checked before it accepts anything, and every
+//!    message's fate is the error, in the program's words.
 
-pub mod dequeue;
 pub mod enqueue;
 pub mod run;

@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::endpoints::daemons::DaemonId;
 use crate::daemon::key;
 use crate::shared::containers::request::Image;
 
@@ -12,9 +13,13 @@ use crate::shared::containers::request::Image;
 /// image the tool's container was made from and the template it was
 /// made from. A created tool and a connected tool are one shape told
 /// apart by the kind, the connected one naming the daemon it is on
-/// besides. A created tool this daemon ran, and its image and its
-/// template are the run request's. A connected tool another daemon
-/// runs, and its image and its template are what that daemon told in
+/// besides. A created tool this daemon ran — a
+/// [`standalone_tools`](crate::daemon::endpoints::standalone_tools)
+/// tool — and its image and its template are the run request's. A
+/// connected tool — a
+/// [`connected_standalone_tools`](crate::daemon::endpoints::connected_standalone_tools)
+/// tool — another daemon runs, and its image and its template are
+/// what that daemon told in
 /// the `Connected` answer that opened the connect, once, as the scope
 /// opened — this daemon's stamp, not that daemon's, which is
 /// replaced. A dependency tool this daemon ran from a template an
@@ -37,8 +42,8 @@ pub enum Tool {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         name: Option<String>,
     },
-    /// A tool on record, registered from another daemon's tool, which
-    /// runs it.
+    /// A connected tool on record, held from another daemon's
+    /// standalone tool, which runs it.
     Connected {
         /// The image it was made from, as the daemon that runs it told
         /// on the connect.
@@ -46,18 +51,17 @@ pub enum Tool {
         /// The template it was made from, by id, as the daemon that
         /// runs it told on the connect.
         template: String,
-        /// Its number among all tools of the caller's ever registered
-        /// from that daemon's tool, as its list item carries it.
+        /// Its number among all connected tools of the caller's ever
+        /// held from that daemon's tool, as its
+        /// [`connected_standalone_tools`](crate::daemon::endpoints::connected_standalone_tools)
+        /// list item carries it.
         index: u64,
-        /// Its name, as its register gave it, if it gave one.
+        /// Its name, as its create gave it, if it gave one.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         name: Option<String>,
-        /// The daemon that runs it, by the name of its record, as the
-        /// register named it.
-        daemon: String,
-        /// The account on that daemon it is reached as, as the register
-        /// named it.
-        account: String,
+        /// The daemon that runs it, by the ID of this daemon's record
+        /// of it, as the create named it.
+        daemon: DaemonId,
     },
     /// A dependency tool, run by this daemon from a template an
     /// agent's program declared.

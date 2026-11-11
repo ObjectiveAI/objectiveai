@@ -1,0 +1,14 @@
+---
+title: 'Stdin'
+summary: 'Tag 0: the client writes bytes to the terminal; the server writes them whole and answers with the channel response finish.'
+order: 0
+draft: false
+---
+
+The client writes to the terminal's input by opening this channel.
+The server writes the bytes to the terminal whole, in the order the
+channel requests arrived, and answers with the channel response finish
+once they are written.
+
+- **The request.** [Request](/container-proxy-endpoints/terminal/client/stdin/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/terminal/client/stdin/response/) states the sequence.

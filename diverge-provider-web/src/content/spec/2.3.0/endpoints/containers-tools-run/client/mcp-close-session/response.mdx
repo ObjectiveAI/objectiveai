@@ -1,0 +1,25 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0]                   closed
+[1][error JSON …]     the MCP error
+```
+
+- **Closed.** The payload is exactly the byte `0`, and nothing follows
+  it.
+- **The error.** The payload is the byte `1`, followed by the error as
+  JSON.
+- **The sequence.** Exactly one channel response, relayed as the
+  proxy sent it, followed by the channel response finish. A channel
+  response finish that no channel response precedes states that the
+  proxy did not carry the close.
+
+The channel response is defined by `diverge-sdk-rs/src/shared/mcp/close_session/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/mcp/close_session/response/frame.rs
+```

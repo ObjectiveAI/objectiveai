@@ -5,11 +5,12 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::ExecuteHandle as ConnectHandle;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::endpoints::standalone_tools::connect::client::execute::{End as ConnectEnd, ExecuteHandle as ConnectHandle};
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
+use diverge_sdk::provider::endpoints::containers::client::{UnaryError, WaitError};
 use diverge_sdk::shared::containers::fuse::Kind;
 use diverge_sdk::shared::containers::fuse_mount;
 use diverge_sdk::shared::mcp::attest;
@@ -20,16 +21,18 @@ use rmcp::model::{
     CallToolRequestParams, CallToolResult, ListResourcesResult, ListToolsResult, MetaObject, PaginatedRequestParams,
     ReadResourceRequestParams, ReadResourceResult,
 };
-use tokio::sync::{Mutex, watch};
+use tokio::sync::{Mutex, Notify, watch};
 use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
-use super::mcp::Served;
+use super::lifecycle::{End, RunLog};
+use super::mcp::{Context, Served};
 use super::secrets::Secrets;
-use super::{ConnectionId, Frames, Inflight, ToolKey};
+use super::{ConnectionId, Frames, Inflight, Key, ToolKey, Use};
 use crate::content::Pieces;
+use crate::daemon::Daemon;
 use crate::store::dependency_tools::DependencyTool;
-use crate::store::{AccountId, AgentId};
+use crate::store::AgentId;
 
 /// A running agent: the scope held on its provider, whether a loop
 /// runs in it, what is in flight for it, when it was last used, what
@@ -55,6 +58,11 @@ pub struct AgentRun {
     /// The MCP exchanges in flight for it: its own, and its
     /// dependencies'. The other thing that makes it active.
     pub inflight: Arc<Inflight>,
+    /// The file uses in progress on it — a filetree watch, a download,
+    /// an upload, a transfer — each holding the run up for its length,
+    /// as `inflight` does, but no work: they make it neither active nor
+    /// busy. What the idle clock waits on, beside `inflight`.
+    pub files: Arc<Inflight>,
     /// When it was last used; what the idle clock runs from.
     pub touched: watch::Sender<Instant>,
     /// What it mounts, served by the daemon.
@@ -64,29 +72,145 @@ pub struct AgentRun {
     pub volumes: Vec<reference::Volume>,
     /// The tools it is served: attached ones and its dependencies.
     pub served: Arc<Mutex<Served>>,
-    /// The messages enqueued and not yet landed, by key, with who
-    /// sent each.
-    pub messages: Mutex<HashMap<String, Creator>>,
-    /// The messages enqueued and not yet fated: entered before the run
-    /// is activated for each, left at its fate. What an inactive asks
-    /// before it activates the run again.
+    /// The messages enqueued and not yet swept, by key, with who sent
+    /// each: what a user part is logged as. See [`Message`] for when
+    /// one leaves.
+    pub messages: Arc<Mutex<HashMap<String, Message>>>,
+    /// The batch of messages on its way to the run: entered by the
+    /// agent's outbox pump once it has the run, before it activates
+    /// it, and left when the batch is answered — see
+    /// [`message`](super::message). What the idle clock waits on, and
+    /// what an inactive asks before it activates the run again.
     pub pending: Arc<Inflight>,
-    /// Its secrets, as its registration took them: the names its
-    /// program takes, the keys they are bound to, and the slots held
-    /// while it is active; `None` for a program that registered
-    /// nothing. Under its lock for every activation and inactive.
-    pub secrets: Mutex<Option<Secrets>>,
+    /// Its secrets and its proxy's gate, under one lock for every
+    /// activation and inactive: see [`Gate`].
+    pub gate: Mutex<Gate>,
+    /// Told each time an inactive failed, and so left the gate shut:
+    /// what the agent's outbox pump, waiting on a batch's answer,
+    /// activates the run again on — see [`message`](super::message).
+    pub unfed: Notify,
     /// The tasks that are the run's: the pump and the idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
     /// Taken for the length of one edit of the record while it runs:
     /// two editors adding mounts are served one after the other.
     pub edits: Mutex<()>,
+    /// The run's number, fresh from the daemon: what its log's
+    /// lifecycle is kept under — see [`lifecycle`](super::lifecycle).
+    pub epoch: u64,
+    /// Its log, live, taken when it started: every lifecycle item of
+    /// the run is kept through this one.
+    pub log: Arc<RunLog>,
+    /// How the run is ending, once whoever ends it first has said: what
+    /// its `undeployed` carries. See [`End`].
+    pub ending: Mutex<Option<End>>,
+    /// Whether the run is gone: `true` once, when it has been taken
+    /// down whole — forgotten as live, and everything
+    /// [`ended_agent`](super::ended_agent) does after done. What the
+    /// agent's outbox pump waits for before it starts the next run:
+    /// see [`gone`](Self::gone).
+    pub ended: watch::Sender<bool>,
+}
+
+/// An agent's secrets, and whether its proxy's gate is open: the
+/// proxy launches the loop on the first batch behind an open gate, so
+/// the daemon feeds before the batch it sends, and again only after
+/// the gate shuts.
+#[derive(Debug)]
+pub struct Gate {
+    /// Its secrets, as its registration took them: the names its
+    /// program takes, the keys they are bound to, and the slots held
+    /// while it is active; `None` for a program that registered
+    /// nothing, which is fed nothing but the go.
+    pub secrets: Option<Secrets>,
+    /// Whether the gate is open: shut at the start, opened by a feed,
+    /// shut again at every inactive.
+    pub open: bool,
+    /// Whether the daemon is ending the run with messages to keep
+    /// from it: set once, under the gate's lock, and never unset — by
+    /// the idle clock in its last look ([`idle`](super::idle)), and by
+    /// the outbox pump for a run it could not feed again
+    /// ([`fail_agent`](super::fail_agent)). A run so marked is
+    /// activated no more and sent nothing: its messages wait for the
+    /// next run.
+    pub ending: bool,
+}
+
+/// One message enqueued on an agent's run, as its `messages` keep it.
+/// The rules, so the map holds only what can still be named:
+///
+/// 1. **Kept from the enqueue.** An entry is made when the message is
+///    taken into a batch, before the batch goes out.
+/// 2. **An undelivered one leaves at its fate.** A fate other than
+///    delivered — an error — removes the entry, as its batch is
+///    answered.
+/// 3. **A delivered one leaves two inactives on.** A delivered entry is
+///    marked so; every user part of a message arrives inside the loop
+///    that took it, before that loop's `inactive`, but the pump may
+///    still be reading the loop before when the mark lands. So the
+///    pump, at every `inactive`, removes each delivered entry it marked
+///    at an earlier one, and marks the delivered rest: an entry leaves
+///    at the latest one loop after the loop that took it.
+#[derive(Debug, Clone)]
+pub struct Message {
+    /// Who sent it.
+    pub sender: Creator,
+    /// Whether it was delivered — the agent's program has it: rule 3.
+    pub delivered: bool,
+    /// Whether an `inactive` has passed since it was delivered: rule 3.
+    pub swept: bool,
+}
+
+impl Message {
+    /// A message just enqueued: rule 1.
+    pub fn new(sender: Creator) -> Self {
+        Message { sender, delivered: false, swept: false }
+    }
 }
 
 impl AgentRun {
+    /// Rule 3 of [`Message`], at an `inactive`: every delivered entry
+    /// marked at an earlier one removed, and the delivered rest marked.
+    pub async fn sweep_messages(&self) {
+        let mut messages = self.messages.lock().await;
+        messages.retain(|_, message| !(message.delivered && message.swept));
+        for message in messages.values_mut() {
+            if message.delivered {
+                message.swept = true;
+            }
+        }
+    }
+
     /// The container was used: the idle clock starts over.
     pub fn touch(&self) {
         self.touched.send_replace(Instant::now());
+    }
+
+    /// Say how the run is ending, unless someone has already: the first
+    /// word stands.
+    pub async fn end_as(&self, end: End) {
+        let mut ending = self.ending.lock().await;
+        if ending.is_none() {
+            *ending = Some(end);
+        }
+    }
+
+    /// How the run is ending, as said; an end nobody told is expected.
+    pub async fn end(&self) -> End {
+        self.ending.lock().await.unwrap_or(End::Expected)
+    }
+
+    /// Wait until the run is gone (see `ended`): at once for one that
+    /// is. The sender is the run's own, so the wait ends only on the
+    /// word.
+    pub async fn gone(&self) {
+        let mut ended = self.ended.subscribe();
+        let _ = ended.wait_for(|ended| *ended).await;
+    }
+
+    /// One file use begins on the run (see `files`): it holds the run
+    /// up until the last clone is dropped, which touches it.
+    pub fn file_use(&self) -> Arc<Use> {
+        Arc::new(self.files.enter_use(self.touched.clone()))
     }
 
     /// Whether the agent is active now: a loop runs in it, or an MCP
@@ -94,6 +218,19 @@ impl AgentRun {
     /// Exactly those two, and nothing else.
     pub fn is_active(&self) -> bool {
         *self.loop_active.borrow() || self.inflight.is_busy()
+    }
+
+    /// The merge's context for the agent: its tools, its caller and
+    /// its sender — what its own container's exchanges are answered
+    /// with, and what an exchange run as the agent is answered with.
+    pub fn context(&self, daemon: &Arc<Daemon>) -> Context {
+        Context {
+            daemon: Arc::clone(daemon),
+            user: Key::Agent(self.id),
+            caller: Some(self.attestation.clone()),
+            sender: self.sender.clone(),
+            served: Arc::clone(&self.served),
+        }
     }
 }
 
@@ -113,43 +250,65 @@ pub enum ToolHandle {
 pub const CONNECTED_FILES: &str = "a connected tool is another daemon's: its files are there";
 
 impl ToolHandle {
-    /// The tool's MCP tools.
-    pub async fn list_tools(&self, params: Option<PaginatedRequestParams>) -> Result<ListToolsResult, String> {
+    /// The tool's MCP tools, on `session`'s MCP session. A connected
+    /// tool's session is the far daemon's to name, by this daemon's
+    /// identity: see [`session`](diverge_sdk::shared::mcp::session).
+    pub async fn list_tools(&self, session: &attestation::Caller, params: Option<PaginatedRequestParams>) -> Result<ListToolsResult, AskError> {
         match self {
-            ToolHandle::Run(handle) => handle.list_tools(params).await.map_err(|error| error.to_string()),
-            ToolHandle::Connected(handle) => handle.list_tools(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.list_tools(session, params).await.map_err(AskError::of),
+            ToolHandle::Connected(handle) => handle.list_tools(params).await.map_err(AskError::of),
         }
     }
 
-    /// The tool's MCP resources.
-    pub async fn list_resources(&self, params: Option<PaginatedRequestParams>) -> Result<ListResourcesResult, String> {
+    /// The tool's MCP resources, on `session`'s MCP session.
+    pub async fn list_resources(&self, session: &attestation::Caller, params: Option<PaginatedRequestParams>) -> Result<ListResourcesResult, AskError> {
         match self {
-            ToolHandle::Run(handle) => handle.list_resources(params).await.map_err(|error| error.to_string()),
-            ToolHandle::Connected(handle) => handle.list_resources(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.list_resources(session, params).await.map_err(AskError::of),
+            ToolHandle::Connected(handle) => handle.list_resources(params).await.map_err(AskError::of),
         }
     }
 
-    /// One call, by the name the tool itself knows.
-    pub async fn call_tool(&self, params: CallToolRequestParams) -> Result<CallToolResult, String> {
+    /// One call, by the name the tool itself knows, on `session`'s
+    /// MCP session.
+    pub async fn call_tool(&self, session: &attestation::Caller, params: CallToolRequestParams) -> Result<CallToolResult, AskError> {
         match self {
-            ToolHandle::Run(handle) => handle.call_tool(params).await.map_err(|error| error.to_string()),
-            ToolHandle::Connected(handle) => handle.call_tool(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.call_tool(session, params).await.map_err(AskError::of),
+            ToolHandle::Connected(handle) => handle.call_tool(params).await.map_err(AskError::of),
         }
     }
 
-    /// One resource read.
-    pub async fn read_resource(&self, params: ReadResourceRequestParams) -> Result<ReadResourceResult, String> {
+    /// One resource read, on `session`'s MCP session.
+    pub async fn read_resource(&self, session: &attestation::Caller, params: ReadResourceRequestParams) -> Result<ReadResourceResult, AskError> {
         match self {
-            ToolHandle::Run(handle) => handle.read_resource(params).await.map_err(|error| error.to_string()),
-            ToolHandle::Connected(handle) => handle.read_resource(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.read_resource(session, params).await.map_err(AskError::of),
+            ToolHandle::Connected(handle) => handle.read_resource(params).await.map_err(AskError::of),
         }
     }
 
-    /// The tool's notifications, for as long as the scope lives.
-    pub async fn notifications(&self) -> Result<McpNotificationsStream, String> {
+    /// What the tool sends on `session`'s MCP session, for as long as
+    /// the scope lives.
+    pub async fn notifications(&self, session: &attestation::Caller) -> Result<McpNotificationsStream, String> {
         match self {
-            ToolHandle::Run(handle) => handle.notifications().await.map_err(|error| error.to_string()),
+            ToolHandle::Run(handle) => handle.notifications(session).await.map_err(|error| error.to_string()),
             ToolHandle::Connected(handle) => handle.notifications().await.map_err(|error| error.to_string()),
+        }
+    }
+
+    /// `session`'s MCP session, closed in the tool: the provider's
+    /// relay of the proxy's `Closed`, waited for. The rules:
+    ///
+    /// 1. A created tool's session is closed in its container's proxy,
+    ///    which answers `Closed` for a session not open as well.
+    /// 2. A connected tool's session is the far daemon's, which closes
+    ///    it when this daemon's connect scope ends: nothing is sent,
+    ///    and the answer is `Ok`.
+    /// 3. The run's scope ending before the answer is
+    ///    [`Interrupted`](AskError::Interrupted): the session ended
+    ///    with the container.
+    pub async fn close_session(&self, session: &attestation::Caller) -> Result<(), AskError> {
+        match self {
+            ToolHandle::Run(handle) => handle.close_session(session).await.map_err(AskError::of),
+            ToolHandle::Connected(_) => Ok(()),
         }
     }
 
@@ -170,9 +329,98 @@ impl ToolHandle {
         match self {
             ToolHandle::Run(handle) => {
                 let stream = handle.filetree().await.map_err(|error| error.to_string())?;
+                // The channel closing with no finish is the run's scope
+                // ending — the container stopped — which ends a watch
+                // as the run over, not as a failure.
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
                 Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
             }
             ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// One command run in the container, its stream; as
+    /// [`Opened::exec`](super::Opened::exec). A connected tool's runs on
+    /// the other daemon: [`CONNECTED_FILES`].
+    pub async fn exec(&self, command: diverge_sdk::shared::containers::exec::request::Request) -> Result<super::ExecFrames, String> {
+        match self {
+            ToolHandle::Run(handle) => {
+                let stream = handle.exec(command).await.map_err(|error| error.to_string())?;
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
+                Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
+            }
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// A terminal started in the container; as
+    /// [`Opened::terminal_open`](super::Opened::terminal_open). A
+    /// connected tool's is on the other daemon: [`CONNECTED_FILES`].
+    pub async fn terminal_open(&self, size: diverge_sdk::shared::containers::terminal::open::Open) -> Result<u32, String> {
+        match self {
+            ToolHandle::Run(handle) => handle.terminal_open(size).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// A held terminal's output; as
+    /// [`Opened::terminal_attach`](super::Opened::terminal_attach).
+    pub async fn terminal_attach(&self, id: u32) -> Result<super::TerminalFrames, String> {
+        match self {
+            ToolHandle::Run(handle) => {
+                let stream = handle.terminal_attach(id).await.map_err(|error| error.to_string())?;
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
+                Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
+            }
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// Bytes written to a held terminal's stdin.
+    pub async fn terminal_stdin(&self, id: u32, bytes: Vec<u8>) -> Result<(), String> {
+        match self {
+            ToolHandle::Run(handle) => handle.terminal_stdin(id, bytes).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// A held terminal's size set.
+    pub async fn terminal_resize(&self, id: u32, size: diverge_sdk::shared::containers::terminal::open::Open) -> Result<(), String> {
+        match self {
+            ToolHandle::Run(handle) => handle.terminal_resize(id, size.cols, size.rows).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// A held terminal's shell killed, and the terminal forgotten.
+    pub async fn terminal_close(&self, id: u32) -> Result<(), String> {
+        match self {
+            ToolHandle::Run(handle) => handle.terminal_close(id).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// One HTTP request to the program's frontend; as
+    /// [`Opened::frontend`](super::Opened::frontend). A connected tool's
+    /// is on the other daemon: [`CONNECTED_FILES`].
+    pub async fn frontend<S>(&self, head: diverge_sdk::shared::containers::frontend::request::Head, body: S) -> Result<(super::FrontendFrames, u32), String>
+    where
+        S: Stream<Item = Result<Bytes, std::convert::Infallible>> + Send + 'static,
+    {
+        match self {
+            ToolHandle::Run(handle) => {
+                let (stream, write_id) = handle.frontend(head, body).await.map_err(|error| error.to_string())?;
+                let stream = stream.take_while(|frame| std::future::ready(!matches!(frame, Err(diverge_sdk::provider::endpoints::containers::client::ChannelStreamError::Closed))));
+                Ok((Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))), write_id))
+            }
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
+    }
+
+    /// Take back a frontend request's body, asked for or not.
+    pub async fn forget(&self, write_id: u32) {
+        if let ToolHandle::Run(handle) = self {
+            handle.forget(write_id).await;
         }
     }
 
@@ -215,20 +463,100 @@ impl ToolHandle {
     /// daemon's tool let go.
     pub async fn stop(&self) {
         let _ = match self {
-            ToolHandle::Run(handle) => handle.stop().await,
+            ToolHandle::Run(handle) => handle.cancel().await,
             ToolHandle::Connected(handle) => handle.disconnect().await,
         };
     }
 
-    /// Wait for its end, however it comes.
-    pub async fn wait(&self) {
+    /// Wait for its end, however it comes: how it ended, as an
+    /// unexpected end would be told — the provider finishing it, the
+    /// connection going, or its stream failing, and why.
+    pub async fn wait(&self) -> Ended {
         match self {
-            ToolHandle::Run(handle) => {
-                let _ = handle.ended().await;
+            ToolHandle::Run(handle) => match handle.ended().await {
+                Ok(()) => Ended::Finished,
+                Err(WaitError::Closed) => Ended::Closed,
+                Err(error) => Ended::Failed(error.to_string()),
+            },
+            ToolHandle::Connected(handle) => match handle.wait().await {
+                ConnectEnd::Finished => Ended::Finished,
+                ConnectEnd::Closed => Ended::Closed,
+            },
+        }
+    }
+}
+
+/// How a run's scope ended, as the daemon heard it: what an end nobody
+/// asked for is told as — see [`Ended::reason`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ended {
+    /// The scope finished: the provider, or the far daemon, ended it.
+    Finished,
+    /// The connection the scope rode ended first.
+    Closed,
+    /// The scope's stream failed, in these words.
+    Failed(String),
+}
+
+impl Ended {
+    /// The reason an end nobody asked for carries: the connection
+    /// gone is the provider lost, a finish the run exited, a failure
+    /// failed.
+    pub fn reason(&self) -> diverge_sdk::daemon::lifecycle::Reason {
+        use diverge_sdk::daemon::lifecycle::Reason;
+        match self {
+            Ended::Finished => Reason::Exited,
+            Ended::Closed => Reason::ProviderLost,
+            Ended::Failed(_) => Reason::Failed,
+        }
+    }
+}
+
+/// Why an ask into a tool got no answer of the tool's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AskError {
+    /// The run's scope, or the connection under it, ended before the
+    /// tool answered: the ask was interrupted, and the run's
+    /// `undeployed` says why.
+    Interrupted,
+    /// Anything else, in the daemon's words.
+    Other(String),
+}
+
+impl AskError {
+    /// A unary exchange's failure, told apart: the channel closing or
+    /// finishing with no answer is the run going down under it.
+    fn of<A: diverge_sdk::provider::endpoints::containers::client::Answered>(error: UnaryError<A>) -> AskError
+    where
+        UnaryError<A>: std::fmt::Display,
+    {
+        match error {
+            UnaryError::Closed | UnaryError::Unanswered => AskError::Interrupted,
+            error => AskError::Other(error.to_string()),
+        }
+    }
+
+    /// The MCP error a caller is answered with: an interrupted ask
+    /// says so under `data`, with the run's reason when it is known.
+    pub fn to_error_data(&self, reason: Option<diverge_sdk::daemon::lifecycle::Reason>) -> rmcp::model::ErrorData {
+        match self {
+            AskError::Interrupted => {
+                let mut data = serde_json::json!({ "interrupted": true });
+                if let Some(reason) = reason {
+                    data["reason"] = serde_json::to_value(reason).unwrap_or(serde_json::Value::Null);
+                }
+                rmcp::model::ErrorData::internal_error("the tool's run ended before it answered", Some(data))
             }
-            ToolHandle::Connected(handle) => {
-                handle.wait().await;
-            }
+            AskError::Other(error) => rmcp::model::ErrorData::internal_error(error.clone(), None),
+        }
+    }
+}
+
+impl std::fmt::Display for AskError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AskError::Interrupted => f.write_str("the tool's run ended before it answered"),
+            AskError::Other(error) => f.write_str(error),
         }
     }
 }
@@ -248,8 +576,6 @@ pub struct ToolRun {
     pub attestation: attestation::Tool,
     /// The tool as a sender and a maker.
     pub sender: Creator,
-    /// The account it runs under, if any.
-    pub account: Option<AccountId>,
     /// The provider it runs on, or the daemon connection to its daemon
     /// goes through.
     pub provider: Identity,
@@ -274,6 +600,11 @@ pub struct ToolRun {
     /// until it is answered, however it ends. What a detach mid-call
     /// leaves standing: the call is answered still.
     pub inflight: Arc<Inflight>,
+    /// The file uses in progress on it — a filetree watch, a download,
+    /// an upload, a transfer — each holding the run up for its length,
+    /// as `inflight` does, but no work: they make it neither active nor
+    /// busy. What the idle clock waits on, beside `inflight`.
+    pub files: Arc<Inflight>,
     /// When it was last used.
     pub touched: watch::Sender<Instant>,
     /// What it mounts, served by the daemon.
@@ -293,15 +624,51 @@ pub struct ToolRun {
     /// What it is as a dependency tool, when it is one: the row, as
     /// it was when this run started.
     pub dependency: Option<DependencyTool>,
+    /// The callers' MCP sessions the tool has been asked on, by
+    /// [`key`](diverge_sdk::shared::mcp::session::key), each with the
+    /// reader that keeps its notifications on the tool's log from its
+    /// first use, as [`tool_log::session`](crate::containers::tool_log::session)
+    /// states; a session leaves with its connect scope, its agent, or
+    /// the run.
+    pub sessions: Mutex<HashMap<String, AbortHandle>>,
     /// Its secrets, as for an agent's run; a connected tool's `None`,
     /// since the daemon that runs it feeds its container.
     pub secrets: Mutex<Option<Secrets>>,
+    /// The run's number, fresh from the daemon: what its log's
+    /// lifecycle is kept under — see [`lifecycle`](super::lifecycle).
+    pub epoch: u64,
+    /// Its log, live, taken when it started: every lifecycle item of
+    /// the run is kept through this one.
+    pub log: Arc<RunLog>,
+    /// How the run is ending, once whoever ends it first has said: what
+    /// its `undeployed` carries. See [`End`].
+    pub ending: Mutex<Option<End>>,
 }
 
 impl ToolRun {
     /// The container was used.
     pub fn touch(&self) {
         self.touched.send_replace(Instant::now());
+    }
+
+    /// Say how the run is ending, unless someone has already: the first
+    /// word stands.
+    pub async fn end_as(&self, end: End) {
+        let mut ending = self.ending.lock().await;
+        if ending.is_none() {
+            *ending = Some(end);
+        }
+    }
+
+    /// How the run is ending, as said; an end nobody told is expected.
+    pub async fn end(&self) -> End {
+        self.ending.lock().await.unwrap_or(End::Expected)
+    }
+
+    /// One file use begins on the run (see `files`): it holds the run
+    /// up until the last clone is dropped, which touches it.
+    pub fn file_use(&self) -> Arc<Use> {
+        Arc::new(self.files.enter_use(self.touched.clone()))
     }
 
     /// Whether anything holds the run up: a connect scope another

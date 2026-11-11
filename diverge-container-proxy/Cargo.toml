@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
 description = "The proxy inside a Diverge container — one WebSocket to the provider's server, every scope of the container proxy protocol answered, the program's own surfaces on the loopback"
 license = "MIT"
-repository = "https://github.com/ObjectiveAI/objectiveai"
+repository = "https://github.com/divergenetwork/Diverge"
 homepage = "https://diverge.network"
 publish = false
 
@@ -51,7 +51,7 @@ eventsource-stream = "0.2.3"
 # driver turns on; `io-util` reads and writes the driver's socket;
 # `time` paces an accept loop that keeps failing; `fs` opens and
 # reads the files the server asks for.
-tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "macros", "net", "process", "rt-multi-thread", "sync", "time"] }
 # The FUSE mounts: files and directories the caller serves live,
 # mounted by the proxy itself. Pure Rust — `fuser` talks to /dev/fuse
 # and mounts through the syscall as the namespace's root. `libc` for

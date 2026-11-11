@@ -28,6 +28,8 @@ pub async fn held(daemon: &Daemon, key: ToolKey) {
             Ok(mut conn) => dependency_tools::attachments::attached(&mut conn, id).await.map(|agents| !agents.is_empty()),
             Err(error) => Err(error),
         },
+        // A connected tool is never a service, and has no state.
+        ToolKey::Connected(_) => return,
     };
     // A store that cannot be read says nothing: the hold is left as it
     // was, rather than a service retired for want of an answer.

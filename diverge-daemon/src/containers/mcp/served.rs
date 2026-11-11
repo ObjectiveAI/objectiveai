@@ -3,25 +3,33 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use rmcp::model::ServerNotification;
-use tokio::sync::{broadcast, watch};
+use tokio::sync::watch;
 
 use super::Registry;
 use crate::containers::{ToolKey, ToolRun};
 use crate::store::DependencyToolId;
+use crate::store::connected_standalone_tools::ConnectedTool;
 use crate::store::tools::Tool;
 
-/// One served tool: an attached record, whose run — up or not, and a
-/// new one after every end — is the live set's to find; a transient
-/// dependency tool, which runs for as long as it is served; or a
-/// service, by its row, whose run is the live set's likewise.
+/// One served tool: an attached record, standalone or connected, whose
+/// run — up or not, and a new one after every end — is the live set's
+/// to find; a transient dependency tool, which runs for as long as it
+/// is served; or a service, by its row, whose run is the live set's
+/// likewise.
 pub enum Entry {
-    /// A tool the agent has, directly or through its template: its
-    /// record. Its run is looked up at every use and started at the
-    /// first that finds none.
+    /// A standalone tool the agent has, directly or through its
+    /// template: its record. Its run is looked up at every use and
+    /// started at the first that finds none.
     Attached {
         /// The record.
         tool: Tool,
+    },
+    /// A connected tool the agent has, directly or through its
+    /// template: its record. Its connect is looked up at every use and
+    /// opened at the first that finds none.
+    Connected {
+        /// The record.
+        tool: ConnectedTool,
     },
     /// A transient dependency tool deployed for the agent: running for
     /// the agent's run.
@@ -36,14 +44,17 @@ pub enum Entry {
     },
 }
 
-/// The tools one run is served, each under its prefix, the word to
-/// the program when the set changes, and the word to the daemon's own
-/// relay of the tools' notifications whenever the set or a served
-/// tool's run changed.
+/// The tools one run is served, each under its prefix, the revision
+/// every listener announces the merged lists by when the set changes,
+/// and the word to the daemon's own relay of the tools' notifications
+/// whenever the set or a served tool's run changed.
 pub struct Served {
     registry: Registry<ToolKey>,
     entries: HashMap<ToolKey, Entry>,
-    changes: broadcast::Sender<ServerNotification>,
+    /// Bumped at every change of the set: what every notification
+    /// stream announces both merged lists by. A watch, so no listener can
+    /// fall behind it, and any number of changes is one wake.
+    revision: watch::Sender<u64>,
     /// Bumped at every change of the set and every start of a served
     /// tool's run: what the notifications relay keeps in step with.
     generation: watch::Sender<u64>,
@@ -61,7 +72,7 @@ impl Served {
         Served {
             registry: Registry::new(),
             entries: HashMap::new(),
-            changes: broadcast::channel(64).0,
+            revision: watch::channel(0).0,
             generation: watch::channel(0).0,
         }
     }
@@ -73,6 +84,17 @@ impl Served {
         let key = ToolKey::Record(tool.id);
         let prefix = self.registry.assign(key, serve_name);
         self.entries.entry(key).or_insert(Entry::Attached { tool });
+        self.changed();
+        prefix
+    }
+
+    /// Serve the attached connected tool under `serve_name`, idle; the
+    /// prefix it gets, kept until it leaves. One served already keeps
+    /// its prefix and its entry.
+    pub fn insert_connected(&mut self, tool: ConnectedTool, serve_name: &str) -> String {
+        let key = ToolKey::Connected(tool.id);
+        let prefix = self.registry.assign(key, serve_name);
+        self.entries.entry(key).or_insert(Entry::Connected { tool });
         self.changed();
         prefix
     }
@@ -119,6 +141,16 @@ impl Served {
         entry
     }
 
+    /// The transient dependency tool's run `run` leaves, when it is
+    /// the one served under its key: a late end of an older run never
+    /// takes out the newer one served in its place. Whether it left.
+    pub fn remove_transient(&mut self, run: &Arc<ToolRun>) -> bool {
+        match self.entries.get(&run.id) {
+            Some(Entry::Transient(served)) if Arc::ptr_eq(served, run) => self.remove(run.id).is_some(),
+            _ => false,
+        }
+    }
+
     /// The entry for the tool, if served.
     pub fn entry(&self, key: ToolKey) -> Option<&Entry> {
         self.entries.get(&key)
@@ -136,7 +168,7 @@ impl Served {
             .values()
             .filter_map(|entry| match entry {
                 Entry::Transient(run) => Some(Arc::clone(run)),
-                Entry::Attached { .. } | Entry::Service { .. } => None,
+                Entry::Attached { .. } | Entry::Connected { .. } | Entry::Service { .. } => None,
             })
             .collect()
     }
@@ -147,7 +179,7 @@ impl Served {
             .values()
             .filter_map(|entry| match entry {
                 Entry::Service { id, .. } => Some(*id),
-                Entry::Attached { .. } | Entry::Transient(_) => None,
+                Entry::Attached { .. } | Entry::Connected { .. } | Entry::Transient(_) => None,
             })
             .collect()
     }
@@ -162,9 +194,10 @@ impl Served {
         self.registry.owner(prefix).copied()
     }
 
-    /// Where the program hears that the set changed.
-    pub fn subscribe(&self) -> broadcast::Receiver<ServerNotification> {
-        self.changes.subscribe()
+    /// Every change of the set from now on: what a notification stream
+    /// announces both merged lists by.
+    pub fn revision(&self) -> watch::Receiver<u64> {
+        self.revision.subscribe()
     }
 
     /// Every change of the set, and every start of a served tool's
@@ -174,10 +207,11 @@ impl Served {
         self.generation.subscribe()
     }
 
-    /// The set changed: tell every listener, the program and the
-    /// relay.
+    /// The set changed: the revision bumps, and every listener announces
+    /// that the merged tool list and resource list changed; the relay is
+    /// told too.
     fn changed(&self) {
-        let _ = self.changes.send(ServerNotification::ToolListChangedNotification(Default::default()));
+        self.revision.send_modify(|revision| *revision = revision.wrapping_add(1));
         self.bump();
     }
 

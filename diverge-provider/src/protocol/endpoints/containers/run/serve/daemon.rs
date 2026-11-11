@@ -17,7 +17,9 @@ use super::super::run::Run;
 /// What comes back on it is every client frame the program sent, in
 /// order, each relayed onto the caller's channel as it arrives; the
 /// proxy's finish is the program's socket ended, and this finishes the
-/// caller's channel in turn.
+/// caller's channel in turn. A caller that reads no more of its
+/// channel ends the relay as well: the proxy's half is dropped, which
+/// tells the proxy it is abandoned, and the channel is finished.
 ///
 /// # An id nobody announced is answered, not held
 ///
@@ -30,7 +32,14 @@ pub(crate) async fn daemon(run: Arc<Run>, channel: u32, caller_id: u32) {
     if let Some(proxy_id) = run.daemons.take(caller_id).await
         && let Some(Ok(mut program)) = run.begin.daemon(proxy_id).await
     {
-        while let Some(Ok(frame)) = program.next().await {
+        loop {
+            let frame = tokio::select! {
+                frame = program.next() => frame,
+                () = run.scope.answer_gone(channel) => break,
+            };
+            let Some(Ok(frame)) = frame else {
+                break;
+            };
             let Some(payload) = encoded(&frame.as_frame()) else {
                 break;
             };

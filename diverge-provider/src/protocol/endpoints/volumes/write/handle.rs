@@ -1,5 +1,8 @@
 //! Answering a write, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
+use std::sync::Arc;
+
 use futures_util::StreamExt as _;
 
 use diverge_sdk::provider::endpoints::volumes::write::server::channel_request;
@@ -10,6 +13,7 @@ use diverge_sdk::provider::endpoints::volumes::write::client::{channel_response,
 use diverge_sdk::provider::endpoints::volumes::{names, refusal};
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
 use crate::protocol::hold::Held;
+use crate::protocol::release::Release;
 use diverge_sdk::wire::server::answers::Answers;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::protocol::volume::Volume as _;
@@ -62,7 +66,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     capabilities: &Capabilities,
 ) where
@@ -95,7 +99,7 @@ pub async fn handle<M>(
 async fn write<M>(
     scope: &ScopeHandle,
     manager: &M,
-    client_identity: &str,
+    client_identity: &Identity,
     request: &request::Frame,
 ) -> Result<(), response::Frame>
 where
@@ -120,6 +124,15 @@ where
             Held::Locked => response::Frame::Held,
         });
     }
+    // Unlocked below whatever the write answered, and at the drop for
+    // a write that panics or is cancelled first.
+    let volume = Arc::new(volume);
+    let unlock = Release::new({
+        let volume = Arc::clone(&volume);
+        async move {
+            volume.unlock().await;
+        }
+    });
     let mut ask = Vec::new();
     channel_request::Frame
         .encode(&mut Writer::new(&mut ask))
@@ -133,6 +146,6 @@ where
         Err(_) => Err(refusal::unfinished()),
     });
     let written = volume.write(&request.path, content).await;
-    volume.unlock().await;
+    unlock.now().await;
     written.map_err(|error| response::Frame::Error(error.into()))
 }

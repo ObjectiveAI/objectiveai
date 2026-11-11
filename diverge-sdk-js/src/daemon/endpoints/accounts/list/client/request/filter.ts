@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { Creator } from "../../../../../creator/creator.js";
+import { Identity } from "../../../../../../shared/identity.js";
 
 /**
  * The filter over accounts: every member optional, and every one given
@@ -12,14 +13,8 @@ import { Creator } from "../../../../../creator/creator.js";
  * an empty list is absent, and matches everything.
  */
 export const Filter = z.object({
-  /** Any one of these names. */
-  names: z.array(z.string()).optional(),
-  /** With a credential naming any one of these identities. */
-  identities: z.array(z.string()).optional(),
-  /** Whether the account has a name: `true`, or none, `false`; absent, either. */
-  named: z.boolean().optional(),
-  /** Whether the account has a credential: `true`, or none, `false`; absent, either. */
-  credentialed: z.boolean().optional(),
+  /** Any one of these identities. */
+  identities: z.array(Identity).optional(),
   /** Holding any one of these roles, by name. */
   roles: z.array(z.string()).optional(),
   /** Whether a client is connected as it now: `true`, or none, `false`; absent, either. */

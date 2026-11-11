@@ -8,11 +8,12 @@ use serde_json::Error;
 
 use super::super::super::dependencies::Template;
 use super::super::super::secrets::Declaration;
+use crate::shared::permission::Grant;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// The dependencies and the secrets' declaration, as the container's
-/// proxy answered `Begun` with them, and the run's id.
+/// The dependencies, the secrets' declaration and the permissions, as
+/// the container's proxy answered `Begun` with them, and the run's id.
 ///
 /// Borrowed where the provider encodes it — both are the `Begun`'s
 /// for the run's life, see the agents begin's
@@ -38,11 +39,21 @@ pub struct Request<'a> {
     /// [`Declaration`]. Absent when empty.
     #[serde(default, skip_serializing_if = "no_secrets")]
     pub secrets: Cow<'a, Declaration>,
+    /// What the program may ask of the caller, as grants, in the order
+    /// it declared them: the whole of its authority for the run.
+    /// Absent when empty, which an agent container's always is.
+    #[serde(default, skip_serializing_if = "no_permissions")]
+    pub permissions: Cow<'a, [Grant]>,
 }
 
 /// Whether the list is empty, for serde.
 fn no_dependencies(dependencies: &Cow<'_, [Template]>) -> bool {
     dependencies.is_empty()
+}
+
+/// Whether the list is empty, for serde.
+fn no_permissions(permissions: &Cow<'_, [Grant]>) -> bool {
+    permissions.is_empty()
 }
 
 /// Whether the declaration is empty, for serde.

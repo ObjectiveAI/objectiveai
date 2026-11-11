@@ -12,12 +12,12 @@
 ///   account has one or the other;
 /// - a role, a daemon record, a vault key, a provider's volume, an
 ///   image: its name;
-/// - an outgoing provider: its address; an incoming one: its
-///   credential's identity;
+/// - an account, a provider: its identity;
 /// - an agent: its template and its index; an agent template or a
 ///   standalone tool template: its id;
-/// - a standalone tool: its origin, less the members that may change,
-///   as `OriginKey`;
+/// - a standalone tool: its template and its index;
+/// - a connected tool: its daemon, its tool there and its index, as
+///   the connected tools list's `Key`;
 /// - a dependency tool: its template's id and its owner;
 /// - a volume: its provider and its name, as `reference::Volume`;
 /// - a postgres connection, an event: the daemon's number for it.

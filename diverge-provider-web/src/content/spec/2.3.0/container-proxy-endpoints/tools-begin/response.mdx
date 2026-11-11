@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends Begun once, carrying the secrets the container takes, or an error and the finish; after Begun it sends Active whenever an exchange is in flight where none was and Inactive, carrying the rotating secrets, whenever the last in flight is answered, and the finish when the server ends or after the one error it sends when it cannot collect them.'
+summary: 'The server sends Begun once, carrying the secrets the container takes and the permissions it holds, or an error and the finish; after Begun it sends Active whenever an exchange is in flight where none was and Inactive, carrying the rotating secrets, whenever the last in flight is answered, and the finish when the server ends or after the one error it sends when it cannot collect them.'
 order: 2
 draft: false
 ---
@@ -38,14 +38,18 @@ draft: false
   server produces both itself and relays neither from the program.
   The byte `2` carries nothing after it.
 - **The registration.** The bytes after the byte `0` are a JSON
-  object of one member, absent when empty: `secrets`, an object
-  whose every member is a secret's name, as the container's template
-  declares it, to the mode the program takes it in, the string
-  `fixed` or `rotating`, in the order the program declared them. A
-  tool container declares no dependencies: a list its program
-  answers its registration with is not carried, and the object has
-  no `dependencies` member. The server sends the declaration exactly
-  as the program produced it and reads none of it.
+  object of two members, each absent when empty: `secrets`, an
+  object whose every member is a secret's name, as the container's
+  template declares it, to the mode the program takes it in, the
+  string `fixed` or `rotating`, in the order the program declared
+  them; and `permissions`, an array of grants, in the order the
+  program declared them, in the form the
+  [registration request](/endpoints/containers-tools-run/server/registration/request/)
+  states. A tool container declares no dependencies: a list its
+  program answers its registration with is not carried, and the
+  object has no `dependencies` member. The server sends the
+  declaration and the permissions exactly as the program produced
+  them and reads none of them.
 - **The values.** The bytes after the byte `3` are a JSON object
   whose every member is the name of a secret the program declared
   `rotating`, to the value the program leaves in it, any JSON value:

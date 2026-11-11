@@ -1,159 +1,155 @@
-//! The images a caller builds on the provider: the namespace, and the
-//! verbs that make and unmake its names.
+//! The Store: the images a caller owns on the provider, by digest, and
+//! the verbs that gain, describe and give up an ownership.
 
+use diverge_sdk::shared::Identity;
 use std::future::Future;
 
 use futures_util::Stream;
 
 use super::context::Context;
-use super::progress::Progress;
+use super::image_source::ImageSource;
+use super::progress::{Progress, Pushing};
 use diverge_sdk::provider::endpoints::images::delete::server::response::Deletion;
 use diverge_sdk::provider::endpoints::images::list::server::response::Image;
 use diverge_sdk::provider::endpoints::images::stat::server::response::Stat;
+use diverge_sdk::shared::containers::request::Image as Wanted;
+use diverge_sdk::shared::description::Description;
 
-/// A namespace of named images, one per caller: the store of what a
-/// caller built.
+/// The Store: one per caller, of the images it owns, each by its
+/// manifest digest alone.
 ///
-/// The four store endpoints of
-/// [`images`](diverge_sdk::provider::endpoints::images) are four verbs
-/// over one thing, and this is the thing: what a listing reports,
-/// what a build adds and a delete takes away, and where a name is
-/// looked up. Unlike a volume, an image is never acted on in place —
-/// it is built once and then only listed, examined and destroyed —
-/// so there is no second trait for the thing a name resolves to, and
-/// everything is here.
+/// The store endpoints of
+/// [`images`](diverge_sdk::provider::endpoints::images) are verbs over
+/// one thing, and this is the thing: what a listing reports, what a
+/// build or a push adds and a delete takes away, what an edit
+/// describes. An image is never acted on in place, so there is no
+/// second trait for the thing a digest resolves to.
 ///
 /// # Every method takes a `client_identity`
 ///
-/// Because an image's name is unique within the caller that built it,
-/// not globally, and because the STORE is the caller's: what one
-/// identity built is not listed to, examined by, run by or deleted by
-/// another, however alike the names. The identity is an argument
-/// rather than something the manager was built with, so that ONE
-/// manager serves every caller on every connection. Where a provider
-/// gets the identity is its own business — it is whatever
-/// authenticated the connection, and this crate never mints one.
+/// Because the STORE is the caller's: what one identity owns is not
+/// listed to, examined, described, run from or deleted by another.
+/// Two identities owning one digest each own it. The identity
+/// is an argument so that ONE manager serves every caller on every
+/// connection.
 ///
-/// # An image built is an image held, for its builder
+/// # Ownership is proven when it is gained
 ///
-/// The [`ImageChecker`](super::image_checker::ImageChecker) and the
+/// A build proves it by building. A push from a registry the provider
+/// uses takes the registry's bytes, verified against the digest; a
+/// push from the caller ends with the nonce check of
+/// [`prove`](diverge_sdk::shared::containers::oci::prove) over the
+/// provider's own copy, whether or not a byte moved, and only a pass
+/// is an ownership. A digest the caller owns already is never pushed:
+/// it is [`Pushing::Exists`].
+///
+/// # An image owned is an image held, for its owner
+///
+/// The [`OciStore`](super::oci_store::OciStore) and the
 /// [`ContainerDeployer`](super::container_deployer::ContainerDeployer)
-/// a provider supplies beside this treat an image an identity built
-/// as one the provider holds for that identity — a check naming its
-/// digest is available, a run naming it runs it from the store — and
-/// as not there for any other identity, unless that identity built
-/// the same image itself. How the three share the store is the
-/// provider's; the rule is the protocol's.
+/// a provider supplies beside this treat an image an identity owns as
+/// one the provider holds for that identity — a pull naming its
+/// digest is held, served and proven, a run naming it runs it from
+/// the Store with no nonce check — and as not there for any other
+/// identity, unless that identity owns the same digest itself.
 ///
 /// # No eviction, and a capacity
 ///
-/// Nothing a caller built is removed but by its
-/// [`delete`](Self::delete). The store has a capacity, apart from
-/// whatever the provider caches of images it pulls, and a
-/// [`build`](Self::build) the store has no room for ends in
-/// [`Progress::InsufficientCapacity`] — an answer, not an error —
-/// with nothing built. What the capacity is, and whether it is one
-/// identity's or every identity's, is the provider's.
-///
-/// # What is deliberately not decided
-///
-/// What earns a failure. The wire has one
-/// [`Error`](diverge_sdk::shared::error::Error) per endpoint and says
-/// nothing about when it is sent, so whether a build over a name the
-/// caller already has fails, and what a provider accepts as a name,
-/// are the provider's to answer. This trait gives it somewhere to say
-/// no and does not say when. The cases the wire does decide each
-/// have an answer of their own: no room is insufficient capacity, and
-/// an image a running container runs is in use.
+/// Nothing a caller owns is removed but by its
+/// [`delete`](Self::delete). The Store has a capacity, and a
+/// [`build`](Self::build) or a [`push`](Self::push) it has no room for
+/// ends in insufficient capacity — an answer, not an error — with
+/// nothing owned. What the capacity is, and how the provider keeps the
+/// bytes, are the provider's.
 pub trait ImageManager: Send + Sync {
-    /// Whatever this provider's images fail with.
-    ///
-    /// Its own type, not
-    /// [`shared::error::Error`](diverge_sdk::shared::error::Error),
-    /// for the reason
-    /// [`VolumeManager::Error`](super::volume_manager::VolumeManager::Error)
-    /// gives: flattening a provider's failure into the protocol's
-    /// error is the handler's job, at the point where a frame is
-    /// written. `Send + 'static` because it crosses tasks and
-    /// outlives the call that produced it.
+    /// Whatever this provider's Store fails with: flattened into the
+    /// protocol's error by the handler, at the point where a frame is
+    /// written. `Send + 'static` because it crosses tasks.
     type Error: Send + 'static;
 
-    /// Which images this caller has built and not deleted.
-    ///
-    /// Everything the caller may name in this family, which is the
-    /// whole of what a listing is for. Empty is a caller with no
-    /// image, which is where every caller starts; it is not a
-    /// failure. Nothing here sorts, and the endpoint does not
-    /// either: a [`name`](Image::name) is the handle and a position
-    /// is not.
+    /// Which images this caller owns. Empty is a caller with no
+    /// image, which is where every caller starts. Nothing here sorts:
+    /// a [`digest`](Image::digest) is the handle.
     fn list(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
     ) -> impl Future<Output = Result<Vec<Image>, Self::Error>> + Send;
 
-    /// The caller's image under `name`, as a listing reports it and
-    /// with the Containerfile it was built from; or [`None`] where the
-    /// caller has none by it.
-    ///
-    /// `None` is an answer: a name that is not in this caller's
-    /// listing — never there, deleted, or another caller's — and the
-    /// handler turns it into the endpoint's error itself. [`Err`] is
-    /// the provider unable to look.
+    /// The caller's image under `digest`, as a listing reports it,
+    /// with the Containerfile it was built from when it was built
+    /// here; [`None`] where the caller owns no such digest, which the
+    /// handler answers itself.
     fn stat(
         &self,
-        client_identity: &str,
-        name: &str,
+        client_identity: &Identity,
+        digest: &str,
     ) -> impl Future<Output = Result<Option<Stat>, Self::Error>> + Send;
 
     /// What [`build`](Self::build) hands back: the build as it goes,
-    /// one [`Progress`] per item, ending at the image built or the
-    /// word that there was no room — or at the provider's error, a
-    /// build that failed, with nothing built. `'static`, since the
-    /// handler polls it for the build's life.
+    /// ending at the image owned, the digest owned already, no room,
+    /// or the provider's error. `'static`, since the handler polls it
+    /// for the build's life.
     type Build: Stream<Item = Result<Progress, Self::Error>> + Send + 'static;
 
-    /// Build an image for this caller, under `name`, from the
-    /// `containerfile`, with `context` — a directory of one of the
-    /// caller's volumes, resolved by the provider — as the build's
-    /// context and working directory, or none.
-    ///
-    /// The name is the caller's to choose, and it is chosen HERE —
-    /// this is the one place a name enters the namespace. What comes
-    /// back is the build's own stream: every line the build tool says
-    /// is a [`Progress::Output`], and the handler sends each to the
-    /// caller as it comes, so a caller watches the build as a person
-    /// would. The last item is the image built, which the manager has
-    /// counted against the store, or that there was no room, or the
-    /// error; a stream that ends with none of those is the handler's
-    /// error to the caller, and nothing is taken to exist.
+    /// Build an image for this caller from the `containerfile`, with
+    /// `context` — a directory of one of the caller's volumes,
+    /// resolved by the provider — as the build's context, or none; the
+    /// image owned under the digest the build produced, with
+    /// `description`. A digest the caller owns already is
+    /// [`Progress::Exists`], and nothing changes.
     ///
     /// # The context is held
     ///
     /// The handler has taken the volume's shared hold before calling
-    /// this and gives it back after the stream ends, so the directory
-    /// is as a mount would see it for the build's life, and a volume
-    /// that could not be held was refused before this was asked. The
-    /// manager reads the directory and writes nothing into it.
+    /// this and gives it back after the stream ends.
     fn build(
         &self,
-        client_identity: &str,
-        name: &str,
+        client_identity: &Identity,
+        description: Option<&Description>,
         containerfile: &str,
         context: Option<&Context>,
     ) -> impl Future<Output = Self::Build> + Send;
 
-    /// Remove the caller's image under `name`, and give the room it
-    /// took back to the store.
+    /// What [`push`](Self::push) hands back: every blob taken from the
+    /// caller, then exactly one end — see [`Pushing`] — or the
+    /// provider's error. `'static`, since the handler polls it for the
+    /// push's life.
+    type Push: Stream<Item = Result<Pushing, Self::Error>> + Send + 'static;
+
+    /// Take the image `image` names into this caller's Store, with
+    /// `description`: from a registry the provider uses when one
+    /// serves it, else from the caller through `source`, ending with
+    /// the nonce check. The order and the answers are the endpoint's —
+    /// see [`push`](diverge_sdk::provider::endpoints::images::push).
+    fn push(
+        &self,
+        client_identity: &Identity,
+        image: &Wanted,
+        description: Option<&Description>,
+        source: ImageSource,
+    ) -> impl Future<Output = Self::Push> + Send;
+
+    /// The description of the caller's image under `digest` set, or
+    /// cleared with `None`. [`None`] is a digest the caller owns no
+    /// image by; `Some(changed)` is the edit made, `changed` whether
+    /// the description is other than it was — the handler tells the
+    /// listings only then.
+    fn edit(
+        &self,
+        client_identity: &Identity,
+        digest: &str,
+        description: Option<&Description>,
+    ) -> impl Future<Output = Result<Option<bool>, Self::Error>> + Send;
+
+    /// Give up the caller's ownership of the image under `digest`.
     ///
-    /// [`Deletion::Deleted`] is the image gone, and the name free for
-    /// a [`build`](Self::build) to use again; [`Deletion::InUse`] is a
-    /// running container of the caller running the image, and nothing
-    /// changed; [`None`] is a name the caller has no image by, which
-    /// the handler turns into the endpoint's error. [`Err`] is the
-    /// image as it was.
+    /// [`Deletion::Deleted`] is the ownership gone; [`Deletion::InUse`]
+    /// is a running container running the image, and nothing changed;
+    /// [`None`] is a digest the caller owns no image by. [`Err`] is the
+    /// Store as it was.
     fn delete(
         &self,
-        client_identity: &str,
-        name: &str,
+        client_identity: &Identity,
+        digest: &str,
     ) -> impl Future<Output = Result<Option<Deletion>, Self::Error>> + Send;
 }

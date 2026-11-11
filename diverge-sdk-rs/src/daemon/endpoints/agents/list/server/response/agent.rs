@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
-use crate::daemon::endpoints::agents::logs::server::response::Provider;
+use crate::daemon::agent_log::Provider;
 
 /// One agent of the caller's: what the daemon knows of it without
 /// reading its log.
 ///
 /// Everything here the daemon holds for the agent's life, so a list
 /// costs no more than the agents it names. What an agent has SAID is
-/// its [`logs`](crate::daemon::endpoints::agents::logs), read
+/// its [`logs`](crate::daemon::endpoints::logs), read
 /// separately; what it was made from is its template's, named by id,
 /// and its mounts are the create's, and neither is repeated here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -43,31 +43,50 @@ pub struct Agent {
     pub creator: Creator,
     /// When the create made it.
     pub created: DateTime<Utc>,
-    /// Whether the agent is active now: a loop is running in it.
+    /// Whether the agent is active now: working, a loop running in it.
+    /// Whether its container is up is [`deployed`](Self::deployed).
     pub active: bool,
-    /// When its activity last changed: the time it became active, if
-    /// it is; the time it last ceased to be, if it is not; absent
-    /// for an agent that has never been active. The `created` of its
-    /// latest `active` or `inactive` log item.
+    /// When that last changed: the time its loop began, if one runs;
+    /// the time its last loop ended, if not; absent for an agent that
+    /// has never run a loop.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_active: Option<DateTime<Utc>>,
-    /// The provider it runs on, if active, or last ran on; absent
-    /// for an agent that has never been active. See [`Provider`].
+    /// Whether its container is up now.
+    pub deployed: bool,
+    /// When that last changed: the time its container came up, if it
+    /// is up; the time it last went down, if not; absent for one never
+    /// deployed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_deployed: Option<DateTime<Utc>>,
+    /// The provider it is deployed on, or was last; absent for an
+    /// agent never deployed. See [`Provider`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<Provider>,
     /// The `logs_index` of its latest log item: how long its log is,
     /// and where a read that wants only what comes next starts.
     /// `0` for an empty log.
     pub logs_index: u64,
-    /// The [`standalone_tools`](crate::daemon::endpoints::standalone_tools) it has:
-    /// those attached to it directly, in the order they were attached,
-    /// then those attached to its template, in theirs, one it has both
-    /// ways once — each by its [`key`](crate::daemon::key), its origin
-    /// and its index, with its name beside when it has one; empty for
-    /// an agent with none. The tools list reports the same
-    /// attachments from the other side.
+    /// The [`standalone_tools`](crate::daemon::endpoints::standalone_tools)
+    /// and the
+    /// [`connected_standalone_tools`](crate::daemon::endpoints::connected_standalone_tools)
+    /// it has: those attached to it directly, in the order they were
+    /// attached, then those attached to its template, in theirs, one it
+    /// has both ways once — each by its [`key`](crate::daemon::key), a
+    /// `record` by its template and its index, a `connected_standalone`
+    /// by its daemon, its tool there and its index, with its name
+    /// beside when it has one; empty for an agent with none. The two
+    /// tools lists report the same attachments from the other side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<key::Tool>,
+    /// The dependency templates its LAST registration declared, by
+    /// id, in the order it first declared them, each once: what it
+    /// depends on now, as
+    /// [`dependency_tools`](crate::daemon::endpoints::dependency_tools)
+    /// lists the same attachments from the other side. A registration
+    /// replaces them whole. Absent when empty — an agent that never
+    /// registered, or declared nothing.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dependencies: Vec<String>,
     /// Its tags, sorted bytewise: what
     /// [`tag`](crate::daemon::endpoints::agents::tag) put on it and
     /// [`untag`](crate::daemon::endpoints::agents::untag) has not taken

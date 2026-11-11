@@ -1,5 +1,6 @@
 //! Answering a deletion, from a scope and a manager.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use diverge_sdk::provider::endpoints::volumes::delete::server::response;
@@ -47,7 +48,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle<M>(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     manager: &M,
     changes: Arc<Changes>,
     capabilities: &Capabilities,
@@ -82,7 +83,7 @@ pub async fn handle<M>(
 /// refused — who has the volume, or the error — and nothing changed.
 async fn delete<M>(
     manager: &M,
-    client_identity: &str,
+    client_identity: &Identity,
     name: &str,
 ) -> Result<(), response::Frame>
 where

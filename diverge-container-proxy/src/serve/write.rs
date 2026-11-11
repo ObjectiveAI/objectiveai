@@ -54,6 +54,10 @@ static TEMPORARIES: Mutex<u64> = Mutex::const_new(0);
 ///    the temporary and is the `Error`; otherwise `Written`. Then the
 ///    finish. No fsync: durability past the container's life is not
 ///    this wire's promise.
+/// 5. A write that ends any other way — its task aborted with the
+///    connection, or a panic — removes the temporary as it is dropped:
+///    a destination on a mounted volume outlives the container, and a
+///    stray temporary beside it would outlive it too.
 pub async fn write(scope: ScopeHandle, frame: request::Frame) {
     let Some(destination) = paths::absolute(&frame.path) else {
         error(&scope, "path", "path names no file").await;
@@ -79,6 +83,8 @@ pub async fn write(scope: ScopeHandle, frame: request::Frame) {
             return;
         }
     };
+    // Rule 5.
+    let mut pending = Pending { temporary: temporary.clone(), placed: false };
 
     let ask = encoded(&channel_request::Frame).unwrap_or_default();
     let mut content = scope.send_channel_request(&ask).await;
@@ -126,6 +132,7 @@ pub async fn write(scope: ScopeHandle, frame: request::Frame) {
     }
     match fs::rename(&temporary, &destination).await {
         Ok(()) => {
+            pending.placed = true;
             if let Some(payload) = encoded(&response::Frame::Written(write_path::response::Frame)) {
                 scope.send_response(&payload).await;
             }
@@ -153,6 +160,28 @@ async fn temporary(destination: &Path) -> PathBuf {
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default();
     destination.with_file_name(format!(".{name}.diverge-write-{n}"))
+}
+
+/// A temporary not yet renamed into place: removed when this is
+/// dropped, unless it was placed (rule 5). The removal runs on a task of
+/// its own, since a drop cannot wait on the filesystem; outside a
+/// runtime nothing is removed.
+struct Pending {
+    temporary: PathBuf,
+    placed: bool,
+}
+
+impl Drop for Pending {
+    fn drop(&mut self) {
+        if self.placed {
+            return;
+        }
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        let temporary = std::mem::take(&mut self.temporary);
+        runtime.spawn(async move { discard(&temporary).await });
+    }
 }
 
 /// Remove the temporary. One that is already gone is nothing to

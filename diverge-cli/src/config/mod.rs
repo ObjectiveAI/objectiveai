@@ -15,28 +15,37 @@
 //!   [`load`].
 //! - The document is [`Config`]: `daemons`, by name, each a
 //!   [`Daemon`] — its `address`, its `accounts` by name, each an
-//!   [`Account`] holding the `key` the daemon admits it by, and its
-//!   `default` account, `root` unless the document says otherwise —
-//!   and the `default` daemon. A key the document does not have is
+//!   [`Account`]: the `issuer` and `subject` of one of the root's
+//!   identities, the account the daemon admits — and its `default`
+//!   account, where it has one — and the `default` daemon. A key the document does not have is
 //!   refused, so a misspelled setting is refused rather than ignored.
 //! - [`select`] picks the daemon and the account a run is: the ones
 //!   `run` names, else the defaults, each refused by name when the
-//!   document has no such one.
+//!   document has no such one, and an account refused when none is
+//!   named and the daemon has no default; [`daemon`] picks the daemon
+//!   alone.
 //!
 //! ```yaml
 //! default: local
 //! daemons:
 //!   local:
 //!     address: ws://127.0.0.1:14980/
-//!     default: root
-//!     accounts:
-//!       root:
-//!         key: root
 //! ```
 //!
 //! That document is the built-in default, word for word: the daemon
-//! on this host at its own default port, as the account a fresh
-//! daemon seeds. [`Error`] is why the root or the file could not be
+//! on this host at its own default port, with no account, since a
+//! fresh daemon admits no one. An account is added beside it:
+//!
+//! ```yaml
+//! daemons:
+//!   local:
+//!     address: ws://127.0.0.1:14980/
+//!     default: me
+//!     accounts:
+//!       me:
+//!         issuer: https://auth.example.com
+//!         subject: alice
+//! ``` [`Error`] is why the root or the file could not be
 //! used, or the names could not be found.
 //!
 //! Its own files are flattened into it, so everything is named

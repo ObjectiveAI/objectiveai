@@ -35,7 +35,7 @@ pub enum Frame<'a> {
         /// The daemon's request frame, as the endpoint lays it out.
         payload: &'a [u8],
     },
-    /// Open a channel on a scope: a cancel, a stop.
+    /// Open a channel on a scope: a cancel.
     ChannelRequest {
         /// The scope.
         scope: u32,
@@ -61,6 +61,15 @@ pub enum Frame<'a> {
         /// The daemon's channel.
         channel: u32,
     },
+    /// A credit (see [`credit`](crate::wire::credit)), passed as it is.
+    Credit {
+        /// The scope.
+        scope: u32,
+        /// The channel whose stream it is.
+        channel: u32,
+        /// What it says, as its byte.
+        kind: u8,
+    },
 }
 
 impl<'a> From<Frame<'a>> for ClientFrame<'a> {
@@ -70,6 +79,7 @@ impl<'a> From<Frame<'a>> for ClientFrame<'a> {
             Frame::ChannelRequest { scope, channel, payload } => ClientFrame::ChannelRequest { scope, channel, payload },
             Frame::ChannelResponse { scope, channel, payload } => ClientFrame::ChannelResponse { scope, channel, payload },
             Frame::ChannelResponseFinish { scope, channel } => ClientFrame::ChannelResponseFinish { scope, channel },
+            Frame::Credit { scope, channel, kind } => ClientFrame::Credit { scope, channel, kind },
         }
     }
 }
@@ -85,6 +95,7 @@ impl<'a> TryFrom<ClientFrame<'a>> for Frame<'a> {
             ClientFrame::ChannelRequest { scope, channel, payload } => Frame::ChannelRequest { scope, channel, payload },
             ClientFrame::ChannelResponse { scope, channel, payload } => Frame::ChannelResponse { scope, channel, payload },
             ClientFrame::ChannelResponseFinish { scope, channel } => Frame::ChannelResponseFinish { scope, channel },
+            ClientFrame::Credit { scope, channel, kind } => Frame::Credit { scope, channel, kind },
         })
     }
 }

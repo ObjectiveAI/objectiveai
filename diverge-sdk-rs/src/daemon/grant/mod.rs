@@ -2,18 +2,19 @@
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds —
 //! agents, agent templates, standalone tools, their templates,
-//! dependency tools, outgoing providers, incoming credentials, daemons,
-//! accounts, roles, volumes, the vault, the database, the events — and a
+//! connected tools, dependency tools, providers, daemons,
+//! accounts, roles, volumes, the vault, the database, the events,
+//! images — and a
 //! [role](crate::daemon::endpoints::roles) is a
 //! list of them, held by
 //! [accounts](crate::daemon::endpoints::accounts). On the wire a grant
 //! is one object with one member, named for the kind, whose value is
-//! the kind's permission: `{"agents":…}`, `{"providers_incoming":…}`.
+//! the kind's permission: `{"agents":…}`, `{"providers":…}`.
 //! Every kind's permission takes one of these shapes, and the shape is
 //! the logic:
 //!
 //! - **To make.** A bare array of the kind's making actions — the ones
-//!   that bring something into being: a create, an add, a connect —
+//!   that bring something into being: a create, an add, a login —
 //! `{"agents":["create"]}`. Holding the action
 //! is the whole of it; nothing is judged but that it is held, since
 //! there is nothing yet to judge it over.
@@ -33,9 +34,10 @@
 //! of them.
 //! `{"agents":{"actions":["tag"],"within":"any","tags":["crew","idle"]}}`.
 //! - **Over the one thing.** For the database, of which the daemon
-//!   serves exactly one, and the events, one graph of which it keeps,
-//! a bare array of the kind's actions,
-//! `{"postgres":["get","connections"]}`, `{"events":["list"]}`: there
+//!   serves exactly one, the events, one graph of which it keeps, and
+//!   images, which it names and never holds, a bare array of the
+//!   kind's actions, `{"postgres":["get","connections"]}`,
+//!   `{"events":["list"]}`, `{"images":["info"]}`: there
 //! is nothing to name and nothing to narrow, so holding the action is
 //! the whole of it, as for making.
 //!
@@ -95,15 +97,21 @@
 //! defined once in [`shared::permission`](crate::shared::permission)
 //! and re-exported here: the grants a dependency tool template carries
 //! are made of the same actions, reaching by tags alone, and a grant
-//! here reaches by the kind's own filter. Every kind but the database
-//! and the events carries tags — agents, templates, tools, dependency
-//! templates, providers, credentials, daemons, accounts, roles,
-//! volumes and the vault's keys alike
-//! — so every kind but the database and the events has the tagging
-//! shape; every kind but the database, the events and dependency
-//! templates, which a registration makes, has the making shape. A grant that names nothing becomes one of
+//! here reaches by the kind's own filter. The kinds that carry tags —
+//! agents, templates, tools, connected tools, dependency tools,
+//! providers, remote
+//! daemons, accounts, roles, volumes, the vault's keys and the host's
+//! identities — have the tagging shape, and all of them but dependency
+//! tools, which a registration makes, the making shape. The database,
+//! the events and the images carry none, and their grants are bare
+//! lists of actions. A grant that names nothing becomes one of
 //! these by [`From`]: the same actions, reaching by a filter of the
 //! tags alone, which is how a dependency tool's requests are judged.
+//! The providers' grants are the exception: their list filter names no
+//! tags, so a grant over them, or through them, reaches by the shared
+//! [`Tags`](crate::shared::permission::Tags) test itself, and
+//! [`providers`] and [`providers_daemons`] are the shared modules,
+//! re-exported whole.
 
 mod convert;
 mod grant;
@@ -116,13 +124,16 @@ pub mod agents;
 pub mod agents_templates;
 pub mod standalone_tools;
 pub mod standalone_tools_templates;
+pub mod connected_standalone_tools;
 pub mod dependency_tools;
-pub mod providers_outgoing;
-pub mod providers_incoming;
-pub mod providers_daemons;
+pub use crate::shared::permission::providers;
+pub use crate::shared::permission::providers_daemons;
+pub mod daemons;
 pub mod accounts;
 pub mod roles;
 pub mod vault;
 pub mod volumes;
 pub use crate::shared::permission::postgres;
 pub use crate::shared::permission::events;
+pub use crate::shared::permission::images;
+pub mod identities;

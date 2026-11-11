@@ -20,11 +20,14 @@ draft: false
   the daemon protocol, laid out as [Frames](/frames/) lays out a
   client frame: the type byte, the scope as a `u32` big-endian, the
   channel as a `u32` big-endian, and the payload, running to the end.
-  The type is `1`, a request opening a scope; `4`, a channel request
-  on a scope; `5`, a channel response on a channel the acceptor
-  opened; or `6`, the finish of such a channel. A channel response
-  that is not one — shorter than the header, of a type the wire does
-  not have, or an auth frame — hangs up: the server finishes the
+  The type is `0`, the connector's authorization frame; `1`, a
+  request opening a scope; `4`, a channel request on a scope; `5`, a
+  channel response on a channel the acceptor opened; or `6`, the
+  finish of such a channel. The first channel response is the
+  connector's authorization frame, as
+  [Authorization](/authorization/) states. A channel response
+  that is not one — shorter than the header, or of a type the wire
+  does not have — hangs up: the server finishes the
   acceptor's half and sends the response finish of the scope.
 - **What the server does with it.** The server relays each channel
   response onto the acceptor's half of the connection as one channel
@@ -33,9 +36,4 @@ draft: false
 The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/connect/client/channel_response/frame.rs`:
 
 ```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/connect/client/channel_response/frame.rs
-```
-
-and by `diverge-sdk-rs/src/shared/containers/daemon/client/frame.rs`:
-
-```rust include=diverge-sdk-rs/src/shared/containers/daemon/client/frame.rs
 ```

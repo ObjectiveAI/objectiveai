@@ -6,7 +6,6 @@ use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
 use futures_util::Stream;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::{Cancel, one_shot};
 use crate::wire::client::handle::{Handle, SendError};
@@ -52,12 +51,12 @@ where
 #[must_use = "a scope that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct ExecuteStream<T, E> {
-    receiver: Option<UnboundedReceiver<Bytes>>,
+    receiver: Option<crate::wire::credit::Receiver>,
     decode: Decoder<T, E>,
 }
 
 impl<T, E> ExecuteStream<T, E> {
-    pub(crate) fn new(receiver: UnboundedReceiver<Bytes>, decode: Decoder<T, E>) -> Self {
+    pub(crate) fn new(receiver: crate::wire::credit::Receiver, decode: Decoder<T, E>) -> Self {
         ExecuteStream { receiver: Some(receiver), decode }
     }
 

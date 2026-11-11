@@ -18,7 +18,8 @@ use diverge_sdk::provider::endpoints::volumes::Mode;
 use diverge_sdk::shared::containers::request::Image;
 
 /// What a container's run asks of the provider it runs on, beyond
-/// running a container: the provider's own volumes mounted into it,
+/// running a container — which [`check`] asks of every provider
+/// first: the provider's own volumes mounted into it,
 /// by mode, and the image the container is made from, which the
 /// provider must be able to obtain. Every provider makes the FUSE
 /// mounts a run names and FUSE serves a running container, so a run
@@ -72,7 +73,19 @@ fn ratio(room: u64, need: u64) -> u128 {
 
 /// `Ok` when `info` holds out everything `needs`; else what it lacks,
 /// in a sentence a start error carries.
+///
+/// In order, the first failing rule answering:
+///
+/// 1. The provider runs containers at all — its `containers`
+///    capability — whatever the run needs; one that does not answers
+///    every agents run and tools run `Unsupported`, so it is never
+///    asked for one.
+/// 2. The provider mounts a volume of every mode in
+///    [`volume_modes`](Needs::volume_modes).
 pub fn check(info: &Info, needs: &Needs) -> Result<(), String> {
+    if !info.capabilities.containers {
+        return Err("the provider runs no containers".to_string());
+    }
     for mode in &needs.volume_modes {
         match info.capabilities.volume(*mode) {
             Some(allowed) if allowed.mount => {}

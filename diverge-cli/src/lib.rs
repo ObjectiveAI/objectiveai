@@ -8,10 +8,15 @@
 //! or not — else `.diverge` under the home directory, as every
 //! Diverge program finds its root but for the working directory's
 //! turn; see [`config`]. The document names daemons by address, each
-//! with named accounts by key and a default account, and a default
-//! daemon; with no file it is the built-in default, the daemon `local`
-//! on this host at the daemon's own default port, as the account
-//! `root` with the key a fresh daemon seeds.
+//! with named accounts — each an `(issuer, subject)`, one of the
+//! root's OpenID Connect identities — and a default account, and a
+//! default daemon; with no file it is the built-in default, the daemon
+//! `local` on this host at the daemon's own default port, with no
+//! account. No token is in the document: every identity is under the
+//! root's `identities/`, which the command `identities` signs in — by
+//! OpenID Connect's Authorization Code flow, the browser opened at the
+//! issuer, or by a device code, or a password — lists and removes, and no
+//! command prints a token.
 //!
 //! [`arguments`] is the command line; [`cli`] runs it. Every request of
 //! the daemon's wire is reached under the one command `run`, as a
@@ -19,16 +24,19 @@
 //! standalone-tools templates list` — with the daemon and the account
 //! by name, else the defaults, and the body as JSON, whose schema
 //! `request-schema` beneath the request prints, and whose every answer
-//! `response-schema` states; see [`run`]. The
-//! command `config` reads, rewrites and edits the
-//! three documents in the root — the daemon's, the provider's and the
-//! CLI's own — through jq, as JSON on this side, an edit being one
-//! place set or deleted by a jq path; see [`document`]. The commands
-//! `daemon` and `provider` start the program on the root — its own
+//! `response-schema` states; see [`run`]. Each program's document in
+//! the root is read, rewritten and edited beneath the program —
+//! `daemon config`, `provider config`, `issuer config`, `viewer config`,
+//! `cli config` — through jq, as JSON on this side; see [`document`].
+//! The commands `daemon start|stop`, `provider start|stop` and `issuer
+//! start|stop` start the program on the root — its own
 //! binary beside this one, spawned detached and waited for until it
 //! holds the root's lock — and stop it, by one `POST /stop` on its
 //! own port from this host, waited for until the lock is free; see
-//! [`lifecycle`].
+//! [`lifecycle`]. The issuer takes no commands of its own: its
+//! identities are worked on and its signing key rotated here, in its
+//! `issuer.sqlite` — `issuer identities add|list|remove|password`,
+//! `issuer rotate [--sign-out]` — see [`cli::issuer`].
 
 pub mod arguments;
 pub mod cli;

@@ -1,0 +1,159 @@
+//! The host's OpenID Connect identities: one file each, signed in,
+//! kept fresh.
+//!
+//! An identity is one subject at one issuer, signed in once and then
+//! kept signed in by its refresh token. Every Diverge program on a
+//! host shares the identities under its root:
+//!
+//! ```text
+//! <root>/identities/
+//!   https%3A%2F%2Fauth.example.com/   the issuer, percent-encoded
+//!     alice.json                      the identity, by subject
+//!     alice.lock                      its lock
+//! ```
+//!
+//! The rules:
+//!
+//! 1. **Names.** The issuer's folder and the subject's file are each
+//!    the name percent-encoded: every byte but `A–Z a–z 0–9 - . _ ~`
+//!    as `%XX`, and the first character too where the name would
+//!    otherwise be one Windows reserves, or a trailing `.`, which
+//!    Windows drops. The issuer and the subject
+//!    are written inside the file as well, and the file is the word on
+//!    them.
+//! 2. **Owner-only.** The folders are made `0700` and the files
+//!    `0600` on Unix; on Windows they take the user profile's ACL. A
+//!    file holds a refresh token, which is a sign-in.
+//! 3. **Turns.** Every reader and writer of an identity takes its
+//!    `.lock` first, with [`file_lock::wait_exclusive`](crate::file_lock::wait_exclusive),
+//!    across processes and across tasks alike, and lets it go last. A
+//!    file is written whole to a staging file beside it and renamed
+//!    over it, so a file is never half written.
+//! 4. **A token, fresh.** [`access_token`](Identities::access_token)
+//!    and [`id_token`](Identities::id_token) take the lock, read the
+//!    file, and answer the token if it is good for longer than the
+//!    `valid_for` asked. Else they refresh — the refresh token
+//!    presented, the newest refresh token answered kept, the old one
+//!    where none is — write the file, let the lock go, and answer the
+//!    new token. A new token good for no longer than `valid_for` is
+//!    [`Error::TooShort`]: no caller is handed a token that fails the
+//!    bound it set. A refresh that answers no ID token leaves the
+//!    identity with none — [`Error::NoIdToken`] — rather than one past
+//!    its time.
+//!
+//!    A handshake presents the **ID token**, never the access token:
+//!    OpenID Connect makes the ID token a signed JWT naming its issuer,
+//!    its subject and its expiry, which anyone checks against the
+//!    issuer's keys, while an access token's form is its issuer's
+//!    choice and may be opaque. The access token is kept for the
+//!    issuer's own APIs, and no handshake reads it.
+//! 5. **Signed out.** A refresh the issuer refuses as `invalid_grant`
+//!    — the token rotated away, revoked, or expired — is
+//!    [`Error::SignedOut`]. The file is kept, as user state is; a new
+//!    login is what replaces it. Any other refusal is
+//!    [`Error::Refused`], with what the issuer said.
+//! 6. **Login.** [`login`](Identities::login) names the identity it
+//!    signs in, takes its `.lock` before anything else, and holds it
+//!    until the login ends, approved or not — a second login of the
+//!    same identity, and every reader of it, waits its turn;
+//!    [`try_login`](Identities::try_login) waits for no one, and is
+//!    [`Error::Held`] at once while another holds it. It is
+//!    OAuth's device authorization grant, RFC 8628, as a public
+//!    client: the issuer's
+//!    discovery document read, and it must name the issuer exactly as
+//!    given, which must be `https`, or `http` on a loopback host; a
+//!    device code asked for; and [`Pending::wait`] polling the token
+//!    endpoint at the interval, five seconds slower at each
+//!    `slow_down`, until a person approves the code — the identity
+//!    written, replacing one already there, signed out or not, when the
+//!    approval is for the identity named, and
+//!    [`Error::OtherSubject`] when it is for another — or denies it
+//!    ([`Error::Denied`]), or it expires ([`Error::Expired`]). The
+//!    scope asked for gains `openid` and `offline_access` where it
+//!    lacks them: the ID token names the subject, and `offline_access`
+//!    is how most issuers are asked for a refresh token.
+//! 7. **The subject** is the ID token's `sub`, read without the
+//!    signature checked: OpenID Connect Core §3.1.3.7 allows it for an
+//!    ID token taken from the token endpoint itself, over TLS. An
+//!    answer with no ID token, or one with no `sub`, is
+//!    [`Error::Subject`].
+//! 8. **The audience.** The access token is for what the login asked
+//!    for as `resource`, RFC 8707's, or the issuer's own choice where
+//!    it asked for none; a `resource` is asked again at every refresh,
+//!    so the token stays for it.
+//!
+//! 9. **Verifying another end's ID token** is [`KeySets::verify`],
+//!    against the token's issuer's keys, fetched once and cached until
+//!    they expire — an access token refused by its `typ`, the audience
+//!    never asked — see [`verify`] for its own rules.
+//!
+//! 10. **A program's own side.** [`Own`] is a program's one identity
+//!     — the one it answers as — and its verifying cache: what a
+//!     daemon's or a provider's handshake is built on.
+//!
+//! 11. **A client's side.** [`Presenter`] is one identity presented,
+//!     and the other end's token taken at its word: what a program that
+//!     dials as one identity and judges nobody — a command line —
+//!     makes its handshake with.
+//! 12. **Login by password.**
+//!     [`login_password`](Identities::login_password) — and
+//!     [`try_login_password`](Identities::try_login_password), which
+//!     waits for no one — is rule 13's Authorization Code login with
+//!     no browser: the authorization request sent by this end itself,
+//!     the subject and its password as its Basic credentials, RFC 7617,
+//!     and the issuer's `302` read rather than followed, its code then
+//!     exchanged as any redirect's is. A `401` is [`Error::Rejected`].
+//!     It is how an agent signs in where the authorization endpoint
+//!     takes Basic credentials, as Diverge's own issuer does, which has
+//!     no page. The password is sent and never kept.
+//! 13. **The Authorization Code login.**
+//!     [`login_code`](Identities::login_code) is OpenID Connect Core
+//!     §3.1's sign-in, as a native app makes it: OAuth's Authorization
+//!     Code grant, RFC 6749 §4.1, with PKCE's S256 challenge, RFC 7636,
+//!     and the redirect to a port on `127.0.0.1`, RFC 8252 §7.3. The
+//!     identity's lock is taken as rule 6 takes it and the document read
+//!     as rule 6 reads it, which must name an authorization endpoint and
+//!     offer the `code` response type, and S256 where it names its PKCE
+//!     methods. The browser is sent to the issuer with a fresh `state`,
+//!     `nonce` and verifier, and the subject as `login_hint`; the
+//!     redirect's `state` must be the one sent, the code is exchanged
+//!     once with the verifier, the ID token's `nonce` must be the one
+//!     sent, and the answer is written as rule 6 writes an approval's.
+//!     The browser is answered in plain text.
+//!
+//! [`Token`] is a token handed out: it has no way out but
+//! [`expose`](Token::expose), and its memory is zeroed on drop. The
+//! file's own record has no public type at all.
+//!
+//! Its own files are flattened into it, so everything is named
+//! through this module and not through the file it lives in.
+
+mod claims;
+mod discovery;
+mod encode;
+mod error;
+mod fresh;
+mod identities;
+mod list;
+mod login;
+mod name;
+mod oauth;
+mod own;
+mod path_name;
+mod presenter;
+mod record;
+mod refresh;
+mod remove;
+mod token;
+
+pub mod verify;
+
+pub use error::*;
+pub use identities::*;
+pub use login::*;
+pub use name::*;
+pub use own::*;
+pub use path_name::*;
+pub use presenter::*;
+pub use token::*;
+pub use verify::*;

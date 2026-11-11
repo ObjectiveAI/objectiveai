@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../shared/relay.js";
-import { Identity } from "../../../../../../daemon/endpoints/agents/logs/server/response/identity.js";
+import { Identity } from "../../../../../agent_log/identity.js";
 import { Mode } from "../../../../../../provider/endpoints/volumes/mode.js";
 
 /**
@@ -23,7 +23,7 @@ export const Frame = z.object({
   bytes: z.number().int().nonnegative(),
   /** The mode it starts in: `persistent`, `ephemeral` or `read_only`. */
   mode: Mode,
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

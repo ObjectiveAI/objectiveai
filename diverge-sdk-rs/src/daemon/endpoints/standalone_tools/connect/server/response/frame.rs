@@ -39,14 +39,13 @@ use crate::wire::encode::{Encode, Writer};
 /// ANSWER: the daemon looked, and no tool of the caller's is the one
 /// named, and nothing is retried. An [`Error`](Self::Error) is a
 /// failure: the daemon could not serve the tool, for whatever reason
-/// it knows — a connected tool, which is another daemon's and is
-/// served there; a container that would not start.
+/// it knows — a container that would not start.
 //////
 /// # Forbidden
 ///
 /// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
-/// account the request is served for — the connection's, or the
-/// `account` of the container it came from — holds no grant allowing
+/// account the request is served for — the connection's — or the tool
+/// the request came from holds no grant allowing
 /// what the request asks over what it names, and nothing changed. Where
 /// the answer is a stream it comes as an error does: exactly one, with
 /// nothing before it, then the finish. Nothing is retried. See

@@ -5,19 +5,18 @@ use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 use crate::shared::relay::Relay;
 
-use crate::daemon::endpoints::accounts::Definition;
-/// Ask the daemon to create an account. The definition is flattened in,
-/// so the request is `{"name":…}`, `{"credential":…}` or both, with
-/// `description` and `roles` beside; a credential carries no key, which
-/// the daemon mints and answers. A name or an identity that is an
-/// account's already is refused; so is a role the daemon does not have.
+use crate::shared::Identity;
+
+/// Ask the daemon to create an account: an identity it admits from now
+/// on, with `description` and `roles` beside. An identity that is an
+/// account's already is refused; so is a role the daemon does not
+/// have.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// A name, a credential, or both: see [`Definition`]. Flattened, so
-    /// its members are this object's own.
-    #[serde(flatten)]
-    pub definition: Definition,
+    /// The identity the account is: the `(issuer, subject)` a client's
+    /// token must establish to be served as it.
+    pub identity: Identity,
     /// What the account is for, in words of the caller's; compared by
     /// nobody and read by people. Absent, none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -27,8 +26,7 @@ pub struct Frame {
     /// do nothing, which is not a failure.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<String>,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

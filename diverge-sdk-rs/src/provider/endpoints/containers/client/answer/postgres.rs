@@ -32,7 +32,10 @@ pub(crate) async fn postgres<P: PostgresDialer>(
     dialer: Arc<P>,
     encoders: Encoders,
 ) -> Result<(), Stop> {
-    let (from_container, receiver) = mpsc::unbounded_channel();
+    // One piece deep: the forwarder takes the container's next piece —
+    // and so gives the container room for another — only once the
+    // dialer has taken this one.
+    let (from_container, receiver) = mpsc::channel(1);
     let Some(from_database) = dialer.dial(connection_id, receiver).await else {
         return finish(handle, scope, channel).await;
     };
@@ -49,7 +52,7 @@ pub(crate) async fn postgres<P: PostgresDialer>(
         while let Some(bytes) = own.response_receiver.recv().await {
             match frame::server::ServerFrame::decode(&bytes) {
                 Ok(frame::server::ServerFrame::ChannelResponse { payload, .. }) => {
-                    if from_container.send(bytes.slice_ref(payload)).is_err() {
+                    if from_container.send(bytes.slice_ref(payload)).await.is_err() {
                         break;
                     }
                 }
@@ -61,7 +64,15 @@ pub(crate) async fn postgres<P: PostgresDialer>(
         }
     });
     let sent = async {
-        while let Some(piece) = from_database.next().await {
+        loop {
+            let piece = tokio::select! {
+                next = from_database.next() => next,
+                // The provider reads no more: the conduit is over.
+                () = handle.answer_gone(scope, channel) => return Err(Stop),
+            };
+            let Some(piece) = piece else {
+                break;
+            };
             respond_pieces(handle, scope, channel, &piece, |body| {
                 encoded(&postgres::response::Frame(body))
             })

@@ -11,7 +11,13 @@ publish = false
 # a machine's volumes and its tool rooms, and the caller half of each so
 # a `WireDaemon` and a `WireMachines` have nothing to add but themselves.
 # No features: every half compiles for every dependent.
-diverge-sdk = { path = "../../diverge-sdk-rs" }
+# The SDK's `tauri_proxy` runner holds the one connection to the daemon
+# for the page, and `identities` presents the identity it dials as.
+diverge-sdk = { path = "../../diverge-sdk-rs", features = ["tauri-proxy", "identities"] }
+# The one `viewer.yaml` the app reads: which daemon, and as whom; a
+# crate beside this one so the CLI reads the document with the same
+# type.
+diverge-viewer-config = { path = "../config" }
 rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
 # The agent door served on this machine's loopback, for local agents you
 # already run: MCP over Streamable HTTP behind a bearer token per agent,

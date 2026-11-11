@@ -29,7 +29,10 @@ export class Cancel {
   /** Ask the daemon to finish the scope. */
   async cancel(): Promise<void> {
     try {
-      await this.#handle.sendChannelRequest(this.#scope, CANCEL);
+      // The cancel's own channel is answered by the scope's finish,
+      // and read by nobody.
+      const channel = await this.#handle.sendChannelRequest(this.#scope, CANCEL);
+      channel.responseReceiver.abandon();
     } catch (error) {
       if (error instanceof SendError && error.kind === "scope") {
         return;

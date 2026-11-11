@@ -1,8 +1,0 @@
-{
-  "title": "vector.completions.response.streaming.Object",
-  "description": "A streaming vector completion chunk.",
-  "type": "string",
-  "enum": [
-    "vector.completion.chunk"
-  ]
-}

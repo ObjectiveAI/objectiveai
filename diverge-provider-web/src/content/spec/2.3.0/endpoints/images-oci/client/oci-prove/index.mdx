@@ -1,0 +1,27 @@
+---
+title: 'OCI prove'
+summary: 'Tag 2: the client sends a nonce and, where the image of the scope is an image index, a platform; the server answers with exactly one channel response, the 32-byte proof of Possession over the image of the scope, and the channel response finish; a finish with nothing before it states that the server cannot supply the image’s bytes or that the platform requirement is broken.'
+order: 2
+draft: false
+---
+
+The client opens this channel to ask the server for the proof that
+[Possession](/shared/possession/) defines over the image of the scope,
+the image the request of [images::oci](/endpoints/images-oci/) names.
+
+- **The request.** The tag byte `2` followed by the `prove` ask as
+  JSON: the platform, or none, and the nonce.
+  [Request](/endpoints/images-oci/client/oci-prove/request/) states its form.
+- **The response.** Exactly one channel response, the proof, and the
+  channel response finish, or a channel response finish that no
+  channel response precedes.
+  [Response](/endpoints/images-oci/client/oci-prove/response/) states the sequence.
+- **The proof.** The server computes the proof that
+  [Possession](/shared/possession/#the-proof) defines, with the nonce
+  of the ask, over the image bytes `D` that
+  [Possession](/shared/possession/#the-image-bytes) defines for the
+  image of the scope and the `platform` of the ask.
+- **The nonce.** The server computes the proof with the 32 bytes the
+  ask carries as its nonce, whatever their value.
+- **Nothing moves.** The server sends no byte of the image on the
+  channel and changes nothing in any Store.

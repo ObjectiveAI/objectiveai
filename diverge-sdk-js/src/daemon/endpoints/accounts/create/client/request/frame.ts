@@ -1,39 +1,27 @@
-// Creating an account: a name, a credential without its key, or both, with what it is for and the roles it holds.
+// Creating an account: an identity, with what it is for and the roles it holds.
 
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
+import { Identity } from "../../../../../../shared/identity.js";
 import { Relay } from "../../../../../../shared/relay.js";
-import { Named, Unnamed } from "../../../../../../daemon/endpoints/accounts/definition.js";
 
 /**
- * Ask the daemon to create an account. The definition is flattened
- * in, so the request is `{"name":…}`, `{"credential":…}` or both,
- * with `description` and `roles` beside; a credential carries no
- * key, which the daemon mints and answers. A name or an identity
- * that is an account's already is refused; so is a role the daemon
- * does not have. Creating takes the `create` grant over accounts
- * and the `grant` grant over every role named.
+ * Ask the daemon to create an account: an identity it admits from
+ * now on, with `description` and `roles` beside. An identity that is
+ * an account's already is refused; so is a role the daemon does not
+ * have. Creating takes the `create` grant over accounts and the
+ * `grant` grant over every role named.
  */
-export const Frame = z.union([
-  /** An account with a name, and a credential if any client may dial in as it. */
-  Named.extend({
+export const Frame = z.object({
+  /** The identity the account is: the `(issuer, subject)` a client's token must establish to be served as it. */
+  identity: Identity,
   /** What the account is for, in words of the caller's; compared by nobody and read by people. Absent, none. */
   description: z.string().optional(),
   /** The roles it holds, by name, each one the daemon has and the caller holds the `grant` grant over. Empty, an account that may do nothing. */
   roles: z.array(z.string()).optional(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
-  }),
-  /** An account without a name: a client dials in as it, and no container runs under it. */
-  Unnamed.extend({
-  /** What the account is for, in words of the caller's; compared by nobody and read by people. Absent, none. */
-  description: z.string().optional(),
-  /** The roles it holds, by name, each one the daemon has and the caller holds the `grant` grant over. Empty, an account that may do nothing. */
-  roles: z.array(z.string()).optional(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
-  relay: Relay.optional(),
-  }),
-]);
+});
 export type Frame = z.infer<typeof Frame>;
 
 /** This frame's tag among the scope-opening requests: one byte at the front of the payload. */

@@ -4,8 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use diverge_sdk::shared::filetree;
-use tokio::sync::Mutex;
-use tokio::sync::mpsc;
+use tokio::sync::{Mutex, Notify, mpsc};
 
 use super::{Ignore, Mapped, Watch, map, walk};
 
@@ -33,24 +32,31 @@ pub struct Failure {
 /// overflowed, or notify reported an error — re-walk and send a fresh
 /// snapshot. Every path a frame carries is components from `root`.
 ///
+/// Bounded both ways: at most [`EVENTS`] events wait to be mapped —
+/// one more is lost, and the tree is walked again — and one frame
+/// waits to be read, the task waiting on its reader, whose pace the
+/// wire sets.
+///
 /// The receiver dropped is the end: the task notices, stops, and the
 /// watch drops with it, which unregisters everything it held.
-pub fn stream(root: PathBuf, ignore: Arc<Ignore>) -> mpsc::UnboundedReceiver<Result<filetree::response::Frame, Failure>> {
-    let (out, frames) = mpsc::unbounded_channel();
+pub fn stream(root: PathBuf, ignore: Arc<Ignore>) -> mpsc::Receiver<Result<filetree::response::Frame, Failure>> {
+    let (out, frames) = mpsc::channel(1);
     tokio::spawn(run(root, ignore, out));
     frames
 }
 
 /// The stream's own task.
-async fn run(root: PathBuf, ignore: Arc<Ignore>, out: mpsc::UnboundedSender<Result<filetree::response::Frame, Failure>>) {
+async fn run(root: PathBuf, ignore: Arc<Ignore>, out: mpsc::Sender<Result<filetree::response::Frame, Failure>>) {
     let root = Arc::new(root);
-    let (sender, mut events) = mpsc::unbounded_channel();
+    let (sender, mut events) = mpsc::channel(EVENTS);
+    let lost = Arc::new(Notify::new());
 
     let armed = tokio::task::spawn_blocking({
         let ignore = Arc::clone(&ignore);
         let root = Arc::clone(&root);
+        let lost = Arc::clone(&lost);
         move || {
-            let mut watch = Watch::arm(sender)?;
+            let mut watch = Watch::arm(sender, lost)?;
             watch.register(&root, &ignore)?;
             let dark = watch.dark();
             let children = walk::children(&root, &ignore, &dark);
@@ -61,27 +67,27 @@ async fn run(root: PathBuf, ignore: Arc<Ignore>, out: mpsc::UnboundedSender<Resu
     let (watch, children) = match armed {
         Ok(Ok(armed)) => armed,
         Ok(Err(reason)) => {
-            let _ = out.send(Err(failure("watch", &reason.to_string())));
+            let _ = out.send(Err(failure("watch", &reason.to_string()))).await;
             return;
         }
         Err(reason) => {
-            let _ = out.send(Err(failure("walk", &reason.to_string())));
+            let _ = out.send(Err(failure("walk", &reason.to_string()))).await;
             return;
         }
     };
     let watch = Arc::new(Mutex::new(watch));
 
-    if out.send(Ok(filetree::response::Frame::Snapshot { children })).is_err() {
+    if out.send(Ok(filetree::response::Frame::Snapshot { children })).await.is_err() {
         return;
     }
 
     loop {
-        tokio::select! {
+        let mapped = tokio::select! {
             result = events.recv() => {
                 let Some(result) = result else {
                     break;
                 };
-                let mapped = match result {
+                match result {
                     Ok(event) => {
                         let ignore = Arc::clone(&ignore);
                         let watch = Arc::clone(&watch);
@@ -89,45 +95,50 @@ async fn run(root: PathBuf, ignore: Arc<Ignore>, out: mpsc::UnboundedSender<Resu
                         match tokio::task::spawn_blocking(move || map(event, &ignore, &watch, &root)).await {
                             Ok(mapped) => mapped,
                             Err(reason) => {
-                                let _ = out.send(Err(failure("map", &reason.to_string())));
+                                let _ = out.send(Err(failure("map", &reason.to_string()))).await;
                                 return;
                             }
                         }
                     }
                     Err(_) => Mapped::Resync,
-                };
-                let frames = match mapped {
-                    Mapped::Frames(frames) => frames,
-                    Mapped::Resync => {
-                        let ignore = Arc::clone(&ignore);
-                        let watch = Arc::clone(&watch);
-                        let root = Arc::clone(&root);
-                        let children = tokio::task::spawn_blocking(move || {
-                            let dark = watch.blocking_lock().dark();
-                            walk::children(&root, &ignore, &dark)
-                        })
-                        .await;
-                        match children {
-                            Ok(children) => vec![filetree::response::Frame::Snapshot { children }],
-                            Err(reason) => {
-                                let _ = out.send(Err(failure("walk", &reason.to_string())));
-                                return;
-                            }
-                        }
-                    }
-                };
-                for frame in frames {
-                    if out.send(Ok(frame)).is_err() {
+                }
+            }
+            // Events were lost to a full queue: walk again.
+            () = lost.notified() => Mapped::Resync,
+            // Nobody is reading: the stream is over, and the watch
+            // with it.
+            () = out.closed() => break,
+        };
+        let frames = match mapped {
+            Mapped::Frames(frames) => frames,
+            Mapped::Resync => {
+                let ignore = Arc::clone(&ignore);
+                let watch = Arc::clone(&watch);
+                let root = Arc::clone(&root);
+                let children = tokio::task::spawn_blocking(move || {
+                    let dark = watch.blocking_lock().dark();
+                    walk::children(&root, &ignore, &dark)
+                })
+                .await;
+                match children {
+                    Ok(children) => vec![filetree::response::Frame::Snapshot { children }],
+                    Err(reason) => {
+                        let _ = out.send(Err(failure("walk", &reason.to_string()))).await;
                         return;
                     }
                 }
             }
-            // Nobody is reading: the stream is over, and the watch
-            // with it.
-            () = out.closed() => break,
+        };
+        for frame in frames {
+            if out.send(Ok(frame)).await.is_err() {
+                return;
+            }
         }
     }
 }
+
+/// How many events wait to be mapped before the next is lost.
+pub const EVENTS: usize = 1024;
 
 /// One failure, named and explained.
 fn failure(kind: &'static str, reason: &str) -> Failure {

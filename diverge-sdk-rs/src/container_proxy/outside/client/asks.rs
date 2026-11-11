@@ -3,9 +3,7 @@
 use std::pin::Pin;
 use std::task::{Context, Poll, ready};
 
-use bytes::Bytes;
 use futures_util::Stream;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::wire::frame::server::ServerFrame;
 
@@ -22,12 +20,12 @@ use crate::wire::frame::server::ServerFrame;
 #[must_use = "asks that are not polled are asks nobody answers"]
 #[derive(Debug)]
 pub struct Asks<A> {
-    receiver: UnboundedReceiver<Bytes>,
+    receiver: crate::wire::credit::Receiver,
     decode: fn(&[u8]) -> Option<A>,
 }
 
 impl<A> Asks<A> {
-    pub(crate) fn new(receiver: UnboundedReceiver<Bytes>, decode: fn(&[u8]) -> Option<A>) -> Self {
+    pub(crate) fn new(receiver: crate::wire::credit::Receiver, decode: fn(&[u8]) -> Option<A>) -> Self {
         Asks { receiver, decode }
     }
 }

@@ -38,21 +38,15 @@ use crate::wire::encode::{Encode, Writer};
 /// thing whichever way a frame is travelling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ServerFrame<'a> {
-    /// Type `0`. The first frame of a connection, sent by whichever
-    /// side dialled. Nothing may precede it.
+    /// Type `0`. An end's token, the first frame it sends: the
+    /// connector's first, the connectee's in answer — see the
+    /// [`handshake`](crate::wire::handshake). Nothing precedes it in
+    /// either direction, and neither end sends a second.
     ///
     /// No scope and no channel: nothing has been established yet, and
-    /// this is what establishes it. The payload is arbitrary — what
-    /// counts as a credential is not this layer's business.
-    ///
-    /// There is no answer to it. A credential that is accepted is
-    /// followed by the connection simply working; one that is not is
-    /// followed by a close. A peer that has not authenticated cannot
-    /// make the far end compose anything, so a bad credential earns no
-    /// bytes to amplify and no reason to read.
+    /// this is what establishes it.
     Auth {
-        /// The credential bytes, mode byte included — see
-        /// [`Auth`](super::auth::Auth).
+        /// The token's bytes — see [`Auth`](super::auth::Auth).
         payload: &'a [u8],
     },
     /// Type `2` on channel `0`. One piece of the answer to the
@@ -131,6 +125,19 @@ pub enum ServerFrame<'a> {
         /// CLIENT's numbering.
         channel: u32,
     },
+    /// Type `7`. The reader of a stream gives its sender room for one
+    /// more frame, or says it reads nothing more: see
+    /// [`credit`](crate::wire::credit) for the rules. The payload is the
+    /// one byte of its [`Kind`](crate::wire::credit::Kind).
+    Credit {
+        /// The scope.
+        scope: u32,
+        /// The channel whose stream it is, in the numbering of the end
+        /// SENDING that stream; `0` for the scope's own.
+        channel: u32,
+        /// What it says, as its byte.
+        kind: u8,
+    },
 }
 
 /// The nine bytes of header, then the payload's own.
@@ -163,6 +170,7 @@ impl Encode for ServerFrame<'_> {
             ServerFrame::ChannelResponseFinish { scope, channel } => {
                 (6, *scope, *channel)
             }
+            ServerFrame::Credit { scope, channel, .. } => (7, *scope, *channel),
         };
         out.extend_from_slice(&[r#type]);
         out.extend_from_slice(&scope.to_be_bytes());
@@ -177,6 +185,10 @@ impl Encode for ServerFrame<'_> {
             }
             ServerFrame::ResponseFinish { .. }
             | ServerFrame::ChannelResponseFinish { .. } => Ok(()),
+            ServerFrame::Credit { kind, .. } => {
+                out.extend_from_slice(&[*kind]);
+                Ok(())
+            }
         }
     }
 }
@@ -209,6 +221,7 @@ impl<'a> ServerFrame<'a> {
                 payload,
             },
             6 => ServerFrame::ChannelResponseFinish { scope, channel },
+            7 => ServerFrame::Credit { scope, channel, kind: *payload.first().ok_or(FrameError::Truncated)? },
             other => return Err(FrameError::UnknownType(other)),
         })
     }

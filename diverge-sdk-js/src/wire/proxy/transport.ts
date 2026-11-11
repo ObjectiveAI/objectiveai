@@ -3,9 +3,11 @@
 /**
  * A structural mirror of a Tauri `Channel<T>`: the object MUST be a
  * real one — its serialization is what wires the stream across the
- * boundary — and this package touches only `onmessage`.
+ * boundary — and this package touches only `id` and `onmessage`.
  */
 export interface TransportChannel<T> {
+  /** The channel's id, which the page's `wire_took` and `wire_dropped` name it by. */
+  readonly id: number;
   onmessage: (message: T) => void;
 }
 

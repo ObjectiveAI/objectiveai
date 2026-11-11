@@ -35,8 +35,8 @@ use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{
     Frame as CreateRequest, FuseMount, Provider as Pin, VolumeMount,
 };
-use diverge_sdk::daemon::endpoints::agents::logs::client::request::{Frame as LogsRequest, ItemType};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{
+use diverge_sdk::daemon::endpoints::logs::client::request::{Frame as LogsRequest, ItemType, Subject};
+use diverge_sdk::daemon::agent_log::{
     Active, ActiveType, Error as ErrorItem, ErrorType, Identity, Inactive, InactiveType, Item, ItemWrapper, Provider, User,
 };
 use diverge_sdk::daemon::endpoints::agents::templates::{AgentType, Template as AgentTemplate};
@@ -56,6 +56,7 @@ use crate::catalog::Kind;
 use script::{Piece, Step};
 use store::VolumeStore;
 use crate::door::Door;
+use crate::view::ProviderView;
 use std::sync::OnceLock;
 
 /// Present in any build the stand-in is part of: the check that it's absent looks for these words.
@@ -68,8 +69,11 @@ const DELIVERY: Duration = Duration::from_millis(2500);
 /// The account the app is served as: the stand-in's word for its one client.
 const CLIENT: &str = "stand-in";
 
+/// The issuer the stand-in's one client is named under.
+const CLIENT_ISSUER: &str = "stand-in";
+
 fn client() -> Creator {
-    Creator::Client(creator::Client { identity: CLIENT.into() })
+    Creator::Client(creator::Client { identity: Identity { issuer: CLIENT_ISSUER.into(), subject: CLIENT.into() } })
 }
 
 fn wire_error(message: impl Into<String>) -> WireError {
@@ -155,17 +159,14 @@ struct ProviderState {
 
 /// A machine as a person reads it.
 fn show(identity: &Identity) -> &str {
-    match identity {
-        Identity::Outgoing { address } => address,
-        Identity::IncomingUnbrokered { identity } => identity,
-    }
+    &identity.subject
 }
 
 /// A machine's folder name under the stand-in's data folder.
 fn slug(identity: &Identity) -> String {
-    let raw = match identity {
-        Identity::Outgoing { address } => format!("dial-{address}"),
-        Identity::IncomingUnbrokered { identity } => format!("accept-{identity}"),
+    let raw = match ProviderView::from(identity) {
+        ProviderView::Outgoing { address } => format!("dial-{address}"),
+        ProviderView::IncomingUnbrokered { identity } => format!("accept-{identity}"),
     };
     raw.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '.' { c } else { '_' }).collect()
 }
@@ -284,8 +285,8 @@ impl ToolState {
         use standalone_tools::list::server::response::Origin;
         let (origin, index) = match &self.origin {
             Origin::Created { template, index, mode: _, provider: _, id: _ } => (key::Origin::Created { template: template.clone() }, *index),
-            Origin::Connected { daemon, account, tool, index } => {
-                (key::Origin::Connected { daemon: daemon.clone(), account: account.clone(), tool: Box::new(tool.clone()) }, *index)
+            Origin::Connected { daemon, tool, index } => {
+                (key::Origin::Connected { daemon: daemon.clone(), tool: Box::new(tool.clone()) }, *index)
             }
         };
         key::Tool::Record { origin, index, name: self.name.clone() }
@@ -296,7 +297,7 @@ impl ToolState {
         match (tool, &self.origin) {
             (reference::Tool::Name { name }, _) => self.name.as_ref() == Some(name),
             (reference::Tool::TemplateIndex { template, index }, Origin::Created { template: t, index: i, .. }) => template == t && index == i,
-            (reference::Tool::Connected { daemon, account, tool }, Origin::Connected { daemon: d, account: a, tool: t, .. }) => daemon == d && account == a && **tool == *t,
+            (reference::Tool::Connected { daemon, tool }, Origin::Connected { daemon: d, tool: t, .. }) => daemon == d && **tool == *t,
             (reference::Tool::TemplateIndex { .. }, Origin::Connected { .. }) | (reference::Tool::Connected { .. }, Origin::Created { .. }) => false,
         }
     }
@@ -368,9 +369,13 @@ impl Inner {
             created: agent.created,
             active: agent.active.is_some(),
             last_active: last_change.as_ref().map(|(at, _, _)| *at),
+            // The stand-in's run is its container and its loop at once.
+            deployed: agent.active.is_some(),
+            last_deployed: last_change.as_ref().map(|(at, _, _)| *at),
             logs_index: last_change.as_ref().map_or(0, |(_, _, index)| *index),
             provider: last_change.map(|(_, provider, _)| provider),
             tools: self.tools_of(id, &agent.create.inner.template),
+            dependencies: Vec::new(),
             tags: agent.tags.iter().cloned().collect(),
         }
     }
@@ -611,8 +616,8 @@ impl StubDaemon {
 
     fn seed(&self) {
         let now = Utc::now();
-        let here = Identity::Outgoing { address: "127.0.0.1:4640".into() };
-        let studio = Identity::IncomingUnbrokered { identity: "studio-pc".into() };
+        let here = Identity::from(&ProviderView::Outgoing { address: "127.0.0.1:4640".into() });
+        let studio = Identity::from(&ProviderView::IncomingUnbrokered { identity: "studio-pc".into() });
         let (here_disk, studio_disk) = (self.store_for(&here), self.store_for(&studio));
         here_disk.seed_here();
         studio_disk.seed_studio();
@@ -679,7 +684,7 @@ impl StubDaemon {
             inner.tool_templates.insert(tool_id.clone(), Held { template: tool_template, created: now - TimeDelta::days(4), creator: client() });
             let index = inner.next_index(&tool_id);
             let origin = standalone_tools::list::server::response::Origin::Created { template: tool_id.clone(), index, mode, provider: None, id: None };
-            let create = standalone_tools::create::client::request::Frame { inner: Made { template: tool_id.clone(), secrets: IndexMap::new(), provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }, account: None, name: Some("nightly-digest".into()), relay: None };
+            let create = standalone_tools::create::client::request::Frame { inner: Made { template: tool_id.clone(), secrets: IndexMap::new(), provider: None, fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new() }, name: Some("nightly-digest".into()), relay: None };
             inner.tools.push(ToolState { name: create.name.clone(), origin, create: Some(create), creator: client(), created: now - TimeDelta::days(4), agents: vec![notes_id.clone()], templates: Vec::new(), last_active: Some(now - TimeDelta::hours(8)) });
             drop(inner);
             let maker = Creator::Tool(creator::Tool::Record { template: tool_id, index, name: Some("nightly-digest".into()) });
@@ -767,7 +772,7 @@ mod tests {
     }
 
     fn logs(agent: reference::Agent, count: Option<u64>) -> LogsRequest {
-        LogsRequest { agent, logs_index_from: None, logs_index_to: None, created_from: None, created_to: None, r#type: None, count, watch: None, relay: None }
+        LogsRequest { of: Subject::Agent(agent), logs_index_from: None, logs_index_to: None, created_from: None, created_to: None, r#type: None, count, watch: None, relay: None }
     }
 
     /// A sync Tauri command runs on the main thread, outside any runtime.
@@ -835,7 +840,7 @@ mod tests {
         assert_eq!(made.creator, Creator::Agent(creator::Agent { template: site.template.clone(), index: site.index, name: Some("site-fixes".into()) }));
         let reference = crate::daemon::reference_of(&agent_key(None, &made.template, made.index));
         let mut items = daemon.agents_logs(LogsRequest { r#type: Some(ItemType::UserTextContent), ..logs(reference, None) }, CancellationToken::new());
-        let Some(agents::logs::server::response::Frame::Item(first)) = items.next().await else { panic!("a user part") };
+        let Some(diverge_sdk::daemon::endpoints::logs::server::response::Frame::Item(diverge_sdk::daemon::endpoints::logs::server::response::Entry::Agent(first))) = items.next().await else { panic!("a user part") };
         assert!(matches!(first.item, Item::User(User { sender, .. }) if sender == made.creator));
     }
 
@@ -1035,7 +1040,7 @@ mod tests {
         let mut cards = door.watch(cancel.clone());
         let content = vec![serde_json::from_value(json!({ "type": "text", "text": "Claim the open task for me" })).unwrap()];
         let outcome = daemon.agents_message(agents::message::client::request::Frame { agent: by_name("research-notes"), content, relay: None }, CancellationToken::new()).await;
-        assert!(matches!(outcome, agents::message::server::response::Frame::Delivered));
+        assert!(matches!(outcome, Some(agents::message::server::response::Frame::Delivered)));
         // First it asks to read the board, then to claim: two cards, each the whole call.
         let mut asked = Vec::new();
         while asked.len() < 2 {
@@ -1126,7 +1131,7 @@ mod tests {
         // A run starting: changed, active, its log's length as of the start.
         let content = vec![serde_json::from_value(json!({ "type": "text", "text": "Say hello" })).unwrap()];
         let message = agents::message::client::request::Frame { agent: by_name("brief"), content, relay: None };
-        assert!(matches!(daemon.agents_message(message, CancellationToken::new()).await, agents::message::server::response::Frame::Delivered));
+        assert!(matches!(daemon.agents_message(message, CancellationToken::new()).await, Some(agents::message::server::response::Frame::Delivered)));
         let started = next_frames(&mut frames, 1).await;
         let [Listed::Changed(running)] = &started[..] else { panic!("{started:?}") };
         assert!(running.active && running.logs_index > 0);
@@ -1219,7 +1224,14 @@ fn matches(filter: &agents::list::client::request::Filter, agent: &agents::list:
     (filter.names.is_empty() || agent.name.as_ref().is_some_and(|n| filter.names.contains(n)))
         && (filter.templates.is_empty() || filter.templates.contains(&agent.template))
         && (filter.creators.is_empty() || filter.creators.contains(&agent.creator))
-        && filter.active.is_none_or(|active| active == agent.active)
+        && filter.active.is_none_or(|active| {
+            use agents::list::client::request::{Active as Filter, History};
+            match active {
+                Filter::Now(now) => now == agent.active,
+                Filter::History(History::Ever) => agent.last_active.is_some(),
+                Filter::History(History::Never) => agent.last_active.is_none(),
+            }
+        })
         && filter.all_tags.iter().all(|t| agent.tags.contains(t))
         && (filter.any_tags.is_empty() || filter.any_tags.iter().any(|t| agent.tags.contains(t)))
         && filter.created_from.is_none_or(|from| agent.created >= from)
@@ -1313,7 +1325,7 @@ impl Daemon for StubDaemon {
         &self,
         request: agents::message::client::request::Frame,
         cancel: CancellationToken,
-    ) -> agents::message::server::response::Frame {
+    ) -> Option<agents::message::server::response::Frame> {
         use agents::message::server::response::Frame;
         let (delivered, mut on_delivery) = oneshot::channel();
         let (id, message, start) = {
@@ -1321,9 +1333,9 @@ impl Daemon for StubDaemon {
             let message = inner.next_id;
             inner.next_id += 1;
             let Some(id) = inner.find(&request.agent) else {
-                return Frame::Error(wire_error("no agent of yours is the one named"));
+                return Some(Frame::Error(wire_error("no agent of yours is the one named")));
             };
-            let Some(agent) = inner.agents.get_mut(&id) else { return Frame::Error(wire_error("no agent of yours is the one named")) };
+            let Some(agent) = inner.agents.get_mut(&id) else { return Some(Frame::Error(wire_error("no agent of yours is the one named"))) };
             agent.queue.push_back(Queued { id: message, content: request.content, delivered });
             let start = !agent.running;
             agent.running = true;
@@ -1333,36 +1345,41 @@ impl Daemon for StubDaemon {
             self.spawn_runner(id.clone(), Vec::new());
         }
         tokio::select! {
-            result = &mut on_delivery => match result {
+            result = &mut on_delivery => Some(match result {
                 Ok(()) => Frame::Delivered,
                 Err(_) => Frame::Error(wire_error("the agent was deleted")),
-            },
+            }),
             _ = cancel.cancelled() => {
                 {
                     let mut inner = self.lock();
                     if let Some(agent) = inner.agents.get_mut(&id) {
                         if let Some(at) = agent.queue.iter().position(|q| q.id == message) {
                             agent.queue.remove(at);
-                            return Frame::Cancelled;
+                            // In time: the bare finish, no response before it.
+                            return None;
                         }
                     }
                 }
-                match on_delivery.await {
+                Some(match on_delivery.await {
                     Ok(()) => Frame::Delivered,
                     Err(_) => Frame::Error(wire_error("the agent was deleted")),
-                }
+                })
             }
         }
     }
 
-    fn agents_logs(&self, request: LogsRequest, cancel: CancellationToken) -> Frames<agents::logs::server::response::Frame> {
-        use agents::logs::server::response::Frame;
+    fn agents_logs(&self, request: LogsRequest, cancel: CancellationToken) -> Frames<diverge_sdk::daemon::endpoints::logs::server::response::Frame> {
+        use diverge_sdk::daemon::endpoints::logs::server::response::{Entry, Frame};
         let (tx, rx) = mpsc::channel::<Frame>(512);
         let daemon = self.clone();
         self.rt.spawn(async move {
             let found = {
                 let inner = daemon.lock();
-                inner.find(&request.agent).and_then(|id| inner.agents.get(&id)).map(|agent| (agent.log.clone(), agent.live.subscribe(), agent.gone.clone()))
+                match &request.of {
+                    Subject::Agent(agent) => inner.find(agent).and_then(|id| inner.agents.get(&id)).map(|agent| (agent.log.clone(), agent.live.subscribe(), agent.gone.clone())),
+                    // The stand-in keeps agents' logs alone.
+                    Subject::StandaloneTool(_) | Subject::DependencyTool(_) | Subject::Account(_) | Subject::Admin(_) => None,
+                }
             };
             let Some((history, mut live, gone)) = found else {
                 let _ = tx.send(Frame::Error(wire_error("no agent of yours is the one named"))).await;
@@ -1378,7 +1395,7 @@ impl Daemon for StubDaemon {
                 if !in_filter(&request, item) {
                     return true;
                 }
-                if tx.send(Frame::Item(item.clone())).await.is_err() {
+                if tx.send(Frame::Item(Entry::Agent(item.clone()))).await.is_err() {
                     return false;
                 }
                 *sent += 1;
@@ -1592,10 +1609,6 @@ impl Daemon for StubDaemon {
         if request.name.is_some() && inner.tools.iter().any(|t| t.name == request.name) {
             return Frame::InUse;
         }
-        // The stand-in holds no accounts on anyone's behalf.
-        if request.account.is_some() {
-            return Frame::NoAccount;
-        }
         let checked = {
             let made = &request.inner;
             let fuse: Vec<&FuseMount> = made.fuse_file_mounts.iter().chain(&made.fuse_directory_mounts).collect();
@@ -1621,8 +1634,6 @@ impl Daemon for StubDaemon {
         let made = inner.tools[at].create.as_ref().map(|create| create.inner.clone());
         let current = Editable {
             name: inner.tools[at].name.clone(),
-            // The stand-in holds no accounts on anyone's behalf.
-            account: None,
             volume_mounts: made.as_ref().and_then(|m| m.provider.as_ref()).map(|p| p.volume_mounts.clone()).unwrap_or_default(),
             fuse_file_mounts: made.as_ref().map(|m| m.fuse_file_mounts.clone()).unwrap_or_default(),
             fuse_directory_mounts: made.as_ref().map(|m| m.fuse_directory_mounts.clone()).unwrap_or_default(),
@@ -1635,10 +1646,9 @@ impl Daemon for StubDaemon {
         let mounts_changed = result.volume_mounts != current.volume_mounts
             || result.fuse_file_mounts != current.fuse_file_mounts
             || result.fuse_directory_mounts != current.fuse_directory_mounts;
-        let account_changed = result.account != current.account;
         let secrets_changed = result.secrets != current.secrets;
         let Some(made) = made else {
-            if mounts_changed || account_changed || secrets_changed {
+            if mounts_changed || secrets_changed {
                 return Frame::NotOwned;
             }
             if result.name.is_some() && inner.tools.iter().enumerate().any(|(i, t)| i != at && t.name == result.name) {
@@ -1650,16 +1660,12 @@ impl Daemon for StubDaemon {
         };
         // As an agent's: a running container takes live mounts added, and nothing else.
         let added_only = result.name == current.name
-            && !account_changed
             && result.volume_mounts == current.volume_mounts
             && !secrets_changed
             && result.fuse_file_mounts.starts_with(&current.fuse_file_mounts)
             && result.fuse_directory_mounts.starts_with(&current.fuse_directory_mounts);
         if inner.tool_active(&inner.tools[at]) && !added_only {
             return Frame::Active;
-        }
-        if account_changed {
-            return Frame::NoAccount;
         }
         if secrets_changed {
             let declared = inner.tool_templates.get(&made.template).map(|held| held.template.secrets.clone()).unwrap_or_default();
@@ -1697,9 +1703,9 @@ impl Daemon for StubDaemon {
         if request.name.is_some() && inner.tools.iter().any(|t| t.name == request.name) {
             return Frame::InUse;
         }
-        let joined = json!({ "daemon": request.daemon, "account": request.account, "tool": request.tool }).to_string();
+        let joined = json!({ "daemon": request.daemon, "tool": request.tool }).to_string();
         let index = inner.next_index(&joined);
-        let origin = Origin::Connected { daemon: request.daemon, account: request.account, tool: request.tool, index };
+        let origin = Origin::Connected { daemon: request.daemon, tool: request.tool, index };
         inner.tools.push(ToolState { name: request.name, origin, create: None, creator: client(), created: Utc::now(), agents: Vec::new(), templates: Vec::new(), last_active: None });
         Frame::Registered
     }
@@ -1801,10 +1807,14 @@ impl Daemon for StubDaemon {
                     origin: t.origin.clone(),
                     creator: t.creator.clone(),
                     created: t.created,
-                    active: inner.tool_active(t),
-                    last_active: t.last_active,
+                    // The stand-in calls no tool: never working, deployed while it runs.
+                    active: false,
+                    last_active: None,
+                    deployed: inner.tool_active(t),
+                    last_deployed: t.last_active,
                     attached_agent_instances,
                     attached_agent_templates: t.templates.clone(),
+                    permissions: Vec::new(),
                     tags: Vec::new(),
                 })
             })
@@ -1828,14 +1838,14 @@ impl Daemon for StubDaemon {
                 if address.is_empty() {
                     return Err("an address is needed".into());
                 }
-                (Identity::Outgoing { address }, key)
+                (Identity::from(&ProviderView::Outgoing { address }), key)
             }
             NewProvider::Accept { identity, key } => {
                 let identity = identity.trim().to_owned();
                 if identity.is_empty() {
                     return Err("a name is needed".into());
                 }
-                (Identity::IncomingUnbrokered { identity }, key)
+                (Identity::from(&ProviderView::IncomingUnbrokered { identity }), key)
             }
         };
         if key.trim().is_empty() {

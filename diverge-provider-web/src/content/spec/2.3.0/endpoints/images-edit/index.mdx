@@ -1,0 +1,47 @@
+---
+title: 'images::edit'
+summary: 'Tag 19: a client names an image of its Store by digest and gives a new description, or none; the server sends exactly one response stating that the image has that description from now on, that the client owns no image of the digest, that the server keeps no Store, or an error, and the scope finishes.'
+order: 19
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`19` followed by the digest of an image and a description, or none.
+The server sends exactly one response, which states that the
+description is kept, that the client's Store holds no image of the
+digest, that the server keeps no Store, or an error. The response
+finish follows the response, and no frame follows the finish.
+
+- **The request.** The request carries the digest of one image and
+  the description the image is to have, or none.
+  [Request](/endpoints/images-edit/request/) states its form.
+- **The image named.** The client names an image by the `digest` its
+  [images::list](/endpoints/images-list/) listing gave it. The server
+  resolves the digest against the Store of the identity under which
+  the connection was authorized, as [Authorization](/authorization/)
+  provides. A digest of no image in the client's Store is answered
+  with `NotFound`, the byte `1`, whether or not the digest is that of
+  an image in another identity's Store, and nothing is changed.
+- **The edit.** When the server sends the byte `0`, the image has the
+  description of the request from that moment: a description
+  replaces the description the image had, and a request with no
+  description leaves the image with none. The digest, the size, the
+  time the image entered the Store and the bytes of the image are
+  unchanged. From that moment, every
+  [images::list](/endpoints/images-list/) scope the client opens lists
+  the image with the new description, and every list scope the client
+  holds open that was sent the image as added is sent it as changed.
+  [Response](/endpoints/images-edit/response/) states the form of the
+  response.
+- **The client's Store alone.** The edit changes the description of
+  the image in the client's Store alone. An image of the same digest
+  in another identity's Store keeps its own description.
+- **The error.** An error states that the server did not keep the
+  description, for a reason other than an image not in the client's
+  Store. The image keeps the description it had before the request.
+- **No Store.** A server that holds out no
+  [`images_store`](/capabilities/#images_store) capability keeps no
+  Store and answers every request of this endpoint with exactly one
+  response, the byte `2` alone, and the response finish, before
+  anything is looked up. Every other requirement of this page holds
+  for a server that holds the capability out.

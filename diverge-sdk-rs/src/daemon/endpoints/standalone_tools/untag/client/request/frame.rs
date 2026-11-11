@@ -10,21 +10,20 @@ use crate::daemon::reference;
 /// Ask the daemon to take tags off a tool, by name.
 ///
 /// The name is the one a
-/// [`create`](crate::daemon::endpoints::standalone_tools::create) or a
-/// [`connect`](crate::daemon::endpoints::standalone_tools::connect) gave the tool.
+/// [`create`](crate::daemon::endpoints::standalone_tools::create) gave
+/// the tool.
 /// A tag the tool did not hold is not held still, and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The tool: by its name, as its create or its connect gave it,
-    /// or by its template and its index, which name a created tool
-    /// once and for all. See [`reference::Tool`].
+    /// The tool: by its name, as its create gave it, or by its
+    /// template and its index, which name it once and for all. See
+    /// [`reference::Tool`].
     pub tool: reference::Tool,
     /// The tags to take off, one by one. Empty changes nothing and is
     /// not a failure.
     pub tags: Vec<String>,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

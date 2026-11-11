@@ -8,14 +8,14 @@ import { Tool } from "../../../../../../daemon/reference/tool.js";
 /**
  * Ask the daemon to hold a created tool open for MCP: its container
  * started if it does not run, and held while the scope is. A
- * connected tool is another daemon's, and naming one is a failure,
- * not `not_found`. While the scope is open the tool is in use by it
+ * connected tool is another daemon's, and no request of this family
+ * finds one. While the scope is open the tool is in use by it
  * exactly as by an active attached agent.
  */
 export const Frame = z.object({
   /** The tool: by name, by template and index, or another daemon's by the daemon, the account and its reference there. */
   tool: Tool,
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

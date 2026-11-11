@@ -1,6 +1,0 @@
-{
-  "description": "Responds in JSON schema format with 3 logprobs for confidence calibration.",
-  "upstream": "mock",
-  "output_mode": "json_schema",
-  "top_logprobs": 3
-}

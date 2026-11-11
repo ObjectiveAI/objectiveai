@@ -1,21 +1,21 @@
 //! The refusals the handlers answer on their own, without asking the
-//! manager: a name the caller has no image by, and a build that ended
-//! without saying how.
+//! manager: a digest the caller owns no image by, and a build that
+//! ended without saying how.
 
 use serde_json::json;
 
 use crate::shared::error::Error;
 
-/// The error for a name the caller has no image by: the manager
+/// The error for a digest the caller owns no image by: the manager
 /// answered [`None`].
 ///
 /// ```json
-/// {"kind":"image","error":"no image named `tools`"}
+/// {"kind":"image","error":"no image `sha256:…` in the Store"}
 /// ```
-pub fn unknown(name: &str) -> Error {
+pub fn unknown(digest: &str) -> Error {
     Error(json!({
         "kind": "image",
-        "error": format!("no image named `{name}`"),
+        "error": format!("no image `{digest}` in the Store"),
     }))
 }
 

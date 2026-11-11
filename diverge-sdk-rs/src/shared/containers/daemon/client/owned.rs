@@ -42,6 +42,15 @@ pub enum Owned {
         /// The channel.
         channel: u32,
     },
+    /// See [`Frame::Credit`].
+    Credit {
+        /// The scope.
+        scope: u32,
+        /// The channel.
+        channel: u32,
+        /// What it says.
+        kind: u8,
+    },
 }
 
 impl Owned {
@@ -52,6 +61,7 @@ impl Owned {
             Owned::ChannelRequest { scope, channel, payload } => Frame::ChannelRequest { scope: *scope, channel: *channel, payload },
             Owned::ChannelResponse { scope, channel, payload } => Frame::ChannelResponse { scope: *scope, channel: *channel, payload },
             Owned::ChannelResponseFinish { scope, channel } => Frame::ChannelResponseFinish { scope: *scope, channel: *channel },
+            Owned::Credit { scope, channel, kind } => Frame::Credit { scope: *scope, channel: *channel, kind: *kind },
         }
     }
 
@@ -61,7 +71,8 @@ impl Owned {
             Owned::Request { scope, .. }
             | Owned::ChannelRequest { scope, .. }
             | Owned::ChannelResponse { scope, .. }
-            | Owned::ChannelResponseFinish { scope, .. } => *scope,
+            | Owned::ChannelResponseFinish { scope, .. }
+            | Owned::Credit { scope, .. } => *scope,
         }
     }
 }
@@ -75,6 +86,7 @@ impl From<Frame<'_>> for Owned {
             Frame::ChannelRequest { scope, channel, payload } => Owned::ChannelRequest { scope, channel, payload: Bytes::copy_from_slice(payload) },
             Frame::ChannelResponse { scope, channel, payload } => Owned::ChannelResponse { scope, channel, payload: Bytes::copy_from_slice(payload) },
             Frame::ChannelResponseFinish { scope, channel } => Owned::ChannelResponseFinish { scope, channel },
+            Frame::Credit { scope, channel, kind } => Owned::Credit { scope, channel, kind },
         }
     }
 }

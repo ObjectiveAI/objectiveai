@@ -2,7 +2,7 @@
 //! the caller allowed to mount them.
 
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::grant::volumes::Over;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::volumes::list::server::response::Volume;

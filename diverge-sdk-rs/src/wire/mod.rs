@@ -2,11 +2,15 @@
 //!
 //! One WebSocket, every message one BINARY frame with a nine-byte
 //! header — [`frame`]; the socket either end may hold, accepted or
-//! dialled — [`connection`]; how a type becomes a payload's bytes and
+//! dialled — [`connection`]; how every stream is paced one frame ahead
+//! by its reader — [`credit`]; how a type becomes a payload's bytes and
 //! comes back out — [`encode`] and [`decode`]; and the two frame-level
 //! halves, [`client`], which mints scopes and channels and routes what
 //! answers them, and [`server`], which is told about scopes and
-//! answers inside them. None of it names an endpoint: the
+//! answers inside them, each built on a connection once its
+//! [`handshake`] — each end's token, the connector's first — is done; and [`proxy`], what an app's native side
+//! needs to hold the [`client`] half for a page that holds no
+//! socket. None of it names an endpoint: the
 //! [`provider`](crate::provider), the [`daemon`](crate::daemon) and
 //! the [`container proxy`](crate::container_proxy) each define their
 //! own request vocabulary on top of this and nothing here knows which
@@ -21,7 +25,10 @@
 
 pub mod client;
 pub mod connection;
+pub mod credit;
 pub mod decode;
 pub mod encode;
 pub mod frame;
+pub mod handshake;
+pub mod proxy;
 pub mod server;

@@ -5,6 +5,7 @@ import { Creator } from "../../../../../../daemon/creator/creator.js";
 import { Owner } from "../../../../../../daemon/key/owner.js";
 import { Template } from "../../../../../../shared/containers/dependencies/template.js";
 import type { Key, Keyed } from "../../../../../../shared/listing/keyed.js";
+import { Grant } from "../../../../../../shared/permission/grant.js";
 import { Attached } from "./attached.js";
 import { Run } from "./run.js";
 
@@ -20,6 +21,8 @@ export const Listed = z.object({
   id: z.string(),
   /** Whose the tool is, as the template's scope decides: the one agent, the one agent template, or nobody. See `key::Owner`. */
   owner: Owner,
+  /** Its number among all dependency tools ever made from the template, whatever their owners: the first is `1`, and no number is given twice. The template and the index name the tool once and for all, as an events party does. */
+  index: z.number().int().nonnegative(),
   /** When the first registration that declared the template under this owner made the tool. On the wire an RFC 3339 timestamp in UTC. */
   created: z.iso.datetime({ offset: true }),
   /** Who made it: the agent whose registration first declared the template under this owner. One `Creator`, the direct maker; the maker's own maker is on the maker's list item. */
@@ -30,8 +33,18 @@ export const Listed = z.object({
   template: Template,
   /** The agents that depend on it now — every agent whose LAST registration declared the template under this owner, in the order they first did, each with when it last did: see `Attached`. At most one for an instance tool. Absent when empty. */
   agents: z.array(Attached).optional(),
-  /** Its run, while its container is up: see `Run`. What a `delete` answers `InUse` for. Absent while it does not run. */
+  /** Whether active now: a call or a read in flight. */
+  active: z.boolean(),
+  /** When that last changed; absent for a tool never asked. */
+  last_active: z.iso.datetime({ offset: true }).optional(),
+  /** Whether its container is up now. */
+  deployed: z.boolean(),
+  /** When that last changed; absent for one never deployed. */
+  last_deployed: z.iso.datetime({ offset: true }).optional(),
+  /** Its run, while it is deployed: see `Run`. What a `delete` answers `InUse` for. Absent while it does not run. */
   run: Run.optional(),
+  /** What its container declared it may ask of the daemon, at its registration when it last started. Declared anew at every start. Absent when empty — none declared, or never started. */
+  permissions: z.array(Grant).optional(),
 });
 export type Listed = z.infer<typeof Listed>;
 

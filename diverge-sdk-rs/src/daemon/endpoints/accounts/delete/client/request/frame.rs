@@ -6,17 +6,14 @@ use serde::{Deserialize, Serialize};
 use crate::shared::relay::Relay;
 
 use crate::daemon::endpoints::accounts::Reference;
-/// Ask the daemon to delete an account: see [`Reference`]. An account a
-/// container runs under, or a client is connected as, is not deleted,
-/// and the daemon says so with a variant of its own: delete the
-/// containers, or wait for the client to go, and ask again.
+/// Ask the daemon to delete an account: see [`Reference`]. Every
+/// connection a client has as it is closed.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The account: see [`Reference`].
     pub account: Reference,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

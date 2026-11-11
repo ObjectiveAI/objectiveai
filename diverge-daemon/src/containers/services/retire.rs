@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use crate::containers::lifecycle::End;
 use crate::containers::{Key, ToolKey, stop};
 use crate::daemon::{Daemon, Kind};
 
@@ -22,6 +23,7 @@ pub async fn retire(daemon: &Arc<Daemon>, key: ToolKey) {
         }
     }
     if let Some(run) = daemon.live.tool_run(key).await {
+        run.end_as(End::Expected).await;
         run.handle.stop().await;
         run.handle.wait().await;
         stop::ended_tool(daemon, run).await;

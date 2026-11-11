@@ -35,18 +35,20 @@ use crate::shared::mcp;
 /// | `17` | [`FuseStat`](Self::FuseStat) |
 /// | `18` | [`FuseTruncate`](Self::FuseTruncate) |
 /// | `19` | [`FuseSetattr`](Self::FuseSetattr) |
+/// | `20` | [`OciProve`](Self::OciProve) |
 ///
-/// Twenty. The first five are the provider's own asks — whether the
-/// caller holds an image, its manifest and blobs, the container's
-/// registration, a write's content — and the rest are the
-/// CONTAINER's, relayed: its database connections, its tool calls
+/// Twenty-one. Six are the provider's own asks — whether the caller
+/// holds an image, its manifest and blobs, the container's
+/// registration, a write's content, and the proof that the caller
+/// holds the image, numbered last because it came last — and the
+/// rest are the CONTAINER's, relayed: its database connections, its tool calls
 /// outward to the caller's MCP servers, and the files the caller
 /// mounted live. No daemon connection: an agent
 /// container holds no account and asks the daemon nothing, and only
 /// a tool container asks the caller for one.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
-    /// A manifest of an image the caller holds, by digest. Tag `0`.
+    /// A manifest of the run's image, by digest. Tag `0`.
     ///
     /// Opened when the provider takes the image from the caller, and
     /// opened by the container RUNTIME's appetite rather
@@ -54,17 +56,19 @@ pub enum Frame<'a> {
     /// and a manifest its store does not hold becomes one of these.
     /// See [`oci`](crate::shared::containers::oci).
     OciManifest(oci::manifest::request::Request),
-    /// A blob of an image the caller holds, by digest. Tag `1`.
+    /// A blob of the run's image, by digest. Tag `1`.
     ///
     /// The other half of a pull; see
     /// [`oci`](crate::shared::containers::oci).
     OciBlob(oci::blob::request::Request),
-    /// Whether the caller holds an image, by digest, and under what
-    /// name. Tag `2`.
+    /// Whether the caller holds an image, and under what name. Tag
+    /// `2`.
     ///
-    /// Opened by a provider that would take the image from the caller,
-    /// before it asks for anything of it; see
-    /// [`oci`](crate::shared::containers::oci).
+    /// Carries the run's own
+    /// [`Image`](crate::shared::containers::request::Image), its
+    /// digest and its references. Opened by a provider that would take
+    /// the image from the caller, before it asks for anything of it;
+    /// see [`oci::has`](crate::shared::containers::oci::has).
     OciHas(oci::has::request::Request),
     /// Register the container: deploy the dependencies it declared,
     /// and resolve the secrets it takes. Tag `3`.
@@ -141,6 +145,17 @@ pub enum Frame<'a> {
     ///
     /// Every `chmod(2)`, `chown(2)` and `utimensat(2)`.
     FuseSetattr(fuse::setattr::request::Request<'a>),
+    /// The proof that the caller holds the image it supplied: the
+    /// nonce check. Tag `20`.
+    ///
+    /// Opened last, once, whenever the provider took the run's image
+    /// from the caller — whether or not it pulled any byte of it — and
+    /// never for an image from the caller's Store or from a registry.
+    /// Answered with one frame of 32 bytes, or the empty finish for
+    /// not held; a proof that differs from the provider's own fails
+    /// the run with `ProofFailed`. See
+    /// [`oci::prove`](crate::shared::containers::oci::prove).
+    OciProve(oci::prove::request::Request),
 }
 
 /// Tag for [`Frame::OciManifest`].
@@ -202,6 +217,9 @@ const FUSE_TRUNCATE: u8 = 18;
 
 /// Tag for [`Frame::FuseSetattr`].
 const FUSE_SETATTR: u8 = 19;
+
+/// Tag for [`Frame::OciProve`].
+const OCI_PROVE: u8 = 20;
 
 impl Encode for Frame<'_> {
     /// The JSON failure from the asks that are JSON, or a fuse id or
@@ -291,6 +309,10 @@ impl Encode for Frame<'_> {
             Frame::FuseSetattr(request) => {
                 out.extend_from_slice(&[FUSE_SETATTR]);
                 request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
+            Frame::OciProve(request) => {
+                out.extend_from_slice(&[OCI_PROVE]);
+                request.encode(out).map_err(FrameEncodeError::Json)
             }
         }
     }
@@ -398,6 +420,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             FUSE_SETATTR => fuse::setattr::request::Request::decode(rest)
                 .map(Frame::FuseSetattr)
                 .map_err(FrameError::Fuse),
+            OCI_PROVE => oci::prove::request::Request::decode(rest)
+                .map(Frame::OciProve)
+                .map_err(FrameError::Oci),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -408,7 +433,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's twenty.
+    /// A tag that is none of this frame's twenty-one.
     UnknownTag(u8),
     /// An image ask did not parse.
     Oci(serde_json::Error),

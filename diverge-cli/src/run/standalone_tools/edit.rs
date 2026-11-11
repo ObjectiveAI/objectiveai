@@ -1,5 +1,5 @@
 //! `diverge run standalone-tools edit`: editing a tool: a patch to its
-//! name, its account, its mounts, as
+//! name, its mounts, its secrets, as
 //! [`edit`](diverge_sdk::daemon::endpoints::standalone_tools::edit)
 //! states it.
 
@@ -8,13 +8,13 @@ use diverge_sdk::daemon::endpoints::standalone_tools::edit::{client::request, se
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Editing a tool: a patch to its name, its account, its mounts.
+/// Editing a tool: a patch to its name, its mounts, its secrets.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]; `relay` among its members has another daemon
-    /// serve it, as an account held there. Absent, `{}`.
+    /// serve it. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
     /// What is beneath the request: `request-schema`, the JSON Schema

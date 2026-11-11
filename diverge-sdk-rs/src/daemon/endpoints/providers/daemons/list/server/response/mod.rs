@@ -1,10 +1,14 @@
-//! The list response: the daemons, one value each, or a failure.
+//! The list response: the identities, one value each, or a
+//! failure.
 //!
-//! [`Frame`] is what a response frame holds — one [`Daemon`],
-//! forbidden, or a failure. [`Daemon`] is what one is.
+//! [`Frame`] is what a response frame holds — one [`Listed`],
+//! forbidden, or a failure. [`Listed`] is what one is, and [`Via`]
+//! one route to it.
 
+mod listed;
 mod frame;
-mod daemon;
+mod via;
 
+pub use listed::*;
 pub use frame::*;
-pub use daemon::*;
+pub use via::*;

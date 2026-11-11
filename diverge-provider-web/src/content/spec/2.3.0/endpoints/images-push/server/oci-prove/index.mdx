@@ -1,0 +1,29 @@
+---
+title: 'OCI prove'
+summary: 'Tag 2: the server sends a fresh nonce for the proof over the image of the push, which it obtained from the client; the client answers with exactly one channel response, the 32-byte proof, and the channel response finish; a proof that differs from the server’s own, a finish with nothing before it and a malformed answer each fail the push with ProofFailed.'
+order: 2
+draft: false
+---
+
+The server opens this channel to make the nonce check that
+[Possession](/shared/possession/) defines, when the source of the
+image of the request is the client, as
+[Image sources](/endpoints/#image-sources) states.
+
+- **When.** After the server holds every byte of the image and before
+  it records the image in the client's Store. The server opens exactly one such channel
+  on a scope whose image it obtains from the client, and none on a
+  scope whose image it obtains from another source.
+- **Whatever was fetched.** The server opens the channel whether or
+  not it asked for any manifest or blob on an
+  [oci-manifest](/endpoints/images-push/server/oci-manifest/) or
+  [oci-blob](/endpoints/images-push/server/oci-blob/) channel.
+- **The request.** The tag byte `2` followed by the ask as
+  JSON. [Request](/endpoints/images-push/server/oci-prove/request/) states its form.
+- **The response.** Exactly one channel response, the proof, and the
+  channel response finish.
+  [Response](/endpoints/images-push/server/oci-prove/response/) states the sequence.
+- **The outcome.** A check that passes lets the image enter the client's
+  Store, and the `source` of the `Pushed` response is `Client`. A
+  check that fails ends the push with `ProofFailed`, as the
+  [response](/endpoints/images-push/response/) states.

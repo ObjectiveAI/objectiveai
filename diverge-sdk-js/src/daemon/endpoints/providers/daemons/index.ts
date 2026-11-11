@@ -1,18 +1,15 @@
-// Daemons: other daemons the caller holds accounts on, reached
-// through a provider both are connected to.
-//
-// A daemon record is a name and its `Link`s, one per provider the
-// remote is reachable through; on it are its `accounts`, each a name
-// and a mode. What a record is FOR is acting as this daemon on that
-// one, as one of its accounts: a connected tool, or a relayed request.
+// The daemons reached through the providers: who is announced on
+// them, and the direct messages sent through them. `list` lists the
+// identities announced on the connected providers, what a
+// `daemons` record names a remote by; `listen` hears the messages sent
+// to the daemon through the messageable ones; `message` sends one
+// through them. Each is judged by the providers_daemons grant, and
+// reaches only the providers that grant reaches. Whether the daemon
+// announces itself on a provider changes none of the three: it lists a
+// provider's announced identities, hears the messages sent to it
+// through a messageable provider, and sends a message through a
+// provider, announced there or not.
 
-export * from "./account.js";
-export * from "./link.js";
-export * as accounts from "./accounts/index.js";
-export * as add from "./add/index.js";
-export * as get from "./get/index.js";
 export * as list from "./list/index.js";
-export * as delete from "./delete/index.js";
-export * as edit from "./edit/index.js";
-export * as tag from "./tag/index.js";
-export * as untag from "./untag/index.js";
+export * as listen from "./listen/index.js";
+export * as message from "./message/index.js";

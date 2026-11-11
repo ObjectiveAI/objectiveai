@@ -3,6 +3,7 @@
 use std::fmt;
 use std::net::AddrParseError;
 
+
 /// What every store call fails with: the database, or a row holding
 /// something that is not what it should be.
 #[derive(Debug)]

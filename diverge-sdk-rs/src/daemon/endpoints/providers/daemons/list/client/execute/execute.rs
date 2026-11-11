@@ -16,7 +16,7 @@ pub type ExecuteStream = stream::ExecuteStream<response::Frame, response::FrameE
 /// Open the scope and hand back its stream and its [`Cancel`], without
 /// reading anything: the daemon's first frame is the stream's. The
 /// stream ends at the daemon's finish, which a cancel provokes; a
-/// client that wants the list once reads to
+/// client that wants the listing once reads to
 /// [`Listed`](response::Frame::Listed) and cancels.
 pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<(ExecuteStream, Cancel), OpenError> {
     stream::execute_cancellable(handle, request, |_, payload| response::Frame::decode(payload)).await

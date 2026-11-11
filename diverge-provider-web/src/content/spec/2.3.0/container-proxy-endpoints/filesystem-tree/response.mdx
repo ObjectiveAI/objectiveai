@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends the snapshot, one response, and one response per change, until the finish that answers the stop; or one error and the finish.'
+summary: 'The server sends the snapshot, one response, and one response per change, until the finish that answers the cancel; or one error and the finish.'
 order: 2
 draft: false
 ---
@@ -13,7 +13,7 @@ draft: false
 - **The sequence.** Zero or more responses whose first byte is `0` —
   the first a snapshot, a snapshot again after lost events, and one
   per change otherwise — followed by the response finish when the
-  server has sent the stop or the server ends; or the responses sent
+  server has sent the cancel or the server ends; or the responses sent
   so far, exactly one response whose first byte is `1`, and the
   response finish.
 - **The frame.** The bytes after the byte `0` are one frame of the

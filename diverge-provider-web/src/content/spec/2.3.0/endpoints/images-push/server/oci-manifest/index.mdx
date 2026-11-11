@@ -1,0 +1,24 @@
+---
+title: 'OCI manifest'
+summary: 'Tag 0: the server asks the client for the manifest of an image the client holds, by digest, when the server does not already hold it; the client answers with at most one channel response, the media type and the bytes; bytes that are not those the digest names end the push with Malformed.'
+order: 0
+draft: false
+---
+
+The server opens this channel when it obtains the image of the
+request from the client and does not already hold a manifest
+that the image requires, including the manifest of the platform an
+index names.
+
+- **When.** Between the request and the response that ends the main stream.
+- **The request.** The tag byte `0` followed by the digest as JSON.
+  [Request](/endpoints/images-push/server/oci-manifest/request/) states its form.
+- **The response.** At most one channel response, the media type and
+  the manifest verbatim, and the channel response finish.
+  [Response](/endpoints/images-push/server/oci-manifest/response/) states the
+  sequence.
+- **The image.** The server keeps only the image the digest names.
+  Bytes that are not those the digest names are answered
+  `Malformed`, and a channel response finish that no channel response
+  precedes is answered `Unavailable`. How the server holds the bytes
+  is not prescribed.

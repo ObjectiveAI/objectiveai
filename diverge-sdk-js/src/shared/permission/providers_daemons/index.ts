@@ -1,11 +1,13 @@
-// Grants over daemons that name none of them.
+// Through providers, over the daemons connected to them, naming no
+// provider.
 //
-// What a dependency tool template may ask over daemons, in the shapes
-// `permission` states: `Make`, the actions that bring one into being; `Over`,
-// the actions over those that exist, reaching by tags; and
-// `Permission`, one grant's worth of either, or of tagging. The
-// daemon's grants over daemons are made of the same actions.
+// In the shape `permission` states for actions over what exists:
+// `Over`, the actions — listing the announced identities, listening for
+// messages, sending one — reaching the providers by their tags, as a
+// grant over `providers` does; and `Permission`, one grant's worth of
+// them. Nothing is made and nothing is tagged here: the records are the
+// providers', and the providers grant makes and tags them. The daemon's
+// grant through providers is this one, re-exported.
 
-export * from "./make.js";
 export * from "./over.js";
 export * from "./permission.js";

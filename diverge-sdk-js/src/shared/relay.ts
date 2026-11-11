@@ -1,25 +1,25 @@
-// A request served by another daemon: the member every request of
+// A request served through other daemons: the member every request of
 // the daemon's wire may carry.
 
 import { z } from "zod";
+import { DaemonId } from "../daemon/endpoints/daemons/id.js";
 
 /**
- * Where a request is served: on another daemon, as one of the
- * accounts this daemon holds on it — a record of
- * `providers.daemons` and one of its accounts, both by name. Every
- * request of the daemon's wire carries this as an optional member,
- * `relay`; absent, the request is served by the daemon it was sent
- * to. A daemon that reads a request with `relay` does not serve it:
- * it takes or opens its connection to that daemon as that account,
- * puts the request there with this member taken out, and carries
- * every frame both ways until the remote finishes, reading none of
- * it. A relay the daemon will not make is answered as the request's
- * own `forbidden` or `error`.
+ * Where a request is served: through other daemons, by the IDs of this
+ * daemon's records of them, and of each next daemon's records in turn,
+ * see `daemons`. Every request carries this as an optional member,
+ * `relay`, an array of IDs; absent or empty, the request is served by
+ * the daemon it was sent to. A daemon that reads a request with `relay`
+ * takes the first ID off, judges that the caller
+ * may relay to that record — the daemons grant's `relay` reaching it, and
+ * nothing else — connects to the remote as the account the record names,
+ * and puts the request there with the rest as its `relay`, carrying every
+ * frame both ways until the remote finishes. The remote judges the next
+ * ID, and the request, as that account's. An ID is the hash of what its
+ * record reaches and as whom, so no daemon along the route can re-point
+ * a hop: it holds the record the ID names, or none, and refuses. A relay
+ * the daemon will not make is answered as the request's own `forbidden`
+ * or `error`.
  */
-export const Relay = z.object({
-  /** The daemon, by the name of its record. */
-  daemon: z.string(),
-  /** The account on it to act as, by the name the record's accounts give it. */
-  account: z.string(),
-});
+export const Relay = z.array(DaemonId);
 export type Relay = z.infer<typeof Relay>;

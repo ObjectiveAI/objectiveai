@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.channels.logs.open.Path",
-  "type": "string",
-  "enum": [
-    "channels/logs/open"
-  ]
-}

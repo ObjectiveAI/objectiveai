@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::agents::get::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{Failure, active, tools_of};
+use super::{Failure, state, tools_of};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::logs;
@@ -36,12 +36,12 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(agent) = agents::by_reference(&mut conn, &frame.agent, false).await? else {
         return Ok(Frame::NotFound);
     };
-    let active = active(daemon, agent.id).await;
-    if !judge::agents::over(&standing, Over::Get, &agent, active) {
+    let state = state(daemon, agent.id).await;
+    if !judge::agents::over(&standing, Over::Get, &agent, state) {
         return Ok(Frame::Forbidden);
     }
     let tools = tools_of(&mut conn, &agent).await?;
     drop(conn);
     let logs_index = logs::count(&daemon.logs, agent.id).await?;
-    Ok(Frame::Found(agent.report(active, tools, logs_index)))
+    Ok(Frame::Found(agent.report(state.active, state.deployed, tools, logs_index)))
 }

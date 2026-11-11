@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload of the channel request the server sends: the tag byte 15 and the ask, the run’s id and the declaration of secrets as JSON, with no dependencies.'
+summary: 'The payload of the channel request the server sends: the tag byte 15 and the ask, the run’s id, the declaration of secrets and the permissions as JSON, with no dependencies.'
 order: 1
 draft: false
 ---
@@ -29,7 +29,17 @@ draft: false
   registration's error, in the client's words. A name the template
   declares and the declaration omits is a secret the program does
   not take, and is never fed. The server relays the declaration as
-  the proxy sent it and reads none of it.
+  the proxy sent it and reads none of it. Absent when empty.
+- **`permissions`.** An array of grants, in the order the program
+  declared them; absent when empty. Each grant is an object of
+  exactly one member named for a kind, whose value is a bare array of
+  making actions, an object of `actions` and `within`, or an object
+  of `actions`, `within` and `tags`. A `within` is the string `any`
+  or an object of `all_tags` and `any_tags`, and names nothing; over
+  agents alone, a `within` may also be the string `attached`, the
+  agents attached to the tool, or the string `never_active`, the
+  agents that have never run. The server relays the array as the
+  proxy sent it and reads none of it.
 - **Malformed.** A channel request whose payload does not decode as
   stated is answered by a channel response finish that no channel
   response precedes, and the server does nothing else for it.
@@ -52,4 +62,25 @@ and by `diverge-sdk-rs/src/shared/containers/secrets/declaration.rs`:
 and by `diverge-sdk-rs/src/shared/containers/secrets/mode.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/containers/secrets/mode.rs
+```
+
+and by `diverge-sdk-rs/src/shared/permission/grant.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/permission/grant.rs
+```
+
+and by `diverge-sdk-rs/src/shared/permission/within.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/permission/within.rs
+```
+
+and, for the grant over agents, by
+`diverge-sdk-rs/src/shared/permission/agents/within.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/permission/agents/within.rs
+```
+
+and by `diverge-sdk-rs/src/shared/permission/tags.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/permission/tags.rs
 ```

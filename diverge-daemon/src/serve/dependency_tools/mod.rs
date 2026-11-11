@@ -19,10 +19,13 @@ pub use resolve::*;
 
 pub mod delete;
 pub mod download;
+pub mod exec;
 pub mod filetree;
+pub mod frontend;
 pub mod get;
 pub mod list;
 pub mod tag;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;

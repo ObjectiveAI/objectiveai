@@ -284,7 +284,7 @@ Not guaranteed, and said plainly:
 
 ## 8. Against the old stack
 
-The old `objectiveai` compartments are the same role-plus-schema, with
+The old stack's compartments are the same role-plus-schema, with
 three differences this design makes on purpose:
 
 - The old stack hands the role's password into the container as a

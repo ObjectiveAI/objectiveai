@@ -7,17 +7,16 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A create's answer: the account exists, with its key when it has a
-/// credential, one like it exists already, no such role, forbidden, or
-/// a failure.
+/// A create's answer: the account exists, one with its identity exists
+/// already, no such role, forbidden, or a failure.
 ///
 /// A create is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Created`](Self::Created), `1`
 /// for [`Exists`](Self::Exists), `2` for [`NoRole`](Self::NoRole), `3`
 /// for [`Forbidden`](Self::Forbidden), `4` for [`Error`](Self::Error) —
-/// and the rest is that variant's own JSON: the key for the first,
-/// nothing for the bare answers, the error for the last.
+/// and the rest is that variant's own JSON: nothing for the bare
+/// answers, the error for the last.
 ///
 /// # Answers, and one failure
 ///
@@ -31,8 +30,8 @@ use crate::shared::error::Error;
 /// # Forbidden
 ///
 /// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
-/// account the request is served for — the connection's, or the
-/// `account` of the container it came from — holds no grant allowing
+/// account the request is served for — the connection's — or the tool
+/// the request came from holds no grant allowing
 /// what the request asks over what it names, and nothing changed. Where
 /// the answer is a stream it comes as an error does: exactly one, with
 /// nothing before it, then the finish. Nothing is retried. See
@@ -48,11 +47,9 @@ use crate::shared::error::Error;
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The account exists, with its roles. The key the daemon minted,
-    /// when the request gave a credential, answered here and never
-    /// again; `null` for a named account with none. Tag `0`.
-    Created(Option<String>),
-    /// The name or the identity is an account's already; nothing was
+    /// The account exists, with its roles. Tag `0`.
+    Created,
+    /// The identity is an account's already; nothing was
     /// created. Tag `1`.
     Exists,
     /// A role named is none the daemon has; nothing was created. Tag
@@ -92,9 +89,9 @@ impl Encode for Frame {
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Created(key) => {
+            Frame::Created => {
                 out.extend_from_slice(&[CREATED]);
-                serde_json::to_writer(out, key)
+                Ok(())
             }
             Frame::Exists => {
                 out.extend_from_slice(&[EXISTS]);
@@ -124,7 +121,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            CREATED => serde_json::from_slice(rest).map(Frame::Created).map_err(FrameError::Created),
+            CREATED => Ok(Frame::Created),
             EXISTS => Ok(Frame::Exists),
             NO_ROLE => Ok(Frame::NoRole),
             FORBIDDEN => Ok(Frame::Forbidden),
@@ -141,8 +138,6 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's five.
     UnknownTag(u8),
-    /// The key did not parse as a JSON string or `null`.
-    Created(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -152,7 +147,6 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("accounts create response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown accounts create response frame tag {tag}"),
-            FrameError::Created(error) => write!(f, "accounts create key did not parse: {error}"),
             FrameError::Error(error) => write!(f, "accounts create error did not parse: {error}"),
         }
     }
@@ -161,7 +155,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Created(error) | FrameError::Error(error) => Some(error),
+            FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

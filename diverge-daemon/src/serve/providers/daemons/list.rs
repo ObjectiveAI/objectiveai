@@ -1,38 +1,54 @@
-//! Listing daemon records, and keeping the list.
+//! Listing peers through the connected providers, and keeping the
+//! listing.
 
 use std::future::Future;
+use std::sync::Arc;
 
-use diverge_sdk::daemon::endpoints::providers::daemons::list::client::request::{self, Filter};
-use diverge_sdk::daemon::endpoints::providers::daemons::list::server::response::{self, Frame};
+use diverge_sdk::daemon::endpoints::providers::daemons::list::client::request;
+use diverge_sdk::daemon::endpoints::providers::daemons::list::server::response::{Listed, Frame};
 use diverge_sdk::daemon::grant::providers_daemons::Over;
+use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
-use crate::judge::{self, Standing, Who, filter};
-use crate::serve::stream::{self, Source};
+use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::{self, providers_daemons};
+use crate::serve::stream::{self, Source};
+use crate::store;
 
-/// Send the list and its changes, then finish the scope.
-pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
+/// Send the listing and its changes, then finish the scope.
+pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
     if let Err(error) = serve(&scope, frame, who, daemon).await {
         reply::reply(&scope, &Frame::Error(reply::failure(&error))).await;
     }
     scope.send_response_finish().await;
 }
 
-/// One `Forbidden` with no `list` grant at all; else every daemon
-/// record any `list` grant reaches that the request's filter lets
-/// through, oldest added first, the first `count` of them, one frame
-/// each, then the word that the listing is whole — and from then on
-/// each record added, changed or removed as the records and the
-/// connections change, until the client cancels. Which are connected is
-/// read afresh at every change.
-async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
+/// The rules:
+///
+/// 1. **Judged.** One `Forbidden` with no `providers_daemons`
+///    grant holding `list` over any provider.
+/// 2. **Watching.** The scope is a watcher of the daemon's
+///    [`Listings`](crate::listings::Listings) from before its first
+///    read to its end, however it ends: every connected provider's
+///    listing open and whole before anything is sent.
+/// 3. **The listing.** Every identity the merge holds, in order, the
+///    first `count` of them, one frame each, then the word that the
+///    listing is whole — and from then on each identity added, changed
+///    or removed as the providers' listings tell, and as providers
+///    connect and disconnect, until the client cancels.
+/// 4. **Reached.** Only routes through the providers a `providers_daemons`
+///    grant's `list` reaches are listed: an identity none of whose routes is
+///    reached is not listed at all, and a listed identity's
+///    `providers` hold only its reached routes. The reach is read again
+///    at every read, so a provider's record changed — a word of
+///    `Kind::Providers` — re-reads the listing as the grants now reach.
+async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;
         Standing::of(&mut conn, who).await?
     };
+    // Rule 1.
     let Some(standing) = standing else {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
@@ -41,41 +57,31 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let source = Listed {
-        daemon,
-        standing: &standing,
-        filter: &frame.filter,
-    };
-    stream::listing(scope, daemon, &[Kind::ProvidersDaemons], frame.count, &source, Frame::from)
-    .await
+    // Rules 2, 3 and 4: the watcher left as its guard drops, however
+    // the scope ends.
+    let _watching = daemon.live.listings.enter(daemon).await;
+    let source = Merged { daemon, standing: &standing };
+    stream::listing(scope, daemon, &[Kind::Listings, Kind::Providers], frame.count, &source, Frame::from).await
 }
 
-/// The daemon records as the caller may list them now.
-struct Listed<'a> {
+/// The merge as it is now, narrowed to the routes the grants reach.
+struct Merged<'a> {
     daemon: &'a Daemon,
     standing: &'a Standing,
-    filter: &'a Filter,
 }
 
-impl Source for Listed<'_> {
-    type Key = String;
-    type Item = response::Daemon;
+impl Source for Merged<'_> {
+    type Key = Identity;
+    type Item = Listed;
     type Error = store::Error;
 
-    fn read(&self) -> impl Future<Output = Result<Vec<(String, response::Daemon)>, store::Error>> + Send {
+    fn read(&self) -> impl Future<Output = Result<Vec<(Identity, Listed)>, store::Error>> + Send {
         async move {
-            let all = {
-                let mut conn = self.daemon.store.acquire().await?;
-                providers_daemons::all(&mut conn).await?
-            };
-            let mut connected = self.daemon.live.connected_daemons().await;
-            Ok(all
-                .iter()
-                .map(|record| (record, connected.remove(&record.name).unwrap_or_default()))
-                .filter(|(record, connected)| judge::providers_daemons::over(self.standing, Over::List, record, !connected.is_empty()))
-                .filter(|(record, connected)| filter::providers_daemons::test(self.filter, record, !connected.is_empty()))
-                .map(|(record, connected)| (record.name.clone(), record.report(connected)))
-                .collect())
+            // Rule 4: the reach as the records stand now.
+            let reached = judge::providers_daemons::reached(self.standing, Over::List, &self.daemon.providers.all());
+            // Only the reached providers' listings are merged: their
+            // routes, and their descriptions, and no other's.
+            Ok(self.daemon.live.listings.read(self.daemon, &reached).await)
         }
     }
 }

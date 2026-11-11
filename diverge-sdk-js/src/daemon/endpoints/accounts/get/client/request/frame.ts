@@ -1,15 +1,15 @@
-// Getting one account, by its name or by its credential's identity.
+// Getting one account, by its identity.
 
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../shared/relay.js";
 import { Reference } from "../../../../../../daemon/endpoints/accounts/reference.js";
 
-/** Ask the daemon for one account, by its name or by its credential's identity. */
+/** Ask the daemon for one account, by its identity. */
 export const Frame = z.object({
   /** The account. */
   account: Reference,
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

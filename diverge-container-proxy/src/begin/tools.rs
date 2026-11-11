@@ -10,6 +10,7 @@ use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
+use tokio::task::JoinSet;
 
 use super::Family;
 use crate::encode::encoded;
@@ -23,8 +24,8 @@ use crate::{info, inside, program, tool};
 /// registered with the program's server — its refusal is the `Error`,
 /// in its own words, and the connection has not begun — and then
 /// `Begun` goes out carrying the secrets the program takes, by name
-/// and mode, the dependencies it answered with dropped, since a tool
-/// container declares none; the declaration is kept first, and the
+/// and mode, and the permissions it holds, the dependencies it
+/// answered with dropped, since a tool container declares none; the declaration is kept first, and the
 /// activity's gate set from it — open for a program that takes no
 /// secret, closed until the server's first feed for one that does.
 /// The scope is published to every surface inside the container, and
@@ -33,7 +34,8 @@ use crate::{info, inside, program, tool};
 /// ask, the program asked nothing; one exchange with the tool's
 /// server each — its answer as the tool's server gave it, the exchange
 /// entered and left as the container's activity — the notifications
-/// for as long as the channel lives, a feed of the secrets answered
+/// for as long as the channel lives, a session's close answered once
+/// the session is removed, a feed of the secrets answered
 /// once the program has applied them, the server's half of a
 /// database connection until the driver hangs up. A channel this end
 /// cannot read is finished with nothing. The loop is raced against
@@ -41,6 +43,13 @@ use crate::{info, inside, program, tool};
 /// the main stream already — and finishes the scope then; this loop
 /// alone may, since reading the inbox holds its lock. Otherwise the
 /// scope is the connection's life.
+///
+/// Every task it starts is its own — the channels', and for an agent
+/// the resident notifications ask — held in one set: those that ended
+/// are reaped before the next channel is taken, so the set holds what
+/// is in flight and no more; the finish is followed by the rest,
+/// awaited, each ending with its channel; and the connection ending,
+/// which aborts this task, aborts every one of them with it.
 pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame) {
     if !proxy.claim_begin().await {
         refuse(&scope, super::agents::begun()).await;
@@ -59,6 +68,7 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
     proxy.activity.set_open(registered.secrets.is_empty());
     let begun = response::Registered {
         secrets: registered.secrets,
+        permissions: registered.permissions,
     };
     if let Some(payload) = encoded(&response::Frame::Begun(begun)) {
         scope.send_response(&payload).await;
@@ -68,7 +78,11 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
         family: Family::Tools,
     });
 
+    let mut tasks = JoinSet::new();
     loop {
+        // Finished ones, so the set does not grow for the life of the
+        // connection.
+        while tasks.try_join_next().is_some() {}
         let bytes = tokio::select! {
             bytes = scope.recv_channel_request() => match bytes {
                 Some(bytes) => bytes,
@@ -83,38 +97,42 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
         let scope = Arc::clone(&scope);
         match channel_request::Frame::decode(payload) {
             Ok(channel_request::Frame::Daemon(request)) => {
-                tokio::spawn(inside::daemon::attach(proxy, scope, channel, request.connection_id));
+                tasks.spawn(inside::daemon::attach(proxy, scope, channel, request.connection_id));
             }
             Ok(channel_request::Frame::Postgres(request)) => {
-                tokio::spawn(inside::postgres::attach(proxy, scope, channel, request.connection_id));
+                tasks.spawn(inside::postgres::attach(proxy, scope, channel, request.connection_id));
             }
             Ok(channel_request::Frame::Info) => {
-                tokio::spawn(info::info(scope, channel));
+                tasks.spawn(info::info(scope, channel));
             }
             Ok(channel_request::Frame::McpListTools(request)) => {
-                tokio::spawn(async move { tool::list_tools(&proxy, &scope, channel, request).await });
+                tasks.spawn(async move { tool::list_tools(&proxy, &scope, channel, request).await });
             }
             Ok(channel_request::Frame::McpListResources(request)) => {
-                tokio::spawn(async move { tool::list_resources(&proxy, &scope, channel, request).await });
+                tasks.spawn(async move { tool::list_resources(&proxy, &scope, channel, request).await });
             }
             Ok(channel_request::Frame::McpCallTool(request)) => {
-                tokio::spawn(async move { tool::call_tool(&proxy, &scope, channel, request).await });
+                tasks.spawn(async move { tool::call_tool(&proxy, &scope, channel, request).await });
             }
             Ok(channel_request::Frame::McpReadResource(request)) => {
-                tokio::spawn(async move { tool::read_resource(&proxy, &scope, channel, request).await });
+                tasks.spawn(async move { tool::read_resource(&proxy, &scope, channel, request).await });
             }
-            Ok(channel_request::Frame::McpNotifications(_)) => {
-                tokio::spawn(async move { tool::notifications(&proxy.tool, &scope, channel).await });
+            Ok(channel_request::Frame::McpNotifications(request)) => {
+                tasks.spawn(async move { tool::notifications(&proxy, &scope, channel, request).await });
+            }
+            Ok(channel_request::Frame::McpCloseSession(request)) => {
+                tasks.spawn(async move { tool::close_session(&proxy, &scope, channel, request).await });
             }
             Ok(channel_request::Frame::Secrets(values)) => {
-                tokio::spawn(tool::feed(proxy, scope, channel, values));
+                tasks.spawn(tool::feed(proxy, scope, channel, values));
             }
             Err(_) => {
-                tokio::spawn(async move { scope.send_channel_response_finish(channel).await });
+                tasks.spawn(async move { scope.send_channel_response_finish(channel).await });
             }
         }
     }
     scope.send_response_finish().await;
+    while tasks.join_next().await.is_some() {}
 }
 
 /// The `Error`, then the finish: the connection has not begun.

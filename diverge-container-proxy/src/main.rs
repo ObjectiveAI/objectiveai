@@ -41,13 +41,15 @@
 //! and sends them with the word. It sets
 //! nothing under `_meta` on any MCP exchange it relays, in either
 //! direction, and nothing on any chunk the agent says: who is on
-//! either end is the daemon's to attest, not the proxy's. For an
+//! either end is the daemon's to attest, not the proxy's — but for
+//! the `initialize` of each MCP session it opens to a tool container's
+//! server, which carries the caller the daemon named for that session. For an
 //! agent container the proxy is also the loop's keeper: it holds the
-//! queue every enqueue joins, starts a run when none runs and offers
+//! queue every enqueue joins, starts a run when none runs and hands
 //! each message to the run in flight when one does, and relays every
 //! chunk the agent says onto the begin scope's main stream. For a
-//! tool container it is the caller's MCP client, one exchange per
-//! channel the server opens.
+//! tool container it is the callers' MCP client — one session per
+//! caller, one exchange per channel the server opens.
 //!
 //! [`container_proxy_endpoints`]: diverge_sdk::container_proxy::outside
 
@@ -94,6 +96,11 @@ async fn run() {
             let proxy = Arc::clone(&proxy);
             move || Ok(inside::mcp::Handler::new(Arc::clone(&proxy)))
         },
+        // rmcp's own table of the agent's sessions, bounded by its
+        // defaults: a session that never initializes ends at the
+        // `init_timeout`, one idle past the `keep_alive` ends, and the
+        // service removes a session from the table when it ends —
+        // so the table holds the live sessions, never every one seen.
         Arc::new(LocalSessionManager::default()),
         Default::default(),
     );

@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { bytewise, sha256 } from "../../canonical/index.js";
-import { Grant } from "../../permission/grant.js";
 import { Image, hashed as hashedImage } from "../request/image.js";
 import { Service, Transient } from "./mode.js";
 
@@ -17,8 +16,6 @@ const members = {
   arguments: z.json(),
   /** The secrets the image needs, by name, in the order the image states them. Absent, none. */
   secrets: z.array(z.string()).optional(),
-  /** What the tool's account may do, as grants that name nothing. Absent when empty. */
-  permissions: z.array(Grant).optional(),
 };
 
 /**
@@ -27,8 +24,9 @@ const members = {
  * the limits and the arguments; beside them the secrets the image
  * needs, by name alone; the `mode`, flat with that mode's own
  * members — a transient tool's mounts of the agent's own paths, or a
- * service's scope; and the `permissions` its account holds, grants
- * that name nothing. There is no name: a dependency is named by its
+ * service's scope. What the tool may ask of the caller is not here:
+ * its own program declares it at its registration, every time it
+ * starts. There is no name: a dependency is named by its
  * id, the SHA-256 of its canonical bytes over `hashed`.
  */
 export const Template = z.discriminatedUnion("mode", [Transient.extend(members), Service.extend(members)]);

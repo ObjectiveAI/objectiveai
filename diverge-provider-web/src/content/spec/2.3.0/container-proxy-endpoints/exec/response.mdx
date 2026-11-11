@@ -1,0 +1,45 @@
+---
+title: 'Response'
+summary: 'The server sends the output, one response per read, then the exit code or the signal, and the finish; or one error and the finish.'
+order: 2
+draft: false
+---
+
+```text
+[0][bytes …]          one read of standard output
+[1][bytes …]          one read of standard error
+[2][code JSON]        last: the command exited
+[3][signal JSON]      last: a signal ended the command
+[4][error JSON …]     the only response: the command did not run
+```
+
+- **The sequence.** Zero or more responses whose first byte is `0` or
+  `1`, in the order the server completed their reads, followed by
+  exactly one response whose first byte is `2` or `3`, followed by the
+  response finish. Alternatively, exactly one response whose first byte is
+  `4`, followed by the response finish.
+- **Stdout and stderr.** After the byte `0`, the bytes of one read of
+  the command's standard output, verbatim, running to the end of the
+  payload. After the byte `1`, the bytes of one read of its standard
+  error. A read carries at most 2097152 bytes. The bytes of each
+  stream, concatenated in order, are that stream.
+- **The end.** After the byte `2`, exactly one JSON integer: the code
+  with which the command exited. After the byte `3`, exactly one JSON
+  integer: the number of the signal that ended the command. The
+  server sends the one or the other after both streams of the command
+  have reached their end.
+- **The error.** After the byte `4`, exactly one JSON value in the form
+  defined on the [volumes::list response](/endpoints/volumes-list/response/) page. It states that the
+  command did not run: no `argv`, a `cwd` that names no directory, or
+  a program that does not exist or cannot be executed.
+- **The pace.** The server sends each response only while it holds
+  room on the stream, as [Credits](/frames/credits/) provides. A
+  command whose output the client does not take waits on its write.
+- **A finish with nothing.** A response finish that no response
+  precedes states that the server could not read the request, or that
+  the command was killed before it sent anything.
+
+The response is defined by `diverge-sdk-rs/src/shared/containers/exec/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/exec/response/frame.rs
+```

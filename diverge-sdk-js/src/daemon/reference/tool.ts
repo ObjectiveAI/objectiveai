@@ -1,23 +1,17 @@
-// One tool of the caller's, named any of three ways.
+// One standalone tool of the caller's, named either way.
 
 import { z } from "zod";
 
 /**
- * One tool of the caller's: by its name, by its template and its
- * index, or — a connected tool — by the daemon, the account and the
- * tool it joined, the tool as that daemon names it, recursively.
- * Untagged JSON, one object any way; an object with members of more
- * than one variant does not decode.
+ * One standalone tool of the caller's: by its name, or by its
+ * template and its index. Untagged JSON, one object either way; an
+ * object with members of both does not decode. A connected tool is
+ * named by `ConnectedStandaloneTool`, never by this.
  */
-export type Tool =
-  | { name: string }
-  | { template: string; index: number }
-  | { daemon: string; account: string; tool: Tool };
-
-export const Tool: z.ZodType<Tool> = z.lazy(() =>
-  z.union([
-    z.strictObject({ name: z.string() }),
-    z.strictObject({ template: z.string(), index: z.number().int().nonnegative() }),
-    z.strictObject({ daemon: z.string(), account: z.string(), tool: Tool }),
-  ]),
-);
+export const Tool = z.union([
+  /** By name: `{"name":…}`. A tool given none is not reached this way. */
+  z.strictObject({ name: z.string() }),
+  /** By template and index: `{"template":…,"index":…}`. */
+  z.strictObject({ template: z.string(), index: z.number().int().nonnegative() }),
+]);
+export type Tool = z.infer<typeof Tool>;

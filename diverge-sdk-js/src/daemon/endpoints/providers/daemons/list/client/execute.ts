@@ -7,7 +7,7 @@ import * as request from "./request/index.js";
 import * as response from "../server/response/index.js";
 
 /**
- * Send the request and hand back the stream of daemons — each added,
+ * Send the request and hand back the stream of identities — each added,
  * then `listed`, then every change — and the cancel that ends it:
  * one channel request on the scope, after which the daemon finishes
  * the scope and what was sent before stands.

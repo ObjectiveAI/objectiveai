@@ -1,7 +1,7 @@
 //! One volume as a list reports it.
 
 use chrono::{DateTime, Utc};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::endpoints::volumes::list::server::response;
 use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::reference;

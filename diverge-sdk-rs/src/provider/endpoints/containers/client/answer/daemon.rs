@@ -26,7 +26,8 @@ pub(crate) async fn daemon<D: Daemon>(
     let Some(half) = (encoders.daemon_half)(connection_id) else {
         return finish(handle, scope, channel).await;
     };
-    let (from_program, receiver) = mpsc::unbounded_channel();
+    // One frame deep, as the postgres half is.
+    let (from_program, receiver) = mpsc::channel(1);
     let Some(from_daemon) = session.connect(connection_id, receiver).await else {
         return finish(handle, scope, channel).await;
     };
@@ -41,7 +42,7 @@ pub(crate) async fn daemon<D: Daemon>(
                     let Ok(frame) = daemon::client::Frame::decode(payload) else {
                         break;
                     };
-                    if from_program.send(daemon::client::Owned::from(frame)).is_err() {
+                    if from_program.send(daemon::client::Owned::from(frame)).await.is_err() {
                         break;
                     }
                 }
@@ -51,7 +52,15 @@ pub(crate) async fn daemon<D: Daemon>(
         }
     });
     let sent = async {
-        while let Some(frame) = from_daemon.next().await {
+        loop {
+            let frame = tokio::select! {
+                next = from_daemon.next() => next,
+                // The provider reads no more: the conduit is over.
+                () = handle.answer_gone(scope, channel) => return Err(Stop),
+            };
+            let Some(frame) = frame else {
+                break;
+            };
             let Some(bytes) = encoded(&frame.as_frame()) else {
                 break;
             };

@@ -243,3 +243,25 @@ public` from `diverge-sdk-js`, or the workflow input, when the user
 says so. A LICENSE file is the one thing a first publish might
 still want; the sibling package ships none and the manifest names
 MIT.
+
+**The proxy half, proven 2026-10-22 on the branch
+`viewer-edge-graph`.** The viewer's Rust (`src-tauri/src/wire/`)
+holds one `diverge_sdk::wire::client::Handle`, dialled from
+`viewer.yaml`'s daemon on first use, and implements the four
+commands as thin calls on it, every whole frame forwarded on a
+`Channel<tauri::ipc::Response>`; the page's handle is
+`wire.proxy.handle({ invoke, channel: () => new Channel() })` and
+nothing in the package changed for it. Run against the live daemon:
+the rail listed the agents (`agents.list`, folded by `Listing`,
+through to `listed`) and the new-agent screen the templates, both
+through the proxy. Then the contract was made closure-complete
+(the same day): every proxy channel carries its whole frames and
+then exactly one empty message, the end, sent when the Rust side's
+receiver closes for any reason, and the page's receiver closes on
+that alone; a command's rejection is a `Refusal` of kind
+`connection` or `scope`, thrown as the `SendError` of that kind; a
+connection that ended stays ended until the app dials again. The
+Rust side of the contract is the Rust SDK's `wire::proxy`
+(`forward`, `Refusal`), so an app's native side is glue. With it, a
+connection's end reaches a reader through the proxy exactly as it
+does over a socket. The publish stays open, by ruling.

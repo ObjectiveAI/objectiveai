@@ -19,7 +19,7 @@ export const Frame = z.object({
   slot: z.number().int().nonnegative().optional(),
   /** The value: any JSON, held as given and handed to a container that takes the key. */
   value: z.json(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

@@ -1,12 +1,12 @@
 // The frames a server sends, as a client reads them.
 
-import { AUTH, CHANNEL_REQUEST, CHANNEL_RESPONSE, CHANNEL_RESPONSE_FINISH, RESPONSE, RESPONSE_FINISH } from "./kind.js";
+import { AUTH, CHANNEL_REQUEST, CHANNEL_RESPONSE, CHANNEL_RESPONSE_FINISH, CREDIT, RESPONSE, RESPONSE_FINISH } from "./kind.js";
 import { splitHeader } from "./header.js";
 import { FrameError } from "./error.js";
 
 /**
- * One frame as a server sends it: a credential, which a client
- * never expects after the handshake; a response or the finish on a
+ * One frame as a server sends it: its token, the handshake's
+ * answer, which a client never expects after it; a response or the finish on a
  * scope the client opened; a channel request the server opens
  * inside that scope; or a response or finish on a channel the
  * CLIENT opened. A `request` from a server is a type this side does
@@ -19,7 +19,8 @@ export type ServerFrame =
   | { readonly kind: "response_finish"; readonly scope: number }
   | { readonly kind: "channel_request"; readonly scope: number; readonly channel: number; readonly payload: Uint8Array }
   | { readonly kind: "channel_response"; readonly scope: number; readonly channel: number; readonly payload: Uint8Array }
-  | { readonly kind: "channel_response_finish"; readonly scope: number; readonly channel: number };
+  | { readonly kind: "channel_response_finish"; readonly scope: number; readonly channel: number }
+  | { readonly kind: "credit"; readonly scope: number; readonly channel: number; readonly credit: number };
 
 /**
  * Read one server frame out of a whole message. On a scope-level
@@ -41,6 +42,13 @@ export function decodeServerFrame(bytes: Uint8Array): ServerFrame {
       return { kind: "channel_response", scope, channel, payload };
     case CHANNEL_RESPONSE_FINISH:
       return { kind: "channel_response_finish", scope, channel };
+    case CREDIT: {
+      const credit = payload[0];
+      if (credit === undefined) {
+        throw new FrameError("truncated");
+      }
+      return { kind: "credit", scope, channel, credit };
+    }
     default:
       throw new FrameError("unknown_type", type);
   }

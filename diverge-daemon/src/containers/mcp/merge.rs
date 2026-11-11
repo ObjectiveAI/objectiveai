@@ -12,27 +12,28 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use futures_util::{Stream, StreamExt as _, stream};
+use futures_util::{Stream, StreamExt as _};
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::events::Action;
+use diverge_sdk::daemon::tool_log::{self as log, Item};
 use diverge_sdk::shared::mcp::attest_request;
 use diverge_sdk::shared::mcp::attestation;
-use rmcp::model::RequestParamsMeta;
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, ErrorData, GetMeta as _, ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
     ReadResourceResult, ServerNotification,
 };
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::Mutex;
 use tokio::task::AbortHandle;
 
-use super::{Entry, Served, exposed, split};
-use crate::containers::{Key, ToolKey, ToolRun, activate_tool, events, tools};
+use super::{Entry, Outbox, Push, Served, exposed, split};
+use crate::containers::lifecycle::{Answer, Ask, End};
+use crate::containers::{AskError, Key, ToolKey, ToolRun, activate_tool, events, tool_log, tools};
 use crate::daemon::Daemon;
 use crate::store::DependencyToolId;
+use crate::store::connected_standalone_tools::ConnectedTool;
 use crate::store::tools::Tool;
 
 /// The notifications a container hears: every served tool's, and the
-/// word that the set changed.
+/// merged lists' changes, read off an [`Outbox`].
 pub type Notifications = Pin<Box<dyn Stream<Item = Result<ServerNotification, ErrorData>> + Send>>;
 
 /// Who is asking, and whose tools: the daemon, the container asking,
@@ -60,6 +61,9 @@ enum Next {
     Run(Arc<ToolRun>),
     /// An attached tool, whose run is the live set's to find.
     Attached(Tool),
+    /// An attached connected tool, whose connect is the live set's to
+    /// find.
+    Connected(ConnectedTool),
     /// A service, whose run the live set holds.
     Service(DependencyToolId),
     /// Nothing is served under the key.
@@ -67,8 +71,9 @@ enum Next {
 }
 
 /// The served tool's run: a transient dependency tool's; an attached
-/// tool's as the live set holds it now, started now if it holds none;
-/// or a service's as the live set holds it now, which is an error
+/// tool's — a standalone tool's run or a connected tool's connect — as
+/// the live set holds it now, started now if it holds none; or a
+/// service's as the live set holds it now, which is an error
 /// while the service's container is not up.
 pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, String> {
     let next = {
@@ -76,11 +81,17 @@ pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, St
         match served.entry(key) {
             Some(Entry::Transient(run)) => Next::Run(Arc::clone(run)),
             Some(Entry::Attached { tool }) => Next::Attached(tool.clone()),
+            Some(Entry::Connected { tool }) => Next::Connected(tool.clone()),
             Some(Entry::Service { id, .. }) => Next::Service(*id),
             None => Next::Missing,
         }
     };
-    let tool = match next {
+    if matches!(next, Next::Attached(_) | Next::Connected(_))
+        && let Some(run) = context.daemon.live.tool_run(key).await
+    {
+        return Ok(run);
+    }
+    let run = match next {
         Next::Run(run) => return Ok(run),
         Next::Service(id) => {
             return context
@@ -91,12 +102,9 @@ pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, St
                 .ok_or_else(|| "the service is not running now".to_string());
         }
         Next::Missing => return Err("no tool is served under that prefix".to_string()),
-        Next::Attached(tool) => tool,
+        Next::Attached(tool) => tools::use_tool(&context.daemon, &tool).await.map_err(|error| error.to_string())?,
+        Next::Connected(tool) => tools::use_connected(&context.daemon, &tool).await.map_err(|error| error.to_string())?,
     };
-    if let Some(run) = context.daemon.live.tool_run(key).await {
-        return Ok(run);
-    }
-    let run = tools::use_tool(&context.daemon, &tool).await.map_err(|error| error.to_string())?;
     context.served.lock().await.started();
     Ok(run)
 }
@@ -109,7 +117,7 @@ async fn relayed(served: &Mutex<Served>, daemon: &Daemon, key: ToolKey) -> Optio
         let served = served.lock().await;
         match served.entry(key) {
             Some(Entry::Transient(run)) => return Some(Arc::clone(run)),
-            Some(Entry::Attached { .. }) | Some(Entry::Service { .. }) => true,
+            Some(Entry::Attached { .. }) | Some(Entry::Connected { .. }) | Some(Entry::Service { .. }) => true,
             None => false,
         }
     };
@@ -119,12 +127,11 @@ async fn relayed(served: &Mutex<Served>, daemon: &Daemon, key: ToolKey) -> Optio
     daemon.live.tool_run(key).await
 }
 
-/// The caller stamped on `params`: the agent, when the run is one. A
-/// tool's run calls nothing outward, and stamps nothing.
-fn attest<P: RequestParamsMeta>(context: &Context, params: &mut P) {
-    if let Some(agent) = &context.caller {
-        attest_request(params, agent);
-    }
+/// The refusal for a call or a read with no caller: a tool container
+/// calls no tool — a tool declares no dependencies, so nothing is ever
+/// served to one, and no session could name it.
+fn no_caller() -> ErrorData {
+    ErrorData::invalid_params("a tool container calls no tool", None)
 }
 
 /// Every idle served tool started: what a loop beginning does, so its
@@ -141,8 +148,12 @@ pub async fn start_all(context: &Context) {
 /// waited for. A tool that does not answer lists nothing. Each ask is
 /// in flight into its tool for as long as it takes.
 pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) -> Result<ListToolsResult, ErrorData> {
+    let Some(caller) = &context.caller else {
+        return Ok(ListToolsResult::with_all_items(Vec::new()));
+    };
     let keys = context.served.lock().await.keys();
     let mut tools = Vec::new();
+    let mut cut = false;
     for key in keys {
         let Ok(run) = running(context, key).await else {
             continue;
@@ -151,44 +162,64 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
             continue;
         };
         let mut params = PaginatedRequestParams::default();
-        attest(context, &mut params);
+        attest_request(&mut params, caller);
+        tool_log::session(&context.daemon, &run, caller).await;
         let _flying = run.inflight.enter();
         if activate_tool(&context.daemon, &run).await.is_err() {
             continue;
         }
-        if let Ok(result) = run.handle.list_tools(Some(params)).await {
-            run.touch();
-            for mut tool in result.tools {
-                tool.name = exposed(&prefix, &tool.name).into();
-                run.attest(tool.meta.get_or_insert_default());
-                tools.push(tool);
+        match run.handle.list_tools(caller, Some(params)).await {
+            Ok(result) => {
+                run.touch();
+                for mut tool in result.tools {
+                    tool.name = exposed(&prefix, &tool.name).into();
+                    run.attest(tool.meta.get_or_insert_default());
+                    tools.push(tool);
+                }
             }
+            Err(AskError::Interrupted) => cut = true,
+            Err(AskError::Other(_)) => {}
         }
+    }
+    if cut {
+        cut_short(context).await;
     }
     Ok(ListToolsResult::with_all_items(tools))
 }
 
 /// The union of every served tool's resources, verbatim.
 pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>) -> Result<ListResourcesResult, ErrorData> {
+    let Some(caller) = &context.caller else {
+        return Ok(ListResourcesResult::with_all_items(Vec::new()));
+    };
     let keys = context.served.lock().await.keys();
     let mut resources = Vec::new();
+    let mut cut = false;
     for key in keys {
         let Ok(run) = running(context, key).await else {
             continue;
         };
         let mut params = PaginatedRequestParams::default();
-        attest(context, &mut params);
+        attest_request(&mut params, caller);
+        tool_log::session(&context.daemon, &run, caller).await;
         let _flying = run.inflight.enter();
         if activate_tool(&context.daemon, &run).await.is_err() {
             continue;
         }
-        if let Ok(result) = run.handle.list_resources(Some(params)).await {
-            run.touch();
-            for mut resource in result.resources {
-                run.attest(resource.meta.get_or_insert_default());
-                resources.push(resource);
+        match run.handle.list_resources(caller, Some(params)).await {
+            Ok(result) => {
+                run.touch();
+                for mut resource in result.resources {
+                    run.attest(resource.meta.get_or_insert_default());
+                    resources.push(resource);
+                }
             }
+            Err(AskError::Interrupted) => cut = true,
+            Err(AskError::Other(_)) => {}
         }
+    }
+    if cut {
+        cut_short(context).await;
     }
     Ok(ListResourcesResult::with_all_items(resources))
 }
@@ -197,8 +228,15 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
 /// knows: in flight into the tool from the ask to the answer, which
 /// holds the tool's run up — a detach meanwhile serves the tool no
 /// more from that instant, and this call is answered still. On the
-/// graph once it reaches the run: one `call` event from the container
-/// to the tool, however the tool answers.
+/// graph once it reaches the run: one event from the container
+/// to the tool, however the tool answers. On the tool's log, an
+/// agent's call is kept once its tool's run is found — never before,
+/// so its `active` follows the run's `deployed` — and its answer — the
+/// result, or why there was none — once there is one, as
+/// [`tool_log`] states; a call the run went down under is answered
+/// there by the run's `undeployed`. The ask, from its keeping to its
+/// answer's, runs in a task of its own, so a caller gone midway
+/// leaves no ask open. A tool container's own call keeps nothing.
 pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
     let Some((prefix, name)) = split(&params.name) else {
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
@@ -206,50 +244,99 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     let Some(key) = context.served.lock().await.owner(prefix) else {
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
     };
-    let name = name.to_string();
+    let Some(caller) = context.caller.clone() else {
+        return Err(no_caller());
+    };
     let run = running(context, key).await.map_err(|error| ErrorData::internal_error(error, None))?;
+    let name = name.to_string();
+    let call = log::Call { caller: caller.clone(), name: name.clone(), arguments: params.arguments.clone() };
     params.name = name.into();
-    attest(context, &mut params);
+    let daemon = Arc::clone(&context.daemon);
+    let sender = context.sender.clone();
+    let (answered, cut) = tokio::spawn(async move { asked_call(daemon, sender, caller, run, call, params).await })
+        .await
+        .unwrap_or_else(|error| (Err(ErrorData::internal_error(error.to_string(), None)), false));
+    if cut {
+        cut_short(context).await;
+    }
+    answered
+}
+
+/// The call, kept, routed and answered on `run`'s log; and whether it
+/// was cut short — the run's scope or a connection under it gone.
+async fn asked_call(
+    daemon: Arc<Daemon>,
+    sender: Creator,
+    caller: attestation::Caller,
+    run: Arc<ToolRun>,
+    call: log::Call,
+    params: CallToolRequestParams,
+) -> (Result<CallToolResult, ErrorData>, bool) {
+    let ask = tool_log::begin(&daemon, &run, Item::Call(call), Ask::Call).await;
+    let answered = routed_call(&daemon, &sender, &caller, &run, params).await;
+    tool_log::end(&daemon, &run, ask, |call| match &answered {
+        Ok(result) => Answer::Kept(Item::CallResult(log::CallResult { call, result: result.clone() })),
+        Err(AskError::Interrupted) => Answer::Interrupted,
+        Err(error) => Answer::Kept(Item::CallError(log::CallError { call, error: tool_log::words(&error.to_string()) })),
+    })
+    .await;
+    match answered {
+        Ok(result) => (Ok(result), false),
+        Err(error) => (Err(error.to_error_data(run.ending.lock().await.and_then(End::reason))), error == AskError::Interrupted),
+    }
+}
+
+/// The call, routed: the call attested, the run activated, the event
+/// recorded, and the tool asked on the caller's session.
+async fn routed_call(daemon: &Arc<Daemon>, sender: &Creator, caller: &attestation::Caller, run: &Arc<ToolRun>, mut params: CallToolRequestParams) -> Result<CallToolResult, AskError> {
+    attest_request(&mut params, caller);
+    tool_log::session(daemon, run, caller).await;
     run.touch();
     let _flying = run.inflight.enter();
-    activate_tool(&context.daemon, &run)
-        .await
-        .map_err(|error| ErrorData::internal_error(error.0.to_string(), None))?;
-    events::record(&context.daemon, &context.sender, &run.sender, Action::Call).await;
-    let mut result = run
-        .handle
-        .call_tool(params)
-        .await
-        .map_err(|error| ErrorData::internal_error(error, None))?;
+    activate_tool(daemon, run).await.map_err(|error| AskError::Other(error.0.to_string()))?;
+    events::record(daemon, sender, &run.sender).await;
+    let mut result = run.handle.call_tool(caller, params).await?;
     run.attest(result.meta.get_or_insert_default());
     Ok(result)
 }
 
 /// The read, from the first served tool that answers it: on the graph
-/// as one `read` event from the container to that tool, and to no
-/// tool that did not.
+/// as one event from the container to that tool, and to no
+/// tool that did not. On each running tool's log, an agent's read is
+/// kept as it is asked, and its answer — the result, or why that tool
+/// had none — as it comes, as [`tool_log`] states; a read the run went
+/// down under is answered there by the run's `undeployed`. Each ask
+/// runs in a task of its own, as a call's does. A tool container's
+/// own read keeps nothing.
 pub async fn read_resource(context: &Context, mut params: ReadResourceRequestParams) -> Result<ReadResourceResult, ErrorData> {
-    attest(context, &mut params);
+    let Some(caller) = context.caller.clone() else {
+        return Err(no_caller());
+    };
+    attest_request(&mut params, &caller);
     let keys = context.served.lock().await.keys();
     let mut last = None;
+    let mut cut = false;
     for key in keys {
         let Ok(run) = running(context, key).await else {
             continue;
         };
-        let _flying = run.inflight.enter();
-        if let Err(error) = activate_tool(&context.daemon, &run).await {
-            last = Some(error.0.to_string());
-            continue;
-        }
-        match run.handle.read_resource(params.clone()).await {
-            Ok(mut result) => {
-                run.touch();
-                run.attest(result.meta.get_or_insert_default());
-                events::record(&context.daemon, &context.sender, &run.sender, Action::Read).await;
-                return Ok(result);
+        let daemon = Arc::clone(&context.daemon);
+        let sender = context.sender.clone();
+        let asker = caller.clone();
+        let asked = params.clone();
+        let read = tokio::spawn(async move { asked_read(daemon, sender, asker, run, asked).await })
+            .await
+            .unwrap_or_else(|error| Err(AskError::Other(error.to_string())));
+        match read {
+            Ok(result) => return Ok(result),
+            Err(error) => {
+                cut |= error == AskError::Interrupted;
+                last = Some(error.to_string());
             }
-            Err(error) => last = Some(error),
         }
+    }
+    if cut {
+        cut_short(context).await;
     }
     Err(ErrorData::invalid_params(
         last.unwrap_or_else(|| format!("no served tool holds {}", params.uri)),
@@ -257,38 +344,109 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
     ))
 }
 
-/// Every served tool's notifications, forwarded for as long as the
-/// set serves it and its run lives, and the set's own word that it
-/// changed: a relay per served tool, started when the tool is served
-/// and its run is up, ended when it leaves the set or its run ends,
-/// kept in step at every change of the set and every start of a
-/// served tool's run — so a tool attached while the stream is open
-/// has its notifications forwarded too, a tool list changed among
-/// them, and a tool detached has them forwarded no more.
+/// One read of one tool, kept, asked and answered on `run`'s log.
+async fn asked_read(daemon: Arc<Daemon>, sender: Creator, caller: attestation::Caller, run: Arc<ToolRun>, params: ReadResourceRequestParams) -> Result<ReadResourceResult, AskError> {
+    tool_log::session(&daemon, &run, &caller).await;
+    let read = log::Read { caller: caller.clone(), uri: params.uri.clone() };
+    let ask = tool_log::begin(&daemon, &run, Item::Read(read), Ask::Read).await;
+    let _flying = run.inflight.enter();
+    if let Err(error) = activate_tool(&daemon, &run).await {
+        let error = error.0.to_string();
+        tool_log::end(&daemon, &run, ask, |read| Answer::Kept(Item::ReadError(log::ReadError { read, error: tool_log::words(&error) }))).await;
+        return Err(AskError::Other(error));
+    }
+    match run.handle.read_resource(&caller, params).await {
+        Ok(mut result) => {
+            run.touch();
+            run.attest(result.meta.get_or_insert_default());
+            events::record(&daemon, &sender, &run.sender).await;
+            tool_log::end(&daemon, &run, ask, |read| Answer::Kept(Item::ReadResult(log::ReadResult { read, result: result.clone() }))).await;
+            Ok(result)
+        }
+        Err(AskError::Interrupted) => {
+            tool_log::end(&daemon, &run, ask, |_| Answer::Interrupted).await;
+            Err(AskError::Interrupted)
+        }
+        Err(error) => {
+            let words = error.to_string();
+            tool_log::end(&daemon, &run, ask, |read| Answer::Kept(Item::ReadError(log::ReadError { read, error: tool_log::words(&words) }))).await;
+            Err(error)
+        }
+    }
+}
+
+/// An exchange for the asker was cut short — a scope or a connection
+/// under it gone, no clean completion: an agent asking is cut, and
+/// stays active until it is proven alive or its run goes down — see
+/// [`cut`](crate::containers::cut). Run before the exchange's own
+/// count goes out, so the agent is never seen idle first.
+async fn cut_short(context: &Context) {
+    if let Key::Agent(id) = context.user {
+        crate::containers::cut(&context.daemon, id).await;
+    }
+}
+
+/// One merged notification stream: the set's own word that the merged
+/// lists changed, and every served tool's notifications, all into one
+/// [`Outbox`] the stream reads. The rules:
+///
+/// 1. **The set's changes.** At every change of the set the merged tool
+///    list and the merged resource list both changed, and both are
+///    announced — whether or not the tool that came or went had any.
+///    The set is followed by its revision, a watch: no change can be
+///    missed by falling behind, and many are one wake.
+/// 2. **A served tool's own list changes are the set's.** A tool saying
+///    its tool list or its resource list changed is the merged list
+///    changing, announced as the merged server's own. A tool's prompt
+///    list changing is nothing: the merged server serves no prompts.
+/// 3. **Everything else a tool says** is forwarded, attested as that
+///    tool's: a resource update coalesced by its URI, the rest in
+///    order — see [`Outbox`].
+/// 4. **A relay per served tool**, started when the tool is served and
+///    its run is up, ended when it leaves the set or its run ends, kept
+///    in step at every change of the set and every start of a served
+///    tool's run: a tool attached while the stream is open has its
+///    notifications forwarded too, and a tool detached has them
+///    forwarded no more.
+/// 5. **A tool's stream ending or failing ends its relay alone.** Nothing
+///    is forwarded for it; the relay is started again at the next
+///    change, and the merged stream goes on.
+/// 6. **The stream dropped ends everything behind it** — the set's
+///    watcher, the supervisor and each relay — at once, not at their
+///    next item.
 pub async fn notifications(context: &Context) -> Notifications {
-    let (sender, receiver) = mpsc::unbounded_channel::<Result<ServerNotification, ErrorData>>();
-    let (mut changes, mut generation) = {
+    let (outbox, notifications) = Outbox::open();
+    let (mut revision, mut generation) = {
         let served = context.served.lock().await;
-        (served.subscribe(), served.generation())
+        (served.revision(), served.generation())
     };
     {
-        let sender = sender.clone();
+        // Rule 1.
+        let outbox = Arc::clone(&outbox);
         tokio::spawn(async move {
-            while let Ok(notification) = changes.recv().await {
-                if sender.send(Ok(notification)).is_err() {
-                    break;
+            loop {
+                tokio::select! {
+                    () = outbox.closed() => break,
+                    changed = revision.changed() => {
+                        if changed.is_err() {
+                            break;
+                        }
+                        outbox.push(Push::Tools).await;
+                        outbox.push(Push::Resources).await;
+                    }
                 }
             }
         });
     }
+    // A tool container's context has no caller, and nothing served.
+    let Some(caller) = context.caller.clone() else {
+        return notifications;
+    };
     let daemon = Arc::clone(&context.daemon);
     let served = Arc::clone(&context.served);
     tokio::spawn(async move {
         let mut relays: HashMap<ToolKey, AbortHandle> = HashMap::new();
         loop {
-            if sender.is_closed() {
-                break;
-            }
             let keys = served.lock().await.keys();
             relays.retain(|key, relay| {
                 let kept = keys.contains(key) && !relay.is_finished();
@@ -304,36 +462,52 @@ pub async fn notifications(context: &Context) -> Notifications {
                 let Some(run) = relayed(&served, &daemon, key).await else {
                     continue;
                 };
-                let Ok(mut stream) = run.handle.notifications().await else {
+                tool_log::session(&daemon, &run, &caller).await;
+                let Ok(mut stream) = run.handle.notifications(&caller).await else {
                     continue;
                 };
-                let sender = sender.clone();
+                let outbox = Arc::clone(&outbox);
                 let relay = tokio::spawn(async move {
-                    while let Some(item) = stream.next().await {
-                        let forwarded = match item {
-                            Ok(mut notification) => {
-                                run.attest(notification.get_meta_mut());
-                                Ok(notification)
-                            }
-                            Err(error) => Err(ErrorData::internal_error(format!("{error:?}"), None)),
+                    loop {
+                        let item = tokio::select! {
+                            () = outbox.closed() => break,
+                            item = stream.next() => item,
                         };
-                        if sender.send(forwarded).is_err() {
+                        // Rule 5.
+                        let Some(Ok(mut notification)) = item else {
                             break;
-                        }
+                        };
+                        let push = match notification {
+                            // Rule 2.
+                            ServerNotification::ToolListChangedNotification(_) => Push::Tools,
+                            ServerNotification::ResourceListChangedNotification(_) => Push::Resources,
+                            ServerNotification::PromptListChangedNotification(_) => continue,
+                            // Rule 3.
+                            _ => {
+                                run.attest(notification.get_meta_mut());
+                                Push::Notification(notification)
+                            }
+                        };
+                        outbox.push(push).await;
                     }
                 });
                 relays.insert(key, relay.abort_handle());
             }
-            if generation.changed().await.is_err() {
-                break;
+            // The consumer gone ends the supervisor, whatever the set
+            // does: `Served` owns the generation's sender, and never
+            // drops it while the run lives.
+            tokio::select! {
+                () = outbox.closed() => break,
+                changed = generation.changed() => {
+                    if changed.is_err() {
+                        break;
+                    }
+                }
             }
         }
         for relay in relays.into_values() {
             relay.abort();
         }
     });
-    Box::pin(stream::unfold(receiver, |mut receiver| async move {
-        let item = receiver.recv().await?;
-        Some((item, receiver))
-    }))
+    notifications
 }

@@ -1,0 +1,25 @@
+---
+title: 'MCP close session'
+summary: 'Tag 22: the client names the caller whose MCP session it closes; the server opens the channel of that close on the container’s begin scope and relays exactly one channel response, closed or the MCP error, and the channel response finish.'
+order: 22
+draft: false
+---
+
+The client opens this channel to close the MCP session of one caller
+in the container. The server opens the channel of that close on the
+begin scope of the container's proxy with the session and relays its
+one answer.
+
+- **The request.** The tag byte `22` followed by the session as JSON.
+  [Request](/endpoints/containers-tools-run/client/mcp-close-session/request/) states its form.
+- **The response.** Exactly one channel response, closed or an MCP
+  error, and the channel response finish.
+  [Response](/endpoints/containers-tools-run/client/mcp-close-session/response/) states the sequence.
+- **The close.** The proxy removes the MCP session of the caller the
+  request names and closes it. The next channel request on any of the
+  five MCP channels that names the same caller opens a new MCP
+  session, as a first channel request does.
+- **A session not open.** A request that names a caller with no MCP
+  session open is answered closed.
+- **Every close is answered.** The error the proxy sends is relayed as
+  the one channel response.

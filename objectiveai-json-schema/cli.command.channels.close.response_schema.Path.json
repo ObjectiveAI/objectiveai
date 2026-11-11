@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.channels.close.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "channels/close/response_schema"
-  ]
-}

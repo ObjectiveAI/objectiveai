@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { Mode } from "../../../../../../provider/endpoints/volumes/mode.js";
-import { Identity } from "../../../logs/server/response/identity.js";
+import { Identity } from "../../../../../agent_log/identity.js";
 
 /**
  * A file or a directory in a volume of some provider the daemon

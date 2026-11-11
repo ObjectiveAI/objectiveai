@@ -8,8 +8,8 @@
 // shapes are the daemon's own — to make, over what exists, tagging,
 // the one thing — with one restriction, which is what makes these
 // shareable: a grant here reaches what exists by TAGS alone, `Within`
-// being `"any"` or a `Tags` test, and over agents alone the word
-// `"self"`. Each kind's `Make` and `Over` live here, and the daemon's
+// being `"any"` or a `Tags` test, and over agents alone the words
+// `"attached"` and `"never_active"`. Each kind's `Make` and `Over` live here, and the daemon's
 // grants are built of them.
 
 export * from "./grant.js";
@@ -20,12 +20,15 @@ export * from "./within.js";
 export * as accounts from "./accounts/index.js";
 export * as agents from "./agents/index.js";
 export * as agents_templates from "./agents_templates/index.js";
+export * as connected_standalone_tools from "./connected_standalone_tools/index.js";
+export * as daemons from "./daemons/index.js";
 export * as dependency_tools from "./dependency_tools/index.js";
 export * as events from "./events/index.js";
+export * as identities from "./identities/index.js";
+export * as images from "./images/index.js";
 export * as postgres from "./postgres/index.js";
+export * as providers from "./providers/index.js";
 export * as providers_daemons from "./providers_daemons/index.js";
-export * as providers_incoming from "./providers_incoming/index.js";
-export * as providers_outgoing from "./providers_outgoing/index.js";
 export * as roles from "./roles/index.js";
 export * as standalone_tools from "./standalone_tools/index.js";
 export * as standalone_tools_templates from "./standalone_tools_templates/index.js";

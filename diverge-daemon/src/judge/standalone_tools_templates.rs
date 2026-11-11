@@ -18,6 +18,9 @@ use crate::store::tools_templates::Record;
 
 /// Whether the standing may create a tool template.
 pub fn create(standing: &Standing) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .standalone_tools_templates()
         .any(|permission| matches!(permission, Permission::Make(makes) if makes.contains(&Make::Create)))
@@ -25,6 +28,9 @@ pub fn create(standing: &Standing) -> bool {
 
 /// Whether the standing holds `action` over any tool template at all.
 pub fn holds(standing: &Standing, action: Over) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .standalone_tools_templates()
         .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
@@ -33,6 +39,9 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
 /// Whether the standing may do `action` to `record`, given whether
 /// some tool was made from it.
 pub fn over(standing: &Standing, action: Over, record: &Record, in_use: bool) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.standalone_tools_templates().any(|permission| match permission {
         Permission::Over { actions, within } => actions.contains(&action) && reaches(within, record, in_use),
         _ => false,
@@ -42,6 +51,9 @@ pub fn over(standing: &Standing, action: Over, record: &Record, in_use: bool) ->
 /// Whether the standing holds the tagging `action` over any tool
 /// template at all.
 pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .standalone_tools_templates()
         .any(|permission| matches!(permission, Permission::Tags { actions, .. } if actions.contains(&action)))
@@ -50,6 +62,9 @@ pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
 /// Whether the standing may put `tags` on `record`, or take them off,
 /// as `action` says.
 pub fn tagging(standing: &Standing, action: Tagging, record: &Record, in_use: bool, tags: &[String]) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.standalone_tools_templates().any(|permission| match permission {
         Permission::Tags {
             actions,

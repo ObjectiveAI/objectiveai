@@ -156,27 +156,39 @@ tag table is stated once, in the module, as the Rust states it.
 - `index.ts` barrels at every level, `export * as client`, `export
   * as server`, `export * as request`, `export * as response`.
 
-Every tag of the daemon's table has its folder: one hundred and
-ten endpoints, which `find src/daemon/endpoints -name execute.ts`
-counts. Family-level types sit at the family's root as the Rust's do
-(`accounts/credential.ts`, `accounts/definition.ts`). A provider
-protocol answer a daemon record embeds — a provider's `info`, its
+Every tag of the daemon's table has its folder: ninety-five endpoints,
+which `find src/daemon/endpoints -name execute.ts` counts.
+Family-level types sit at the family's root as the Rust's do
+(`accounts/reference.ts`, `providers/daemons/link.ts`). A provider
+protocol answer a daemon answer embeds — a provider's `info`, its
 `capacity` — is the same schema at the provider's own path,
 `provider/endpoints/<request>/server/response/frame.ts`, loose
 where the Rust ignores what it does not know. Every `execute`
 takes a `Handle` and never knows which kind it was handed. There are
 no path strings and no registries: an endpoint is reached by
-importing it, `daemon.endpoints.accounts.get.client.execute(handle, { account: { name: "ci" } })`.
+importing it, `daemon.endpoints.accounts.get.client.execute(handle, { account: { issuer: "https://auth.example.com", subject: "ci" } })`.
 
 ## Two handles, one seam
 
-`wire.client.dial(address, key)` makes a handle over a real
-WebSocket: it speaks the nine-byte frames, mints scopes and channels,
-and routes what comes back. `wire.proxy.handle(transport)` makes a
+`wire.client.dial(address, authenticator)` makes a handle
+over a real WebSocket, after the handshake — this end's token
+sent, the daemon's own verified, whatever issuer it is from: it
+speaks the nine-byte frames, mints scopes and channels, and routes
+what comes back. `wire.proxy.handle(transport)` makes a
 handle over a Tauri app's `invoke` and `Channel`, where the Rust side
 holds the connection and this side asks it frame by frame; the
 transport is structurally typed, so this package never imports
-`@tauri-apps/api`. Above the handle nothing differs.
+`@tauri-apps/api`. Above the handle nothing differs, closure
+included: each proxy channel ends with one empty message, and a
+command's refusal carries its kind (`wire/proxy/commands.ts`).
+Every stream is one frame ahead on either handle: a receiver credits
+its sender as its consumer takes each frame, and abandoning it — a
+loop left early, a one-shot read — tells the far end
+(`wire/client/window.ts`); through the proxy, the page's
+`wire_took` and `wire_dropped` carry those words to Rust.
+`wire.proxy.status` and `reset` are the link's two commands; the
+Rust side of all eight is the Rust SDK's `tauri_proxy` (feature
+`tauri-proxy`).
 
 ## House rules
 

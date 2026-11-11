@@ -1,6 +1,7 @@
 //! The directories a provider offers: the namespace, and the verbs
 //! that make and unmake its names.
 
+use diverge_sdk::shared::Identity;
 use std::future::Future;
 
 use super::volume;
@@ -129,7 +130,7 @@ pub trait VolumeManager: Send + Sync {
     /// is the handle and a position is not.
     fn list(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
     ) -> impl Future<Output = Result<Vec<Volume>, Self::Error>> + Send;
 
     /// The caller's volume under `name`, or [`None`] where the caller
@@ -150,7 +151,7 @@ pub trait VolumeManager: Send + Sync {
     /// is the provider unable to look: a store that did not answer.
     fn get(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
         name: &str,
     ) -> impl Future<Output = Result<Option<Self::Volume>, Self::Error>> + Send;
 
@@ -170,7 +171,7 @@ pub trait VolumeManager: Send + Sync {
     /// number does not bind it.
     fn create_capacity(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
     ) -> impl Future<Output = Result<u64, Self::Error>> + Send;
 
     /// Make a new volume for this caller, of this size in BYTES, and
@@ -204,7 +205,7 @@ pub trait VolumeManager: Send + Sync {
     /// vocabulary for distinguishing the reasons.
     fn create(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
         name: &str,
         bytes: u64,
         mode: Mode,
@@ -230,7 +231,7 @@ pub trait VolumeManager: Send + Sync {
     /// terms.
     fn edit_capacity(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
         name: &str,
     ) -> impl Future<Output = Result<u64, Self::Error>> + Send;
 
@@ -254,7 +255,7 @@ pub trait VolumeManager: Send + Sync {
     /// unlocks, and the volume is as it was.
     fn delete(
         &self,
-        client_identity: &str,
+        client_identity: &Identity,
         name: &str,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }

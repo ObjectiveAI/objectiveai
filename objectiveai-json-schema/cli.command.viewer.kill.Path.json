@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.viewer.kill.Path",
-  "type": "string",
-  "enum": [
-    "viewer/kill"
-  ]
-}

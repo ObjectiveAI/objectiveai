@@ -1,0 +1,56 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the description is kept, exactly the byte 1 when the client owns no image of the digest, exactly the byte 2 when the server keeps no Store, or the byte 3 followed by an error as one JSON value, and the response finish follows it.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope. The response
+finish follows the response, and no frame follows the finish.
+
+```text
+[0]                  edited
+[1]                  not edited: no image of the digest is in the client's Store
+[2]                  not edited: the server keeps no Store
+[3][error JSON …]    not edited
+```
+
+- **The sequence.** Exactly one response precedes the response
+  finish, and nothing follows the finish. A response finish that no
+  response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides; which description the image has
+  is then not stated, and the client learns it from an
+  [images::list](/endpoints/images-list/) scope.
+- **Edited.** A payload whose first byte is `0` states that the image
+  has the description of the request. The server sends it after the
+  description is kept. From the moment the server sends it, every
+  `images::list` scope the client opens lists the image with that
+  description, and every list scope the client holds open that was
+  sent the image as added is sent it as changed. The server sends
+  nothing after the byte `0`, and a client ignores every byte that
+  follows it.
+- **Not found.** A payload whose first byte is `1` states that no
+  image of the digest is in the client's Store, and that nothing was
+  changed. The server sends nothing after the byte `1`, and a client
+  ignores every byte that follows it.
+- **Unsupported.** A payload that is the byte `2` and nothing else
+  states that the server holds out no
+  [`images_store`](/capabilities/#images_store) capability and keeps
+  no Store, as [Capabilities](/capabilities/) provides. It is the only
+  response of the scope, sent before anything is looked up; bytes
+  after it are not read.
+- **The error.** A payload whose first byte is `3` carries an error
+  after that byte, running to the end of the payload. The error is
+  exactly one JSON value, in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  This revision prescribes nothing about its content. The error
+  states that the image keeps the description it had before the
+  request.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is none of `0`, `1`, `2` and `3`, and a payload whose bytes after
+  `3` are not one JSON value are malformed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/images/edit/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/edit/server/response/frame.rs
+```

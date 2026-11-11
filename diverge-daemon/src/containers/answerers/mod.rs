@@ -2,7 +2,7 @@
 //!
 //! One type, [`Answerer`], is every one of the provider client's
 //! answerer traits for one run: it holds what the asks need — the
-//! daemon, which container, its account or its standing, the mounts,
+//! daemon, which container, which tool and what it declared, the mounts,
 //! the served tools, what is in flight — and each trait's impl is
 //! one file. Real: the registration — the dependencies deployed then
 //! and there, the secrets declared, taken and answered; the `/daemon` pair,

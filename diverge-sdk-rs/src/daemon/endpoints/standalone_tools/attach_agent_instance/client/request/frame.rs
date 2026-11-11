@@ -11,8 +11,8 @@ use crate::wire::encode::{Encode, Writer};
 /// Ask the daemon to attach a tool to one agent, by their names.
 ///
 /// Each name is the one its [`create`](crate::daemon::endpoints::standalone_tools::create)
-/// gave it — the tool's among the caller's tools, the agent's among
-/// the caller's agents — compared as the daemon compares names and
+/// gave it — the tool's among the daemon's standalone and connected
+/// tools together, the agent's among the caller's agents — compared as the daemon compares names and
 /// not read. Attaching is idempotent: a tool already attached to the
 /// agent is attached to it after, and the daemon says so as it says
 /// it of a first attach. The agent may be active: the tool is among
@@ -22,16 +22,15 @@ use crate::wire::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The tool: by its name, as its create or its connect gave it,
-    /// or by its template and its index, which name a created tool
-    /// once and for all. See [`reference::Tool`].
+    /// The tool: by its name, as its create gave it, or by its
+    /// template and its index, which name it once and for all. See
+    /// [`reference::Tool`].
     pub tool: reference::Tool,
     /// The agent: by its name, as its create gave it, or by its
     /// template and its index, which name it once and for all. See
     /// [`reference::Agent`].
     pub agent: reference::Agent,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

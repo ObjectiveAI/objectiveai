@@ -8,7 +8,7 @@
 //! - [`agents`]: a conversation. The agent's chunks ride the scope's
 //!   own main stream after the id; an `enqueue` channel sends it a
 //!   message, starting a loop when none runs and queueing one when it
-//!   does, and `dequeue` clears what is waiting.
+//!   does.
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
@@ -16,7 +16,10 @@
 //! caller is running, of either family, and a directory of it, and
 //! answers the nine FUSE asks from it live — the volume FUSE serve's own
 //! vocabulary, with a container at the far end — so that a mount
-//! elsewhere can be a running container's directory.
+//! elsewhere can be a running container's directory. And [`info`],
+//! which runs nothing: it names an image and answers the image's
+//! DIVERGE.md, read out of the image, so a caller learns what a
+//! container of it takes before it asks for one.
 //!
 //! Everything else is identical, and it is most of the wire: the
 //! request that makes a container carries its arguments — a JSON value
@@ -35,7 +38,10 @@
 //! # The main stream is the id, and then the agent
 //!
 //! A run answers with the container's
-//! [`Id`](crate::shared::containers::response::Id). An agent
+//! [`Id`](crate::shared::containers::response::Id), which says where
+//! its image came from — the caller's Store, a registry, or the
+//! caller — or with a refusal, among them `ProofFailed`: the caller
+//! supplied the image and did not prove it holds it. An agent
 //! container's stream then carries the agent's chunks for as long as
 //! the container runs; a tool container's carries nothing more. An
 //! error ends the scope. Everything else a caller reads — a filetree,
@@ -67,6 +73,7 @@
 
 pub mod agents;
 pub mod fuse_serve;
+pub mod info;
 pub mod tools;
 
 pub mod client;

@@ -1,6 +1,7 @@
 //! What an account may do, read fresh.
 
 use diverge_sdk::daemon::grant::Grant;
+use diverge_sdk::shared::Identity;
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
@@ -13,17 +14,15 @@ use super::{AccountId, Error};
 /// Read for every request rather than once at admission, so that a
 /// role edited, a role given or taken, or an account renamed applies
 /// to the account's next request, as the wire says it does.
-pub async fn of_account(conn: &mut PgConnection, id: AccountId) -> Result<Option<(String, Vec<Grant>)>, Error> {
-    let Some(row) = sqlx::query("SELECT name, identity FROM diverge.accounts WHERE id = $1")
+pub async fn of_account(conn: &mut PgConnection, id: AccountId) -> Result<Option<(Identity, Vec<Grant>)>, Error> {
+    let Some(row) = sqlx::query("SELECT issuer, subject FROM diverge.accounts WHERE id = $1")
         .bind(id.0)
         .fetch_optional(&mut *conn)
         .await?
     else {
         return Ok(None);
     };
-    let name: Option<String> = row.try_get("name")?;
-    let identity: Option<String> = row.try_get("identity")?;
-    let identity = name.or(identity).unwrap_or_default();
+    let identity = Identity { issuer: row.try_get("issuer")?, subject: row.try_get("subject")? };
     let rows = sqlx::query(
         "SELECT r.grants FROM diverge.roles r JOIN diverge.account_roles ar ON ar.role = r.id WHERE ar.account = $1",
     )

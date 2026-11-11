@@ -5,18 +5,25 @@ use serde_json::Value;
 
 use super::ParseError;
 
-/// `/DIVERGE.md`, parsed: the arguments' JSON Schema and the text
-/// beneath it.
+/// `/DIVERGE.md`, parsed: the image's name, the arguments' JSON
+/// Schema, whether its program serves a frontend, and the text beneath
+/// them.
 ///
-/// The frontmatter is the schema and nothing else — one required
-/// field that is the whole document, as raw JSON, which is YAML's flow
-/// style and so reads as a frontmatter anywhere one is expected. The
-/// body is the image's prose: what it runs and the secrets it
-/// declares, kept as the author left it. The provider carries and
-/// does not read either; a caller reads the schema to learn what an
-/// image's program takes without knowing the image.
+/// The frontmatter is one JSON object with the members `name` and
+/// `schema`, and `frontend` where the program serves one — raw JSON,
+/// which is YAML's flow style and so reads as a frontmatter anywhere
+/// one is expected. The body is the image's
+/// prose: what it runs and the secrets it declares, kept as the author
+/// left it. The provider carries and does not read any of it; a caller
+/// reads the name to call the image something and the schema to learn
+/// what an image's program takes, without knowing the image.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 pub struct Document {
+    /// The image's own name, as its author states it. Nothing makes it
+    /// unique: two images may say the same name, and the digest is
+    /// still what an image is.
+    pub name: String,
     /// The JSON Schema of the image's
     /// [`arguments`](crate::shared::containers::request::Container::arguments),
     /// as the frontmatter states it: a JSON object, since a schema is
@@ -25,9 +32,29 @@ pub struct Document {
     /// document in its own vocabulary and this crate has no business
     /// restating it.
     pub schema: Value,
+    /// Whether the program serves a frontend beneath `/frontend` (see
+    /// [`frontend`](crate::shared::containers::frontend)): `true` only
+    /// where the frontmatter says so. Absent, `false`.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub frontend: bool,
     /// Everything after the closing `---` line, verbatim: leading
     /// blank lines, trailing newline and all.
     pub body: String,
+}
+
+/// Whether a flag is unset, which a frontmatter leaves out.
+fn is_false(flag: &bool) -> bool {
+    !*flag
+}
+
+/// The frontmatter as written: these members and no other.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Frontmatter {
+    name: String,
+    schema: Value,
+    #[serde(default, skip_serializing_if = "is_false")]
+    frontend: bool,
 }
 
 /// Whether one line, as [`str::split_inclusive`] on `\n` yields it, is
@@ -48,10 +75,14 @@ impl Document {
     /// 2. The frontmatter is every line after it up to the next line
     ///    that is exactly `---`, which closes it. No such line is
     ///    [`ParseError::Unterminated`].
-    /// 3. The frontmatter parses as JSON — otherwise
-    ///    [`ParseError::Json`] — and is an object, since a JSON Schema
-    ///    is one; any other value is [`ParseError::NotObject`].
-    /// 4. The body is everything after the closing line, as the author
+    /// 3. The frontmatter parses as JSON into one object with the
+    ///    members `name`, a string, and `schema`, and perhaps
+    ///    `frontend`, a boolean, `false` when absent; no other member.
+    ///    Otherwise [`ParseError::Json`] — a member missing, a member
+    ///    more or a member of the wrong type included.
+    /// 4. `schema` is an object, since a JSON Schema is one; any other
+    ///    value is [`ParseError::NotObject`].
+    /// 5. The body is everything after the closing line, as the author
     ///    left it: nothing is trimmed, and a document whose closing
     ///    line is its last has an empty body.
     pub fn parse(text: &str) -> Result<Document, ParseError> {
@@ -65,31 +96,34 @@ impl Document {
         loop {
             let line = lines.next().ok_or(ParseError::Unterminated)?;
             if is_fence(line) {
-                let schema: Value = serde_json::from_str(&text[start..end]).map_err(ParseError::Json)?;
+                let Frontmatter { name, schema, frontend } = serde_json::from_str(&text[start..end]).map_err(ParseError::Json)?;
                 if !schema.is_object() {
                     return Err(ParseError::NotObject);
                 }
                 let body = text[end + line.len()..].to_owned();
-                return Ok(Document { schema, body });
+                return Ok(Document { name, schema, frontend, body });
             }
             end += line.len();
         }
     }
 
-    /// Write the document back as its text: `---`, the schema
-    /// pretty-printed, `---`, and the body, each fence on a line of its
-    /// own. One shape is written and read: the assembler that makes an
-    /// image's file and any later writer use this, and
-    /// [`parse`](Self::parse) of what it writes is this document
-    /// again, member for member, for any document whose schema is an
-    /// object — which every parsed one is: a pretty-printed object has
-    /// no line that is exactly `---`, and the body is copied verbatim.
+    /// Write the document back as its text: `---`, the frontmatter —
+    /// the name, the schema, and `frontend` when it is `true` —
+    /// pretty-printed, `---`, and the body,
+    /// each fence on a line of its own. One shape is written and read:
+    /// the assembler that makes an image's file and any later writer
+    /// use this, and [`parse`](Self::parse) of what it writes is this
+    /// document again, member for member, for any document whose schema
+    /// is an object — which every parsed one is: a pretty-printed
+    /// object has no line that is exactly `---`, and the body is copied
+    /// verbatim.
     ///
-    /// The `Result` is serde's: serializing a [`Value`] does not fail,
-    /// and the signature carries what the serializer says rather than
-    /// asserting it.
+    /// The `Result` is serde's: serializing a string and a [`Value`]
+    /// does not fail, and the signature carries what the serializer
+    /// says rather than asserting it.
     pub fn render(&self) -> Result<String, serde_json::Error> {
-        let schema = serde_json::to_string_pretty(&self.schema)?;
-        Ok(format!("---\n{schema}\n---\n{}", self.body))
+        let frontmatter = Frontmatter { name: self.name.clone(), schema: self.schema.clone(), frontend: self.frontend };
+        let frontmatter = serde_json::to_string_pretty(&frontmatter)?;
+        Ok(format!("---\n{frontmatter}\n---\n{}", self.body))
     }
 }

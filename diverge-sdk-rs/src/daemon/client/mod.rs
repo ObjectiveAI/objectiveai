@@ -31,12 +31,9 @@
 //! # Holding a handle
 //!
 //! A caller holds one [`Handle`](crate::wire::client::handle::Handle)
-//! per connection, as a caller of a provider does: the connection is
-//! [`authorize`](crate::wire::client::authorize)d first, this end
-//! dialling and presenting the account's key — the one its
-//! [`create`](crate::daemon::endpoints::accounts::create) answered — as
-//! [`Authorization::Outgoing`](crate::wire::client::authorization::Authorization::Outgoing),
-//! and then split into a
+//! per connection, as a caller of a provider does: the connection's
+//! [`handshake`](crate::wire::handshake) is made first, this end
+//! dialling as its connector, and it is then split into a
 //! [`Router`](crate::wire::client::router::Router) that reads and the
 //! handle that writes. A program in a container holds its handle from
 //! its proxy instead —

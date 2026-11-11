@@ -7,24 +7,23 @@ use std::sync::Arc;
 use futures_util::StreamExt as _;
 
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
-use diverge_sdk::wire::server::authorization::{self, Authorization};
 use super::acceptors::Acceptors;
 use super::capacity_reporter::CapacityReporter;
 use super::container_deployer::ContainerDeployer;
 use super::directory::Directory;
+use super::listables::Listables;
+use super::mailboxes::Mailboxes;
+use super::singles::Singles;
 use super::changes::Changes;
-use super::image_checker::ImageChecker;
 use super::image_manager::ImageManager;
 use super::oci_store::OciStore;
-use super::image_registry::ImageRegistry;
 use diverge_sdk::wire::server::received::Received;
 use diverge_sdk::wire::server::session::Session;
-use diverge_sdk::wire::server::unbrokered_authorizer::UnbrokeredAuthorizer;
 use super::volume_manager::VolumeManager;
+use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::decode::Decode;
 use crate::protocol::endpoints;
 use diverge_sdk::provider::endpoints::ClientRequest;
-use diverge_sdk::wire::frame::auth;
 use diverge_sdk::shared::error::Error;
 
 /// Serve a connection: every scope its client opens, for as long as it
@@ -39,20 +38,23 @@ use diverge_sdk::shared::error::Error;
 ///
 /// # What the arguments are
 ///
-/// [`Authorization`] is which side of this connection authenticates,
-/// and with what — see the handshake below, which is where the
-/// `client_identity` every handler receives now comes from. `address`
-/// is the peer the socket came from: it is handed to the
-/// [`UnbrokeredAuthorizer`] beside the credential, and it rides the
-/// announcement of a daemon connection to its acceptor. It is a signal
-/// rather than an identity.
+/// `client_identity` is the other end's [`Identity`], as the
+/// connection's handshake verified it — made before the session, in
+/// the host's accept or dial — and every handler receives it. `address`
+/// is the peer the socket came from: it rides the announcement of a
+/// daemon connection to its acceptor, and is the `ip` a
+/// `daemons::announce` on this connection is listed with. It is a
+/// signal rather than an identity. `dialled` is the address the
+/// provider dialled this connection at — as its configuration writes
+/// it — and absent on a connection the peer dialled: the `address` an
+/// announce on this connection is listed with.
 ///
 /// The rest are what the provider supplies, shared because scopes run
 /// concurrently and the traits — returning `impl Future` — cannot be
 /// boxed behind one pointer — the [`CapacityReporter`] among them,
 /// which `capacity` asks for the caller's room; the [`Capabilities`]
 /// it holds out, which `info` answers and every handler that serves
-/// an optional part of the protocol enforces — the image store, the registries, the FUSE
+/// an optional part of the protocol enforces — the Store, the registries, the FUSE
 /// mounts and serves, the volume modes and what may hold a volume of
 /// each; the [`Directory`], one per provider,
 /// through which a FUSE serve or a transfer on this connection finds a run
@@ -60,148 +62,72 @@ use diverge_sdk::shared::error::Error;
 /// volumes and one for images, through which a listing on this
 /// connection hears of a change made on any other; and the
 /// [`Acceptors`], one per provider likewise, through which a daemon
-/// connecting on this connection finds one accepting on any other.
+/// connecting on this connection finds one accepting on any other; and
+/// the [`Listables`], one per provider likewise, which a
+/// `daemons::announce` on this connection enters and a `daemons::list`
+/// on this connection lists; and the [`Mailboxes`], one per provider
+/// likewise, through which a `daemons::message` on this connection reaches a
+/// `daemons::listen` on any other.
 ///
-/// # The handshake comes first
+/// # One open at a time
 ///
-/// On an [`Outgoing`](Authorization::Outgoing) connection this end
-/// dialled, so this end authenticates: the credential goes out as the
-/// connection's first frame, before anything is read — nothing may
-/// precede it, by the auth frame's own rule — and the identity was
-/// carried in beside it, being a fact of the dial.
+/// Seven scopes are held at most one of each per connection — see
+/// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time)
+/// — and this is where they are claimed: the connection's own
+/// [`Singles`], made here and never shared, claimed in the arm that
+/// reads the request and before the handler is spawned. A claim that
+/// fails is the endpoint's `AlreadyOpen` and the finish, and the
+/// handler is never spawned. The handler holds the claim with its
+/// scope, and lets it go before its finish.
 ///
-/// On an [`Incoming`](Authorization::Incoming) connection the peer
-/// dialled, so the peer speaks first, and the first thing it says must
-/// be who it is. A first frame that is not the credential, a
-/// credential that will not decode, and a credential the authorizer
-/// refuses are all [`Err`] — and all of them earn the peer NOTHING on
-/// the wire. A request from an unauthenticated peer is dropped with
-/// its scope unfinished, deliberately breaking the finish-always rule
-/// every handler obeys: a peer that has not authenticated cannot make
-/// this end compose a reply, and a finish frame is a reply. The close
-/// that follows the provider dropping everything is the whole answer,
-/// which is the no-answer rule the auth frame has documented from the
-/// start.
+/// # The handshake is done before
 ///
-/// After the handshake a credential is never legitimate again, on
-/// either variant — a connection has one, presented by the side that
-/// dialled. One arriving anyway is [`HandleError::InvalidAuthorize`]:
-/// serving stops, the teardown below runs exactly as it would for the
-/// connection ending, and the error says why it ran early.
-///
-/// # Every scope runs in its own task
-///
-/// Not a preference — polling the [`Session`] is what runs the
-/// connection, so work done inline starves every scope of the frames
-/// that would feed it, including its own. The session's documentation
-/// makes the rule absolute, and this is the function that obeys it.
-///
-/// # A request nobody can read is finished, with nothing
-///
-/// [`ClientRequest::decode`] cannot fail; what it cannot read it
-/// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
-/// one is a finish with nothing in front. There is no other honest
-/// answer — twenty-four endpoints have twenty-four error vocabularies, and an
-/// invalid request names none of them — and a bare finish is already
-/// what the wire means by a request that could not be served. Every
-/// executor reads it as its own "unanswered".
-///
-/// # The ending drains, and never aborts
-///
-/// When the session yields [`None`] the connection is gone, and this
-/// DROPS the session — which severs every open scope's feeds, so the
-/// handlers still running find their receivers closed and wind down
-/// through their own teardown: containers stopped, registries cleaned,
-/// finishes sent into a socket that is no longer listening, harmlessly.
-///
-/// Then it waits for all of them. Aborting instead would tear through
-/// every one of those teardowns — and it would end runs a caller had
-/// already paid for, which is the wrong way round: the work was real,
-/// and a caller that leaves does not un-spend it.
-pub async fn handle<D, V, I, M, O, U, R, C>(
+/// The connection reaching here is past its
+/// [`handshake`](diverge_sdk::wire::handshake): each end's token, the
+/// connector's first, verified. A token arriving after it is
+/// [`HandleError::InvalidAuthorize`]: serving stops, the teardown below
+/// runs exactly as it would for the connection ending, and the error
+/// says why it ran early.
+pub async fn handle<D, V, M, O, C>(
     mut session: Session,
-    authorization: Authorization<U>,
+    client_identity: Arc<Identity>,
     address: IpAddr,
+    dialled: Option<String>,
     deployer: Arc<D>,
     volume_manager: Arc<V>,
-    image_checker: Arc<I>,
     image_manager: Arc<M>,
     oci_store: Arc<O>,
-    image_registry: Arc<R>,
     capacity: Arc<C>,
     directory: Arc<Directory>,
     volume_changes: Arc<Changes>,
     image_changes: Arc<Changes>,
     acceptors: Arc<Acceptors>,
+    listables: Arc<Listables>,
+    mailboxes: Arc<Mailboxes>,
     capabilities: Arc<Capabilities>,
-) -> Result<(), HandleError<U::Error>>
+) -> Result<(), HandleError>
 where
     D: ContainerDeployer + 'static,
     D::Error: Into<Error>,
     V: VolumeManager + 'static,
     V::Error: Into<Error>,
-    I: ImageChecker + 'static,
-    I::Error: Into<Error>,
     M: ImageManager + 'static,
     M::Error: Into<Error>,
     O: OciStore + 'static,
-    U: UnbrokeredAuthorizer,
-    R: ImageRegistry + 'static,
-    R::Error: Into<Error>,
+    O::Error: Into<Error>,
     C: CapacityReporter + 'static,
 {
-    // The handshake, before anything else. What comes out of it is the
-    // identity everything downstream receives — shared rather than
-    // cloned per scope, because every handler borrows it for the
-    // length of a call and a scope lives as long as it lives.
-    let client_identity: Arc<str> = match authorization {
-        Authorization::Outgoing { auth, client_identity } => {
-            // This end dialled, so this end authenticates, and the
-            // credential is the connection's first frame — sent before
-            // the first read, because nothing may precede it.
-            match &auth {
-                authorization::Auth::Unbrokered(credential) => {
-                    session.send_auth(auth::Auth::Unbrokered(credential)).await;
-                }
-            }
-            client_identity.into()
-        }
-        Authorization::Incoming { unbrokered } => {
-            // The peer dialled, so the peer speaks first, and the
-            // first thing it says must be who it is.
-            let Some(received) = session.next().await else {
-                // Gone before saying anything. Nothing was judged and
-                // nothing was served, which is the ordinary ending
-                // everywhere in this crate.
-                return Ok(());
-            };
-            let Received::Auth(payload) = received else {
-                // A request from a peer that never authenticated. The
-                // scope inside it drops UNFINISHED: a peer that has
-                // not authenticated cannot make this end compose a
-                // reply, and a finish frame is a reply.
-                return Err(HandleError::Unauthenticated);
-            };
-            let credential = match auth::Auth::decode(&payload) {
-                Ok(auth::Auth::Unbrokered(credential)) => credential,
-                Err(error) => return Err(HandleError::Auth(error)),
-            };
-            match unbrokered.authorize(credential, address).await {
-                Ok(identity) => identity.into(),
-                Err(error) => {
-                    return Err(HandleError::Unauthorized(error));
-                }
-            }
-        }
-    };
     // Owned here, so the drain at the bottom is over everything this
     // started and nothing else.
     let mut scopes = tokio::task::JoinSet::new();
-    // How the loop ended: the connection going is [`Ok`], a credential
+    // How the loop ended: the connection going is [`Ok`], a token
     // arriving after the handshake is not — and both endings run the
     // same teardown below, which is why this is a variable rather than
     // two exits.
     let mut outcome = Ok(());
+    // This connection's seven slots, and only its: see "One open at a
+    // time" above.
+    let singles = Singles::default();
 
     while let Some(received) = session.next().await {
         // Finished ones, so the set does not grow for the life of the
@@ -210,11 +136,10 @@ where
 
         let (payload, scope) = match received {
             Received::Request(payload, scope) => (payload, scope),
-            // A connection has ONE credential, presented by the side
-            // that dialled, before everything. A second one — or a
-            // first on a connection where this end dialled — is a peer
-            // disagreeing with this one about what the handshake is,
-            // and nothing after that disagreement is worth serving.
+            // Each end sends ONE token, in the handshake that was done
+            // before this loop. Another is a peer disagreeing with this
+            // one about what the handshake is, and nothing after that
+            // disagreement is worth serving.
             Received::Auth(_) => {
                 outcome = Err(HandleError::InvalidAuthorize);
                 break;
@@ -230,13 +155,12 @@ where
             ClientRequest::ContainersAgentsRun(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let deployer = Arc::clone(&deployer);
-                let registry = Arc::clone(&image_registry);
                 let manager = Arc::clone(&volume_manager);
                 let directory = Arc::clone(&directory);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::containers::agents::handle(
-                        scope, frame, &identity, &*deployer, &*registry, &*manager, &capabilities, directory,
+                        scope, frame, &identity, &*deployer, &*manager, &capabilities, directory,
                     )
                     .await;
                 });
@@ -244,13 +168,12 @@ where
             ClientRequest::ContainersToolsRun(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let deployer = Arc::clone(&deployer);
-                let registry = Arc::clone(&image_registry);
                 let manager = Arc::clone(&volume_manager);
                 let directory = Arc::clone(&directory);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
                     endpoints::containers::tools::handle(
-                        scope, frame, &identity, &*deployer, &*registry, &*manager, &capabilities, directory,
+                        scope, frame, &identity, &*deployer, &*manager, &capabilities, directory,
                     )
                     .await;
                 });
@@ -262,7 +185,21 @@ where
                     endpoints::containers::fuse_serve::handle(scope, frame, &identity, directory).await;
                 });
             }
+            ClientRequest::ContainersInfo(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let deployer = Arc::clone(&deployer);
+                scopes.spawn(async move {
+                    endpoints::containers::info::handle(scope, frame, &identity, &*deployer).await;
+                });
+            }
             ClientRequest::VolumesList(_) => {
+                let scope = match singles.volumes_list.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::volumes::list::refuse(scope));
+                        continue;
+                    }
+                };
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
                 let changes = Arc::clone(&volume_changes);
@@ -387,18 +324,14 @@ where
                     .await;
                 });
             }
-            ClientRequest::ImagesCheck(frame) => {
-                let identity = Arc::clone(&client_identity);
-                let checker = Arc::clone(&image_checker);
-                let capabilities = Arc::clone(&capabilities);
-                scopes.spawn(async move {
-                    endpoints::images::check::handle(
-                        scope, frame, &identity, &*checker, &capabilities,
-                    )
-                    .await;
-                });
-            }
             ClientRequest::ImagesList(_) => {
+                let scope = match singles.images_list.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::images::list::refuse(scope));
+                        continue;
+                    }
+                };
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&image_manager);
                 let changes = Arc::clone(&image_changes);
@@ -425,6 +358,24 @@ where
                     endpoints::images::build::handle(scope, frame, &identity, &*manager, &*volumes, changes, &capabilities).await;
                 });
             }
+            ClientRequest::ImagesPush(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&image_manager);
+                let changes = Arc::clone(&image_changes);
+                let capabilities = Arc::clone(&capabilities);
+                scopes.spawn(async move {
+                    endpoints::images::push::handle(scope, frame, &identity, &*manager, changes, &capabilities).await;
+                });
+            }
+            ClientRequest::ImagesEdit(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&image_manager);
+                let changes = Arc::clone(&image_changes);
+                let capabilities = Arc::clone(&capabilities);
+                scopes.spawn(async move {
+                    endpoints::images::edit::handle(scope, frame, &identity, &*manager, changes, &capabilities).await;
+                });
+            }
             ClientRequest::ImagesDelete(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&image_manager);
@@ -434,12 +385,12 @@ where
                     endpoints::images::delete::handle(scope, frame, &identity, &*manager, changes, &capabilities).await;
                 });
             }
-            ClientRequest::ImagesOci(_) => {
+            ClientRequest::ImagesOci(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let store = Arc::clone(&oci_store);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::images::oci::handle(scope, &identity, store, &capabilities).await;
+                    endpoints::images::oci::handle(scope, frame, &identity, &*store, &capabilities).await;
                 });
             }
             ClientRequest::Info(_) => {
@@ -456,6 +407,13 @@ where
                 });
             }
             ClientRequest::DaemonsAccept(_) => {
+                let scope = match singles.daemons_accept.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::daemons::accept::refuse(scope));
+                        continue;
+                    }
+                };
                 let identity = Arc::clone(&client_identity);
                 let acceptors = Arc::clone(&acceptors);
                 scopes.spawn(async move {
@@ -469,12 +427,75 @@ where
                     endpoints::daemons::connect::handle(scope, frame, &identity, address, acceptors).await;
                 });
             }
+            ClientRequest::DaemonsList(_) => {
+                let scope = match singles.daemons_list.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::daemons::list::refuse(scope));
+                        continue;
+                    }
+                };
+                let listables = Arc::clone(&listables);
+                scopes.spawn(async move {
+                    endpoints::daemons::list::handle(scope, listables).await;
+                });
+            }
+            ClientRequest::DaemonsListen(_) => {
+                let scope = match singles.daemons_listen.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::daemons::listen::refuse(scope));
+                        continue;
+                    }
+                };
+                let identity = Arc::clone(&client_identity);
+                let mailboxes = Arc::clone(&mailboxes);
+                let capabilities = Arc::clone(&capabilities);
+                scopes.spawn(async move {
+                    endpoints::daemons::listen::handle(scope, &identity, mailboxes, &capabilities).await;
+                });
+            }
+            ClientRequest::DaemonsMessage(frame) => {
+                let scope = match singles.daemons_message.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::daemons::message::refuse(scope));
+                        continue;
+                    }
+                };
+                // The body kept as a slice of the payload it arrived
+                // in, so the message waits without a copy.
+                let body = payload.slice_ref(frame.body);
+                let to = frame.to;
+                let identity = Arc::clone(&client_identity);
+                let mailboxes = Arc::clone(&mailboxes);
+                let capabilities = Arc::clone(&capabilities);
+                scopes.spawn(async move {
+                    endpoints::daemons::message::handle(scope, &identity, to, body, mailboxes, &capabilities).await;
+                });
+            }
+            ClientRequest::DaemonsAnnounce(frame) => {
+                let scope = match singles.daemons_announce.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::daemons::announce::refuse(scope));
+                        continue;
+                    }
+                };
+                let identity = Arc::clone(&client_identity);
+                let dialled = dialled.clone();
+                let mailboxes = Arc::clone(&mailboxes);
+                let listables = Arc::clone(&listables);
+                scopes.spawn(async move {
+                    endpoints::daemons::announce::handle(scope, frame, &identity, address, dialled, mailboxes, listables).await;
+                });
+            }
             ClientRequest::Invalid(_) => scope.send_response_finish().await,
         }
     }
 
     // The connection is gone — or serving stopped early, over a
-    // credential that had no business arriving. Either way, dropping
+    // token that had no business arriving. Either way, dropping
     // the session is what tells every scope still being served: their
     // feeds close, and the handlers wind down on their own, containers
     // stopped and registries cleaned. The drain is never an abort, and
@@ -485,85 +506,30 @@ where
     outcome
 }
 
-/// A connection that was never served, or that stopped being.
+/// A connection that stopped being served early.
 ///
-/// What [`handle`] returns instead of `()`, and every variant is about
-/// the handshake — once a connection is authenticated, nothing that
-/// happens on it is an error HERE, because every failure after that
-/// point belongs to some scope and travels inside it.
-///
-/// # None of this reaches the peer
-///
-/// The auth frame's rule: an accepted credential is followed by the
-/// connection simply working, a rejected one by a close, and a peer
-/// that has not authenticated cannot make this end compose a reply —
-/// no bytes to amplify, no answer to read a reason out of. These
-/// variants are for the PROVIDER, which is the party that drops the
-/// connection when this returns and may want its log to say why.
+/// What [`handle`] returns instead of `()`. Once a connection is past
+/// its handshake, nothing that happens on it is an error HERE but a
+/// token arriving again, because every other failure belongs to some
+/// scope and travels inside it. None of this reaches the peer: it is
+/// for the provider, which drops the connection when this returns and
+/// may want its log to say why.
 #[derive(Debug)]
-pub enum HandleError<E> {
-    /// The peer's first frame was not its credential.
+pub enum HandleError {
+    /// A token arrived after the handshake.
     ///
-    /// Whatever it was — most likely a request, whose scope was
-    /// dropped unfinished, see [`handle`] — the peer skipped the
-    /// handshake, and nothing it sends is worth reading.
-    Unauthenticated,
-    /// The credential would not decode.
-    ///
-    /// A mode this version does not know, or a credential that was not
-    /// UTF-8. Not a refusal — nothing was ever judged — but the same
-    /// close, because a credential this end cannot read authenticates
-    /// nobody.
-    Auth(auth::AuthError),
-    /// The authorizer refused the credential, and this is its reason.
-    ///
-    /// The one variant that is a decision rather than a defect, in the
-    /// provider's own vocabulary — see
-    /// [`UnbrokeredAuthorizer::Error`].
-    Unauthorized(E),
-    /// A credential arrived after the handshake.
-    ///
-    /// A connection has one, presented by the side that dialled,
-    /// before everything else. A peer that presents another — or
-    /// presents one at all on a connection this end dialled — is
-    /// disagreeing about what the handshake is, and serving stopped
-    /// where the disagreement started.
+    /// Each end sends one, before everything else. A peer that presents
+    /// another is disagreeing about what the handshake is, and serving
+    /// stopped where the disagreement started.
     InvalidAuthorize,
 }
 
-impl<E> fmt::Display for HandleError<E> {
+impl fmt::Display for HandleError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            HandleError::Unauthenticated => {
-                f.write_str("the peer's first frame was not its credential")
-            }
-            HandleError::Auth(error) => {
-                write!(f, "the credential could not be read: {error}")
-            }
-            HandleError::Unauthorized(_) => {
-                f.write_str("the authorizer refused the credential")
-            }
-            HandleError::InvalidAuthorize => {
-                f.write_str("a credential arrived after the handshake")
-            }
+            HandleError::InvalidAuthorize => f.write_str("a token arrived after the handshake"),
         }
     }
 }
 
-/// [`Unauthorized`](HandleError::Unauthorized) is not the source, even
-/// though it wraps the reason: `E` is unbounded, like every provider
-/// error on this half, and a bound here would be charged to every
-/// implementation for a `source` chain nobody reads.
-impl<E> std::error::Error for HandleError<E>
-where
-    E: fmt::Debug,
-{
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            HandleError::Auth(error) => Some(error),
-            HandleError::Unauthenticated
-            | HandleError::Unauthorized(_)
-            | HandleError::InvalidAuthorize => None,
-        }
-    }
-}
+impl std::error::Error for HandleError {}

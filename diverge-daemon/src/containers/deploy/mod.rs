@@ -11,7 +11,8 @@
 //! the dependency's own registration, held and written back as any
 //! tool container's; its
 //! database scope the one its template names; its requests to the
-//! daemon judged by its template's grants; served to the agent under
+//! daemon judged by the grants its own program declared at its
+//! registration; served to the agent under
 //! its template's id, short. A template declared twice, or one naming
 //! a secret the agent does not bind, is refused. The first that
 //! cannot be deployed — a service whose start fails included — is the

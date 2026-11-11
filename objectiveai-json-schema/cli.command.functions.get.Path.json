@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.functions.get.Path",
-  "type": "string",
-  "enum": [
-    "functions/get"
-  ]
-}

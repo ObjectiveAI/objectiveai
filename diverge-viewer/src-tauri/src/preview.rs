@@ -16,7 +16,6 @@ mod tests {
     use serde_json::json;
     use tokio_util::sync::CancellationToken;
 
-    use diverge_sdk::daemon::endpoints::agents;
     use diverge_sdk::provider::endpoints::volumes as pv;
 
     use crate::daemon::Daemon;
@@ -51,8 +50,8 @@ mod tests {
         let listed = agents_listed(&daemon).await;
         let mut logs = BTreeMap::new();
         for agent in &listed.agents {
-            let request = agents::logs::client::request::Frame {
-                agent: crate::daemon::reference_of(&agent.key),
+            let request = diverge_sdk::daemon::endpoints::logs::client::request::Frame {
+                of: diverge_sdk::daemon::endpoints::logs::client::request::Subject::Agent(crate::daemon::reference_of(&agent.key)),
                 logs_index_from: None,
                 logs_index_to: None,
                 created_from: None,
@@ -64,8 +63,7 @@ mod tests {
             };
             let entries: Vec<LogEntry> = daemon
                 .agents_logs(request, CancellationToken::new())
-                .map(LogEvent::from)
-                .filter_map(|e| async move { if let LogEvent::Entry { entry } = e { Some(entry) } else { None } })
+                .filter_map(|f| async move { if let Some(LogEvent::Entry { entry }) = LogEvent::of(f) { Some(entry) } else { None } })
                 .collect()
                 .await;
             logs.insert(agent.key.clone(), entries);

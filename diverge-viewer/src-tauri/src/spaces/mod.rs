@@ -41,7 +41,7 @@ pub use diverge_sdk::shared::containers::response::Id;
 use diverge_viewer_room::account::Proof;
 use diverge_viewer_room::seal::{digest, statement_holds};
 use diverge_viewer_room::{Key, Keypair, Statement};
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::shared::error::Error as WireError;
 use diverge_sdk::shared::filetree::response::Node;
 use rmcp::model::{CallToolRequestParams, CallToolResult, ErrorData, ListToolsResult, ReadResourceResult, ServerNotification};

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.viewer.kill.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "viewer/kill/response_schema"
-  ]
-}

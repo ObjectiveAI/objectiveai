@@ -12,7 +12,7 @@ use sqlx::PgConnection;
 use crate::containers::{Key, ToolKey};
 use crate::store::agents::Agent;
 use crate::store::dependency_tools::DependencyTool;
-use crate::store::tools::{Origin, Tool};
+use crate::store::tools::Tool;
 use crate::store::{self, agents, dependency_tools, tools};
 
 /// Whose a scope is: what its role names first. An agent owns its own
@@ -111,16 +111,9 @@ pub fn container_of_agent(agent: &Agent) -> Container {
 
 /// The tool as the database names it.
 pub fn container_of_tool(tool: &Tool) -> Container {
-    Container::Tool(match &tool.origin {
-        Origin::Created { template, .. } => reference::Tool::TemplateIndex {
-            template: template.clone(),
-            index: tool.index,
-        },
-        Origin::Connected { daemon, account, tool } => reference::Tool::Connected {
-            daemon: daemon.clone(),
-            account: account.clone(),
-            tool: Box::new(tool.clone()),
-        },
+    Container::Tool(reference::Tool::TemplateIndex {
+        template: tool.template.clone(),
+        index: tool.index,
     })
 }
 
@@ -149,11 +142,14 @@ pub fn container_of_dependency_tool(tool: &DependencyTool, owner: Option<&Agent>
 }
 
 /// The container the key names, as the database names it: a record's
-/// if its record is there, a dependency tool's if its row is.
+/// if its record is there, a dependency tool's if its row is. A
+/// connected tool has none: its container is another daemon's, and
+/// gets no database role here.
 pub async fn container_of(conn: &mut PgConnection, key: Key) -> Result<Option<Container>, store::Error> {
     Ok(match key {
         Key::Agent(id) => agents::by_id(conn, id, false).await?.map(|agent| container_of_agent(&agent)),
         Key::Tool(ToolKey::Record(id)) => tools::by_id(conn, id, false).await?.map(|tool| container_of_tool(&tool)),
+        Key::Tool(ToolKey::Connected(_)) => None,
         Key::Tool(ToolKey::Dependency(id)) => {
             let Some(tool) = dependency_tools::by_id(conn, id, false).await? else {
                 return Ok(None);

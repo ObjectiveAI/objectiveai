@@ -5,12 +5,13 @@
 // names it one of two ways, the caller choosing which: by its NAME,
 // if its create gave one, or by its TEMPLATE and its INDEX, which
 // name it once and for all. A connected tool has no template, and is
-// named by the DAEMON, the ACCOUNT and the TOOL it is registered
-// from. A dependency tool is named by its template and its `Owner`;
+// named by its name, or by the DAEMON it is on, the TOOL as that
+// daemon names it, and its INDEX. A dependency tool is named by its template and its `Owner`;
 // a volume one way only, by its provider and its name.
 
 export * from "./agent.js";
 export * from "./tool.js";
+export * from "./connected_standalone_tool.js";
 export * from "./dependency.js";
 export * from "./owner.js";
 export * from "./volume.js";

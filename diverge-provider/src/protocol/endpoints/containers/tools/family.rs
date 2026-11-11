@@ -30,6 +30,7 @@ use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
 use diverge_sdk::shared::containers::secrets::{Declaration, Values};
+use diverge_sdk::shared::permission::Grant;
 use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, registration};
 use diverge_sdk::shared::containers::daemon;
 use diverge_sdk::shared::error::Error;
@@ -44,7 +45,7 @@ impl Family for Tools {
 
     fn classify(request: channel_request::Frame) -> Opened<Self::Exchange> {
         match request {
-            channel_request::Frame::Stop => Opened::Stop,
+            channel_request::Frame::Cancel => Opened::Cancel,
             channel_request::Frame::Filetree => Opened::Filetree,
             channel_request::Frame::Read(request) => Opened::Read(request.path),
             channel_request::Frame::Write(request) => Opened::Write {
@@ -61,13 +62,21 @@ impl Family for Tools {
             channel_request::Frame::Info => Opened::Info,
             channel_request::Frame::Secrets(values) => Opened::Secrets(values),
             channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
+            channel_request::Frame::Exec(request) => Opened::Exec(request),
+            channel_request::Frame::TerminalOpen(size) => Opened::TerminalOpen(size),
+            channel_request::Frame::TerminalAttach(id) => Opened::TerminalAttach(id.id),
+            channel_request::Frame::TerminalStdin { id, bytes } => Opened::TerminalStdin(id, bytes),
+            channel_request::Frame::TerminalResize(resize) => Opened::TerminalResize(resize.id, diverge_sdk::shared::containers::terminal::open::Open { cols: resize.cols, rows: resize.rows }),
+            channel_request::Frame::TerminalClose(id) => Opened::TerminalClose(id.id),
+            channel_request::Frame::Frontend(request) => Opened::Frontend(request),
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),
             channel_request::Frame::McpListResources(request) => {
                 Opened::Exchange(tool::Exchange::ListResources(request))
             }
             channel_request::Frame::McpCallTool(request) => Opened::Exchange(tool::Exchange::CallTool(request)),
             channel_request::Frame::McpReadResource(request) => Opened::Exchange(tool::Exchange::ReadResource(request)),
-            channel_request::Frame::McpNotifications(_) => Opened::Exchange(tool::Exchange::Notifications),
+            channel_request::Frame::McpNotifications(request) => Opened::Exchange(tool::Exchange::Notifications(request)),
+            channel_request::Frame::McpCloseSession(request) => Opened::Exchange(tool::Exchange::CloseSession(request)),
         }
     }
 
@@ -142,6 +151,7 @@ impl Runs for Tools {
                     activity: Some(events),
                     dependencies: Vec::new(),
                     secrets: registered.secrets,
+                    permissions: registered.permissions,
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -153,16 +163,17 @@ impl Runs for Tools {
         Some(relayed(ask)?)
     }
 
-    /// The secrets the tool takes, registered with the caller on this
-    /// family's `registration` channel — the dependencies always
-    /// empty, since a tool container declares none: nothing when it
-    /// takes none.
-    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
-        let payload = (!dependencies.is_empty() || !secrets.is_empty()).then(|| {
+    /// The secrets the tool takes and the permissions it holds,
+    /// registered with the caller on this family's `registration`
+    /// channel — the dependencies always empty, since a tool container
+    /// declares none: nothing when it declared neither.
+    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration, permissions: &[Grant]) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
+        let payload = (!dependencies.is_empty() || !secrets.is_empty() || !permissions.is_empty()).then(|| {
             encoded(&ask::Frame::Registration(registration::request::Request {
                 id: Cow::Borrowed(id),
                 dependencies: Cow::Borrowed(dependencies),
                 secrets: Cow::Borrowed(secrets),
+                permissions: Cow::Borrowed(permissions),
             }))
         });
         async move {
@@ -200,6 +211,14 @@ impl Runs for Tools {
 
     fn volume_mode(refused: &VolumeMode) -> Option<Vec<u8>> {
         encoded(&response::Frame::VolumeMode(refused.clone()))
+    }
+
+    fn unsupported() -> Option<Vec<u8>> {
+        encoded(&response::Frame::Unsupported)
+    }
+
+    fn proof_failed() -> Option<Vec<u8>> {
+        encoded(&response::Frame::ProofFailed)
     }
 }
 
@@ -256,9 +275,10 @@ impl<'a> TryFrom<Own<'a>> for ask::Frame<'a> {
             Own::OciBlob(digest) => ask::Frame::OciBlob(oci::blob::request::Request {
                 digest: digest.to_string(),
             }),
-            Own::OciHas(digest) => ask::Frame::OciHas(oci::has::request::Request {
-                digest: digest.to_string(),
+            Own::OciHas(image) => ask::Frame::OciHas(oci::has::request::Request {
+                image: image.clone(),
             }),
+            Own::OciProve(request) => ask::Frame::OciProve(request.clone()),
             Own::Daemon(connection_id) => ask::Frame::Daemon(daemon::request::Daemon { connection_id }),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
         })

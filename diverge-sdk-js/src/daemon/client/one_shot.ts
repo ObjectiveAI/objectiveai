@@ -41,7 +41,11 @@ export async function execute<Q, A>(handle: Handle, request: Q, encode: Encode<Q
 
 /** The one answer on `scope`, read and decoded. */
 export async function answer<A>(scope: Scope, decode: Decode<A>): Promise<A> {
+  // One frame is the answer; the rest, the finish included, is read by
+  // nobody, and the server is told so.
+  scope.requestReceiver.abandon();
   const bytes = await scope.responseReceiver.next();
+  scope.responseReceiver.abandon();
   if (bytes === undefined) {
     throw new OneShotError("closed");
   }

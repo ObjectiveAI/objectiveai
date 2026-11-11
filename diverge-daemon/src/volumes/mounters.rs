@@ -5,7 +5,7 @@ use diverge_sdk::daemon::reference;
 use sqlx::PgConnection;
 
 use crate::store::agents::Agent;
-use crate::store::tools::{Origin, Tool};
+use crate::store::tools::Tool;
 use crate::store::{self, agents, tools};
 
 /// Every volume the agent's record names: the pinned provider's
@@ -35,10 +35,7 @@ pub fn of_agent(agent: &Agent) -> Vec<reference::Volume> {
 /// tool names none.
 pub fn of_tool(tool: &Tool) -> Vec<reference::Volume> {
     let mut named = Vec::new();
-    if let Origin::Created {
-        provider: Some(provider), ..
-    } = &tool.origin
-    {
+    if let Some(provider) = &tool.provider {
         for mount in &provider.volume_mounts {
             named.push(reference::Volume {
                 provider: provider.identity.clone(),

@@ -19,9 +19,9 @@ struct Passing<S> {
 }
 
 /// The blob's pieces as the response body, each hashed on its way
-/// through, the blob completed only if the hash comes out. The
-/// pieces are a caller's, over its scope, or a pool's, off the disk:
-/// the same stream either way.
+/// through, the blob completed only if the hash comes out: the
+/// Store's file, off the disk, which a bit gone wrong there never
+/// passes off as its digest's.
 ///
 /// One piece is always held back: when a piece arrives it is hashed
 /// and the PREVIOUS piece is yielded, so the last piece of the blob

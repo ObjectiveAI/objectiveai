@@ -11,7 +11,7 @@ use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::encode::{Encode as _, Writer};
 use diverge_sdk::wire::frame::server::ServerFrame;
 use futures_util::{Stream, stream};
-use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::mpsc::{self};
 use tokio::sync::watch;
 
 use super::client;
@@ -24,14 +24,14 @@ pub type PairFrames = Pin<Box<dyn Stream<Item = pair::server::Owned> + Send>>;
 
 /// Serve the far side's client frames, arriving on `from`, as a
 /// connection carried inside the process for `who` — a container's
-/// program, or another daemon come through a provider — by the same
-/// session and dispatch a socket gets, no credential passing; what
+/// program — by the same session and dispatch a socket gets, no token
+/// passing; what
 /// comes back is the session's frames as the daemon's half of the
 /// pair. Every frame received is noted on `touched` when one is given,
 /// since a container's every frame is a use of it. The far side's
 /// channel closing ends the session, and the session ending ends the
 /// stream.
-pub fn serve_pair(daemon: Arc<Daemon>, who: Who, mut from: UnboundedReceiver<pair::client::Owned>, touched: Option<watch::Sender<Instant>>) -> PairFrames {
+pub fn serve_pair(daemon: Arc<Daemon>, who: Who, mut from: mpsc::Receiver<pair::client::Owned>, touched: Option<watch::Sender<Instant>>) -> PairFrames {
     let (to_session, incoming) = mpsc::unbounded_channel::<Bytes>();
     let (outgoing, from_session) = mpsc::unbounded_channel::<Bytes>();
     tokio::spawn(async move {

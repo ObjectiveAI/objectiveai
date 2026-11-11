@@ -1,6 +1,7 @@
 //! The manager: the stores, the fixed volumes, and every identity that
 //! has asked.
 
+use diverge_sdk::shared;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -14,7 +15,7 @@ use tokio::fs;
 
 use diverge_sdk::provider::endpoints::volumes::Mode;
 
-use super::{Error, Identity, ModeFile, Place, Reservation, Scratch, Volume, image, mode, name};
+use super::{Error, Identities, Identity, ModeFile, Place, Reservation, Scratch, Volume, image, mode, name, settle};
 use crate::config::volumes::{Fixed, HookInput, HookOutput, Volumes};
 use crate::host::hook;
 
@@ -24,11 +25,12 @@ use crate::host::hook;
 ///
 /// Starts knowing no identity and reads nothing: an identity enters
 /// the map the first time it is named, and its stored volumes are
-/// read from the stores then, once, and held for the manager's life.
-/// Each identity is its own entry with its own lock, so two
-/// identities never wait on each other. The fixed volumes are the
-/// configuration's and are answered on each call, through their hook
-/// where they have one.
+/// read from the stores then, once, and held for as long as anything
+/// holds the identity or one of its volumes — see [`settle`] — and
+/// read again when it is named after. Each identity is its own entry
+/// with its own lock, so two identities never wait on each other. The
+/// fixed volumes are the configuration's and are answered on each
+/// call, through their hook where they have one.
 #[derive(Debug)]
 pub struct VolumeManager {
     /// The stores, and the room left in each: shared with every
@@ -47,8 +49,33 @@ pub struct VolumeManager {
     /// a fixed volume's creation time where its filesystem records
     /// none.
     started: u64,
-    /// Every identity that has asked, by identity.
-    identities: DashMap<String, Arc<Identity>>,
+    /// Every identity that has asked and is still held, by identity.
+    identities: Arc<Identities>,
+}
+
+/// One identity, as the manager hands it to itself: the entry let go
+/// of — see [`settle`] — when this is, if nothing else holds it.
+struct Named<'a> {
+    identity: Option<Arc<Identity>>,
+    identities: &'a Identities,
+}
+
+impl std::ops::Deref for Named<'_> {
+    type Target = Identity;
+
+    fn deref(&self) -> &Identity {
+        self.identity.as_deref().unwrap_or_else(|| unreachable!("the identity is taken only by the drop"))
+    }
+}
+
+impl Drop for Named<'_> {
+    fn drop(&mut self) {
+        if let Some(identity) = self.identity.take() {
+            let client_identity = identity.client_identity().clone();
+            drop(identity);
+            settle(self.identities, &client_identity);
+        }
+    }
 }
 
 impl VolumeManager {
@@ -65,23 +92,28 @@ impl VolumeManager {
                 .duration_since(UNIX_EPOCH)
                 .map(|elapsed| elapsed.as_secs())
                 .unwrap_or(0),
-            identities: DashMap::new(),
+            identities: Arc::new(DashMap::new()),
         }
     }
 
     /// The identity's stored volumes, read from the stores the first
-    /// time the identity is named and held from then on. Every caller
-    /// that names the identity while its first load runs waits for
-    /// that load rather than starting another.
-    pub async fn identity(&self, client_identity: &str) -> Arc<Identity> {
+    /// time the identity is named and held from then on, for as long
+    /// as anything holds it. Every caller that names the identity
+    /// while its first load runs waits for that load rather than
+    /// starting another.
+    async fn identity(&self, client_identity: &shared::Identity) -> Named<'_> {
         let identity = Arc::clone(
             &self
                 .identities
-                .entry(client_identity.to_string())
-                .or_insert_with(|| Arc::new(Identity::new(client_identity))),
+                .entry(client_identity.clone())
+                .or_insert_with(|| Arc::new(Identity::new(client_identity, Arc::downgrade(&self.identities)))),
         );
-        identity.load(&self.reservation, &self.scratch).await;
-        identity
+        let named = Named {
+            identity: Some(identity),
+            identities: &self.identities,
+        };
+        named.load(&self.reservation, &self.scratch).await;
+        named
     }
 
     /// The fixed volume under `name`, if the configuration has one.
@@ -94,12 +126,12 @@ impl VolumeManager {
     /// that does not answer — a manifest missing, a non-zero exit,
     /// an output that is not the expected one — is `false`, as the
     /// hook's output documents.
-    async fn authorized(&self, client_identity: &str, fixed: &Fixed) -> bool {
+    async fn authorized(&self, client_identity: &shared::Identity, fixed: &Fixed) -> bool {
         let Some(hook) = &fixed.authorize_hook else {
             return true;
         };
         let input = HookInput {
-            identity: client_identity.to_string(),
+            identity: client_identity.clone(),
             volume: fixed.name.clone(),
         };
         hook::run::<HookInput, HookOutput>(&self.hooks_dir, hook, &input)
@@ -118,12 +150,13 @@ impl VolumeManager {
                 started: self.started,
             },
             fixed.mode,
+            None,
         )
     }
 
     /// Every fixed volume the identity may see, listed — each asked
     /// beside every other.
-    async fn fixed_listing(&self, client_identity: &str) -> Result<Vec<response::Volume>, Error> {
+    async fn fixed_listing(&self, client_identity: &shared::Identity) -> Result<Vec<response::Volume>, Error> {
         let listed = future::try_join_all(
             self.fixed
                 .iter()
@@ -135,7 +168,7 @@ impl VolumeManager {
 
     /// One fixed volume, listed if the identity may see it: the hook
     /// and the filesystem asked at once.
-    async fn fixed_one(&self, client_identity: &str, fixed: &Fixed) -> Result<Option<response::Volume>, Error> {
+    async fn fixed_one(&self, client_identity: &shared::Identity, fixed: &Fixed) -> Result<Option<response::Volume>, Error> {
         let (authorized, listing) = future::join(
             self.authorized(client_identity, fixed),
             self.fixed_volume(fixed).listing(),
@@ -162,7 +195,7 @@ impl volume_manager::VolumeManager for VolumeManager {
 
     /// The fixed volumes the identity may see, then its stored ones,
     /// the two read at once.
-    async fn list(&self, client_identity: &str) -> Result<Vec<response::Volume>, Error> {
+    async fn list(&self, client_identity: &shared::Identity) -> Result<Vec<response::Volume>, Error> {
         let identity = self.identity(client_identity).await;
         let (mut fixed, stored) = future::try_join(
             self.fixed_listing(client_identity),
@@ -176,7 +209,7 @@ impl volume_manager::VolumeManager for VolumeManager {
     /// A fixed volume by that name, if the identity may see it, else
     /// the identity's stored volume by it. A run and a stat of a fixed
     /// volume both pass through its hook here.
-    async fn get(&self, client_identity: &str, name: &str) -> Result<Option<Volume>, Error> {
+    async fn get(&self, client_identity: &shared::Identity, name: &str) -> Result<Option<Volume>, Error> {
         if let Some(fixed) = self.fixed_named(name) {
             if !self.authorized(client_identity, fixed).await {
                 return Ok(None);
@@ -187,7 +220,7 @@ impl volume_manager::VolumeManager for VolumeManager {
     }
 
     /// The most room any one store has, as of now; `0` with no store.
-    async fn create_capacity(&self, _client_identity: &str) -> Result<u64, Error> {
+    async fn create_capacity(&self, _client_identity: &shared::Identity) -> Result<u64, Error> {
         Ok(self.reservation.rooms().await.into_iter().max().unwrap_or(0))
     }
 
@@ -202,7 +235,7 @@ impl volume_manager::VolumeManager for VolumeManager {
     /// first store that has them, by one atomic update and no I/O;
     /// the image is made, sized and formatted; and the volume is
     /// entered. A failure after the bytes were taken gives them back.
-    async fn create(&self, client_identity: &str, name: &str, bytes: u64, mode: Mode) -> Result<Creation, Error> {
+    async fn create(&self, client_identity: &shared::Identity, name: &str, bytes: u64, mode: Mode) -> Result<Creation, Error> {
         if !name::ok(name) || self.fixed_named(name).is_some() {
             return Err(Error::Name(name.to_string()));
         }
@@ -223,7 +256,7 @@ impl volume_manager::VolumeManager for VolumeManager {
         let path = image::image_path(&store.path, client_identity, name);
         let mode_path = mode::mode_path(&store.path, client_identity, name);
         let made = async {
-            fs::create_dir_all(store.path.join(client_identity)).await?;
+            fs::create_dir_all(store.path.join(super::directory(client_identity))).await?;
             mode::write_mode(&mode_path, ModeFile { mode }).await?;
             make_image(&path, bytes).await
         }
@@ -242,13 +275,14 @@ impl volume_manager::VolumeManager for VolumeManager {
                 scratch: Arc::clone(&self.scratch),
             },
             mode,
+            Some(identity.owner()),
         ));
         Ok(Creation::Created)
     }
 
     /// The room left in the volume's own store, as of now; `0` for a
     /// fixed volume, which is never resized.
-    async fn edit_capacity(&self, client_identity: &str, name: &str) -> Result<u64, Error> {
+    async fn edit_capacity(&self, client_identity: &shared::Identity, name: &str) -> Result<u64, Error> {
         let Some(volume) = self.get(client_identity, name).await? else {
             return Err(Error::Unknown(name.to_string()));
         };
@@ -261,7 +295,7 @@ impl volume_manager::VolumeManager for VolumeManager {
     /// The volume taken out of the identity, then its image removed.
     /// An image already gone is still a deletion. A fixed volume is
     /// refused.
-    async fn delete(&self, client_identity: &str, name: &str) -> Result<(), Error> {
+    async fn delete(&self, client_identity: &shared::Identity, name: &str) -> Result<(), Error> {
         if self.fixed_named(name).is_some() {
             return Err(Error::Fixed(name.to_string()));
         }

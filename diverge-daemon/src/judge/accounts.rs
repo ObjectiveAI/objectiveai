@@ -17,9 +17,13 @@ use diverge_sdk::daemon::grant::{Tagging, Within};
 use super::filter;
 use super::Standing;
 use crate::store::accounts::Account;
+use diverge_sdk::shared::Identity;
 
 /// Whether the standing may create an account.
 pub fn create(standing: &Standing) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .accounts()
         .any(|permission| matches!(permission, Permission::Make(makes) if makes.contains(&Make::Create)))
@@ -29,6 +33,9 @@ pub fn create(standing: &Standing) -> bool {
 /// what decides `Forbidden` before anything is loaded, so that a
 /// caller with no such grant learns nothing about what exists.
 pub fn holds(standing: &Standing, action: Over) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .accounts()
         .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
@@ -37,8 +44,31 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
 /// Whether the standing may do `action` to `account`, given whether a
 /// client is connected as it now.
 pub fn over(standing: &Standing, action: Over, account: &Account, connected: bool) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.accounts().any(|permission| match permission {
         Permission::Over { actions, within } => actions.contains(&action) && reaches(within, account, connected),
+        _ => false,
+    })
+}
+
+/// Whether the standing may do `action` to an administrator the
+/// configuration names with no account of its own, given whether a
+/// client is connected as it: as [`over`], the grant's `within` read by
+/// [`filter::accounts::test_admin`].
+pub fn over_admin(standing: &Standing, action: Over, identity: &Identity, connected: bool) -> bool {
+    if standing.admin() {
+        return true;
+    }
+    standing.accounts().any(|permission| match permission {
+        Permission::Over { actions, within } => {
+            actions.contains(&action)
+                && match within {
+                    Within::Any => true,
+                    Within::Only(filter) => filter::accounts::test_admin(filter, identity, connected),
+                }
+        }
         _ => false,
     })
 }
@@ -46,6 +76,9 @@ pub fn over(standing: &Standing, action: Over, account: &Account, connected: boo
 /// Whether the standing holds the tagging `action` over any account
 /// at all.
 pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .accounts()
         .any(|permission| matches!(permission, Permission::Tags { actions, .. } if actions.contains(&action)))
@@ -55,6 +88,9 @@ pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
 /// as `action` says: one grant must hold the action, reach the
 /// account, and name every one of the tags or `any`.
 pub fn tagging(standing: &Standing, action: Tagging, account: &Account, connected: bool, tags: &[String]) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.accounts().any(|permission| match permission {
         Permission::Tags {
             actions,

@@ -4,9 +4,7 @@ use std::fmt;
 use std::pin::Pin;
 use std::task::{Context, Poll, ready};
 
-use bytes::Bytes;
 use futures_util::Stream;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::super::super::server::response;
 use crate::wire::decode::Decode as _;
@@ -27,11 +25,11 @@ use crate::shared::error::Error;
 #[must_use = "a conversation that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct Chunks {
-    receiver: Option<UnboundedReceiver<Bytes>>,
+    receiver: Option<crate::wire::credit::Receiver>,
 }
 
 impl Chunks {
-    pub(super) fn new(receiver: UnboundedReceiver<Bytes>) -> Self {
+    pub(super) fn new(receiver: crate::wire::credit::Receiver) -> Self {
         Chunks {
             receiver: Some(receiver),
         }

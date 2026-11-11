@@ -1,6 +1,6 @@
 //! A provider's listing, as the daemon mirrors it.
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::volumes::list::server::response::Volume;
 use diverge_sdk::wire::client::handle::Handle;

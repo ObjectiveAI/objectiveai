@@ -1,0 +1,55 @@
+// What each tool's image calls itself — the `name` of its
+// `/DIVERGE.md`, as the daemon's `images info` answers it — and whether
+// it serves a frontend.
+
+import { daemon, shared } from "@diverge/sdk";
+import { handle, type Route, relayed } from "../lib/wire";
+
+type Image = shared.containers.request.Image;
+
+const info = daemon.endpoints.images.info;
+
+/**
+ * The name of every image, by digest.
+ *
+ * The rules:
+ *
+ * 1. Each digest is asked once, however many tools run it, and all
+ *    are asked at once side by side.
+ * 2. An image whose answer is its document is named by the document's
+ *    `name`.
+ * 3. An image that ships none, that nothing could be asked of, that
+ *    the account may not ask about, or whose ask failed has no name
+ *    here: the world names its tools some other way. A failure to ask
+ *    one image fails no other and not the snapshot.
+ * 4. Every image is asked of the daemon `route` reaches (`relayed`): the
+ *    one whose tools run it.
+ */
+export async function imageNames(images: Image[], route: Route): Promise<Map<string, string>> {
+  const found = await imageInfo(images, route);
+  return new Map([...found].map(([digest, info]) => [digest, info.name]));
+}
+
+/** An image as the world names it: its document's `name`, and whether its program serves a frontend. */
+export type ImageInfo = { name: string; frontend: boolean };
+
+/** Every image's name and frontend, by digest, by the rules of `imageNames`. */
+export async function imageInfo(images: Image[], route: Route): Promise<Map<string, ImageInfo>> {
+  // Rule 1.
+  const unique = new Map<string, Image>();
+  for (const image of images) if (!unique.has(image.digest)) unique.set(image.digest, image);
+  const asked = await Promise.all(
+    [...unique.values()].map(async (image): Promise<[string, ImageInfo] | null> => {
+      try {
+        // Rule 4.
+        const answer = await info.client.execute(handle, { image, ...relayed(route) });
+        // Rule 2; rule 3 for every other answer.
+        return typeof answer === "object" && "info" in answer ? [image.digest, { name: answer.info.name, frontend: answer.info.frontend === true }] : null;
+      } catch {
+        // Rule 3.
+        return null;
+      }
+    }),
+  );
+  return new Map(asked.filter((pair): pair is [string, ImageInfo] => pair !== null));
+}

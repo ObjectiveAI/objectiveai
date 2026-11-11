@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.logs.token_usage.subscribe.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/logs/token-usage/subscribe/response_schema"
-  ]
-}

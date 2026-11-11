@@ -14,27 +14,32 @@
 //!
 //! [`templates`] holds what agents are made from; [`create`] spawns an
 //! agent under a name from one; [`delete`] removes one by name;
-//! [`edit`] changes what one mounts; [`message`] sends one a message,
-//! and may take it back; [`logs`] reads what one said and what was said
-//! to it; [`get`] answers one as a list would; [`list`] lists them,
+//! [`edit`] changes what one mounts; [`message`] sends one a message
+//! — what one said and what was said to it is
+//! read by [`logs`](super::logs); [`get`] answers one as a list would; [`list`] lists them,
 //! narrowed, with their tags; [`tag`] and [`untag`] change one's tags;
 //! [`filetree`] watches one's container whole; [`download`] sends the
 //! client a file or a directory out of one's container, [`upload`] puts
 //! files into it, and [`transfer`] copies out of it into another agent,
-//! a tool or a volume, the bytes never reaching the client. The MCP servers an agent calls are [`standalone_tools`](super::standalone_tools),
+//! a tool or a volume, the bytes never reaching the client; [`frontend`]
+//! sends one HTTP request to the web frontend its program serves; [`connect`] runs MCP
+//! exchanges as one, as its own container would. The MCP servers an agent calls are [`standalone_tools`](super::standalone_tools),
 //! attached to it by name, or to its template by the template's id.
 
+pub mod connect;
 pub mod create;
 pub mod delete;
 pub mod download;
 pub mod edit;
+pub mod exec;
 pub mod filetree;
+pub mod frontend;
 pub mod get;
 pub mod list;
-pub mod logs;
 pub mod message;
 pub mod tag;
 pub mod templates;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;

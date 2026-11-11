@@ -7,6 +7,7 @@ use crate::shared::listing::Keyed;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
 use crate::shared::containers::dependencies::Template;
+use crate::shared::permission::Grant;
 use super::{Attached, Run};
 
 /// One dependency tool of the caller's: its template and its owner,
@@ -26,6 +27,12 @@ pub struct Listed {
     /// Whose the tool is, as the template's scope decides: the one
     /// agent, the one agent template, or nobody. See [`key::Owner`].
     pub owner: key::Owner,
+    /// Its number among all dependency tools ever made from the
+    /// template, whatever their owners: the first is `1`, and no
+    /// number is given twice. The template and the index name the tool
+    /// once and for all, as an
+    /// [`events`](crate::daemon::endpoints::events) party does.
+    pub index: u64,
     /// When the first registration that declared the template under
     /// this owner made the tool. On the wire an RFC 3339 timestamp in
     /// UTC.
@@ -52,11 +59,33 @@ pub struct Listed {
     /// empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<Attached>,
-    /// Its run, while its container is up: see [`Run`]. What a
+    /// Whether it is active now: working, a call or a read the daemon
+    /// routed into it in flight — what its log marks `active`.
+    pub active: bool,
+    /// When that last changed: the time its first call or read in
+    /// flight began, if one is; the time its last ended, if not;
+    /// absent for a tool never asked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_active: Option<DateTime<Utc>>,
+    /// Whether its container is up now.
+    pub deployed: bool,
+    /// When that last changed: the time its container came up, if it
+    /// is up; the time it last went down, if not; absent for one never
+    /// deployed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_deployed: Option<DateTime<Utc>>,
+    /// Its run, while it is deployed: see [`Run`]. What a
     /// [`delete`](crate::daemon::endpoints::dependency_tools::delete)
     /// answers `InUse` for. Absent while it does not run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run: Option<Run>,
+    /// What its container declared it may ask of the daemon, at its
+    /// registration when it last started: see [`Grant`]. Declared anew
+    /// at every start, so it changes as the image does. Absent when
+    /// empty — a tool whose container declared none, or has never
+    /// started.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub permissions: Vec<Grant>,
 }
 
 /// Keyed by the template's id and the owner, which together name the

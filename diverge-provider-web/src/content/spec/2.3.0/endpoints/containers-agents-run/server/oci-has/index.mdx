@@ -1,6 +1,6 @@
 ---
 title: 'OCI has'
-summary: 'Tag 2: the server asks the client whether it holds an image, by digest; the client answers with exactly one channel response, the byte 0, or the byte 1 followed by a repository path, and the channel response finish; a finish that no response precedes states that the client does not hold it.'
+summary: 'Tag 2: the server asks the client whether it holds the image of the run, naming it by digest and by references; the client answers with exactly one channel response, the byte 0, or the byte 1 followed by a repository path, and the channel response finish; a finish that no response precedes states that the client does not hold it.'
 order: 2
 draft: false
 ---
@@ -9,13 +9,14 @@ The server opens this channel when it would obtain the image of the
 request from the client, before it asks for anything of the image.
 
 - **When.** Between the request and the deploy.
-- **The request.** The tag byte `2` followed by the digest as JSON. [Request](/endpoints/containers-agents-run/server/oci-has/request/)
+- **The request.** The tag byte `2` followed by the image of the run as JSON. [Request](/endpoints/containers-agents-run/server/oci-has/request/)
   states its form.
 - **The response.** Exactly one channel response, the byte `0`, or
   the byte `1` followed by the repository path the client holds the
   image under, and the channel response finish. [Response](/endpoints/containers-agents-run/server/oci-has/response/)
   states the sequence.
-- **Whether to ask.** The server asks only when it would obtain the
-  image from the client. A server that obtains the image from a
-  source of its own does not open this channel, and a client is not
-  told where the image came from.
+- **Whether to ask.** The server asks only when it consults the
+  client, in the order that [Image sources](/endpoints/#image-sources)
+  states: the image is not in the client's Store, and no registry the
+  server consults serves it. A server that obtains the image from
+  another source does not open this channel.

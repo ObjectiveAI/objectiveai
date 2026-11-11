@@ -1,9 +1,0 @@
-{
-  "title": "cli.command.tasks.list.LastResult",
-  "description": "The outcome of a task's most recent run.",
-  "type": "string",
-  "enum": [
-    "success",
-    "error"
-  ]
-}

@@ -13,7 +13,7 @@ import { Dependency } from "../../../../../../daemon/reference/dependency.js";
 export const Frame = z.object({
   /** The tool: its template by id, and whose it is. */
   dependency: Dependency,
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

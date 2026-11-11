@@ -1,18 +1,18 @@
 //! What the queue holds, and what the server's channels say to it.
 
 use diverge_sdk::shared::containers::enqueue;
+use diverge_sdk::shared::containers::enqueue::request::Message;
 use diverge_sdk::shared::containers::secrets::Values;
 use diverge_sdk::shared::error::Error;
-use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;
 
-/// What became of a message, as the server's enqueue channel is
-/// answered.
+/// What became of a batch, every message in it alike, as the server's
+/// enqueue channel is answered.
 pub enum Fate {
-    /// A loop took it: the one in flight, or the one it started.
+    /// The agent's program has it: the `/run` it started answered
+    /// `2xx`, or the `/enqueue` that carried it to the loop in flight
+    /// answered `204`.
     Delivered,
-    /// The server withdrew it before a loop took it.
-    Dequeued,
     /// The agent's server refused it, or no loop could start on it:
     /// its own words.
     Error(Error),
@@ -22,18 +22,17 @@ impl From<Fate> for enqueue::response::Frame {
     fn from(fate: Fate) -> Self {
         match fate {
             Fate::Delivered => enqueue::response::Frame::Delivered,
-            Fate::Dequeued => enqueue::response::Frame::Dequeued,
             Fate::Error(error) => enqueue::response::Frame::Error(error),
         }
     }
 }
 
-/// One message in the queue, and where its fate goes.
-pub struct Queued {
-    /// The caller's key, by which a dequeue withdraws it.
-    pub key: String,
-    /// The message's content, in order.
-    pub content: Vec<ContentBlock>,
+/// One batch in the queue — one enqueue channel's messages — and
+/// where its fate goes.
+pub struct Batch {
+    /// The batch's messages, in order, each under the caller's key,
+    /// which its user parts carry back.
+    pub messages: Vec<Message>,
     /// The enqueue channel waiting for the fate. A receiver that is
     /// gone is a server that left, and a fate nobody hears.
     pub fate: oneshot::Sender<Fate>,
@@ -41,16 +40,8 @@ pub struct Queued {
 
 /// What a server's channel asks of the driver.
 pub enum Cmd {
-    /// A message for the agent.
-    Enqueue(Queued),
-    /// Withdraw every message still waiting under a key, and say how
-    /// many were.
-    Dequeue {
-        /// The key, as the enqueues gave it.
-        key: String,
-        /// Where the count and the loop's state go.
-        reply: oneshot::Sender<DequeueReply>,
-    },
+    /// A batch of messages for the agent.
+    Enqueue(Batch),
     /// The secrets, fed: the server's values for the program, which
     /// open the gate once the program has applied them.
     Feed {
@@ -60,13 +51,4 @@ pub enum Cmd {
         /// refusal, in its own words — goes.
         reply: oneshot::Sender<Result<(), Error>>,
     },
-}
-
-/// The driver's answer to a dequeue.
-pub struct DequeueReply {
-    /// How many messages the queue held under the key and gave back.
-    pub drained: usize,
-    /// Whether a loop is running, and so may hold messages of its
-    /// own for the agent's server to withdraw.
-    pub active: bool,
 }

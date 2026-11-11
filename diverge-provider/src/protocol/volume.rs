@@ -46,7 +46,7 @@ use diverge_sdk::shared::filetree::response::{Frame, Node};
 /// - A run takes the SHARED hold, [`mount`](Self::mount), as a
 ///   [`Holder::Run`], once on every distinct volume its request names,
 ///   before it fetches or deploys anything, and keeps every one until
-///   the run ends — a stop, the container's own end, the caller going
+///   the run ends — a cancel, the container's own end, the caller going
 ///   away. Every ending gives them back. A request naming one volume
 ///   at several paths takes it once. An image build takes it the
 ///   same way for its context. A

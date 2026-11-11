@@ -1,22 +1,23 @@
 //! The document itself.
 
+
 use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
+use diverge_sdk::shared::Identity;
 use serde::{Deserialize, Serialize};
 
-use super::auth::Auth;
-use super::clients::Clients;
+use super::outgoing::Outgoing;
 use super::containers::Containers;
 use super::images::Images;
+use super::messages::Messages;
 use super::volumes::Volumes;
 
 /// The whole of `provider.yaml`: what the provider is told.
 ///
 /// An absent file is this type's [`Default`], and the provider runs
-/// on it: the proxy's own port, no peer accepted, no peer dialled, no
-/// volume, no client image store, and the [`Containers`] defaults.
-/// `port` and `containers` are always present — absent from the
-/// file, each is its default — and the other four sections are
-/// optional, an absent one meaning what its doc says. An unknown key is an error, so a misspelled
+/// on it: the proxy's own port, no identity of its own, no peer
+/// admitted, no peer dialled, no volume, no Store, and the
+/// [`Containers`] defaults. Every section may be absent, meaning what
+/// its doc says. An unknown key is an error, so a misspelled
 /// setting is refused rather than ignored.
 ///
 /// Every path inside the file resolves relative to the root, the
@@ -33,14 +34,26 @@ pub struct Config {
     /// published to a loopback port podman picks.
     #[serde(default = "proxy_port")]
     pub port: u16,
-    /// How a peer that dials the provider is judged. Absent means no
-    /// dialling peer is accepted.
+    /// Who the provider is: the one identity whose token it presents
+    /// in every handshake — those it answers and those it makes —
+    /// whatever issuer the peer's is from. It is an identity of the
+    /// root's [`identities`](diverge_sdk::identities), signed in
+    /// beforehand. It lists no issuer the provider trusts: whom the
+    /// provider serves is `incoming`'s and `outgoing`'s to say, from
+    /// whatever issuer each is. Absent, the provider has no identity, and completes no
+    /// handshake.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub auth: Option<Auth>,
-    /// The peers the provider dials. Absent means the provider dials
-    /// no one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub clients: Option<Clients>,
+    pub identity: Option<Identity>,
+    /// The identities that may dial the provider: a peer that dials
+    /// in and whose verified `(issuer, subject)` is not here is closed
+    /// in the handshake. It says nothing of the peers the provider
+    /// dials, each of which names its own. Absent, nobody dials in.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub incoming: Vec<Identity>,
+    /// The peers the provider dials, each with the identity that must
+    /// answer: see [`Outgoing`]. Absent, it dials no one.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub outgoing: Vec<Outgoing>,
     /// The runtime the provider runs containers with, and what it
     /// gives it. Absent from the file means its [`Default`]: a
     /// provider runs containers before it has configured anything.
@@ -51,25 +64,35 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub volumes: Option<Volumes>,
     /// Where the images clients build on the provider are kept, and
-    /// how much they may take. Absent means no client image store: a
-    /// build is refused, a listing is empty, and the `client` source
-    /// of a check is never available.
+    /// how much they may take. Absent means no Store: a
+    /// build is refused, a listing is empty, and no image is held for
+    /// a caller but one a registry the provider uses serves.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub images: Option<Images>,
+    /// The rate the provider relays direct messages at, between the
+    /// identities connected to it. Absent means it relays none: a
+    /// `daemons::listen` and a `daemons::message` are each answered
+    /// unsupported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messages: Option<Messages>,
 }
 
 /// What a provider runs on before it has written a line of
-/// configuration: the proxy's port, nobody accepted, nobody dialled,
-/// the [`Containers`] defaults, no volume, no client image store.
+/// configuration: the proxy's port, no identity, nobody admitted,
+/// nobody dialled,
+/// the [`Containers`] defaults, no volume, no Store, no
+/// messages.
 impl Default for Config {
     fn default() -> Self {
         Config {
             port: proxy_port(),
-            auth: None,
-            clients: None,
+            identity: None,
+            incoming: Vec::new(),
+            outgoing: Vec::new(),
             containers: Containers::default(),
             volumes: None,
             images: None,
+            messages: None,
         }
     }
 }

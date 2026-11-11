@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
+use crate::shared::Identity;
 
 /// The filter over accounts: every member optional, and every one given
 /// a condition an account passes or does not. In a [list
@@ -21,20 +22,9 @@ use crate::daemon::creator::Creator;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Filter {
-    /// Any one of these names.
+    /// Any one of these identities.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub names: Vec<String>,
-    /// With a credential naming any one of these identities.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub identities: Vec<String>,
-    /// Whether the account has a name: `true`, or none, `false`;
-    /// absent, either.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub named: Option<bool>,
-    /// Whether the account has a credential: `true`, or none, `false`;
-    /// absent, either.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub credentialed: Option<bool>,
+    pub identities: Vec<Identity>,
     /// Holding any one of these roles, by name.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<String>,

@@ -3,13 +3,11 @@
 
 use std::sync::Arc;
 
-use bytes::Bytes;
 use diverge_sdk::wire::client::handle::{Handle, SendError};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::frame::server::ServerFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
-use tokio::sync::Mutex;
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::{Mutex, oneshot};
 use tokio::task::JoinSet;
 
 /// Put `bytes` on `handle` as a request of its own, and carry the
@@ -26,27 +24,47 @@ use tokio::task::JoinSet;
 /// remote's finish is [`End::Lost`], and the scope is left open for
 /// the caller to answer with the one error that says so; `Err` is
 /// the same thing a frame earlier, the connection not taking the
-/// request at all. Nothing is sent to the client in either case.
+/// request at all. The client gone first — its scope yielding no more
+/// requests — is [`End::Left`]: the remote's scope is let go, which
+/// tells the remote nobody reads it, and the conduit ends with nothing
+/// left carrying. Nothing is sent to the client in any of these.
 pub async fn run(scope: Arc<ScopeHandle>, handle: &Handle, bytes: &[u8]) -> Result<End, SendError> {
     let mut remote = handle.send_request(bytes).await?;
     let tasks = Arc::new(Mutex::new(JoinSet::new()));
+    // Resolves once the client's side is over, however it ended: its
+    // sender is dropped with the task.
+    let (left, mut leaving) = oneshot::channel::<()>();
     {
         let mut set = tasks.lock().await;
-        set.spawn(client_to_remote(Arc::clone(&scope), handle.clone(), remote.scope, Arc::clone(&tasks)));
+        set.spawn(client_to_remote(Arc::clone(&scope), handle.clone(), remote.scope, Arc::clone(&tasks), left));
         set.spawn(remote_to_client(Arc::clone(&scope), handle.clone(), remote.scope, remote.request_receiver, Arc::clone(&tasks)));
     }
     let mut end = End::Lost;
-    while let Some(frame) = remote.response_receiver.recv().await {
-        match ServerFrame::decode(&frame) {
-            Ok(ServerFrame::Response { payload, .. }) => scope.send_response(payload).await,
-            Ok(ServerFrame::ResponseFinish { .. }) => {
-                end = End::Finished;
+    loop {
+        tokio::select! {
+            frame = remote.response_receiver.recv() => {
+                let Some(frame) = frame else {
+                    break;
+                };
+                match ServerFrame::decode(&frame) {
+                    Ok(ServerFrame::Response { payload, .. }) => scope.send_response(payload).await,
+                    Ok(ServerFrame::ResponseFinish { .. }) => {
+                        end = End::Finished;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            _ = &mut leaving => {
+                end = End::Left;
                 break;
             }
-            _ => {}
         }
     }
     tasks.lock().await.abort_all();
+    // The remote's scope let go: what is left of it is the router's to
+    // end.
+    drop(remote.response_receiver);
     if let End::Finished = end {
         scope.send_response_finish().await;
     }
@@ -61,14 +79,18 @@ pub enum End {
     /// The connection to the remote ended first: the client's scope is
     /// still open, with no finish sent.
     Lost,
+    /// The client left first: the remote's scope let go, and nothing
+    /// sent to the client, which nobody reads.
+    Left,
 }
 
 /// Every channel the client opens on its scope, opened on the remote's
 /// scope: the request carried over, and a task carrying the remote's
 /// responses back under the client's number. Ends when the client's
 /// scope stops yielding requests — its finish sent, or the client
-/// gone.
-async fn client_to_remote(scope: Arc<ScopeHandle>, handle: Handle, remote: u32, tasks: Arc<Mutex<JoinSet<()>>>) {
+/// gone — and `left` is dropped with it, which tells [`run`].
+async fn client_to_remote(scope: Arc<ScopeHandle>, handle: Handle, remote: u32, tasks: Arc<Mutex<JoinSet<()>>>, left: oneshot::Sender<()>) {
+    let _left = left;
     while let Some(bytes) = scope.recv_channel_request().await {
         let Ok(ClientFrame::ChannelRequest { channel, payload, .. }) = ClientFrame::decode(&bytes) else {
             continue;
@@ -77,13 +99,21 @@ async fn client_to_remote(scope: Arc<ScopeHandle>, handle: Handle, remote: u32, 
             scope.send_channel_response_finish(channel).await;
             continue;
         };
-        tasks.lock().await.spawn(channel_responses_back(Arc::clone(&scope), channel, opened.response_receiver));
+        spawn(&tasks, channel_responses_back(Arc::clone(&scope), channel, opened.response_receiver)).await;
     }
+}
+
+/// One channel's carrier spawned into the conduit's set, every carrier
+/// that has ended reaped first: the set holds only what still carries.
+async fn spawn(tasks: &Mutex<JoinSet<()>>, carrier: impl std::future::Future<Output = ()> + Send + 'static) {
+    let mut set = tasks.lock().await;
+    while set.try_join_next().is_some() {}
+    set.spawn(carrier);
 }
 
 /// The remote's responses on one channel the client opened, sent to
 /// the client under the client's number, to the finish.
-async fn channel_responses_back(scope: Arc<ScopeHandle>, channel: u32, mut responses: UnboundedReceiver<Bytes>) {
+async fn channel_responses_back(scope: Arc<ScopeHandle>, channel: u32, mut responses: diverge_sdk::wire::credit::Receiver) {
     while let Some(frame) = responses.recv().await {
         match ServerFrame::decode(&frame) {
             Ok(ServerFrame::ChannelResponse { payload, .. }) => scope.send_channel_response(channel, payload).await,
@@ -100,13 +130,13 @@ async fn channel_responses_back(scope: Arc<ScopeHandle>, channel: u32, mut respo
 /// client's scope: the request carried over, and a task carrying the
 /// client's responses over under the remote's number. Ends when the
 /// remote's scope stops yielding requests.
-async fn remote_to_client(scope: Arc<ScopeHandle>, handle: Handle, remote: u32, mut requests: UnboundedReceiver<Bytes>, tasks: Arc<Mutex<JoinSet<()>>>) {
+async fn remote_to_client(scope: Arc<ScopeHandle>, handle: Handle, remote: u32, mut requests: diverge_sdk::wire::credit::Receiver, tasks: Arc<Mutex<JoinSet<()>>>) {
     while let Some(frame) = requests.recv().await {
         let Ok(ServerFrame::ChannelRequest { channel, payload, .. }) = ServerFrame::decode(&frame) else {
             continue;
         };
         let opened = scope.send_channel_request(payload).await;
-        tasks.lock().await.spawn(channel_responses_over(handle.clone(), remote, channel, opened));
+        spawn(&tasks, channel_responses_over(handle.clone(), remote, channel, opened)).await;
     }
 }
 

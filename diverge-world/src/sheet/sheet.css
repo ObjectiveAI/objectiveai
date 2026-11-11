@@ -1,0 +1,672 @@
+/* The agent sheet: ink, cream and copper, the world's own colours. */
+:root {
+  --sheet-ink: #16120a;
+  --sheet-raised: #221b11;
+  --sheet-line: #3a2f1f;
+  --sheet-cream: #f5ead0;
+  --sheet-text: #e6dcc4;
+  --sheet-dim: #a89c84;
+  --sheet-copper: #d97706;
+  --sheet-copper-bright: #fbbf24;
+  --sheet-account: #d9a521;
+  --sheet-agent: #6f9fe8;
+  --sheet-tool: #b58ae0;
+  --sheet-error: #e0604f;
+}
+
+/* Rule 1: along the bottom, the full width; rule 8: it takes every press made on it. */
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--sheet-ink) 96%, transparent);
+  border-top: 2px solid var(--sheet-copper);
+  box-shadow: 0 -6px 24px #000a;
+  color: var(--sheet-text);
+  font: 13px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace;
+  z-index: 10;
+  touch-action: none;
+}
+.sheet[hidden] {
+  display: none;
+}
+
+.sheet .handle {
+  flex: none;
+  height: 16px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.sheet .handle::before {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 4px;
+  margin: 6px auto 0;
+  border-radius: 2px;
+  background: var(--sheet-line);
+}
+
+.sheet > header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 8px 16px;
+  border-bottom: 1px solid var(--sheet-line);
+  font-family: Georgia, "Times New Roman", serif;
+}
+.sheet .live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sheet-line);
+}
+.sheet .live.on {
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade80;
+}
+.sheet .title {
+  color: var(--sheet-cream);
+  font-size: 16px;
+}
+.sheet .sub {
+  color: var(--sheet-dim);
+  font-size: 12px;
+}
+/* Rule 9: filling the window, the handle gone. */
+.sheet.full {
+  border-top: none;
+}
+.sheet.full .handle {
+  display: none;
+}
+.sheet.full > header {
+  padding-top: 8px;
+}
+.sheet .fill {
+  margin-left: auto;
+}
+.sheet .fill,
+.sheet .exit {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  color: var(--sheet-cream);
+  font-size: 14px;
+  cursor: pointer;
+}
+.sheet .fill:hover,
+.sheet .exit:hover {
+  border-color: var(--sheet-copper);
+}
+
+/* Rule 2: the tabs, the one shown copper. */
+.sheet .tabs {
+  margin-left: 16px;
+  display: flex;
+  gap: 4px;
+}
+.sheet .tab {
+  padding: 2px 10px;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: none;
+  color: var(--sheet-dim);
+  font: 12px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  cursor: pointer;
+}
+.sheet .tab:hover { color: var(--sheet-cream); }
+.sheet .tab.on {
+  border-color: var(--sheet-copper);
+  color: var(--sheet-copper-bright);
+}
+.sheet .tabs[hidden],
+.sheet .body[hidden],
+.sheet .files[hidden] {
+  display: none;
+}
+
+/* Rule 6: the console, one terminal filling what the sheet leaves. */
+.sheet .console {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0 4px 8px;
+  background: var(--sheet-ink);
+}
+.sheet .console[hidden] {
+  display: none;
+}
+.sheet .console .xterm {
+  height: 100%;
+}
+.sheet .tab[hidden] {
+  display: none;
+}
+
+/* Rule 7: the frontend, a frame filling what the sheet leaves under its bar. */
+.sheet .frontend {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--sheet-ink);
+}
+.sheet .frontend[hidden] {
+  display: none;
+}
+.sheet .frontend .bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--sheet-line);
+  font-size: 12px;
+}
+.sheet .frontend .bar button {
+  border: 0;
+  background: none;
+  color: var(--sheet-dim);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.sheet .frontend .bar button:hover { color: var(--sheet-cream); }
+.sheet .frontend .where { color: var(--sheet-dim); }
+.sheet .frontend iframe {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+/* Rule 10: the daemon tab, its one button, which opens the daemon's own tab of the window. */
+.sheet .daemon {
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  background: var(--sheet-ink);
+}
+.sheet .daemon[hidden] {
+  display: none;
+}
+.sheet .daemon button {
+  padding: 6px 14px;
+  border: 1px solid var(--sheet-copper);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  color: var(--sheet-copper-bright);
+  font: 13px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  cursor: pointer;
+}
+.sheet .daemon button:hover {
+  border-color: var(--sheet-copper-bright);
+  color: var(--sheet-cream);
+}
+
+/* Rule 5: the filesystem, scrolled from its top; every row on one grid of columns. */
+.sheet .files {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  font-size: 12px;
+}
+.sheet .files .row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem 9.5rem 9.5rem;
+  padding-right: 16px;
+  line-height: 22px;
+}
+.sheet .files .cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sheet .files .cell.name { text-align: left; }
+.sheet .files .cell.none { color: var(--sheet-line); }
+.sheet .files .head {
+  position: sticky;
+  top: 0;
+  background: var(--sheet-ink);
+  border-bottom: 1px solid var(--sheet-line);
+}
+.sheet .files .head .cell:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 0.75rem;
+}
+.sheet .files .sort,
+.sheet .files .again {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--sheet-dim);
+  font: inherit;
+  cursor: pointer;
+}
+.sheet .files .sort:hover,
+.sheet .files .again:hover { color: var(--sheet-cream); }
+.sheet .files .sort.on { color: var(--sheet-copper-bright); }
+.sheet .files .row.directory { cursor: pointer; }
+.sheet .files .row.directory:not(.selected):hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
+.sheet .files .row.directory .name { color: var(--sheet-copper-bright); }
+.sheet .files .row.symlink .name { color: var(--sheet-agent); font-style: italic; }
+.sheet .files .row.stale { opacity: 0.5; }
+.sheet .files .row.empty .name { color: var(--sheet-dim); font-style: italic; }
+.sheet .files .caret {
+  display: inline-block;
+  width: 1rem;
+  color: var(--sheet-dim);
+}
+.sheet .files .note { padding: 12px 16px; }
+.sheet .files .note[hidden] { display: none; }
+/* A changed row glows copper and fades (Files, rule 5). */
+.sheet .files .row.flash { animation: sheet-flash 1.2s ease-out forwards; }
+@keyframes sheet-flash {
+  from { background: color-mix(in srgb, var(--sheet-copper) 35%, transparent); }
+  to { background: transparent; }
+}
+
+/* Rules 4 and 12: the logs tab — the log's scroller, and an agent's composer under it. */
+.sheet .thread {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sheet .thread[hidden] {
+  display: none;
+}
+
+/* The scroller: a reversed column, so its resting place is its bottom; it holds the log, and an agent's pending strip beneath it. */
+.sheet .body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  display: flex;
+  flex-direction: column-reverse;
+}
+/* While the history comes in, held at the bottom. */
+.sheet .body.loading {
+  overflow-y: hidden;
+}
+/* Shorter than the pane, the log stands at its top; taller, the margin is nothing. */
+.sheet .log {
+  margin-bottom: auto;
+  padding: 10px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A message: its label once, then its blocks. */
+.sheet .message > header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.sheet .label {
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.sheet .message.agent .label { color: var(--sheet-agent); }
+.sheet .message.account .label { color: var(--sheet-account); }
+.sheet .message.tool .label { color: var(--sheet-tool); }
+.sheet .message.error .label,
+.sheet .message.failed .label { color: var(--sheet-error); }
+.sheet .message.failed .blocks { color: var(--sheet-error); }
+.sheet .ago {
+  margin-left: auto;
+  color: var(--sheet-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.sheet .blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 8px;
+  border-left: 1px solid var(--sheet-line);
+}
+
+/* Text, rendered. */
+.sheet .text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.sheet .text p { margin: 0 0 4px; }
+.sheet .text ul,
+.sheet .text ol { margin: 0 0 4px; padding-left: 18px; }
+.sheet .text blockquote { margin: 0; padding-left: 8px; border-left: 2px solid var(--sheet-copper); }
+.sheet .text code { background: var(--sheet-raised); padding: 0 3px; border-radius: 2px; }
+.sheet .text pre { white-space: pre; overflow-x: auto; background: var(--sheet-raised); padding: 6px 8px; border-radius: 4px; }
+.sheet .text pre code { padding: 0; }
+.sheet .text table { border-collapse: collapse; }
+.sheet .text th,
+.sheet .text td { border: 1px solid var(--sheet-line); padding: 2px 6px; }
+.sheet .link { text-decoration: underline; }
+.sheet .refusal { color: var(--sheet-error); }
+
+.sheet .reasoning summary {
+  cursor: pointer;
+  color: var(--sheet-dim);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.sheet .reasoning > div {
+  color: var(--sheet-dim);
+  font-style: italic;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* A tool call, its response beneath its arguments; closed until opened. */
+.sheet .call {
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  padding: 4px 8px;
+}
+.sheet .call > summary {
+  display: flex;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.sheet .call > summary::-webkit-details-marker { display: none; }
+.sheet .call > summary::before {
+  content: "▸";
+  color: var(--sheet-dim);
+  transition: transform 0.1s;
+}
+.sheet .call[open] > summary::before { transform: rotate(90deg); }
+.sheet .call .status { width: 1ch; color: var(--sheet-dim); }
+.sheet .call.failed .status,
+.sheet .call.failed .response { color: var(--sheet-error); }
+.sheet .call-name { color: var(--sheet-copper-bright); }
+.sheet .args,
+.sheet .response {
+  margin: 4px 0 0 2ch;
+  padding-left: 8px;
+  border-left: 1px solid var(--sheet-line);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.sheet .notify {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sheet .args::before,
+.sheet .response::before,
+.sheet .notify::before {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sheet-dim);
+}
+.sheet .args::before { content: "call"; }
+.sheet .response::before { content: "response"; }
+.sheet .notify::before { content: "notification"; }
+.sheet .response[hidden] { display: none; }
+.sheet .args:empty { display: none; }
+
+.sheet .json {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sheet .media {
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  align-self: flex-start;
+  border-radius: 4px;
+}
+.sheet .resource { color: var(--sheet-copper-bright); }
+
+.sheet .note {
+  color: var(--sheet-dim);
+  font-style: italic;
+  text-align: center;
+}
+
+/* Files, rule 12: the selected row, lit more strongly than the pointer's light, which passes it by. */
+.sheet .files .row.selected {
+  background: color-mix(in srgb, var(--sheet-copper) 32%, transparent);
+  box-shadow: inset 2px 0 0 var(--sheet-copper-bright);
+}
+.sheet .files .row.selected .name { color: var(--sheet-cream); }
+.sheet .files .row.directory.selected .name { color: var(--sheet-copper-bright); }
+
+/* Files, rule 9: every row lights while pointed at, and right-clicks to its menu. */
+.sheet .files .row.file:not(.selected):hover,
+.sheet .files .row.symlink:not(.selected):hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
+.files-menu {
+  position: fixed;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--sheet-raised);
+  border: 1px solid var(--sheet-copper);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px #000a;
+}
+.files-menu button {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--sheet-cream);
+  font: 12px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  text-align: left;
+  cursor: pointer;
+}
+.files-menu button:hover { background: color-mix(in srgb, var(--sheet-copper) 25%, transparent); }
+
+/* Files, rule 10: where a drag is aimed. */
+.sheet .files .row.aimed { background: color-mix(in srgb, var(--sheet-copper) 22%, transparent); }
+.sheet .files.aimed { box-shadow: inset 0 0 0 2px var(--sheet-copper); }
+.sheet .files .aim {
+  position: sticky;
+  top: 23px;
+  z-index: 1;
+  padding: 2px 16px;
+  background: var(--sheet-copper);
+  color: var(--sheet-ink);
+  font-weight: bold;
+}
+.sheet .files .aim[hidden] { display: none; }
+
+/* The transfers strip: the window's bottom right, above the sheet. */
+.transfers {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(360px, calc(100vw - 32px));
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--sheet-ink) 96%, transparent);
+  border: 1px solid var(--sheet-copper);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px #000a;
+  color: var(--sheet-text);
+  font: 12px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace;
+  z-index: 11;
+}
+.transfers[hidden] { display: none; }
+.transfers .transfer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  align-items: center;
+}
+.transfers .what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sheet-cream);
+}
+.transfers .exit {
+  border: none;
+  background: none;
+  color: var(--sheet-dim);
+  font: inherit;
+  cursor: pointer;
+}
+.transfers .exit:hover { color: var(--sheet-cream); }
+.transfers .bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--sheet-line);
+  overflow: hidden;
+}
+.transfers .bar[hidden] { display: none; }
+.transfers .bar > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--sheet-copper-bright);
+}
+.transfers .said {
+  grid-column: 1 / -1;
+  color: var(--sheet-dim);
+  overflow-wrap: anywhere;
+}
+.transfers .transfer.done .said { color: #4ade80; }
+.transfers .transfer.failed .said { color: var(--sheet-error); }
+
+/* Composer, rule 1: the pending strip at the log's bottom, the log right above it however short; a waiting message greyed, a delivered one as plain as the log, a failed one red and dismissed by a click. */
+.sheet .pending {
+  margin-bottom: auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sheet .pending:not(:empty) { padding-bottom: 12px; }
+.sheet .pending ~ .log { margin-bottom: 0; }
+.sheet .pending .sent .blocks { min-width: 0; }
+.sheet .pending .sent.waiting,
+.sheet .pending .sent.delivered { opacity: 0.45; }
+.sheet .pending .sent.failed {
+  color: var(--sheet-error);
+  cursor: pointer;
+}
+.sheet .pending .sent.failed .blocks { border-left-color: var(--sheet-error); }
+.sheet .pending .why { font-style: italic; }
+.sheet .composer .chip button {
+  border: none;
+  background: none;
+  color: var(--sheet-dim);
+  font: inherit;
+  cursor: pointer;
+}
+.sheet .composer .chip button:hover { color: var(--sheet-cream); }
+
+/* Composer, rules 2 to 6: under the log, the chips over the text box, 📎 and send. */
+.sheet .composer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--sheet-line);
+}
+.sheet .composer .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sheet .composer .chips[hidden] { display: none; }
+.sheet .composer .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  padding: 2px 4px 2px 6px;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  font-size: 12px;
+}
+.sheet .composer .chip img {
+  height: 40px;
+  max-width: 80px;
+  object-fit: cover;
+  border-radius: 3px;
+}
+.sheet .composer .chip .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet .composer .row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+.sheet .composer textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 160px;
+  /* Whole pixels: the box's height is its lines, its padding and its border, so growing and shrinking never leaves a fraction behind. */
+  box-sizing: border-box;
+  padding: 6px 8px;
+  resize: none;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  color: var(--sheet-text);
+  font: inherit;
+  line-height: 20px;
+  outline: none;
+}
+.sheet .composer textarea:focus { border-color: var(--sheet-copper); }
+.sheet .composer .clip,
+.sheet .composer .send {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: var(--sheet-raised);
+  color: var(--sheet-cream);
+  font: 13px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  cursor: pointer;
+}
+.sheet .composer .send {
+  border-color: var(--sheet-copper);
+  color: var(--sheet-copper-bright);
+}
+.sheet .composer .clip:hover,
+.sheet .composer .send:hover:not(:disabled) { border-color: var(--sheet-copper-bright); }
+.sheet .composer .send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

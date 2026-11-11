@@ -5,8 +5,8 @@ import { DecodeError, jsonOf, splitTag } from "../../../../../../wire/decode.js"
 import { Error } from "../../../../../../shared/error.js";
 
 /**
- * A create's answer: the tool exists, the name is held, no account
- * is the one named, forbidden, or a failure. Only the error carries
+ * A create's answer: the tool exists, the name is held, forbidden, or
+ * a failure. Only the error carries
  * anything after its tag.
  */
 export const Frame = z.union([
@@ -14,20 +14,17 @@ export const Frame = z.union([
   z.literal("created"),
   /** The name is a tool's of the caller's already; nothing changed. Tag `1`. */
   z.literal("in_use"),
-  /** No named account is the one named; nothing changed. Tag `2`. */
-  z.literal("no_account"),
-  /** The account the request is served for holds no grant allowing it; nothing changed. Tag `3`. */
+  /** The account the request is served for holds no grant allowing it; nothing changed. Tag `2`. */
   z.literal("forbidden"),
-  /** A failure. See `shared.error.Error` for why it says so little. Tag `4`. */
+  /** A failure. See `shared.error.Error` for why it says so little. Tag `3`. */
   z.strictObject({ error: Error }),
 ]);
 export type Frame = z.infer<typeof Frame>;
 
 const CREATED = 0;
 const IN_USE = 1;
-const NO_ACCOUNT = 2;
-const FORBIDDEN = 3;
-const ERROR = 4;
+const FORBIDDEN = 2;
+const ERROR = 3;
 
 /**
  * A frame out of its payload: the tag byte, then the variant's own
@@ -42,8 +39,6 @@ export function decode(bytes: Uint8Array): Frame {
       return "created";
     case IN_USE:
       return "in_use";
-    case NO_ACCOUNT:
-      return "no_account";
     case FORBIDDEN:
       return "forbidden";
     case ERROR:

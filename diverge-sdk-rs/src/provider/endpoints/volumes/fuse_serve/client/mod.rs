@@ -1,7 +1,7 @@
 //! The client side of a serve: what a client sends.
 //!
 //! [`request`] opens the scope — the volume, once. [`channel_request`]
-//! is what the client opens on it: the nine asks, the stop that ends
+//! is what the client opens on it: the nine asks, the cancel that ends
 //! the scope, and the tree.
 //!
 //! # And a way to use it
@@ -9,8 +9,8 @@
 //! [`execute`] performs the exchange rather than describing it: hand
 //! it a [`Handle`](crate::wire::client::handle::Handle) and a
 //! [`request::Frame`], get an [`ExecuteHandle`](execute::ExecuteHandle)
-//! that asks one ask at a time, opens the tree, and stops when
-//! dropped into its stop.
+//! that asks one ask at a time, opens the tree, and cancels when
+//! dropped into its cancel.
 
 pub mod channel_request;
 pub mod request;

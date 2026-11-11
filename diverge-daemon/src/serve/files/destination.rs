@@ -34,8 +34,8 @@ pub async fn judged(conn: &mut PgConnection, daemon: &Daemon, standing: &Standin
             let Some(record) = store::agents::by_reference(conn, agent, false).await? else {
                 return Ok(Judged::NoDestination);
             };
-            let active = serve::agents::active(daemon, record.id).await;
-            if judge::agents::over(standing, agents::Over::Upload, &record, active) { Judged::Allowed } else { Judged::Forbidden }
+            let state = serve::agents::state(daemon, record.id).await;
+            if judge::agents::over(standing, agents::Over::Upload, &record, state) { Judged::Allowed } else { Judged::Forbidden }
         }
         Destination::Tool { tool, .. } => {
             let Some(tool) = serve::standalone_tools::resolve(conn, tool, false).await? else {

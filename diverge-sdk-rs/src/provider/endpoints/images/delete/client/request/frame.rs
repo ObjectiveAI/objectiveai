@@ -5,22 +5,24 @@ use serde::{Deserialize, Serialize};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Destroy an image the caller built.
+/// Destroy an image in the caller's Store.
 ///
-/// # A name, and the same access model as everything else
+/// # A digest, and the same access model as everything else
 ///
 /// The one field is an
-/// [`Image::name`](crate::provider::endpoints::images::list::server::response::Image::name)
-/// from a listing. A caller cannot delete an image it did not build,
+/// [`Image::digest`](crate::provider::endpoints::images::list::server::response::Image::digest)
+/// from a listing. A caller cannot delete an image it does not own,
 /// and cannot probe for what exists by deleting and reading the
-/// error — the provider resolves a name against the caller that
-/// built it, and nothing else.
+/// error — the provider resolves a digest against the caller's own
+/// Store, and nothing else. What the caller loses is its ownership:
+/// a blob another owner's image or the provider's cache still reaches
+/// stays, and is not the caller's to count.
 ///
 /// # It is not undoable and there is no confirmation
 ///
 /// One frame destroys the image. Confirmation belongs where a person
 /// is, which is above this. A caller that wants the image again
-/// builds it again.
+/// builds or pushes it again.
 ///
 /// # An image in use is refused
 ///
@@ -31,12 +33,8 @@ use crate::wire::encode::{Encode, Writer};
 /// container first and asks again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Frame {
-    /// Which image, by the name its build gave it.
-    ///
-    /// Names come from
-    /// [`Image::name`](crate::provider::endpoints::images::list::server::response::Image::name)
-    /// and mean nothing outside the caller that chose them.
-    pub name: String,
+    /// Which image, by its manifest digest, `<algorithm>:<hex>`.
+    pub digest: String,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -51,7 +49,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 18;
+const TAG: u8 = 20;
 
 /// Postcard, matching [`volumes`](crate::provider::endpoints::volumes) and the
 /// rest of this family's store.

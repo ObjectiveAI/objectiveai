@@ -7,6 +7,7 @@ use std::time::Duration;
 use tokio::sync::watch;
 
 use super::{Outcome, State, start};
+use crate::containers::lifecycle::End;
 use crate::containers::{ToolKey, ToolRun, stop};
 use crate::daemon::Daemon;
 use crate::store::{DependencyToolId, ToolId, dependency_tools, tools};
@@ -38,13 +39,16 @@ pub async fn supervise(daemon: Arc<Daemon>, key: ToolKey, state: Arc<State>, out
         }
         let started = match key {
             ToolKey::Record(id) => record(&daemon, id).await,
+            // A connected tool is never a service here: nothing to keep.
+            ToolKey::Connected(_) => Started::Gone,
             ToolKey::Dependency(id) => dependency(&daemon, id).await,
         };
         match started {
             Started::Gone => return,
             Started::Run(run) => {
                 outcomes.send_replace(Some(Outcome::Up));
-                run.handle.wait().await;
+                let ended = run.handle.wait().await;
+                run.end_as(End::Unexpected(ended.reason())).await;
                 stop::ended_tool(&daemon, run).await;
             }
             Started::Failed(reason) => {

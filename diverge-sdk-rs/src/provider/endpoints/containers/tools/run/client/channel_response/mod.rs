@@ -2,9 +2,10 @@
 //! channel the provider opens.
 //!
 //! [`oci_has`] says whether the caller holds the image and under
-//! what name, and [`oci_manifest`] and [`oci_blob`] hand it over when the provider
-//! takes it from there; [`write_bytes`] streams the content of a file
-//! being written. The rest answer the CONTAINER, relayed: [`postgres`] is
+//! what name, [`oci_manifest`] and [`oci_blob`] hand it over when the
+//! provider takes it from there, and [`oci_prove`] proves the caller
+//! holds it; [`write_bytes`] streams the content of a file being
+//! written. The rest answer the CONTAINER, relayed: [`postgres`] is
 //! what its database said, [`daemon`] the server frames that answer a
 //! frame of its daemon connection, and the nine `fuse_*` what the files and
 //! directories it mounted live hold, what an entry of them is, and
@@ -23,5 +24,6 @@ pub mod fuse_write;
 pub mod oci_blob;
 pub mod oci_has;
 pub mod oci_manifest;
+pub mod oci_prove;
 pub mod postgres;
 pub mod write_bytes;

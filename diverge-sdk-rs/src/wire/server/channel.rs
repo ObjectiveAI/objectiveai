@@ -1,9 +1,9 @@
 //! One channel a provider opened inside a scope, and what comes back.
 
-use bytes::Bytes;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::UnboundedSender;
 
 use super::notice::Notice;
+use crate::wire::credit::Receiver;
 
 /// A channel this end opened inside a scope, and what comes back on it.
 ///
@@ -18,12 +18,11 @@ use super::notice::Notice;
 ///
 /// # Read it or drop it
 ///
-/// [`response_receiver`](Self::response_receiver) is unbounded, and
-/// what rides it is a stream rather than a message — an image layer, a
-/// database connection, a daemon frame's answers. An answer nobody
-/// reads is memory the far side can grow without limit, and nothing in
-/// this crate bounds it. Dropping this frees the queue and tells the
-/// session to forget the channel.
+/// [`response_receiver`](Self::response_receiver) holds one frame ahead
+/// of its reader, and the client sends the next only when this end has
+/// taken the last (see [`credit`](crate::wire::credit)). Dropping this
+/// tells the client to send no more and the session to forget the
+/// channel.
 #[derive(Debug)]
 pub struct Channel {
     /// The channel's number, chosen by this end.
@@ -35,7 +34,7 @@ pub struct Channel {
     /// Whole frames, headers included. Ends at the finish frame; the
     /// channel closing without one means the connection went first, or
     /// the scope did.
-    pub response_receiver: UnboundedReceiver<Bytes>,
+    pub response_receiver: Receiver,
     /// The scope it belongs to, for the notice at the end.
     ///
     /// Not public, because it is not this type's to tell — a caller

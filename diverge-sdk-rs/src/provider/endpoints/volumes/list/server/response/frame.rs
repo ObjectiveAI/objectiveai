@@ -17,19 +17,21 @@ use crate::shared::listing::Change;
 /// [`Listed`](Self::Listed); then, for the scope's life, a volume the
 /// caller creates as `Added`, one it edits as
 /// [`Changed`](Self::Changed), one it deletes as
-/// [`Removed`](Self::Removed). The finish follows the caller's stop,
+/// [`Removed`](Self::Removed). The finish follows the caller's cancel,
 /// the caller's connection ending, or exactly one
 /// [`Error`](Self::Error), and nothing else: a caller with no volume
 /// is listed as `Listed` at once, and watched. A payload leads with
 /// one byte saying which — `0` for `Added`, `1` for `Changed`, `2`
 /// for `Removed`, `3` for `Listed`, `4` for `Unsupported`, `5` for
-/// `Error` — and the rest is that variant's own bytes; `Listed` and
-/// `Unsupported` carry nothing. A provider that keeps no volumes
-/// sends `Unsupported` first and alone, and the finish follows it.
+/// `Error`, `6` for `AlreadyOpen` — and the rest is that variant's own
+/// bytes; `Listed`, `Unsupported` and `AlreadyOpen` carry nothing. A
+/// provider that keeps no volumes sends `Unsupported` first and alone,
+/// and the finish follows it; a connection with a listing open already
+/// is sent [`AlreadyOpen`](Self::AlreadyOpen) the same way.
 ///
 /// # A finish with nothing is an answer
 ///
-/// The caller stopped before anything was sent, or the request was
+/// The caller cancelled before anything was sent, or the request was
 /// not served: a scope that finishes with no response before it is
 /// that, not a failure. An [`Error`](Self::Error) is a failure: the
 /// provider could not tell — a caller that confuses the two stops
@@ -71,6 +73,15 @@ pub enum Frame {
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
     Error(Error),
+    /// Refused: this connection has a volume listing open already. Tag
+    /// `6`.
+    ///
+    /// Carries nothing. Sent first and alone, and the finish follows
+    /// it: nothing was listed. One connection holds at most one
+    /// listing at a time — see the
+    /// [endpoints](crate::provider::endpoints#one-open-at-a-time) —
+    /// and the caller reads the one it has.
+    AlreadyOpen,
 }
 
 /// Tag for [`Frame::Added`].
@@ -90,6 +101,9 @@ const UNSUPPORTED: u8 = 4;
 
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 5;
+
+/// Tag for [`Frame::AlreadyOpen`].
+const ALREADY_OPEN: u8 = 6;
 
 /// Two formats, and the tag chooses between them.
 ///
@@ -136,6 +150,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out).map_err(FrameEncodeError::Error)
             }
+            Frame::AlreadyOpen => {
+                out.extend_from_slice(&[ALREADY_OPEN]);
+                Ok(())
+            }
         }
     }
 }
@@ -154,6 +172,7 @@ impl Decode<'_> for Frame {
             LISTED => Ok(Frame::Listed),
             UNSUPPORTED => Ok(Frame::Unsupported),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameDecodeError::Error),
+            ALREADY_OPEN => Ok(Frame::AlreadyOpen),
             tag => Err(FrameDecodeError::UnknownTag(tag)),
         }
     }
@@ -162,8 +181,8 @@ impl Decode<'_> for Frame {
 impl Frame {
     /// What this frame tells a listing — a [`Change`], for
     /// [`Listing::push`](crate::shared::listing::Listing::push) — or
-    /// the frame itself where it tells a listing nothing: unsupported, or a failure,
-    /// the answers that end the scope.
+    /// the frame itself where it tells a listing nothing: unsupported,
+    /// already open, or a failure, the answers that end the scope.
     pub fn change(self) -> Result<Change<Volume>, Frame> {
         match self {
             Frame::Added(item) => Ok(Change::Added(item)),
@@ -220,7 +239,7 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's six.
+    /// A tag that is none of this frame's seven.
     UnknownTag(u8),
     /// The volume did not parse.
     Volume(postcard::Error),

@@ -1,117 +1,168 @@
-//! Pulling a manifest or a blob from a provider that holds the image.
+//! Pulling a manifest, a blob or the proof of an image through the one
+//! held source's `images::oci` scope.
 
 use std::pin::Pin;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::provider::client::Manifest;
-use diverge_sdk::provider::endpoints::images::oci::client::{execute, request};
+use diverge_sdk::shared::containers::oci;
 use futures_util::future::ready;
 use futures_util::{Stream, StreamExt as _, stream};
+use tokio::sync::Mutex;
 
-use super::locate;
-use crate::daemon::Daemon;
+use super::Source;
 
-/// A blob as it is relayed: the pieces of one provider's answer, in
-/// order, ending at its finish or short where the provider went.
+/// A blob as it is relayed: the pieces of one source's answer, in
+/// order, ending at its finish or short where the source went.
 pub type Blob = Pin<Box<dyn Stream<Item = Bytes> + Send>>;
 
-/// The manifest under `digest`, from a provider that holds it, or
-/// `None` when none does.
+/// The one `images::oci` scope held for an image: the source that
+/// answered held first, and the way to it.
 ///
-/// Every holder the daemon knows of is tried in turn, through the
-/// pull scope kept on it — opened now if none is — and the first to
-/// answer the manifest is the answer. A holder that answers not
-/// held is forgotten for this digest; one whose scope failed is
-/// forgotten and its scope let go, to be opened anew by the next
-/// pull; none left is `None`.
-pub async fn manifest(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Option<Manifest> {
-    for holder in holders(daemon, digest, asker).await {
-        let Some(scope) = scope(daemon, &holder).await else {
-            daemon.live.drop_holder(digest, &holder).await;
-            continue;
-        };
-        match scope.manifest(digest).await {
-            Ok(Some(manifest)) => return Some(manifest),
-            Ok(None) => daemon.live.drop_holder(digest, &holder).await,
-            Err(_) => failed(daemon, digest, &holder).await,
+/// The rules:
+///
+/// 1. **One source.** A scope is kept here only once its source
+///    answered held first, by [`locate`](super::locate); every other
+///    was cancelled there. The image's manifests, blobs and proof are
+///    taken through this scope and no other, and with none kept each is
+///    answered not held.
+/// 2. **Let go when answered.** Whoever keeps a source releases it
+///    when done — a run once its executor has returned, the container's
+///    id or the failure; a client's oci scope once it ends — through
+///    [`release`](Self::release): a source holds what it fetched for a
+///    scope pinned until the scope ends, so a scope left open would
+///    keep it. A source kept after the release is cancelled at once.
+/// 3. **A failed ask lets it go.** A source an ask failed on, or that
+///    answered a part not held, is cancelled and forgotten, and the ask
+///    is answered not held; no other source is asked.
+pub struct Pulls {
+    state: Mutex<State>,
+}
+
+/// What the lock protects.
+struct State {
+    /// The source held, if any.
+    held: Option<Arc<Source>>,
+    /// Rule 2: released, and keeping nothing more.
+    released: bool,
+}
+
+impl Pulls {
+    /// No source yet.
+    pub fn new() -> Self {
+        Pulls {
+            state: Mutex::new(State { held: None, released: false }),
         }
     }
-    None
-}
 
-/// The blob under `digest`, from a provider that holds it, or `None`
-/// when none does.
-///
-/// As [`manifest`], except that a holder is judged by its first
-/// piece: a channel that finishes with none is not held, a channel
-/// that fails before any is the scope failed, and from the first
-/// piece on the stream is that provider's, ending short where it
-/// goes — the asking provider hashes what it got and sees the
-/// shortfall, and nothing is retried mid-way.
-pub async fn blob(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Option<Blob> {
-    for holder in holders(daemon, digest, asker).await {
-        let Some(scope) = scope(daemon, &holder).await else {
-            daemon.live.drop_holder(digest, &holder).await;
-            continue;
+    /// Rule 2: the source cancelled and forgotten, and none kept from
+    /// now on.
+    pub async fn release(&self) {
+        let held = {
+            let mut state = self.state.lock().await;
+            state.released = true;
+            state.held.take()
         };
-        let mut pieces = match scope.blob(digest).await {
-            Ok(pieces) => pieces,
-            Err(_) => {
-                failed(daemon, digest, &holder).await;
-                continue;
-            }
-        };
-        match pieces.next().await {
-            Some(Ok(first)) => {
-                let rest = pieces.filter_map(|piece| ready(piece.ok()));
-                return Some(Box::pin(stream::once(ready(first)).chain(rest)));
-            }
-            Some(Err(_)) => failed(daemon, digest, &holder).await,
-            None => daemon.live.drop_holder(digest, &holder).await,
+        if let Some(source) = held {
+            let _ = source.scope.cancel().await;
         }
     }
-    None
+
+    /// Rule 1: `source` kept — `false`, and the source cancelled, once
+    /// released (rule 2). A source kept before it is cancelled: one is
+    /// held at a time.
+    pub async fn keep(&self, source: Source) -> bool {
+        let source = Arc::new(source);
+        let (kept, replaced) = {
+            let mut state = self.state.lock().await;
+            if state.released {
+                (false, None)
+            } else {
+                (true, state.held.replace(Arc::clone(&source)))
+            }
+        };
+        if let Some(replaced) = replaced {
+            let _ = replaced.scope.cancel().await;
+        }
+        if !kept {
+            let _ = source.scope.cancel().await;
+        }
+        kept
+    }
+
+    /// The source held, if any.
+    pub async fn held(&self) -> Option<Arc<Source>> {
+        self.state.lock().await.held.clone()
+    }
+
+    /// Rule 3: `source` cancelled, and forgotten where it is still the
+    /// one held.
+    async fn drop_source(&self, source: &Arc<Source>) {
+        {
+            let mut state = self.state.lock().await;
+            if state.held.as_ref().is_some_and(|held| Arc::ptr_eq(held, source)) {
+                state.held = None;
+            }
+        }
+        let _ = source.scope.cancel().await;
+    }
 }
 
-/// The providers to pull from, in order: those known to hold the
-/// image, or, knowing none, the first found by asking — and whoever
-/// else answered meanwhile. Never the asker.
-async fn holders(daemon: &Arc<Daemon>, digest: &str, asker: &Identity) -> Vec<Identity> {
-    let mut known = daemon.live.holders(digest).await;
-    if known.is_empty() && locate(daemon, digest, Some(asker)).await.is_some() {
-        known = daemon.live.holders(digest).await;
+/// The manifest under `digest` through the held source, or `None` when
+/// none is held or it does not answer it (rule 3).
+pub async fn manifest(pulls: &Pulls, digest: &str) -> Option<Manifest> {
+    let source = pulls.held().await?;
+    match source.scope.manifest(digest).await {
+        Ok(Some(manifest)) => Some(manifest),
+        Ok(None) | Err(_) => {
+            pulls.drop_source(&source).await;
+            None
+        }
     }
-    known.retain(|holder| holder != asker);
-    known
 }
 
-/// The pull scope on the provider: the one kept, or one opened now
-/// and kept — unless another opener kept one first, whose scope is
-/// used and this one disconnected. `None` for a provider that is not
-/// connected now, whose capabilities keep no client image store —
-/// one that would answer the pull unsupported, and is not asked — or
-/// whose scope could not be opened.
-async fn scope(daemon: &Arc<Daemon>, holder: &Identity) -> Option<Arc<execute::ExecuteHandle>> {
-    if let Some(scope) = daemon.live.pull_scope(holder).await {
-        return Some(scope);
-    }
-    if !daemon.live.capabilities(holder).await.is_some_and(|info| info.capabilities.images_store) {
+/// The blob under `digest` through the held source, or `None` when
+/// none is held or it does not answer it.
+///
+/// As [`manifest`], except that the source is judged by its first
+/// piece: a channel that finishes with none, or fails before any, lets
+/// it go (rule 3), and from the first piece on the stream is the
+/// source's, ending short where it goes — the asking provider hashes
+/// what it got and sees the shortfall, and nothing is retried mid-way.
+pub async fn blob(pulls: &Pulls, digest: &str) -> Option<Blob> {
+    let source = pulls.held().await?;
+    let Ok(mut pieces) = source.scope.blob(digest).await else {
+        pulls.drop_source(&source).await;
         return None;
+    };
+    match pieces.next().await {
+        Some(Ok(first)) => {
+            let rest = pieces.filter_map(|piece| ready(piece.ok()));
+            Some(Box::pin(stream::once(ready(first)).chain(rest)))
+        }
+        Some(Err(_)) | None => {
+            pulls.drop_source(&source).await;
+            None
+        }
     }
-    let handle = daemon.live.provider(holder).await?;
-    let opened = Arc::new(execute::execute(&handle, &request::Frame).await.ok()?);
-    let kept = daemon.live.keep_pull_scope(holder.clone(), Arc::clone(&opened)).await;
-    if !Arc::ptr_eq(&kept, &opened) {
-        let _ = opened.disconnect().await;
-    }
-    Some(kept)
 }
 
-/// A pull from the provider failed: its scope let go and the holder
-/// forgotten for this digest.
-async fn failed(daemon: &Arc<Daemon>, digest: &str, holder: &Identity) {
-    daemon.live.drop_pull_scope(holder).await;
-    daemon.live.drop_holder(digest, holder).await;
+/// The proof of possession `request` names, over the held source's
+/// image — see [`prove`](diverge_sdk::shared::containers::oci::prove)
+/// — or `None` when none is held or it does not answer it (rule 3).
+///
+/// The daemon hashes nothing itself: the request is sent as it came,
+/// platform and nonce, on the source's prove channel, and the proof
+/// answered is relayed as it came. No image byte moves through the
+/// daemon for it.
+pub async fn prove(pulls: &Pulls, request: &oci::prove::request::Request) -> Option<[u8; 32]> {
+    let source = pulls.held().await?;
+    match source.scope.prove(request).await {
+        Ok(Some(proof)) => Some(proof),
+        Ok(None) | Err(_) => {
+            pulls.drop_source(&source).await;
+            None
+        }
+    }
 }

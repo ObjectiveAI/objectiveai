@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response: the byte 0 alone, Serving, after which the scope stays open until the client stops it; or the byte 1 followed by an error as one JSON value, and the finish.'
+summary: 'The server sends exactly one response: the byte 0 alone, Serving, after which the scope stays open until the client cancels it; or the byte 1 followed by an error as one JSON value, and the finish.'
 order: 2
 draft: false
 ---
@@ -18,7 +18,7 @@ before it serves any channel.
   the server sends no other response on the scope, answers every
   channel the client opens as [Client Channels](/container-proxy-endpoints/filesystem-fuse-serve/client/)
   states, and sends the response finish after the last answer when
-  the client stops. After a response whose first byte is `1`, the
+  the client cancels. After a response whose first byte is `1`, the
   response finish follows the response, and no frame follows the
   finish.
 - **The error.** A payload whose first byte is `1` carries an error

@@ -7,13 +7,15 @@ use std::pin::pin;
 use std::sync::Arc;
 
 use futures_util::future::{self, Either};
-use tokio::sync::Mutex;
 use tokio::sync::watch;
 
+use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::connection::Connection;
-use diverge_sdk::wire::server::authorization::Authorization;
+use diverge_sdk::wire::handshake::{self, Handshook};
 use crate::protocol::acceptors::Acceptors;
 use crate::protocol::directory::Directory;
+use crate::protocol::listables::Listables;
+use crate::protocol::mailboxes::Mailboxes;
 use crate::protocol::changes::Changes;
 use crate::protocol::handle::handle;
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
@@ -21,18 +23,17 @@ use super::capabilities::capabilities;
 use diverge_sdk::wire::server::session::Session;
 
 use crate::config::Config;
-use crate::config::auth::Auth;
+use crate::config::images::Images;
 use crate::config::volumes::Volumes;
 
-use super::{Error, Peers};
+use super::Error;
 use crate::host::capacity_reporter::CapacityReporter;
 use crate::host::container_deployer::ContainerDeployer;
-use crate::host::image_checker::ImageChecker;
 use crate::host::image_manager::{ImageManager, Store};
 use crate::host::image_registry::ImageRegistry;
-use crate::host::oci_store::OciStore;
+use crate::host::registry_client::RegistryClient;
 use crate::host::tools::podman;
-use crate::host::unbrokered_authorizer::{Slot, UnbrokeredAuthorizer};
+use crate::host::authenticator::ProviderAuthenticator;
 use crate::host::volume_manager::{self, Scratch, VolumeManager};
 use crate::host::Limit;
 
@@ -44,31 +45,28 @@ use crate::host::Limit;
 /// another.
 #[derive(Debug)]
 pub struct Provider {
-    /// The `auth` section, from which an authorizer is made for each
-    /// connection that dials in.
-    auth: Option<Auth>,
-    /// `<root>/provider/hooks/`, for that authorizer.
-    hooks_dir: PathBuf,
+    /// The provider's side of every handshake: its own tokens, and the
+    /// identities it serves.
+    pub(super) authenticator: Arc<ProviderAuthenticator>,
     /// The deployer, held to the end so its tunnel lives as long.
     pub(super) deployer: Arc<ContainerDeployer>,
     /// The volumes.
     volumes: Arc<VolumeManager>,
-    /// The image checker.
-    checker: Arc<ImageChecker>,
-    /// The client image store's manager.
+    /// The Store's manager, which is the OCI store too: the image
+    /// served to a caller's pull, held and proven from one
+    /// resolution.
     images: Arc<ImageManager>,
-    /// What is held of an image for a caller: its client images, from
-    /// its pool.
-    oci: Arc<OciStore>,
-    /// The registry, held to the end so its server lives as long.
-    registry: Arc<ImageRegistry>,
     /// The running containers, one map for the provider.
     directory: Arc<Directory>,
     /// The daemons accepting connections from other daemons, one map
     /// for the provider.
     acceptors: Arc<Acceptors>,
-    /// The peers connected now, one per identity and per credential.
-    peers: Arc<Peers>,
+    /// The connected identities that hold a `daemons::announce` open,
+    /// one set for the provider.
+    listables: Arc<Listables>,
+    /// The identities listening for messages, what waits for each, and
+    /// every sender's window, one for the provider.
+    mailboxes: Arc<Mailboxes>,
     /// Every change to any caller's volumes, for the listings open.
     volume_changes: Arc<Changes>,
     /// Every change to any caller's images, for the listings open.
@@ -93,21 +91,26 @@ impl Provider {
     /// `hooks/` and `run/`, podman's `storage_path` and every store
     /// made, every fixed volume found to be a directory, every store's
     /// capacity and every fixed name checked; podman told where its
-    /// data is; the client image store, where the configuration
-    /// names one, made first of all, since the registry serves its
-    /// pools; the registry started, since the
-    /// deployer is told its address; the container overlay cap and
+    /// data is; the Store, where the configuration names one — else
+    /// the deployer's own under `run/`, with no room — made and its
+    /// `tmp/` swept first of all, since the registry serves it; the
+    /// registry started, since the deployer mints its tokens and holds
+    /// it for its life; the container overlay cap and
     /// the scratch directory under podman's storage, swept; the
     /// volumes; the deployer, which
     /// brings the machine up, sweeps an earlier life away, writes the
-    /// auth file and opens the tunnel; the image checker, given that
-    /// auth file; the image manager, given the deployer; the capacity
-    /// reporter, given the volumes, the store and the deployer; and
-    /// the directory. The store is handed to the registry, the
-    /// deployer, the checker, the OCI store, the reporter and the
-    /// manager. `stop` is the caller's, made before anything here, so
+    /// auth file and opens the tunnel; the capacity reporter, given the
+    /// volumes, the store and the deployer; the registry client, ONE
+    /// for the provider, which a push and a pull both fetch with;
+    /// the image manager — the OCI store too — given the store, the blob store, the deployer and
+    /// the registry client; and the directory. The store is handed to
+    /// the registry, the deployer, the reporter and the manager, and
+    /// the blob store to the registry, the deployer and the manager.
+    /// `stop` is the caller's, made before anything here, so
     /// the signal and the stop route send on the one sender.
-    pub async fn start(config: Config, dir: PathBuf, stop: watch::Sender<bool>) -> Result<Self, Error> {
+    /// `authenticator` is the provider's side of every handshake, made
+    /// already.
+    pub async fn start(config: Config, dir: PathBuf, stop: watch::Sender<bool>, authenticator: Arc<ProviderAuthenticator>) -> Result<Self, Error> {
         ready(&config, &dir).await?;
         let capabilities = Arc::new(capabilities(&config));
         podman::configure(config.containers.podman.storage_path.clone());
@@ -117,33 +120,43 @@ impl Provider {
             shares.push(images.path.clone());
             Arc::new(Store::new(images))
         });
-        let registry = Arc::new(ImageRegistry::start(store.clone()).await.map_err(Error::Registry)?);
+        // The Store the deployer and the registry keep every blob a
+        // run takes from a caller in: the configured one, or — with no
+        // `images` section — one of the deployer's own under `run/`,
+        // with no room, which no identity owns anything in and whose
+        // cache is trimmed as soon as it is written.
+        let blobs = match &store {
+            Some(store) => Arc::clone(store),
+            None => Arc::new(Store::new(&Images {
+                path: dir.join("run").join("images"),
+                capacity: 0,
+            })),
+        };
+        blobs.sweep().await.map_err(Error::Store)?;
+        let registry = Arc::new(ImageRegistry::start(Arc::clone(&blobs)).await.map_err(Error::Registry)?);
         let disk = Arc::new(Limit::new(config.containers.podman.container_overlay_disk));
         let scratch = Scratch::new(config.containers.podman.storage_path.join("ephemeral"), Arc::clone(&disk));
         scratch.sweep().await.map_err(Error::Scratch)?;
         let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone(), scratch));
         let registries = config.containers.podman.registries.clone();
         let deployer = Arc::new(
-            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares, disk, store.clone())
+            ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry, shares, disk, Arc::clone(&blobs))
                 .await
                 .map_err(Error::Deployer)?,
         );
-        let checker = Arc::new(ImageChecker::new(store.clone(), &registries, deployer.auth_file().to_path_buf()));
-        let oci = Arc::new(OciStore::new(store.clone()));
         let capacity = Arc::new(CapacityReporter::new(Arc::clone(&volumes), store.clone(), Arc::clone(&deployer)));
-        let images = Arc::new(ImageManager::new(store, Arc::clone(&volumes), Arc::clone(&deployer)));
+        let client = Arc::new(RegistryClient::new(&registries).map_err(Error::RegistryClient)?);
+        let images = Arc::new(ImageManager::new(store, blobs, Arc::clone(&volumes), Arc::clone(&deployer), client));
+        let listables = Arc::new(Listables::new());
         Ok(Provider {
-            auth: config.auth,
-            hooks_dir,
+            authenticator,
             deployer,
             volumes,
-            checker,
             images,
-            oci,
-            registry,
             directory: Arc::new(Directory::new()),
             acceptors: Arc::new(Acceptors::new()),
-            peers: Arc::new(Peers::default()),
+            mailboxes: Arc::new(Mailboxes::new(capabilities.messages, Arc::clone(&listables))),
+            listables,
             volume_changes: Arc::new(Changes::new()),
             image_changes: Arc::new(Changes::new()),
             capabilities,
@@ -152,30 +165,38 @@ impl Provider {
         })
     }
 
-    /// A connection a peer dialled, served for as long as it lasts:
-    /// the peer's first frame judged by an authorizer over the `auth`
-    /// section — made here since the protocol takes one by value per
-    /// connection and making one is a clone of the section — which
-    /// takes the identity and the credential among the peers
-    /// connected, and refuses a second connection on either; when the
-    /// connection is over, whatever it took is given back.
+    /// A connection a peer dialled: its handshake as the connectee —
+    /// see [`authenticator`](crate::host::authenticator) — and then the
+    /// connection served under the peer's identity, which it holds for
+    /// as long as it lasts. A handshake that fails — an identity
+    /// another connection holds among the ways — closes the connection
+    /// with nothing sent.
     pub async fn accept(&self, connection: Connection, address: IpAddr) {
-        let taken: Slot = Arc::new(Mutex::new(None));
-        let authorization = Authorization::Incoming {
-            unbrokered: UnbrokeredAuthorizer::new(self.auth.clone(), self.hooks_dir.clone(), Arc::clone(&self.peers), Arc::clone(&taken)),
+        let Ok(Handshook { connection, peer }) = handshake::accept(connection, &self.authenticator.admitting(), address).await else {
+            return;
         };
-        self.connection(connection, authorization, address).await;
-        if let Some(held) = taken.lock().await.take() {
-            self.peers.release(&held.identity, &held.credential).await;
-        }
+        self.held(connection, peer, address, None).await;
+    }
+
+    /// A connection past its handshake, under `peer`, whose identity
+    /// the handshake took: the connection served, and the identity let
+    /// go. `address` is the socket's other end, and `dialled` the
+    /// address this provider dialled it at, when it did: neither lists
+    /// the peer, and both are kept for the connection's life, as what a
+    /// `daemons::announce` the peer opens on it — whichever end dialled
+    /// — is listed with, for as long as that scope is open.
+    pub async fn held(&self, connection: Connection, peer: Identity, address: IpAddr, dialled: Option<String>) {
+        self.connection(connection, Arc::new(peer.clone()), address, dialled).await;
+        self.mailboxes.left(&peer).await;
+        self.authenticator.release(&peer).await;
     }
 
     /// One connection, served for as long as it lasts, or until the
     /// provider stops: the protocol's session over the socket and its
     /// `handle` with everything here, raced against `stop` turning
-    /// `true`. Why it ended is not kept — a peer that failed to
-    /// authenticate and a peer that hung up are both a connection that
-    /// is over, and there is nowhere to say which.
+    /// `true`. Why it ended is not kept — a peer that broke the
+    /// handshake's rule and a peer that hung up are both a connection
+    /// that is over, and there is nowhere to say which.
     ///
     /// # The stop closes the socket
     ///
@@ -191,24 +212,25 @@ impl Provider {
     /// stop removes every container of this provider by force, and the
     /// provider is dropped after it, so nothing a scope would have
     /// torn down outlives the stop.
-    pub async fn connection(&self, connection: Connection, authorization: Authorization<UnbrokeredAuthorizer>, address: IpAddr) {
+    async fn connection(&self, connection: Connection, client_identity: Arc<Identity>, address: IpAddr, dialled: Option<String>) {
         let session = Session::new(connection);
         let mut stop = self.stop.subscribe();
         let serving = pin!(handle(
             session,
-            authorization,
+            client_identity,
             address,
+            dialled,
             Arc::clone(&self.deployer),
             Arc::clone(&self.volumes),
-            Arc::clone(&self.checker),
             Arc::clone(&self.images),
-            Arc::clone(&self.oci),
-            Arc::clone(&self.registry),
+            Arc::clone(&self.images),
             Arc::clone(&self.capacity),
             Arc::clone(&self.directory),
             Arc::clone(&self.volume_changes),
             Arc::clone(&self.image_changes),
             Arc::clone(&self.acceptors),
+            Arc::clone(&self.listables),
+            Arc::clone(&self.mailboxes),
             Arc::clone(&self.capabilities),
         ));
         let stopping = pin!(async move {
@@ -223,11 +245,11 @@ impl Provider {
 
 /// The provider's disk, as its block names it: `dir` with `hooks/`
 /// and `run/` inside it, `storage_path` and every store made if
-/// absent, the client image store's directory made if absent and
+/// absent, the Store's directory made if absent and
 /// `run/builds/` swept; a fixed
 /// volume whose path is not an existing directory refused, since a
 /// fixed volume is content the operator already has; a store whose
-/// capacity is `0` refused, and the image store's likewise; a fixed
+/// capacity is `0` refused, and the Store's likewise; a fixed
 /// volume whose name is not one a volume may have, or is another
 /// fixed volume's, refused. What the file said is the SDK's to read; what it names
 /// here is the provider's to check.

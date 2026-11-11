@@ -4,14 +4,15 @@ use std::fmt;
 
 use diverge_sdk::provider::endpoints::info::client::execute::ExecuteError;
 
-/// What [`attach`](super::attach) fails with: the slot taken already,
-/// or the one thing asked of a provider before it counts as connected.
+/// What [`attach`](super::attach) fails with: the record no longer
+/// admitting the connection, or the one thing asked of a provider
+/// before it counts as connected.
 #[derive(Debug)]
 pub enum Error {
-    /// Another connection holds the identity, or holds the
-    /// credential: one connection per either, and the newcomer's
-    /// socket is dropped without a word.
-    Held,
+    /// The provider's record changed between the handshake and the
+    /// attach, and no longer admits this connection: it is disabled or
+    /// gone, or an incoming one's `ips` no longer contain the source.
+    Unadmitted,
     /// The provider did not answer its info, or answered something
     /// that is not one: the socket is not a provider's, or is already
     /// gone.
@@ -21,7 +22,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Held => f.write_str("another connection holds the identity or the credential"),
+            Error::Unadmitted => f.write_str("the provider's record no longer admits the connection"),
             Error::Info(error) => write!(f, "the provider did not answer its info: {error}"),
         }
     }
@@ -30,8 +31,8 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Held => None,
             Error::Info(error) => Some(error),
+            Error::Unadmitted => None,
         }
     }
 }

@@ -1,6 +1,7 @@
 //! Answering a listing, and keeping it answered, from a scope, a
 //! manager and the word of changes.
 
+use diverge_sdk::shared::Identity;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -16,9 +17,10 @@ use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use crate::protocol::singles::Single;
 
 /// Send the caller every volume it has, the word that the listing is
-/// whole, and every change after, until the caller stops.
+/// whole, and every change after, until the caller cancels.
 ///
 /// In order:
 ///
@@ -38,8 +40,10 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 ///    is nothing. A subscription that fell behind is the manager
 ///    asked again the same way. A manager that will not answer then
 ///    is the `Error`, last.
-/// 4. The finish, when the caller's [`Stop`](channel_request::Frame::Stop)
-///    arrives, the caller is gone, or the error was sent.
+/// 4. The finish, when the caller's [`Cancel`](channel_request::Frame::Cancel)
+///    arrives, the caller is gone or reads no more of the listing, or
+///    the error was sent. The connection's claim on its one listing,
+///    held with the scope, goes before it — see [`Single`].
 ///
 /// # `client_identity` is an argument
 ///
@@ -54,8 +58,8 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 /// Is the one failure with nowhere to go, and is not sent; the
 /// listing goes on without it.
 pub async fn handle<M>(
-    scope: ScopeHandle,
-    client_identity: &str,
+    scope: Single<ScopeHandle>,
+    client_identity: &Identity,
     manager: &M,
     changes: Arc<Changes>,
     capabilities: &Capabilities,
@@ -113,12 +117,23 @@ pub async fn handle<M>(
                     continue;
                 };
                 match channel_request::Frame::decode(payload) {
-                    Ok(channel_request::Frame::Stop) => break,
+                    Ok(channel_request::Frame::Cancel) => break,
                     Err(_) => scope.send_channel_response_finish(channel).await,
                 }
             }
+            // The caller reads no more of the listing: abandoned, and
+            // over as at the cancel.
+            () = scope.responses_gone() => break,
         }
     }
+    scope.send_response_finish().await;
+}
+
+/// A volume listing on a connection holding one open already: `AlreadyOpen`
+/// and the finish, and nothing else — see
+/// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time).
+pub async fn refuse(scope: ScopeHandle) {
+    send(&scope, &response::Frame::AlreadyOpen).await;
     scope.send_response_finish().await;
 }
 

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Build and install every Diverge program into a config directory's
-# `bin/`: the CLI, the daemon, the provider, the Postgres supervisor
-# and the container proxy, each by its own crate's `install.sh`.
+# `bin/`: the CLI, the daemon, the provider, the issuer, the Postgres
+# supervisor and the container proxy, each by its own crate's
+# `install.sh`.
 #
 #   ./install-diverge.sh <config-dir> (--debug | --release)
 #
 # The arguments are the per-crate scripts' and are handed to each
 # unchanged: the config directory the binaries land under, and exactly
-# one profile. The five run ONE AFTER ANOTHER, never at once: every
+# one profile. The six run ONE AFTER ANOTHER, never at once: every
 # cargo invocation in this workspace shares one `target/` and its
 # build-directory lock, so parallel runs would only block on each
 # other — and a build that fails stops the sequence there, with the
@@ -40,7 +41,7 @@ done
 [[ -n "$config" && -n "$profile" ]] || usage
 
 workspace="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for crate in diverge-postgres diverge-container-proxy diverge-daemon diverge-provider diverge-cli; do
+for crate in diverge-postgres diverge-container-proxy diverge-daemon diverge-provider diverge-issuer diverge-cli; do
     echo "== $crate"
     "$workspace/$crate/install.sh" "$config" "$profile"
 done

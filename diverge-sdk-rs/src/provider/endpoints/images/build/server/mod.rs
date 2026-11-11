@@ -1,6 +1,6 @@
 //! The server side of an image build: what a provider sends.
 //!
-//! [`response`] is the whole of it. A provider builds, telling the build's output as it comes, and answers the image built, that it has no room, or an error; it opens no channel of its own.
+//! [`response`] is the whole of it. A provider builds, telling the build's output as it comes, and answers the image built, that the caller owns it already, that it has no room, or an error; it opens no channel of its own.
 //!
 //! # And a way to answer it
 //!

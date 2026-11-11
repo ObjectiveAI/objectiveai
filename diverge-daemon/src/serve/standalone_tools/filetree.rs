@@ -27,8 +27,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// failing is the `Error`; else a snapshot of the whole tree, the
 /// daemon's mounts spliced in, then every change until the client
 /// cancels, the run ends, or the stream fails; the container released
-/// after. The watch touches nothing: it never keeps the container up
-/// on its own.
+/// after. The watch is a file use for its whole length: it holds the
+/// container up, and the idle clock counts from its end.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -49,6 +49,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
+    scope.allowed().await;
     let opened = match files::open_tool(daemon, &tool).await {
         Ok(opened) => opened,
         Err(error) => {

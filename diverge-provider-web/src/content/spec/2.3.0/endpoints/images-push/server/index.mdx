@@ -1,0 +1,29 @@
+---
+title: 'Server Channels'
+summary: 'The three channels the server opens on a push scope, by tag, when it obtains the image from the client: the manifest, a blob, and the nonce check.'
+order: 4
+draft: false
+---
+
+The server opens each of these channels on the scope, as [Channels](/frames/channels/) provides, when its section states, and only where it obtains the image of the request from the client, as [images::push](/endpoints/images-push/) states. The payload of the channel request begins with one tag byte designating the channel; the remainder is the channel's request. The client answers on the channel; what the server does with the answer, its section states. The server opens no channel that asks whether the client holds the image: the request names the image.
+
+| Tag | Channel |
+|-----|---------|
+| `0` | [oci-manifest](/endpoints/images-push/server/oci-manifest/) |
+| `1` | [oci-blob](/endpoints/images-push/server/oci-blob/) |
+| `2` | [oci-prove](/endpoints/images-push/server/oci-prove/) |
+
+- **The order.** The server opens the oci-manifest channels first, the
+  oci-blob channels after them, and exactly one oci-prove channel
+  last, after every byte of the image is held.
+- **The same asks.** The requests and the answers of tags `0` and `1`
+  are, byte for byte, those of the channels of the same tags of
+  [containers::agents::run](/endpoints/containers-agents-run/server/)
+  and [containers::tools::run](/endpoints/containers-tools-run/server/).
+  The request and the answer of tag `2` are those of the oci-prove
+  channel of those scopes, which carry it at tags `20` and `16`.
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/images/push/server/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/push/server/channel_request/frame.rs
+```

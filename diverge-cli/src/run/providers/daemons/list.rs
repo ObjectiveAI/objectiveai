@@ -1,4 +1,5 @@
-//! `diverge run providers daemons list`: listing a caller's daemons, as
+//! `diverge run providers daemons list`: listing peers through
+//! the providers, as
 //! [`list`](diverge_sdk::daemon::endpoints::providers::daemons::list)
 //! states it.
 
@@ -7,16 +8,16 @@ use diverge_sdk::daemon::endpoints::providers::daemons::list::{client::request, 
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Listing a caller's daemons.
+/// Listing peers through the connected providers.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
     /// [`request::Frame`]; `relay` among its members has another daemon
-    /// serve it, as an account held there. Absent, `{}`.
+    /// serve it. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
-    /// Keep the list open: after the word that the list is whole, every
+    /// Keep the listing open: after the word that the listing is whole, every
     /// change printed as it comes, for as long as the command runs —
     /// for a program that reads the stream and ends the command when it
     /// is done. Absent, the command ends at that word.
@@ -30,7 +31,7 @@ pub struct Arguments {
 }
 
 /// The request put, every item printed as it comes, through the
-/// word that the list is whole — and, with `--watch`, every change
+/// word that the listing is whole — and, with `--watch`, every change
 /// after it, until the command is ended.
 pub async fn run(
     arguments: Arguments,
@@ -39,15 +40,10 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>("diverge run providers daemons list", emitter)
-                .await;
+            return request_schema::<request::Frame>("diverge run providers daemons list", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>(
-                "diverge run providers daemons list",
-                emitter,
-            )
-            .await;
+            return response_schema::<response::Frame>("diverge run providers daemons list", emitter).await;
         }
         None => {}
     }

@@ -1,12 +1,13 @@
 ---
 title: 'Response'
-summary: 'The server sends the id, one of five refusals, or an error, as the first response; after the id it sends active before each loop, the agent’s chunks as they come, and inactive carrying the rotating secrets after the loop, and nothing else until the finish but the proxy’s error, relayed, when the secrets could not be collected; the finish carries no error.'
+summary: 'The server sends the id, one of six refusals, the failed nonce check, or an error, as the first response; after the id it sends active before each loop, the agent’s chunks as they come, and inactive carrying the rotating secrets after the loop, and nothing else until the finish but the proxy’s error, relayed, when the secrets could not be collected; the finish carries no error.'
 order: 2
 draft: false
 ---
 
-The server sends the id; or one of five refusals — the volume that
-refused the run, named, and why; or an error; and, after the
+The server sends the id; or one of six refusals — the server's
+refusal to run containers, or the volume that refused the run,
+named, and why; or the word that the nonce check failed; or an error; and, after the
 id, zero or more loops: for each, the word that it began, the chunks
 the agent says in it, and the word that it ended, carrying the
 rotating secrets the program handed back, for the life of the run.
@@ -24,12 +25,14 @@ follows the finish.
 [7][chunk JSON …]                       zero or more, within a loop, for the life of the run
 [8]                                     active: a loop began
 [9][values JSON …]                      inactive: that loop ended, and these are its rotating secrets
+[10]                                    unsupported: once, when the server runs no containers
+[11]                                    proof failed: once, when the nonce check failed
 ```
 
 - **The sequence.** Before the id, the server sends no response.
-  The first response is the id, one of the five refusals, or an
-  error. A refusal and an error before the id are each followed by
-  the response finish, and the container is not running and will not
+  The first response is the id, one of the six refusals,
+  `ProofFailed`, or an error. A refusal, `ProofFailed` and an error
+  before the id are each followed by the response finish, and the container is not running and will not
   be. After the id, the server sends zero or more loops, and no other
   response until the finish but, at most once, the error with which
   the proxy ended the begin scope, the byte `6` followed by it, which
@@ -39,18 +42,24 @@ follows the finish.
   followed by exactly one response whose first byte is `9`, or, where
   the proxy could not collect the loop's rotating secrets, by the
   error. The finish carries no error: a run that ended after its id
-  ended by the client's stop, by the container's own end, by the
+  ended by the client's cancel, by the container's own end, by the
   proxy's error, or by the client's connection ending. A response
   finish that no response precedes states that the request was not
   served, as [Endpoints](/endpoints/) provides, or that the run ended
   before the server had an id to send.
 - **The id.** A payload whose first byte is `0` carries the id after
-  that byte as JSON, an object with the member `id`, a string. The
-  server sends it after every FUSE mount is complete and after the
+  that byte as JSON, an object with the member `id`, a string, and
+  the member `source`, the source from which the server obtained the
+  image, as [Image sources](/endpoints/#image-sources) defines it:
+  exactly the string `"store"`, exactly the string `"client"`, or an
+  object with the one member `registry`, an object with the one
+  member `reference`, a string. The server sends it after every FUSE mount is complete and after the
   container is registered and, where its program declared a secret,
   fed, as [containers::agents::run](/endpoints/containers-agents-run/)
   states.
-- **The refusals, and their order.** The server decides
+- **The refusals, and their order.** A server that does not hold
+  out [`containers`](/capabilities/#containers) sends the byte `10`
+  before it decides anything else. Every other server decides
   the bytes `1` to `5` for each distinct `volume_name` the request
   names, in the order first named, in the order
   [Capabilities](/capabilities/#the-hold) states, the first rule that
@@ -96,6 +105,21 @@ follows the finish.
   `ephemeral` and `read_only`. The volume is as it was. A request
   naming one volume under two modes is answered the same way, with
   the mode the volume is in.
+- **Unsupported.** A payload that is the byte `10` and nothing else
+  states that the server runs no containers: the member
+  [`containers`](/capabilities/#containers) of its `capabilities`
+  object is `false` or absent. The server sends it as the first and only
+  response, for every request whose payload decodes, before it
+  checks the request, holds any volume, fetches anything or deploys
+  anything, and the response finish follows it.
+- **Proof failed.** A payload that is the byte `11` and nothing else
+  states that the server consulted the client for the image and that
+  the nonce check that [Possession](/shared/possession/) defines
+  failed. The server sends it as the first and only response, after
+  the [oci-prove](/endpoints/containers-agents-run/server/oci-prove/) channel of the check has
+  ended and before it deploys anything, and the response finish
+  follows it. The container was not started, and the server has
+  removed what [Image sources](/endpoints/#image-sources) states.
 - **The error.** A payload whose first byte is `6` carries an error
   after that byte, exactly one JSON value in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
@@ -145,13 +169,14 @@ follows the finish.
   declared a secret until the client feeds them again on the
   [secrets](/endpoints/containers-agents-run/client/secrets/) channel.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0` to `9`, a payload whose bytes after `0` do not
+  is none of `0` to `11`, a payload whose bytes after `0` do not
   parse as the id, a payload whose bytes after `1`, `2`, `3`, `4` or
   `5` do not parse as that refusal, a payload whose bytes after `7`
   do not parse as a chunk, a payload whose bytes after `9` do not
   parse as the values, and a payload whose bytes after `6` are not
   one JSON value are malformed. A payload whose first byte is `8` is
-  read by that byte alone; bytes after it are not read.
+  read by that byte alone; bytes after it are not read. A payload
+  whose first byte is `10` or `11` is read the same way.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/response/frame.rs`:
 
@@ -161,6 +186,11 @@ The response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/age
 and by `diverge-sdk-rs/src/shared/containers/response/id.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/containers/response/id.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/response/source.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/response/source.rs
 ```
 
 and by `diverge-sdk-rs/src/shared/containers/response/volume_held.rs`:

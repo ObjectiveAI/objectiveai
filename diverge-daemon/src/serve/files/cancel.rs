@@ -8,11 +8,14 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 /// Resolves when the client cancels: every family's cancel is one
 /// channel request carrying the one frame `Cancel` — the same byte
 /// for agents and tools — read and never answered. The inbox closing
-/// is not a cancel.
+/// resolves it too: the client's connection is gone, and nobody is
+/// left to serve. A watch waiting on it would otherwise outlive its
+/// client, holding up the container it watches (a watch is a file
+/// use) for good.
 pub async fn cancelled(scope: &ScopeHandle) {
     loop {
         let Some(bytes) = scope.recv_channel_request().await else {
-            return std::future::pending().await;
+            return;
         };
         if let Ok(ClientFrame::ChannelRequest { payload, .. }) = ClientFrame::decode(&bytes)
             && let Ok(channel_request::Frame::Cancel) = channel_request::Frame::decode(payload)

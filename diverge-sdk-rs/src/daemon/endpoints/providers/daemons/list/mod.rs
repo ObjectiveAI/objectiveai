@@ -1,17 +1,30 @@
-//! Listing a caller's daemons. A client asks for its daemons, narrowed,
-//! and the daemon sends every one it holds under the caller's identity
-//! that the request's filter lets through — by name, by a provider it
-//! is linked through, by whether this daemon holds a connection to it
-//! now, by creator, by tags, all or any, by when it was added — one
-//! response each, oldest added first, then the word that the list is
-//! whole, and keeps the scope open: each daemon added, changed or
-//! removed, as the records and the connections change, until the client
-//! cancels, the one channel it opens on the scope. Each is its name,
-//! the kind of its mode, its links, whether this daemon is connected to
-//! it, when it was added and by whom, and its tags. Never the
-//! credential. A count keeps the list to the first that many that
-//! match. A request that says nothing is every daemon. A caller with
-//! none that matches is told the list is whole at once, and watched.
+//! Listing peers through the daemon's providers. A client asks,
+//! and the daemon sends every identity announced on any provider it
+//! is connected to — one response each, every provider it was seen on
+//! with it — then the word that the listing is whole, and keeps the
+//! scope open until the client cancels, the one channel it opens on
+//! the scope.
+//!
+//! The rules:
+//!
+//! 1. **Every connected provider.** The listing is the union of every
+//!    connected provider's own `daemons::list`: the identities
+//!    connected to it that hold its `daemons::announce` open, each with
+//!    the announcement it holds it with.
+//! 2. **One item per identity.** An identity seen on several providers
+//!    is one item, its providers all listed with it, and is
+//!    [`Changed`](server::response::Frame::Changed) as that list grows
+//!    or shrinks.
+//! 3. **A provider gone is its identities gone.** When a provider
+//!    disconnects, an identity seen only through it is removed, and one
+//!    seen elsewhere too is changed.
+//! 4. **Never this daemon.** The daemon's own identity at a provider
+//!    is not listed, whether or not the daemon announces itself there.
+//! 5. **What it is for.** An item is what a `daemons.connect` remote
+//!    of the daemon's configuration is made from: its `issuer`, and one
+//!    link per provider — that provider, and the item's identity as the
+//!    remote's there — by which the remote is relayed to, and its tools
+//!    connected.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

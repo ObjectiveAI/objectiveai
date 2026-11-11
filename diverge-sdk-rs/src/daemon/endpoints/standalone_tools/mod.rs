@@ -3,16 +3,15 @@
 //!
 //! A tool is a tool container — an MCP server in a container, the
 //! provider protocol's `containers::tools::run` — that the daemon holds
-//! under a name of the caller's choosing. It comes to be one of two
-//! ways: a [`create`] makes it from a [`template`](templates) — the
-//! image, the limits and the arguments, held by its hash
-//! — with the provider it is pinned to and the mounts that are its own,
-//! exactly as an [`agent`](super::agents) is, and the daemon runs it;
-//! or a [`register`] names a tool another daemon holds, by a record of
-//! that daemon and as that daemon names it, and the daemon reaches it
-//! over its connection to that daemon — that daemon's [`connect`],
-//! which carries the tool's MCP exchanges and nothing else — and never
-//! runs it. What a tool is FOR is being attached to agents: an
+//! under a name of the caller's choosing. A [`create`] makes it from a
+//! [`template`](templates) — the image, the limits and the arguments,
+//! held by its hash — with the provider it is pinned to and the mounts
+//! that are its own, exactly as an [`agent`](super::agents) is, and the
+//! daemon runs it. A tool another daemon holds, reached over that
+//! daemon's [`connect`], is no tool of this family: it is held by the
+//! [`connected_standalone_tools`](super::connected_standalone_tools)
+//! family, and no request here finds one. What a tool is FOR is being
+//! attached to agents: an
 //! [`attach_agent_instance`] puts it among the MCP servers the daemon
 //! answers one agent's tool calls with, and an
 //! [`attach_agent_template`] among every agent's of a template —
@@ -40,26 +39,24 @@
 //! the tool is attached to any agent or any template, or any connect
 //! is open on it, and retired `idle_seconds` after the last of those
 //! leaves. A tool attached nowhere and connected to by nobody runs
-//! nowhere. A create runs nothing. A connected tool's connection is
-//! held as a transient tool's container is.
+//! nowhere. A create runs nothing.
 //!
 //! [`templates`] holds what tools are made from; [`create`] makes a
-//! tool under a name from one; [`edit`] changes what a created one
-//! mounts; [`register`] holds another daemon's under a name;
+//! tool under a name from one; [`edit`] changes what one mounts;
 //! [`attach_agent_instance`] and [`detach_agent_instance`] put it on
 //! one agent and take it off, [`attach_agent_template`] and
 //! [`detach_agent_template`] on every agent of a template; [`delete`]
 //! removes a tool that is attached nowhere;
 //! [`get`] answers one as a list would; [`list`] lists them, narrowed,
 //! with the agents and the templates each is attached to and its tags; [`tag`] and
-//! [`untag`] change a tool's tags; [`connect`] serves a created tool
-//! to another daemon, and holds the tool while it is open;
+//! [`untag`] change a tool's tags; [`connect`] serves a tool to
+//! another daemon, and holds the tool while it is open;
 //! [`filetree`] watches one's container whole; [`download`] sends the
 //! client a file or a directory out of a tool's container, [`upload`]
 //! puts files into it, and [`transfer`] copies out of it into an agent,
-//! another tool or a volume, the bytes never reaching the client — the
-//! four of a created tool only, since a connected tool's files are on
-//! the other daemon. A dependency an agent declares at register time
+//! another tool or a volume, the bytes never reaching the client.
+//! [`logs`](super::logs) reads what the daemon kept of
+//! every call and read it routed into a tool. A dependency an agent declares at register time
 //! is no tool of this family: the daemon deploys it then and there,
 //! holds its template as a record of the
 //! [`dependency_tools`](super::dependency_tools) family, and serves the
@@ -75,12 +72,14 @@ pub mod detach_agent_instance;
 pub mod detach_agent_template;
 pub mod download;
 pub mod edit;
+pub mod exec;
 pub mod filetree;
+pub mod frontend;
 pub mod get;
 pub mod list;
-pub mod register;
 pub mod tag;
 pub mod templates;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;

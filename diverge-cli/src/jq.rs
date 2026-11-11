@@ -1,5 +1,5 @@
-//! Running a jq program over a JSON value: what a `config get`
-//! narrows by, a `config set` rewrites with, and a `run --jq` prints
+//! Running a jq program over a JSON value: what a `<program> config
+//! get` narrows by, a `<program> config set` rewrites with, and a `run --jq` prints
 //! through. Querying and rewriting whole; a change to one place is a
 //! patch, never jq.
 

@@ -8,11 +8,13 @@ use axum::extract::connect_info::ConnectInfo;
 use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
+use axum::serve::ListenerExt as _;
 use diverge_sdk::wire::connection::Connection;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
 use super::{Error, Provider, stop_route};
+use crate::protocol::keepalive;
 
 /// Listen on `port`, on every interface, until `stop` says so: every
 /// request at every path but `/stop` is a WebSocket upgrade, and each
@@ -22,9 +24,11 @@ use super::{Error, Provider, stop_route};
 /// answered as axum answers one. When `stop` turns `true` the
 /// listener stops accepting, closes what is idle and waits for the
 /// requests in flight; what was upgraded is every connection's own to
-/// close, on the same stop.
+/// close, on the same stop. Every socket accepted has transport
+/// keepalive turned on as it is accepted — see [`keepalive`] — so a
+/// peer that vanished without a close is a connection that ends.
 pub async fn listen(provider: Arc<Provider>, port: u16, mut stop: watch::Receiver<bool>) -> Result<(), Error> {
-    let listener = TcpListener::bind(("0.0.0.0", port)).await.map_err(Error::Bind)?;
+    let listener = TcpListener::bind(("0.0.0.0", port)).await.map_err(Error::Bind)?.tap_io(|socket| keepalive::keepalive(socket));
     let router = Router::new()
         .route("/stop", axum::routing::post(stop_route::stop))
         .fallback(accept)

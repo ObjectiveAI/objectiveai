@@ -40,9 +40,14 @@ pub struct Listed {
     /// The [`standalone_tools`](crate::daemon::endpoints::standalone_tools)
     /// attached to it by
     /// [`attach_agent_template`](crate::daemon::endpoints::standalone_tools::attach_agent_template),
+    /// and the
+    /// [`connected_standalone_tools`](crate::daemon::endpoints::connected_standalone_tools)
+    /// by
+    /// [`attach_agent_template`](crate::daemon::endpoints::connected_standalone_tools::attach_agent_template),
     /// which every agent made from it has, each by its
-    /// [`key`](crate::daemon::key), in the order they were attached;
-    /// empty for none.
+    /// [`key`](crate::daemon::key) — a `record` or a
+    /// `connected_standalone` — in the order they were attached; empty
+    /// for none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<key::Tool>,
     /// The template, as it was handed in: the bytes the id is the

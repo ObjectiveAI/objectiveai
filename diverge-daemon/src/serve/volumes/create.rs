@@ -34,7 +34,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::volumes::create(&standing) {
         return Ok(Frame::Forbidden);
     }
-    if !inner::on_record(&mut conn, &frame.provider).await? {
+    if !inner::on_record(daemon, &frame.provider) {
         return Ok(Frame::NoProvider);
     }
     drop(conn);

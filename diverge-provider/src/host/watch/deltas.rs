@@ -28,22 +28,24 @@ pub enum Mapped {
 ///
 /// - **Rescan flagged** — the queue overflowed — is
 ///   [`Resync`](Mapped::Resync), whatever else the event says.
-/// - **Create** — a directory is registered for watching first,
-///   which matters only where the registration degraded (see
-///   [`Registered::register`]) and decides its `changes`; then the
-///   node is read. Present: `Inserted` with its complete value, a
-///   directory with its subtree. Already gone: nothing; the removal
-///   that follows will say so.
+/// - **Create** — a directory is registered for watching first, where
+///   nothing registered covers it already, which is only where the
+///   registration degraded (see [`Registered::arrived`]) and decides
+///   its `changes`; then the node is read. Present: `Inserted` with
+///   its complete value, a directory with its subtree. Already gone:
+///   nothing; the removal that follows will say so.
 /// - **Rename, the leaving half** (`From`) — `Removed`. Whether the
 ///   node went elsewhere in the tree or out of it, this path no
-///   longer holds it.
+///   longer holds it, and whatever was registered at it or beneath
+///   it is let go of (see [`Registered::left`]).
 /// - **Rename, the arriving half** (`To`) — as a create.
 /// - **Rename, both halves paired** (`Both`) — nothing: its halves
 ///   were already reported, one each. There is no move frame.
 /// - **Any other modification** — data, metadata, a rename notify
 ///   could not tell apart — the node is read. Present: `Modified`
 ///   with its complete value. Gone: `Removed`.
-/// - **Remove** — `Removed`.
+/// - **Remove** — `Removed`, and the registrations let go of as for
+///   the leaving half of a rename.
 /// - **Access**, and anything else — nothing; the tree did not change.
 ///
 /// A path outside the root, or the root itself, is dropped; the path
@@ -59,12 +61,23 @@ pub fn map(event: notify::Event, root: &Path, registered: &Mutex<Registered>) ->
         event.kind,
         EventKind::Create(_) | EventKind::Modify(ModifyKind::Name(RenameMode::To))
     );
+    let leaving = matches!(
+        event.kind,
+        EventKind::Remove(_) | EventKind::Modify(ModifyKind::Name(RenameMode::From))
+    );
     let dark = {
         let mut registered = registered.blocking_lock();
         if arriving {
             for path in &event.paths {
                 if path.starts_with(root) && fs::symlink_metadata(path).is_ok_and(|meta| meta.is_dir()) {
-                    let _ = registered.register(path);
+                    registered.arrived(path);
+                }
+            }
+        }
+        if leaving {
+            for path in &event.paths {
+                if path.starts_with(root) && path != root {
+                    registered.left(path);
                 }
             }
         }

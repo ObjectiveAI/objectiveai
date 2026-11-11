@@ -1,5 +1,6 @@
 //! Answering a container FUSE serve, from a scope and the directory.
 
+use diverge_sdk::shared::Identity;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -17,7 +18,7 @@ use crate::protocol::directory::Directory;
 use diverge_sdk::shared::error::Error;
 
 /// Find the container, open the proxy's serve of the subtree, relay
-/// every ask and every tree, and end the scope at the stop.
+/// every ask and every tree, and end the scope at the cancel.
 ///
 /// In order:
 ///
@@ -39,8 +40,11 @@ use diverge_sdk::shared::error::Error;
 ///    Each on a task of its own, so asks in flight at once are
 ///    answered in whatever order the proxy answers them; a channel
 ///    request that will not decode is finished with nothing.
-/// 5. The end: the caller's stop, the caller's connection ending, or
-///    the container ending, heard through the directory. The proxy's
+///    A relay that is done is reaped as it ends, and a filetree the
+///    caller reads no more of is finished there and then.
+/// 5. The end: the caller's cancel, the caller's connection ending, the
+///    caller reading no more of the scope, or the container ending,
+///    heard through the directory. The proxy's
 ///    serve is stopped — it answers what is in flight and finishes,
 ///    which ends every filetree relay — the tasks are awaited, and
 ///    the scope is finished. Nothing is released: the container is
@@ -49,7 +53,7 @@ use diverge_sdk::shared::error::Error;
 /// # The conduit
 ///
 /// Nothing here reads an ask or an answer. The channel request is
-/// decoded once to tell an ask from the stop and the tree, and the
+/// decoded once to tell an ask from the cancel and the tree, and the
 /// bytes relayed are the bytes that arrived.
 ///
 /// # The request arrives decoded
@@ -59,7 +63,7 @@ use diverge_sdk::shared::error::Error;
 pub async fn handle(
     scope: ScopeHandle,
     request: request::Frame,
-    client_identity: &str,
+    client_identity: &Identity,
     directory: Arc<Directory>,
 ) {
     let Some(attached) = directory.lookup(&request.id).await else {
@@ -95,7 +99,7 @@ pub async fn handle(
                     Ok(channel_request::Frame::Filetree) => {
                         tasks.spawn(relay_tree(Arc::clone(&scope), Arc::clone(&served), channel));
                     }
-                    Ok(channel_request::Frame::Stop) => break,
+                    Ok(channel_request::Frame::Cancel) => break,
                     Err(_) => {
                         scope.send_channel_response_finish(channel).await;
                     }
@@ -108,9 +112,15 @@ pub async fn handle(
                     break;
                 }
             }
+            // The caller reads no more of the scope: the serve is
+            // abandoned, and ends as at the cancel.
+            () = scope.responses_gone() => break,
+            // A relay done is reaped as it ends, so the set holds only
+            // the channels still in flight however long the serve runs.
+            Some(_) = tasks.join_next(), if !tasks.is_empty() => {}
         }
     }
-    served.stop().await;
+    served.cancel().await;
     while tasks.join_next().await.is_some() {}
     scope.send_response_finish().await;
 }
@@ -143,16 +153,24 @@ async fn relay_ask(scope: Arc<ScopeHandle>, served: Arc<proxy::ExecuteHandle>, c
 
 /// One filetree channel relayed: the proxy's own filetree channel,
 /// every frame as it came, until the proxy finishes it — which it
-/// does when its scope ends — or is gone; then the finish.
+/// does when its scope ends — or is gone, or the caller reads no more
+/// of the channel; then the finish. The proxy's channel, dropped,
+/// tells the proxy its tree is abandoned.
 async fn relay_tree(scope: Arc<ScopeHandle>, served: Arc<proxy::ExecuteHandle>, channel: u32) {
     if let Ok(mut tree) = served.filetree().await {
-        while let Some(bytes) = tree.response_receiver.recv().await {
-            match ServerFrame::decode(&bytes) {
-                Ok(ServerFrame::ChannelResponse { payload, .. }) => {
-                    scope.send_channel_response(channel, payload).await;
+        loop {
+            tokio::select! {
+                received = tree.response_receiver.recv() => {
+                    let Some(bytes) = received else { break };
+                    match ServerFrame::decode(&bytes) {
+                        Ok(ServerFrame::ChannelResponse { payload, .. }) => {
+                            scope.send_channel_response(channel, payload).await;
+                        }
+                        Ok(ServerFrame::ChannelResponseFinish { .. }) => break,
+                        _ => {}
+                    }
                 }
-                Ok(ServerFrame::ChannelResponseFinish { .. }) => break,
-                _ => {}
+                () = scope.answer_gone(channel) => break,
             }
         }
     }

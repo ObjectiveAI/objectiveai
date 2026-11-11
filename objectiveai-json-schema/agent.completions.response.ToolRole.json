@@ -1,7 +1,0 @@
-{
-  "title": "agent.completions.response.ToolRole",
-  "type": "string",
-  "enum": [
-    "tool"
-  ]
-}

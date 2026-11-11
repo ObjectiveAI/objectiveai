@@ -9,7 +9,7 @@
 //!
 //! | module | is |
 //! |--------|----|
-//! | [`protocol`] | the server half for ANY provider: the dispatch over every request, one handler per endpoint, the machinery of a container's run, and the traits a provider implements — a deployer, a volume manager, an image checker, a registry, a container — with the registries every connection shares |
+//! | [`protocol`] | the server half for ANY provider: the dispatch over every request, one handler per endpoint, the machinery of a container's run, and the traits a provider implements — a deployer, a volume manager, an image manager, an OCI store, a registry, a container — with the registries every connection shares |
 //! | [`host`] | what THIS provider supplies, from the host it runs on: podman for the containers, ext4 images on disk for the volumes, a loopback registry, the hooks, the configuration's judgment of a credential, and the listener that hands every connection to [`protocol`] |
 //!
 //! Another provider imports [`protocol`], implements its traits, and

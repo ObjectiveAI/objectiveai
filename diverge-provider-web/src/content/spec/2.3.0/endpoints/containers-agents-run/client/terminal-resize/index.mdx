@@ -1,0 +1,16 @@
+---
+title: 'Terminal Resize'
+summary: 'Tag 15: the client sets a held terminal size; the server sets it and answers done.'
+order: 15
+draft: false
+---
+
+The client opens this channel to set a held terminal's size. The
+server sets it through the proxy's
+[resize](/container-proxy-endpoints/terminal/client/resize/) channel and
+answers once it is set.
+
+- **The request.** [Request](/endpoints/containers-agents-run/client/terminal-resize/request/) states its form.
+- **The response.** [Response](/endpoints/containers-agents-run/client/terminal-resize/response/) states the sequence.
+- **The run ends.** When the run scope ends, the server kills the
+  shell of every terminal it holds on it.

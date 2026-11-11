@@ -5,16 +5,25 @@ edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
 description = "The Diverge SDK: the wire, the provider protocol, the daemon protocol, and the container proxy inside and out — the normative artifact of the provider specification"
 license = "MIT"
-repository = "https://github.com/ObjectiveAI/objectiveai"
+repository = "https://github.com/divergenetwork/Diverge"
 homepage = "https://diverge.network"
 documentation = "https://docs.rs/diverge-sdk"
 readme = "README.md"
 keywords = ["llm", "ai", "swarm", "provider"]
 publish = true
 
-# No features. Every half of every protocol is here for every
+# Two features. Every half of every protocol is here for every
 # dependent, so nothing a reader names is behind a flag and no two
-# builds of this crate disagree about what exists.
+# builds of this crate disagree about what exists. `identities` adds
+# the host's OpenID Connect identities, one file each, signed in and
+# kept fresh: nothing inside a container holds an identity. `tauri-proxy` adds the
+# Tauri commands a desktop app registers for its page's proxy handle,
+# and nothing of any protocol: Tauri does not build where most
+# dependents do (the musl images inside containers have no windowing
+# system). The proxy presents a token, so it brings the identities.
+[features]
+identities = ["dep:zeroize", "dep:percent-encoding", "dep:dashmap", "dep:jsonwebtoken", "dep:rand"]
+tauri-proxy = ["dep:tauri", "identities"]
 
 [dependencies]
 # The incoming socket: axum's WebSocket, `ws` alone — enough to name
@@ -25,6 +34,8 @@ bytes = { version = "1.11.1", default-features = false }
 # The time a daemon log item was kept: RFC 3339 on the wire, and the
 # type sqlx reads a Postgres `timestamptz` into.
 chrono = { version = "0.4.39", default-features = false, features = ["std", "serde"] }
+# A provider's incoming addresses: IPs and CIDR blocks, with serde.
+ipnet = { version = "2.12.0", features = ["serde"] }
 # `Stream`, and the sinks and streams a split socket is.
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
 # A command's items and other bodies still being written, as a stream.
@@ -59,11 +70,31 @@ serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
 # `net` and `rt` for the sockets and the tasks of both halves; `sync`
 # for every queue between them, and the in-container client's
 # once-made session; `fs` for `file_lock`'s files.
-tokio = { version = "1.53.1", default-features = false, features = ["fs", "net", "process", "rt", "sync"] }
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt", "sync", "time"] }
 # The outgoing socket: `stream` names it, `connect` is the one place
 # this crate dials — the provider's server into the proxy inside a
 # container, see `provider::server::proxy`.
 tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["stream", "connect"] }
+# `tauri-proxy` only: the commands, the managed state and the
+# channels a page's proxy handle is answered on.
+tauri = { version = "2.10.3", default-features = false, optional = true }
+# `identities` only: a token's memory zeroed on drop; an issuer and a
+# subject as a folder's and a file's name; a JWT's payload read for
+# its `sub` and its `exp`.
+zeroize = { version = "=1.8.2", optional = true }
+percent-encoding = { version = "=2.3.2", optional = true }
+base64 = { version = "=0.22.1" }
+# `identities` only: the cache of every issuer's key set, one lock per
+# issuer apart from the map; and the signature a token is checked by,
+# against a key of that set, with no PEM.
+dashmap = { version = "=6.2.1", optional = true }
+jsonwebtoken = { version = "=11.1.0", default-features = false, features = ["rust_crypto"], optional = true }
+# `identities` only: the Authorization Code login's secrets — its
+# state, nonce and PKCE verifier.
+rand = { version = "=0.9.2", default-features = false, features = ["thread_rng"], optional = true }
+# A remote daemon's record ID, the SHA-256 of what it reaches and as
+# whom; and the PKCE verifier's S256 challenge.
+sha2 = { version = "=0.10.9" }
 # Container ids, minted by the provider's server.
 uuid = { version = "1.18.1", default-features = false, features = ["v4"] }
 

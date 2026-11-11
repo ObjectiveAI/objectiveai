@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# version.sh — set the version of every ObjectiveAI package (and inter-package
-# dependency reference) to a single value. Touches Rust crates, Python
-# packages, JS packages, .NET csproj, and the runner subpackages. Skips
-# lockfiles (Cargo.lock, pnpm-lock.yaml) — those regenerate on next build.
+# version.sh — set the version of every Diverge package to a single value.
+# Touches Rust crates and JS packages. Skips pnpm-lock.yaml, which
+# regenerates on the next pnpm install.
 #
 # Usage:
 #   bash version.sh <new-version>
@@ -77,7 +76,7 @@ insert_after_first() {
 # Per-file-type updaters
 # ---------------------------------------------------------------------------
 
-# Cargo.toml / pyproject.toml [package|project] version.
+# Cargo.toml [package] version.
 # Convention in our repo: the first `^version = "..."` line is the package
 # version. Third-party dependency version specs never appear at column 0
 # without a leading `= {` so this targets the right line.
@@ -86,44 +85,6 @@ set_toml_package_version() {
   first_line_replace "$file" \
     '^version = "[^"]+"' \
     "version = \"$NEW_VERSION\""
-}
-
-# Inter-package Cargo.toml dependency version pins.
-# Matches lines like:
-#   objectiveai             = { path = "..", version = "X.Y.Z", ... }
-#   objectiveai-api         = { version = "X.Y.Z", ... }
-#   objectiveai-cli         = { ... }
-# ...and rewrites the `version = "..."` token inside.
-set_cargo_objectiveai_deps() {
-  local file="$1"
-  inline_substitute "$file" \
-    '^objectiveai(-[a-zA-Z0-9_-]+)?[[:space:]]*=' \
-    'version = "[0-9][^"]*"' \
-    "version = \"$NEW_VERSION\""
-}
-
-# Bare-string `objectiveai-<crate> = "X.Y.Z"` deps. Two places use this form:
-# README install snippets demonstrating a Cargo.toml entry, and the plugin
-# scaffold, whose manifest has to be exactly what a standalone plugin needs
-# and so cannot carry the inline table's `path`. Distinct from
-# `set_cargo_objectiveai_deps`, which only handles the inline-table form
-# `objectiveai-sdk = { ..., version = "X.Y.Z", ... }` and would silently skip
-# a bare string, leaving the scaffold pinned to whatever version it was
-# written at.
-set_objectiveai_string_dep() {
-  local file="$1"
-  inline_substitute "$file" \
-    '^objectiveai(-[a-zA-Z0-9_-]+)?[[:space:]]*=[[:space:]]*"[0-9]' \
-    '"[0-9][0-9.]*"' \
-    "\"$NEW_VERSION\""
-}
-
-# The JS plugin scaffold pins the npm-published SDK as a plain
-# "@objectiveai/sdk": "X.Y.Z" dependency — the same standalone-template
-# story as the Rust scaffold's bare registry string dep.
-set_package_json_objectiveai_dep() {
-  local file="$1"
-  inline_substitute "$file"     '^[[:space:]]*"@objectiveai/sdk":[[:space:]]*"[0-9]'     '"[0-9][0-9.]*"'     "\"$NEW_VERSION\""
 }
 
 # Root "version": "..." in a package.json. Relies on the standard layout
@@ -135,177 +96,26 @@ set_package_json_version() {
     "  \"version\": \"$NEW_VERSION\","
 }
 
-# Ensure a package.json has a "version" field; insert one right after "name"
-# if missing.
-ensure_package_json_version() {
-  local file="$1"
-  if grep -q '^[[:space:]]*"version":' "$file"; then
-    set_package_json_version "$file"
-  else
-    insert_after_first "$file" \
-      '^[[:space:]]*"name":' \
-      "  \"version\": \"$NEW_VERSION\","
-  fi
-}
-
-# .csproj <Version>...</Version>
-set_csproj_version() {
-  local file="$1"
-  inline_substitute "$file" \
-    '<Version>' \
-    '<Version>[^<]*</Version>' \
-    "<Version>$NEW_VERSION</Version>"
-}
-
-# `objectiveai-sdk==X.Y.Z` lines in a pip requirements.txt. Other entries in
-# the file (including non-pinned ones, comments, and unrelated packages) pass
-# through untouched. Spec stays `==NEW_VERSION`.
-set_requirements_objectiveai_pin() {
-  local file="$1"
-  inline_substitute "$file" \
-    '^objectiveai-sdk[[:space:]]*==' \
-    '==[0-9][^[:space:]]*' \
-    "==$NEW_VERSION"
-}
-
-# `"objectiveai-sdk==X.Y.Z"` entries inside a pyproject.toml [project.dependencies]
-# array (or any line that quotes an objectiveai-sdk pin). The token regex stops
-# at the closing quote/comma so trailing TOML punctuation isn't consumed. Lines
-# without an objectiveai-sdk pin pass through untouched.
-set_pyproject_objectiveai_dep_pin() {
-  local file="$1"
-  inline_substitute "$file" \
-    'objectiveai-sdk[[:space:]]*==' \
-    '==[0-9][^",[:space:]]*' \
-    "==$NEW_VERSION"
-}
-
-# __version__ = "..." in a Python file. If absent, insert one right after
-# `from __future__ import annotations` (every runner has that line) with a
-# blank line before it for PEP 8 readability.
-ensure_py_module_version() {
-  local file="$1"
-  if grep -q '^__version__ = ' "$file"; then
-    first_line_replace "$file" \
-      '^__version__ = ' \
-      "__version__ = \"$NEW_VERSION\""
-  else
-    local tmp
-    tmp=$(mktemp)
-    awk -v ver="$NEW_VERSION" '
-      { print }
-      !done && /^from __future__ import annotations/ {
-        print ""
-        printf "__version__ = \"%s\"\n", ver
-        done=1
-      }
-    ' "$file" > "$tmp"
-    mv "$tmp" "$file"
-  fi
-}
-
-# Overwrite a single-line version file (the Go SDK's independent
-# version source — the Release workflow tags objectiveai-sdk-go/v<this>).
-# The lockstep bump moves it along with everything else by default; edit
-# the file alone to release (or hold back) the Go SDK independently.
-set_version_txt() {
-  local file="$1"
-  printf '%s\n' "$NEW_VERSION" > "$file"
-}
-
-# `VERSION="X.Y.Z"` constant in the root install.sh — the bootstrap
-# installer pins the release zip it downloads. Targets the first
-# column-0 VERSION= line.
-set_install_sh_version() {
-  local file="$1"
-  first_line_replace "$file" \
-    '^VERSION="[^"]+"' \
-    "VERSION=\"$NEW_VERSION\""
-}
-
 # ---------------------------------------------------------------------------
 # File lists
 # ---------------------------------------------------------------------------
 
 CARGO_TOMLS=(
-  objectiveai-api/Cargo.toml
-  objectiveai-cli/Cargo.toml
-  objectiveai-daemon/Cargo.toml
-  objectiveai-db/Cargo.toml
-  objectiveai-db-proxy/Cargo.toml
-  objectiveai-json-schema/builder/Cargo.toml
-  objectiveai-laboratory/Cargo.toml
-  objectiveai-mcp-laboratory/Cargo.toml
-  objectiveai-mcp-plugin-framework-rs/Cargo.toml
-  objectiveai-mcp-plugin-scaffold-rs/Cargo.toml
-  objectiveai-mcp-proxy/Cargo.toml
-  diverge-agentic-loop-cc/Cargo.toml
-  diverge-agentic-loop-eliza/Cargo.toml
-  diverge-agentic-loop-hermes/Cargo.toml
+  diverge-agents/cc/Cargo.toml
+  diverge-agents/hermes/Cargo.toml
   diverge-container-proxy/Cargo.toml
-  diverge-agentic-loop-openrouter/Cargo.toml
+  diverge-agents/openrouter/Cargo.toml
   diverge-sdk-rs/Cargo.toml
   diverge-provider/Cargo.toml
   diverge-postgres/Cargo.toml
   diverge-daemon/Cargo.toml
+  diverge-issuer/Cargo.toml
   diverge-cli/Cargo.toml
-  objectiveai-sdk-rs/Cargo.toml
-  objectiveai-sdk-rs-cffi/Cargo.toml
-  objectiveai-sdk-rs-macros/Cargo.toml
-  objectiveai-sdk-rs-pyo3/Cargo.toml
-  objectiveai-sdk-rs-wasm-js/Cargo.toml
-  objectiveai-viewer/src-tauri/Cargo.toml
-)
-
-PYPROJECT_TOMLS=(
-  objectiveai-sdk-py/pyproject.toml
-  objectiveai-cocoindex/pyproject.toml
 )
 
 PACKAGE_JSONS=(
   diverge-provider-web/package.json
   diverge-sdk-js/package.json
-  objectiveai-sdk-js/package.json
-  objectiveai-viewer/package.json
-)
-
-# package.jsons that ALSO pin the published SDK (the viewer plugin
-# scaffold — a standalone template, not a workspace member).
-SCAFFOLD_PACKAGE_JSONS=(
-  objectiveai-viewer-plugin-scaffold/package.json
-)
-
-CSPROJS=(
-  objectiveai-dotnet/ObjectiveAI/ObjectiveAI.csproj
-)
-
-PY_RUNNER_MAINS=(
-  objectiveai-claude-agent-sdk-runner/main.py
-  objectiveai-codex-sdk-runner/main.py
-)
-
-# pip requirements.txt files that pin `objectiveai==X.Y.Z`.
-REQUIREMENTS_TXTS=(
-  objectiveai-cocoindex/requirements.txt
-)
-
-# Markdown files that embed bare-string `objectiveai = "X.Y.Z"` Cargo
-# dep snippets (typically install instructions for the Rust SDK).
-MARKDOWN_FILES=(
-  README.md
-)
-
-# Single-line version files for packages that version independently of
-# the manifests above (currently: the Go SDK, whose releases are git
-# tags derived from this file).
-VERSION_TXTS=(
-  objectiveai-sdk-go/version.txt
-)
-
-# The root bootstrap installer pins the release version it downloads in a
-# VERSION="X.Y.Z" constant.
-INSTALL_SHS=(
-  install.sh
 )
 
 # ---------------------------------------------------------------------------
@@ -324,63 +134,20 @@ update() {
   case "$kind" in
     cargo)
       set_toml_package_version "$file"
-      set_cargo_objectiveai_deps "$file"
-      # Both forms: the inline table above, and the bare string the plugin
-      # scaffold uses.
-      set_objectiveai_string_dep "$file"
-      ;;
-    pypro)
-      set_toml_package_version "$file"
-      set_pyproject_objectiveai_dep_pin "$file"
       ;;
     pkg)
       set_package_json_version "$file"
-      ;;
-    pkgscaffold)
-      set_package_json_version "$file"
-      set_package_json_objectiveai_dep "$file"
-      ;;
-    pkg+)
-      ensure_package_json_version "$file"
-      ;;
-    csproj)
-      set_csproj_version "$file"
-      ;;
-    pyrun)
-      ensure_py_module_version "$file"
-      ;;
-    reqs)
-      set_requirements_objectiveai_pin "$file"
-      ;;
-    md)
-      set_objectiveai_string_dep "$file"
-      ;;
-    vertxt)
-      set_version_txt "$file"
-      ;;
-    installsh)
-      set_install_sh_version "$file"
       ;;
   esac
 }
 
 echo "Setting version to $NEW_VERSION"
 
-for rel in "${CARGO_TOMLS[@]}";           do update cargo  "$rel"; done
-for rel in "${PYPROJECT_TOMLS[@]}";        do update pypro  "$rel"; done
-for rel in "${PACKAGE_JSONS[@]}";          do update pkg    "$rel"; done
-for rel in "${SCAFFOLD_PACKAGE_JSONS[@]}"; do update pkgscaffold "$rel"; done
-for rel in "${CSPROJS[@]}";                do update csproj "$rel"; done
-for rel in "${PY_RUNNER_MAINS[@]}";        do update pyrun  "$rel"; done
-for rel in "${REQUIREMENTS_TXTS[@]}";       do update reqs   "$rel"; done
-for rel in "${MARKDOWN_FILES[@]}";          do update md     "$rel"; done
-for rel in "${VERSION_TXTS[@]}";            do update vertxt "$rel"; done
-for rel in "${INSTALL_SHS[@]}";             do update installsh "$rel"; done
+for rel in "${CARGO_TOMLS[@]}";   do update cargo "$rel"; done
+for rel in "${PACKAGE_JSONS[@]}"; do update pkg   "$rel"; done
 
-# Sync Cargo.lock to the new workspace versions. If we leave Cargo.lock
-# with the old versions, every cargo invocation in CI rewrites the
-# lockfile mid-build, which mutates files mid-run and breaks fingerprint
-# checks (objectiveai-api/build.rs runs validate.sh that hashes Cargo.lock).
+# Sync Cargo.lock to the new workspace versions, so that no later cargo
+# invocation rewrites the lockfile mid-build.
 if command -v cargo >/dev/null 2>&1; then
   echo
   echo "Refreshing Cargo.lock workspace versions..."
@@ -389,8 +156,7 @@ if command -v cargo >/dev/null 2>&1; then
 else
   echo
   echo "WARNING: cargo not found on PATH. Run 'cargo update -w' manually before"
-  echo "         pushing — otherwise CI will mutate Cargo.lock mid-build and"
-  echo "         break fingerprint checks."
+  echo "         pushing."
 fi
 
 echo

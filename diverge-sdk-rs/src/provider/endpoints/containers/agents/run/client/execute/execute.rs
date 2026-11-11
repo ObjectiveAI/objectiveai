@@ -58,7 +58,7 @@ use crate::shared::error::Error;
 /// # Dropping the handle ends nothing
 ///
 /// The scope lives until the provider finishes it, which a
-/// [`stop`](ExecuteHandle::stop) provokes and a dropped connection
+/// [`cancel`](ExecuteHandle::cancel) provokes and a dropped connection
 /// forces. A caller that drops every clone of the handle without
 /// stopping leaves the container running until the connection goes;
 /// the serving task goes on answering the provider's asks until the
@@ -92,6 +92,7 @@ where
         scope.request_receiver,
         handle.clone(),
         scope.scope,
+        Arc::new(request.0.image.clone()),
         Arc::clone(&writes),
         answerers,
         decode_ask,
@@ -113,9 +114,9 @@ where
         Err(error) => {
             // The provider believes the run started. A caller that
             // cannot read the id cannot name the container either, so
-            // the run is stopped rather than left to the connection's
+            // the run is cancelled rather than left to the connection's
             // end.
-            stop(handle, scope.scope).await;
+            cancel(handle, scope.scope).await;
             return Err(ExecuteError::Response(error));
         }
     };
@@ -136,6 +137,8 @@ where
         server::response::Frame::VolumeMode(refused) => {
             return Err(ExecuteError::VolumeMode(refused));
         }
+        server::response::Frame::Unsupported => return Err(ExecuteError::Unsupported),
+        server::response::Frame::ProofFailed => return Err(ExecuteError::ProofFailed),
         server::response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
         // The agent speaks only after the id, and no loop runs before
         // it; any of the three first is a provider out of order,
@@ -149,10 +152,10 @@ where
     Ok((id, ExecuteHandle::new(Arc::clone(&scoped)), ExecuteStream::new(scoped)))
 }
 
-/// The stop, sent for a run this end cannot hold.
-async fn stop(handle: &Handle, scope: u32) {
+/// The cancel, sent for a run this end cannot hold.
+async fn cancel(handle: &Handle, scope: u32) {
     let mut payload = Vec::new();
-    if channel_request::Frame::Stop.encode(&mut Writer::new(&mut payload)).is_ok() {
+    if channel_request::Frame::Cancel.encode(&mut Writer::new(&mut payload)).is_ok() {
         let _ = handle.send_channel_request(scope, &payload).await;
     }
 }
@@ -191,12 +194,12 @@ fn write_error(error: &Error) -> Option<Vec<u8>> {
 /// A run that never started.
 ///
 /// Seven of these are this end's view of something going wrong. The
-/// last seven are the provider saying so itself, and they are the
+/// last eight are the provider saying so itself, and they are the
 /// only ones that mean the exchange worked: a volume the request
 /// named is held, mounted, FUSE served, of a mode the provider does
-/// not mount, or not in the mode its mount names; the request names a
-/// FUSE mount the provider will not make; or the provider could not
-/// run the container.
+/// not mount, or not in the mode its mount names; the provider runs
+/// no containers; the caller did not prove it holds the image it
+/// supplied; or the provider could not run the container.
 #[derive(Debug)]
 pub enum ExecuteError {
     /// The request never went out.
@@ -238,6 +241,16 @@ pub enum ExecuteError {
     /// nothing was deployed; edit the volume or the mount, and ask
     /// again.
     VolumeMode(VolumeMode),
+    /// The provider refused the run: it runs no containers — its
+    /// `containers` capability is `false`. Nothing was fetched and
+    /// nothing was deployed; ask another provider.
+    Unsupported,
+    /// The provider refused the run: it took the image from this
+    /// caller, and the caller did not prove it holds it — see
+    /// [`oci::prove`](crate::shared::containers::oci::prove). Nothing
+    /// was run; answer the proof from the image's own bytes, or supply
+    /// it another way, and ask again.
+    ProofFailed,
     /// The provider could not run the container, and said so.
     Provider(Error),
 }
@@ -279,6 +292,8 @@ impl fmt::Display for ExecuteError {
                 "the volume `{}` is in mode `{:?}`, not the mode the mount names",
                 refused.name, refused.mode
             ),
+            ExecuteError::Unsupported => f.write_str("the provider runs no containers"),
+            ExecuteError::ProofFailed => f.write_str("the caller did not prove it holds the image"),
             ExecuteError::Provider(_) => f.write_str("the provider could not run the container"),
         }
     }
@@ -302,6 +317,8 @@ impl std::error::Error for ExecuteError {
             | ExecuteError::VolumeFuseServed(_)
             | ExecuteError::VolumeMountUnsupported(_)
             | ExecuteError::VolumeMode(_)
+            | ExecuteError::Unsupported
+            | ExecuteError::ProofFailed
             | ExecuteError::Provider(_) => None,
         }
     }

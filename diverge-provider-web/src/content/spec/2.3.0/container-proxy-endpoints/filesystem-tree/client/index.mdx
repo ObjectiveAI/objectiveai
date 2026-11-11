@@ -1,6 +1,6 @@
 ---
 title: 'Client Channels'
-summary: 'The one channel the client opens on a tree scope: the stop, whose channel request carries no tag and no payload, and which the finish of the scope answers.'
+summary: 'The one channel the client opens on a tree scope: the cancel, whose channel request carries no tag and no payload, and which the finish of the scope answers.'
 order: 3
 draft: false
 ---
@@ -12,7 +12,7 @@ by a channel response finish that no channel response precedes.
 
 | Tag | Channel |
 |-----|---------|
-| — | [stop](/container-proxy-endpoints/filesystem-tree/client/stop/) |
+| — | [cancel](/container-proxy-endpoints/filesystem-tree/client/cancel/) |
 
 The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/filesystem/tree/client/channel_request/frame.rs`:
 

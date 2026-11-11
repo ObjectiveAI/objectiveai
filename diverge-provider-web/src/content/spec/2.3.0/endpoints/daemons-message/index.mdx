@@ -1,0 +1,93 @@
+---
+title: 'daemons::message'
+summary: 'Tag 28: a client sends one message to one identity; the server queues it in that identity’s mailbox and answers exactly once, when the receiver has taken it, when the receiver is not listening, or at once when the sender is over its rate, and the scope finishes.'
+order: 28
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`28`, the identity of the receiver, and the body of the message. The
+server queues the message in the receiver's mailbox, which a
+[daemons::listen](/endpoints/daemons-listen/) scope holds open, and
+sends exactly one response when the message's fate is known; the
+response finish follows it. A client that cancels while the message is
+queued ends the scope with the response finish and no response before
+it. A connection holds at most one daemons::message scope open at a
+time, as [One open at a time](/endpoints/#one-open-at-a-time)
+provides. The server serves the request for every identity connected
+to it, whether or not the sender or the receiver holds a
+[daemons::announce](/endpoints/daemons-announce/) scope open, and
+whether or not the sender holds a mailbox open.
+
+- **The request.** [Request](/endpoints/daemons-message/request/) states
+  its form.
+- **The response.** [Response](/endpoints/daemons-message/response/)
+  states the one response and the sequence of the main stream.
+- **The channels.** The client opens the one channel of
+  [Client Channels](/endpoints/daemons-message/client/), the cancel. The
+  server opens no channel on a daemons::message scope.
+- **The capability.** A server that holds out no
+  [`messages`](/capabilities/#messages) object answers the request as
+  that section states.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Endpoints](/endpoints/) provides. A request read while a daemons::message
+   scope is open on the same connection is answered by exactly one
+   response, the byte `4`, and the response finish. A server that holds
+   out no `messages` object answers exactly one response, the byte `3`,
+   and the response finish. The server counts nothing for either.
+2. **The server counts the send.** The server counts the send against
+   the window of the identity of the connection, as
+   [The window](#the-window) states. A send over the window is answered
+   by exactly one response, the byte `2` followed by the seconds left,
+   and the response finish; the server queues nothing.
+3. **The server queues the message.** A receiver whose mailbox is not
+   open is answered by exactly one response, the byte `1`, and the
+   response finish; the server queues nothing. Otherwise the server
+   queues the message in the receiver's mailbox, after every message
+   queued there before it.
+4. **The server answers the fate.** When the receiver's client has
+   taken the message, the server sends exactly one response, the byte
+   `0`. When the receiver's mailbox closes before its client has taken
+   the message, the server sends exactly one response, the byte `1`.
+   The response finish follows either.
+5. **The server takes the message back.** When it receives the
+   client's [cancel](/endpoints/daemons-message/client/cancel/) while the
+   message is queued, the server removes the message from the mailbox,
+   sends no response, and sends the response finish. When the client
+   reads no more of the scope, or its connection ends, the server
+   removes the message from the mailbox and ends the scope.
+
+## The window
+
+The `messages` object the server holds out states the rate: at most
+`messages` sends of one identity in one window of `seconds` seconds.
+
+- **Per sending identity.** The server keeps at most one window per
+  sending identity. The window counts the sends of that identity to
+  every receiver together.
+- **Every send.** The server counts the sends of every sending
+  identity against that identity's window, whether or not the
+  identity holds a [daemons::announce](/endpoints/daemons-announce/)
+  scope open. No identity sends outside a window.
+- **What counts.** A send answered by the byte `0` or the byte `1`,
+  and a send cancelled while queued, count toward the window. A send
+  answered by the byte `2`, `3` or `4` does not count.
+- **The beginning.** A window begins at the first send it counts and
+  ends `seconds` seconds after. A send counted after a window has
+  ended begins the next window.
+- **Full.** A window that has counted `messages` sends counts no
+  further send. A send while it is full is answered by the byte `2`.
+- **A connection ending.** The window of an identity whose connection
+  ends lasts to its end. A connection that the identity opens again
+  meanwhile counts its sends toward the same window.
+
+## The rules that hold throughout
+
+- **No timeout.** The server times nothing out. A queued message waits
+  until its fate is known, however long that is.
+- **No store.** The server keeps the message only while it is queued
+  or sent and not yet taken.

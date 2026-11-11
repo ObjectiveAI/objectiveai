@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
+
 use super::NoProvider;
 use super::fuse::MountsError;
 use crate::daemons;
@@ -19,9 +21,9 @@ pub enum StartError {
     NoTemplate(String),
     /// No provider to run on.
     Provider(NoProvider),
-    /// The daemon record a connected tool names is not on record any
-    /// more.
-    NoDaemon(String),
+    /// The remote daemon's record a connected tool names, by ID, is not
+    /// on record.
+    NoDaemon(DaemonId),
     /// No connection to the daemon named could be opened.
     Daemon(daemons::Fail),
     /// A mount could not be served: a volume the provider refused, or
@@ -40,6 +42,9 @@ pub enum StartError {
     Run(String),
     /// The log could not be written.
     Logs(logs::Error),
+    /// The start's own task ended without finishing it: it panicked,
+    /// or the runtime is shutting down.
+    Unfinished(String),
 }
 
 impl fmt::Display for StartError {
@@ -48,7 +53,7 @@ impl fmt::Display for StartError {
             StartError::Store(error) => write!(f, "{error}"),
             StartError::NoTemplate(id) => write!(f, "the template {id} is not on record"),
             StartError::Provider(error) => write!(f, "{error}"),
-            StartError::NoDaemon(name) => write!(f, "the daemon {name} is not on record"),
+            StartError::NoDaemon(id) => write!(f, "no remote daemon's record has the ID `{id}`"),
             StartError::Daemon(error) => write!(f, "{error}"),
             StartError::Mounts(error) => write!(f, "a mount could not be served: {error}"),
             StartError::Secrets(what) => write!(f, "a secret could not be taken: {what}"),
@@ -56,6 +61,7 @@ impl fmt::Display for StartError {
             StartError::Unsupported(what) => write!(f, "a provider's capabilities exclude it: {what}"),
             StartError::Run(error) => write!(f, "the provider did not run the container: {error}"),
             StartError::Logs(error) => write!(f, "the log: {error}"),
+            StartError::Unfinished(error) => write!(f, "the start did not finish: {error}"),
         }
     }
 }

@@ -4,29 +4,36 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
 use diverge_sdk::wire::connection::Connection;
-use diverge_sdk::wire::server::authorization::{Auth, Authorization};
+use diverge_sdk::wire::handshake::{self, Handshook};
 use tokio::net::TcpStream;
 use tokio::time::{Duration, sleep};
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 use super::Provider;
-use crate::config::clients::Unbrokered;
+use crate::config::outgoing::Outgoing;
+use crate::protocol::keepalive;
 
-/// Dial `peer` at `ws://<address>/`, present its key as the first
-/// frame under its identity, serve the connection until it ends,
-/// wait five seconds, and dial again — whether the connection ended
-/// or the dial failed, and forever: this ends only when the task it
-/// runs in is ended.
-pub async fn dial(provider: Arc<Provider>, peer: Unbrokered) {
-    let url = format!("ws://{}/", peer.address);
+/// Dial `client` — at its address, as `ws://<address>/` when it carries
+/// no scheme — make the handshake as the connector,
+/// serve the connection under the peer's identity until it ends, wait
+/// five seconds, and dial again: whether the connection ended, the dial
+/// failed or the handshake did, and forever. It ends only when the task
+/// it runs in is ended. The peer that answers must be the identity
+/// `client` names, and no other. The provider
+/// announces itself to no peer, and serves the peer's
+/// `daemons::announce` as it does for a peer that dialled it, listing
+/// it with the address dialled here. The socket has transport keepalive on — see
+/// [`keepalive`] — so a peer that vanished without a close is a
+/// connection that ends, and a dial again.
+pub async fn dial(provider: Arc<Provider>, client: Outgoing) {
+    let url = if client.address.contains("://") { client.address.clone() } else { format!("ws://{}/", client.address) };
     loop {
-        if let Ok((socket, _)) = connect_async(url.as_str()).await {
+        if let Ok(socket) = keepalive::connect(url.as_str()).await {
             let address = peer_ip(&socket);
-            let authorization = Authorization::Outgoing {
-                auth: Auth::Unbrokered(peer.key.clone()),
-                client_identity: peer.identity.clone(),
-            };
-            provider.connection(Connection::Outgoing(socket), authorization, address).await;
+            let made = handshake::connect(Connection::Outgoing(socket), &provider.authenticator.dialling(&client.identity), address).await;
+            if let Ok(Handshook { connection, peer }) = made {
+                provider.held(connection, peer, address, Some(client.address.clone())).await;
+            }
         }
         // Five seconds: long enough that a peer that is down is not
         // hammered, short enough that one that is back is served soon.

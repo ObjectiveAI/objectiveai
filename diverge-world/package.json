@@ -1,0 +1,28 @@
+{
+  "name": "diverge-world",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sdk": "pnpm --filter @diverge/sdk build",
+    "dev": "pnpm run sdk && vite",
+    "build": "pnpm run sdk && tsc && vite build",
+    "tauri": "tauri",
+    "typecheck": "pnpm run sdk && tsc --noEmit"
+  },
+  "dependencies": {
+    "@diverge/sdk": "workspace:*",
+    "@tauri-apps/api": "^2.10.1",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "file-type": "19.6.0",
+    "micromark": "4.0.2",
+    "micromark-extension-gfm": "3.0.0",
+    "phaser": "^4.2.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.1"
+  }
+}

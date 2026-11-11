@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.daemon.config.signature.get.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "daemon/config/signature/get/request_schema"
-  ]
-}

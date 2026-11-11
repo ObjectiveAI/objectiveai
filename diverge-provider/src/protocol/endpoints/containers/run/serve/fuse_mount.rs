@@ -23,15 +23,17 @@ use diverge_sdk::shared::containers::fuse_mount::response::Frame;
 ///    holds a FUSE mount under, `Overlaps` for a path that is a held
 ///    mount's, lies inside one or holds one.
 /// 3. One mount scope is opened on the proxy, and its answer waited
-///    for. The proxy's `Ok` is the mount made: its path joins what
-///    every tree opened from now leaves out, `Mounted` is sent and
-///    the channel finished, and only then is the mount's relay
-///    spawned — so that the answer precedes every ask of the id. The
-///    proxy's refusal is the claim released and `Error`, the proxy's
-///    words in it. The proxy's connection ending, or an answer that
-///    could not be read, is the claim released and the finish alone.
+///    for. The proxy's `Ok` is the mount made — its path, claimed in
+///    the ledger, is already among what every tree opened from now
+///    leaves out — `Mounted` is sent and the channel finished, and
+///    only then is the mount's relay spawned — so that the answer
+///    precedes every ask of the id. The proxy's refusal is the claim
+///    released and `Error`, the proxy's words in it. The proxy's
+///    connection ending, or an answer that could not be read, is the
+///    claim released and the finish alone.
 ///
-/// The mount lives until the run ends; nothing unmounts it.
+/// The mount lives until the run ends or its scope on the proxy does;
+/// nothing here unmounts it, and its relay's end lets go of its claim.
 pub(crate) async fn fuse_mount<R: Runs>(run: Arc<Run>, channel: u32, request: Request) {
     if request.container_path.is_empty() || !request.container_path.iter().all(|component| check::name(component)) {
         run.finish(channel).await;
@@ -49,7 +51,6 @@ pub(crate) async fn fuse_mount<R: Runs>(run: Arc<Run>, channel: u32, request: Re
     }
     match mount::execute(&run.proxy, request.container_path.clone(), request.kind).await {
         Ok((handle, asks)) => {
-            run.ignore.lock().await.push(request.container_path);
             run.respond(channel, R::fuse_mount(&Frame::Mounted)).await;
             run.finish(channel).await;
             let made = Mount {

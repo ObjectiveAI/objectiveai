@@ -19,7 +19,9 @@ export async function unary<T, R>(handle: Handle, scope: number, payload: Uint8A
   } catch (cause) {
     throw new UnaryError<R>("send", cause);
   }
+  // One frame is the answer; the finish behind it is read by nobody.
   const bytes = await channel.responseReceiver.next();
+  channel.responseReceiver.abandon();
   if (bytes === undefined) {
     throw new UnaryError<R>("closed");
   }

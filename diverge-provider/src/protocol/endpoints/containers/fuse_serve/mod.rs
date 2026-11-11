@@ -3,7 +3,7 @@
 //! [`handle`] takes the scope a
 //! [`Session`](diverge_sdk::wire::server::session::Session) yielded, finds the
 //! container, opens the proxy's serve of the subtree, and relays
-//! every ask and every tree until the stop.
+//! every ask and every tree until the cancel.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

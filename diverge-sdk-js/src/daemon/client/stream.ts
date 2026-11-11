@@ -21,6 +21,14 @@ export class ExecuteStream<T> implements AsyncIterable<T> {
   constructor(scope: Scope, decode: Decode<T>) {
     this.#scope = scope;
     this.#decode = decode;
+    // A stream reads its answers alone: the server's channel requests
+    // are read by nobody, and the server is told so.
+    scope.requestReceiver.abandon();
+  }
+
+  /** Read nothing more: the daemon is told, and its sends on the scope cost nothing. */
+  abandon(): void {
+    this.#scope.responseReceiver.abandon();
   }
 
   /** The scope's number, for a cancel. */
@@ -54,13 +62,18 @@ export class ExecuteStream<T> implements AsyncIterable<T> {
     }
   }
 
+  /** Reading to the end; leaving the loop early abandons the rest. */
   async *[Symbol.asyncIterator](): AsyncIterator<T> {
-    for (;;) {
-      const item = await this.next();
-      if (item === undefined) {
-        return;
+    try {
+      for (;;) {
+        const item = await this.next();
+        if (item === undefined) {
+          return;
+        }
+        yield item;
       }
-      yield item;
+    } finally {
+      this.abandon();
     }
   }
 }

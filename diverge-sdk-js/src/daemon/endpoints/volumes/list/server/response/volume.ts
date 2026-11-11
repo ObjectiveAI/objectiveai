@@ -1,7 +1,7 @@
 // One volume, as a provider lists it and the daemon knows it.
 
 import { z } from "zod";
-import { Identity } from "../../../../../../daemon/endpoints/agents/logs/server/response/identity.js";
+import { Identity } from "../../../../../agent_log/identity.js";
 import { Agent } from "../../../../../../daemon/key/agent.js";
 import { Tool } from "../../../../../../daemon/key/tool.js";
 import * as reference from "../../../../../../daemon/reference/volume.js";

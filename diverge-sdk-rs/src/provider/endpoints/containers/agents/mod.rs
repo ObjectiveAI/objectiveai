@@ -8,12 +8,11 @@
 //! after the id — see [`run::server::response`]. The caller speaks to it with
 //! [`enqueue`](crate::shared::containers::enqueue): a message with no
 //! loop running starts one, and a message while one runs joins its
-//! queue, taken at a seam of the agent's choosing;
-//! [`dequeue`](crate::shared::containers::dequeue) withdraws
-//! everything not yet taken; neither touches the turn being run.
+//! queue, taken at a seam of the agent's choosing; it never touches
+//! the turn being run, and nothing withdraws it once sent.
 //! [`info`](crate::shared::containers::info) returns what the
-//! arguments may be — the image's own DIVERGE.md, its schema and its
-//! prose — so a caller can learn an image's agent without knowing the
+//! arguments may be — the image's own DIVERGE.md, its name, its schema
+//! and its prose — so a caller can learn an image's agent without knowing the
 //! image. The arguments being a value is what lets one wire carry
 //! every agent: what an image accepts is its own to say, and its
 //! DIVERGE.md is how it says it.

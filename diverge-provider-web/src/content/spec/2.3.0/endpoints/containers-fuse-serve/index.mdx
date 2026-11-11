@@ -1,6 +1,6 @@
 ---
 title: 'containers::fuse_serve'
-summary: 'Tag 2: a client names a container it is running, by id, and a directory of it; the server opens a FUSE serve of that directory on the proxy of the container, answers Serving once, and for as long as the scope lives relays on channels the client opens the nine asks a FUSE mount makes, each answered from the filesystem of the container, and the tree of the directory as the container holds it; the client stops the scope, or the container ends.'
+summary: 'Tag 2: a client names a container it is running, by id, and a directory of it; the server opens a FUSE serve of that directory on the proxy of the container, answers Serving once, and for as long as the scope lives relays on channels the client opens the nine asks a FUSE mount makes, each answered from the filesystem of the container, and the tree of the directory as the container holds it; the client cancels the scope, or the container ends.'
 order: 2
 draft: false
 ---
@@ -15,7 +15,7 @@ the nine asks a FUSE mount makes of a client — a stat, a read of a
 piece, a write of a piece, a truncate, a setattr, a listing, a
 removal, a rename and a mkdir — and the server relays each to the
 proxy of the container, which answers it from the filesystem of the
-container. The client's stop ends the scope, and so does the end of
+container. The client's cancel ends the scope, and so does the end of
 the container: the response finish follows the last answer, and no
 frame follows the finish. After an error the response finish follows
 the error, and no channel is served.
@@ -40,7 +40,7 @@ the error, and no channel is served.
   response and what follows it.
 - **The channels.** The client opens the channels that
   [Client Channels](/endpoints/containers-fuse-serve/client/) defines: the nine asks, the
-  stop, and the filetree. The server opens no channel on a FUSE serve
+  cancel, and the filetree. The server opens no channel on a FUSE serve
   scope.
 - **The conduit.** The server holds one
   [filesystem::fuse_serve](/container-proxy-endpoints/filesystem-fuse-serve/) scope on the proxy of
@@ -78,13 +78,13 @@ the error, and no channel is served.
   any number of FUSE serves of one container, of one directory or of
   several, may be open at once, on one connection of the runner or on
   several.
-- **The stop.** The client ends the scope by opening the stop channel.
+- **The cancel.** The client ends the scope by opening the cancel channel.
   The server stops the FUSE serve it holds on the proxy, answers every ask
   still open as the proxy answers it, and sends the response finish.
-  The server sends nothing on the stop's own channel. A connection
+  The server sends nothing on the cancel's own channel. A connection
   that closes with a FUSE serve scope open ends the scope the same way.
 - **The end of the container.** When the run of the container ends —
-  the runner's stop, or the container's own end — the server ends
+  the runner's cancel, or the container's own end — the server ends
   every FUSE serve of the container: every ask still open is answered or
   finished with nothing, every filetree channel is finished, and the
   response finish follows. The server sends no error on the main

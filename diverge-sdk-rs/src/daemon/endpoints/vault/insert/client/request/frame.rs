@@ -27,8 +27,7 @@ pub struct Frame {
     /// The value: any JSON, held as given and handed to a container
     /// that takes the key under the name its template declares.
     pub value: Value,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }

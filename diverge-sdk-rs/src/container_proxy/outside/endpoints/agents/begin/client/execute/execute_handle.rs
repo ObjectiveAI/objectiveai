@@ -1,20 +1,18 @@
 //! The begin scope, held for the connection's life.
 
-use rmcp::model::ContentBlock;
-
 use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
-use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, Info, Postgres, Secrets};
+use crate::provider::endpoints::containers::client::answered::{Enqueue, Info, Postgres, Secrets};
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError, unary};
 use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
-use crate::shared::containers::{dequeue, enqueue, postgres};
+use crate::shared::containers::{enqueue, postgres};
 
 /// The begin scope an agent container's server holds.
 ///
 /// Every channel the server may open on it is a method here — the
-/// image's DIVERGE.md, the queue's two verbs, the secrets' feed, the
+/// image's DIVERGE.md, a message for the agent, the secrets' feed, the
 /// server's half of a database connection — and so is answering a
 /// channel the proxy opened, by the proxy's own channel number.
 /// Clones share the scope.
@@ -47,7 +45,7 @@ impl ExecuteHandle {
     }
 
     /// What the arguments may be: the image's `/DIVERGE.md`, parsed —
-    /// its schema and its body — or `None` for an image that ships
+    /// its name, its schema and its body — or `None` for an image that ships
     /// none. The proxy reads the file from the container's root; the
     /// program is never asked.
     pub async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
@@ -55,20 +53,15 @@ impl ExecuteHandle {
         unary::<Info>(&self.handle, self.scope, &payload).await
     }
 
-    /// A message for the agent — starting a loop when none runs,
-    /// queued when one does — answered with its fate whenever that
-    /// is known; nothing times it out.
-    pub async fn enqueue(&self, key: String, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, content }))
+    /// A batch of messages for the agent, in order — starting a loop
+    /// when none runs, handed to the program's queue when one does —
+    /// answered with its fate, every message's alike, whenever that
+    /// is known; nothing times it out. The order is the batch's: see
+    /// [`enqueue::request::Request`].
+    pub async fn enqueue(&self, messages: Vec<enqueue::request::Message>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { messages }))
             .map_err(UnaryError::Request)?;
         unary::<Enqueue>(&self.handle, self.scope, &payload).await
-    }
-
-    /// Withdraw every message waiting under `key`: whether any was.
-    pub async fn dequeue(&self, key: String) -> Result<dequeue::response::Frame, UnaryError<Dequeue>> {
-        let payload = payload(&channel_request::Frame::Dequeue(dequeue::request::Request { key }))
-            .map_err(UnaryError::Request)?;
-        unary::<Dequeue>(&self.handle, self.scope, &payload).await
     }
 
     /// Feed the program its secrets' `values`, every name it

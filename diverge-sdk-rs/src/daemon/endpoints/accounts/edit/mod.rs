@@ -11,8 +11,7 @@
 //! grant over it. Writing the credential replaces it whole and mints a
 //! new key, answered once: how a key rotates, and how an address or an
 //! identity changes; a connection a client holds as the account is not
-//! dropped by it, and the next client is judged by the new key. A
-//! container running under the account runs under its new name.
+//! dropped by it, and the next client is judged by the new key.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

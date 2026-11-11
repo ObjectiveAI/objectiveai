@@ -1,11 +1,10 @@
-//! What a provider sends back on the channels a caller opens on a
-//! pull, one module per kind.
+//! What a provider sends back on the channels a caller opens on an
+//! oci scope, one module per kind.
 //!
-//! [`oci_has`] says whether the provider holds the image for the
-//! caller and under what name; [`oci_manifest`] and [`oci_blob`] hand
-//! it over. The disconnect has no answer: nothing is sent on its
-//! channel.
+//! [`oci_manifest`] and [`oci_blob`] hand over the manifests and
+//! blobs the scope's image reaches; [`oci_prove`] the proof over it.
+//! The cancel has no answer: nothing is sent on its channel.
 
 pub mod oci_blob;
-pub mod oci_has;
 pub mod oci_manifest;
+pub mod oci_prove;

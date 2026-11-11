@@ -53,6 +53,7 @@ async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon:
     if !reached {
         return Ok(Frame::Forbidden);
     }
+    scope.allowed().await;
     let opened = match files::open_tool(daemon, &tool).await {
         Ok(opened) => opened,
         Err(error) => return Ok(Frame::Error(reply::failure(&error))),

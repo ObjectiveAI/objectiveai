@@ -1,6 +1,6 @@
 //! A volume made, changed, dropped, or measured, on its provider.
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::agent_log::Identity;
 use diverge_sdk::daemon::endpoints::volumes::stat::server::response::Stat;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::volumes::Mode;

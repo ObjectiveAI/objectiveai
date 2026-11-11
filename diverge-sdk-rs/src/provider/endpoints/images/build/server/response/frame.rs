@@ -2,38 +2,40 @@
 
 use std::fmt;
 
-use super::Built;
+use super::{Built, Exists};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A line the build said; the image built; the word that the store
-/// has no room for it; or the news that the provider could not build
-/// it.
+/// A line the build said; the image built; the word that the caller
+/// owns it already; the word that the Store has no room for it; or
+/// the news that the provider could not build it.
 ///
 /// A build is a stream with an end. Zero or more
 /// [`Output`](Self::Output) frames, each a line the provider's build
 /// tool wrote, as it wrote them; then exactly one of
-/// [`Built`](Self::Built), [`InsufficientCapacity`](Self::InsufficientCapacity),
+/// [`Built`](Self::Built), [`Exists`](Self::Exists),
+/// [`InsufficientCapacity`](Self::InsufficientCapacity),
 /// [`ContextHeld`](Self::ContextHeld), [`Unsupported`](Self::Unsupported)
 /// and [`Error`](Self::Error); then the finish, and nothing after it.
 /// A payload leads with one byte saying which — `0` for `Output`,
-/// `1` for `Built`, `2` for `InsufficientCapacity`, `3` for
-/// `ContextHeld`, `4` for `Unsupported`, `5` for `Error` — and the
-/// rest is that variant's own bytes; the three bare refusals carry
-/// nothing, and come with no output before them.
+/// `1` for `Built`, `2` for `Exists`, `3` for `InsufficientCapacity`,
+/// `4` for `ContextHeld`, `5` for `Unsupported`, `6` for `Error` — and
+/// the rest is that variant's own bytes; the three bare refusals
+/// carry nothing, and come with no output before them.
 ///
 /// | the scope ends with | means |
 /// |----------------------|-------|
-/// | [`Built`](Self::Built), then a finish | the image exists under the name, and a listing will show it |
-/// | [`InsufficientCapacity`](Self::InsufficientCapacity), then a finish | the store has no room for it, and nothing exists |
+/// | [`Built`](Self::Built), then a finish | the image is in the caller's Store, and a listing will show it |
+/// | [`Exists`](Self::Exists), then a finish | the caller owned the digest already; nothing was added, and the listing is as it was |
+/// | [`InsufficientCapacity`](Self::InsufficientCapacity), then a finish | the Store has no room for it, and nothing exists |
 /// | [`ContextHeld`](Self::ContextHeld), then a finish | something holds the context volume, and nothing exists |
-/// | [`Unsupported`](Self::Unsupported), then a finish | the provider has no image store, and nothing exists |
-/// | an [`Error`](Self::Error), then a finish | it does not exist, for some other reason — a build that failed, a name taken, a context refused — and the output before it says what the build said |
+/// | [`Unsupported`](Self::Unsupported), then a finish | the provider has no Store, and nothing exists |
+/// | an [`Error`](Self::Error), then a finish | it does not exist, for some other reason — a build that failed, a context refused — and the output before it says what the build said |
 ///
 /// # The refusals are answers, not errors
 ///
-/// A provider whose store has no room for the image says so with
+/// A provider whose Store has no room for the image says so with
 /// [`InsufficientCapacity`](Self::InsufficientCapacity) rather than
 /// with an [`Error`](Self::Error) a caller could not tell from any
 /// other failure. The distinction is what a caller acts on: a store
@@ -43,7 +45,7 @@ use crate::shared::error::Error;
 /// volume that something holds — a running container, a FUSE serve,
 /// or an operation that has it to itself — is
 /// [`ContextHeld`](Self::ContextHeld), a thing to stop or wait for;
-/// a provider with no image store at all is
+/// a provider with no Store at all is
 /// [`Unsupported`](Self::Unsupported), another provider to ask.
 ///
 /// # Output is text
@@ -57,28 +59,31 @@ pub enum Frame {
     /// A line of the build's output, as the build tool wrote it. Tag
     /// `0`.
     Output(String),
-    /// The image exists. Tag `1`.
+    /// The image is in the caller's Store. Tag `1`.
     Built(Built),
-    /// The store has no room for the image, and nothing exists. Tag
-    /// `2`.
+    /// The build produced a digest the caller already owns, and
+    /// nothing was added. Tag `2`.
+    Exists(Exists),
+    /// The Store has no room for the image, and nothing exists. Tag
+    /// `3`.
     InsufficientCapacity,
     /// Something holds the volume the context names — a running
     /// container, a FUSE serve, or a stat, a read, a write, a filetree,
     /// an edit or a delete that has it to itself — and nothing exists.
-    /// Tag `3`.
+    /// Tag `4`.
     ///
     /// Carries nothing. A build takes the shared hold a run takes,
     /// and a volume that will not take it is this; a caller stops the
     /// holder, or waits for it, and asks again.
     ContextHeld,
-    /// The provider has no image store — its `images_store` is `false`,
-    /// see [`info`](crate::provider::endpoints::info) — and nothing
-    /// exists. Tag `4`.
+    /// The provider has no Store — its `images_store` is `false`, see
+    /// [`info`](crate::provider::endpoints::info) — and nothing exists.
+    /// Tag `5`.
     ///
     /// Carries nothing. A caller asks another provider; nothing about
     /// the request is the cause.
     Unsupported,
-    /// A failure. Tag `5`.
+    /// A failure. Tag `6`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little; the output before it says more.
@@ -91,20 +96,24 @@ const OUTPUT: u8 = 0;
 /// Tag for [`Frame::Built`].
 const BUILT: u8 = 1;
 
+/// Tag for [`Frame::Exists`].
+const EXISTS: u8 = 2;
+
 /// Tag for [`Frame::InsufficientCapacity`].
-const INSUFFICIENT_CAPACITY: u8 = 2;
+const INSUFFICIENT_CAPACITY: u8 = 3;
 
 /// Tag for [`Frame::ContextHeld`].
-const CONTEXT_HELD: u8 = 3;
+const CONTEXT_HELD: u8 = 4;
 
 /// Tag for [`Frame::Unsupported`].
-const UNSUPPORTED: u8 = 4;
+const UNSUPPORTED: u8 = 5;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 5;
+const ERROR: u8 = 6;
 
-/// Two formats, and the tag chooses between them: a line and the
-/// image built are postcard, as the rest of the store is, and the
+/// Two formats, and the tag chooses between them: a line, the image
+/// built and the image owned already are postcard, as the rest of the
+/// Store is, and the
 /// error is JSON, since a [`serde_json::Value`] cannot come back out
 /// of a format with no self-description.
 impl Encode for Frame {
@@ -122,6 +131,10 @@ impl Encode for Frame {
             Frame::Built(built) => {
                 out.extend_from_slice(&[BUILT]);
                 postcard::to_io(built, &mut *out).map(|_| ()).map_err(FrameEncodeError::Built)
+            }
+            Frame::Exists(exists) => {
+                out.extend_from_slice(&[EXISTS]);
+                postcard::to_io(exists, &mut *out).map(|_| ()).map_err(FrameEncodeError::Built)
             }
             Frame::InsufficientCapacity => {
                 out.extend_from_slice(&[INSUFFICIENT_CAPACITY]);
@@ -153,6 +166,7 @@ impl Decode<'_> for Frame {
         match *tag {
             OUTPUT => postcard::from_bytes(rest).map(Frame::Output).map_err(FrameDecodeError::Output),
             BUILT => postcard::from_bytes(rest).map(Frame::Built).map_err(FrameDecodeError::Built),
+            EXISTS => postcard::from_bytes(rest).map(Frame::Exists).map_err(FrameDecodeError::Built),
             INSUFFICIENT_CAPACITY => Ok(Frame::InsufficientCapacity),
             CONTEXT_HELD => Ok(Frame::ContextHeld),
             UNSUPPORTED => Ok(Frame::Unsupported),
@@ -167,7 +181,7 @@ impl Decode<'_> for Frame {
 pub enum FrameEncodeError {
     /// The line did not serialize.
     Output(postcard::Error),
-    /// The image built did not serialize.
+    /// The image built, or owned already, did not serialize.
     Built(postcard::Error),
     /// The error did not serialize.
     Error(serde_json::Error),
@@ -198,11 +212,11 @@ impl std::error::Error for FrameEncodeError {
 pub enum FrameDecodeError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's six.
+    /// A tag that is none of this frame's seven.
     UnknownTag(u8),
     /// The line did not parse.
     Output(postcard::Error),
-    /// The image built did not parse.
+    /// The image built, or owned already, did not parse.
     Built(postcard::Error),
     /// The error did not parse.
     Error(serde_json::Error),

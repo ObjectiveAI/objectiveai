@@ -1,9 +1,10 @@
-//! The requests over agents, served: the nine over the records and
+//! The requests over agents, served: the eight over the records and
 //! the run — [`create`], [`get`], [`list`], [`edit`], [`delete`],
-//! [`tag`], [`untag`], [`logs`], [`message`] — the four over the
+//! [`tag`], [`untag`], [`message`] — an agent's log being read by the
+//! root [`logs`](crate::serve::logs) — the four over the
 //! container's files — [`download`], [`upload`], [`transfer`],
-//! [`filetree`] — and [`templates`], what agents are made from. Whether a loop runs in an agent is
-//! [`active`]; what is attached to one is [`tools_of`]; and
+//! [`filetree`] — and [`templates`], what agents are made from. What an agent is doing now is
+//! [`state`]; what is attached to one is [`tools_of`]; and
 //! [`Failure`] is why a handler could not answer, the store or the
 //! log.
 
@@ -15,17 +16,20 @@ pub use active::*;
 pub use attached::*;
 pub use failure::*;
 
+pub mod connect;
 pub mod create;
 pub mod delete;
 pub mod download;
 pub mod edit;
+pub mod exec;
 pub mod filetree;
+pub mod frontend;
 pub mod get;
 pub mod list;
-pub mod logs;
 pub mod message;
 pub mod tag;
 pub mod templates;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;

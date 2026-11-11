@@ -14,6 +14,9 @@ use diverge_sdk::wire::server::answer::{Answer, answer};
 /// Read the mount's asks off its scope for as long as it lives, each
 /// answered once on a task of its own. The scope is the mount, so the
 /// ask carries no id; the caller's is put back in front of it here.
+/// The scope over is the mount gone: it is let go of in the run's
+/// [`Ledger`](super::super::ledger::Ledger), which frees its id and
+/// takes its path out of what a tree opened from now leaves out.
 pub(crate) async fn fuse<R: Runs>(run: Arc<Run>, mount: Mount) {
     let Mount { id, handle, mut asks } = mount;
     let id: Arc<str> = id.into();
@@ -28,6 +31,7 @@ pub(crate) async fn fuse<R: Runs>(run: Arc<Run>, mount: Mount) {
             }
         }
     }
+    run.mounts.lock().await.release(&id);
 }
 
 /// One ask: the caller's one answer onto the mount's channel, then

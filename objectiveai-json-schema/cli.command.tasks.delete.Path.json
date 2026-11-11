@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.tasks.delete.Path",
-  "type": "string",
-  "enum": [
-    "tasks/delete"
-  ]
-}

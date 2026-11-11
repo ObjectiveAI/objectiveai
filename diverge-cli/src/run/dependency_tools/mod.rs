@@ -9,10 +9,13 @@ use crate::run::{Emitter, Error, Target};
 
 pub mod delete;
 pub mod download;
+pub mod exec;
 pub mod filetree;
+pub mod frontend;
 pub mod get;
 pub mod list;
 pub mod tag;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;
@@ -26,6 +29,12 @@ pub enum DependencyTools {
     Download(download::Arguments),
     /// Watching a dependency tool's container's filesystem, whole.
     Filetree(filetree::Arguments),
+    /// Running one command in a dependency tool's container, its output streamed.
+    Exec(exec::Arguments),
+    /// One HTTP request to a dependency tool's frontend.
+    Frontend(frontend::Arguments),
+    /// An interactive shell in a dependency tool's container, on a terminal.
+    Terminal(terminal::Arguments),
     /// Getting one dependency tool.
     Get(get::Arguments),
     /// Listing a caller's dependency tools.
@@ -51,6 +60,9 @@ pub async fn run(
     match command {
         DependencyTools::Delete(arguments) => delete::run(arguments, target, emitter).await,
         DependencyTools::Download(arguments) => download::run(arguments, target, emitter).await,
+        DependencyTools::Exec(arguments) => exec::run(arguments, target, emitter).await,
+        DependencyTools::Frontend(arguments) => frontend::run(arguments, target, emitter).await,
+        DependencyTools::Terminal(arguments) => terminal::run(arguments, target, emitter).await,
         DependencyTools::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         DependencyTools::Get(arguments) => get::run(arguments, target, emitter).await,
         DependencyTools::List(arguments) => list::run(arguments, target, emitter).await,

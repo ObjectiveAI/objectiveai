@@ -1,0 +1,36 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 9 followed by the head of one HTTP request as JSON: method, path and headers.'
+order: 1
+draft: false
+---
+
+```text
+[9][request JSON …]
+```
+
+- **`method`.** A string: the request's method, as HTTP writes it.
+- **`path`.** A string: the request's path and query, as the request
+  line of an HTTP/1.1 request carries them.
+- **`headers`.** An array of two-element arrays of strings, each a
+  header name and its value, in the order the request carries them. A
+  name may occur more than once. Absent, the request carries no
+  header.
+- **The path rule.** `path` is the string `/frontend`, or a string that
+  begins with `/frontend/` or with `/frontend?`. No segment of the
+  part of `path` before the first `?` is `.` or `..`, a segment being
+  the text between two consecutive `/` characters or after the last.
+  `path` contains no `\` character and none of the sequences `%2e`,
+  `%2f` and `%5c`, compared without regard to case.
+- **Malformed.** A payload that does not decode as stated is answered
+  by a response finish that no response precedes.
+
+The request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/frontend/client/request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/frontend/client/request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/frontend/request.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/frontend/request.rs
+```

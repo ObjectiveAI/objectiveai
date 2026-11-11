@@ -3,7 +3,7 @@
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Stop watching.
+/// Cancel the watch.
 ///
 /// The only thing the server asks of a running tree, and the whole of
 /// what this channel carries. A payload is nothing at all.

@@ -60,6 +60,8 @@ pub enum Error {
     Config(config::Error),
     /// `provider.yaml` could not be read as the provider reads it.
     Provider(diverge_provider::config::Error),
+    /// `issuer.yaml` could not be read as the issuer reads it.
+    Issuer(diverge_issuer::config::Error),
     /// The default daemon's address names a host that is not this
     /// one, and a stop is honoured only from the host the daemon is
     /// on.
@@ -83,10 +85,11 @@ pub enum Error {
     NoAnswer,
     /// The first line of the answer is not an HTTP status line.
     Answer(String),
-    /// The server refused the stop as not from this host.
+    /// The server refused a loopback route — the stop, a rotation, the
+    /// operator's word — as not from this host.
     Refused,
-    /// The server answered with a status that is neither the accept
-    /// nor the refusal.
+    /// The server answered the stop with a status that is neither the
+    /// accept nor the refusal.
     Status(u16),
     /// Stdout could not be written.
     Stdout(io::Error),
@@ -132,6 +135,7 @@ impl fmt::Display for Error {
             }
             Error::Config(error) => write!(f, "{error}"),
             Error::Provider(error) => write!(f, "{error}"),
+            Error::Issuer(error) => write!(f, "{error}"),
             Error::NotLocal(address) => write!(
                 f,
                 "the default daemon is at `{address}`, which is not this host, and a stop is honoured only from the daemon's own host"
@@ -149,10 +153,10 @@ impl fmt::Display for Error {
             Error::Connect { port, source } => {
                 write!(f, "port {port} could not be connected to: {source}")
             }
-            Error::Exchange(error) => write!(f, "the stop could not be exchanged: {error}"),
+            Error::Exchange(error) => write!(f, "the request could not be exchanged: {error}"),
             Error::NoAnswer => write!(f, "the server closed the connection without answering"),
             Error::Answer(line) => write!(f, "the server's answer is not HTTP: `{line}`"),
-            Error::Refused => write!(f, "the server refused the stop as not from this host"),
+            Error::Refused => write!(f, "the server refused the request as not from this host"),
             Error::Status(code) => write!(f, "the server answered the stop with status {code}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
         }
@@ -172,6 +176,7 @@ impl std::error::Error for Error {
             | Error::Connect { source, .. } => Some(source),
             Error::Config(error) => Some(error),
             Error::Provider(error) => Some(error),
+            Error::Issuer(error) => Some(error),
             Error::Running { .. }
             | Error::Died { .. }
             | Error::NotLocal(_)

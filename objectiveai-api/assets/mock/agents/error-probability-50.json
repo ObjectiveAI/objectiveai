@@ -1,7 +1,0 @@
-{
-  "description": "50% chance of returning a mid-stream error.",
-  "upstream": "mock",
-  "output_mode": "instruction",
-  "error": true,
-  "error_probability": 50
-}

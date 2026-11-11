@@ -1,0 +1,31 @@
+---
+title: 'MCP close session'
+summary: 'Tag 9: the client names the caller whose MCP session it closes; the server removes and closes that session and answers with exactly one channel response, closed, and the channel response finish.'
+order: 9
+draft: false
+---
+
+The client opens this channel to close the MCP session of one caller.
+The server removes the session, closes it, and answers.
+
+- **The request.** The tag byte `9` followed by the session as JSON.
+  [Request](/container-proxy-endpoints/tools-begin/client/mcp-close-session/request/)
+  states its form.
+- **The response.** Exactly one channel response, closed, and the
+  channel response finish.
+  [Response](/container-proxy-endpoints/tools-begin/client/mcp-close-session/response/) states the sequence.
+- **The close.** The server removes the MCP session of the caller the
+  request names and closes it. The server sends no further message to
+  the container's MCP server on that session. An exchange that holds
+  the session when the close arrives completes on it. An
+  [mcp-notifications](/container-proxy-endpoints/tools-begin/client/mcp-notifications/)
+  channel on that session ends with its channel.
+- **A session not open.** A request that names a caller with no MCP
+  session open is answered closed.
+- **The next exchange.** A channel request on any of the five MCP
+  channels that names the same caller after the close opens a new MCP
+  session, by an `initialize` that carries the caller under `_meta`,
+  as a first channel request does.
+- **Not activity.** The channel is no exchange with the container's
+  MCP server. The server holds it behind no gate, and sends neither
+  `Active` nor `Inactive` for it.

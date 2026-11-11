@@ -8,8 +8,9 @@
 //! - `<root>/provider.yaml` is read if present; absent means the
 //!   built-in defaults, [`Config::default`]. No other name or
 //!   extension is looked for — see [`load`].
-//! - [`Config`] is the document; [`auth`], [`clients`],
-//!   [`containers`], [`volumes`] and [`images`] its sections. A
+//! - [`Config`] is the document: its own `identity`, the `incoming`
+//!   identities, and its sections [`outgoing`], [`containers`],
+//!   [`volumes`] and [`images`]. A
 //!   section that is absent is its defaults; a key the document does
 //!   not have is refused, so a misspelled setting is refused rather
 //!   than ignored.
@@ -28,19 +29,17 @@
 //!
 //! ```yaml
 //! port: 14979
-//! auth:
-//!   unbrokered:
-//!     - key: 5f1c…
-//!       identity: acme
-//!       address: 203.0.113.7
-//!     - key: 9a0e…
-//!       identity: bolt
-//!     - authorize_hook: peers
-//! clients:
-//!   unbrokered:
-//!     - address: hub.example.com:7000
-//!       key: c31d…
-//!       identity: hub
+//! identity:
+//!   issuer: https://auth.example.com
+//!   subject: provider-1
+//! incoming:
+//!   - issuer: https://auth.example.com
+//!     subject: daemon-1
+//! outgoing:
+//!   - address: hub.example.com:7000
+//!     identity:
+//!       issuer: https://auth.example.com
+//!       subject: hub
 //! containers:
 //!   podman:
 //!     registries:
@@ -48,7 +47,7 @@
 //!       - host: ghcr.io
 //!         credential:
 //!           username: bolt
-//!           password: ghp_…
+//!           password: ghp_example
 //!     storage_path: /mnt/podman
 //!     image_cache_disk: 107374182400
 //!     container_overlay_disk: 214748364800
@@ -68,6 +67,14 @@
 //!   capacity: 274877906944
 //! ```
 //!
+//! Every handshake, whichever end dialled, presents the token of the
+//! provider's one `identity`, whatever issuer the peer's is from, and
+//! serves a peer that dialled it only when its verified
+//! `(issuer, subject)` is in `incoming`, and a peer it dialled only
+//! when it is the one that `outgoing` entry names. The tokens are the
+//! root's
+//! [`identities`](diverge_sdk::identities), signed in beforehand.
+//!
 //! [`Error`] is why the root or the file could not be used.
 //!
 //! Its own files are flattened into it, so everything is named
@@ -77,10 +84,10 @@ mod config;
 mod error;
 mod load;
 mod root;
-pub mod auth;
-pub mod clients;
+pub mod outgoing;
 pub mod containers;
 pub mod images;
+pub mod messages;
 pub mod volumes;
 
 pub use config::*;

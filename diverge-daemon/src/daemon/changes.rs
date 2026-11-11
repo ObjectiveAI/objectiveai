@@ -1,12 +1,11 @@
 //! The word that a kind's records or live state changed, for the
 //! lists kept open.
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use tokio::sync::broadcast;
 
 /// How many words a listing may fall behind by before it is told so,
 /// and reads again instead of the words it missed.
-const CHANGES_BEHIND: usize = 256;
+pub const CHANGES_BEHIND: usize = 256;
 
 /// One kind of thing a list is over: what a word names, and what a
 /// listing of that kind listens for.
@@ -16,15 +15,12 @@ pub enum Kind {
     Accounts,
     /// Roles: the records.
     Roles,
-    /// Outgoing providers: the records, which are connected, and when
-    /// one last was.
-    ProvidersOutgoing,
-    /// Incoming credentials: the records, and which have a provider
-    /// connected through them.
-    ProvidersIncoming,
-    /// Daemon records: the records, and which this daemon holds a
-    /// connection to.
-    ProvidersDaemons,
+    /// Providers: their records, which are connected, and where the
+    /// daemon stands with each.
+    Providers,
+    /// Remote daemons: which of the configuration's this daemon holds
+    /// a connection to.
+    Daemons,
     /// Agent templates: the records, and which are in use.
     AgentsTemplates,
     /// Tool templates: the records, and which are in use.
@@ -37,6 +33,9 @@ pub enum Kind {
     /// Tools: the records, what is attached, which run, and which
     /// dependency tools run.
     StandaloneTools,
+    /// Connected tools: the records, what is attached, and which
+    /// connects are held and busy.
+    ConnectedStandaloneTools,
     /// Volumes: a provider's listing, and the records that mount one.
     Volumes,
     /// The vault: the keys, and the records that bind one.
@@ -45,17 +44,9 @@ pub enum Kind {
     Postgres,
     /// Events: the graph, an edge added or its count raised.
     Events,
-}
-
-impl Kind {
-    /// The kind a provider's connection is listed under, by its
-    /// identity.
-    pub fn of_provider(identity: &Identity) -> Kind {
-        match identity {
-            Identity::Outgoing { .. } => Kind::ProvidersOutgoing,
-            Identity::IncomingUnbrokered { .. } => Kind::ProvidersIncoming,
-        }
-    }
+    /// Listings: a provider's daemons list changed, ended, or was
+    /// dropped.
+    Listings,
 }
 
 /// Every change to any kind, as the handlers and the live state make

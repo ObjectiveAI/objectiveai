@@ -1,14 +1,14 @@
 ---
 title: 'Capabilities'
-summary: 'The parts of the Endpoints layer a server holds out, stated in the capabilities object of its info response: the client image store, the registries it pulls from, and each volume mode with what may hold a volume of it; and, for every capability, the endpoints it governs and exactly what the server sends for a request past a capability it does not hold out.'
+summary: 'The parts of the Endpoints layer a server holds out, stated in the capabilities object of its info response: running containers, the Store, the registries it pulls from, and each volume mode with what may hold a volume of it; and, for every capability, the endpoints it governs and exactly what the server sends for a request past a capability it does not hold out.'
 order: 4
 draft: false
 ---
 
 A server serves every endpoint of the [Endpoints](/endpoints/)
 layer: it reads every request and answers it as that layer provides.
-Some of what a request may ask, a server may not do: keep a client
-image store, pull from a registry, keep volumes of a mode, let more
+Some of what a request may ask, a server may not do: run
+containers, keep the Store, pull from a registry, keep volumes of a mode, let more
 than one party hold a volume at once. Each such part is a
 **capability**. The server states the capabilities it holds out in
 the `capabilities` object of its [info](/endpoints/info/) response,
@@ -53,11 +53,13 @@ define.
 
 | Member | Type | Absent | Governs |
 |--------|------|--------|---------|
-| `images_store` | boolean | `false` | [images::list](/endpoints/images-list/), [images::stat](/endpoints/images-stat/), [images::build](/endpoints/images-build/), [images::delete](/endpoints/images-delete/), [images::oci](/endpoints/images-oci/), and the `client` source of [images::check](/endpoints/images-check/) |
-| `images_registries` | array of strings | `[]` | the `registries` source of [images::check](/endpoints/images-check/), and where a run obtains its image |
+| `containers` | boolean | `false` | [containers::agents::run](/endpoints/containers-agents-run/) and [containers::tools::run](/endpoints/containers-tools-run/) |
+| `images_store` | boolean | `false` | [images::list](/endpoints/images-list/), [images::stat](/endpoints/images-stat/), [images::build](/endpoints/images-build/), [images::push](/endpoints/images-push/), [images::edit](/endpoints/images-edit/), [images::delete](/endpoints/images-delete/), the client's Store as a source of [images::oci](/endpoints/images-oci/), and the `Store` source of a run |
+| `images_registries` | array of strings | `[]` | the registries as a source of [images::oci](/endpoints/images-oci/), and the `Registry` source of a run and of an [images::push](/endpoints/images-push/) |
 | `volumes_persistent` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the eleven volume endpoints, and the volume mounts of the two runs, for a volume whose `mode` is `persistent` |
 | `volumes_ephemeral` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the same, for a volume whose `mode` is `ephemeral` |
 | `volumes_read_only` | object, [the mode object](#the-mode-object) | every member `false`: no volume of the mode | the same, for a volume whose `mode` is `read_only` |
+| `messages` | object, [the messages object](#messages) | no object: no message is relayed | [daemons::listen](/endpoints/daemons-listen/) and [daemons::message](/endpoints/daemons-message/) |
 
 The object is defined by
 `diverge-sdk-rs/src/provider/endpoints/info/server/response/capabilities.rs`:
@@ -65,47 +67,81 @@ The object is defined by
 ```rust include=diverge-sdk-rs/src/provider/endpoints/info/server/response/capabilities.rs
 ```
 
+## `containers`
+
+The server runs containers: the agent containers of
+[containers::agents::run](/endpoints/containers-agents-run/) and the
+tool containers of
+[containers::tools::run](/endpoints/containers-tools-run/), as the
+pages of those endpoints define.
+
+- **Held out.** The server serves
+  [containers::agents::run](/endpoints/containers-agents-run/) and
+  [containers::tools::run](/endpoints/containers-tools-run/) as their
+  pages state.
+- **Not held out.** The server runs no container. The server
+  answers:
+  - a [containers::agents::run](/endpoints/containers-agents-run/)
+    request with exactly one response, the byte `10` and nothing
+    else, and the response finish;
+  - a [containers::tools::run](/endpoints/containers-tools-run/)
+    request with exactly one response, the byte `9` and nothing else,
+    and the response finish.
+
+  The server sends the response before it checks the request's
+  mounts or image, and it decides none of the volume refusals of
+  [the hold](#the-hold) for the request. It sends no id, opens no
+  channel on the scope, and answers no channel the client opens on
+  the scope.
+
 ## `images_store`
 
-The server keeps a client image store: images the client builds on
-it by [images::build](/endpoints/images-build/), under names of the
-client's, held for the client and for no other identity, as the
-pages of those endpoints define.
+The server keeps the Store: for each client, the images the client
+owns on the server, each named by its digest alone — every image the
+client builds by [images::build](/endpoints/images-build/) or pushes
+by [images::push](/endpoints/images-push/) and has not deleted — held
+for the client and for no other identity, as
+[Image sources](/endpoints/#image-sources) and the pages of those
+endpoints define.
 
 - **Held out.** The server serves [images::list](/endpoints/images-list/),
   [images::stat](/endpoints/images-stat/),
   [images::build](/endpoints/images-build/),
-  [images::delete](/endpoints/images-delete/) and
-  [images::oci](/endpoints/images-oci/) as their pages state, and
-  the `client` source of [images::check](/endpoints/images-check/)
-  is a source the server has.
-- **Not held out.** The server has no client image, and the `client`
-  source of [images::check](/endpoints/images-check/) is not a
-  source the server has. The server answers:
+  [images::push](/endpoints/images-push/),
+  [images::edit](/endpoints/images-edit/),
+  and [images::delete](/endpoints/images-delete/) as their pages
+  state; the client's Store is a source from which the server answers
+  and serves [images::oci](/endpoints/images-oci/); and the `Store` source of
+  [Image sources](/endpoints/#image-sources) is a source of a run.
+- **Not held out.** The server keeps no Store. The client's Store is
+  not a source of [images::oci](/endpoints/images-oci/), and no run's image has the
+  source `Store`. The server answers:
   - an [images::list](/endpoints/images-list/) request with exactly
     one response, the byte `4` and nothing else, and the response
-    finish; it sends no image, no byte `2` and no byte `3`;
+    finish; it sends no image, no byte `3` and no byte `5`;
   - an [images::stat](/endpoints/images-stat/) request with exactly
     one response, the byte `1` and nothing else, and the response
     finish;
   - an [images::build](/endpoints/images-build/) request with exactly
-    one response, the byte `4` and nothing else, and the response
+    one response, the byte `5` and nothing else, and the response
     finish; it sends no line of output before it, and builds nothing;
+  - an [images::push](/endpoints/images-push/) request with exactly
+    one response, the byte `7` and nothing else, and the response
+    finish; it sends no blob response before it, opens no channel and
+    obtains nothing;
+  - an [images::edit](/endpoints/images-edit/) request with exactly
+    one response, the byte `2` and nothing else, and the response
+    finish;
   - an [images::delete](/endpoints/images-delete/) request with
     exactly one response, the byte `2` and nothing else, and the
     response finish;
-  - an [images::oci](/endpoints/images-oci/) request with exactly one
-    response on the main stream, the byte `0` and nothing else, and
-    the response finish; it answers no channel the client opens on
-    the scope;
-  - an [images::check](/endpoints/images-check/) request that asks
-    for the `client` source and not for the `registries` source, or
-    that asks for the `registries` source where
-    [`images_registries`](#images_registries) is empty, with exactly
-    one response, the byte `2` and nothing else, and the response
-    finish; a request that also asks for the `registries` source
-    where `images_registries` is not empty is answered from that
-    source alone.
+  - where [`images_registries`](#images_registries) is empty, an
+    [images::oci](/endpoints/images-oci/) request with exactly one
+    response on the main stream, the byte `2` and nothing else, and
+    the response finish, after which it answers no channel the client
+    opens on the scope. Where `images_registries` is not empty, the
+    server answers and serves an images::oci scope from the
+    registries alone.
 - **The `images_disk` member of a capacity response.** The server
   sends the `images_disk` member of every
   [capacity](/endpoints/capacity/) response whether or not it holds
@@ -119,32 +155,69 @@ each the host of one registry as a reference's `registry` member
 names it — `docker.io`, `ghcr.io`, `registry.example.com:5000` — and
 every registry the server pulls from is in the array.
 
-- **The `registries` source.** An [images::check](/endpoints/images-check/)
-  request that asks for the `registries` source is answered by
-  consulting exactly the registries in the array that a reference of
-  the request names, as `<registry>/<name>@<digest>`. A reference
-  naming a registry not in the array is ignored. The source is one
+- **The registries as a source.** Where the client's Store does not
+  supply the image, the server answers and serves an
+  [images::oci](/endpoints/images-oci/) scope by consulting
+  exactly the registries in the array that a reference of the request
+  names, as `<registry>/<name>@<digest>`. A reference naming a
+  registry not in the array is ignored. The registries are a source
   the server has when the array is not empty.
-- **A run's image.** A server obtains the image of a
-  [containers::agents::run](/endpoints/containers-agents-run/) or a
-  [containers::tools::run](/endpoints/containers-tools-run/) from a
+- **A run's image and a push's image.** A server obtains the image of a
+  [containers::agents::run](/endpoints/containers-agents-run/), of a
+  [containers::tools::run](/endpoints/containers-tools-run/) or of an
+  [images::push](/endpoints/images-push/) from a
   registry only where the registry is in the array and a reference
   of the request names it; it obtains an image from no registry the
   array does not list.
 - **Empty.** An empty array, or an absent member, states that the
-  server pulls from no registry. The `registries` source is not a
-  source the server has: an [images::check](/endpoints/images-check/)
-  request that asks for it and for no source the server has is
-  answered with exactly one response, the byte `2` and nothing else,
-  and the response finish; one that also asks for the `client`
-  source where [`images_store`](#images_store) is `true` is answered
-  from that source alone. A run's image is obtained from what the
-  server holds or from the client, and from no registry.
+  server pulls from no registry. The registries are not a source the
+  server has. Where [`images_store`](#images_store) is also `false`,
+  the server answers an [images::oci](/endpoints/images-oci/)
+  request with exactly one response on the main stream, the byte `2`
+  and nothing else, and the response finish. Where `images_store` is
+  `true`, the server answers and serves an images::oci scope from the
+  client's Store alone. A run's image is obtained from the
+  client's Store or from the client, and a push's image from the
+  client, as [Image sources](/endpoints/#image-sources) states, and
+  from no registry.
+
+## `messages`
+
+The server relays direct messages between the identities connected to
+it, at most at the rate the object states, as the pages of
+[daemons::listen](/endpoints/daemons-listen/) and
+[daemons::message](/endpoints/daemons-message/) define.
+
+- **The object.** The object has exactly the members `messages` and
+  `seconds`, each an integer from `1` to `4294967295`: at most
+  `messages` sends of one identity in one window of `seconds` seconds.
+  Both members are present whenever the object is present. A server
+  that relays messages holds out the object; no server relays
+  messages without a rate.
+- **Held out.** The server serves
+  [daemons::listen](/endpoints/daemons-listen/) and
+  [daemons::message](/endpoints/daemons-message/) as their pages state,
+  and counts every send against the window the
+  [daemons::message](/endpoints/daemons-message/#the-window) page defines.
+- **Not held out.** The server relays no message. The server answers:
+  - a [daemons::listen](/endpoints/daemons-listen/) request with
+    exactly one response, the byte `1` and nothing else, and the
+    response finish; it opens no mailbox;
+  - a [daemons::message](/endpoints/daemons-message/) request with exactly
+    one response, the byte `3` and nothing else, and the response
+    finish; it queues nothing and counts nothing.
+
+The object is defined by
+`diverge-sdk-rs/src/provider/endpoints/info/server/response/messages_capabilities.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/info/server/response/messages_capabilities.rs
+```
 
 ## What every server does
 
-Every server makes every FUSE mount a run request names, and every
-mount a client asks for on the fuse-mount channel of a run, and
+Every server that holds out [`containers`](#containers) makes every
+FUSE mount a run request names, and every mount a client asks for on
+the fuse-mount channel of a run, and
 serves every [containers::fuse_serve](/endpoints/containers-fuse-serve/)
 request, as those pages state: no capability governs them, and the
 `capabilities` object has no member for them.
@@ -273,6 +346,9 @@ first rule that applies deciding; the decision and the hold it takes
 are one act, between which no other hold of the volume is taken or
 given back and no edit of the volume lands.
 
+- **No containers.** A server that does not hold out
+  [`containers`](#containers) holds no volume for a run request and
+  decides none of the rules below for it.
 - **A run's volume mount.** For each distinct `volume_name` a run
   request names, in the order first named: (1) a volume not in the
   client's listing is the run's error; (2) a volume whose `mode` is

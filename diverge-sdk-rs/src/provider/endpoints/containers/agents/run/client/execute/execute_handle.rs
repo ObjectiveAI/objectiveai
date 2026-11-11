@@ -6,25 +6,28 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::Stream;
-use rmcp::model::ContentBlock;
 
 use super::super::channel_request;
-use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
+use super::{Exec, ExecStream, Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::agents::run::server;
-use crate::provider::endpoints::containers::client::answered::{Dequeue, Enqueue, FuseMount, Info, Secrets};
-use crate::provider::endpoints::containers::client::{OpenError, Scoped, UnaryError, WaitError};
+use crate::provider::endpoints::containers::client::answered::{Enqueue, FuseMount, Info, Secrets};
+use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError};
 use crate::shared::containers::fuse::Kind;
+use crate::shared::containers::exec;
+use crate::shared::containers::terminal;
+use crate::provider::endpoints::containers::client::answered::{FrontendOutput, TerminalDone, TerminalOpened, TerminalOutput};
+use crate::shared::containers::frontend;
 use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
-use crate::shared::containers::{dequeue, enqueue, fuse_mount, read, transfer, write_path};
+use crate::shared::containers::{enqueue, fuse_mount, read, transfer, write_path};
 
 /// The scope a run opened, held for the container's life.
 ///
 /// Every channel a caller may open into an agent container is a
 /// method here: the tree watched, a file read or written, one more
-/// mount made, the image's DIVERGE.md, the queue's two verbs, the
-/// secrets' feed, and the stop. What the agent says
+/// mount made, the image's DIVERGE.md, the queue's one verb, the
+/// secrets' feed, and the cancel. What the agent says
 /// is not: it is the [`ExecuteStream`](super::ExecuteStream) `execute` handed back
 /// beside this. Each opens its own channel, so several may be in flight
 /// at once. Clones share the scope, and [`wait`](Self::wait) on any
@@ -35,7 +38,7 @@ use crate::shared::containers::{dequeue, enqueue, fuse_mount, read, transfer, wr
 /// No destructor sends a frame: a destructor could not await, could
 /// not report a failure, and could not be skipped when a caller
 /// wanted the container to outlive the value. Ending a run is
-/// [`stop`](Self::stop), or the connection going.
+/// [`cancel`](Self::cancel), or the connection going.
 #[derive(Debug, Clone)]
 pub struct ExecuteHandle(Arc<Scoped>);
 
@@ -57,7 +60,7 @@ impl ExecuteHandle {
     }
 
     /// The run's end: `Ok` when the scope finishes as it should — a
-    /// stop, or the container's own end — and the provider's error
+    /// cancel, or the container's own end — and the provider's error
     /// when it ended that way. Resolves once and answers the same way
     /// again after.
     ///
@@ -73,10 +76,10 @@ impl ExecuteHandle {
         self.0.ended().await
     }
 
-    /// Stop the container. Nothing answers on the channel this opens;
+    /// Cancel the run: stop the container. Nothing answers on the channel this opens;
     /// what answers is the scope's own finish, on [`wait`](Self::wait).
-    pub async fn stop(&self) -> Result<(), OpenError> {
-        let payload = payload(&channel_request::Frame::Stop).map_err(OpenError::Request)?;
+    pub async fn cancel(&self) -> Result<(), OpenError> {
+        let payload = payload(&channel_request::Frame::Cancel).map_err(OpenError::Request)?;
         self.0.bare(&payload).await.map_err(OpenError::Send)
     }
 
@@ -92,6 +95,67 @@ impl ExecuteHandle {
         let payload = payload(&channel_request::Frame::Read(read::request::Request { path }))
             .map_err(OpenError::Request)?;
         self.0.open::<Read>(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Run one command in the container, its output streamed (see
+    /// [`exec`](crate::shared::containers::exec)). Dropping the stream
+    /// abandons it, which kills the command.
+    pub async fn exec(&self, command: exec::request::Request) -> Result<ExecStream, OpenError> {
+        let payload = payload(&channel_request::Frame::Exec(command)).map_err(OpenError::Request)?;
+        self.0.open::<Exec>(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Start a terminal the provider holds, and answer its id (see
+    /// [`session`](crate::shared::containers::terminal::session)).
+    pub async fn terminal_open(&self, size: terminal::open::Open) -> Result<u32, UnaryError<TerminalOpened>> {
+        let payload = payload(&channel_request::Frame::TerminalOpen(size)).map_err(UnaryError::Request)?;
+        self.0.unary::<TerminalOpened>(&payload).await
+    }
+
+    /// Stream a held terminal's output: its scrollback, then live.
+    /// Dropping the stream detaches; the terminal goes on.
+    pub async fn terminal_attach(&self, id: u32) -> Result<ChannelStream<TerminalOutput>, OpenError> {
+        let payload = payload(&channel_request::Frame::TerminalAttach(terminal::session::Id { id })).map_err(OpenError::Request)?;
+        self.0.open::<TerminalOutput>(&payload).await.map_err(OpenError::Send)
+    }
+
+    /// Write bytes to a held terminal's stdin; resolves once written.
+    pub async fn terminal_stdin(&self, id: u32, bytes: Vec<u8>) -> Result<(), UnaryError<TerminalDone>> {
+        let payload = payload(&channel_request::Frame::TerminalStdin { id, bytes }).map_err(UnaryError::Request)?;
+        self.0.unary::<TerminalDone>(&payload).await
+    }
+
+    /// Set a held terminal's size.
+    pub async fn terminal_resize(&self, id: u32, cols: u16, rows: u16) -> Result<(), UnaryError<TerminalDone>> {
+        let payload = payload(&channel_request::Frame::TerminalResize(terminal::session::Resize { id, cols, rows })).map_err(UnaryError::Request)?;
+        self.0.unary::<TerminalDone>(&payload).await
+    }
+
+    /// Kill a held terminal's shell.
+    pub async fn terminal_close(&self, id: u32) -> Result<(), UnaryError<TerminalDone>> {
+        let payload = payload(&channel_request::Frame::TerminalClose(terminal::session::Id { id })).map_err(UnaryError::Request)?;
+        self.0.unary::<TerminalDone>(&payload).await
+    }
+
+    /// One HTTP request to the program's frontend: `head`, its body
+    /// `body`'s pieces, which the provider asks for; its answer as a
+    /// stream, and the write id the body is kept under until
+    /// [`forget`](Self::forget) takes it back. Dropping the stream
+    /// abandons the request.
+    pub async fn frontend<S, E>(&self, head: frontend::request::Head, body: S) -> Result<(ChannelStream<FrontendOutput>, u32), OpenError>
+    where
+        S: Stream<Item = Result<Bytes, E>> + Send + 'static,
+        E: fmt::Display + Send + 'static,
+    {
+        self.0
+            .open_writing::<FrontendOutput, S, E>(move |write_id| payload(&channel_request::Frame::Frontend(frontend::request::Request { write_id, head })), body)
+            .await
+    }
+
+    /// Take back a body kept for a request whose provider never asked
+    /// for it: called once the request's stream is done.
+    pub async fn forget(&self, write_id: u32) {
+        self.0.forget(write_id).await;
     }
 
     /// Write one file into the container, whole, from `content`'s
@@ -128,28 +192,25 @@ impl ExecuteHandle {
     }
 
     /// What the arguments may be: the image's `/DIVERGE.md`, parsed —
-    /// its schema and its body — or `None` for an image that ships
+    /// its name, its schema and its body — or `None` for an image that ships
     /// none.
     pub async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
         let payload = payload(&channel_request::Frame::Info).map_err(UnaryError::Request)?;
         self.0.unary::<Info>(&payload).await
     }
 
-    /// A message for the agent — starting a loop when none runs,
-    /// queued when one does — answered with its fate whenever that
-    /// is known, which may be long after the ask; nothing times it
-    /// out. What the agent says arrives on the scope's main stream.
-    pub async fn enqueue(&self, key: String, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, content }))
+    /// A batch of messages for the agent, in order — starting a loop
+    /// when none runs, queued when one does — answered with its fate,
+    /// every message's alike, whenever that is known, which may be
+    /// long after the ask; nothing times it out. What the agent says
+    /// arrives on the scope's main stream. The order is the batch's,
+    /// and a caller that sends the next only once this is answered
+    /// has its messages taken in the order it sent them: see
+    /// [`enqueue::request::Request`].
+    pub async fn enqueue(&self, messages: Vec<enqueue::request::Message>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { messages }))
             .map_err(UnaryError::Request)?;
         self.0.unary::<Enqueue>(&payload).await
-    }
-
-    /// Withdraw every message waiting under `key`: whether any was.
-    pub async fn dequeue(&self, key: String) -> Result<dequeue::response::Frame, UnaryError<Dequeue>> {
-        let payload = payload(&channel_request::Frame::Dequeue(dequeue::request::Request { key }))
-            .map_err(UnaryError::Request)?;
-        self.0.unary::<Dequeue>(&payload).await
     }
 
     /// One more file or directory served into the container at

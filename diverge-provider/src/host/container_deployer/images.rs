@@ -52,6 +52,22 @@ use crate::host::tools::podman;
 /// the run is refused. An image podman will not remove — one a
 /// container of some other program runs — is passed over, and stays
 /// counted.
+///
+/// # What is forgotten
+///
+/// The record holds what the store holds, and no more, however long
+/// the provider runs:
+///
+/// 1. An image removed — by a trim here, by a delete of a Store image,
+///    by a build undone — is [`forget`](Self::forget)ed with its
+///    removal.
+/// 2. Every measure lets go of the record of every image the store no
+///    longer lists, whoever removed it — the use of an image gone and
+///    the count of one no container runs; a count still above zero is
+///    kept, since a container is still to end with it.
+/// 3. A count that falls to zero is let go of: an image no container
+///    runs is the same as one never counted. Its last use is kept, for
+///    the next trim's order.
 #[derive(Debug)]
 pub struct Images {
     /// The most the count may reach, in BYTES.
@@ -120,6 +136,13 @@ impl Images {
             state.pulls == 0
         };
         let mut listed = podman::images().await.map_err(Error::Podman)?;
+        // Rule 2.
+        {
+            let present: HashSet<&str> = listed.iter().map(|image| image.id.as_str()).collect();
+            let mut state = self.state.lock().await;
+            state.last_used.retain(|image, _| present.contains(image.as_str()));
+            state.running.retain(|image, count| *count > 0 || present.contains(image.as_str()));
+        }
         let mut kept = HashSet::from([id.to_string()]);
         while listed.iter().map(|image| image.size).sum::<u64>() > self.cap {
             let Some(victim) = self.state.lock().await.victim(&listed, &kept, strangers) else {
@@ -150,17 +173,28 @@ impl Images {
     }
 
     /// Whether a container runs the image with `id` now, as far as
-    /// the provider recorded: what a delete of a client image asks
+    /// the provider recorded: what a delete of a Store image asks
     /// of its copy in the cache.
     pub async fn running(&self, id: &str) -> bool {
         self.state.lock().await.running.get(id).is_some_and(|count| *count > 0)
     }
 
-    /// An image with `id` is running one container fewer.
+    /// An image with `id` is running one container fewer; the count
+    /// let go of at zero (rule 3).
     pub async fn ended(&self, id: &str) {
-        if let Some(count) = self.state.lock().await.running.get_mut(id) {
+        let mut state = self.state.lock().await;
+        if let Some(count) = state.running.get_mut(id) {
             *count = count.saturating_sub(1);
+            if *count == 0 {
+                state.running.remove(id);
+            }
         }
+    }
+
+    /// The image with `id` is gone from the store: nothing of it is
+    /// recorded (rule 1).
+    pub async fn forget(&self, id: &str) {
+        self.state.lock().await.forget(id);
     }
 }
 

@@ -1,90 +1,73 @@
-//! One run's source, and what it has answered.
+//! One token's origin, answered.
 
-use dashmap::DashMap;
-use crate::protocol::image_source::{BlobStream, ImageSource, Manifest};
-use serde_json::Value;
+use std::sync::Arc;
+
+use crate::host::image_manager::{Attempt, Store};
+use crate::protocol::image_source::{ImageSource, Manifest};
 
 use super::Digest;
 
-/// A repository being served: the run's [`ImageSource`], the
-/// manifests it has answered, and the sizes their descriptors
-/// declare.
-///
-/// A manifest is kept once fetched and verified: podman asks for one
-/// more than once — a `HEAD` and a `GET`, an index and then its
-/// platform's manifest — and a manifest is small. Its descriptors
-/// name the config, the layers, and an index's manifests with their
-/// sizes, and those are kept too, so a blob's `Content-Length` can be
-/// stated when it is known and a `HEAD` on a blob asks the caller
-/// nothing. A blob is never kept: it streams through.
+/// Where a token's repository is served from (see
+/// [`image_registry`](super), rules 3 and 4).
+#[derive(Debug, Clone)]
+pub enum Origin {
+    /// The Store: its blobs, and nothing else.
+    Store,
+    /// A run's caller, read through: what the Store holds is served
+    /// from it, and what it lacks is fetched from the caller, verified,
+    /// written into the Store pinned for `attempt`, and served.
+    Client {
+        /// The caller's store over the run scope.
+        source: ImageSource,
+        /// The attempt every blob written is pinned for.
+        attempt: Attempt,
+    },
+}
+
+/// A token's repository: its origin.
 #[derive(Debug)]
 pub struct Repository {
-    source: ImageSource,
-    manifests: DashMap<String, Manifest>,
-    sizes: DashMap<String, u64>,
+    origin: Origin,
 }
 
 impl Repository {
-    pub fn new(source: ImageSource) -> Self {
-        Repository {
-            source,
-            manifests: DashMap::new(),
-            sizes: DashMap::new(),
-        }
+    pub fn new(origin: Origin) -> Self {
+        Repository { origin }
     }
 
-    /// The manifest under `digest`: the one already answered, else the
-    /// caller's, verified against the digest and kept. A manifest the
-    /// caller does not hold, and one whose bytes are not the
-    /// digest's, are `None`.
-    pub async fn manifest(&self, digest: &Digest) -> Option<Manifest> {
-        let key = digest.to_string();
-        if let Some(manifest) = self.manifests.get(&key) {
-            return Some(manifest.clone());
+    /// The manifest under `digest`: the Store's; else, for a caller's
+    /// token, the caller's, verified and written into the Store.
+    /// `None` for one that cannot be had, or whose bytes are not the
+    /// digest's.
+    pub async fn manifest(&self, store: &Arc<Store>, digest: &Digest) -> Option<Manifest> {
+        if let Origin::Client { attempt, .. } = &self.origin {
+            store.pin(*attempt, digest).await;
         }
-        let manifest = self.source.manifest(&key).await?;
-        if !digest.verifies(&manifest.body) {
+        if let Some(manifest) = store.manifest(digest).await {
+            return Some(manifest);
+        }
+        let Origin::Client { source, attempt } = &self.origin else {
+            return None;
+        };
+        let manifest = source.manifest(&digest.to_string()).await?;
+        if !store.write_bytes(*attempt, digest, &manifest.body).await.ok()? {
             return None;
         }
-        self.remember_sizes(&manifest.body);
-        self.manifests.insert(key, manifest.clone());
-        Some(manifest)
+        store.manifest(digest).await
     }
 
-    /// The blob under `digest`, as the caller's pieces, or `None` for
-    /// one the caller does not hold. Nothing is kept.
-    pub async fn blob(&self, digest: &Digest) -> Option<BlobStream> {
-        self.source.blob(&digest.to_string()).await
-    }
-
-    /// The size a manifest's descriptor declared for `digest`, if one
-    /// has.
-    pub fn size(&self, digest: &Digest) -> Option<u64> {
-        self.sizes.get(&digest.to_string()).map(|size| *size)
-    }
-
-    /// Every descriptor in the manifest — `config`, each of `layers`,
-    /// each of an index's `manifests` — entered by its digest with
-    /// its size. A manifest that is not JSON, or a descriptor missing
-    /// either field, contributes nothing; the manifest is served as
-    /// it is regardless, since its bytes are the digest's.
-    fn remember_sizes(&self, body: &[u8]) {
-        let Ok(manifest) = serde_json::from_slice::<Value>(body) else {
-            return;
+    /// The size of the blob under `digest` in the Store, once it is
+    /// there: for a caller's token, fetched from the caller first when
+    /// the Store lacks it, verified and written. `None` for a blob
+    /// that cannot be had.
+    pub async fn blob(&self, store: &Arc<Store>, digest: &Digest) -> Option<u64> {
+        let Origin::Client { source, attempt } = &self.origin else {
+            return store.blob_size(digest).await;
         };
-        let descriptors = manifest
-            .get("config")
-            .into_iter()
-            .chain(manifest.get("layers").and_then(Value::as_array).into_iter().flatten())
-            .chain(manifest.get("manifests").and_then(Value::as_array).into_iter().flatten());
-        for descriptor in descriptors {
-            let (Some(digest), Some(size)) = (
-                descriptor.get("digest").and_then(Value::as_str),
-                descriptor.get("size").and_then(Value::as_u64),
-            ) else {
-                continue;
-            };
-            self.sizes.insert(digest.to_string(), size);
+        if let Some(size) = store.hold(*attempt, digest).await {
+            return Some(size);
         }
+        let pieces = source.blob(&digest.to_string()).await?;
+        store.write_stream(*attempt, digest, pieces).await.ok().flatten()
     }
 }

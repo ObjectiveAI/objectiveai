@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.laboratories.delete.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "laboratories/delete/request_schema"
-  ]
-}

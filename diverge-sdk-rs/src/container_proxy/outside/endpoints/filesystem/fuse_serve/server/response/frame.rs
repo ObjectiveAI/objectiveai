@@ -17,7 +17,7 @@ use crate::shared::error::Error;
 /// | the scope | means |
 /// |-----------|-------|
 /// | a serving, then quiet, and stays open | the subtree is served, and every ask the server opens is answered on its channel |
-/// | a serving, then a finish | the server stopped |
+/// | a serving, then a finish | the server cancelled |
 /// | an error, then a finish | it was not served: the path is not a directory of the container, or is one the proxy leaves out |
 ///
 /// Exactly one response, first. Nothing else comes on channel `0`;

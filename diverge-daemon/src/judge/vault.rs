@@ -22,6 +22,9 @@ use crate::store::vault::Entry;
 
 /// Whether the standing may make a key the vault does not hold.
 pub fn make(standing: &Standing, action: Make) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .vault()
         .any(|permission| matches!(permission, Permission::Make(makes) if makes.contains(&action)))
@@ -29,6 +32,9 @@ pub fn make(standing: &Standing, action: Make) -> bool {
 
 /// Whether the standing holds `action` over any key at all.
 pub fn holds(standing: &Standing, action: Over) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .vault()
         .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
@@ -36,6 +42,9 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
 
 /// Whether the standing may do `action` to the key.
 pub fn over(standing: &Standing, action: Over, entry: &Entry) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.vault().any(|permission| match permission {
         Permission::Over { actions, within } => actions.contains(&action) && reaches(within, entry),
         _ => false,
@@ -48,6 +57,9 @@ pub fn over(standing: &Standing, action: Over, entry: &Entry) -> bool {
 /// is told that the key is missing — it could see any key, so the
 /// vault's contents are no secret from it — or forbidden.
 pub fn any(standing: &Standing, action: Over) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.vault().any(|permission| match permission {
         Permission::Over { actions, within } => actions.contains(&action) && within.is_any(),
         _ => false,
@@ -57,6 +69,9 @@ pub fn any(standing: &Standing, action: Over) -> bool {
 /// Whether the standing holds the tagging `action` over any key at
 /// all.
 pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .vault()
         .any(|permission| matches!(permission, Permission::Tags { actions, .. } if actions.contains(&action)))
@@ -66,6 +81,9 @@ pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
 /// as `action` says: one grant must hold the action, reach the key,
 /// and name every one of the tags or `any`.
 pub fn tagging(standing: &Standing, action: Tagging, entry: &Entry, tags: &[String]) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing.vault().any(|permission| match permission {
         Permission::Tags {
             actions,

@@ -1,0 +1,24 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, and what ends it.'
+order: 2
+draft: false
+---
+
+```text
+[0]                   done
+[1][error JSON …]     not done
+```
+
+The server sends exactly one channel response, followed by the channel
+response finish.
+
+- **Done.** The byte `0` and nothing after it: the size is set.
+- **The error.** After the byte `1`, exactly one JSON value in the form
+  defined on the [volumes::list response](/endpoints/volumes-list/response/) page. Among its causes is an id
+  that names no terminal the server holds.
+
+The channel response is defined by `diverge-sdk-rs/src/shared/containers/terminal/session.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/terminal/session.rs
+```

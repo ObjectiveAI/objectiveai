@@ -1,4 +1,6 @@
 //! One volume made visible inside a container, and whose it is.
+use diverge_sdk::shared::Identity;
+
 
 /// A [`request::VolumeMount`] with the one thing a caller could not say.
 ///
@@ -63,7 +65,7 @@ pub struct Mount {
     ///
     /// The caller a provider resolves the name against. See the type's
     /// own documentation for why it is here and not on the wire.
-    pub client_identity: String,
+    pub client_identity: Identity,
     /// Which offered volume, by the name a listing gave it.
     ///
     /// Names come from

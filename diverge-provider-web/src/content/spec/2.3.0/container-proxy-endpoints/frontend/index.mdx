@@ -1,0 +1,71 @@
+---
+title: 'frontend'
+summary: 'Tag 9: the client sends the head of one HTTP request beneath /frontend; the server sends the request to the program''s HTTP server in the container, takes its body on channels, and sends the response''s head and body.'
+order: 9
+draft: false
+---
+
+The client opens the scope with a request whose payload is the tag
+byte `9` followed by the head of one HTTP request, as JSON. The server
+sends the request to the program's HTTP server in the container. The
+client sends the request's body on channels. The server sends the
+response's head and the response's body as responses, and ends the
+scope by the response finish.
+
+- **The request.** [Request](/container-proxy-endpoints/frontend/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/frontend/response/) states the sequence of the main
+  stream.
+- **The channels.** The client opens the channels that
+  [Client Channels](/container-proxy-endpoints/frontend/client/) defines. The server opens no channel on a
+  frontend scope.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Container Proxy Endpoints](/container-proxy-endpoints/) provides.
+2. **The server checks the declaration.** The server reads
+   `/DIVERGE.md` from the root of the container's filesystem. A file
+   that is absent, that does not parse as the [info response](/container-proxy-endpoints/tools-begin/client/info/response/) defines,
+   or whose frontmatter does not carry the member `frontend` with the
+   value `true`, is answered by exactly one error response and the
+   response finish.
+3. **The server checks the request.** A `path` that does not satisfy
+   the path rule of [Request](/container-proxy-endpoints/frontend/request/), a `method` that is not an HTTP
+   method token, or a header that is not a valid HTTP header, is
+   answered by exactly one error response and the response finish.
+4. **The server sends the request.** The server sends an HTTP/1.1
+   request to the program's HTTP server on the container's loopback
+   interface, `127.0.0.1`, at the port that the environment variable
+   `PORT` names, or at the port `8080` when `PORT` is absent or is not
+   a decimal integer from `1` to `65535`. The request carries
+   `method`, `path` and every header of `headers` except `Host`. The
+   server sets `Host` to the address and port it connects to. The
+   request has a body exactly when `headers` carries `Content-Length`
+   or `Transfer-Encoding`, and the body is the bytes of the client's
+   [body](/container-proxy-endpoints/frontend/client/body/) channels, in the order the server received them, up
+   to the client's [end](/container-proxy-endpoints/frontend/client/end/) channel. The server follows no
+   redirect and sends the request through no intermediary. A program
+   that does not answer the request is answered by exactly one error
+   response and the response finish.
+5. **The server sends the response.** The server sends the response's
+   head, then the response's body in pieces as it reads them, and the
+   response finish.
+
+## The rules that hold throughout
+
+- **The upgrade.** A response whose status is `101` to a request that
+  has no body upgrades the connection. After the head, the server
+  sends the bytes the program sends on the connection as responses
+  whose first byte is `1`, and writes the bytes of the client's body
+  channels to the connection, in the order the server received them.
+  The client's end channel closes the server's writing side of the
+  connection. The server sends the response finish when the program
+  closes its side of the connection.
+- **The cancel.** The client's [cancel](/container-proxy-endpoints/frontend/client/cancel/) channel, the end of the
+  connection, or the client's abandoning the scope's responses, as
+  [Credits](/frames/credits/) provides, ends the server's request to the
+  program. The server sends no response after it, and sends the
+  response finish.
+- **No timeout.** The server imposes no timeout on the request or the
+  scope.

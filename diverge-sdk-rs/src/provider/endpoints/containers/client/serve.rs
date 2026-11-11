@@ -3,15 +3,13 @@
 
 use std::sync::Arc;
 
-use bytes::Bytes;
-use tokio::sync::mpsc::UnboundedReceiver;
-
 use super::answer;
 use super::{Ask, Encoders, Writes};
 use crate::wire::client::handle::Handle;
 use crate::provider::client::{
     Answerers, Daemon, FuseServer, McpServer, OciStore, PostgresDialer, Registrar,
 };
+use crate::shared::containers::request::Image;
 use crate::wire::frame;
 
 /// Read every channel request the provider opens on `scope` and
@@ -19,7 +17,9 @@ use crate::wire::frame;
 /// ends.
 ///
 /// `decode` is the family's: its `server::channel_request::Frame`
-/// read into the one owned [`Ask`]. A frame that is not a channel
+/// read into the one owned [`Ask`]. `image` is the run's own, which a
+/// manifest or a blob, asked by digest alone, belongs to. A frame
+/// that is not a channel
 /// request is dropped — the wire says nothing else can be on this
 /// stream, and there is no channel to answer. An ask that will not
 /// decode is a channel this end cannot serve, and is answered as
@@ -30,9 +30,10 @@ use crate::wire::frame;
 /// order, and an agent making several calls at once is the ordinary
 /// case.
 pub(crate) async fn serve<O, T, P, D, M, F>(
-    mut requests: UnboundedReceiver<Bytes>,
+    mut requests: crate::wire::credit::Receiver,
     handle: Handle,
     scope: u32,
+    image: Arc<Image>,
     writes: Arc<Writes>,
     answerers: Answerers<O, T, P, D, M, F>,
     decode: fn(&[u8]) -> Option<Ask>,
@@ -63,6 +64,7 @@ pub(crate) async fn serve<O, T, P, D, M, F>(
             scope,
             channel,
             ask,
+            Arc::clone(&image),
             Arc::clone(&writes),
             answerers.clone(),
             encoders,

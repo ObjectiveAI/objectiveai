@@ -11,18 +11,22 @@
 //! daemon answers — drains, and stops the database it started.
 //! [`listen`] accepts a WebSocket upgrade at any other
 //! path on the configured port, on every interface; [`connection`] is
-//! one accepted socket for its life: the credential that must come
-//! first, [`admit`](crate::judge::admit)ted, and then every request,
+//! one accepted socket for its life: the
+//! [`handshake`](diverge_sdk::wire::handshake) that must come first,
+//! the identity it establishes
+//! [`admit`](crate::judge::DaemonAuthenticator::admit)ted, and then
+//! every request,
 //! read as a [`ClientRequest`](diverge_sdk::daemon::endpoints::ClientRequest)
 //! and handed by [`dispatch`] to its handler — [`accounts`],
 //! [`roles`], [`providers`], [`agents`], [`standalone_tools`],
-//! [`dependency_tools`],
+//! [`connected_standalone_tools`], [`dependency_tools`],
 //! [`volumes`], [`vault`], [`postgres`] and [`events`] have one per request, every request
 //! of the wire served — or, when the request carries `relay`, by
 //! [`relay`], this daemon as a conduit to another; what the file
-//! operations of every family share is [`files`]. A credential that admits a provider rather
-//! than a client hands the socket to [`providers`](crate::providers)
-//! instead, where the daemon is the caller. A connection carried
+//! operations of every family share is [`files`]. An identity admitted
+//! as a provider rather than a client hands the socket to
+//! [`providers`](crate::providers) instead, where the daemon is the
+//! caller. A connection carried
 //! inside the process — a container's `/daemon` pair, or another
 //! daemon come through a provider — is served by [`serve_pair`], the
 //! same session and dispatch, for a standing admitted elsewhere.
@@ -49,10 +53,12 @@ mod connection;
 mod dispatch;
 mod error;
 mod listen;
+pub mod logs;
 mod pair;
 pub mod reply;
 mod run;
 mod stop_route;
+mod turn;
 
 pub use connection::*;
 pub use dispatch::*;
@@ -62,11 +68,17 @@ pub use pair::*;
 pub use reply::*;
 pub use run::*;
 pub use stop_route::*;
+pub use turn::*;
 
 pub mod accounts;
 pub mod agents;
+pub mod connected_standalone_tools;
+pub mod daemons;
 pub mod dependency_tools;
 pub mod events;
+pub mod identities;
+pub mod images;
+pub mod info;
 pub mod files;
 pub mod inner;
 pub mod postgres;

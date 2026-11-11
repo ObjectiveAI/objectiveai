@@ -1,12 +1,22 @@
-//! The twenty-one requests over providers and daemons, served.
+//! The requests over providers, served.
 //!
-//! [`outgoing`] has one handler per request over the providers the
-//! daemon dials; [`incoming`] one per request over the credentials of
-//! those that dial in; [`daemons`] one per request over the records of
-//! other daemons, reached through either. Each the shape
-//! [`serve`](super) states, with `connected` taken from what the
-//! daemon holds now.
+//! The providers are records: [`add`], [`edit`], [`delete`],
+//! [`enable`], [`disable`], [`tag`] and [`untag`] change them, each
+//! change read into the [`ProviderBook`](crate::providers::ProviderBook)
+//! and taking effect through [`reconcile`](crate::providers::reconcile)
+//! — and an edit's, on the connection as it stands, through
+//! [`sync`](crate::providers::sync);
+//! [`get`] and [`list`] report them, each with where the daemon stands
+//! with it now; [`daemons`] serves the requests over the daemons
+//! reached through them: list, listen and message.
 
+pub mod add;
 pub mod daemons;
-pub mod incoming;
-pub mod outgoing;
+pub mod delete;
+pub mod disable;
+pub mod edit;
+pub mod enable;
+pub mod get;
+pub mod list;
+pub mod tag;
+pub mod untag;

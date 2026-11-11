@@ -1,4 +1,4 @@
-//! What a client's request frame carries for a list.
+//! What a client's request frame carries for a providers daemons list.
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
@@ -6,31 +6,21 @@ use serde::{Deserialize, Serialize};
 
 use crate::shared::relay::Relay;
 
-use super::Filter;
-
-/// Ask the daemon for the caller's daemons, narrowed.
+/// Ask the daemon for every identity announced on its
+/// connected providers, each as a
+/// [`Listed`](crate::daemon::endpoints::providers::daemons::list::server::response::Listed).
 ///
 /// Everything is optional, and a request with none of it — `{}` on the
-/// wire — is every daemon of the caller's. The members but `count`
-/// together are the filter. The daemon applies the filter, oldest
-/// first, and sends each daemon it lets through as a
-/// [`Daemon`](crate::daemon::endpoints::providers::daemons::list::server::response::Daemon).
-/// The count caps what comes back.
+/// wire — is every one. The count caps what comes back.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
-    /// The filter: see [`Filter`]. Flattened, so its members are this
-    /// object's own.
-    #[serde(flatten)]
-    pub filter: Filter,
-    /// How many daemons to send at most, counting what comes back and
-    /// not what the filter reads; once that many have been sent the
-    /// scope finishes, whether or not more would have matched. `0`
-    /// sends nothing and finishes at once. Absent, no cap.
+    /// How many identities to send at most; once that many have been
+    /// sent the scope finishes, whether or not more would have come.
+    /// `0` sends nothing and finishes at once. Absent, no cap.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub count: Option<u64>,
-    /// Served by another daemon, as one of the accounts this daemon
-    /// holds on it: see [`Relay`]. Absent, served here.
+    /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
 }
@@ -47,7 +37,7 @@ pub struct Frame {
 /// whole allocation. The values are chosen across modules that do not
 /// know about each other, so the table is the only place they can be
 /// seen at once.
-const TAG: u8 = 84;
+const TAG: u8 = 125;
 
 /// JSON, as every request of the daemon's is.
 impl Encode for Frame {

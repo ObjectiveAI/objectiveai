@@ -1,5 +1,5 @@
-//! What a create names beside its template, checked: the account, the
-//! providers, the volumes mounted. Shared by the agents and tools
+//! What a create names beside its template, checked: the providers,
+//! the volumes mounted. Shared by the agents and tools
 //! creates and edits, which name the same things.
 //!
 //! Each check answers in the create's own vocabulary — [`Checked`],
@@ -15,7 +15,6 @@
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
-mod account;
 mod additions;
 mod checked;
 mod mounted;
@@ -25,7 +24,6 @@ mod provider;
 mod runtime_mount;
 mod secrets;
 
-pub use account::*;
 pub use additions::*;
 pub use checked::*;
 pub use mounted::*;

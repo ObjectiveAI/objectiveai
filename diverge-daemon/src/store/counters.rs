@@ -5,10 +5,11 @@ use sqlx::{PgConnection, Row as _};
 use crate::store::Error;
 
 /// The next index for `key` — one key per way of making a container:
-/// `agents:<template>`, `tools:<template>`, or
-/// `tools:<daemon>:<canonical tool JSON>` for a connected tool. The
-/// first is
-/// `1`, and no number is given twice: the row is advanced in the
+/// `agents:<template>`, `tools:<template>` for a standalone tool,
+/// `tools:<daemon>:<canonical tool JSON>` for a connected standalone
+/// tool — see
+/// [`connected_standalone_tools::create`](crate::store::connected_standalone_tools::create)
+/// — or `dependency_tools:<template>`. The first is `1`, and no number is given twice: the row is advanced in the
 /// caller's transaction, so a create that does not commit gives its
 /// number back.
 pub async fn next(conn: &mut PgConnection, key: &str) -> Result<u64, Error> {

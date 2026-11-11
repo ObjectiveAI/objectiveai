@@ -1,16 +1,18 @@
 ---
 title: 'Server Frames'
-summary: 'The six frame types a server sends: authorization, response, response finish, channel request, channel response, and channel response finish.'
+summary: 'The seven frame types a server sends: authorization, response, response finish, channel request, channel response, channel response finish, and credit.'
 order: 2
 draft: false
 ---
 
-A server sends six frame types.
+A server sends seven frame types.
 
 - **Type `0` — authorization.** The scope and channel fields are
-  ignored. The payload is a credential. Whether a connection carries
-  one, which party sends it, and when, are the
-  [Authorization](/authorization/) layer's to state.
+  ignored. The payload is a token and nothing else.
+  Whether a connection carries one,
+  the order in which the parties send theirs, and what each party
+  does with the other's, are the [Authorization](/authorization/)
+  layer's to state.
 - **Type `2` — response.** One piece of the answer to a
   [scope](/frames/scopes/)'s request. The scope field names the scope;
   the channel field is ignored. The payload is the piece.
@@ -27,3 +29,7 @@ A server sends six frame types.
 - **Type `6` — channel response finish.** Ends a channel the client
   opened, quoting its number. It carries no payload, and it is the
   only way such a channel ends.
+- **Type `7` — credit.** Gives the client room for one more frame on
+  a stream the server reads, or states that the server reads no more
+  of it. The payload is one byte, the credit's kind. Its fields and
+  kinds are [Credits](/frames/credits/)'s to state.

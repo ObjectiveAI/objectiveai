@@ -8,17 +8,20 @@ use clap::Subcommand;
 
 use crate::run::{Emitter, Error, Target};
 
+pub mod connect;
 pub mod create;
 pub mod delete;
 pub mod download;
 pub mod edit;
+pub mod exec;
+pub mod frontend;
 pub mod filetree;
 pub mod get;
 pub mod list;
-pub mod logs;
 pub mod message;
 pub mod tag;
 pub mod templates;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;
@@ -36,12 +39,20 @@ pub enum Agents {
     Edit(edit::Arguments),
     /// Watching an agent's container's filesystem, whole.
     Filetree(filetree::Arguments),
+    /// Running one command in an agent's container, its output streamed.
+    Exec(exec::Arguments),
+    /// An interactive shell in an agent's container, on a terminal.
+    Terminal(terminal::Arguments),
+    /// One HTTP request to an agent's frontend.
+    Frontend(frontend::Arguments),
+    /// MCP as an agent: its tools and resources, held for one MCP
+    /// exchange.
+    #[command(subcommand)]
+    Connect(connect::Connect),
     /// Getting one agent.
     Get(get::Arguments),
     /// Listing a caller's agents.
     List(list::Arguments),
-    /// An agent's log: everything its conversation has carried, read.
-    Logs(logs::Arguments),
     /// Sending an agent a message.
     Message(message::Arguments),
     /// Putting tags on an agent.
@@ -66,10 +77,13 @@ pub async fn run(command: Agents, target: &Target<'_>, emitter: &mut Emitter) ->
         Agents::Delete(arguments) => delete::run(arguments, target, emitter).await,
         Agents::Download(arguments) => download::run(arguments, target, emitter).await,
         Agents::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        Agents::Exec(arguments) => exec::run(arguments, target, emitter).await,
+        Agents::Terminal(arguments) => terminal::run(arguments, target, emitter).await,
+        Agents::Frontend(arguments) => frontend::run(arguments, target, emitter).await,
+        Agents::Connect(command) => connect::run(command, target, emitter).await,
         Agents::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         Agents::Get(arguments) => get::run(arguments, target, emitter).await,
         Agents::List(arguments) => list::run(arguments, target, emitter).await,
-        Agents::Logs(arguments) => logs::run(arguments, target, emitter).await,
         Agents::Message(arguments) => message::run(arguments, target, emitter).await,
         Agents::Tag(arguments) => tag::run(arguments, target, emitter).await,
         Agents::Templates(command) => templates::run(command, target, emitter).await,

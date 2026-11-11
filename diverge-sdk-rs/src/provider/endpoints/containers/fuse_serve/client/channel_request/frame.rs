@@ -1,10 +1,10 @@
 //! What a client's channel request frame carries on a container
 //! FUSE serve scope.
 
-/// One of the nine asks, the stop, or the tree: the
+/// One of the nine asks, the cancel, or the tree: the
 /// [`volumes::fuse_serve`](crate::provider::endpoints::volumes::fuse_serve) scope's
 /// channel request, byte for byte — `0`–`8` the mount's asks, `9`
-/// the stop, `10` the tree — answered here from a container rather
+/// the cancel, `10` the tree — answered here from a container rather
 /// than a volume. See [`Frame`](crate::provider::endpoints::volumes::fuse_serve::client::channel_request::Frame)
 /// for every tag.
 ///

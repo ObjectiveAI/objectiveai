@@ -1,28 +1,34 @@
 //! Who is asking, and what their grants reach.
 //!
 //! Two judgments, and nothing else decides anything. The first is at
-//! the handshake: [`admit_peer`] turns a credential and the address
-//! it came from into a [`Peer`] — a [`Who`], the account the
-//! connection is served for, or the identity of a provider that
-//! dialled in — or into nothing, which is the socket closed; see
-//! [`key`] for how a key is minted and how it is kept as a hash. A
-//! dependency tool's `/daemon` connection is admitted by no
-//! credential: its [`Who`] is the [`Dependent`] its template fixed,
-//! the grants and which tool's attachments its `self` is. The
+//! the handshake: the [`DaemonAuthenticator`] verifies the token the
+//! other end presents and [`admit`](DaemonAuthenticator::admit)s the
+//! `(issuer, subject)` it establishes as [`Admitted`] — a provider the
+//! configuration accepts, an administrator its `admins` names, or the
+//! account that identity is, a [`Who`] — or as nothing, which is the
+//! socket closed. With no account, no administrator and no accepted
+//! provider, nothing is admitted. A tool's `/daemon` connection is
+//! admitted by no token: its [`Who`] is what its container
+//! [`Declared`] at its registration — the grants, and which tool's
+//! attached agents its `attached` reaches. The
 //! second is per request: [`Standing`] is who is asking as of THIS
 //! request — an account's identity and the union of the grants of
 //! the roles it holds, read fresh inside the request's own
-//! transaction, or a dependency's grants as fixed with the agents its
-//! `self` reaches read fresh — and
-//! [`accounts`], [`roles`], [`providers_outgoing`],
-//! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
+//! transaction, or a tool's grants as declared with the agents its
+//! `attached` reaches read fresh — and
+//! [`accounts`], [`roles`], [`providers`], [`providers_daemons`],
+//! [`daemons`], [`agents_templates`],
 //! [`standalone_tools_templates`], [`dependency_tools`],
-//! [`agents`], [`standalone_tools`], [`postgres`], [`vault`], [`events`] and [`volumes`] are the pure functions that say whether a
+//! [`agents`], [`standalone_tools`], [`connected_standalone_tools`],
+//! [`postgres`], [`vault`], [`events`] and [`volumes`] are the pure functions that say whether a
 //! standing holds a making action, holds an action over a record, or
 //! holds a tagging action over a record and its tags, by the rule the
 //! wire states: any one grant allowing is the whole of it, nothing
 //! denies, and a grant's `within` is the kind's own list filter read
-//! as a TEST, which [`filter`] is.
+//! as a TEST, which [`filter`] is. An administrator's standing holds no
+//! grant and needs none: every one of those functions allows it
+//! everything, first and without reading a grant — see
+//! [`Standing::admin`].
 //!
 //! # What is not here
 //!
@@ -35,26 +41,30 @@
 //! through this module and not through the file it lives in.
 
 mod admit;
-mod dependent;
+mod agent_state;
+mod declared;
 mod standing;
 mod who;
 
 pub use admit::*;
-pub use dependent::*;
+pub use agent_state::*;
+pub use declared::*;
 pub use standing::*;
 pub use who::*;
 
 pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
+pub mod connected_standalone_tools;
 pub mod dependency_tools;
 pub mod events;
+pub mod identities;
+pub mod images;
 pub mod filter;
-pub mod key;
 pub mod postgres;
+pub mod daemons;
+pub mod providers;
 pub mod providers_daemons;
-pub mod providers_incoming;
-pub mod providers_outgoing;
 pub mod roles;
 pub mod standalone_tools;
 pub mod standalone_tools_templates;

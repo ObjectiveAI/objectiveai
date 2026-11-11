@@ -5,26 +5,22 @@ import { DecodeError, jsonOf, splitTag } from "../../../../../../wire/decode.js"
 import { Error } from "../../../../../../shared/error.js";
 
 /**
- * A message's answer: the loop took it, the client cancelled it
- * first, forbidden, or a failure. Exactly one per scope, when the
- * fate is known; the answer, not the cancel, says which came first.
+ * A message's answer: delivered, forbidden, or a failure. Exactly one
+ * per scope, when the fate is known, before the finish.
  */
 export const Frame = z.union([
-  /** The loop took the message. Tag `0`. */
+  /** The agent's program accepted the message: it is in the program's own queue, or in the run it was started with. Tag `0`. */
   z.literal("delivered"),
-  /** The client's cancel came first; the loop never saw the message. Tag `1`. */
-  z.literal("cancelled"),
-  /** The account the request is served for holds no grant allowing it; nothing changed. Tag `2`. */
+  /** The account the request is served for holds no grant allowing it; nothing changed. Tag `1`. */
   z.literal("forbidden"),
-  /** A failure. See `shared.error.Error` for why it says so little. Tag `3`. */
+  /** A failure. See `shared.error.Error` for why it says so little. Tag `2`. */
   z.strictObject({ error: Error }),
 ]);
 export type Frame = z.infer<typeof Frame>;
 
 const DELIVERED = 0;
-const CANCELLED = 1;
-const FORBIDDEN = 2;
-const ERROR = 3;
+const FORBIDDEN = 1;
+const ERROR = 2;
 
 /**
  * A frame out of its payload: the tag byte, then the variant's own
@@ -37,8 +33,6 @@ export function decode(bytes: Uint8Array): Frame {
   switch (tag) {
     case DELIVERED:
       return "delivered";
-    case CANCELLED:
-      return "cancelled";
     case FORBIDDEN:
       return "forbidden";
     case ERROR:

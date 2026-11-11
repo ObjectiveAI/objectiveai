@@ -24,7 +24,9 @@ pub struct Entry {
     /// one. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<key::Agent>,
-    /// The standalone tools binding it, likewise. Absent when empty.
+    /// The standalone tools binding it, likewise — each a `record`,
+    /// since a connected tool binds nothing of this daemon's. Absent
+    /// when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub standalone_tools: Vec<key::Tool>,
     /// Its tags, sorted bytewise: what

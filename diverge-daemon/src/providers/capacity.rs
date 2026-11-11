@@ -2,19 +2,24 @@
 //! connection's life.
 
 use std::sync::Arc;
+use std::time::Duration;
 
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::provider::endpoints::capacity::client::execute;
 use diverge_sdk::wire::client::handle::Handle;
 
 use crate::daemon::{Capacity, Daemon, Kind};
+
+/// How long the poller waits, once it has cached an answer, before it
+/// asks again: ten seconds, for every provider, and no configuration's
+/// to say.
+const POLL: Duration = Duration::from_secs(10);
 
 /// Ask the provider on `handle` its capacity, swap the answer into
 /// `cell`, wait, and ask again, until the connection ends.
 ///
 /// # The wait starts after the swap
 ///
-/// Ask, swap, then wait `capacity_poll` of the configuration — or
+/// Ask, swap, then wait [`POLL`] — or
 /// less, when the cell is nudged by something that changed the
 /// capacity — then ask again. A slow provider stretches the interval
 /// rather than piling asks up; a nudge that lands mid-ask is kept
@@ -31,19 +36,19 @@ use crate::daemon::{Capacity, Daemon, Kind};
 /// not parse — leaves the last answer standing. The connection gone
 /// — the request not sent, or the connection closed before the
 /// answer — ends this; the cell goes with the connection's slot.
-pub async fn poll_capacity(daemon: Arc<Daemon>, identity: Identity, handle: Handle, cell: Arc<Capacity>) {
+pub async fn poll_capacity(daemon: Arc<Daemon>, handle: Handle, cell: Arc<Capacity>) {
     loop {
         match execute::execute(&handle).await {
             Ok(frame) => {
                 if cell.swap(frame) {
-                    daemon.live.changed(Kind::of_provider(&identity));
+                    daemon.live.changed(Kind::Providers);
                 }
             }
             Err(execute::ExecuteError::Send(_) | execute::ExecuteError::Closed) => return,
             Err(_) => {}
         }
         tokio::select! {
-            () = tokio::time::sleep(daemon.capacity_poll) => {}
+            () = tokio::time::sleep(POLL) => {}
             () = cell.nudged() => {}
         }
     }

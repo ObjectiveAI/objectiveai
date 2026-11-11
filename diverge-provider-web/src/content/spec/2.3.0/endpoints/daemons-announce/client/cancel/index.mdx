@@ -1,0 +1,33 @@
+---
+title: 'Cancel'
+summary: 'Tag 0: the client ends the scope; the server sends nothing on the channel, removes the client’s identity from the listing, and sends the response finish of the scope.'
+order: 0
+draft: false
+---
+
+The client ends the scope by opening this channel. The server sends
+no frame on the channel; the response finish of the scope is its
+answer.
+
+- **The request.** The payload is the tag byte `0` and nothing more.
+  [Request](/endpoints/daemons-announce/client/cancel/request/) states
+  its form.
+- **The response.** The server sends nothing on the channel.
+  [Response](/endpoints/daemons-announce/client/cancel/response/)
+  states the sequence.
+- **The effect.** When the server receives the channel request, it
+  removes the client's identity from the listing, sends the identity
+  as removed on every [daemons::list](/endpoints/daemons-list/) scope
+  on which it was sent as added, as
+  [daemons::announce](/endpoints/daemons-announce/) provides, and
+  sends the response finish of the scope. The identity leaves the
+  listing before the server sends the response finish. The server
+  reads no further channel request on the scope.
+- **No other scope.** The cancel ends no
+  [daemons::accept](/endpoints/daemons-accept/) scope, closes no
+  [daemons::listen](/endpoints/daemons-listen/) mailbox, and alters
+  no connection.
+- **Once.** A second cancel changes nothing. A cancel of a scope
+  that has finished changes nothing.
+- **The one end the client has.** An announce has no end of its own.
+  A client ends the scope with this, or by ending its connection.

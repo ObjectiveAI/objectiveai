@@ -1,4 +1,4 @@
-//! Editing a tool: a patch to its name, its account, its mounts —
+//! Editing a tool: a patch to its name, its mounts, its secrets —
 //! while its container runs, to its FUSE mounts alone, and only by
 //! addition.
 
@@ -13,8 +13,7 @@ use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::inner::{self, Checked, Mounted, Outcome, Secrets, Which};
 use crate::serve::reply;
-use crate::store::tools::Origin;
-use crate::store::{self, accounts, tools, tools_templates};
+use crate::store::{self, tools, tools_templates};
 
 /// Answer the edit and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -27,20 +26,18 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `edit` grant at all; `NotFound`; `Forbidden`
-/// for a tool the grants do not reach, or an account named the caller
-/// holds no `assign` over; the `patch` error for a patch that could
+/// for a tool the grants do not reach; the `patch` error for a patch that could
 /// not be applied or a result that is not a tool's editable members;
-/// `NotOwned` for a result differing in anything but the name of a
-/// connected tool, which has nothing else of this caller's to change;
 /// `Active` for a result that, while the tool's container runs,
-/// differs in anything but FUSE mounts added — the name, the account,
-/// the volume mounts, the secrets, a FUSE mount removed, replaced or
-/// reordered; `NoAccount`; the error for a provider that is not
+/// differs in anything but FUSE mounts added — the name, the volume
+/// mounts, the secrets, a FUSE mount removed, replaced or reordered;
+/// the error for a provider that is not
 /// there, or volumes named on a tool pinned to no provider; the
 /// `secrets` error for secrets that are not the template's, and
 /// `Forbidden` for a vault key the grants do not reach; `InUse` for a
-/// name another tool has; else the tool as the result states, whole
-/// or not at all.
+/// name a standalone or a connected tool has, as
+/// [`tool_names`](crate::store::tool_names) states; else the tool as
+/// the result states, whole or not at all.
 ///
 /// The rules of an edit while the container runs are the agents
 /// edit's, see [`agents::edit`](crate::serve::agents::edit): the run's
@@ -61,9 +58,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(tool) = resolve(&mut tx, &frame.tool, true).await? else {
         return Ok(Frame::NotFound);
     };
-    // A connected tool runs nothing of this caller's: no mount is
-    // added to it, and its name is edited as a record's is.
-    let run = if tool.is_connected() { None } else { daemon.live.tool_run(ToolKey::Record(tool.id)).await };
+    let run = daemon.live.tool_run(ToolKey::Record(tool.id)).await;
     // The lock first, then the record again under it: an edit
     // persisted while the lock was waited for is what this one
     // patches.
@@ -82,19 +77,9 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !reaches(&mut tx, daemon, &standing, Over::Edit, &tool).await? {
         return Ok(Frame::Forbidden);
     }
-    let pinned = match &tool.origin {
-        Origin::Created { provider, .. } => provider.clone(),
-        Origin::Connected { .. } => None,
-    };
-    // An account named on a tool has a name: taking the name from one
-    // a container runs under is refused.
-    let account_name = match tool.account {
-        Some(id) => accounts::by_id(&mut tx, id).await?.and_then(|account| account.name),
-        None => None,
-    };
+    let pinned = tool.provider.clone();
     let current = Editable {
         name: tool.name.clone(),
-        account: account_name,
         volume_mounts: pinned.as_ref().map(|provider| provider.volume_mounts.clone()).unwrap_or_default(),
         fuse_file_mounts: tool.fuse_file_mounts.clone(),
         fuse_directory_mounts: tool.fuse_directory_mounts.clone(),
@@ -107,15 +92,11 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let mounts_changed = result.volume_mounts != current.volume_mounts
         || result.fuse_file_mounts != current.fuse_file_mounts
         || result.fuse_directory_mounts != current.fuse_directory_mounts;
-    let account_changed = result.account != current.account;
     let secrets_changed = result.secrets != current.secrets;
-    if tool.is_connected() && (mounts_changed || account_changed || secrets_changed) {
-        return Ok(Frame::NotOwned);
-    }
     let added = match &run {
         None => None,
         Some(_) => {
-            if result.name != current.name || account_changed || result.volume_mounts != current.volume_mounts || secrets_changed {
+            if result.name != current.name || result.volume_mounts != current.volume_mounts || secrets_changed {
                 return Ok(Frame::Active);
             }
             match inner::additions(&current.fuse_file_mounts, &result.fuse_file_mounts, &current.fuse_directory_mounts, &result.fuse_directory_mounts) {
@@ -124,21 +105,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
             }
         }
     };
-    let account = if account_changed {
-        match inner::account(&mut tx, &standing, daemon, result.account.as_deref()).await? {
-            Checked::Ok(account) => account,
-            Checked::NoAccount => return Ok(Frame::NoAccount),
-            Checked::Forbidden => return Ok(Frame::Forbidden),
-            Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
-        }
-    } else {
-        tool.account
-    };
     if secrets_changed {
-        let Some(id) = tool.template() else {
-            return Ok(Frame::NotOwned);
-        };
-        let Some(template) = tools_templates::by_id(&mut tx, id, false).await? else {
+        let Some(template) = tools_templates::by_id(&mut tx, &tool.template, false).await? else {
             return Ok(Frame::Error(reply::failure(&"the tool's template is not on record")));
         };
         match inner::secrets(&mut tx, &standing, &template.template.secrets, &result.secrets).await? {
@@ -163,7 +131,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if mounts_changed {
         match inner::providers(&mut tx, provider.as_ref(), &result.fuse_file_mounts, &result.fuse_directory_mounts).await? {
             Checked::Ok(()) => {}
-            Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
             Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
         }
         match inner::mounts(&mut tx, &standing, daemon, provider.as_ref(), &result.fuse_file_mounts, &result.fuse_directory_mounts).await? {
@@ -177,13 +144,12 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         // Not running: the result is the tool, whole or not at all.
         let columns = tools::Columns {
             name: result.name,
-            account,
             provider,
             fuse_file_mounts: result.fuse_file_mounts,
             fuse_directory_mounts: result.fuse_directory_mounts,
             secrets: result.secrets,
         };
-        if let tools::Updated::InUse = tools::update(&mut tx, tool.id, &columns).await? {
+        if let tools::Updated::InUse = tools::update(&mut tx, tool.id, tool.name.as_deref(), &columns).await? {
             return Ok(Frame::InUse);
         }
         tx.commit().await?;
@@ -226,14 +192,13 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if made > 0 {
         let mut tx = daemon.store.begin().await?;
         let columns = tools::Columns {
-            name: current.name,
-            account,
+            name: current.name.clone(),
             provider,
             fuse_file_mounts: made_files,
             fuse_directory_mounts: made_directories,
             secrets: current.secrets,
         };
-        if let tools::Updated::InUse = tools::update(&mut tx, tool.id, &columns).await? {
+        if let tools::Updated::InUse = tools::update(&mut tx, tool.id, current.name.as_deref(), &columns).await? {
             return Ok(Frame::InUse);
         }
         tx.commit().await?;

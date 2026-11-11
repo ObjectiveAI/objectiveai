@@ -13,8 +13,8 @@
 //! mount to, and a change under one from the same
 //! source. A created tool's container that is not running is started
 //! for the watch and stopped when the scope ends; one the daemon has
-//! running anyway is used as it runs. A connected tool is joined for
-//! the watch through its connect scope and left when the scope ends.
+//! running anyway is used as it runs. A connected tool's container is
+//! the other daemon's, and no request here finds one.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question and the cancel are in [`client`] — and the daemon answers,

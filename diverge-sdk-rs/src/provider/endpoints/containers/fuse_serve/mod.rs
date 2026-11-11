@@ -8,7 +8,7 @@
 //! rename, a mkdir — with no mount id, since the scope is the subtree,
 //! and the provider answers each from the container's own filesystem
 //! as a caller's server would answer a mount. Split by who SENDS, as
-//! everywhere else: the ask and the stop are in [`client`], the
+//! everywhere else: the ask and the cancel are in [`client`], the
 //! answers in [`server`].
 //!
 //! # What it is for
@@ -66,7 +66,7 @@
 //!
 //! # How it ends
 //!
-//! The caller's stop ends the scope, and so does the caller's
+//! The caller's cancel ends the scope, and so does the caller's
 //! connection ending, and so does the container ending — its run
 //! stopped, or the container gone on its own. Nothing is released
 //! at the end: the container is its runner's, and a FUSE serve held

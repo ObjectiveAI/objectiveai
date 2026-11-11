@@ -16,7 +16,7 @@ import { Relay } from "../../../../../../shared/relay.js";
 export const Frame = z.object({
   /** The dependency template, by id. */
   id: z.string(),
-  /** Served by another daemon, as one of the accounts this daemon holds on it. Absent, served here. */
+  /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });
 export type Frame = z.infer<typeof Frame>;

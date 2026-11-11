@@ -33,8 +33,8 @@
 //! answer, the dependencies the program declares and the secrets it
 //! takes; [`secrets`] the two over the secrets' values, fed down at
 //! every activation and collected back at every inactive — and, for
-//! an agent container, the loop's `/run`, `/enqueue` and `/dequeue`
-//! that [`agent`] states; for a tool container, the MCP server at
+//! an agent container, the loop's `/run` and `/enqueue` that
+//! [`agent`] states; for a tool container, the MCP server at
 //! `/mcp` that [`tool`] states. Each surface is stated there, once,
 //! and nothing here stands between the two. What the arguments may
 //! be is asked of no program: it is the image's `/DIVERGE.md`, which

@@ -1,0 +1,149 @@
+//! Why an identity could not be read, refreshed or signed in.
+
+use std::fmt;
+use std::io;
+use std::path::PathBuf;
+
+use super::Name;
+use crate::file_lock;
+
+/// What the [`Identities`](super::Identities) fail with.
+#[derive(Debug)]
+pub enum Error {
+    /// A folder or a file could not be made, read or written.
+    Io {
+        /// What could not be.
+        path: PathBuf,
+        /// Why.
+        source: io::Error,
+    },
+    /// An identity's lock could not be taken.
+    Lock(file_lock::Error),
+    /// An identity's file is not one this module wrote.
+    Json {
+        /// The file.
+        path: PathBuf,
+        /// What was wrong.
+        source: serde_json::Error,
+    },
+    /// There is no such identity on this host.
+    Missing(Name),
+    /// An issuer could not be reached, or its answer read.
+    Http(reqwest::Error),
+    /// An issuer's discovery document is not the issuer's, or lacks
+    /// what a login needs: why.
+    Discovery(String),
+    /// The issuer is not an `https` URL, nor an `http` one on a
+    /// loopback host.
+    Issuer(String),
+    /// An endpoint answered with a body that is neither its answer nor
+    /// a refusal.
+    Answer {
+        /// The endpoint.
+        url: String,
+        /// The HTTP status.
+        status: u16,
+        /// The body, as text.
+        body: String,
+    },
+    /// The issuer refused: its error code, and what it said.
+    Refused {
+        /// The error code.
+        code: String,
+        /// The issuer's description, where it gave one.
+        description: Option<String>,
+    },
+    /// The identity's refresh token is no longer good: it signs in
+    /// again.
+    SignedOut(Name),
+    /// The sign-in — a device code, an authorization — expired before
+    /// a person decided.
+    Expired,
+    /// A login that does not wait found the identity's lock held by
+    /// another login or a reader: nothing was asked of the issuer.
+    Held(Name),
+    /// The person denied the sign-in.
+    Denied,
+    /// An Authorization Code login's redirect carried another `state`
+    /// than the one sent: nothing was exchanged.
+    State,
+    /// An Authorization Code login's ID token carried another `nonce`
+    /// than the one sent: nothing was written.
+    Nonce,
+    /// An Authorization Code login's redirect could not be taken: why.
+    Callback(String),
+    /// The issuer refused the subject and the password, as
+    /// `invalid_grant`: nothing was written.
+    Rejected,
+    /// The login's answer carried no ID token, or one with no `sub`.
+    Subject,
+    /// The login was approved as another identity than the one it
+    /// named: nothing was written.
+    OtherSubject {
+        /// The identity the login named.
+        expected: Name,
+        /// The identity the approval was for.
+        answered: Name,
+    },
+    /// The login's answer carried no refresh token.
+    NoRefreshToken,
+    /// The identity holds no ID token: its issuer's last refresh
+    /// answered none.
+    NoIdToken,
+    /// An access token came with no `expires_in` and no `exp`, or an
+    /// ID token with no `exp`.
+    NoExpiry,
+    /// A token the issuer just issued is good for no longer than the
+    /// time asked: the seconds it is good for.
+    TooShort {
+        /// The seconds the new token is good for.
+        expires_in: i64,
+    },
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Io { path, source } => write!(f, "`{}` could not be used: {source}", path.display()),
+            Error::Lock(error) => write!(f, "an identity's lock could not be taken: {error}"),
+            Error::Json { path, source } => write!(f, "`{}` is not an identity: {source}", path.display()),
+            Error::Missing(name) => write!(f, "there is no identity {name} on this host"),
+            Error::Http(error) => write!(f, "the issuer could not be asked: {error}"),
+            Error::Discovery(why) => write!(f, "the issuer's discovery document is not usable: {why}"),
+            Error::Issuer(issuer) => write!(f, "`{issuer}` is not an https issuer, nor an http one on this host"),
+            Error::Answer { url, status, body } => write!(f, "`{url}` answered {status} with what is not OAuth: {body}"),
+            Error::Refused { code, description } => match description {
+                Some(description) => write!(f, "the issuer refused, `{code}`: {description}"),
+                None => write!(f, "the issuer refused, `{code}`"),
+            },
+            Error::SignedOut(name) => write!(f, "the identity {name} is signed out; it logs in again"),
+            Error::Expired => f.write_str("the sign-in expired before it was approved"),
+            Error::Held(name) => write!(f, "{name} is held by another login or reader"),
+            Error::Denied => f.write_str("the sign-in was denied"),
+            Error::State => f.write_str("the sign-in's redirect carried another state than the one sent; nothing was exchanged"),
+            Error::Nonce => f.write_str("the sign-in's ID token carried another nonce than the one sent; nothing was written"),
+            Error::Callback(why) => write!(f, "the sign-in's redirect could not be taken: {why}"),
+            Error::Rejected => f.write_str("the issuer refused the subject and the password"),
+            Error::Subject => f.write_str("the login's answer named no subject"),
+            Error::OtherSubject { expected, answered } => write!(f, "the login for {expected} was approved as {answered}; nothing was written"),
+            Error::NoRefreshToken => f.write_str("the login's answer carried no refresh token"),
+            Error::NoIdToken => f.write_str("the identity holds no ID token, which its issuer's refresh did not answer: sign in again"),
+            Error::NoExpiry => f.write_str("a token came with no expiry"),
+            Error::TooShort { expires_in } => {
+                write!(f, "the issuer's new token is good for {expires_in} seconds, no longer than was asked")
+            }
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Io { source, .. } => Some(source),
+            Error::Lock(error) => Some(error),
+            Error::Json { source, .. } => Some(source),
+            Error::Http(error) => Some(error),
+            _ => None,
+        }
+    }
+}

@@ -6,7 +6,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, dependency_tools, events, postgres, providers, relay, roles, standalone_tools, vault, volumes};
+use super::{Turn, accounts, agents, connected_standalone_tools, daemons, dependency_tools, events, identities, images, info, logs, postgres, providers, relay, roles, standalone_tools, vault, volumes};
 use crate::daemon::Daemon;
 use crate::judge::Who;
 
@@ -16,22 +16,38 @@ use crate::judge::Who;
 /// daemon named as the account named and carries the answers, the
 /// member taken out of what goes on.
 ///
+/// Before either, the request is put in its requester's command log
+/// ([`commands::record`](crate::commands::record)), kept once the
+/// daemon decides whether to let it through.
+///
+/// `turn` is the request's place in the order its connection sent it
+/// — see [`Turn`] — and is a message's alone: every request that is
+/// not a message to an agent lets it go here, before anything is
+/// waited on, one that cannot be read among them; a message relayed
+/// on lets it go as it is handed to the conduit, since the daemon it
+/// is relayed to admits it; and a message served here hands it to its
+/// handler, which admits the message in it.
+///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// hundred and ten has a handler. A payload that is no request at all is
+/// hundred and thirty-four has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
-pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
+pub async fn dispatch(scope: ScopeHandle, payload: &[u8], mut turn: Turn, who: Who, daemon: &Arc<Daemon>) {
     let request = ClientRequest::decode(payload).unwrap_or_else(|never| match never {});
+    if !matches!(request, ClientRequest::AgentsMessage(_)) {
+        turn.pass();
+    }
+    crate::commands::record(&scope, &request, payload, &who, daemon).await;
     if let Some((relay, bytes)) = relay::peel(payload) {
+        drop(turn);
         return relay::serve(scope, &request, bytes, relay, who, daemon).await;
     }
     match request {
         ClientRequest::AgentsCreate(frame) => agents::create::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsGet(frame) => agents::get::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsDelete(frame) => agents::delete::handle(scope, frame, who, daemon).await,
-        ClientRequest::AgentsMessage(frame) => agents::message::handle(scope, frame, who, daemon).await,
-        ClientRequest::AgentsLogs(frame) => agents::logs::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsMessage(frame) => agents::message::handle(scope, frame, turn, who, daemon).await,
         ClientRequest::AgentsList(frame) => agents::list::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsEdit(frame) => agents::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTag(frame) => agents::tag::handle(scope, frame, who, daemon).await,
@@ -45,7 +61,6 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::StandaloneToolsCreate(frame) => standalone_tools::create::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsGet(frame) => standalone_tools::get::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsEdit(frame) => standalone_tools::edit::handle(scope, frame, who, daemon).await,
-        ClientRequest::StandaloneToolsRegister(frame) => standalone_tools::register::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsAttachAgentInstance(frame) => standalone_tools::attach_agent_instance::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsDetachAgentInstance(frame) => standalone_tools::detach_agent_instance::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsAttachAgentTemplate(frame) => standalone_tools::attach_agent_template::handle(scope, frame, who, daemon).await,
@@ -54,30 +69,30 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::StandaloneToolsList(frame) => standalone_tools::list::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTag(frame) => standalone_tools::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsUntag(frame) => standalone_tools::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsCreate(frame) => connected_standalone_tools::create::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsGet(frame) => connected_standalone_tools::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsList(frame) => connected_standalone_tools::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsEdit(frame) => connected_standalone_tools::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsDelete(frame) => connected_standalone_tools::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsTag(frame) => connected_standalone_tools::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsUntag(frame) => connected_standalone_tools::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsAttachAgentInstance(frame) => connected_standalone_tools::attach_agent_instance::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsDetachAgentInstance(frame) => connected_standalone_tools::detach_agent_instance::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsAttachAgentTemplate(frame) => connected_standalone_tools::attach_agent_template::handle(scope, frame, who, daemon).await,
+        ClientRequest::ConnectedStandaloneToolsDetachAgentTemplate(frame) => connected_standalone_tools::detach_agent_template::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTemplatesCreate(frame) => standalone_tools::templates::create::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTemplatesGet(frame) => standalone_tools::templates::get::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTemplatesList(frame) => standalone_tools::templates::list::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTemplatesDelete(frame) => standalone_tools::templates::delete::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTemplatesTag(frame) => standalone_tools::templates::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsTemplatesUntag(frame) => standalone_tools::templates::untag::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersOutgoingAdd(frame) => providers::outgoing::add::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersOutgoingGet(frame) => providers::outgoing::get::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersOutgoingList(frame) => providers::outgoing::list::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersOutgoingDelete(frame) => providers::outgoing::delete::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersOutgoingEdit(frame) => providers::outgoing::edit::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersOutgoingTag(frame) => providers::outgoing::tag::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersOutgoingUntag(frame) => providers::outgoing::untag::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersIncomingAdd(frame) => providers::incoming::add::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersIncomingGet(frame) => providers::incoming::get::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersIncomingList(frame) => providers::incoming::list::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersIncomingDelete(frame) => providers::incoming::delete::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersIncomingEdit(frame) => providers::incoming::edit::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersIncomingTag(frame) => providers::incoming::tag::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersIncomingUntag(frame) => providers::incoming::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersGet(frame) => providers::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersList(frame) => providers::list::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsCreate(frame) => accounts::create::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsGet(frame) => accounts::get::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsList(frame) => accounts::list::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsDelete(frame) => accounts::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::AccountsDisconnect(frame) => accounts::disconnect::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsEdit(frame) => accounts::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsTag(frame) => accounts::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsUntag(frame) => accounts::untag::handle(scope, frame, who, daemon).await,
@@ -106,27 +121,48 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::VolumesTag(frame) => volumes::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::VolumesUntag(frame) => volumes::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsFiletree(frame) => agents::filetree::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsExec(frame) => agents::exec::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsTerminal(frame) => agents::terminal::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsFrontend(frame) => agents::frontend::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsConnect(frame) => agents::connect::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsList(frame) => providers::daemons::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersAdd(frame) => providers::add::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersEdit(frame) => providers::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDelete(frame) => providers::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersEnable(frame) => providers::enable::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDisable(frame) => providers::disable::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersTag(frame) => providers::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersUntag(frame) => providers::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsListen(frame) => providers::daemons::listen::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsMessage(frame) => providers::daemons::message::handle(scope, frame, who, daemon).await,
+        ClientRequest::IdentitiesList(frame) => identities::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::IdentitiesTag(frame) => identities::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::IdentitiesUntag(frame) => identities::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsAdd(frame) => daemons::add::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsEdit(frame) => daemons::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsDelete(frame) => daemons::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsTag(frame) => daemons::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsUntag(frame) => daemons::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::IdentitiesLogin(frame) => identities::login::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsFiletree(frame) => standalone_tools::filetree::handle(scope, frame, who, daemon).await,
+        ClientRequest::StandaloneToolsExec(frame) => standalone_tools::exec::handle(scope, frame, who, daemon).await,
+        ClientRequest::StandaloneToolsTerminal(frame) => standalone_tools::terminal::handle(scope, frame, who, daemon).await,
+        ClientRequest::StandaloneToolsFrontend(frame) => standalone_tools::frontend::handle(scope, frame, who, daemon).await,
         ClientRequest::VolumesFiletree(frame) => volumes::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::PostgresGet(frame) => postgres::get::handle(scope, frame, who, daemon).await,
         ClientRequest::PostgresList(frame) => postgres::list::handle(scope, frame, who, daemon).await,
         ClientRequest::StandaloneToolsConnect(frame) => standalone_tools::connect::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsAdd(frame) => providers::daemons::add::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsGet(frame) => providers::daemons::get::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsList(frame) => providers::daemons::list::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsDelete(frame) => providers::daemons::delete::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsEdit(frame) => providers::daemons::edit::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsTag(frame) => providers::daemons::tag::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsUntag(frame) => providers::daemons::untag::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsAccountsAdd(frame) => providers::daemons::accounts::add::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsAccountsEdit(frame) => providers::daemons::accounts::edit::handle(scope, frame, who, daemon).await,
-        ClientRequest::ProvidersDaemonsAccountsDelete(frame) => providers::daemons::accounts::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsGet(frame) => daemons::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::DaemonsList(frame) => daemons::list::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsList(frame) => dependency_tools::list::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsGet(frame) => dependency_tools::get::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsDelete(frame) => dependency_tools::delete::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsTag(frame) => dependency_tools::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsUntag(frame) => dependency_tools::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsFiletree(frame) => dependency_tools::filetree::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependencyToolsExec(frame) => dependency_tools::exec::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependencyToolsTerminal(frame) => dependency_tools::terminal::handle(scope, frame, who, daemon).await,
+        ClientRequest::DependencyToolsFrontend(frame) => dependency_tools::frontend::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsDownload(frame) => dependency_tools::download::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsUpload(frame) => dependency_tools::upload::handle(scope, frame, who, daemon).await,
         ClientRequest::DependencyToolsTransfer(frame) => dependency_tools::transfer::handle(scope, frame, who, daemon).await,
@@ -137,6 +173,10 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::VaultTag(frame) => vault::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::VaultUntag(frame) => vault::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::EventsList(frame) => events::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::ImagesInfo(frame) => images::info::handle(scope, frame, who, daemon).await,
+        ClientRequest::ImagesOci(frame) => images::oci::handle(scope, frame, who, daemon).await,
+        ClientRequest::Info(_) => info::handle(scope).await,
+        ClientRequest::Logs(frame) => logs::handle(scope, frame, who, daemon).await,
         ClientRequest::Invalid(_) => scope.send_response_finish().await,
     }
 }

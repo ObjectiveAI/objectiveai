@@ -4,7 +4,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use futures_util::StreamExt as _;
-use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::mpsc::{self};
 
 use super::super::super::server::{channel_request as announced, response};
 use super::super::{channel_request, request};
@@ -12,6 +12,7 @@ use super::Accepting;
 use crate::provider::client::Acceptor;
 use crate::provider::endpoints::containers::client::encoded;
 use crate::shared::containers::daemon;
+use crate::shared::daemons;
 use crate::shared::error::Error;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::decode::Decode as _;
@@ -22,15 +23,16 @@ use crate::wire::frame;
 /// through `acceptor`.
 ///
 /// The request goes out, the main stream's first frame decides — the
-/// identity the provider knows this daemon by, or the provider's
-/// error, or a finish with nothing before it — and then a task reads
+/// identity the provider knows this daemon by, the refusal of an
+/// accept already open, the provider's error, or a finish with nothing
+/// before it — and then a task reads
 /// every channel the provider opens on the scope, each a connection
 /// announced, and answers it: the acceptor is asked, and on a yes
 /// this end opens its own half and pumps both directions — the
 /// connector's client frames into the acceptor's session, the
 /// session's server frames back onto the provider's half — until
 /// either side hangs up. What comes back is the [`Accepting`]: the
-/// identity, the stop, and the end.
+/// identity, the cancel, and the end.
 pub async fn execute<A: Acceptor + 'static>(handle: &Handle, acceptor: Arc<A>) -> Result<Accepting, ExecuteError> {
     let mut payload = Vec::new();
     request::Frame
@@ -47,6 +49,7 @@ pub async fn execute<A: Acceptor + 'static>(handle: &Handle, acceptor: Arc<A>) -
     let identity = match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Accepting(accepting) => accepting.identity,
         response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
+        response::Frame::AlreadyOpen => return Err(ExecuteError::AlreadyOpen),
     };
     tokio::spawn(announcements(scope.request_receiver, handle.clone(), scope.scope, acceptor));
     Ok(Accepting::new(identity, handle.clone(), scope.scope, scope.response_receiver))
@@ -54,7 +57,7 @@ pub async fn execute<A: Acceptor + 'static>(handle: &Handle, acceptor: Arc<A>) -
 
 /// Every channel the provider opens on the scope, answered on a task
 /// of its own, until the scope's request stream ends.
-async fn announcements<A: Acceptor + 'static>(mut requests: UnboundedReceiver<bytes::Bytes>, handle: Handle, scope: u32, acceptor: Arc<A>) {
+async fn announcements<A: Acceptor + 'static>(mut requests: crate::wire::credit::Receiver, handle: Handle, scope: u32, acceptor: Arc<A>) {
     while let Some(bytes) = requests.recv().await {
         let Ok(frame::server::ServerFrame::ChannelRequest { channel, payload, .. }) = frame::server::ServerFrame::decode(&bytes) else {
             continue;
@@ -94,10 +97,10 @@ async fn connection_answer<A: Acceptor>(handle: Handle, scope: u32, channel: u32
         while let Some(bytes) = own.response_receiver.recv().await {
             match frame::server::ServerFrame::decode(&bytes) {
                 Ok(frame::server::ServerFrame::ChannelResponse { payload, .. }) => {
-                    let Ok(frame) = daemon::client::Frame::decode(payload) else {
+                    let Ok(frame) = daemons::client::Owned::read(payload) else {
                         break;
                     };
-                    if from_connector.send(daemon::client::Owned::from(frame)).is_err() {
+                    if from_connector.send(frame).is_err() {
                         break;
                     }
                 }
@@ -106,10 +109,7 @@ async fn connection_answer<A: Acceptor>(handle: Handle, scope: u32, channel: u32
         }
     });
     while let Some(frame) = from_daemon.next().await {
-        let Some(bytes) = encoded(&frame.as_frame()) else {
-            break;
-        };
-        if handle.send_channel_response(scope, channel, &bytes).await.is_err() {
+        if handle.send_channel_response(scope, channel, frame.bytes()).await.is_err() {
             break;
         }
     }
@@ -133,8 +133,12 @@ pub enum ExecuteError {
     Misrouted,
     /// The response frame did not parse.
     Response(response::FrameError),
-    /// The provider refused: the identity accepts here already.
+    /// The provider ended the accept with an error, in its own words.
     Provider(Error),
+    /// The provider refused: this connection, or another under the same
+    /// identity, accepts here already. The protocol's defined refusal,
+    /// not a failure.
+    AlreadyOpen,
 }
 
 impl fmt::Display for ExecuteError {
@@ -146,7 +150,8 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Unanswered => f.write_str("the accept finished without an answer"),
             ExecuteError::Misrouted => f.write_str("a frame arrived that does not belong on the main stream"),
             ExecuteError::Response(error) => write!(f, "daemons accept answer did not parse: {error}"),
-            ExecuteError::Provider(_) => f.write_str("the provider refused the accept"),
+            ExecuteError::Provider(_) => f.write_str("the provider ended the accept with an error"),
+            ExecuteError::AlreadyOpen => f.write_str("an accept is open here already"),
         }
     }
 }
@@ -157,7 +162,11 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Send(error) => Some(error),
             ExecuteError::Frame(error) => Some(error),
             ExecuteError::Response(error) => Some(error),
-            ExecuteError::Closed | ExecuteError::Unanswered | ExecuteError::Misrouted | ExecuteError::Provider(_) => None,
+            ExecuteError::Closed
+            | ExecuteError::Unanswered
+            | ExecuteError::Misrouted
+            | ExecuteError::Provider(_)
+            | ExecuteError::AlreadyOpen => None,
         }
     }
 }

@@ -8,7 +8,7 @@ use std::fmt::Display;
 use crate::run::Error;
 
 /// The one failure that is told apart: the connection closing with
-/// no answer, which is how the daemon refuses a credential —
+/// no answer, which is how the daemon refuses an identity —
 /// [`Error::Rejected`] — and every other as the executor's own words.
 pub fn one_shot<Q: Display, A: Display>(error: one_shot::Error<Q, A>) -> Error {
     match error {

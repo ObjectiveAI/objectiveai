@@ -5,10 +5,8 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll, ready};
 
-use bytes::Bytes;
 use futures_util::Stream;
 use futures_util::stream::FusedStream;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::super::Answered;
 use crate::wire::frame;
@@ -45,7 +43,7 @@ pub struct ChannelStream<A> {
     /// once the stream has ended, which is the terminal state. Taken
     /// out rather than flagged so the queue is dropped the moment
     /// nothing will read it.
-    receiver: Option<UnboundedReceiver<Bytes>>,
+    receiver: Option<crate::wire::credit::Receiver>,
     /// The marker, held as a function type so the stream is `Unpin`,
     /// `Send` and `Sync` whatever the marker is.
     answered: PhantomData<fn() -> A>,
@@ -53,7 +51,7 @@ pub struct ChannelStream<A> {
 
 impl<A: Answered> ChannelStream<A> {
     /// Take the responses, from the executor that opened the channel.
-    pub(crate) fn new(receiver: UnboundedReceiver<Bytes>) -> Self {
+    pub(crate) fn new(receiver: crate::wire::credit::Receiver) -> Self {
         ChannelStream {
             receiver: Some(receiver),
             answered: PhantomData,

@@ -1,0 +1,22 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 0 and what follows it.'
+order: 1
+draft: false
+---
+
+```text
+[0][bytes …]
+```
+
+- **The bytes.** After the byte `0`, the bytes to write, verbatim,
+  running to the end of the payload: a keystroke, a paste, or a
+  control byte such as `0x03`, which the terminal delivers as an
+  interrupt.
+- **The order.** The server writes the bytes of each channel request
+  after the bytes of every channel request it received before it.
+
+The channel request is defined by `diverge-sdk-rs/src/shared/containers/terminal/input.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/terminal/input.rs
+```

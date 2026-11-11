@@ -1,30 +1,56 @@
 //! `diverge run providers …`.
 //!
-//! The requests over providers: those dialled, those that dial in, and
-//! daemons reached through them. One file per request, one folder per
-//! family within: the tree of files is the tree of subcommands.
+//! The requests over providers — the records of the providers the
+//! daemon works with. One file per
+//! request, one folder per family within: the tree of files is the tree
+//! of subcommands.
 
 use clap::Subcommand;
 
 use crate::run::{Emitter, Error, Target};
 
+pub mod add;
 pub mod daemons;
-pub mod incoming;
-pub mod outgoing;
+pub mod delete;
+pub mod disable;
+pub mod edit;
+pub mod enable;
+pub mod get;
+pub mod list;
+pub mod tag;
+pub mod untag;
 
-/// The requests over providers: those dialled, those that dial in, and
-/// daemons reached through them.
+/// The requests over providers.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Providers {
-    /// The requests over daemon records.
+    /// Getting one provider.
+    Get(get::Arguments),
+    /// Listing the providers.
+    List(list::Arguments),
+    /// The daemons reached through the providers: listing them,
+    /// listening for the messages sent to the daemon, sending one.
     #[command(subcommand)]
     Daemons(daemons::Daemons),
-    /// The requests over incoming credentials.
-    #[command(subcommand)]
-    Incoming(incoming::Incoming),
-    /// The requests over outgoing providers.
-    #[command(subcommand)]
-    Outgoing(outgoing::Outgoing),
+    /// Adding a provider's record: dialled at once when it is outgoing
+    /// and enabled.
+    Add(add::Arguments),
+    /// Editing a provider's record — its announcement, whether the
+    /// daemon accepts daemons and hears messages through it, an
+    /// incoming one's ips, its description — on its connection as it
+    /// stands: only ips that no longer admit it close it.
+    Edit(edit::Arguments),
+    /// Deleting a disabled provider's record that nothing is pinned to.
+    Delete(delete::Arguments),
+    /// Enabling a provider: dialled again when outgoing, admitted again
+    /// when incoming.
+    Enable(enable::Arguments),
+    /// Disabling a provider: its dial stopped, its connection closed,
+    /// its runs taken down.
+    Disable(disable::Arguments),
+    /// Tagging a provider's record.
+    Tag(tag::Arguments),
+    /// Untagging a provider's record.
+    Untag(untag::Arguments),
 }
 
 /// The request put, by its subcommand.
@@ -34,8 +60,15 @@ pub async fn run(
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
     match command {
+        Providers::Get(arguments) => get::run(arguments, target, emitter).await,
+        Providers::List(arguments) => list::run(arguments, target, emitter).await,
         Providers::Daemons(command) => daemons::run(command, target, emitter).await,
-        Providers::Incoming(command) => incoming::run(command, target, emitter).await,
-        Providers::Outgoing(command) => outgoing::run(command, target, emitter).await,
+        Providers::Add(arguments) => add::run(arguments, target, emitter).await,
+        Providers::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        Providers::Delete(arguments) => delete::run(arguments, target, emitter).await,
+        Providers::Enable(arguments) => enable::run(arguments, target, emitter).await,
+        Providers::Disable(arguments) => disable::run(arguments, target, emitter).await,
+        Providers::Tag(arguments) => tag::run(arguments, target, emitter).await,
+        Providers::Untag(arguments) => untag::run(arguments, target, emitter).await,
     }
 }

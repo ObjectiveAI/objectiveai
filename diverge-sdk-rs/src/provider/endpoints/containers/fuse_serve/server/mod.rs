@@ -1,7 +1,7 @@
 //! The server side of a container FUSE serve: what the provider sends.
 //!
 //! [`response`] is what comes back on channel `0`: that the subtree
-//! is served, or why not, and the finish when the caller stops or
+//! is served, or why not, and the finish when the caller cancels or
 //! the container ends. [`channel_response`] answers each ask the
 //! caller opens, with that ask's own frame from the shared
 //! vocabulary, and each tree the caller opens with a filetree
@@ -17,7 +17,7 @@
 //! [`Session`](crate::wire::server::session::Session) yielded, whose caller
 //! it is, and the `Directory`,
 //! and it finds the container, opens the proxy's own FUSE serve of the
-//! subtree, and relays every ask and every tree until the stop.
+//! subtree, and relays every ask and every tree until the cancel.
 
 pub mod channel_response;
 pub mod response;

@@ -1,11 +1,10 @@
 //! What a request's path asks for.
 
 /// A request to the registry, read from the path after `/v2/`: the
-/// repository — the first segment, the name the protocol minted for the
-/// run — and what is asked under it. The segments between the
-/// repository and the last two are the image's name as the caller
-/// wrote it, and are not read: the digest identifies the bytes, and
-/// the repository identifies the run.
+/// repository — the first segment, the token minted for one pull —
+/// and what is asked under it. The segments between the token and the
+/// last two are a label, and are not read: the digest identifies the
+/// bytes, and the token the pull.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ask {
     pub repository: String,

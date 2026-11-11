@@ -1,36 +1,37 @@
-//! The store of images clients build.
+//! The Store: the images clients own on the provider.
 
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-/// Where the images clients build on the provider are kept, and how
-/// many bytes they may take between them.
+/// Where the Store is kept — the images clients build or push on the
+/// provider, each owned by digest — and how many bytes it may take.
 ///
 /// A directory and a number, as a volume store is. Under the
-/// directory the provider keeps one pool per identity, named by a
-/// hash of the identity, as a registry keeps images: every blob of
-/// every image the identity built, content-addressed, a blob two of
-/// its images share stored once, and a record per image with its
-/// Containerfile and the manifest digest it is known by. The
-/// provider's own registry serves each pool, and a run of a client
-/// image pulls it from there into the provider's cache of pulled
-/// images, where the copy is evicted as any cached image is; the
-/// pool is not. Nothing in the store is evicted: an image stays until
-/// the identity that built it deletes it, and a build the store has
-/// no room for is refused with the answer, not built.
+/// directory the provider keeps every blob ONCE, content-addressed,
+/// however many identities own images reaching it; one ownership
+/// record per identity and image, under the identity's folders named
+/// as the volume store names them; and cache records of images a
+/// caller supplied to a run and proved, which nobody owns — see
+/// [`Store`](crate::host::image_manager::Store). The provider's own
+/// registry serves the blobs to a run, one random token per pull.
+/// Nothing owned is evicted: an image stays until every identity
+/// owning it deletes it, and a build or a push the Store has no room
+/// for is refused with the answer. Cache records are trimmed, oldest
+/// first, whenever room is needed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Images {
-    /// The directory the pools live under, made by the provider at
+    /// The directory the Store lives under, made by the provider at
     /// its start if it is not there; a relative path is resolved
     /// against the root, the directory that holds `provider.yaml`. On
     /// macOS the podman machine is made seeing it, since a build's
     /// export is written through podman.
     pub path: PathBuf,
-    /// The most every pool may hold together, in BYTES: every blob
-    /// of every identity's images, each counted once. A build that
-    /// leaves the pools over it is undone and answered insufficient
+    /// The most the Store may hold, in BYTES: every blob, each counted
+    /// once. A push is refused before any blob moves when the sizes
+    /// its manifest declares would pass it; a build that leaves the
+    /// Store over it is undone; either is answered insufficient
     /// capacity. `0` is refused at the provider's start.
     pub capacity: u64,
 }

@@ -18,12 +18,16 @@
 //!
 //! ```yaml
 //! port: 14980
+//! identity:
+//!   issuer: https://auth.example.com
+//!   subject: daemon-1
+//! admins:
+//!   - issuer: https://auth.example.com
+//!     subject: alice
 //! postgres:
 //!   kind: local
 //!   max_connections: 1024
 //! idle_seconds: 10
-//! accept_daemons: true
-//! capacity_poll_seconds: 10
 //! ```
 //!
 //! [`Error`] is why the root or the file could not be used.

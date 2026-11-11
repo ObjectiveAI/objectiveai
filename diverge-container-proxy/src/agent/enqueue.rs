@@ -1,69 +1,77 @@
-//! A message for the agent: the server's enqueue channel, and the
-//! delivery of one queued message to the loop in flight.
+//! A batch of messages for the agent: the server's enqueue channel,
+//! and the whole queue, joined, handed to the loop in flight.
 
 use std::sync::Arc;
 
 use diverge_sdk::container_proxy::inside::agent;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::containers::enqueue::request::Message;
 use diverge_sdk::shared::containers::enqueue::response;
 use diverge_sdk::shared::error::Error;
+use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
-use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;
 
-use super::{Cmd, Queued};
+use super::{Batch, Cmd};
 use crate::encode::encoded;
 use crate::program::status_error;
 use crate::proxy::Proxy;
 use crate::reply::reply;
 
-/// Serve one enqueue channel: the message goes to the driver, and the
-/// channel is answered with its fate whenever that is known — one
-/// frame, then the finish. Nothing times it out. A driver that is
-/// gone, or one that never was, is the finish with nothing before it.
-pub async fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, key: String, content: Vec<ContentBlock>) {
+/// Serve one enqueue channel: the batch goes to the driver, whole and
+/// in its order, and the channel is answered with its fate — every
+/// message's alike — whenever that is known: one frame, then the
+/// finish. Nothing times it out. A driver that is gone, or one that
+/// never was, is the finish with nothing before it.
+///
+/// Not an `async fn`: the batch goes to the driver HERE, as the
+/// channel is read, and only the wait is the task's — so a batch is
+/// in the queue before any channel the server opens after it is read,
+/// whatever order their tasks run in.
+pub fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, messages: Vec<Message>) -> impl Future<Output = ()> + Send + 'static {
     let (fate, heard) = oneshot::channel();
     let sent = proxy
         .commands()
-        .is_some_and(|commands| commands.send(Cmd::Enqueue(Queued { key, content, fate })).is_ok());
-    if !sent {
-        reply(&scope, channel, None).await;
-        return;
+        .is_some_and(|commands| commands.send(Cmd::Enqueue(Batch { messages, fate })).is_ok());
+    async move {
+        if !sent {
+            reply(&scope, channel, None).await;
+            return;
+        }
+        let payload = match heard.await {
+            Ok(fate) => encoded(&response::Frame::from(fate)),
+            Err(_) => None,
+        };
+        reply(&scope, channel, payload).await;
     }
-    let payload = match heard.await {
-        Ok(fate) => encoded(&response::Frame::from(fate)),
-        Err(_) => None,
-    };
-    reply(&scope, channel, payload).await;
 }
 
-/// What one `POST /enqueue` came to.
+/// What one `POST /enqueue` came to, every batch it carried and every
+/// message in them alike.
 pub enum Outcome {
-    /// The loop took the message.
+    /// `204`: the program has the messages, on its own queue, to take
+    /// at its next seam as one user turn.
     Delivered,
-    /// The agent's server withdrew it on a `/dequeue`.
-    Dequeued,
-    /// The loop ended under it: the message is the proxy's again.
-    Missed,
-    /// The agent's server refused the message — a `4xx`, content it
-    /// will not take — in its own words: the message's fate is the
-    /// error, and it is not offered again.
+    /// `409`, the run closed under the call — the loop's last look
+    /// found the program's queue empty — or a `5xx`, a server that
+    /// could not be reached, an answer that was not `204`: the batches
+    /// are the proxy's again, for the next `/run`.
+    Returned,
+    /// Another `4xx`: the agent's server refused the messages — content
+    /// it will not take — in its own words. Every batch's fate is
+    /// the error, and none is sent again.
     Refused(Error),
-    /// A `5xx`, a server that could not be reached, or a fate that
-    /// did not parse: the loop in flight did not take it, and the
-    /// message is the proxy's again.
-    Failed,
 }
 
-/// Offer one message to the loop in flight, on a task of its own:
-/// `POST /enqueue`, held until the agent's server says what became of
-/// it. The driver reads the outcome when it arrives and never waits
-/// on it.
-pub fn deliver(proxy: Arc<Proxy>, key: String, content: Vec<ContentBlock>) -> oneshot::Receiver<Outcome> {
+/// Hand the queue to the loop in flight, on a task of its own:
+/// `POST /enqueue` with every message, in order, which the
+/// program answers at once. The driver reads the outcome when it
+/// arrives and never waits on it.
+pub fn deliver(proxy: Arc<Proxy>, messages: Vec<Message>) -> oneshot::Receiver<Outcome> {
     let (sender, receiver) = oneshot::channel();
     tokio::spawn(async move {
-        let Ok(body) = serde_json::to_vec(&agent::enqueue::request::Request { key, content }) else {
-            let _ = sender.send(Outcome::Failed);
+        let Ok(body) = serde_json::to_vec(&agent::enqueue::request::Request { messages }) else {
+            let _ = sender.send(Outcome::Returned);
             return;
         };
         let response = proxy
@@ -75,14 +83,10 @@ pub fn deliver(proxy: Arc<Proxy>, key: String, content: Vec<ContentBlock>) -> on
             .send()
             .await;
         let outcome = match response {
-            Ok(response) if response.status().is_success() => match response.json::<agent::enqueue::Fate>().await {
-                Ok(agent::enqueue::Fate::Delivered) => Outcome::Delivered,
-                Ok(agent::enqueue::Fate::Dequeued) => Outcome::Dequeued,
-                Ok(agent::enqueue::Fate::Missed) => Outcome::Missed,
-                Err(_) => Outcome::Failed,
-            },
+            Ok(response) if response.status() == StatusCode::NO_CONTENT => Outcome::Delivered,
+            Ok(response) if response.status() == StatusCode::CONFLICT => Outcome::Returned,
             Ok(response) if response.status().is_client_error() => Outcome::Refused(status_error(response).await),
-            Ok(_) | Err(_) => Outcome::Failed,
+            Ok(_) | Err(_) => Outcome::Returned,
         };
         let _ = sender.send(outcome);
     });

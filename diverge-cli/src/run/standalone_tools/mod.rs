@@ -17,12 +17,14 @@ pub mod detach_agent_instance;
 pub mod detach_agent_template;
 pub mod download;
 pub mod edit;
+pub mod exec;
 pub mod filetree;
+pub mod frontend;
 pub mod get;
 pub mod list;
-pub mod register;
 pub mod tag;
 pub mod templates;
+pub mod terminal;
 pub mod transfer;
 pub mod untag;
 pub mod upload;
@@ -51,16 +53,20 @@ pub enum StandaloneTools {
     DetachAgentTemplate(detach_agent_template::Arguments),
     /// Downloading a file or a directory out of a tool.
     Download(download::Arguments),
-    /// Editing a tool: its name, its account, its mounts.
+    /// Editing a tool: its name, its mounts, its secrets.
     Edit(edit::Arguments),
     /// Watching a tool's container's filesystem, whole.
     Filetree(filetree::Arguments),
+    /// Running one command in a standalone tool's container, its output streamed.
+    Exec(exec::Arguments),
+    /// One HTTP request to a standalone tool's frontend.
+    Frontend(frontend::Arguments),
+    /// An interactive shell in a standalone tool's container, on a terminal.
+    Terminal(terminal::Arguments),
     /// Getting one tool.
     Get(get::Arguments),
     /// Listing a caller's tools.
     List(list::Arguments),
-    /// Registering a tool another daemon holds, under a name.
-    Register(register::Arguments),
     /// Putting tags on a tool.
     Tag(tag::Arguments),
     /// The requests over standalone tool templates.
@@ -100,10 +106,12 @@ pub async fn run(
         }
         StandaloneTools::Download(arguments) => download::run(arguments, target, emitter).await,
         StandaloneTools::Edit(arguments) => edit::run(arguments, target, emitter).await,
+        StandaloneTools::Exec(arguments) => exec::run(arguments, target, emitter).await,
+        StandaloneTools::Frontend(arguments) => frontend::run(arguments, target, emitter).await,
+        StandaloneTools::Terminal(arguments) => terminal::run(arguments, target, emitter).await,
         StandaloneTools::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         StandaloneTools::Get(arguments) => get::run(arguments, target, emitter).await,
         StandaloneTools::List(arguments) => list::run(arguments, target, emitter).await,
-        StandaloneTools::Register(arguments) => register::run(arguments, target, emitter).await,
         StandaloneTools::Tag(arguments) => tag::run(arguments, target, emitter).await,
         StandaloneTools::Templates(command) => templates::run(command, target, emitter).await,
         StandaloneTools::Transfer(arguments) => transfer::run(arguments, target, emitter).await,

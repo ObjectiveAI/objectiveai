@@ -1,0 +1,20 @@
+---
+title: 'Exec'
+summary: 'Tag 15: the client names one command; the server runs it in the container through an exec scope on the proxy and relays its output and its end as channel responses, and the channel response finish.'
+order: 15
+draft: false
+---
+
+The client opens this channel to run one command in the container.
+The server opens an [exec](/container-proxy-endpoints/exec/) scope on
+the container's proxy, naming the command, and relays what the proxy
+sends.
+
+- **The request.** The tag byte `15` followed by the command as
+  JSON. [Request](/endpoints/containers-tools-run/client/exec/request/) states its form.
+- **The response.** The command's output and its end, or one error,
+  and the channel response finish. [Response](/endpoints/containers-tools-run/client/exec/response/) states the
+  sequence.
+- **The kill.** The client's abandoning the channel's responses, as
+  [Credits](/frames/credits/) provides, or the end of the scope,
+  makes the server cancel the proxy's command, which kills it.

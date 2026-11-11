@@ -10,6 +10,9 @@ use super::Standing;
 
 /// Whether the standing holds `action` over the database.
 pub fn holds(standing: &Standing, action: Action) -> bool {
+    if standing.admin() {
+        return true;
+    }
     standing
         .postgres()
         .any(|Permission(actions)| actions.contains(&action))

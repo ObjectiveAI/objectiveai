@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { Mode } from "../../../../../../provider/endpoints/volumes/mode.js";
-import { Identity } from "../../../../agents/logs/server/response/identity.js";
+import { Identity } from "../../../../../agent_log/identity.js";
 
 /**
  * The filter over volumes: every member optional, and every one given

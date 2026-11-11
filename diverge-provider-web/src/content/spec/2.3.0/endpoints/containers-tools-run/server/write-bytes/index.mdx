@@ -6,8 +6,9 @@ draft: false
 ---
 
 The server opens this channel in answer to a [write](/endpoints/containers-tools-run/client/write/)
-channel the client opened, quoting the client's write id. What
-arrives on it is the content of the file.
+channel or a [frontend](/endpoints/containers-tools-run/client/frontend/) channel the client opened, quoting
+the client's write id. What arrives on it is the content of the file,
+or the body of the request.
 
 - **The request.** The tag byte `3` followed by the write id,
   four bytes. [Request](/endpoints/containers-tools-run/server/write-bytes/request/) states

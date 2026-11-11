@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.channels.publish.Path",
-  "type": "string",
-  "enum": [
-    "channels/publish"
-  ]
-}

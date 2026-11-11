@@ -18,7 +18,7 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The image examined. Tag `0`.
     Stat(Stat),
-    /// The provider has no image store — its `images_store` is `false`,
+    /// The provider has no Store — its `images_store` is `false`,
     /// see [`info`](crate::provider::endpoints::info) — and nothing was
     /// done. Tag `1`.
     ///
@@ -27,7 +27,7 @@ pub enum Frame {
     Unsupported,
     /// A failure. Tag `2`.
     ///
-    /// An image the caller has none by that name is one, and so is a
+    /// A digest the caller owns no image by is one, and so is a
     /// provider that could not look. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why
     /// it says so little.

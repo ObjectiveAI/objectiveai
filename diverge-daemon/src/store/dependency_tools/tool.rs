@@ -5,6 +5,7 @@ use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::dependency_tools::list::server::response::{Attached, Listed, Run};
 use diverge_sdk::daemon::key;
 use diverge_sdk::shared::containers::dependencies::{Mode, Scope, Template};
+use diverge_sdk::shared::permission::Grant;
 
 use crate::store::agents::Agent;
 use crate::store::{AgentId, DependencyToolId};
@@ -16,6 +17,9 @@ pub struct DependencyTool {
     pub id: DependencyToolId,
     /// The template it is of, by id.
     pub template: String,
+    /// Its number among the dependency tools of the template, once
+    /// and for all.
+    pub index: u64,
     /// The template, whole.
     pub declared: Template,
     /// How far it is shared: what its scope key is made of. A
@@ -28,7 +32,15 @@ pub struct DependencyTool {
     pub owner_template: Option<String>,
     /// Its tags, sorted bytewise.
     pub tags: Vec<String>,
+    /// What its container declared it may ask of the daemon when it
+    /// last started; empty for one that declared none or has never
+    /// started.
+    pub permissions: Vec<Grant>,
     /// When it was made.
+    /// When its container last came up or went down.
+    pub last_deployed: Option<DateTime<Utc>>,
+    /// When its calls and reads in flight last began or ceased.
+    pub last_active: Option<DateTime<Utc>>,
     pub created: DateTime<Utc>,
     /// The agent whose registration made it.
     pub creator: Creator,
@@ -64,17 +76,24 @@ impl DependencyTool {
     }
 
     /// The tool as a list reports it, with its owner, the agents
-    /// attached to it and its run, loaded by the caller.
-    pub fn report(&self, owner: key::Owner, agents: Vec<Attached>, run: Option<Run>) -> Listed {
+    /// attached to it, whether it is working now and its run, loaded by
+    /// the caller.
+    pub fn report(&self, owner: key::Owner, agents: Vec<Attached>, active: bool, run: Option<Run>) -> Listed {
         Listed {
             id: self.template.clone(),
             owner,
+            index: self.index,
             created: self.created,
             creator: self.creator.clone(),
             tags: self.tags.clone(),
             template: self.declared.clone(),
             agents,
+            active,
+            last_active: self.last_active,
+            deployed: run.is_some(),
+            last_deployed: self.last_deployed,
             run,
+            permissions: self.permissions.clone(),
         }
     }
 }

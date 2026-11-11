@@ -6,12 +6,12 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`containers`] | run an agent or a tool server in a container; serve a subtree of a container live |
-//! | [`images`] | ask whether an image can be supplied; list the images the caller built, and keep the listing; examine one; build one; destroy one; pull what the provider holds for the caller |
+//! | [`containers`] | run an agent or a tool server in a container; serve a subtree of a container live; read an image's DIVERGE.md without running it |
+//! | [`images`] | list the images in the caller's Store, and keep the listing; examine one; build one; push one without building it; change one's description; destroy one; ask whether one image can be supplied, and pull its manifests, its blobs and its proof |
 //! | [`volumes`] | list what a provider offers, and keep the listing; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
-//! | [`daemons`] | accept connections from other daemons; connect to another daemon |
+//! | [`daemons`] | accept connections from other daemons; connect to another daemon; list the connected identities that are announced, and keep the listing; listen for the messages sent to the caller, and keep listening; send one message to one identity; announce the caller to the listing, and keep it there |
 //! | [`info`] | ask what a provider is: its version, and what it does |
-//! | [`capacity`] | ask how much the caller may still use: room for a volume, room in the image store, memory and disk a run could reserve |
+//! | [`capacity`] | ask how much the caller may still use: room for a volume, room in the Store, memory and disk a run could reserve |
 //!
 //! # The tags
 //!
@@ -25,43 +25,54 @@
 //! | `0` | [`containers::agents::run`] |
 //! | `1` | [`containers::tools::run`] |
 //! | `2` | [`containers::fuse_serve`] |
-//! | `3` | [`volumes::list`] |
-//! | `4` | [`volumes::stat`] |
-//! | `5` | [`volumes::read`] |
-//! | `6` | [`volumes::write`] |
-//! | `7` | [`volumes::filetree`] |
-//! | `8` | [`volumes::fuse_serve`] |
-//! | `9` | [`volumes::create_capacity`] |
-//! | `10` | [`volumes::create`] |
-//! | `11` | [`volumes::edit_capacity`] |
-//! | `12` | [`volumes::edit`] |
-//! | `13` | [`volumes::delete`] |
-//! | `14` | [`images::check`] |
+//! | `3` | [`containers::info`] |
+//! | `4` | [`volumes::list`] |
+//! | `5` | [`volumes::stat`] |
+//! | `6` | [`volumes::read`] |
+//! | `7` | [`volumes::write`] |
+//! | `8` | [`volumes::filetree`] |
+//! | `9` | [`volumes::fuse_serve`] |
+//! | `10` | [`volumes::create_capacity`] |
+//! | `11` | [`volumes::create`] |
+//! | `12` | [`volumes::edit_capacity`] |
+//! | `13` | [`volumes::edit`] |
+//! | `14` | [`volumes::delete`] |
 //! | `15` | [`images::list`] |
 //! | `16` | [`images::stat`] |
 //! | `17` | [`images::build`] |
-//! | `18` | [`images::delete`] |
-//! | `19` | [`images::oci`] |
-//! | `20` | [`info`] |
-//! | `21` | [`capacity`] |
-//! | `22` | [`daemons::accept`] |
-//! | `23` | [`daemons::connect`] |
+//! | `18` | [`images::push`] |
+//! | `19` | [`images::edit`] |
+//! | `20` | [`images::delete`] |
+//! | `21` | [`images::oci`] |
+//! | `22` | [`info`] |
+//! | `23` | [`capacity`] |
+//! | `24` | [`daemons::accept`] |
+//! | `25` | [`daemons::connect`] |
+//! | `26` | [`daemons::list`] |
+//! | `27` | [`daemons::listen`] |
+//! | `28` | [`daemons::message`] |
+//! | `29` | [`daemons::announce`] |
 //!
-//! Twenty-four, grouped by endpoint and ordered within it. The three
-//! container scopes lead: the agents' run, the tools' run, and the
-//! serve that answers a running container's files live. The eleven volume
+//! Thirty, grouped by endpoint and ordered within it. The four
+//! container scopes lead: the agents' run, the tools' run, the serve
+//! that answers a running container's files live, and the info that
+//! reads an image's DIVERGE.md without running it. The eleven volume
 //! scopes follow in the
 //! order a caller uses them: find one, examine it, read a file out of
 //! it, write one in, see its tree, serve its files live, ask how large
 //! one may be made, make one, ask how far one may grow, resize it,
 //! destroy it.
-//! Then the six of [`images`]: the check, which asks rather than
-//! does; the caller's own store — list, examine, build, destroy; and
-//! the pull of what the provider holds.
+//! Then the seven of [`images`]: the caller's Store — list, examine,
+//! build, push, edit, destroy; and the oci scope of one image, which
+//! asks whether the provider can supply it and, where it can, serves
+//! its manifests, its blobs and its proof.
 //! Then [`info`], which asks what a provider is, and [`capacity`],
-//! which asks what is left of it. Last, the two of [`daemons`], added
-//! after: a daemon accepting connections from other daemons, and a
-//! daemon connecting to one.
+//! which asks what is left of it. Last, the six of [`daemons`]: a
+//! daemon accepting connections from other daemons, a daemon
+//! connecting to one, the listing of which of the provider's connected
+//! identities are announced, a listen for the messages sent to the
+//! caller, a message to one identity, and the announce that puts the
+//! caller in that listing.
 //!
 //! Nothing derives meaning from adjacency, which [`info`] is the
 //! proof of — it is the one a client asks FIRST and it sits near the
@@ -70,10 +81,11 @@
 //! the table, and a new scope takes the value where it belongs
 //! conceptually, the scopes after it moving up one, and a scope
 //! removed takes its value with it, the scopes after it moving down —
-//! which is how the container FUSE serve sits at `2` and the volumes
-//! at `3` through `13`, the images at `14` through `19`, and
-//! [`capacity`] at `21` beside [`info`], the daemons having moved up
-//! to `22` and `23`.
+//! which is how the container FUSE serve sits at `2`, the container
+//! info at `3`, the volumes at `4` through `14`, the images at `15`
+//! through `21` — the has and the hash that once stood among them
+//! having gone into the oci scope — and [`capacity`] at `23` beside
+//! [`info`], the daemons at `24` through `29`.
 //!
 //! This table is the whole allocation. Each request states its own
 //! value and points here, because a value chosen in one module has to
@@ -94,6 +106,32 @@
 //! once in [`shared::containers`](crate::shared::containers). A
 //! [`containers::fuse_serve`] reaches into either family's container the
 //! same way, and carries the volume FUSE serve's own asks.
+//!
+//! # One open at a time
+//!
+//! Seven scopes are held at most one of each per connection: the
+//! whole-connection views [`volumes::list`], [`images::list`],
+//! [`daemons::list`] and [`daemons::accept`], the two messaging
+//! scopes, [`daemons::listen`] and [`daemons::message`], and
+//! [`daemons::announce`]. The rules:
+//!
+//! 1. **One at a time.** On one connection, at most one scope of each
+//!    of the seven is open at a time.
+//! 2. **Refused, not queued.** A request opening a second while the
+//!    first is open is answered with exactly one response, the
+//!    endpoint's `AlreadyOpen`, and the finish follows it. Nothing else
+//!    is done for it: nothing is listed, nothing is accepted, nothing
+//!    is sent, and nothing is announced.
+//! 3. **Open until its finish.** A scope counts as open from the
+//!    server reading its request until the server sends its finish.
+//! 4. **Free before the finish.** The server lets the scope go before
+//!    it sends the finish, so a client that reads the finish and opens
+//!    another at once is never refused.
+//! 5. **Per endpoint, per connection.** The seven are independent of
+//!    one another, and of every other connection. [`daemons::accept`]
+//!    and [`daemons::listen`] are also one per identity: an accept or
+//!    a listen under an identity that holds one on another connection
+//!    is `AlreadyOpen` as well.
 
 mod client_request;
 

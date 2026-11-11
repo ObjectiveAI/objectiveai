@@ -31,6 +31,8 @@ pub enum Error {
     },
     /// No daemon of the document has the name.
     NoDaemon(String),
+    /// No account was named, and the daemon has no default.
+    NoDefaultAccount(String),
     /// No account of the daemon has the name.
     NoAccount {
         /// The daemon.
@@ -51,6 +53,9 @@ impl fmt::Display for Error {
                 write!(f, "`{}` could not be read: {source}", path.display())
             }
             Error::NoDaemon(name) => write!(f, "no daemon is named `{name}`"),
+            Error::NoDefaultAccount(daemon) => {
+                write!(f, "no account was named, and the daemon `{daemon}` has no default")
+            }
             Error::NoAccount { daemon, account } => {
                 write!(f, "the daemon `{daemon}` has no account named `{account}`")
             }
@@ -61,7 +66,7 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Home | Error::NoDaemon(_) | Error::NoAccount { .. } => None,
+            Error::Home | Error::NoDaemon(_) | Error::NoDefaultAccount(_) | Error::NoAccount { .. } => None,
             Error::Io { source, .. } => Some(source),
             Error::Parse { source, .. } => Some(source),
         }

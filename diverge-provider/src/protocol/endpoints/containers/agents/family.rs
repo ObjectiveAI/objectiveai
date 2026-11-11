@@ -30,6 +30,7 @@ use diverge_sdk::shared::containers::response::{
     Id, VolumeFuseServed, VolumeHeld, VolumeMode, VolumeMountUnsupported, VolumeMounted,
 };
 use diverge_sdk::shared::containers::secrets::{Declaration, Values};
+use diverge_sdk::shared::permission::Grant;
 use diverge_sdk::shared::containers::{dependencies, fuse, oci, postgres, registration};
 use diverge_sdk::shared::mcp;
 use diverge_sdk::shared::error::Error;
@@ -44,7 +45,7 @@ impl Family for Agents {
 
     fn classify(request: channel_request::Frame) -> Opened<Self::Exchange> {
         match request {
-            channel_request::Frame::Stop => Opened::Stop,
+            channel_request::Frame::Cancel => Opened::Cancel,
             channel_request::Frame::Filetree => Opened::Filetree,
             channel_request::Frame::Read(request) => Opened::Read(request.path),
             channel_request::Frame::Write(request) => Opened::Write {
@@ -60,8 +61,14 @@ impl Family for Agents {
             channel_request::Frame::Info => Opened::Info,
             channel_request::Frame::Secrets(values) => Opened::Secrets(values),
             channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
-            channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.key, request.content)),
-            channel_request::Frame::Dequeue(request) => Opened::Exchange(agent::Exchange::Dequeue(request.key)),
+            channel_request::Frame::Exec(request) => Opened::Exec(request),
+            channel_request::Frame::TerminalOpen(size) => Opened::TerminalOpen(size),
+            channel_request::Frame::TerminalAttach(id) => Opened::TerminalAttach(id.id),
+            channel_request::Frame::TerminalStdin { id, bytes } => Opened::TerminalStdin(id, bytes),
+            channel_request::Frame::TerminalResize(resize) => Opened::TerminalResize(resize.id, diverge_sdk::shared::containers::terminal::open::Open { cols: resize.cols, rows: resize.rows }),
+            channel_request::Frame::TerminalClose(id) => Opened::TerminalClose(id.id),
+            channel_request::Frame::Frontend(request) => Opened::Frontend(request),
+            channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.messages)),
         }
     }
 
@@ -136,6 +143,7 @@ impl Runs for Agents {
                     activity: None,
                     dependencies: registered.dependencies,
                     secrets: registered.secrets,
+                    permissions: Vec::new(),
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -148,14 +156,16 @@ impl Runs for Agents {
     }
 
     /// What the agent declared — the dependencies to deploy, the
-    /// secrets to answer — registered with the caller on this family's
-    /// `registration` channel: nothing when it declared neither.
-    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
-        let payload = (!dependencies.is_empty() || !secrets.is_empty()).then(|| {
+    /// secrets to answer, never any permission — registered with the
+    /// caller on this family's `registration` channel: nothing when it
+    /// declared neither.
+    fn register(scope: &ScopeHandle, id: &str, dependencies: &[dependencies::Template], secrets: &Declaration, permissions: &[Grant]) -> impl Future<Output = Result<Option<Values>, Error>> + Send {
+        let payload = (!dependencies.is_empty() || !secrets.is_empty() || !permissions.is_empty()).then(|| {
             encoded(&ask::Frame::Registration(registration::request::Request {
                 id: Cow::Borrowed(id),
                 dependencies: Cow::Borrowed(dependencies),
                 secrets: Cow::Borrowed(secrets),
+                permissions: Cow::Borrowed(permissions),
             }))
         });
         async move {
@@ -193,6 +203,14 @@ impl Runs for Agents {
 
     fn volume_mode(refused: &VolumeMode) -> Option<Vec<u8>> {
         encoded(&response::Frame::VolumeMode(refused.clone()))
+    }
+
+    fn unsupported() -> Option<Vec<u8>> {
+        encoded(&response::Frame::Unsupported)
+    }
+
+    fn proof_failed() -> Option<Vec<u8>> {
+        encoded(&response::Frame::ProofFailed)
     }
 }
 
@@ -249,9 +267,10 @@ impl<'a> TryFrom<Own<'a>> for ask::Frame<'a> {
             Own::OciBlob(digest) => ask::Frame::OciBlob(oci::blob::request::Request {
                 digest: digest.to_string(),
             }),
-            Own::OciHas(digest) => ask::Frame::OciHas(oci::has::request::Request {
-                digest: digest.to_string(),
+            Own::OciHas(image) => ask::Frame::OciHas(oci::has::request::Request {
+                image: image.clone(),
             }),
+            Own::OciProve(request) => ask::Frame::OciProve(request.clone()),
             Own::Daemon(_) => return Err(Unasked),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
         })

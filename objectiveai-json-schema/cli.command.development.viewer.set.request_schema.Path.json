@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.development.viewer.set.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "development/viewer/set/request_schema"
-  ]
-}

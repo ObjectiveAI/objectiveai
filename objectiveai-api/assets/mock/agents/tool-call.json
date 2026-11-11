@@ -1,5 +1,0 @@
-{
-  "description": "Responds via tool/function calling.",
-  "upstream": "mock",
-  "output_mode": "tool_call"
-}

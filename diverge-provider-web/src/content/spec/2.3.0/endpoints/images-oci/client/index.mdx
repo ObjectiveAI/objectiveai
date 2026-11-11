@@ -1,6 +1,6 @@
 ---
 title: 'Client Channels'
-summary: 'The four channels the client opens on a pull scope, by tag: the three asks of a run scope with the client and the server exchanged, and the disconnect that ends the scope.'
+summary: 'The four channels the client opens on an images::oci scope, by tag: the manifest and blob asks of a run scope with the client and the server exchanged, the proof of Possession over the scope’s image, and the cancel that ends the scope.'
 order: 3
 draft: false
 ---
@@ -8,12 +8,14 @@ draft: false
 The client opens each of these channels on the scope, as
 [Channels](/frames/channels/) provides. The payload of the channel
 request begins with one tag byte designating the channel; the
-remainder is the channel's request. Tags `0`, `1` and `2` are, byte
-for byte, the asks of tags `0`, `1` and `2` the server makes of a
-client on a [containers::agents::run](/endpoints/containers-agents-run/server/)
+remainder is the channel's request. Tags `0` and `1` are, byte for
+byte, the asks of tags `0` and `1` the server makes of a client on a
+[containers::agents::run](/endpoints/containers-agents-run/server/)
 or [containers::tools::run](/endpoints/containers-tools-run/server/)
 scope — the same tags, the same request bodies, the same answers —
-with the client asking and the server answering. The server answers
+with the client asking and the server answering. Tag `2` carries,
+byte for byte, the `prove` ask that [Possession](/shared/possession/#the-ask)
+defines, with the client asking and the server answering. The server answers
 each on its channel as its section states, and answers a channel
 request that does not decode by a channel response finish that no
 channel response precedes.
@@ -22,8 +24,8 @@ channel response precedes.
 |-----|---------|
 | `0` | [oci-manifest](/endpoints/images-oci/client/oci-manifest/) |
 | `1` | [oci-blob](/endpoints/images-oci/client/oci-blob/) |
-| `2` | [oci-has](/endpoints/images-oci/client/oci-has/) |
-| `3` | [disconnect](/endpoints/images-oci/client/disconnect/) |
+| `2` | [oci-prove](/endpoints/images-oci/client/oci-prove/) |
+| `3` | [cancel](/endpoints/images-oci/client/cancel/) |
 
 The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/images/oci/client/channel_request/frame.rs`:
 

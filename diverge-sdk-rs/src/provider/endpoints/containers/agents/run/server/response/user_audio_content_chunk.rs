@@ -25,7 +25,7 @@ pub struct UserAudioContentChunk {
     pub r#type: UserAudioContentChunkType,
     /// The message's key, as its enqueue gave it: what tells one
     /// message's parts from another's when several are in flight, and
-    /// what a dequeue names to withdraw the message.
+    /// what credits each to its sender.
     pub key: String,
     /// The block itself.
     #[serde(flatten)]
