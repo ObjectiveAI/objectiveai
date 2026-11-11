@@ -139,7 +139,7 @@ ISS="http://127.0.0.1:14981"
 WORK="$HOME/diverge-setup"; mkdir -p "$WORK"
 export PATH="$A/bin:$PATH"
 # Windows only: podman's per-user install is not on Git Bash's PATH.
-export PATH="$(cygpath "$LOCALAPPDATA")/Programs/Podman:$PATH"
+command -v cygpath >/dev/null && export PATH="$(cygpath "$LOCALAPPDATA")/Programs/Podman:$PATH"
 PY=python            # python3 on Linux/macOS
 ```
 
@@ -652,7 +652,7 @@ diverge run standalone-tools create "{\"template\":\"$TPL_MEM\",\"name\":\"noteb
 diverge run connected-standalone-tools create "{\"daemon\":\"$ID_B\",\"tool\":{\"name\":\"notebook\"},\"name\":\"b-notebook\"}"
 diverge run connected-standalone-tools attach-agent-instance '{"tool":{"name":"b-notebook"},"agent":{"name":"echo"}}'
 diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","text":"tools"}]}'
-diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","text":"call remember {\"text\":\"hi from A\"}"}]}'
+diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","text":"call b-notebook_remember {\"text\":\"hi from A\"}"}]}'
 diverge run logs '{"of":{"type":"agent","name":"echo"}}'
 diverge run logs '{"of":{"type":"connected_standalone_tool","name":"b-notebook"}}'
 ```
@@ -660,8 +660,13 @@ diverge run logs '{"of":{"type":"connected_standalone_tool","name":"b-notebook"}
 What to expect:
 
 - The `tools` reply lists the tool names exactly as the agent sees them. Use those names in `call`. The memory
-  tool's tools are `remember`, `recall` and `forget`.
-- The second log is every call A routed into B's tool.
+  tool's tools are `remember`, `recall` and `forget`, and the agent sees each under the name the tool is held by
+  on A: `b-notebook_remember`, `b-notebook_recall`, `b-notebook_forget`
+  (`diverge-daemon/src/containers/mcp/prefix.rs`).
+- The agent's log ends `tool said: {"id":1}`.
+- The second log is every call A routed into B's tool. On B, the log of
+  `{"of":{"type":"standalone_tool","name":"notebook"}}` shows the same calls arriving, their caller the client
+  `daemon-a`.
 
 **In world A:**
 
