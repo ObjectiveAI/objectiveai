@@ -71,8 +71,19 @@ pub async fn ensure(bin: &Path) -> Result<Binaries, Error> {
 /// `bin/<version>/` for the version baked in: `postgresql_embedded`
 /// appends the exact version to the installation directory it is
 /// given, and this reads it back from the settings it built.
+///
+/// The `PostgreSQL` those settings are read from is dropped here, and
+/// its drop acts on the cluster its settings name: a postmaster whose
+/// `postmaster.pid` is in the data directory is stopped, and the data
+/// directory and the password file of a cluster marked temporary are
+/// removed. So the cluster named is one under `bin` — `bin/data`,
+/// which nothing ever makes — and it is not marked temporary: named
+/// by a relative path it would be the working directory's own `data`
+/// and `password`, stopped and removed at every start.
 fn installed_home(bin: &Path) -> PathBuf {
-    PostgreSQL::new(scratch_settings(bin, Path::new(""))).settings().installation_dir.clone()
+    let mut settings = scratch_settings(bin, bin);
+    settings.temporary = false;
+    PostgreSQL::new(settings).settings().installation_dir.clone()
 }
 
 /// Settings for an extraction into `bin` with a throwaway cluster in
@@ -80,11 +91,17 @@ fn installed_home(bin: &Path) -> PathBuf {
 ///
 /// `Settings::new` is the one way to learn the baked-in version, and
 /// it makes two temporary directories of its own as it goes; both are
-/// removed here, since the scratch directory replaces them.
+/// removed here, since the scratch directory replaces them. Only
+/// where they are under the system's temporary directory: when it can
+/// make none there, `Settings::new` names the working directory
+/// instead, and nothing of the working directory's is removed.
 fn scratch_settings(bin: &Path, scratch: &Path) -> Settings {
     let mut settings = Settings::new();
-    let _ = std::fs::remove_dir(&settings.data_dir);
-    if let Some(made) = settings.password_file.parent() {
+    let temporary = std::env::temp_dir();
+    if settings.data_dir.starts_with(&temporary) {
+        let _ = std::fs::remove_dir(&settings.data_dir);
+    }
+    if let Some(made) = settings.password_file.parent() && made.starts_with(&temporary) {
         let _ = std::fs::remove_dir(made);
     }
     settings.installation_dir = bin.to_path_buf();
