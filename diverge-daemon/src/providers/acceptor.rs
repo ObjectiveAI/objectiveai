@@ -13,7 +13,7 @@ use futures_util::{Stream, stream};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
 use crate::daemon::Daemon;
-use crate::judge::{Admitted, Expected};
+use crate::judge::{Admitted, Expected, Hold};
 use crate::serve;
 
 /// The daemon's half of one relayed connection: its server frames,
@@ -21,25 +21,38 @@ use crate::serve;
 pub type AcceptedFrames = Pin<Box<dyn Stream<Item = server::Owned> + Send>>;
 
 /// What takes the connections a provider announces on the daemon's
-/// accept scope. The rules:
+/// accept scope: every one, at once, and served on a task of its own.
+/// The rules:
 ///
-/// 1. **The handshake.** The relayed connection is carried in-process
-///    as a [`Connection::Local`](Wire::Local) and opened by the
-///    [`handshake`](diverge_sdk::wire::handshake) as the connectee:
-///    the connector's token, its first frame, is verified against the
-///    address the provider saw, and the daemon's own token — its one
-///    identity's — is the first frame the daemon sends.
-/// 2. **Admission.** The connector must be an account of this
+/// 1. **Taken at once.** The connection is answered with the stream
+///    the task feeds before a frame of the connector's is read, since
+///    the provider relays nothing until this end's half is open, and
+///    the half opens only once the connection is answered: a
+///    handshake waited for here would wait on the half that waits on
+///    it. So nothing is judged here, and nothing declined.
+/// 2. **The handshake.** On the task, the relayed connection is
+///    carried in-process as a [`Connection::Local`](Wire::Local) and
+///    opened by the [`handshake`](diverge_sdk::wire::handshake) as
+///    the connectee: the connector's token, its first frame, is
+///    verified against the address the provider saw, and the daemon's
+///    own token — its one identity's — is the first frame the daemon
+///    sends.
+/// 3. **Admission.** The connector must be an account of this
 ///    daemon's — another daemon reaches this one through the accounts
 ///    system, and through no list — that no other daemon connector
 ///    holds; the connection then holds the account until it ends — see
-///    [`DaemonAuthenticator`](crate::judge::DaemonAuthenticator). A
-///    client socket connected as the same account neither counts nor
-///    blocks.
-/// 3. **The session.** An admitted connector is served, in-process, by
-///    the same session a socket gets, as that account.
-///
-/// A connection declined is the half finished with nothing on it.
+///    [`DaemonAuthenticator`](crate::judge::DaemonAuthenticator) —
+///    as a [`Hold`], so that it is given back however the task ends.
+///    A client socket connected as the same account neither counts
+///    nor blocks.
+/// 4. **The session.** An admitted connector is served, in-process, by
+///    the same session a socket gets, as that account, and the
+///    account is let go when the session ends.
+/// 5. **A refusal is the stream ending.** A connector whose handshake
+///    fails is one the stream ends on with nothing sent; one whose
+///    account went between the handshake and its admission, one it
+///    ends on after the daemon's token. Either way the connection it
+///    was told is open hangs up, and no frame says why.
 pub struct DaemonAcceptor {
     /// The daemon.
     pub daemon: Arc<Daemon>,
@@ -58,18 +71,25 @@ impl Acceptor for DaemonAcceptor {
                 }
             }
         });
-        let Handshook { connection: wire, peer, .. } =
-            handshake::accept(Wire::Local { incoming, outgoing }, &self.daemon.authenticator.expecting(Expected::Relayed), connection.address).await.ok()?;
-        let Ok(Some(Admitted::Client(who))) = self.daemon.authenticator.account(&peer).await else {
-            // The account went between the handshake and here.
-            self.daemon.authenticator.release(Expected::Relayed, &peer).await;
-            return None;
-        };
-        let daemon = Arc::clone(&self.daemon);
+        let (daemon, address) = (Arc::clone(&self.daemon), connection.address);
         tokio::spawn(async move {
+            // Rule 2. A handshake that fails drops the connection, and
+            // the stream's sender with it: rule 5.
+            let Ok(Handshook { connection: wire, peer, .. }) = handshake::accept(Wire::Local { incoming, outgoing }, &daemon.authenticator.expecting(Expected::Relayed), address).await else {
+                return;
+            };
+            // Rule 3.
+            let hold = Hold::new(&daemon.authenticator, Expected::Relayed, peer.clone());
+            let Ok(Some(Admitted::Client(who))) = daemon.authenticator.account(&peer).await else {
+                // The account went between the handshake and here.
+                hold.release().await;
+                return;
+            };
+            // Rule 4.
             serve::client(wire, who, Arc::clone(&daemon)).await;
-            daemon.authenticator.release(Expected::Relayed, &peer).await;
+            hold.release().await;
         });
+        // Rule 1.
         Some(Box::pin(stream::unfold(from_session, |mut from_session| async move {
             loop {
                 let bytes = from_session.recv().await?;
