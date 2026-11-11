@@ -1,4 +1,4 @@
-// A daemon followed — ours, or one along a route: the eleven lists the
+// A daemon followed â€” ours, or one along a route: the eleven lists the
 // world is drawn from, kept open for as long as the board is up, and
 // the names of the agents' and tools' images as each is first seen.
 
@@ -55,7 +55,7 @@ const e = daemon.endpoints;
  *    one rebuild.
  * 6. `event` is told every change of the events list after the world
  *    that holds it was handed on, so a pulse finds its pair drawn.
- * 7. Every request — each list, each image asked — is served along
+ * 7. Every request â€” each list, each image asked â€” is served along
  *    `route` (`relayed`): by our own daemon for `[]`, its frames carrying
  *    no `relay`; else by the daemon at the route's end, through each
  *    before it.
