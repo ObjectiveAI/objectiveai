@@ -6,7 +6,7 @@ use std::time::Duration;
 use diverge_sdk::file_lock;
 use postgresql_embedded::{PostgreSQL, Settings};
 
-use super::{Binaries, Error, discard, links};
+use super::{Binaries, Error, discard, linked, links};
 
 /// The file in `bin/<version>/` that says the extraction finished.
 const COMPLETE: &str = "complete";
@@ -22,15 +22,21 @@ const ATTEMPTS: u32 = 3;
 
 /// The binaries in `bin`, extracted now if they were not already.
 ///
-/// `bin/<version>/complete` present is the fast path, and nothing is
-/// locked. Otherwise `bin/locks/install.lock` is taken, waiting for
-/// any other start that holds it, the marker is looked for again —
-/// the other start may have finished the work — and if it is still
-/// absent whatever is at `bin/<version>/` is thrown away and the
-/// archive extracted there, its hard links with it — see [`links`] —
-/// proven by a throwaway `initdb` into a scratch directory that is
-/// deleted afterwards, and the marker written. The lock is let go
-/// when this returns.
+/// `bin/<version>/complete` present, in an extraction that is
+/// [`linked`], is the fast path, and nothing is locked. Otherwise
+/// `bin/locks/install.lock` is taken, waiting for any other start
+/// that holds it, the two are looked for again — the other start may
+/// have finished the work — and if the marker is still absent, or
+/// the extraction it is in is not linked, whatever is at
+/// `bin/<version>/` is thrown away and the archive extracted there,
+/// its hard links with it — see [`links`] — proven by a throwaway
+/// `initdb` into a scratch directory that is deleted afterwards, and
+/// the marker written. The lock is let go when this returns.
+///
+/// A marker in an extraction that is not linked is one written
+/// before the links were made: it is not believed, and the archive
+/// is extracted again, once. What is extracted and is not linked all
+/// the same is [`Error::Links`], at once and outside the attempts.
 pub async fn ensure(bin: &Path) -> Result<Binaries, Error> {
     let locks = bin.join("locks");
     tokio::fs::create_dir_all(&locks).await.map_err(|source| Error::Io {
@@ -39,11 +45,11 @@ pub async fn ensure(bin: &Path) -> Result<Binaries, Error> {
     })?;
     let home = installed_home(bin);
     let marker = home.join(COMPLETE);
-    if tokio::fs::try_exists(&marker).await.unwrap_or(false) {
+    if tokio::fs::try_exists(&marker).await.unwrap_or(false) && linked(&home).await {
         return Ok(Binaries::new(home));
     }
     let _turn = file_lock::wait_exclusive(locks.join("install.lock")).await.map_err(Error::Lock)?;
-    if tokio::fs::try_exists(&marker).await.unwrap_or(false) {
+    if tokio::fs::try_exists(&marker).await.unwrap_or(false) && linked(&home).await {
         return Ok(Binaries::new(home));
     }
     links().map_err(|error| Error::Extract(error.into()))?;
@@ -62,6 +68,9 @@ pub async fn ensure(bin: &Path) -> Result<Binaries, Error> {
             }
             Err(error) => return Err(error),
         }
+    }
+    if !linked(&home).await {
+        return Err(Error::Links(home));
     }
     tokio::fs::write(&marker, b"").await.map_err(|source| Error::Io {
         path: marker,
